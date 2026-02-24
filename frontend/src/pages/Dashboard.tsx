@@ -1,4 +1,13 @@
+import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { api } from "../lib/api"
+import { useAuth } from "../hooks/useAuth"
+import { StatusBadge } from "../components/ui/StatusBadge"
+import { getTxStatus } from "../components/ui/txStatus"
+import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
+import { ErrorToast } from "../components/ui/ErrorToast"
+import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
+import { ExecutionState } from "../gen/memba/v1/memba_pb"
 
 interface LayoutContext {
     adena: {
@@ -12,6 +21,44 @@ interface LayoutContext {
 export function Dashboard() {
     const navigate = useNavigate()
     const { adena, balance } = useOutletContext<LayoutContext>()
+    const { token } = useAuth()
+
+    const [multisigs, setMultisigs] = useState<Multisig[]>([])
+    const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
+    const [recentTxs, setRecentTxs] = useState<Transaction[]>([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const fetchData = useCallback(async () => {
+        if (!token || !adena.connected) return
+        setLoading(true)
+        setError(null)
+        try {
+            const [msRes, pendRes, recentRes] = await Promise.all([
+                api.multisigs({ authToken: token, limit: 50 }),
+                api.transactions({ authToken: token, executionState: ExecutionState.PENDING, limit: 10 }),
+                api.transactions({ authToken: token, limit: 10 }),
+            ])
+            setMultisigs(msRes.multisigs)
+            setPendingTxs(pendRes.transactions)
+            setRecentTxs(recentRes.transactions)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load data")
+        } finally {
+            setLoading(false)
+        }
+    }, [token, adena.connected])
+
+    useEffect(() => { fetchData() }, [fetchData])
+
+    const truncateAddr = (addr: string) =>
+        addr.length > 16 ? `${addr.slice(0, 8)}…${addr.slice(-6)}` : addr
+
+    const formatDate = (dateStr: string) => {
+        try {
+            return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+        } catch { return dateStr }
+    }
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -24,10 +71,20 @@ export function Dashboard() {
             </div>
 
             {/* ── Stat cards ─────────────────────────────────────────── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-                <StatCard label="Multisigs" value={adena.connected ? "0" : "—"} />
-                <StatCard label="Pending TX" value={adena.connected ? "0" : "—"} accent />
-                <StatCard label="Balance" value={adena.connected ? balance : "— GNOT"} />
+            <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+                {loading ? (
+                    <>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </>
+                ) : (
+                    <>
+                        <StatCard label="Multisigs" value={adena.connected ? String(multisigs.length) : "—"} />
+                        <StatCard label="Pending TX" value={adena.connected ? String(pendingTxs.length) : "—"} accent />
+                        <StatCard label="Balance" value={adena.connected ? balance : "— GNOT"} />
+                    </>
+                )}
             </div>
 
             {/* ── Empty state / Quick actions ────────────────────────── */}
@@ -41,7 +98,7 @@ export function Dashboard() {
                         Connect Adena to create or import multisig wallets
                     </p>
                 </div>
-            ) : (
+            ) : multisigs.length === 0 && !loading ? (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                         <span style={{ fontSize: 24 }}>🏛</span>
@@ -50,7 +107,7 @@ export function Dashboard() {
                     <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto 20px", fontFamily: "JetBrains Mono, monospace" }}>
                         Create a new multisig wallet or import an existing one
                     </p>
-                    <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                    <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                         <button className="k-btn-primary" onClick={() => navigate("/create")}>
                             Create Multisig
                         </button>
@@ -59,44 +116,130 @@ export function Dashboard() {
                         </button>
                     </div>
                 </div>
-            )}
+            ) : null}
 
             {/* ── Pending Transactions ───────────────────────────────── */}
-            <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                    <h3 style={{ fontSize: 16, fontWeight: 500 }}>Pending Transactions</h3>
-                    <span className="k-label" style={{ marginLeft: "auto" }}>0 pending</span>
+            {adena.connected && (
+                <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
+                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Pending Transactions</h3>
+                        <span className="k-label" style={{ marginLeft: "auto" }}>{pendingTxs.length} pending</span>
+                    </div>
+                    {loading ? (
+                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                            <SkeletonRow />
+                            <SkeletonRow />
+                        </div>
+                    ) : pendingTxs.length === 0 ? (
+                        <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
+                            <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
+                                No pending transactions
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                            {pendingTxs.map((tx) => {
+                                const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
+                                return (
+                                    <div
+                                        key={tx.id}
+                                        onClick={() => navigate(`/tx/${tx.id}`)}
+                                        className="k-activity-row"
+                                        style={{
+                                            display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
+                                            padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
+                                            cursor: "pointer", transition: "background 0.15s",
+                                            fontSize: 13, fontFamily: "JetBrains Mono, monospace",
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                    >
+                                        <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
+                                        <span className="k-activity-hide-mobile" style={{ color: "#888" }}>{truncateAddr(tx.multisigAddress)}</span>
+                                        <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
+                                        <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
-                <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
-                    <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                        No pending transactions
-                    </p>
-                </div>
-            </div>
+            )}
 
             {/* ── Recent Activity ────────────────────────────────────── */}
-            <div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Recent Activity</h3>
-                <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
-                    <div style={{
-                        padding: "12px 20px", borderBottom: "1px solid #222",
-                        display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
-                        fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
-                        textTransform: "uppercase", letterSpacing: "0.05em",
-                    }}>
-                        <span>Type</span>
-                        <span>Multisig</span>
-                        <span>Status</span>
-                        <span>Date</span>
-                    </div>
-                    <div style={{ padding: 32, textAlign: "center" }}>
-                        <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                            No activity yet
-                        </p>
-                    </div>
+            {adena.connected && (
+                <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Recent Activity</h3>
+                    {loading ? (
+                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                            <SkeletonRow />
+                            <SkeletonRow />
+                            <SkeletonRow />
+                        </div>
+                    ) : recentTxs.length === 0 ? (
+                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                            <div className="k-activity-header" style={{
+                                padding: "12px 20px", borderBottom: "1px solid #222",
+                                display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
+                                fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
+                                textTransform: "uppercase", letterSpacing: "0.05em",
+                            }}>
+                                <span>Type</span>
+                                <span>Multisig</span>
+                                <span>Status</span>
+                                <span>Date</span>
+                            </div>
+                            <div style={{ padding: 32, textAlign: "center" }}>
+                                <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
+                                    No activity yet
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                            <div className="k-activity-header" style={{
+                                padding: "12px 20px", borderBottom: "1px solid #222",
+                                display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
+                                fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
+                                textTransform: "uppercase", letterSpacing: "0.05em",
+                            }}>
+                                <span>Type</span>
+                                <span>Multisig</span>
+                                <span>Status</span>
+                                <span>Date</span>
+                            </div>
+                            {recentTxs.map((tx) => {
+                                const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
+                                return (
+                                    <div
+                                        key={tx.id}
+                                        onClick={() => navigate(`/tx/${tx.id}`)}
+                                        className="k-activity-row"
+                                        style={{
+                                            display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
+                                            padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
+                                            cursor: "pointer", transition: "background 0.15s",
+                                            fontSize: 13, fontFamily: "JetBrains Mono, monospace",
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                    >
+                                        <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
+                                        <span style={{ color: "#888" }}>{truncateAddr(tx.multisigAddress)}</span>
+                                        <span>
+                                            <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} hash={tx.finalHash} />
+                                        </span>
+                                        <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
-            </div>
+            )}
+
+            <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )
 }
