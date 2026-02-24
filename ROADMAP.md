@@ -99,7 +99,7 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v0.2.0 — Polish & Essentials
+## v0.2.0 — Polish & Essentials — ✅ SHIPPED 2026-02-24
 
 ### Scope
 
