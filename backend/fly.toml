@@ -1,32 +1,39 @@
-app = "memba-backend"
-primary_region = "cdg"
+# fly.toml app configuration file generated for memba-backend on 2026-02-24T14:11:04+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'memba-backend'
+primary_region = 'cdg'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  PORT = "8080"
-  GNO_RPC_URL = "https://rpc.test11.testnets.gno.land:443"
-  GNO_CHAIN_ID = "test11"
-  DB_PATH = "/data/memba.db"
-  CORS_ORIGINS = "https://memba.samourai.app"
+  CORS_ORIGINS = 'https://memba.samourai.app'
+  DB_PATH = '/data/memba.db'
+  GNO_CHAIN_ID = 'test11'
+  GNO_RPC_URL = 'https://rpc.test11.testnets.gno.land:443'
+  PORT = '8080'
+
+[[mounts]]
+  source = 'memba_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "requests"
-    soft_limit = 200
+    type = 'requests'
     hard_limit = 250
-
-[[mounts]]
-  source = "memba_data"
-  destination = "/data"
+    soft_limit = 200
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
