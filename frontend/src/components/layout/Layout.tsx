@@ -61,10 +61,23 @@ export function Layout() {
                                 </button>
                             </>
                         ) : (
-                            <button className="k-btn-wallet" onClick={adena.connect} disabled={adena.loading}>
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.loading ? "#555" : "#00d4aa" }} />
-                                {adena.loading ? "Connecting..." : "Connect Wallet"}
-                            </button>
+                            adena.isInstalled() ? (
+                                <button className="k-btn-wallet" onClick={adena.connect} disabled={adena.loading}>
+                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.loading ? "#555" : "#00d4aa" }} />
+                                    {adena.loading ? "Connecting..." : "Connect Wallet"}
+                                </button>
+                            ) : (
+                                <a
+                                    href="https://adena.app"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="k-btn-wallet"
+                                    style={{ textDecoration: "none" }}
+                                >
+                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                                    Install Adena
+                                </a>
+                            )
                         )}
                     </div>
                 </div>
