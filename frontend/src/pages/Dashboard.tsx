@@ -26,15 +26,18 @@ export function Dashboard() {
         setLoading(true)
         setError(null)
         try {
+            // P1-A: All-or-nothing — either all succeed or previous state is preserved.
             const [msRes, pendRes, recentRes] = await Promise.all([
                 api.multisigs({ authToken: token, limit: 50 }),
                 api.transactions({ authToken: token, executionState: ExecutionState.PENDING, limit: 10 }),
                 api.transactions({ authToken: token, limit: 10 }),
             ])
+            // Atomic state update — only reached if all three RPCs succeed.
             setMultisigs(msRes.multisigs)
             setPendingTxs(pendRes.transactions)
             setRecentTxs(recentRes.transactions)
         } catch (err) {
+            // On failure, previous state is preserved (no partial updates).
             setError(err instanceof Error ? err.message : "Failed to load data")
         } finally {
             setLoading(false)

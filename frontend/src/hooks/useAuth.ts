@@ -29,6 +29,10 @@ function loadToken(): Token | null {
         const data = JSON.parse(raw);
 
         // F1: Validate expiry before rehydrating.
+        // P2-D: Client-side validation only checks expiry, not server signature.
+        // This is acceptable because the backend re-validates the full token
+        // (including server signature) on every RPC call. A forged token in
+        // localStorage will simply cause 401 errors on the first API call.
         if (data.expiration) {
             const exp = new Date(data.expiration);
             if (exp <= new Date()) {

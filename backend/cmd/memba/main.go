@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -66,6 +65,9 @@ func main() {
 
 	// Create ConnectRPC handler
 	mux := http.NewServeMux()
+
+	// Initialize rate limiter with app context for clean shutdown.
+	limiter = newIPRateLimiter(ctx)
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
 	mux.Handle(path, rateLimiter(handler))
@@ -164,20 +166,26 @@ type ipRateLimiter struct {
 	entries map[string]*ipEntry
 }
 
-func newIPRateLimiter() *ipRateLimiter {
+func newIPRateLimiter(ctx context.Context) *ipRateLimiter {
 	rl := &ipRateLimiter{entries: make(map[string]*ipEntry)}
-	// GC stale entries every minute
+	// GC stale entries every minute, stops on context cancellation.
 	go func() {
+		ticker := time.NewTicker(rateLimitWindow)
+		defer ticker.Stop()
 		for {
-			time.Sleep(rateLimitWindow)
-			rl.mu.Lock()
-			now := time.Now()
-			for ip, e := range rl.entries {
-				if now.After(e.expiry) {
-					delete(rl.entries, ip)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				rl.mu.Lock()
+				now := time.Now()
+				for ip, e := range rl.entries {
+					if now.After(e.expiry) {
+						delete(rl.entries, ip)
+					}
 				}
+				rl.mu.Unlock()
 			}
-			rl.mu.Unlock()
 		}
 	}()
 	return rl
@@ -197,7 +205,8 @@ func (rl *ipRateLimiter) allow(ip string) bool {
 	return e.count <= rateLimitMax
 }
 
-var limiter = newIPRateLimiter()
+// limiter is initialized in main() with a cancellable context.
+var limiter *ipRateLimiter
 
 func rateLimiter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -215,6 +224,3 @@ func rateLimiter(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-// ensure sql.DB is used (will be used by service layer)
-var _ *sql.DB

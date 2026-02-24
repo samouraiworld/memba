@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee } from "../lib/parseMsgs"
 import { useAuth } from "../hooks/useAuth"
@@ -14,8 +14,13 @@ import type { LayoutContext } from "../types/layout"
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const { adena } = useOutletContext<LayoutContext>()
     const { token } = useAuth()
+
+    // P0-A: Scope the fetch using query params (e.g. /tx/5?ms=g1abc&chain=test11)
+    const multisigAddr = searchParams.get("ms") || ""
+    const chainId = searchParams.get("chain") || ""
 
     const [tx, setTx] = useState<Transaction | null>(null)
     const [loading, setLoading] = useState(true)
@@ -27,7 +32,13 @@ export function TransactionView() {
         setError(null)
         try {
             // No dedicated GetTransaction RPC — fetch list and find by ID.
-            const res = await api.transactions({ authToken: token, limit: 100 })
+            // P0-A: Scope to multisig/chain if provided (avoids fetching all TXs).
+            const res = await api.transactions({
+                authToken: token,
+                limit: 100,
+                ...(multisigAddr && { multisigAddress: multisigAddr }),
+                ...(chainId && { chainId }),
+            })
             const found = res.transactions.find((t) => t.id === Number(id))
             if (found) {
                 setTx(found)
@@ -39,7 +50,7 @@ export function TransactionView() {
         } finally {
             setLoading(false)
         }
-    }, [token, id])
+    }, [token, id, multisigAddr, chainId])
 
     useEffect(() => { fetchTx() }, [fetchTx])
 

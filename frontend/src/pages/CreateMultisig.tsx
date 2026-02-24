@@ -19,8 +19,8 @@ export function CreateMultisig() {
     }
 
     const handleCreate = async () => {
-        // TODO: connect to Adena, build multisig pubkey, call CreateOrJoinMultisig
-        alert("Multisig creation requires Adena wallet connection (Branch 3)")
+        // TODO(v0.3.0): Connect to Adena, build multisig pubkey, call CreateOrJoinMultisig
+        console.warn("CreateMultisig: requires Adena wallet integration (v0.3.0)")
     }
 
     return (

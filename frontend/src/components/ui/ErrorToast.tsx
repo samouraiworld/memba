@@ -10,6 +10,7 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
     const [hiding, setHiding] = useState(false)
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const lastMessageRef = useRef<string | null>(null)
 
     const dismiss = useCallback(() => {
         setHiding(true)
@@ -19,9 +20,10 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
         }, 300)
     }, [onDismiss])
 
-    // Auto-dismiss after duration.
+    // Auto-dismiss after duration. P2-C: Skip if same message already being shown.
     useEffect(() => {
-        if (!message) return
+        if (!message || message === lastMessageRef.current) return
+        lastMessageRef.current = message
         autoTimerRef.current = setTimeout(dismiss, duration)
         return () => {
             if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
