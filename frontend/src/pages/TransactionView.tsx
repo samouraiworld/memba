@@ -10,6 +10,8 @@ import { ProgressBar } from "../components/multisig/ProgressBar"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import type { LayoutContext } from "../types/layout"
 
+const GNO_RPC_URL = import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443"
+
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
@@ -24,6 +26,7 @@ export function TransactionView() {
     const [tx, setTx] = useState<Transaction | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [actionLoading, setActionLoading] = useState(false)
 
     const fetchTx = useCallback(async () => {
         if (!token || !id) return
@@ -220,14 +223,94 @@ export function TransactionView() {
             </div>
 
             {/* ── Actions ─────────────────────────────────────── */}
-            {!tx.finalHash && (
+            {!tx.finalHash && auth.isAuthenticated && (
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <button className="k-btn-primary">
-                        Sign Transaction
+                    <button
+                        className="k-btn-primary"
+                        disabled={actionLoading}
+                        onClick={async () => {
+                            if (!token || !tx || actionLoading) return
+                            setActionLoading(true)
+                            setError(null)
+                            try {
+                                // Build Amino sign doc for this TX
+                                const signDoc = JSON.stringify({
+                                    account_number: String(tx.accountNumber),
+                                    chain_id: tx.chainId,
+                                    fee: JSON.parse(tx.feeJson),
+                                    memo: tx.memo || "",
+                                    msgs: JSON.parse(tx.msgsJson),
+                                    sequence: String(tx.sequence),
+                                })
+                                const signDocBytes = new TextEncoder().encode(signDoc)
+
+                                // Sign with Adena
+                                const signature = await adena.signArbitrary(signDoc)
+                                if (!signature) {
+                                    setError("Signature rejected")
+                                    return
+                                }
+
+                                // Submit to backend
+                                await api.signTransaction({
+                                    authToken: token,
+                                    transactionId: tx.id,
+                                    signature,
+                                    bodyBytes: signDocBytes,
+                                })
+
+                                // Refresh TX to update sig count
+                                await fetchTx()
+                            } catch (err) {
+                                setError(err instanceof Error ? err.message : "Failed to sign")
+                            } finally {
+                                setActionLoading(false)
+                            }
+                        }}
+                        style={{ opacity: actionLoading ? 0.5 : 1 }}
+                    >
+                        {actionLoading ? "Signing..." : "Sign Transaction"}
                     </button>
                     {tx.signatures.length >= tx.threshold && (
-                        <button className="k-btn-primary" style={{ background: "#00e6bb" }}>
-                            Broadcast to Chain
+                        <button
+                            className="k-btn-primary"
+                            style={{ background: "#00e6bb", opacity: actionLoading ? 0.5 : 1 }}
+                            disabled={actionLoading}
+                            onClick={async () => {
+                                if (!token || !tx || actionLoading) return
+                                setActionLoading(true)
+                                setError(null)
+                                try {
+                                    // Broadcast to chain via RPC
+                                    const broadcastTx = buildBroadcastTx(tx)
+                                    const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit?tx=0x${broadcastTx}`, {
+                                        method: "GET",
+                                    })
+                                    const json = await res.json()
+
+                                    const hash = json?.result?.hash
+                                    if (!hash) {
+                                        const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed"
+                                        setError(errMsg)
+                                        return
+                                    }
+
+                                    // Record on backend
+                                    await api.completeTransaction({
+                                        authToken: token,
+                                        transactionId: tx.id,
+                                        finalHash: hash,
+                                    })
+
+                                    await fetchTx()
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : "Broadcast failed")
+                                } finally {
+                                    setActionLoading(false)
+                                }
+                            }}
+                        >
+                            {actionLoading ? "Broadcasting..." : "Broadcast to Chain"}
                         </button>
                     )}
                 </div>
@@ -256,3 +339,26 @@ function DetailRow({ label, value }: { label: string; value: string }) {
         </div>
     )
 }
+
+/** Build a hex-encoded Amino broadcast TX from multi-sig data. */
+function buildBroadcastTx(tx: Transaction): string {
+    // Build the signed TX JSON for broadcast
+    const broadcastDoc = {
+        type: "auth/StdTx",
+        value: {
+            msg: JSON.parse(tx.msgsJson),
+            fee: JSON.parse(tx.feeJson),
+            signatures: tx.signatures.map(sig => ({
+                pub_key: null, // multisig handler resolves from pubkey
+                signature: sig.value,
+            })),
+            memo: tx.memo || "",
+        },
+    }
+    const jsonStr = JSON.stringify(broadcastDoc)
+    // Convert to hex for broadcast_tx_commit
+    return Array.from(new TextEncoder().encode(jsonStr))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("")
+}
+
