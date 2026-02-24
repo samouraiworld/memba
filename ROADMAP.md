@@ -51,26 +51,26 @@ Review findings feed into the **next version's RFC** as action items.
 
 ### Remaining (pre-deploy)
 
-- [ ] Merge `feat/mvp-auth` → `main`
-- [ ] Deploy backend to Fly.io + verify health
-- [ ] Deploy frontend to Netlify + verify routes
+- [x] Merge `feat/mvp-auth` → `main` (PR #1)
+- [x] Deploy backend to Fly.io + verify health
+- [x] Deploy frontend to Netlify + verify routes
 - [ ] E2E test with samourai-crew multisig
 
 ### Post-release Review (Round 2 Audit)
 
-18 findings across 3 severity levels — see `walkthrough.md` for full report:
+18 findings — **all P0 and P1 resolved** in v0.1.1:
 
-| Severity | Count | Key Findings |
-|----------|-------|-------------|
-| 🔴 P0 | 4 | Ephemeral keypair, Dockerfile CGO, missing rows.Err(), error leakage |
-| 🟡 P1 | 4 | ABCI URL injection, no rate limiting, challenge replay, input limits |
-| 🟢 P2 | 5 | N+1 queries, context not wired, token persistence, service monolith |
+| Severity | Count | Status |
+|----------|-------|--------|
+| 🔴 P0 | 4 | ✅ Fixed |
+| 🟡 P1 | 7 | ✅ Fixed |
+| 🟢 P2 | 5 | Deferred to v0.2.0 |
 
 ---
 
-## v0.1.1 — Hardening (Audit Fixes)
+## v0.1.1 — Hardening (Audit Fixes) — ✅ SHIPPED 2026-02-24
 
-> Fix all P0 and P1 findings from the Round 2 audit. **Must ship before production traffic.**
+> All P0 and P1 findings from the Round 2 audit resolved and deployed.
 
 ### Scope
 
