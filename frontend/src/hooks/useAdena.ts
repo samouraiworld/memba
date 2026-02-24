@@ -29,7 +29,7 @@ interface AdenaState {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {
-    return (window as Record<string, unknown>).adena;
+    return (window as unknown as Record<string, unknown>).adena;
 }
 
 export function useAdena() {
