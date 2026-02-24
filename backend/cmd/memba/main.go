@@ -56,7 +56,11 @@ func main() {
 	slog.Info("database initialized", "path", dbPath)
 
 	// Create service
-	svc := service.NewMultisigService(database)
+	svc, err := service.NewMultisigService(database)
+	if err != nil {
+		slog.Error("failed to create multisig service", "error", err)
+		os.Exit(1)
+	}
 
 	// Create ConnectRPC handler
 	mux := http.NewServeMux()
