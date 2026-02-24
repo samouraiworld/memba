@@ -163,7 +163,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	if err != nil {
 		return nil, internalError("internal", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Upsert multisig.
 	var existingAddr string
