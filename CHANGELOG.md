@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [0.2.0] — 2026-02-24
+
+### Added
+- **TX history**: Dashboard shows live multisig count, pending TX count, and real balance
+- **Status badges**: 4-state transaction badges (pending → signing → ready → complete)
+- **Error toast**: Auto-dismiss error notifications with Kodera styling
+- **Loading skeletons**: Shimmer cards and table rows during data fetch
+- **Mobile responsive**: 3 breakpoints (768px tablet, 480px mobile, 375px iPhone SE)
+- **Integration tests**: 11 service-level tests with in-memory SQLite harness
+
+### Changed
+- **Service split**: `service.go` (601 LOC) → 4 files: `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go`
+- **N+1 fix**: Batch signature loading in Transactions RPC (1 query instead of N)
+- **Context wiring**: All SQL operations use `ctx` for cancellation/timeout support
+- **Layout**: Version badge updated from MVP to v0.2
+
 ## [0.1.1] — 2026-02-24
 
 ### Security

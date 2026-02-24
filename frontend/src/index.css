@@ -232,3 +232,115 @@ a:hover {
 .k-value-accent {
   color: #00d4aa;
 }
+
+/* ── Skeleton shimmer ──────────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .k-header-content {
+    padding: 0 16px !important;
+  }
+
+  .k-main {
+    padding: 24px 16px !important;
+  }
+
+  .k-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .k-activity-header {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+
+  .k-activity-header span:last-child {
+    display: none;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .k-header-content {
+    height: auto !important;
+    padding: 12px 16px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .k-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .k-stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .k-btn-primary,
+  .k-btn-secondary {
+    width: 100%;
+  }
+
+  .k-activity-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+
+  .k-activity-row .k-activity-hide-mobile {
+    display: none;
+  }
+
+  .k-card {
+    padding: 16px;
+  }
+
+  .k-value {
+    font-size: 18px;
+  }
+}
+
+/* iPhone SE */
+@media (max-width: 375px) {
+  body {
+    font-size: 13px;
+  }
+
+  .k-header-content {
+    padding: 10px 12px !important;
+  }
+
+  .k-main {
+    padding: 16px 12px !important;
+  }
+
+  .k-label {
+    font-size: 10px;
+  }
+
+  .k-value {
+    font-size: 16px;
+  }
+
+  .k-btn-primary,
+  .k-btn-secondary {
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .k-btn-wallet {
+    font-size: 11px;
+    padding: 0 10px;
+    height: 32px;
+  }
+}
