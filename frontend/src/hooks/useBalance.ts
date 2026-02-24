@@ -1,7 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-
-const GNO_RPC_URL =
-    import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443";
+import { GNO_RPC_URL } from "../lib/config";
 
 interface BalanceState {
     balance: string; // human-readable, e.g. "1.5 GNOT"

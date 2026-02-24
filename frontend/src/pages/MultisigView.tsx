@@ -8,9 +8,8 @@ import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
+import { GNO_CHAIN_ID } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
-
-const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
 
 export function MultisigView() {
     const { address } = useParams<{ address: string }>()

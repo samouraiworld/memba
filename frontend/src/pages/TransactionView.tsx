@@ -8,9 +8,8 @@ import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
+import { GNO_RPC_URL } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
-
-const GNO_RPC_URL = import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443"
 
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()

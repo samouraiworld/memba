@@ -1,11 +1,10 @@
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { MultisigService } from "../gen/memba/v1/memba_pb";
-
-const baseUrl = import.meta.env.VITE_API_URL || "";
+import { API_BASE_URL } from "./config";
 
 export const transport = createConnectTransport({
-    baseUrl,
+    baseUrl: API_BASE_URL,
 });
 
 export const api = createClient(MultisigService, transport);

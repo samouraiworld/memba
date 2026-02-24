@@ -2,11 +2,8 @@ import { useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { GNO_CHAIN_ID, GNO_RPC_URL, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
-
-const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
-const GNO_RPC_URL = import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443"
-const GNO_BECH32_PREFIX = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
 
 interface MemberEntry {
     address: string

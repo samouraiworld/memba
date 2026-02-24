@@ -2,9 +2,8 @@ import { useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { GNO_CHAIN_ID } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
-
-const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
 
 export function ImportMultisig() {
     const navigate = useNavigate()

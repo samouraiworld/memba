@@ -2,11 +2,8 @@ import { useState } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { GNO_CHAIN_ID, GNO_RPC_URL, UGNOT_PER_GNOT } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
-
-const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
-const GNO_RPC_URL = import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443"
-const UGNOT_PER_GNOT = 1_000_000
 
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
