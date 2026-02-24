@@ -15,21 +15,21 @@
 └─────────────────────────────────────────┼────────────────────────┘
                                           │ ConnectRPC (HTTPS)
 ┌─────────────────────────────────────────┼────────────────────────┐
-│                        Service Layer    │                        │
+│                       Service Layer     │                        │
 │                                         ▼                        │
 │   ┌──────────────────────────────────────────────────────────┐   │
 │   │              Go Backend (Fly.io)                         │   │
 │   │                                                          │   │
 │   │   ┌──────────┐ ┌──────────────┐ ┌───────────────────┐   │   │
-│   │   │   Auth   │ │  Multisig    │ │   Chain Bridge    │   │   │
-│   │   │ (ed25519 │ │  Coordinator │ │   (Gno RPC)       │   │   │
-│   │   │ challenge│ │  (CRUD, sigs)│ │                   │   │   │
+│   │   │   Auth   │ │  Multisig    │ │  Transactions     │   │   │
+│   │   │ ed25519  │ │  CRUD        │ │  Propose/Sign/    │   │   │
+│   │   │ ADR-036  │ │  3 RPCs      │ │  Complete (4 RPCs)│   │   │
 │   │   └──────────┘ └──────────────┘ └───────────────────┘   │   │
-│   │                        │                    │            │   │
-│   │                  ┌─────▼─────┐        ┌─────▼─────┐     │   │
-│   │                  │  SQLite   │        │ Gno RPC   │     │   │
-│   │                  │  (local)  │        │ (test11)  │     │   │
-│   │                  └───────────┘        └───────────┘     │   │
+│   │                        │                                 │   │
+│   │                  ┌─────▼─────┐                           │   │
+│   │                  │  SQLite   │                           │   │
+│   │                  │  WAL mode │                           │   │
+│   │                  └───────────┘                           │   │
 │   └──────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────┘
                                                     │
@@ -38,9 +38,7 @@
 │                                                   ▼              │
 │   ┌──────────────────────────────────────────────────────────┐   │
 │   │                Gno Chain (test11)                        │   │
-│   │                                                          │   │
-│   │   Account state • TX broadcast • Realm queries           │   │
-│   │   gnodaokit realms (Phase 2)                             │   │
+│   │   ABCI queries • TX broadcast • Bank balances            │   │
 │   └──────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -50,10 +48,32 @@
 | Component | Tech | Responsibility |
 |-----------|------|---------------|
 | **Frontend** | React + Vite + Tailwind v4 | UI, wallet integration, tx assembly |
-| **Backend** | Go + ConnectRPC | Auth, multisig coordination, chain queries |
-| **Database** | SQLite (WAL mode) | Multisig state, pending txs, signatures |
-| **Wallet** | Adena SDK (dApp mode) | Key management, signing |
-| **Chain** | Gno test11 | Account state, tx broadcast |
+| **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
+| **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
+| **Wallet** | Adena (window.adena) | Key management, signing |
+| **Chain** | Gno test11 | Account state, tx broadcast, balance queries |
+
+## Backend Packages
+
+| Package | Files | Responsibility |
+|---------|-------|---------------|
+| `cmd/memba` | `main.go` | Server entry, CORS, graceful shutdown |
+| `internal/auth` | `crypto.go`, `crypto_test.go` | Challenge/token lifecycle, ADR-036, secp256k1 |
+| `internal/service` | `service.go` | 9 ConnectRPC RPC handlers |
+| `internal/db` | `db.go`, `migrations/` | SQLite connection, migration runner |
+| `gen/memba/v1` | Generated | Proto stubs (Go + ConnectRPC) |
+
+## Frontend Structure
+
+| Path | Responsibility |
+|------|---------------|
+| `lib/api.ts` | ConnectRPC transport + client |
+| `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
+| `hooks/useAuth.ts` | Challenge-response token flow |
+| `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
+| `hooks/useMultisig.ts` | Multisig CRUD wrappers |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView |
+| `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
 ## Data Flow — Multisig Transaction
 
@@ -66,8 +86,17 @@
 
 - Backend **never** holds private keys
 - All signing is **client-side** via Adena
-- Auth via **ed25519 challenge-response** tokens
-- CORS restricted to `memba.samourai.app`
-- Rate limiting: 100 req/min per IP
+- Auth via **ed25519 challenge-response** with ADR-036 signature verification
+- Anti-phishing via `ClientMagic` constant
+- CORS restricted to allowed origins
+- Parameterized SQL queries (no injection)
+- Token expiry: 24h, Challenge expiry: 5min
 
-See the full implementation plan for detailed security analysis.
+## Database Schema
+
+4 tables + 1 migration tracker:
+- `multisigs` — chain_id, address, pubkey_json, threshold, members_count
+- `user_multisigs` — user↔multisig membership, join state, role
+- `transactions` — proposed txs with msgs, fees, sequence, final_hash
+- `signatures` — per-user signature on a transaction
+- `_migrations` — schema version tracking

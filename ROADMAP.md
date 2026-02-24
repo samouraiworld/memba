@@ -29,49 +29,73 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v0.1.0 — MVP: Multisig Wallet
+## v0.1.0 — MVP: Multisig Wallet ✅ IMPLEMENTED
 
 > First usable version for samourai-crew 3-of-7 on test11.
 
+### Implementation Status
+
+| Feature | Status | Branch |
+|---------|--------|--------|
+| Auth (ed25519 challenge-response + ADR-036) | ✅ 8/8 tests | `feat/mvp-auth` |
+| Create/Join multisig (pubkey derivation) | ✅ | Branch 2 |
+| Import multisig by address | ✅ | Branch 2 |
+| Adena wallet connect | ✅ | Branch 3 |
+| GNOT balance from test11 RPC | ✅ | Branch 3 |
+| Propose send transaction | ✅ | Branch 4 |
+| Sign transaction | ✅ | Branch 4 |
+| Signature progress bar (K of N) | ✅ | Branch 4 |
+| Broadcast + complete flow | ✅ Backend | Branch 4 |
+| Pending transaction list | ✅ | Branch 4 |
+| Kodera UI design system | ✅ | All branches |
+
+### Remaining (pre-deploy)
+
+- [ ] Merge `feat/mvp-auth` → `main`
+- [ ] Deploy backend to Fly.io + verify health
+- [ ] Deploy frontend to Netlify + verify routes
+- [ ] E2E test with samourai-crew multisig
+
+### Post-release Review (Round 2 Audit)
+
+18 findings across 3 severity levels — see `walkthrough.md` for full report:
+
+| Severity | Count | Key Findings |
+|----------|-------|-------------|
+| 🔴 P0 | 4 | Ephemeral keypair, Dockerfile CGO, missing rows.Err(), error leakage |
+| 🟡 P1 | 4 | ABCI URL injection, no rate limiting, challenge replay, input limits |
+| 🟢 P2 | 5 | N+1 queries, context not wired, token persistence, service monolith |
+
+---
+
+## v0.1.1 — Hardening (Audit Fixes)
+
+> Fix all P0 and P1 findings from the Round 2 audit. **Must ship before production traffic.**
+
 ### Scope
 
-| Feature | Description |
-|---------|------------|
-| Create multisig | Input member addresses, fetch pubkeys, set threshold → derive address |
-| Import multisig | Load existing multisig by address, display members + threshold |
-| Adena connect | dApp wallet connection via browser extension |
-| Balance | GNOT balance from test11 RPC |
-| Propose send | Create unsigned GNOT transfer from multisig |
-| Sign | Individual signing via Adena |
-| Track | Signature progress bar (K of N) |
-| Broadcast | Combine sigs + broadcast to chain |
-| Pending list | List of awaiting-signature transactions |
-| Auth | Challenge-response ed25519 tokens |
-| UI | Kodera design system: dark mode, terminal aesthetic, Inter font, cyan accents |
+| Fix | Audit ID | Severity |
+|-----|----------|----------|
+| Persistent ed25519 keypair from env | S1 | 🔴 P0 |
+| Remove Dockerfile gcc/musl-dev | B1 | 🔴 P0 |
+| Add `rows.Err()` after all iterations | B2 | 🔴 P0 |
+| Wrap internal errors (no DB detail leaks) | S2 | 🔴 P0 |
+| Validate address format in useBalance | S3 | 🟡 P1 |
+| IP-based rate limiter on GetChallenge | S4 | 🟡 P1 |
+| Challenge nonce dedup (in-memory TTL set) | S5 | 🟡 P1 |
+| Input length limits (pubkey, msgs, memo) | S6 | 🟡 P1 |
+| Fix splitOrigins whitespace trim | B3 | 🟡 P1 |
+| Auth token persistence (localStorage) | F1 | 🟡 P1 |
+| Verify Adena SignAmino format | F2 | 🟡 P1 |
 
 ### Acceptance Criteria
 | # | Criterion |
 |---|----------|
-| 1 | Create 2-of-3 multisig → correct derived address, members displayed |
-| 2 | Import `g10kw...` → shows 7 members, threshold=3 |
-| 3 | Adena connect → user identity displayed |
-| 4 | Balance matches Gnoscan |
-| 5 | Propose 1 GNOT send → pending tx visible to all |
-| 6 | 3/7 sign → "Ready to broadcast" |
-| 7 | Broadcast → tx hash confirmed on chain |
-| 8 | Unauthorized request → rejected with 401 |
-| 9 | UI matches Kodera design system: black bg, cyan accents, dashed borders |
-
-### Infrastructure
-- Backend deployed on Fly.io
-- Frontend deployed on Netlify
-- `memba.samourai.app` resolves correctly
-- SQLite database persisted on Fly.io volume
-
-### Post-release Review
-- 🔒 Audit auth flow, signature validation, CORS policy
-- 👤 Test with 1 non-technical teammate (can they sign?)
-- ⚙️ Measure: dashboard TTI, API latency, cold start time
+| 1 | Server restart → existing tokens still valid |
+| 2 | Oversized payload → rejected with INVALID_ARGUMENT |
+| 3 | `CORS_ORIGINS="a, b"` → both origins accepted |
+| 4 | 200+ GetChallenge/s from same IP → rate limited |
+| 5 | Page refresh → user stays authenticated |
 
 ---
 
@@ -81,11 +105,14 @@ Review findings feed into the **next version's RFC** as action items.
 
 | Feature | Description |
 |---------|-------------|
-| TX history | Executed transactions with hash + timestamp |
-| TX details | Human-readable transaction content |
+| TX history | Executed transactions with hash + timestamp + status badges |
+| TX details | Human-readable transaction content (amount, recipient, memo) |
 | Error handling | Graceful errors, retry logic, loading skeletons |
-| Mobile responsive | Functional on mobile browsers |
-| Onboarding | First-time user guide / walkthrough |
+| Mobile responsive | Functional on mobile browsers (375px+) |
+| Service split | `service.go` → `auth_rpc.go` + `multisig_rpc.go` + `tx_rpc.go` |
+| Batch queries | Eliminate N+1 signature loading in Transactions |
+| Context wiring | Pass `ctx` to all SQL operations |
+| Integration tests | In-memory SQLite service tests |
 
 ### Acceptance Criteria
 | # | Criterion |
@@ -93,6 +120,7 @@ Review findings feed into the **next version's RFC** as action items.
 | 1 | Executed tx list shows hash, amount, date |
 | 2 | Error toast on failed broadcast with actionable message |
 | 3 | Dashboard usable on 375px width (iPhone SE) |
+| 4 | `go test ./...` covers service + auth + db packages |
 
 ### Post-release Review
 - 🔒 Input validation for addresses, threshold bounds
