@@ -6,8 +6,6 @@ vendor/
 dist/
 build/
 backend/memba
-backend/gen/
-frontend/src/gen/
 
 # Environment
 .env

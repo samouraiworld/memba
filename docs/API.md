@@ -1,36 +1,69 @@
 # Memba — API Reference
 
-> Auto-generated from `api/memba/v1/memba.proto`.
+> Source: `api/memba/v1/memba.proto` | Protocol: ConnectRPC
 
 ## Service: `MultisigService`
 
-| RPC | Request | Response | Auth |
-|-----|---------|----------|------|
-| `GetChallenge` | `GetChallengeRequest` | `GetChallengeResponse` | No |
-| `GetToken` | `GetTokenRequest` | `GetTokenResponse` | No |
-| `CreateOrJoinMultisig` | `CreateOrJoinMultisigRequest` | `CreateOrJoinMultisigResponse` | Yes |
-| `MultisigInfo` | `MultisigInfoRequest` | `MultisigInfoResponse` | Yes |
-| `Multisigs` | `MultisigsRequest` | `MultisigsResponse` | Yes |
-| `CreateTransaction` | `CreateTransactionRequest` | `CreateTransactionResponse` | Yes |
-| `Transactions` | `TransactionsRequest` | `TransactionsResponse` | Yes |
-| `SignTransaction` | `SignTransactionRequest` | `SignTransactionResponse` | Yes |
-| `CompleteTransaction` | `CompleteTransactionRequest` | `CompleteTransactionResponse` | Yes |
+| RPC | Auth | Description |
+|-----|------|-------------|
+| `GetChallenge` | No | Generate a server-signed ed25519 challenge (5min expiry) |
+| `GetToken` | No | Validate ADR-036 signature + challenge → auth token (24h) |
+| `CreateOrJoinMultisig` | ✅ | Register multisig (pubkey derivation) or join existing |
+| `MultisigInfo` | ✅ | Get multisig details + member list |
+| `Multisigs` | ✅ | List user's multisigs (filter by chain, join state) |
+| `CreateTransaction` | ✅ | Propose a new transaction (membership required) |
+| `Transactions` | ✅ | List transactions (filter by multisig, execution state) |
+| `SignTransaction` | ✅ | Add signature to pending transaction |
+| `CompleteTransaction` | ✅ | Record final tx hash after broadcast |
 
 ## Protocol
 
-- **Transport**: ConnectRPC over HTTPS
+- **Transport**: ConnectRPC (compatible with gRPC-Web)
 - **Serialization**: Protocol Buffers (binary) or JSON
-- **Base URL**: `https://api.memba.samourai.app` (production) / `http://localhost:8080` (dev)
+- **Base URL**: `https://memba-backend.fly.dev` (production) / `http://localhost:8080` (dev)
+- **Health**: `GET /health` → `{"status":"ok","timestamp":"..."}`
 
-## Authentication
+## Authentication Flow
 
-All authenticated endpoints require a `Token` message in the request body.
+```
+Client                          Server
+  │                                │
+  │── GetChallenge() ─────────────►│  Generate nonce + ed25519 sign
+  │◄─ Challenge (nonce, sig) ──────│
+  │                                │
+  │  Build TokenRequestInfo:       │
+  │  - kind: "Login to Memba..."   │
+  │  - challenge: (from above)     │
+  │  - user_pubkey_json            │
+  │  - user_bech32_prefix: "g"     │
+  │                                │
+  │  Sign info_json with Adena     │
+  │  (ADR-036 SignAmino)           │
+  │                                │
+  │── GetToken(info, sig) ────────►│  Validate challenge + ADR-036 sig
+  │◄─ Token (address, expiry) ─────│  → server-signed token (24h)
+  │                                │
+  │── Any RPC(auth_token: Token) ─►│  ValidateToken() on each call
+```
 
-### Flow
+## Key Messages
 
-1. `GetChallenge()` → receive server-signed nonce
-2. Sign `TokenRequestInfo` with your ed25519 key
-3. `GetToken(info_json, signature)` → receive auth token
-4. Pass token in subsequent requests
+| Message | Fields |
+|---------|--------|
+| `Challenge` | nonce (bytes), expiration (RFC3339), server_signature |
+| `Token` | nonce (base64), expiration (RFC3339), user_address, server_signature |
+| `Multisig` | chain_id, address, pubkey_json, threshold, members_count, joined, name |
+| `Transaction` | id, chain_id, multisig_address, msgs_json, fee_json, signatures[], final_hash |
+| `Signature` | value, user_address, body_bytes, created_at |
+
+## Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `UNAUTHENTICATED` | Missing or invalid/expired token |
+| `PERMISSION_DENIED` | Not a member of the multisig, or invalid signature |
+| `NOT_FOUND` | Multisig or transaction doesn't exist |
+| `INVALID_ARGUMENT` | Missing required fields or invalid pubkey format |
+| `UNIMPLEMENTED` | RPC not yet implemented (should be none now) |
 
 See `api/memba/v1/memba.proto` for full message definitions.

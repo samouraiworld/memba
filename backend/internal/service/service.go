@@ -2,109 +2,599 @@ package service
 
 import (
 	"context"
+	"crypto/ed25519"
+	srand "crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"log/slog"
+	"os"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/auth"
 )
 
 // MultisigService implements the ConnectRPC MultisigService.
 type MultisigService struct {
-	db *sql.DB
+	db         *sql.DB
+	publicKey  ed25519.PublicKey
+	privateKey ed25519.PrivateKey
 }
 
-// NewMultisigService creates a new MultisigService.
-func NewMultisigService(db *sql.DB) *MultisigService {
-	return &MultisigService{db: db}
+// NewMultisigService creates a MultisigService.
+// If ED25519_SEED is set (64 hex chars = 32 bytes), the keypair is deterministic
+// and survives restarts. Otherwise a new keypair is generated and the seed is
+// logged so the operator can persist it.
+func NewMultisigService(db *sql.DB) (*MultisigService, error) {
+	var privateKey ed25519.PrivateKey
+	var publicKey ed25519.PublicKey
+
+	if seedHex := os.Getenv("ED25519_SEED"); seedHex != "" {
+		seed, err := hex.DecodeString(seedHex)
+		if err != nil || len(seed) != ed25519.SeedSize {
+			return nil, fmt.Errorf("ED25519_SEED must be %d hex chars", ed25519.SeedSize*2)
+		}
+		privateKey = ed25519.NewKeyFromSeed(seed)
+		publicKey = privateKey.Public().(ed25519.PublicKey)
+		slog.Info("loaded server keypair from ED25519_SEED")
+	} else {
+		var err error
+		publicKey, privateKey, err = ed25519.GenerateKey(srand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		slog.Warn("generated ephemeral keypair — set ED25519_SEED to persist",
+			"seed", hex.EncodeToString(privateKey.Seed()))
+	}
+
+	return &MultisigService{
+		db:         db,
+		publicKey:  publicKey,
+		privateKey: privateKey,
+	}, nil
 }
 
-// GetChallenge returns a new authentication challenge.
+// authenticate validates a token and returns the user address.
+func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
+	if err := auth.ValidateToken(s.publicKey, token); err != nil {
+		return "", connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	return token.UserAddress, nil
+}
+
+// internalError logs the real error and returns a sanitized connect error.
+func internalError(ctx string, err error) error {
+	slog.Error(ctx, "error", err)
+	return connect.NewError(connect.CodeInternal, nil)
+}
+
+// ─── Auth RPCs ────────────────────────────────────────────────────
+
 func (s *MultisigService) GetChallenge(
-	ctx context.Context,
-	req *connect.Request[membav1.GetChallengeRequest],
+	_ context.Context,
+	_ *connect.Request[membav1.GetChallengeRequest],
 ) (*connect.Response[membav1.GetChallengeResponse], error) {
 	slog.Info("GetChallenge called")
-	// TODO: implement challenge generation (ed25519 nonce + server signature)
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+	return connect.NewResponse(&membav1.GetChallengeResponse{Challenge: challenge}), nil
 }
 
-// GetToken validates a signed challenge and returns an auth token.
 func (s *MultisigService) GetToken(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.GetTokenRequest],
 ) (*connect.Response[membav1.GetTokenResponse], error) {
 	slog.Info("GetToken called")
-	// TODO: implement token generation
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature())
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewResponse(&membav1.GetTokenResponse{AuthToken: token}), nil
 }
 
-// CreateOrJoinMultisig creates a new multisig or joins an existing one.
+// ─── Multisig RPCs ────────────────────────────────────────────────
+
 func (s *MultisigService) CreateOrJoinMultisig(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.CreateOrJoinMultisigRequest],
 ) (*connect.Response[membav1.CreateOrJoinMultisigResponse], error) {
-	slog.Info("CreateOrJoinMultisig called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	chainID := req.Msg.GetChainId()
+	pubkeyJSON := req.Msg.GetMultisigPubkeyJson()
+	name := req.Msg.GetName()
+	prefix := req.Msg.GetBech32Prefix()
+
+	if chainID == "" || pubkeyJSON == "" || prefix == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// S6: Input length limits.
+	if len(pubkeyJSON) > 4096 || len(name) > 256 || len(chainID) > 64 || len(prefix) > 16 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// Parse the multisig pubkey to derive the address and validate members.
+	var ms multisig.LegacyAminoPubKey
+	if err := legacy.Cdc.UnmarshalJSON([]byte(pubkeyJSON), &ms); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	multisigAddress, err := bech32.ConvertAndEncode(prefix, ms.Address())
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	pubKeys := ms.GetPubKeys()
+	if int(ms.Threshold) > len(pubKeys) || ms.Threshold == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// Verify the user is a member of this multisig.
+	_, userAddrBytes, err := bech32.DecodeAndConvert(userAddress)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+	isMember := false
+	for _, pk := range pubKeys {
+		if string(pk.Address().Bytes()) == string(userAddrBytes) {
+			isMember = true
+			break
+		}
+	}
+	if !isMember {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	var created, joined bool
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Upsert multisig.
+	var existingAddr string
+	err = tx.QueryRow("SELECT address FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddress).Scan(&existingAddr)
+	if err == sql.ErrNoRows {
+		_, err = tx.Exec(
+			"INSERT INTO multisigs (chain_id, address, pubkey_json, threshold, members_count, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+			chainID, multisigAddress, pubkeyJSON, ms.Threshold, len(pubKeys), now,
+		)
+		if err != nil {
+			return nil, internalError("internal", err)
+		}
+
+		// Create user_multisig entries for all members.
+		for _, pk := range pubKeys {
+			memberAddr, err := bech32.ConvertAndEncode(auth.UniversalBech32Prefix, pk.Address().Bytes())
+			if err != nil {
+				continue
+			}
+			_, err = tx.Exec(
+				"INSERT OR IGNORE INTO user_multisigs (chain_id, user_address, multisig_address, joined, created_at) VALUES (?, ?, ?, FALSE, ?)",
+				chainID, memberAddr, multisigAddress, now,
+			)
+			if err != nil {
+				return nil, internalError("internal", err)
+			}
+		}
+		created = true
+	} else if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	// Join: upsert the calling user's membership.
+	var existingJoined bool
+	err = tx.QueryRow(
+		"SELECT joined FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
+		chainID, userAddress, multisigAddress,
+	).Scan(&existingJoined)
+	if err == sql.ErrNoRows {
+		_, err = tx.Exec(
+			"INSERT INTO user_multisigs (chain_id, user_address, multisig_address, name, joined, created_at) VALUES (?, ?, ?, ?, TRUE, ?)",
+			chainID, userAddress, multisigAddress, name, now,
+		)
+		if err != nil {
+			return nil, internalError("internal", err)
+		}
+		joined = true
+	} else if err == nil && !existingJoined {
+		_, err = tx.Exec(
+			"UPDATE user_multisigs SET joined = TRUE, name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
+			name, chainID, userAddress, multisigAddress,
+		)
+		if err != nil {
+			return nil, internalError("internal", err)
+		}
+		joined = true
+	} else if err == nil && existingJoined && name != "" {
+		_, err = tx.Exec(
+			"UPDATE user_multisigs SET name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
+			name, chainID, userAddress, multisigAddress,
+		)
+		if err != nil {
+			return nil, internalError("internal", err)
+		}
+	} else if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	slog.Info("CreateOrJoinMultisig", "address", multisigAddress, "created", created, "joined", joined)
+
+	return connect.NewResponse(&membav1.CreateOrJoinMultisigResponse{
+		Created:         created,
+		Joined:          joined,
+		MultisigAddress: multisigAddress,
+	}), nil
 }
 
-// MultisigInfo returns info about a specific multisig.
 func (s *MultisigService) MultisigInfo(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.MultisigInfoRequest],
 ) (*connect.Response[membav1.MultisigInfoResponse], error) {
-	slog.Info("MultisigInfo called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	if _, err := s.authenticate(req.Msg.GetAuthToken()); err != nil {
+		return nil, err
+	}
+
+	chainID := req.Msg.GetChainId()
+	addr := req.Msg.GetMultisigAddress()
+
+	var ms membav1.Multisig
+	err := s.db.QueryRow(
+		"SELECT chain_id, address, pubkey_json, threshold, members_count, created_at FROM multisigs WHERE chain_id = ? AND address = ?",
+		chainID, addr,
+	).Scan(&ms.ChainId, &ms.Address, &ms.PubkeyJson, &ms.Threshold, &ms.MembersCount, &ms.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	if err != nil {
+		return nil, internalError("MultisigInfo: query", err)
+	}
+
+	// Get member addresses.
+	rows, err := s.db.Query(
+		"SELECT user_address FROM user_multisigs WHERE chain_id = ? AND multisig_address = ?",
+		chainID, addr,
+	)
+	if err != nil {
+		return nil, internalError("MultisigInfo: member query", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var memberAddr string
+		if err := rows.Scan(&memberAddr); err != nil {
+			continue
+		}
+		ms.UsersAddresses = append(ms.UsersAddresses, memberAddr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("MultisigInfo: row iteration", err)
+	}
+
+	slog.Info("MultisigInfo", "address", addr, "members", len(ms.UsersAddresses))
+
+	return connect.NewResponse(&membav1.MultisigInfoResponse{Multisig: &ms}), nil
 }
 
-// Multisigs returns all multisigs for the authenticated user.
 func (s *MultisigService) Multisigs(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.MultisigsRequest],
 ) (*connect.Response[membav1.MultisigsResponse], error) {
-	slog.Info("Multisigs called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	chainID := req.Msg.GetChainId()
+	limit := req.Msg.GetLimit()
+	if limit == 0 || limit > 100 {
+		limit = 20
+	}
+
+	query := `
+		SELECT m.chain_id, m.address, m.pubkey_json, m.threshold, m.members_count, m.created_at,
+		       um.joined, um.name
+		FROM multisigs m
+		JOIN user_multisigs um ON um.chain_id = m.chain_id AND um.multisig_address = m.address
+		WHERE um.user_address = ?
+	`
+	args := []interface{}{userAddress}
+
+	if chainID != "" {
+		query += " AND m.chain_id = ?"
+		args = append(args, chainID)
+	}
+
+	switch req.Msg.GetJoinState() {
+	case membav1.JoinState_JOIN_STATE_IN:
+		query += " AND um.joined = TRUE"
+	case membav1.JoinState_JOIN_STATE_OUT:
+		query += " AND um.joined = FALSE"
+	}
+
+	query += " ORDER BY m.created_at DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, internalError("Multisigs: query", err)
+	}
+	defer rows.Close()
+
+	var multisigs []*membav1.Multisig
+	for rows.Next() {
+		var ms membav1.Multisig
+		if err := rows.Scan(&ms.ChainId, &ms.Address, &ms.PubkeyJson, &ms.Threshold, &ms.MembersCount, &ms.CreatedAt, &ms.Joined, &ms.Name); err != nil {
+			continue
+		}
+		multisigs = append(multisigs, &ms)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("Multisigs: row iteration", err)
+	}
+
+	slog.Info("Multisigs", "user", userAddress, "count", len(multisigs))
+
+	return connect.NewResponse(&membav1.MultisigsResponse{Multisigs: multisigs}), nil
 }
 
-// CreateTransaction creates a new transaction proposal.
+// ─── Transaction RPCs ─────────────────────────────────────────────
+
 func (s *MultisigService) CreateTransaction(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.CreateTransactionRequest],
 ) (*connect.Response[membav1.CreateTransactionResponse], error) {
-	slog.Info("CreateTransaction called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	chainID := req.Msg.GetChainId()
+	multisigAddr := req.Msg.GetMultisigAddress()
+	msgsJSON := req.Msg.GetMsgsJson()
+	feeJSON := req.Msg.GetFeeJson()
+
+	if chainID == "" || multisigAddr == "" || msgsJSON == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// S6: Input length limits.
+	if len(msgsJSON) > 102400 || len(feeJSON) > 4096 || len(req.Msg.GetMemo()) > 256 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// Verify user is a member of this multisig.
+	var exists int
+	err = s.db.QueryRow(
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		chainID, userAddress, multisigAddr,
+	).Scan(&exists)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	res, err := s.db.Exec(
+		`INSERT INTO transactions (chain_id, multisig_address, msgs_json, fee_json, account_number, sequence, memo, creator_address, type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		chainID, multisigAddr, msgsJSON, feeJSON,
+		req.Msg.GetAccountNumber(), req.Msg.GetSequence(),
+		req.Msg.GetMemo(), userAddress, req.Msg.GetType(),
+	)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	txID, _ := res.LastInsertId()
+	slog.Info("CreateTransaction", "id", txID, "creator", userAddress, "multisig", multisigAddr)
+
+	return connect.NewResponse(&membav1.CreateTransactionResponse{
+		TransactionId: uint32(txID),
+	}), nil
 }
 
-// Transactions returns transactions for a multisig.
 func (s *MultisigService) Transactions(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.TransactionsRequest],
 ) (*connect.Response[membav1.TransactionsResponse], error) {
-	slog.Info("Transactions called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	chainID := req.Msg.GetChainId()
+	multisigAddr := req.Msg.GetMultisigAddress()
+	limit := req.Msg.GetLimit()
+	if limit == 0 || limit > 100 {
+		limit = 20
+	}
+
+	query := `
+		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
+		       t.account_number, t.sequence, t.memo, t.creator_address,
+		       COALESCE(t.final_hash, ''), t.type, t.created_at,
+		       m.threshold, m.members_count, m.pubkey_json
+		FROM transactions t
+		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
+		JOIN user_multisigs um ON um.chain_id = t.chain_id AND um.multisig_address = t.multisig_address AND um.user_address = ?
+		WHERE um.joined = TRUE
+	`
+	args := []interface{}{userAddress}
+
+	if chainID != "" {
+		query += " AND t.chain_id = ?"
+		args = append(args, chainID)
+	}
+	if multisigAddr != "" {
+		query += " AND t.multisig_address = ?"
+		args = append(args, multisigAddr)
+	}
+
+	switch req.Msg.GetExecutionState() {
+	case membav1.ExecutionState_EXECUTION_STATE_PENDING:
+		query += " AND t.final_hash IS NULL"
+	case membav1.ExecutionState_EXECUTION_STATE_EXECUTED:
+		query += " AND t.final_hash IS NOT NULL"
+	}
+
+	query += " ORDER BY t.created_at DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+	defer rows.Close()
+
+	var transactions []*membav1.Transaction
+	for rows.Next() {
+		var tx membav1.Transaction
+		if err := rows.Scan(
+			&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
+			&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
+			&tx.FinalHash, &tx.Type, &tx.CreatedAt,
+			&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
+		); err != nil {
+			continue
+		}
+
+		// Load signatures for this transaction.
+		sigRows, err := s.db.Query(
+			"SELECT user_address, signature, body_bytes, created_at FROM signatures WHERE transaction_id = ?",
+			tx.Id,
+		)
+		if err == nil {
+			for sigRows.Next() {
+				var sig membav1.Signature
+				var bodyBytes []byte
+				if err := sigRows.Scan(&sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt); err == nil {
+					sig.BodyBytes = bodyBytes
+					tx.Signatures = append(tx.Signatures, &sig)
+				}
+			}
+			sigRows.Close()
+		}
+
+		transactions = append(transactions, &tx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("Transactions: row iteration", err)
+	}
+
+	slog.Info("Transactions", "user", userAddress, "count", len(transactions))
+	return connect.NewResponse(&membav1.TransactionsResponse{Transactions: transactions}), nil
 }
 
-// SignTransaction adds a signature to a transaction.
 func (s *MultisigService) SignTransaction(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.SignTransactionRequest],
 ) (*connect.Response[membav1.SignTransactionResponse], error) {
-	slog.Info("SignTransaction called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	txID := req.Msg.GetTransactionId()
+	sig := req.Msg.GetSignature()
+	bodyBytes := req.Msg.GetBodyBytes()
+
+	if txID == 0 || sig == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// Verify the transaction exists and the user is a member of its multisig.
+	var chainID, multisigAddr string
+	err = s.db.QueryRow(
+		"SELECT chain_id, multisig_address FROM transactions WHERE id = ? AND final_hash IS NULL",
+		txID,
+	).Scan(&chainID, &multisigAddr)
+	if err == sql.ErrNoRows {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	var memberExists int
+	err = s.db.QueryRow(
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		chainID, userAddress, multisigAddr,
+	).Scan(&memberExists)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	_, err = s.db.Exec(
+		"INSERT OR REPLACE INTO signatures (transaction_id, user_address, signature, body_bytes) VALUES (?, ?, ?, ?)",
+		txID, userAddress, sig, bodyBytes,
+	)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	slog.Info("SignTransaction", "tx_id", txID, "signer", userAddress)
+	return connect.NewResponse(&membav1.SignTransactionResponse{}), nil
 }
 
-// CompleteTransaction marks a transaction as broadcast with its final hash.
 func (s *MultisigService) CompleteTransaction(
-	ctx context.Context,
+	_ context.Context,
 	req *connect.Request[membav1.CompleteTransactionRequest],
 ) (*connect.Response[membav1.CompleteTransactionResponse], error) {
-	slog.Info("CompleteTransaction called")
-	// TODO: implement
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	txID := req.Msg.GetTransactionId()
+	finalHash := req.Msg.GetFinalHash()
+
+	if txID == 0 || finalHash == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// Verify the user is a member and transaction isn't already completed.
+	var chainID, multisigAddr string
+	err = s.db.QueryRow(
+		"SELECT chain_id, multisig_address FROM transactions WHERE id = ? AND final_hash IS NULL",
+		txID,
+	).Scan(&chainID, &multisigAddr)
+	if err == sql.ErrNoRows {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	var memberExists int
+	err = s.db.QueryRow(
+		"SELECT 1 FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ? AND joined = TRUE",
+		chainID, userAddress, multisigAddr,
+	).Scan(&memberExists)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	_, err = s.db.Exec("UPDATE transactions SET final_hash = ? WHERE id = ?", finalHash, txID)
+	if err != nil {
+		return nil, internalError("internal", err)
+	}
+
+	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "user", userAddress)
+	return connect.NewResponse(&membav1.CompleteTransactionResponse{}), nil
 }

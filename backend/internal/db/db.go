@@ -73,12 +73,12 @@ func Migrate(db *sql.DB) error {
 		}
 
 		if _, err := tx.Exec(string(content)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("execute migration %s: %w", entry.Name(), err)
 		}
 
 		if _, err := tx.Exec("INSERT INTO _migrations (name) VALUES (?)", entry.Name()); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %s: %w", entry.Name(), err)
 		}
 

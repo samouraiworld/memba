@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -56,13 +58,17 @@ func main() {
 	slog.Info("database initialized", "path", dbPath)
 
 	// Create service
-	svc := service.NewMultisigService(database)
+	svc, err := service.NewMultisigService(database)
+	if err != nil {
+		slog.Error("failed to create multisig service", "error", err)
+		os.Exit(1)
+	}
 
 	// Create ConnectRPC handler
 	mux := http.NewServeMux()
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
-	mux.Handle(path, handler)
+	mux.Handle(path, rateLimiter(handler))
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -128,23 +134,86 @@ func main() {
 	slog.Info("server stopped")
 }
 
+// splitOrigins splits a comma-separated CORS_ORIGINS string, trimming whitespace.
 func splitOrigins(s string) []string {
-	var origins []string
-	current := ""
-	for _, c := range s {
-		if c == ',' {
-			if current != "" {
-				origins = append(origins, current)
-			}
-			current = ""
-		} else {
-			current += string(c)
+	parts := strings.Split(s, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			origins = append(origins, p)
 		}
 	}
-	if current != "" {
-		origins = append(origins, current)
-	}
 	return origins
+}
+
+// ── Rate limiter ─────────────────────────────────────────────────
+
+const (
+	rateLimitWindow = time.Minute
+	rateLimitMax    = 100
+)
+
+type ipEntry struct {
+	count  int
+	expiry time.Time
+}
+
+type ipRateLimiter struct {
+	mu      sync.Mutex
+	entries map[string]*ipEntry
+}
+
+func newIPRateLimiter() *ipRateLimiter {
+	rl := &ipRateLimiter{entries: make(map[string]*ipEntry)}
+	// GC stale entries every minute
+	go func() {
+		for {
+			time.Sleep(rateLimitWindow)
+			rl.mu.Lock()
+			now := time.Now()
+			for ip, e := range rl.entries {
+				if now.After(e.expiry) {
+					delete(rl.entries, ip)
+				}
+			}
+			rl.mu.Unlock()
+		}
+	}()
+	return rl
+}
+
+func (rl *ipRateLimiter) allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	e, ok := rl.entries[ip]
+	if !ok || now.After(e.expiry) {
+		rl.entries[ip] = &ipEntry{count: 1, expiry: now.Add(rateLimitWindow)}
+		return true
+	}
+	e.count++
+	return e.count <= rateLimitMax
+}
+
+var limiter = newIPRateLimiter()
+
+func rateLimiter(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := r.RemoteAddr
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			ip = strings.Split(fwd, ",")[0]
+		}
+		ip = strings.TrimSpace(ip)
+
+		if !limiter.allow(ip) {
+			slog.Warn("rate limited", "ip", ip)
+			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // ensure sql.DB is used (will be used by service layer)
