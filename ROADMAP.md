@@ -195,9 +195,6 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ### Deferred to v0.4.0
 - GRC20 balances & transfers
-- Export unsigned tx as JSON
-- Manual gnokey signature paste (air-gapped flow)
-- Import via amino pubkey JSON
 
 ### Acceptance Criteria
 | # | Criterion |
@@ -213,6 +210,26 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 - 🔒 Signature format validation, replay protection
 - 👤 Air-gapped workflow test (no internet during signing)
 - ⚙️ GRC20 token registry performance, caching strategy
+
+---
+
+## v0.4.0 — Air-Gapped Signing & Import — ✅ COMPLETE
+
+### Scope
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Export unsigned TX | Download sign doc as JSON for gnokey | ✅ |
+| Manual gnokey sig paste | Paste base64 signature from offline signer | ✅ |
+| Import via pubkey JSON | Tabbed import with Amino pubkey JSON paste | ✅ |
+
+### Deferred to v0.5.0+
+- GRC20 balances & transfers (requires ABCI query patterns for realm state)
+
+### Post-release Review
+- 🔒 Signature format validation (base64 decode check)
+- 👤 Air-gapped workflow end-to-end verified
+- ⚙️ DRY refactored sign doc builder
 
 ---
 

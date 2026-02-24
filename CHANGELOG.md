@@ -2,6 +2,18 @@
 
 All notable changes to Memba are documented here.
 
+## [0.4.0] — 2026-02-24
+
+### Added
+- **Export Unsigned TX**: Download sign doc as JSON for offline signing with gnokey
+- **Manual Sig Paste**: Paste base64 gnokey signatures for air-gapped signers → SignTransaction RPC
+- **Import via Pubkey JSON**: New tabbed import with 'By Pubkey JSON' mode — paste full Amino multisig pubkey to import/join
+
+### Fixed (Audit)
+- **TransactionView**: DRY refactored sign doc construction into `buildSignDoc()` helper (3 call sites → 1 function)
+- **ImportMultisig**: Added per-pubkey item validation (type + value fields) in JSON import mode
+- **ImportMultisig**: Migrated hardcoded bech32 prefix to `GNO_BECH32_PREFIX` config constant
+
 ## [0.3.0] — 2026-02-24
 
 ### Added
