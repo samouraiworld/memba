@@ -277,7 +277,28 @@ func TestTransactionLifecycle(t *testing.T) {
 		t.Fatalf("expected signer %s, got %s", signer, tx.Signatures[0].UserAddress)
 	}
 
-	// 4. Complete transaction
+	// 3b. Verify CompleteTransaction is rejected when below threshold (P0-B).
+	_, err = h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{
+		AuthToken:     creatorToken,
+		TransactionId: txID,
+		FinalHash:     "0xSHOULDFAIL",
+	}))
+	if err == nil {
+		t.Fatal("CompleteTransaction should fail: only 1/2 signatures")
+	}
+
+	// 3c. Second signature (creator) to reach threshold=2.
+	_, err = h.svc.SignTransaction(ctx, connect.NewRequest(&membav1.SignTransactionRequest{
+		AuthToken:     creatorToken,
+		TransactionId: txID,
+		Signature:     "base64sig2",
+		BodyBytes:     []byte("bodybytes2"),
+	}))
+	if err != nil {
+		t.Fatal("SignTransaction (creator):", err)
+	}
+
+	// 4. Complete transaction (now threshold is met: 2/2)
 	_, err = h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{
 		AuthToken:     creatorToken,
 		TransactionId: txID,

@@ -54,7 +54,7 @@ func (s *MultisigService) CreateTransaction(
 		req.Msg.GetMemo(), userAddress, req.Msg.GetType(),
 	)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateTransaction: insert", err)
 	}
 
 	txID, _ := res.LastInsertId()
@@ -114,7 +114,7 @@ func (s *MultisigService) Transactions(
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("Transactions: query", err)
 	}
 	defer rows.Close()
 
@@ -208,7 +208,7 @@ func (s *MultisigService) SignTransaction(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("SignTransaction: query tx", err)
 	}
 
 	var memberExists int
@@ -221,11 +221,13 @@ func (s *MultisigService) SignTransaction(
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		"INSERT OR REPLACE INTO signatures (transaction_id, user_address, signature, body_bytes) VALUES (?, ?, ?, ?)",
+		`INSERT INTO signatures (transaction_id, user_address, signature, body_bytes)
+		 VALUES (?, ?, ?, ?)
+		 ON CONFLICT (transaction_id, user_address) DO UPDATE SET signature = excluded.signature, body_bytes = excluded.body_bytes`,
 		txID, userAddress, sig, bodyBytes,
 	)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("SignTransaction: insert sig", err)
 	}
 
 	slog.Info("SignTransaction", "tx_id", txID, "signer", userAddress)
@@ -258,7 +260,7 @@ func (s *MultisigService) CompleteTransaction(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CompleteTransaction: query tx", err)
 	}
 
 	var memberExists int
@@ -270,9 +272,26 @@ func (s *MultisigService) CompleteTransaction(
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
+	// Security: verify that enough signatures exist before allowing completion.
+	var sigCount int
+	var threshold int
+	err = s.db.QueryRowContext(ctx,
+		`SELECT COUNT(s.user_address), m.threshold
+		 FROM transactions t
+		 JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
+		 LEFT JOIN signatures s ON s.transaction_id = t.id
+		 WHERE t.id = ?`, txID,
+	).Scan(&sigCount, &threshold)
+	if err != nil {
+		return nil, internalError("CompleteTransaction: threshold check", err)
+	}
+	if sigCount < threshold {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
+	}
+
 	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ? WHERE id = ?", finalHash, txID)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CompleteTransaction: update hash", err)
 	}
 
 	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "user", userAddress)

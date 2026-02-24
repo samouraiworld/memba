@@ -2,6 +2,26 @@
 
 All notable changes to Memba are documented here.
 
+## [0.2.1] — 2026-02-24
+
+### Security
+- **P0-B**: `CompleteTransaction` now enforces `signatures >= threshold` before allowing finalization
+- **P3-C**: Added `Content-Security-Policy` header to `netlify.toml`
+
+### Fixed
+- **P0-A**: `TransactionView` accepts `?ms=&chain=` query params to scope TX fetch
+- **P1-A**: Dashboard state updates are atomic (all-or-nothing on `Promise.all`)
+- **P1-B**: `SignTransaction` uses `ON CONFLICT UPDATE` instead of `INSERT OR REPLACE` (preserves `created_at`)
+- **P1-C**: Removed dead `var _ *sql.DB` in `main.go`
+- **P2-A**: Rate limiter GC goroutine stops cleanly on graceful shutdown (context-based)
+- **P2-C**: `ErrorToast` deduplicates renders via `lastMessageRef`
+- **P2-D**: Documented client-side token validation trade-off in `useAuth.ts`
+- **P3-A**: Replaced `alert()` stubs with `console.warn` + `TODO(v0.3.0)` markers
+- **P3-B**: Standardized all slog error contexts to `RpcName: operation` format
+
+### Tests
+- `TestTransactionLifecycle` updated with threshold-rejection assertion + 2nd signer
+
 ## [0.2.0] — 2026-02-24
 
 ### Added

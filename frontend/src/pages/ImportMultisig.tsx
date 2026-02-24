@@ -7,8 +7,8 @@ export function ImportMultisig() {
 
     const handleImport = async () => {
         if (!address.trim()) return
-        // TODO: call MultisigInfo to verify, then CreateOrJoinMultisig (Branch 3)
-        alert("Import requires Adena wallet connection (Branch 3)")
+        // TODO(v0.3.0): Call MultisigInfo to verify, then CreateOrJoinMultisig
+        console.warn("ImportMultisig: requires Adena wallet integration (v0.3.0)")
     }
 
     return (

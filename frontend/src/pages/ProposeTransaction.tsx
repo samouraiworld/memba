@@ -10,8 +10,8 @@ export function ProposeTransaction() {
 
     const handlePropose = async () => {
         if (!recipient || !amount) return
-        // TODO: build MsgSend, call CreateTransaction (needs auth token)
-        alert("Transaction proposal requires full auth flow (connect wallet first)")
+        // TODO(v0.3.0): Build MsgSend, call CreateTransaction (needs auth token)
+        console.warn("ProposeTransaction: requires full auth flow (v0.3.0)")
     }
 
     return (

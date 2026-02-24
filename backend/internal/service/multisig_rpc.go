@@ -47,7 +47,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	multisigAddress, err := bech32.ConvertAndEncode(prefix, ms.Address())
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: bech32 encode", err)
 	}
 
 	pubKeys := ms.GetPubKeys()
@@ -58,7 +58,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	// Verify the user is a member of this multisig.
 	_, userAddrBytes, err := bech32.DecodeAndConvert(userAddress)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: decode user address", err)
 	}
 	isMember := false
 	for _, pk := range pubKeys {
@@ -76,7 +76,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: begin tx", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -89,7 +89,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			chainID, multisigAddress, pubkeyJSON, ms.Threshold, len(pubKeys), now,
 		)
 		if err != nil {
-			return nil, internalError("internal", err)
+			return nil, internalError("CreateOrJoinMultisig: db", err)
 		}
 
 		// Create user_multisig entries for all members.
@@ -103,12 +103,12 @@ func (s *MultisigService) CreateOrJoinMultisig(
 				chainID, memberAddr, multisigAddress, now,
 			)
 			if err != nil {
-				return nil, internalError("internal", err)
+				return nil, internalError("CreateOrJoinMultisig: db", err)
 			}
 		}
 		created = true
 	} else if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: db", err)
 	}
 
 	// Join: upsert the calling user's membership.
@@ -123,7 +123,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			chainID, userAddress, multisigAddress, name, now,
 		)
 		if err != nil {
-			return nil, internalError("internal", err)
+			return nil, internalError("CreateOrJoinMultisig: db", err)
 		}
 		joined = true
 	} else if err == nil && !existingJoined {
@@ -132,7 +132,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			name, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
-			return nil, internalError("internal", err)
+			return nil, internalError("CreateOrJoinMultisig: db", err)
 		}
 		joined = true
 	} else if err == nil && existingJoined && name != "" {
@@ -141,14 +141,14 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			name, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
-			return nil, internalError("internal", err)
+			return nil, internalError("CreateOrJoinMultisig: db", err)
 		}
 	} else if err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: db", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, internalError("internal", err)
+		return nil, internalError("CreateOrJoinMultisig: db", err)
 	}
 
 	slog.Info("CreateOrJoinMultisig", "address", multisigAddress, "created", created, "joined", joined)
