@@ -26,6 +26,8 @@ export function TransactionView() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState(false)
+    const [manualSig, setManualSig] = useState("")
+    const [showManualSig, setShowManualSig] = useState(false)
 
     const fetchTx = useCallback(async () => {
         if (!token || !id) return
@@ -281,7 +283,6 @@ export function TransactionView() {
                                 setActionLoading(true)
                                 setError(null)
                                 try {
-                                    // Broadcast to chain via RPC
                                     const broadcastTx = buildBroadcastTx(tx)
                                     const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit?tx=0x${broadcastTx}`, {
                                         method: "GET",
@@ -295,7 +296,6 @@ export function TransactionView() {
                                         return
                                     }
 
-                                    // Record on backend
                                     await api.completeTransaction({
                                         authToken: token,
                                         transactionId: tx.id,
@@ -313,6 +313,91 @@ export function TransactionView() {
                             {actionLoading ? "Broadcasting..." : "Broadcast to Chain"}
                         </button>
                     )}
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => {
+                            const signDoc = {
+                                account_number: String(tx.accountNumber),
+                                chain_id: tx.chainId,
+                                fee: JSON.parse(tx.feeJson),
+                                memo: tx.memo || "",
+                                msgs: JSON.parse(tx.msgsJson),
+                                sequence: String(tx.sequence),
+                            }
+                            const json = JSON.stringify(signDoc, null, 2)
+                            const blob = new Blob([json], { type: "application/json" })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = url
+                            a.download = `memba-tx-${tx.id}-unsigned.json`
+                            a.click()
+                            URL.revokeObjectURL(url)
+                        }}
+                    >
+                        Export Unsigned TX
+                    </button>
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => setShowManualSig(!showManualSig)}
+                    >
+                        {showManualSig ? "Hide" : "Paste gnokey Sig"}
+                    </button>
+                </div>
+            )}
+
+            {/* ── Manual Signature Paste (air-gapped flow) ────── */}
+            {showManualSig && !tx.finalHash && auth.isAuthenticated && (
+                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <p className="k-label">Paste gnokey Signature</p>
+                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        Export the unsigned TX above, sign with gnokey offline, then paste the base64 signature here.
+                    </p>
+                    <input
+                        type="text"
+                        value={manualSig}
+                        onChange={(e) => setManualSig(e.target.value)}
+                        placeholder="Paste base64 signature from gnokey..."
+                        style={{
+                            width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
+                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+                            fontFamily: "JetBrains Mono, monospace", fontSize: 12, outline: "none",
+                        }}
+                    />
+                    <button
+                        className="k-btn-primary"
+                        disabled={!manualSig.trim() || actionLoading}
+                        style={{ opacity: manualSig.trim() && !actionLoading ? 1 : 0.5, alignSelf: "flex-start" }}
+                        onClick={async () => {
+                            if (!token || !tx || !manualSig.trim()) return
+                            setActionLoading(true)
+                            setError(null)
+                            try {
+                                const signDoc = JSON.stringify({
+                                    account_number: String(tx.accountNumber),
+                                    chain_id: tx.chainId,
+                                    fee: JSON.parse(tx.feeJson),
+                                    memo: tx.memo || "",
+                                    msgs: JSON.parse(tx.msgsJson),
+                                    sequence: String(tx.sequence),
+                                })
+                                await api.signTransaction({
+                                    authToken: token,
+                                    transactionId: tx.id,
+                                    signature: manualSig.trim(),
+                                    bodyBytes: new TextEncoder().encode(signDoc),
+                                })
+                                setManualSig("")
+                                setShowManualSig(false)
+                                await fetchTx()
+                            } catch (err) {
+                                setError(err instanceof Error ? err.message : "Failed to submit signature")
+                            } finally {
+                                setActionLoading(false)
+                            }
+                        }}
+                    >
+                        {actionLoading ? "Submitting..." : "Submit Signature"}
+                    </button>
                 </div>
             )}
 
