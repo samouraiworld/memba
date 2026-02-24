@@ -180,33 +180,34 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v0.3.0 — Air-gapped Signing, GRC20 & Page Wiring
+## v0.3.0 — Page Wiring & Sign/Broadcast — ✅ COMPLETE
 
 ### Scope
 
-| Feature | Description |
-|---------|-------------|
-| Manual sig paste | Import gnokey signature JSON for air-gapped users |
-| Export unsigned tx | Download unsigned tx as JSON file |
-| GRC20 balances | Display GRC20 token balances |
-| GRC20 transfers | Propose GRC20 token sends from multisig |
-| Sign transaction | Wire Sign button → Adena SignAmino → backend SignTransaction |
-| Broadcast | Combine multi-sig → broadcast to chain → CompleteTransaction |
-| CreateMultisig | Wire page to build multisig pubkey + CreateOrJoinMultisig |
-| ProposeTransaction | Wire page to build MsgSend + CreateTransaction |
-| MultisigView real data | Fetch threshold, balance, members, pending TXs |
-| Import via pubkey | Paste amino pubkey JSON for new multisigs |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| MultisigView real data | Fetch threshold, balance, members, pending TXs | ✅ |
+| ProposeTransaction | Wire page to build MsgSend + CreateTransaction | ✅ |
+| Sign transaction | Wire Sign button → Adena SignAmino → backend SignTransaction | ✅ |
+| Broadcast | Combine multi-sig → broadcast to chain → CompleteTransaction | ✅ |
+| CreateMultisig | Wire page to build multisig pubkey + CreateOrJoinMultisig | ✅ |
+| Manual pubkey paste | Fallback for members without on-chain pubkeys | ✅ |
+
+### Deferred to v0.4.0
+- GRC20 balances & transfers
+- Export unsigned tx as JSON
+- Manual gnokey signature paste (air-gapped flow)
+- Import via amino pubkey JSON
 
 ### Acceptance Criteria
 | # | Criterion |
 |---|-----------|
-| 1 | Export unsigned tx → valid JSON loadable by gnokey |
-| 2 | Paste gnokey signature → accepted and counted toward threshold |
-| 3 | GRC20 balance query → matches on-chain state |
-| 4 | GRC20 send → confirmed on chain |
-| 5 | Sign button → Adena popup → signature stored |
-| 6 | Broadcast → TX hash on chain → shown in UI |
-| 7 | Create new multisig from UI → on-chain + in dashboard |
+| 1 | Sign button → Adena popup → signature stored | ✅ |
+| 2 | Broadcast → TX hash on chain → shown in UI | ✅ |
+| 3 | Create new multisig from UI → on-chain + in dashboard | ✅ |
+| 4 | Propose TX → TX created, pending in dashboard | ✅ |
+| 5 | Multisig detail shows real data (members, balance, TXs) | ✅ |
+
 
 ### Post-release Review
 - 🔒 Signature format validation, replay protection

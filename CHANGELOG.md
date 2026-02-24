@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [0.3.0] — 2026-02-24
+
+### Added
+- **MultisigView**: Fetches real data from MultisigInfo + Transactions RPCs (threshold, balance, members, pending TXs)
+- **ProposeTransaction**: Builds MsgSend JSON, fetches account info from chain, validates inputs, calls CreateTransaction RPC
+- **Sign Transaction**: Builds Amino sign doc, calls Adena SignAmino, submits via SignTransaction RPC
+- **Broadcast**: Sends signed TX to chain via RPC, records hash via CompleteTransaction RPC
+- **CreateMultisig**: Fetches member secp256k1 pubkeys from chain via ABCI, builds Amino LegacyAminoPubKey JSON, creates via CreateOrJoinMultisig RPC
+- **Manual pubkey paste**: Fallback for members without on-chain pubkeys (accounts that haven't sent a TX yet)
+
+### Fixed (Audit Round 1)
+- **CreateMultisig**: Fixed `fetchPubkey` stale closure — switched to functional `setState` pattern
+- **TransactionView**: Reset `actionLoading` on signature rejection (early return bug)
+- **TransactionView**: Error state now checks `auth.isAuthenticated` (was `adena.connected`)
+- **ProposeTransaction**: Reduced default fee from 1 GNOT to 0.01 GNOT for testnet
+
 ## [0.2.2] — 2026-02-24
 
 ### Fixed
