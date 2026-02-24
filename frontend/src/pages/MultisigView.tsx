@@ -97,12 +97,42 @@ export function MultisigView() {
                             {address}
                         </p>
                     </div>
-                    <button
-                        className="k-btn-primary"
-                        onClick={() => navigate(`/multisig/${address}/propose`)}
-                    >
-                        Propose Transaction
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                            className="k-btn-primary"
+                            onClick={() => navigate(`/multisig/${address}/propose`)}
+                        >
+                            Propose Transaction
+                        </button>
+                        {multisig && (
+                            <button
+                                className="k-btn-secondary"
+                                onClick={() => {
+                                    const config = {
+                                        version: "memba-config-v1",
+                                        chainId: multisig.chainId || GNO_CHAIN_ID,
+                                        address: multisig.address,
+                                        name: multisig.name || "",
+                                        threshold: multisig.threshold,
+                                        membersCount: multisig.membersCount,
+                                        pubkeyJson: multisig.pubkeyJson,
+                                        members: multisig.usersAddresses,
+                                        exportedAt: new Date().toISOString(),
+                                    }
+                                    const json = JSON.stringify(config, null, 2)
+                                    const blob = new Blob([json], { type: "application/json" })
+                                    const url = URL.createObjectURL(blob)
+                                    const a = document.createElement("a")
+                                    a.href = url
+                                    a.download = `memba-multisig-${address.slice(0, 10)}.json`
+                                    a.click()
+                                    URL.revokeObjectURL(url)
+                                }}
+                            >
+                                Export Config
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 

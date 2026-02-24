@@ -5,52 +5,61 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_RPC_URL, UGNOT_PER_GNOT } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
+type TxType = "send" | "call"
+
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNavigate()
     const { auth } = useOutletContext<LayoutContext>()
+    const [txType, setTxType] = useState<TxType>("send")
+
+    // Send fields
     const [recipient, setRecipient] = useState("")
     const [amount, setAmount] = useState("")
+
+    // Call fields
+    const [pkgPath, setPkgPath] = useState("")
+    const [funcName, setFuncName] = useState("")
+    const [args, setArgs] = useState("")
+    const [sendAmount, setSendAmount] = useState("")
+
+    // Common fields
     const [memo, setMemo] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const handlePropose = async () => {
-        if (!recipient.trim() || !amount.trim() || !address) return
+        if (!address) return
         if (!auth.isAuthenticated || !auth.token) {
             setError("Connect your wallet first")
             return
         }
 
-        // Validate recipient address
-        const trimmedRecipient = recipient.trim()
-        if (!/^g(no)?1[a-z0-9]{38,}$/.test(trimmedRecipient)) {
-            setError("Invalid recipient address format")
-            return
-        }
+        let msgsJson: string
+        let type: string
 
-        // Validate amount
-        const gnotAmount = parseFloat(amount)
-        if (isNaN(gnotAmount) || gnotAmount <= 0) {
-            setError("Amount must be greater than 0")
-            return
-        }
+        if (txType === "send") {
+            const trimmedRecipient = recipient.trim()
+            if (!trimmedRecipient || !amount.trim()) {
+                setError("Recipient and amount are required")
+                return
+            }
+            if (!/^g(no)?1[a-z0-9]{38,}$/.test(trimmedRecipient)) {
+                setError("Invalid recipient address format")
+                return
+            }
+            const gnotAmount = parseFloat(amount)
+            if (isNaN(gnotAmount) || gnotAmount <= 0) {
+                setError("Amount must be greater than 0")
+                return
+            }
+            const ugnotAmount = Math.round(gnotAmount * UGNOT_PER_GNOT)
+            if (ugnotAmount <= 0) {
+                setError("Amount too small")
+                return
+            }
 
-        const ugnotAmount = Math.round(gnotAmount * UGNOT_PER_GNOT)
-        if (ugnotAmount <= 0) {
-            setError("Amount too small")
-            return
-        }
-
-        setLoading(true)
-        setError(null)
-
-        try {
-            // Fetch account number + sequence from chain
-            const accountInfo = await fetchAccountInfo(address)
-
-            // Build MsgSend
-            const msgsJson = JSON.stringify([{
+            msgsJson = JSON.stringify([{
                 type: "bank/MsgSend",
                 value: {
                     from_address: address,
@@ -58,11 +67,59 @@ export function ProposeTransaction() {
                     amount: [{ denom: "ugnot", amount: String(ugnotAmount) }],
                 },
             }])
+            type = "send"
+        } else {
+            const trimmedPkg = pkgPath.trim()
+            const trimmedFunc = funcName.trim()
+            if (!trimmedPkg || !trimmedFunc) {
+                setError("Package path and function name are required")
+                return
+            }
+            if (!trimmedPkg.startsWith("gno.land/")) {
+                setError("Package path must start with gno.land/")
+                return
+            }
 
-            // Build fee
+            // Parse args (comma-separated)
+            const argsArray = args.trim()
+                ? args.split(",").map(a => a.trim()).filter(Boolean)
+                : []
+
+            // Parse send amount (optional GNOT to send with call)
+            let sendCoins: string | undefined
+            if (sendAmount.trim()) {
+                const sendGnot = parseFloat(sendAmount)
+                if (isNaN(sendGnot) || sendGnot < 0) {
+                    setError("Invalid send amount")
+                    return
+                }
+                if (sendGnot > 0) {
+                    sendCoins = `${Math.round(sendGnot * UGNOT_PER_GNOT)}ugnot`
+                }
+            }
+
+            msgsJson = JSON.stringify([{
+                type: "vm/MsgCall",
+                value: {
+                    caller: address,
+                    send: sendCoins || "",
+                    pkg_path: trimmedPkg,
+                    func: trimmedFunc,
+                    args: argsArray,
+                },
+            }])
+            type = "call"
+        }
+
+        setLoading(true)
+        setError(null)
+
+        try {
+            const accountInfo = await fetchAccountInfo(address)
+
             const feeJson = JSON.stringify({
                 amount: [{ denom: "ugnot", amount: "10000" }],
-                gas: "100000",
+                gas: txType === "call" ? "2000000" : "100000",
             })
 
             const res = await api.createTransaction({
@@ -74,7 +131,7 @@ export function ProposeTransaction() {
                 accountNumber: accountInfo.accountNumber,
                 sequence: accountInfo.sequence,
                 memo: memo.trim(),
-                type: "send",
+                type,
             })
 
             navigate(`/tx/${res.transactionId}?ms=${address}&chain=${GNO_CHAIN_ID}`)
@@ -106,67 +163,130 @@ export function ProposeTransaction() {
                 </div>
             )}
 
-            <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                    <label className="k-label" style={{ display: "block", marginBottom: 8 }}>Recipient Address</label>
+            {/* TX Type tabs */}
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222" }}>
+                <button
+                    onClick={() => setTxType("send")}
+                    style={{
+                        padding: "10px 20px", background: "none", border: "none",
+                        borderBottom: txType === "send" ? "2px solid #00d4aa" : "2px solid transparent",
+                        color: txType === "send" ? "#00d4aa" : "#666",
+                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        cursor: "pointer", transition: "all 0.15s",
+                    }}
+                >
+                    Send GNOT
+                </button>
+                <button
+                    onClick={() => setTxType("call")}
+                    style={{
+                        padding: "10px 20px", background: "none", border: "none",
+                        borderBottom: txType === "call" ? "2px solid #00d4aa" : "2px solid transparent",
+                        color: txType === "call" ? "#00d4aa" : "#666",
+                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        cursor: "pointer", transition: "all 0.15s",
+                    }}
+                >
+                    Contract Call
+                </button>
+            </div>
+
+            {/* Send GNOT form */}
+            {txType === "send" && (
+                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <label className="k-label">Recipient Address</label>
                     <input
                         type="text"
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
                         placeholder="g1recipient..."
                         disabled={loading}
-                        style={{
-                            width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                            fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-                            opacity: loading ? 0.5 : 1,
-                        }}
+                        style={formInputStyle(loading)}
                     />
-                </div>
-                <div>
-                    <label className="k-label" style={{ display: "block", marginBottom: 8 }}>Amount (GNOT)</label>
+                    <label className="k-label">Amount (GNOT)</label>
                     <input
                         type="number"
-                        step="0.000001"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.0"
+                        placeholder="1.0"
+                        min="0"
+                        step="0.000001"
                         disabled={loading}
-                        style={{
-                            width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                            fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-                            opacity: loading ? 0.5 : 1,
-                        }}
+                        style={formInputStyle(loading)}
                     />
                 </div>
-                <div>
-                    <label className="k-label" style={{ display: "block", marginBottom: 8 }}>Memo (optional)</label>
+            )}
+
+            {/* Contract Call form */}
+            {txType === "call" && (
+                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <label className="k-label">Package Path</label>
                     <input
                         type="text"
-                        value={memo}
-                        onChange={(e) => setMemo(e.target.value)}
-                        placeholder="Payment for..."
+                        value={pkgPath}
+                        onChange={(e) => setPkgPath(e.target.value)}
+                        placeholder="gno.land/r/demo/boards"
                         disabled={loading}
-                        maxLength={256}
-                        style={{
-                            width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                            fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-                            opacity: loading ? 0.5 : 1,
-                        }}
+                        style={formInputStyle(loading)}
                     />
+                    <label className="k-label">Function Name</label>
+                    <input
+                        type="text"
+                        value={funcName}
+                        onChange={(e) => setFuncName(e.target.value)}
+                        placeholder="CreateThread"
+                        disabled={loading}
+                        style={formInputStyle(loading)}
+                    />
+                    <label className="k-label">Arguments (comma-separated)</label>
+                    <input
+                        type="text"
+                        value={args}
+                        onChange={(e) => setArgs(e.target.value)}
+                        placeholder="arg1, arg2, arg3"
+                        disabled={loading}
+                        style={formInputStyle(loading)}
+                    />
+                    <label className="k-label">Send Amount (optional GNOT)</label>
+                    <input
+                        type="number"
+                        value={sendAmount}
+                        onChange={(e) => setSendAmount(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        step="0.000001"
+                        disabled={loading}
+                        style={formInputStyle(loading)}
+                    />
+                    <p style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        Optional GNOT to send with the contract call (e.g. for paid functions)
+                    </p>
                 </div>
+            )}
+
+            {/* Memo */}
+            <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <label className="k-label">Memo (optional)</label>
+                <input
+                    type="text"
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    placeholder="Optional memo..."
+                    maxLength={256}
+                    disabled={loading}
+                    style={formInputStyle(loading)}
+                />
             </div>
 
+            {/* Submit */}
             <div style={{ display: "flex", gap: 12 }}>
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
-                    disabled={!recipient.trim() || !amount.trim() || loading || !auth.isAuthenticated}
-                    style={{ opacity: recipient.trim() && amount.trim() && auth.isAuthenticated && !loading ? 1 : 0.5 }}
+                    disabled={loading || !auth.isAuthenticated}
+                    style={{ opacity: !loading && auth.isAuthenticated ? 1 : 0.5 }}
                 >
-                    {loading ? "Submitting..." : "Submit Proposal"}
+                    {loading ? "Proposing..." : txType === "send" ? "Propose Send" : "Propose Call"}
                 </button>
                 <button className="k-btn-secondary" onClick={() => navigate(`/multisig/${address}`)}>
                     Cancel
@@ -179,6 +299,15 @@ export function ProposeTransaction() {
 }
 
 // ── Helpers ────────────────────────────────────────────────
+
+function formInputStyle(loading: boolean): React.CSSProperties {
+    return {
+        width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
+        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+        opacity: loading ? 0.5 : 1,
+    }
+}
 
 async function fetchAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
     // S3: Validate address format before ABCI query to prevent URL injection
@@ -202,7 +331,6 @@ async function fetchAccountInfo(address: string): Promise<{ accountNumber: numbe
             sequence: parseInt(account.sequence || account.Sequence || "0", 10),
         }
     } catch {
-        // If we can't fetch, use defaults — backend will still accept
         return { accountNumber: 0, sequence: 0 }
     }
 }
