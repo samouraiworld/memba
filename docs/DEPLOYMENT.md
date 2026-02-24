@@ -111,9 +111,9 @@ flyctl secrets set CORS_ORIGINS=https://memba.samourai.app
 
 - [x] Frontend deployed to Netlify
 - [x] Custom domain `memba.samourai.app` configured
-- [ ] Backend deployed to Fly.io
-- [ ] `ED25519_SEED` secret set
-- [ ] `CORS_ORIGINS` secret verified
-- [ ] Health check passing: `curl https://memba-backend.fly.dev/health`
-- [ ] `VITE_API_URL` set in Netlify env
+- [x] Backend deployed to Fly.io (`memba-backend.fly.dev`)
+- [x] `ED25519_SEED` secret set
+- [x] `CORS_ORIGINS` secret verified
+- [x] Health check passing: `curl https://memba-backend.fly.dev/health`
+- [x] `VITE_API_URL` set in Netlify env
 - [ ] E2E test with samourai-crew multisig
