@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
@@ -45,6 +46,46 @@ func decodeBytes(s string) ([]byte, error) { return base64.StdEncoding.DecodeStr
 
 func encodeTime(t time.Time) string          { return t.UTC().Format(time.RFC3339) }
 func decodeTime(s string) (time.Time, error) { return time.Parse(time.RFC3339, s) }
+
+// ------------------------------------------------------------------
+// S5: Nonce deduplication — prevents challenge replay within TTL
+// ------------------------------------------------------------------
+
+type nonceTracker struct {
+	mu   sync.Mutex
+	used map[string]time.Time
+}
+
+var usedNonces = &nonceTracker{used: make(map[string]time.Time)}
+
+func init() {
+	go func() {
+		for {
+			time.Sleep(time.Minute)
+			usedNonces.mu.Lock()
+			now := time.Now()
+			for k, exp := range usedNonces.used {
+				if now.After(exp) {
+					delete(usedNonces.used, k)
+				}
+			}
+			usedNonces.mu.Unlock()
+		}
+	}()
+}
+
+// markNonceUsed returns true if the nonce was already used (replay).
+func markNonceUsed(nonce []byte, ttl time.Duration) bool {
+	key := encodeBytes(nonce)
+	usedNonces.mu.Lock()
+	defer usedNonces.mu.Unlock()
+
+	if _, exists := usedNonces.used[key]; exists {
+		return true // replay
+	}
+	usedNonces.used[key] = time.Now().Add(ttl)
+	return false
+}
 
 // ------------------------------------------------------------------
 // Challenge
@@ -91,6 +132,12 @@ func ValidateChallenge(publicKey ed25519.PublicKey, challenge *membav1.Challenge
 	if !ed25519.Verify(publicKey, data, challenge.ServerSignature) {
 		return errors.New("invalid server signature on challenge")
 	}
+
+	// S5: Prevent challenge replay.
+	if markNonceUsed(challenge.Nonce, DefaultChallengeDuration) {
+		return errors.New("challenge already used")
+	}
+
 	return nil
 }
 

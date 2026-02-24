@@ -5,7 +5,10 @@ import (
 	"crypto/ed25519"
 	srand "crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"connectrpc.com/connect"
@@ -23,13 +26,32 @@ type MultisigService struct {
 	privateKey ed25519.PrivateKey
 }
 
-// NewMultisigService creates a new MultisigService with a fresh ed25519 keypair.
+// NewMultisigService creates a MultisigService.
+// If ED25519_SEED is set (64 hex chars = 32 bytes), the keypair is deterministic
+// and survives restarts. Otherwise a new keypair is generated and the seed is
+// logged so the operator can persist it.
 func NewMultisigService(db *sql.DB) (*MultisigService, error) {
-	publicKey, privateKey, err := ed25519.GenerateKey(srand.Reader)
-	if err != nil {
-		return nil, err
+	var privateKey ed25519.PrivateKey
+	var publicKey ed25519.PublicKey
+
+	if seedHex := os.Getenv("ED25519_SEED"); seedHex != "" {
+		seed, err := hex.DecodeString(seedHex)
+		if err != nil || len(seed) != ed25519.SeedSize {
+			return nil, fmt.Errorf("ED25519_SEED must be %d hex chars", ed25519.SeedSize*2)
+		}
+		privateKey = ed25519.NewKeyFromSeed(seed)
+		publicKey = privateKey.Public().(ed25519.PublicKey)
+		slog.Info("loaded server keypair from ED25519_SEED")
+	} else {
+		var err error
+		publicKey, privateKey, err = ed25519.GenerateKey(srand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		slog.Warn("generated ephemeral keypair — set ED25519_SEED to persist",
+			"seed", hex.EncodeToString(privateKey.Seed()))
 	}
-	slog.Info("generated server auth keypair", "pubkey_len", len(publicKey))
+
 	return &MultisigService{
 		db:         db,
 		publicKey:  publicKey,
@@ -45,6 +67,12 @@ func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
 	return token.UserAddress, nil
 }
 
+// internalError logs the real error and returns a sanitized connect error.
+func internalError(ctx string, err error) error {
+	slog.Error(ctx, "error", err)
+	return connect.NewError(connect.CodeInternal, nil)
+}
+
 // ─── Auth RPCs ────────────────────────────────────────────────────
 
 func (s *MultisigService) GetChallenge(
@@ -54,7 +82,7 @@ func (s *MultisigService) GetChallenge(
 	slog.Info("GetChallenge called")
 	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 	return connect.NewResponse(&membav1.GetChallengeResponse{Challenge: challenge}), nil
 }
@@ -91,6 +119,11 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
+	// S6: Input length limits.
+	if len(pubkeyJSON) > 4096 || len(name) > 256 || len(chainID) > 64 || len(prefix) > 16 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
 	// Parse the multisig pubkey to derive the address and validate members.
 	var ms multisig.LegacyAminoPubKey
 	if err := legacy.Cdc.UnmarshalJSON([]byte(pubkeyJSON), &ms); err != nil {
@@ -99,7 +132,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	multisigAddress, err := bech32.ConvertAndEncode(prefix, ms.Address())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	pubKeys := ms.GetPubKeys()
@@ -110,7 +143,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	// Verify the user is a member of this multisig.
 	_, userAddrBytes, err := bech32.DecodeAndConvert(userAddress)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 	isMember := false
 	for _, pk := range pubKeys {
@@ -128,7 +161,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 	defer tx.Rollback()
 
@@ -141,7 +174,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			chainID, multisigAddress, pubkeyJSON, ms.Threshold, len(pubKeys), now,
 		)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			return nil, internalError("internal", err)
 		}
 
 		// Create user_multisig entries for all members.
@@ -155,12 +188,12 @@ func (s *MultisigService) CreateOrJoinMultisig(
 				chainID, memberAddr, multisigAddress, now,
 			)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
+				return nil, internalError("internal", err)
 			}
 		}
 		created = true
 	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	// Join: upsert the calling user's membership.
@@ -175,7 +208,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			chainID, userAddress, multisigAddress, name, now,
 		)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			return nil, internalError("internal", err)
 		}
 		joined = true
 	} else if err == nil && !existingJoined {
@@ -184,7 +217,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			name, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			return nil, internalError("internal", err)
 		}
 		joined = true
 	} else if err == nil && existingJoined && name != "" {
@@ -193,14 +226,14 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			name, chainID, userAddress, multisigAddress,
 		)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+			return nil, internalError("internal", err)
 		}
 	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	slog.Info("CreateOrJoinMultisig", "address", multisigAddress, "created", created, "joined", joined)
@@ -232,7 +265,7 @@ func (s *MultisigService) MultisigInfo(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("MultisigInfo: query", err)
 	}
 
 	// Get member addresses.
@@ -241,7 +274,7 @@ func (s *MultisigService) MultisigInfo(
 		chainID, addr,
 	)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("MultisigInfo: member query", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -250,6 +283,9 @@ func (s *MultisigService) MultisigInfo(
 			continue
 		}
 		ms.UsersAddresses = append(ms.UsersAddresses, memberAddr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("MultisigInfo: row iteration", err)
 	}
 
 	slog.Info("MultisigInfo", "address", addr, "members", len(ms.UsersAddresses))
@@ -298,7 +334,7 @@ func (s *MultisigService) Multisigs(
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("Multisigs: query", err)
 	}
 	defer rows.Close()
 
@@ -309,6 +345,9 @@ func (s *MultisigService) Multisigs(
 			continue
 		}
 		multisigs = append(multisigs, &ms)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("Multisigs: row iteration", err)
 	}
 
 	slog.Info("Multisigs", "user", userAddress, "count", len(multisigs))
@@ -336,6 +375,11 @@ func (s *MultisigService) CreateTransaction(
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
+	// S6: Input length limits.
+	if len(msgsJSON) > 102400 || len(feeJSON) > 4096 || len(req.Msg.GetMemo()) > 256 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
 	// Verify user is a member of this multisig.
 	var exists int
 	err = s.db.QueryRow(
@@ -354,7 +398,7 @@ func (s *MultisigService) CreateTransaction(
 		req.Msg.GetMemo(), userAddress, req.Msg.GetType(),
 	)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	txID, _ := res.LastInsertId()
@@ -414,7 +458,7 @@ func (s *MultisigService) Transactions(
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 	defer rows.Close()
 
@@ -449,6 +493,9 @@ func (s *MultisigService) Transactions(
 
 		transactions = append(transactions, &tx)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("Transactions: row iteration", err)
+	}
 
 	slog.Info("Transactions", "user", userAddress, "count", len(transactions))
 	return connect.NewResponse(&membav1.TransactionsResponse{Transactions: transactions}), nil
@@ -481,7 +528,7 @@ func (s *MultisigService) SignTransaction(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	var memberExists int
@@ -498,7 +545,7 @@ func (s *MultisigService) SignTransaction(
 		txID, userAddress, sig, bodyBytes,
 	)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	slog.Info("SignTransaction", "tx_id", txID, "signer", userAddress)
@@ -531,7 +578,7 @@ func (s *MultisigService) CompleteTransaction(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	var memberExists int
@@ -545,7 +592,7 @@ func (s *MultisigService) CompleteTransaction(
 
 	_, err = s.db.Exec("UPDATE transactions SET final_hash = ? WHERE id = ?", finalHash, txID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, internalError("internal", err)
 	}
 
 	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "user", userAddress)

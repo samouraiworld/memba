@@ -32,6 +32,12 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
     const fetchBalance = useCallback(async () => {
         if (!address) return;
 
+        // S3: Validate address format to prevent ABCI URL injection.
+        if (!/^g(no)?1[a-z0-9]{38,}$/.test(address)) {
+            setState((s) => ({ ...s, loading: false, error: "Invalid address format" }));
+            return;
+        }
+
         setState((s) => ({ ...s, loading: true, error: null }));
         try {
             // Use Gno ABCI query for bank balance
