@@ -18,6 +18,10 @@ All notable changes to Memba are documented here.
 - **TransactionView**: Error state now checks `auth.isAuthenticated` (was `adena.connected`)
 - **ProposeTransaction**: Reduced default fee from 1 GNOT to 0.01 GNOT for testnet
 
+### Changed (Audit Round 2)
+- **Config centralization**: Created `lib/config.ts` — all env vars (×12 duplicates) now imported from single source
+- Migrated 7 files from local `import.meta.env` reads to centralized config imports
+
 ## [0.2.2] — 2026-02-24
 
 ### Fixed

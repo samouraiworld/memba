@@ -181,6 +181,10 @@ export function ProposeTransaction() {
 // ── Helpers ────────────────────────────────────────────────
 
 async function fetchAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
+    // S3: Validate address format before ABCI query to prevent URL injection
+    if (!/^g(no)?1[a-z0-9]{38,}$/.test(address)) {
+        return { accountNumber: 0, sequence: 0 }
+    }
     try {
         const url = `${GNO_RPC_URL}/abci_query?path=%22auth/accounts/${address}%22`
         const res = await fetch(url)
