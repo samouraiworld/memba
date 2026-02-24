@@ -144,7 +144,7 @@ export function MultisigView() {
                                     const url = URL.createObjectURL(blob)
                                     const a = document.createElement("a")
                                     a.href = url
-                                    a.download = `memba-multisig-${address.slice(0, 10)}.json`
+                                    a.download = `memba-multisig-${(address || "unknown").slice(0, 10)}.json`
                                     a.click()
                                     URL.revokeObjectURL(url)
                                 }}
