@@ -110,7 +110,7 @@ function parseCoins(coins: unknown): string {
             const denom = (c.denom || "").toUpperCase()
 
             // Convert micro-units to display units.
-            if (denom === "UGNOT" && raw.length > 6) {
+            if (denom === "UGNOT" && raw.length >= 6) {
                 const whole = raw.slice(0, -6) || "0"
                 const frac = raw.slice(-6).replace(/0+$/, "")
                 return frac ? `${whole}.${frac} GNOT` : `${whole} GNOT`

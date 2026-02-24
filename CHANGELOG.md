@@ -9,6 +9,8 @@ All notable changes to Memba are documented here.
 - **F4**: Import Multisig — wired to MultisigInfo → CreateOrJoinMultisig RPCs
 - **F1-audit**: Fixed ClientMagic constant mismatch (frontend vs backend)
 - **F1-audit**: Fixed challenge nonce/signature serialization (Uint8Array → base64 for protojson)
+- **A1-audit**: Dashboard guards aligned to `auth.isAuthenticated` (was `adena.connected`)
+- **A2-audit**: Fixed UGNOT conversion for amounts with exactly 6 digits in `parseMsgs`
 
 ### Changed
 - Layout centralizes auth state via Outlet context (Dashboard + TransactionView migrated)

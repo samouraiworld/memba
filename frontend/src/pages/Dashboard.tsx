@@ -74,15 +74,15 @@ export function Dashboard() {
                     </>
                 ) : (
                     <>
-                        <StatCard label="Multisigs" value={adena.connected ? String(multisigs.length) : "—"} />
-                        <StatCard label="Pending TX" value={adena.connected ? String(pendingTxs.length) : "—"} accent />
-                        <StatCard label="Balance" value={adena.connected ? balance : "— GNOT"} />
+                        <StatCard label="Multisigs" value={auth.isAuthenticated ? String(multisigs.length) : "—"} />
+                        <StatCard label="Pending TX" value={auth.isAuthenticated ? String(pendingTxs.length) : "—"} accent />
+                        <StatCard label="Balance" value={auth.isAuthenticated ? balance : "— GNOT"} />
                     </>
                 )}
             </div>
 
             {/* ── Empty state / Quick actions ────────────────────────── */}
-            {!adena.connected ? (
+            {!auth.isAuthenticated ? (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                         <span style={{ fontSize: 24 }}>🔗</span>
@@ -113,7 +113,7 @@ export function Dashboard() {
             ) : null}
 
             {/* ── Pending Transactions ───────────────────────────────── */}
-            {adena.connected && (
+            {auth.isAuthenticated && (
                 <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
@@ -162,7 +162,7 @@ export function Dashboard() {
             )}
 
             {/* ── Recent Activity ────────────────────────────────────── */}
-            {adena.connected && (
+            {auth.isAuthenticated && (
                 <div>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Recent Activity</h3>
                     {loading ? (
