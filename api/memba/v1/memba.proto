@@ -33,7 +33,7 @@ message Challenge {
 // Token is the auth credential passed with authenticated requests.
 // We use string for nonce/signature because browser storage has poor bytes support.
 message Token {
-  string nonce = 1;           // base64-encoded
+  string nonce = 1; // base64-encoded
   string expiration = 2;
   string user_address = 3;
   string server_signature = 4; // base64 ed25519 signature by server
@@ -53,8 +53,8 @@ message GetChallengeResponse {
 }
 
 message GetTokenRequest {
-  string info_json = 1;       // protojson encoding of TokenRequestInfo
-  string user_signature = 2;  // ed25519 signature by client of info_json
+  string info_json = 1; // protojson encoding of TokenRequestInfo
+  string user_signature = 2; // ed25519 signature by client of info_json
 }
 
 message GetTokenResponse {

@@ -27,8 +27,9 @@ interface AdenaState {
     error: string | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {
-    return (window as any).adena;
+    return (window as Record<string, unknown>).adena;
 }
 
 export function useAdena() {
