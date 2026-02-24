@@ -2,6 +2,13 @@
 
 All notable changes to Memba are documented here.
 
+## [1.2.0] — 2026-02-24
+
+### Added
+- **Activity Feed**: Tabbed Pending/Completed transaction views with counts on MultisigView
+- **Shareable TX Links**: 'Share' button on TransactionView + 'Copy Shareable Link' on MultisigView
+- **Completed TXs**: Fetches executed transactions in parallel alongside pending ones
+
 ## [1.1.0] — 2026-02-24
 
 ### Added

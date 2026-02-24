@@ -277,14 +277,14 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v1.2.0 — Notifications & Collaboration
+## v1.2.0 — Notifications & Collaboration — ✅ COMPLETE (frontend)
 
-| Feature | Description |
-|---------|-------------|
-| Email notifications | Signature needed alerts |
-| Webhook notifications | Custom integrations |
-| Activity feed | Audit log of all actions |
-| Shareable TX links | Direct link to pending tx |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Activity feed | Tabbed Pending/Completed TX views | ✅ |
+| Shareable TX links | Direct link to pending tx with copy button | ✅ |
+| Email notifications | Signature needed alerts | 🔜 (backend) |
+| Webhook notifications | Custom integrations | 🔜 (backend) |
 
 ---
 
