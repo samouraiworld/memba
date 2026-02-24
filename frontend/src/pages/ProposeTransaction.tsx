@@ -64,7 +64,7 @@ export function ProposeTransaction() {
 
             // Build fee
             const feeJson = JSON.stringify({
-                amount: [{ denom: "ugnot", amount: "1000000" }],
+                amount: [{ denom: "ugnot", amount: "10000" }],
                 gas: "100000",
             })
 

@@ -97,7 +97,7 @@ export function TransactionView() {
                     <span style={{ fontSize: 32, marginBottom: 12, display: "block" }}>🔍</span>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Transaction not found</h3>
                     <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                        {adena.connected ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}
+                        {auth.isAuthenticated ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}
                     </p>
                 </div>
                 <ErrorToast message={error} onDismiss={() => setError(null)} />
@@ -248,6 +248,7 @@ export function TransactionView() {
                                 const signature = await adena.signArbitrary(signDoc)
                                 if (!signature) {
                                     setError("Signature rejected")
+                                    setActionLoading(false)
                                     return
                                 }
 

@@ -46,21 +46,17 @@ export function CreateMultisig() {
     }
 
     // Fetch pubkey from chain for a single member
-    const fetchPubkey = useCallback(async (i: number) => {
-        const m = members[i]
+    const fetchPubkey = useCallback(async (i: number, currentMembers: MemberEntry[]) => {
+        const m = currentMembers[i]
         if (!m.address.trim()) return
 
         const addr = m.address.trim()
         if (!/^g(no)?1[a-z0-9]{38,}$/.test(addr)) {
-            const copy = [...members]
-            copy[i] = { ...copy[i], fetchError: "Invalid address format" }
-            setMembers(copy)
+            setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetchError: "Invalid address format" }; return c })
             return
         }
 
-        const copy = [...members]
-        copy[i] = { ...copy[i], fetching: true, fetchError: "" }
-        setMembers(copy)
+        setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: true, fetchError: "" }; return c })
 
         try {
             const url = `${GNO_RPC_URL}/abci_query?path=%22auth/accounts/${addr}%22`
@@ -69,9 +65,7 @@ export function CreateMultisig() {
 
             const rawValue = json?.result?.response?.ResponseBase?.Value
             if (!rawValue) {
-                const next = [...members]
-                next[i] = { ...next[i], fetching: false, fetchError: "Account not found on chain" }
-                setMembers(next)
+                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "Account not found on chain" }; return c })
                 return
             }
 
@@ -81,21 +75,15 @@ export function CreateMultisig() {
             const pubkey = account?.pub_key || account?.PubKey || account?.public_key
 
             if (!pubkey || !pubkey.value) {
-                const next = [...members]
-                next[i] = { ...next[i], fetching: false, fetchError: "No pubkey on chain — member must send 1 TX first, or paste pubkey manually" }
-                setMembers(next)
+                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "No pubkey on chain — member must send 1 TX first, or paste pubkey manually" }; return c })
                 return
             }
 
-            const next = [...members]
-            next[i] = { ...next[i], pubkeyValue: pubkey.value, fetching: false, fetchError: "", manualPubkey: false }
-            setMembers(next)
+            setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], pubkeyValue: pubkey.value, fetching: false, fetchError: "", manualPubkey: false }; return c })
         } catch {
-            const next = [...members]
-            next[i] = { ...next[i], fetching: false, fetchError: "Failed to fetch from chain" }
-            setMembers(next)
+            setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "Failed to fetch from chain" }; return c })
         }
-    }, [members])
+    }, [])
 
     const handleCreate = async () => {
         if (!auth.isAuthenticated || !auth.token) {
@@ -219,7 +207,7 @@ export function CreateMultisig() {
                                     }}
                                 />
                                 <button
-                                    onClick={() => fetchPubkey(i)}
+                                    onClick={() => fetchPubkey(i, members)}
                                     disabled={m.fetching || !m.address.trim()}
                                     style={{
                                         padding: "0 12px", height: 36, borderRadius: 6,
