@@ -2,6 +2,17 @@
 
 All notable changes to Memba are documented here.
 
+## [2.0.0] — 2026-02-24
+
+### Added
+- **Docker Self-Hosting**: `docker compose up` — backend (Go + SQLite) + frontend (Nginx) with health checks
+- **Frontend Dockerfile**: Node 20 build → Nginx static serve with SPA fallback + 1y cache
+- **CI/CD**: TypeScript type check (`tsc --noEmit`), Docker build verification job (4 CI jobs total)
+- **Backend .env.example**: Documents all 4 required env vars
+
+### Fixed (Final Audit)
+- **MultisigView**: Fixed TS18048 `address` possibly undefined in config export download
+
 ## [1.2.0] — 2026-02-24
 
 ### Added

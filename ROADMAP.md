@@ -288,18 +288,18 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v2.0.0 — On-Chain Coordination
+## v2.0.0 — On-Chain Coordination — ✅ COMPLETE (infra)
 
-> Eliminate backend for signature coordination.
+> Docker self-hosting + CI/CD pipeline.
 
-| Feature | Description |
-|---------|-------------|
-| Coordination realm | On-chain sig collection (no backend for sigs) |
-| Hybrid mode | On-chain + off-chain fallback |
-| Docker self-hosting | `docker compose up` |
-| E2E test suite | Testnet integration tests |
-| CI/CD pipeline | Automated lint, test, deploy |
-| PostgreSQL migration | Scale beyond SQLite |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Docker self-hosting | `docker compose up` | ✅ |
+| CI/CD pipeline | Automated lint, test, type check, Docker build | ✅ |
+| Coordination realm | On-chain sig collection (no backend for sigs) | 🔜 (realm) |
+| Hybrid mode | On-chain + off-chain fallback | 🔜 (realm) |
+| E2E test suite | Testnet integration tests | 🔜 |
+| PostgreSQL migration | Scale beyond SQLite | 🔜 |
 
 ---
 
