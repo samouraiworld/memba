@@ -64,6 +64,7 @@ Client                          Server
 | `PERMISSION_DENIED` | Not a member of the multisig, or invalid signature |
 | `NOT_FOUND` | Multisig or transaction doesn't exist |
 | `INVALID_ARGUMENT` | Missing required fields or invalid pubkey format |
-| `UNIMPLEMENTED` | RPC not yet implemented (should be none now) |
+| `FAILED_PRECONDITION` | Signatures < threshold (CompleteTransaction) |
+| `INTERNAL` | Server error (details logged, not exposed to client) |
 
 See `api/memba/v1/memba.proto` for full message definitions.

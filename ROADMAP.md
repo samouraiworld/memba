@@ -129,7 +129,58 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v0.3.0 — Air-gapped Signing & GRC20
+## v0.2.1 — Audit Hardening — ✅ SHIPPED 2026-02-24
+
+Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
+
+| Fix | Impact |
+|-----|--------|
+| Threshold check in `CompleteTransaction` | **Critical** — prevents unauthorized finalization |
+| CSP header | XSS defense-in-depth |
+| Scoped TX fetch | Performance + reliability |
+| Atomic Dashboard state | Race condition fix |
+| ON CONFLICT preserves `created_at` | Audit log integrity |
+| Goroutine shutdown via context | Clean shutdown |
+
+---
+
+## v0.2.2 — Auth Bridge & Import — 🚧 IN PROGRESS
+
+> Fix critical auth gap and wire import multisig.
+
+### Scope
+
+| Feature | Description |
+|---------|-------------|
+| Auth bridge | Connect Wallet → auto-trigger challenge-response → obtain token |
+| Auth context | Centralize auth state in Layout, all pages use context |
+| Import multisig | Wire ImportMultisig page to MultisigInfo → CreateOrJoinMultisig |
+| Doc alignment | Fix ARCHITECTURE.md, footer version, commit pending edits |
+
+### Deep Audit Findings (8 total)
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| F1 | Missing auth bridge | 🔴 P0 | Fixed in v0.2.2 |
+| F2 | 4/6 pages are stubs | 🔴 P0 | Import fixed; Create/Propose/View deferred to v0.3.0 |
+| F3 | Sign + Broadcast buttons no-op | 🟡 P1 | Deferred to v0.3.0 |
+| F4 | Import requires pubkey_json | 🟡 P1 | Path A (registered multisigs) in v0.2.2 |
+| F5 | CSS imports Tailwind v4 | 🟢 P2 | Docs corrected |
+| F6 | ARCHITECTURE.md stale | 🟢 P2 | Fixed |
+| F7 | useMultisig hook unused | 🟢 P3 | Now used by ImportMultisig |
+| F8 | Footer says v0.2.0 | 🟢 P3 | Fixed |
+
+### Acceptance Criteria
+| # | Criterion |
+|---|-----------|
+| 1 | Connect Wallet → Adena sign popup → Dashboard shows real data |
+| 2 | Page refresh → user stays authenticated |
+| 3 | Import registered multisig by address → join + redirect |
+| 4 | ARCHITECTURE.md, README, ROADMAP, API docs all accurate |
+
+---
+
+## v0.3.0 — Air-gapped Signing, GRC20 & Page Wiring
 
 ### Scope
 
@@ -139,6 +190,12 @@ Review findings feed into the **next version's RFC** as action items.
 | Export unsigned tx | Download unsigned tx as JSON file |
 | GRC20 balances | Display GRC20 token balances |
 | GRC20 transfers | Propose GRC20 token sends from multisig |
+| Sign transaction | Wire Sign button → Adena SignAmino → backend SignTransaction |
+| Broadcast | Combine multi-sig → broadcast to chain → CompleteTransaction |
+| CreateMultisig | Wire page to build multisig pubkey + CreateOrJoinMultisig |
+| ProposeTransaction | Wire page to build MsgSend + CreateTransaction |
+| MultisigView real data | Fetch threshold, balance, members, pending TXs |
+| Import via pubkey | Paste amino pubkey JSON for new multisigs |
 
 ### Acceptance Criteria
 | # | Criterion |
@@ -147,6 +204,9 @@ Review findings feed into the **next version's RFC** as action items.
 | 2 | Paste gnokey signature → accepted and counted toward threshold |
 | 3 | GRC20 balance query → matches on-chain state |
 | 4 | GRC20 send → confirmed on chain |
+| 5 | Sign button → Adena popup → signature stored |
+| 6 | Broadcast → TX hash on chain → shown in UI |
+| 7 | Create new multisig from UI → on-chain + in dashboard |
 
 ### Post-release Review
 - 🔒 Signature format validation, replay protection
@@ -270,7 +330,8 @@ Review findings feed into the **next version's RFC** as action items.
 ## Timeline
 
 ```
-2026 Q1-Q2   v0.1.0 MVP ──► v0.2.0 Polish ──► v0.3.0 Air-gap/GRC20
+2026 Q1-Q2   v0.1.0 MVP ──► v0.2.0 Polish ──► v0.2.1/v0.2.2 Hardening
+2026 Q2       v0.3.0 Air-gap/GRC20/Wiring
 2026 Q2-Q3   v1.0.0 DAO ──► v1.1.0 Realms ──► v1.2.0 Notifications
 2026 Q3-Q4   v2.0.0 On-chain ──► v2.1.0 Treasury
 2027 Q1      v3.0.0 Mobile ──► v3.1.0 Multi-chain

@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## [0.2.2] — 2026-02-24
+
+### Fixed
+- **F1**: Auth bridge — wallet connect now auto-triggers challenge-response token flow
+- **F4**: Import Multisig — wired to MultisigInfo → CreateOrJoinMultisig RPCs
+- **F1-audit**: Fixed ClientMagic constant mismatch (frontend vs backend)
+- **F1-audit**: Fixed challenge nonce/signature serialization (Uint8Array → base64 for protojson)
+
+### Changed
+- Layout centralizes auth state via Outlet context (Dashboard + TransactionView migrated)
+- LayoutContext extended with `auth.token`, `isAuthenticated`, `address`, `loading`, `error`
+- Header shows "Authenticating..." state during challenge-response flow
+- Auth error banner displayed on login failures with dismiss button
+- Import page shows "Connect wallet" prompt when unauthenticated
+
+### Documentation
+- ARCHITECTURE.md: Fixed Tailwind note, service split table, added parseMsgs entry
+- ROADMAP.md: Added v0.2.2 section, expanded v0.3.0 scope, updated timeline
+- README.md: Updated version badge and architecture line
+- Version badges: header + footer updated to v0.2.2
+
 ## [0.2.1] — 2026-02-24
 
 ### Security

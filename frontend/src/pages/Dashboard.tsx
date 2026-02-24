@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
-import { useAuth } from "../hooks/useAuth"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
@@ -12,8 +11,8 @@ import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { adena, balance } = useOutletContext<LayoutContext>()
-    const { token } = useAuth()
+    const { adena, balance, auth } = useOutletContext<LayoutContext>()
+    const token = auth.token
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
@@ -22,7 +21,7 @@ export function Dashboard() {
     const [error, setError] = useState<string | null>(null)
 
     const fetchData = useCallback(async () => {
-        if (!token || !adena.connected) return
+        if (!token || !auth.isAuthenticated) return
         setLoading(true)
         setError(null)
         try {
@@ -42,7 +41,7 @@ export function Dashboard() {
         } finally {
             setLoading(false)
         }
-    }, [token, adena.connected])
+    }, [token, auth.isAuthenticated])
 
     useEffect(() => { fetchData() }, [fetchData])
 

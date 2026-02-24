@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee } from "../lib/parseMsgs"
-import { useAuth } from "../hooks/useAuth"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
@@ -15,8 +14,8 @@ export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
-    const { adena } = useOutletContext<LayoutContext>()
-    const { token } = useAuth()
+    const { adena, auth } = useOutletContext<LayoutContext>()
+    const token = auth.token
 
     // P0-A: Scope the fetch using query params (e.g. /tx/5?ms=g1abc&chain=test11)
     const multisigAddr = searchParams.get("ms") || ""

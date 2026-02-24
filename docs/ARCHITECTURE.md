@@ -47,7 +47,7 @@
 
 | Component | Tech | Responsibility |
 |-----------|------|---------------|
-| **Frontend** | React + Vite + Tailwind v4 | UI, wallet integration, tx assembly |
+| **Frontend** | React + Vite + Tailwind v4 + Kodera CSS | UI, wallet integration, tx assembly |
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
@@ -59,7 +59,7 @@
 |---------|-------|---------------|
 | `cmd/memba` | `main.go` | Server entry, CORS, graceful shutdown |
 | `internal/auth` | `crypto.go`, `crypto_test.go` | Challenge/token lifecycle, ADR-036, secp256k1 |
-| `internal/service` | `service.go` | 9 ConnectRPC RPC handlers |
+| `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go` | Core struct + 9 RPC handlers (split by domain) |
 | `internal/db` | `db.go`, `migrations/` | SQLite connection, migration runner |
 | `gen/memba/v1` | Generated | Proto stubs (Go + ConnectRPC) |
 
@@ -72,6 +72,7 @@
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
+| `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
 | `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
