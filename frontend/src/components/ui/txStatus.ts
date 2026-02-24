@@ -1,4 +1,4 @@
-type BadgeStatus = "pending" | "signing" | "ready" | "complete"
+export type BadgeStatus = "pending" | "signing" | "ready" | "complete"
 
 /** Derive badge status from transaction data. */
 export function getTxStatus(

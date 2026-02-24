@@ -31,7 +31,8 @@ func (s *MultisigService) GetToken(
 	slog.Info("GetToken called")
 	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature())
 	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		slog.Warn("GetToken: auth failed", "error", err)
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 	return connect.NewResponse(&membav1.GetTokenResponse{AuthToken: token}), nil
 }

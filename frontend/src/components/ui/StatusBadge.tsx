@@ -1,6 +1,5 @@
 import { type ReactNode } from "react"
-
-type BadgeStatus = "pending" | "signing" | "ready" | "complete"
+import type { BadgeStatus } from "./txStatus"
 
 interface StatusBadgeProps {
     status: BadgeStatus
@@ -9,11 +8,11 @@ interface StatusBadgeProps {
     hash?: string
 }
 
-const config: Record<BadgeStatus, { color: string; bg: string; label: string; icon: string }> = {
-    pending: { color: "#f59e0b", bg: "rgba(245,158,11,0.08)", label: "Pending", icon: "⏳" },
-    signing: { color: "#00d4aa", bg: "rgba(0,212,170,0.08)", label: "Signing", icon: "✍️" },
-    ready: { color: "#22c55e", bg: "rgba(34,197,94,0.08)", label: "Ready", icon: "🚀" },
-    complete: { color: "#22c55e", bg: "rgba(34,197,94,0.08)", label: "Complete", icon: "✅" },
+const config: Record<BadgeStatus, { color: string; bg: string; label: string }> = {
+    pending: { color: "#f59e0b", bg: "rgba(245,158,11,0.08)", label: "Pending" },
+    signing: { color: "#00d4aa", bg: "rgba(0,212,170,0.08)", label: "Signing" },
+    ready: { color: "#22c55e", bg: "rgba(34,197,94,0.08)", label: "Ready" },
+    complete: { color: "#22c55e", bg: "rgba(34,197,94,0.08)", label: "Complete" },
 }
 
 export function StatusBadge({ status, sigCount, threshold, hash }: StatusBadgeProps) {

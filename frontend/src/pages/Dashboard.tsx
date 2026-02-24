@@ -8,15 +8,7 @@ import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-
-interface LayoutContext {
-    adena: {
-        connected: boolean;
-        address: string;
-        chainId: string;
-    };
-    balance: string;
-}
+import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
     const navigate = useNavigate()

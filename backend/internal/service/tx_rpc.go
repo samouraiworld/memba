@@ -121,6 +121,9 @@ func (s *MultisigService) Transactions(
 	var transactions []*membav1.Transaction
 	txByID := make(map[uint32]*membav1.Transaction)
 	for rows.Next() {
+		// Go 1.22+: tx is scoped per iteration, so &tx is safe for both
+		// the slice and the map. Signature mutations via txByID propagate
+		// to the transactions slice — this is intentional.
 		var tx membav1.Transaction
 		if err := rows.Scan(
 			&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,

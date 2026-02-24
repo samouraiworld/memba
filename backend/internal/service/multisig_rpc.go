@@ -82,9 +82,9 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	// Upsert multisig.
 	var existingAddr string
-	err = tx.QueryRow("SELECT address FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddress).Scan(&existingAddr)
+	err = tx.QueryRowContext(ctx, "SELECT address FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddress).Scan(&existingAddr)
 	if err == sql.ErrNoRows {
-		_, err = tx.Exec(
+		_, err = tx.ExecContext(ctx,
 			"INSERT INTO multisigs (chain_id, address, pubkey_json, threshold, members_count, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 			chainID, multisigAddress, pubkeyJSON, ms.Threshold, len(pubKeys), now,
 		)
@@ -98,7 +98,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 			if err != nil {
 				continue
 			}
-			_, err = tx.Exec(
+			_, err = tx.ExecContext(ctx,
 				"INSERT OR IGNORE INTO user_multisigs (chain_id, user_address, multisig_address, joined, created_at) VALUES (?, ?, ?, FALSE, ?)",
 				chainID, memberAddr, multisigAddress, now,
 			)
@@ -113,12 +113,12 @@ func (s *MultisigService) CreateOrJoinMultisig(
 
 	// Join: upsert the calling user's membership.
 	var existingJoined bool
-	err = tx.QueryRow(
+	err = tx.QueryRowContext(ctx,
 		"SELECT joined FROM user_multisigs WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 		chainID, userAddress, multisigAddress,
 	).Scan(&existingJoined)
 	if err == sql.ErrNoRows {
-		_, err = tx.Exec(
+		_, err = tx.ExecContext(ctx,
 			"INSERT INTO user_multisigs (chain_id, user_address, multisig_address, name, joined, created_at) VALUES (?, ?, ?, ?, TRUE, ?)",
 			chainID, userAddress, multisigAddress, name, now,
 		)
@@ -127,7 +127,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		}
 		joined = true
 	} else if err == nil && !existingJoined {
-		_, err = tx.Exec(
+		_, err = tx.ExecContext(ctx,
 			"UPDATE user_multisigs SET joined = TRUE, name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 			name, chainID, userAddress, multisigAddress,
 		)
@@ -136,7 +136,7 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		}
 		joined = true
 	} else if err == nil && existingJoined && name != "" {
-		_, err = tx.Exec(
+		_, err = tx.ExecContext(ctx,
 			"UPDATE user_multisigs SET name = ? WHERE chain_id = ? AND user_address = ? AND multisig_address = ?",
 			name, chainID, userAddress, multisigAddress,
 		)
