@@ -1,0 +1,47 @@
+# Memba — Docker Compose for Self-Hosting
+# Usage: docker compose up -d
+# Requires: .env file with ED25519_SEED (see backend/.env.example)
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: memba-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - memba-data:/data
+    environment:
+      - PORT=8080
+      - DB_PATH=/data/memba.db
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:4173}
+      - ED25519_SEED=${ED25519_SEED:?ED25519_SEED is required}
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: memba-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://backend:8080
+      - VITE_GNO_CHAIN_ID=${GNO_CHAIN_ID:-test11}
+      - VITE_GNO_RPC_URL=${GNO_RPC_URL:-https://rpc.test11.testnets.gno.land:443}
+      - VITE_GNO_BECH32_PREFIX=${GNO_BECH32_PREFIX:-g}
+
+volumes:
+  memba-data:
+    driver: local

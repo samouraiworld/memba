@@ -51,6 +51,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Type check
+        run: npx tsc --noEmit
+
       - name: Lint
         run: npm run lint
 
@@ -68,3 +71,15 @@ jobs:
           lint: true
           breaking: true
           breaking_against: 'https://github.com/samouraiworld/memba.git#branch=main'
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t memba-backend backend/
+      - name: Build frontend image
+        run: docker build -t memba-frontend frontend/
+
