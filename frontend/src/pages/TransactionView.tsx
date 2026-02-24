@@ -40,6 +40,7 @@ export function TransactionView() {
     const [actionLoading, setActionLoading] = useState(false)
     const [manualSig, setManualSig] = useState("")
     const [showManualSig, setShowManualSig] = useState(false)
+    const [linkCopied, setLinkCopied] = useState(false)
 
     const fetchTx = useCallback(async () => {
         if (!token || !id) return
@@ -131,13 +132,28 @@ export function TransactionView() {
                     ← Back
                 </button>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-                    <div>
-                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Transaction #{tx.id}</h2>
-                        <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
-                            {(tx.type || "send").toUpperCase()} • Created by {truncateAddr(tx.creatorAddress)} • {formatDate(tx.createdAt)}
-                        </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>TX #{id}</h2>
+                        <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} />
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(window.location.href)
+                                setLinkCopied(true)
+                                setTimeout(() => setLinkCopied(false), 2000)
+                            }}
+                            style={{
+                                background: "none", border: "1px dashed #333", borderRadius: 6,
+                                color: linkCopied ? "#00d4aa" : "#666", fontSize: 11, padding: "4px 10px",
+                                cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+                                transition: "all 0.15s",
+                            }}
+                        >
+                            {linkCopied ? "✓ Link Copied" : "Share"}
+                        </button>
                     </div>
-                    <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} hash={tx.finalHash} />
+                    <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        {(tx.type || "send").toUpperCase()} • Created by {truncateAddr(tx.creatorAddress)} • {formatDate(tx.createdAt)}
+                    </p>
                 </div>
             </div>
 

@@ -19,8 +19,11 @@ export function MultisigView() {
 
     const [multisig, setMultisig] = useState<Multisig | null>(null)
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
+    const [executedTxs, setExecutedTxs] = useState<Transaction[]>([])
+    const [txTab, setTxTab] = useState<"pending" | "executed">("pending")
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
 
     const { balance } = useBalance(address || null)
 
@@ -29,12 +32,14 @@ export function MultisigView() {
         setLoading(true)
         setError(null)
         try {
-            const [infoRes, txRes] = await Promise.all([
+            const [infoRes, pendingRes, executedRes] = await Promise.all([
                 api.multisigInfo({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID }),
-                api.transactions({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 20 }),
+                api.transactions({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 }),
+                api.transactions({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: 50 }),
             ])
             setMultisig(infoRes.multisig ?? null)
-            setPendingTxs(txRes.transactions)
+            setPendingTxs(pendingRes.transactions)
+            setExecutedTxs(executedRes.transactions)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load multisig")
         } finally {
@@ -96,6 +101,21 @@ export function MultisigView() {
                         <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
                             {address}
                         </p>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(window.location.href)
+                                setCopied(true)
+                                setTimeout(() => setCopied(false), 2000)
+                            }}
+                            style={{
+                                background: "none", border: "1px dashed #333", borderRadius: 6,
+                                color: copied ? "#00d4aa" : "#666", fontSize: 11, padding: "4px 10px",
+                                cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+                                marginTop: 6, transition: "all 0.15s",
+                            }}
+                        >
+                            {copied ? "✓ Copied!" : "Copy Shareable Link"}
+                        </button>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
@@ -195,54 +215,86 @@ export function MultisigView() {
                 </div>
             </div>
 
-            {/* Pending Transactions */}
+            {/* Transactions — Tabbed */}
             <div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Pending Transactions</h3>
-                {pendingTxs.length === 0 ? (
-                    <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
-                        <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                            No pending transactions
-                        </p>
-                    </div>
-                ) : (
-                    <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
-                        <div style={{
-                            padding: "12px 20px", borderBottom: "1px solid #222",
-                            display: "grid", gridTemplateColumns: "1fr 1fr auto",
-                            fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
-                            textTransform: "uppercase", letterSpacing: "0.05em",
-                        }}>
-                            <span>Type</span>
-                            <span>Status</span>
-                            <span>Date</span>
-                        </div>
-                        {pendingTxs.map((tx) => {
-                            const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
-                            return (
-                                <div
-                                    key={tx.id}
-                                    onClick={() => navigate(`/tx/${tx.id}?ms=${address}&chain=${GNO_CHAIN_ID}`)}
-                                    className="k-activity-row"
-                                    style={{
-                                        display: "grid", gridTemplateColumns: "1fr 1fr auto",
-                                        padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
-                                        cursor: "pointer", transition: "background 0.15s",
-                                        fontSize: 13, fontFamily: "JetBrains Mono, monospace",
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                                >
-                                    <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
-                                    <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
-                                    <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
+                <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222", marginBottom: 16 }}>
+                    <button
+                        onClick={() => setTxTab("pending")}
+                        style={{
+                            padding: "10px 20px", background: "none", border: "none",
+                            borderBottom: txTab === "pending" ? "2px solid #00d4aa" : "2px solid transparent",
+                            color: txTab === "pending" ? "#00d4aa" : "#666",
+                            fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                            cursor: "pointer", transition: "all 0.15s",
+                        }}
+                    >
+                        Pending ({pendingTxs.length})
+                    </button>
+                    <button
+                        onClick={() => setTxTab("executed")}
+                        style={{
+                            padding: "10px 20px", background: "none", border: "none",
+                            borderBottom: txTab === "executed" ? "2px solid #00d4aa" : "2px solid transparent",
+                            color: txTab === "executed" ? "#00d4aa" : "#666",
+                            fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                            cursor: "pointer", transition: "all 0.15s",
+                        }}
+                    >
+                        Completed ({executedTxs.length})
+                    </button>
+                </div>
+                {renderTxList(txTab === "pending" ? pendingTxs : executedTxs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}
             </div>
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )
+
+    function renderTxList(txs: Transaction[], emptyMsg: string) {
+        if (txs.length === 0) {
+            return (
+                <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
+                    <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
+                        {emptyMsg}
+                    </p>
+                </div>
+            )
+        }
+        return (
+            <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{
+                    padding: "12px 20px", borderBottom: "1px solid #222",
+                    display: "grid", gridTemplateColumns: "1fr 1fr auto",
+                    fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>
+                    <span>Type</span>
+                    <span>Status</span>
+                    <span>Date</span>
+                </div>
+                {txs.map((tx) => {
+                    const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
+                    return (
+                        <div
+                            key={tx.id}
+                            onClick={() => navigate(`/tx/${tx.id}?ms=${address}&chain=${GNO_CHAIN_ID}`)}
+                            className="k-activity-row"
+                            style={{
+                                display: "grid", gridTemplateColumns: "1fr 1fr auto",
+                                padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
+                                cursor: "pointer", transition: "background 0.15s",
+                                fontSize: 13, fontFamily: "JetBrains Mono, monospace",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                        >
+                            <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
+                            <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
+                            <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
+                        </div>
+                    )
+                })}
+            </div>
+        )
+    }
 }
