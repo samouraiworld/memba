@@ -96,6 +96,14 @@ export function ImportMultisig() {
                 setError("Missing threshold or pubkeys in value object")
                 return
             }
+            // Validate each pubkey entry
+            for (let i = 0; i < parsed.value.pubkeys.length; i++) {
+                const pk = parsed.value.pubkeys[i]
+                if (!pk.type || !pk.value) {
+                    setError(`Pubkey #${i + 1} missing type or value field`)
+                    return
+                }
+            }
         } catch {
             setError("Invalid JSON. Paste the full Amino-encoded multisig pubkey object.")
             return

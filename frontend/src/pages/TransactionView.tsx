@@ -11,6 +11,18 @@ import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
+/** Build deterministic Amino sign doc from transaction data. */
+function buildSignDoc(tx: Transaction): Record<string, unknown> {
+    return {
+        account_number: String(tx.accountNumber),
+        chain_id: tx.chainId,
+        fee: JSON.parse(tx.feeJson),
+        memo: tx.memo || "",
+        msgs: JSON.parse(tx.msgsJson),
+        sequence: String(tx.sequence),
+    }
+}
+
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
@@ -234,15 +246,7 @@ export function TransactionView() {
                             setActionLoading(true)
                             setError(null)
                             try {
-                                // Build Amino sign doc for this TX
-                                const signDoc = JSON.stringify({
-                                    account_number: String(tx.accountNumber),
-                                    chain_id: tx.chainId,
-                                    fee: JSON.parse(tx.feeJson),
-                                    memo: tx.memo || "",
-                                    msgs: JSON.parse(tx.msgsJson),
-                                    sequence: String(tx.sequence),
-                                })
+                                const signDoc = JSON.stringify(buildSignDoc(tx))
                                 const signDocBytes = new TextEncoder().encode(signDoc)
 
                                 // Sign with Adena
@@ -316,15 +320,7 @@ export function TransactionView() {
                     <button
                         className="k-btn-secondary"
                         onClick={() => {
-                            const signDoc = {
-                                account_number: String(tx.accountNumber),
-                                chain_id: tx.chainId,
-                                fee: JSON.parse(tx.feeJson),
-                                memo: tx.memo || "",
-                                msgs: JSON.parse(tx.msgsJson),
-                                sequence: String(tx.sequence),
-                            }
-                            const json = JSON.stringify(signDoc, null, 2)
+                            const json = JSON.stringify(buildSignDoc(tx), null, 2)
                             const blob = new Blob([json], { type: "application/json" })
                             const url = URL.createObjectURL(blob)
                             const a = document.createElement("a")
@@ -372,14 +368,7 @@ export function TransactionView() {
                             setActionLoading(true)
                             setError(null)
                             try {
-                                const signDoc = JSON.stringify({
-                                    account_number: String(tx.accountNumber),
-                                    chain_id: tx.chainId,
-                                    fee: JSON.parse(tx.feeJson),
-                                    memo: tx.memo || "",
-                                    msgs: JSON.parse(tx.msgsJson),
-                                    sequence: String(tx.sequence),
-                                })
+                                const signDoc = JSON.stringify(buildSignDoc(tx))
                                 await api.signTransaction({
                                     authToken: token,
                                     transactionId: tx.id,
