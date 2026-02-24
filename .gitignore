@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+backend/memba
+backend/gen/
+frontend/src/gen/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Test
+coverage/
+*.cover
+*.out
+
+# Docker
+.docker/
+
+# Buf
+.buf/
+
+# Agent
+.agents/

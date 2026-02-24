@@ -1,0 +1,32 @@
+app = "memba-backend"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  GNO_RPC_URL = "https://rpc.test11.testnets.gno.land:443"
+  GNO_CHAIN_ID = "test11"
+  DB_PATH = "/data/memba.db"
+  CORS_ORIGINS = "https://memba.samourai.app"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[mounts]]
+  source = "memba_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

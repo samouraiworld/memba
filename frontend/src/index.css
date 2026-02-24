@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+/* ── Kodera Design System ────────────────────────────────────────── */
+@theme {
+  /* Use "k-" prefix to avoid Tailwind internal name conflicts */
+  --color-k-bg: #000000;
+  --color-k-elevated: #0c0c0c;
+  --color-k-panel: #141414;
+  --color-k-panel-hover: #1a1a1a;
+  --color-k-edge: #222222;
+  --color-k-edge-hover: #333333;
+  --color-k-dashed: #2e2e2e;
+  --color-k-text: #f0f0f0;
+  --color-k-dim: #999999;
+  --color-k-muted: #555555;
+  --color-k-accent: #00d4aa;
+  --color-k-accent-hover: #00e6bb;
+  --color-k-danger: #ff4757;
+  --color-k-warning: #ffa502;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --animate-fade-in: fade-in 0.4s ease-out both;
+  --animate-slide-up: slide-up 0.35s ease-out both;
+  --animate-glow: glow 2.5s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 212, 170, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px rgba(0, 212, 170, 0.15);
+  }
+}
+
+/* ── Base ────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: #000;
+  color: #f0f0f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+a {
+  color: #00d4aa;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: #00e6bb;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(0, 212, 170, 0.2);
+  color: #00d4aa;
+}
+
+/* ── Explicit component styles (fallback if Tailwind utils don't resolve) ── */
+.k-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.k-card:hover {
+  border-color: #333;
+  background: #1a1a1a;
+}
+
+.k-card-accent {
+  border-color: rgba(0, 212, 170, 0.2);
+}
+
+.k-glass {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.k-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: #00d4aa;
+  color: #000;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 0 24px rgba(0, 212, 170, 0.2);
+}
+
+.k-btn-primary:hover {
+  background: #00e6bb;
+}
+
+.k-btn-primary:active {
+  transform: scale(0.97);
+}
+
+.k-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: transparent;
+  color: #999;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #222;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.k-btn-secondary:hover {
+  border-color: #444;
+  color: #f0f0f0;
+  background: #141414;
+}
+
+.k-btn-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: rgba(0, 212, 170, 0.08);
+  color: #00d4aa;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.k-btn-wallet:hover {
+  background: rgba(0, 212, 170, 0.14);
+  border-color: rgba(0, 212, 170, 0.4);
+}
+
+.k-dashed {
+  border: 1px dashed #2e2e2e;
+  border-radius: 12px;
+}
+
+.k-label {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+}
+
+.k-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f0f0f0;
+  margin-top: 6px;
+}
+
+.k-value-accent {
+  color: #00d4aa;
+}
