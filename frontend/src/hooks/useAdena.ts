@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 // Adena injects `window.adena` when the extension is installed.
 // Docs: https://docs.adena.app/integrations/adena-api
@@ -33,6 +33,7 @@ function getAdena(): any {
 }
 
 export function useAdena() {
+    const [installed, setInstalled] = useState(() => !!getAdena());
     const [state, setState] = useState<AdenaState>({
         connected: false,
         address: "",
@@ -42,7 +43,19 @@ export function useAdena() {
         error: null,
     });
 
-    const isInstalled = useCallback(() => !!getAdena(), []);
+    // Extensions inject globals after page load — poll briefly to detect.
+    useEffect(() => {
+        if (installed) return;
+        let attempts = 0;
+        const timer = setInterval(() => {
+            if (getAdena()) {
+                setInstalled(true);
+                clearInterval(timer);
+            }
+            if (++attempts >= 15) clearInterval(timer); // stop after 3s
+        }, 200);
+        return () => clearInterval(timer);
+    }, [installed]);
 
     const connect = useCallback(async () => {
         const adena = getAdena();
@@ -138,7 +151,7 @@ export function useAdena() {
 
     return {
         ...state,
-        isInstalled,
+        installed,
         connect,
         disconnect,
         signArbitrary,
