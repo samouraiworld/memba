@@ -66,6 +66,10 @@ func main() {
 	// Create ConnectRPC handler
 	mux := http.NewServeMux()
 
+	// Graceful shutdown context — created early so the rate limiter GC can use it.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	// Initialize rate limiter with app context for clean shutdown.
 	limiter = newIPRateLimiter(ctx)
 
@@ -110,10 +114,6 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-
-	// Graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		slog.Info("server starting", "port", port)
