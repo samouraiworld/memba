@@ -2,6 +2,14 @@
 
 All notable changes to Memba are documented here.
 
+## [1.1.0] — 2026-02-24
+
+### Added
+- **Generic TX Builder**: Tabbed ProposeTransaction with 'Send GNOT' (MsgSend) and 'Contract Call' (MsgCall) modes
+- **MsgCall Support**: Package path, function name, comma-separated args, optional GNOT send amount
+- **Config Export**: MultisigView 'Export Config' button downloads multisig config JSON for backup/sharing
+- **Higher gas for calls**: Contract calls use 2M gas vs 100K for sends
+
 ## [0.4.0] — 2026-02-24
 
 ### Added

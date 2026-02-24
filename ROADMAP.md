@@ -267,13 +267,13 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v1.1.0 — Realm Interactions
+## v1.1.0 — Realm Interactions — ✅ COMPLETE
 
-| Feature | Description |
-|---------|-------------|
-| TX builder | Generic realm function call UI (any realm, any function) |
-| Multi-wallet | Manage multiple multisigs from one account |
-| Config export/import | Backup multisig configuration |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| TX builder | Generic realm function call UI (any realm, any function) | ✅ |
+| Multi-wallet | Manage multiple multisigs from one account | ✅ (Dashboard) |
+| Config export/import | Backup multisig configuration | ✅ |
 
 ---
 
