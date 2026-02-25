@@ -7,7 +7,7 @@
 
 - [ ] Adena browser extension installed
 - [ ] At least 2 test accounts funded with GNOT on test11
-- [ ] Backend deployed and healthy (`/healthz` returns 200)
+- [ ] Backend deployed and healthy (`/health` returns 200)
 - [ ] Frontend deployed and reachable
 
 ## 1. Authentication
@@ -77,4 +77,4 @@
 
 - [ ] Screenshot key states for documentation
 - [ ] Report any issues as GitHub Issues on `samouraiworld/memba`
-- [ ] If all pass → tag v0.2.0 and deploy
+- [ ] If all pass → tag v2.0.1 and deploy

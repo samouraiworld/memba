@@ -58,11 +58,75 @@ func (s *MultisigService) CreateTransaction(
 	}
 
 	txID, _ := res.LastInsertId()
-	slog.Info("CreateTransaction", "id", txID, "creator", userAddress, "multisig", multisigAddr)
+	slog.Info("CreateTransaction", "user", userAddress, "multisig", multisigAddr, "id", txID)
+	return connect.NewResponse(&membav1.CreateTransactionResponse{TransactionId: uint32(txID)}), nil
+}
 
-	return connect.NewResponse(&membav1.CreateTransactionResponse{
-		TransactionId: uint32(txID),
-	}), nil
+// GetTransaction returns a single transaction by ID, if the caller is a member.
+func (s *MultisigService) GetTransaction(
+	ctx context.Context,
+	req *connect.Request[membav1.GetTransactionRequest],
+) (*connect.Response[membav1.GetTransactionResponse], error) {
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
+		return nil, err
+	}
+
+	txID := req.Msg.GetTransactionId()
+	if txID == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	var tx membav1.Transaction
+	err = s.db.QueryRowContext(ctx, `
+		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
+		       t.account_number, t.sequence, t.memo, t.creator_address,
+		       COALESCE(t.final_hash, ''), t.type, t.created_at,
+		       m.threshold, m.members_count, m.pubkey_json
+		FROM transactions t
+		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
+		JOIN user_multisigs um ON um.chain_id = t.chain_id AND um.multisig_address = t.multisig_address AND um.user_address = ?
+		WHERE t.id = ? AND um.joined = TRUE
+	`, userAddress, txID).Scan(
+		&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
+		&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
+		&tx.FinalHash, &tx.Type, &tx.CreatedAt,
+		&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
+	)
+	if err == sql.ErrNoRows {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	if err != nil {
+		return nil, internalError("GetTransaction: query", err)
+	}
+
+	// Load signatures for this transaction.
+	sigRows, err := s.db.QueryContext(ctx,
+		"SELECT transaction_id, user_address, signature, body_bytes, created_at FROM signatures WHERE transaction_id = ?",
+		txID,
+	)
+	if err != nil {
+		return nil, internalError("GetTransaction: sig query", err)
+	}
+	defer sigRows.Close()
+
+	for sigRows.Next() {
+		var ignoredID uint32
+		var sig membav1.Signature
+		var bodyBytes []byte
+		if err := sigRows.Scan(&ignoredID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt); err != nil {
+			slog.Warn("GetTransaction: sig scan error", "error", err)
+			continue
+		}
+		sig.BodyBytes = bodyBytes
+		tx.Signatures = append(tx.Signatures, &sig)
+	}
+	if err := sigRows.Err(); err != nil {
+		return nil, internalError("GetTransaction: sig row iteration", err)
+	}
+
+	slog.Info("GetTransaction", "user", userAddress, "id", txID)
+	return connect.NewResponse(&membav1.GetTransactionResponse{Transaction: &tx}), nil
 }
 
 func (s *MultisigService) Transactions(
@@ -109,7 +173,13 @@ func (s *MultisigService) Transactions(
 		query += " AND t.final_hash IS NOT NULL"
 	}
 
-	query += " ORDER BY t.created_at DESC LIMIT ?"
+	// P1-6: Cursor-based pagination using start_after (transaction ID).
+	if startAfter := req.Msg.GetStartAfter(); startAfter != "" {
+		query += " AND t.id < ?"
+		args = append(args, startAfter)
+	}
+
+	query += " ORDER BY t.id DESC LIMIT ?"
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)

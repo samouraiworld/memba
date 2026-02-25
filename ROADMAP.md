@@ -144,7 +144,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v0.2.2 — Auth Bridge & Import — 🚧 IN PROGRESS
+## v0.2.2 — Auth Bridge & Import — ✅ COMPLETE
 
 > Fix critical auth gap and wire import multisig.
 
@@ -233,7 +233,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v1.0.0 — DAO Governance
+## v1.0.0 — DAO Governance — ⏳ DEFERRED → v3.0.0
 
 > Full on-chain DAO management via gnodaokit.
 

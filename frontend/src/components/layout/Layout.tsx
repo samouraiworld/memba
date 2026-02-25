@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom"
 import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
+import { APP_VERSION } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -66,7 +67,7 @@ export function Layout() {
         } finally {
             setAuthLoading(false)
         }
-    }, [adena.connected, adena.pubkeyJSON, auth.isAuthenticated, auth.getChallenge, auth.getToken, adena.signArbitrary, adena.disconnect])
+    }, [adena, auth])
 
     useEffect(() => {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {
@@ -84,7 +85,7 @@ export function Layout() {
         auth.logout()
         setAuthError(null)
         loginAttemptedRef.current = false
-    }, [adena.disconnect, auth.logout])
+    }, [adena, auth])
 
     const truncateAddr = (addr: string) =>
         addr.length > 16 ? `${addr.slice(0, 8)}...${addr.slice(-6)}` : addr
@@ -114,7 +115,7 @@ export function Layout() {
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                        }}>v0.2.2</span>
+                        }}>v{APP_VERSION}</span>
                     </div>
 
                     {/* Right side */}
@@ -196,7 +197,7 @@ export function Layout() {
             {/* ── Footer ──────────────────────────────────────────────── */}
             <footer style={{ borderTop: "1px solid #111", padding: "16px 24px", textAlign: "center" }}>
                 <p style={{ color: "#333", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                    memba v0.2.2 • built by samourai coop
+                    memba v{APP_VERSION} • built by samourai coop
                 </p>
             </footer>
         </div>

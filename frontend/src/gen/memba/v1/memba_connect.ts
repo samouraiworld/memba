@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetTokenRequest, GetTokenResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, TransactionsRequest, TransactionsResponse } from "./memba_pb.js";
+import { CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, TransactionsRequest, TransactionsResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -72,6 +72,15 @@ export const MultisigService = {
       name: "CreateTransaction",
       I: CreateTransactionRequest,
       O: CreateTransactionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetTransaction
+     */
+    getTransaction: {
+      name: "GetTransaction",
+      I: GetTransactionRequest,
+      O: GetTransactionResponse,
       kind: MethodKind.Unary,
     },
     /**

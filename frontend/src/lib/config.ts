@@ -3,6 +3,11 @@
  * All env vars read from Vite's import.meta.env with sensible defaults.
  */
 
+/** Application version — single source of truth for header/footer badges. */
+export const APP_VERSION = "2.0.1"
+
+// Environment-driven config with sensible defaults.
+
 /** Backend API base URL. Falls back to empty string (uses vite proxy in dev). */
 export const API_BASE_URL = import.meta.env.VITE_API_URL || ""
 

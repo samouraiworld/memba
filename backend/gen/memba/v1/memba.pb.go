@@ -1473,6 +1473,102 @@ func (x *TransactionsResponse) GetTransactions() []*Transaction {
 	return nil
 }
 
+type GetTransactionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	TransactionId uint32                 `protobuf:"varint,2,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTransactionRequest) Reset() {
+	*x = GetTransactionRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTransactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTransactionRequest) ProtoMessage() {}
+
+func (x *GetTransactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTransactionRequest.ProtoReflect.Descriptor instead.
+func (*GetTransactionRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetTransactionRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *GetTransactionRequest) GetTransactionId() uint32 {
+	if x != nil {
+		return x.TransactionId
+	}
+	return 0
+}
+
+type GetTransactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transaction   *Transaction           `protobuf:"bytes,1,opt,name=transaction,proto3" json:"transaction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTransactionResponse) Reset() {
+	*x = GetTransactionResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTransactionResponse) ProtoMessage() {}
+
+func (x *GetTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTransactionResponse.ProtoReflect.Descriptor instead.
+func (*GetTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetTransactionResponse) GetTransaction() *Transaction {
+	if x != nil {
+		return x.Transaction
+	}
+	return nil
+}
+
 type SignTransactionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
@@ -1485,7 +1581,7 @@ type SignTransactionRequest struct {
 
 func (x *SignTransactionRequest) Reset() {
 	*x = SignTransactionRequest{}
-	mi := &file_memba_v1_memba_proto_msgTypes[20]
+	mi := &file_memba_v1_memba_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1593,7 @@ func (x *SignTransactionRequest) String() string {
 func (*SignTransactionRequest) ProtoMessage() {}
 
 func (x *SignTransactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_memba_v1_memba_proto_msgTypes[20]
+	mi := &file_memba_v1_memba_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1606,7 @@ func (x *SignTransactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignTransactionRequest.ProtoReflect.Descriptor instead.
 func (*SignTransactionRequest) Descriptor() ([]byte, []int) {
-	return file_memba_v1_memba_proto_rawDescGZIP(), []int{20}
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SignTransactionRequest) GetAuthToken() *Token {
@@ -1549,7 +1645,7 @@ type SignTransactionResponse struct {
 
 func (x *SignTransactionResponse) Reset() {
 	*x = SignTransactionResponse{}
-	mi := &file_memba_v1_memba_proto_msgTypes[21]
+	mi := &file_memba_v1_memba_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1561,7 +1657,7 @@ func (x *SignTransactionResponse) String() string {
 func (*SignTransactionResponse) ProtoMessage() {}
 
 func (x *SignTransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_memba_v1_memba_proto_msgTypes[21]
+	mi := &file_memba_v1_memba_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1574,7 +1670,7 @@ func (x *SignTransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignTransactionResponse.ProtoReflect.Descriptor instead.
 func (*SignTransactionResponse) Descriptor() ([]byte, []int) {
-	return file_memba_v1_memba_proto_rawDescGZIP(), []int{21}
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{23}
 }
 
 type CompleteTransactionRequest struct {
@@ -1588,7 +1684,7 @@ type CompleteTransactionRequest struct {
 
 func (x *CompleteTransactionRequest) Reset() {
 	*x = CompleteTransactionRequest{}
-	mi := &file_memba_v1_memba_proto_msgTypes[22]
+	mi := &file_memba_v1_memba_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1600,7 +1696,7 @@ func (x *CompleteTransactionRequest) String() string {
 func (*CompleteTransactionRequest) ProtoMessage() {}
 
 func (x *CompleteTransactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_memba_v1_memba_proto_msgTypes[22]
+	mi := &file_memba_v1_memba_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1613,7 +1709,7 @@ func (x *CompleteTransactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteTransactionRequest.ProtoReflect.Descriptor instead.
 func (*CompleteTransactionRequest) Descriptor() ([]byte, []int) {
-	return file_memba_v1_memba_proto_rawDescGZIP(), []int{22}
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CompleteTransactionRequest) GetAuthToken() *Token {
@@ -1645,7 +1741,7 @@ type CompleteTransactionResponse struct {
 
 func (x *CompleteTransactionResponse) Reset() {
 	*x = CompleteTransactionResponse{}
-	mi := &file_memba_v1_memba_proto_msgTypes[23]
+	mi := &file_memba_v1_memba_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1657,7 +1753,7 @@ func (x *CompleteTransactionResponse) String() string {
 func (*CompleteTransactionResponse) ProtoMessage() {}
 
 func (x *CompleteTransactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_memba_v1_memba_proto_msgTypes[23]
+	mi := &file_memba_v1_memba_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1670,7 +1766,7 @@ func (x *CompleteTransactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteTransactionResponse.ProtoReflect.Descriptor instead.
 func (*CompleteTransactionResponse) Descriptor() ([]byte, []int) {
-	return file_memba_v1_memba_proto_rawDescGZIP(), []int{23}
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{25}
 }
 
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
@@ -1798,7 +1894,13 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\bchain_id\x18\x05 \x01(\tR\achainId\x12A\n" +
 	"\x0fexecution_state\x18\x06 \x01(\x0e2\x18.memba.v1.ExecutionStateR\x0eexecutionState\"Q\n" +
 	"\x14TransactionsResponse\x129\n" +
-	"\ftransactions\x18\x01 \x03(\v2\x15.memba.v1.TransactionR\ftransactions\"\xac\x01\n" +
+	"\ftransactions\x18\x01 \x03(\v2\x15.memba.v1.TransactionR\ftransactions\"n\n" +
+	"\x15GetTransactionRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12%\n" +
+	"\x0etransaction_id\x18\x02 \x01(\rR\rtransactionId\"Q\n" +
+	"\x16GetTransactionResponse\x127\n" +
+	"\vtransaction\x18\x01 \x01(\v2\x15.memba.v1.TransactionR\vtransaction\"\xac\x01\n" +
 	"\x16SignTransactionRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x1c\n" +
@@ -1821,14 +1923,15 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0eExecutionState\x12\x1f\n" +
 	"\x1bEXECUTION_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17EXECUTION_STATE_PENDING\x10\x01\x12\x1c\n" +
-	"\x18EXECUTION_STATE_EXECUTED\x10\x022\x88\x06\n" +
+	"\x18EXECUTION_STATE_EXECUTED\x10\x022\xdd\x06\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
 	"\x14CreateOrJoinMultisig\x12%.memba.v1.CreateOrJoinMultisigRequest\x1a&.memba.v1.CreateOrJoinMultisigResponse\x12M\n" +
 	"\fMultisigInfo\x12\x1d.memba.v1.MultisigInfoRequest\x1a\x1e.memba.v1.MultisigInfoResponse\x12D\n" +
 	"\tMultisigs\x12\x1a.memba.v1.MultisigsRequest\x1a\x1b.memba.v1.MultisigsResponse\x12\\\n" +
-	"\x11CreateTransaction\x12\".memba.v1.CreateTransactionRequest\x1a#.memba.v1.CreateTransactionResponse\x12M\n" +
+	"\x11CreateTransaction\x12\".memba.v1.CreateTransactionRequest\x1a#.memba.v1.CreateTransactionResponse\x12S\n" +
+	"\x0eGetTransaction\x12\x1f.memba.v1.GetTransactionRequest\x1a .memba.v1.GetTransactionResponse\x12M\n" +
 	"\fTransactions\x12\x1d.memba.v1.TransactionsRequest\x1a\x1e.memba.v1.TransactionsResponse\x12V\n" +
 	"\x0fSignTransaction\x12 .memba.v1.SignTransactionRequest\x1a!.memba.v1.SignTransactionResponse\x12b\n" +
 	"\x13CompleteTransaction\x12$.memba.v1.CompleteTransactionRequest\x1a%.memba.v1.CompleteTransactionResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
@@ -1846,7 +1949,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -1870,10 +1973,12 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*CreateTransactionResponse)(nil),    // 19: memba.v1.CreateTransactionResponse
 	(*TransactionsRequest)(nil),          // 20: memba.v1.TransactionsRequest
 	(*TransactionsResponse)(nil),         // 21: memba.v1.TransactionsResponse
-	(*SignTransactionRequest)(nil),       // 22: memba.v1.SignTransactionRequest
-	(*SignTransactionResponse)(nil),      // 23: memba.v1.SignTransactionResponse
-	(*CompleteTransactionRequest)(nil),   // 24: memba.v1.CompleteTransactionRequest
-	(*CompleteTransactionResponse)(nil),  // 25: memba.v1.CompleteTransactionResponse
+	(*GetTransactionRequest)(nil),        // 22: memba.v1.GetTransactionRequest
+	(*GetTransactionResponse)(nil),       // 23: memba.v1.GetTransactionResponse
+	(*SignTransactionRequest)(nil),       // 24: memba.v1.SignTransactionRequest
+	(*SignTransactionResponse)(nil),      // 25: memba.v1.SignTransactionResponse
+	(*CompleteTransactionRequest)(nil),   // 26: memba.v1.CompleteTransactionRequest
+	(*CompleteTransactionResponse)(nil),  // 27: memba.v1.CompleteTransactionResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	2,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -1890,31 +1995,35 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,  // 11: memba.v1.TransactionsRequest.auth_token:type_name -> memba.v1.Token
 	1,  // 12: memba.v1.TransactionsRequest.execution_state:type_name -> memba.v1.ExecutionState
 	17, // 13: memba.v1.TransactionsResponse.transactions:type_name -> memba.v1.Transaction
-	3,  // 14: memba.v1.SignTransactionRequest.auth_token:type_name -> memba.v1.Token
-	3,  // 15: memba.v1.CompleteTransactionRequest.auth_token:type_name -> memba.v1.Token
-	5,  // 16: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	7,  // 17: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	10, // 18: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	12, // 19: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	14, // 20: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	18, // 21: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	20, // 22: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	22, // 23: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	24, // 24: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	6,  // 25: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	8,  // 26: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	11, // 27: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	13, // 28: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	15, // 29: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	19, // 30: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	21, // 31: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	23, // 32: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	25, // 33: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	25, // [25:34] is the sub-list for method output_type
-	16, // [16:25] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	3,  // 14: memba.v1.GetTransactionRequest.auth_token:type_name -> memba.v1.Token
+	17, // 15: memba.v1.GetTransactionResponse.transaction:type_name -> memba.v1.Transaction
+	3,  // 16: memba.v1.SignTransactionRequest.auth_token:type_name -> memba.v1.Token
+	3,  // 17: memba.v1.CompleteTransactionRequest.auth_token:type_name -> memba.v1.Token
+	5,  // 18: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	7,  // 19: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	10, // 20: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	12, // 21: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	14, // 22: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	18, // 23: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	22, // 24: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	20, // 25: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	24, // 26: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	26, // 27: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	6,  // 28: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	8,  // 29: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	11, // 30: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	13, // 31: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	15, // 32: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	19, // 33: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	23, // 34: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	21, // 35: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	25, // 36: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	27, // 37: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	28, // [28:38] is the sub-list for method output_type
+	18, // [18:28] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -1928,7 +2037,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

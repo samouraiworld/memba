@@ -12,7 +12,8 @@
 | `MultisigInfo` | ✅ | Get multisig details + member list |
 | `Multisigs` | ✅ | List user's multisigs (filter by chain, join state) |
 | `CreateTransaction` | ✅ | Propose a new transaction (membership required) |
-| `Transactions` | ✅ | List transactions (filter by multisig, execution state) |
+| `GetTransaction` | ✅ | Get single transaction by ID (membership required) |
+| `Transactions` | ✅ | List transactions (filter by multisig, execution state, cursor pagination) |
 | `SignTransaction` | ✅ | Add signature to pending transaction |
 | `CompleteTransaction` | ✅ | Record final tx hash after broadcast |
 
