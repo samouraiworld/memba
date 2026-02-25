@@ -141,9 +141,13 @@ export function useAdena() {
     const signArbitrary = useCallback(
         async (data: string): Promise<string | null> => {
             const adena = getAdena();
-            if (!adena || !state.connected) return null;
+            if (!adena || !state.connected) {
+                console.error("[Memba] signArbitrary: not connected or no adena");
+                return null;
+            }
 
             try {
+                console.log("[Memba] signArbitrary: calling SignAmino...");
                 const res = await adena.SignAmino({
                     messages: [
                         {
@@ -158,10 +162,17 @@ export function useAdena() {
                     memo: "",
                 });
 
-                if (res.status === "failure") return null;
+                console.log("[Memba] signArbitrary: SignAmino result:", res);
+                if (res.status === "failure") {
+                    console.error("[Memba] signArbitrary: SignAmino returned failure:", res);
+                    return null;
+                }
                 // Extract signature from response
-                return res.data?.signature?.signature || null;
-            } catch {
+                const sig = res.data?.signature?.signature || null;
+                console.log("[Memba] signArbitrary: signature extracted:", sig ? "OK" : "null");
+                return sig;
+            } catch (err) {
+                console.error("[Memba] signArbitrary: EXCEPTION:", err);
                 return null;
             }
         },
