@@ -27,7 +27,7 @@ export function Layout() {
 
     // ── Auth bridge: wallet connect → challenge-response → token ──
     const performLogin = useCallback(async () => {
-        if (!adena.connected || !adena.pubkeyJSON || auth.isAuthenticated) return
+        if (!adena.connected || auth.isAuthenticated) return
         if (loginAttemptedRef.current) return
         loginAttemptedRef.current = true
         setAuthLoading(true)
@@ -42,7 +42,8 @@ export function Layout() {
 
             // 2. Build TokenRequestInfo JSON (must be valid protojson)
             // Proto bytes fields must be base64-encoded for protojson.Unmarshal
-            const info = {
+            // Send pubkey if available, otherwise send address directly.
+            const info: Record<string, unknown> = {
                 kind: CLIENT_MAGIC,
                 challenge: {
                     nonce: bytesToBase64(challenge.nonce),
@@ -50,7 +51,12 @@ export function Layout() {
                     serverSignature: bytesToBase64(challenge.serverSignature),
                 },
                 userBech32Prefix: "g",
-                userPubkeyJson: adena.pubkeyJSON,
+            }
+            if (adena.pubkeyJSON) {
+                info.userPubkeyJson = adena.pubkeyJSON
+            } else {
+                info.userAddress = adena.address
+                console.log("[Memba] performLogin: using address-only auth (no pubkey)")
             }
             const infoJson = JSON.stringify(info)
 

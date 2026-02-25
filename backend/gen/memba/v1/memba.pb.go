@@ -254,7 +254,8 @@ type TokenRequestInfo struct {
 	Kind             string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	Challenge        *Challenge             `protobuf:"bytes,2,opt,name=challenge,proto3" json:"challenge,omitempty"`
 	UserBech32Prefix string                 `protobuf:"bytes,3,opt,name=user_bech32_prefix,json=userBech32Prefix,proto3" json:"user_bech32_prefix,omitempty"`
-	UserPubkeyJson   string                 `protobuf:"bytes,4,opt,name=user_pubkey_json,json=userPubkeyJson,proto3" json:"user_pubkey_json,omitempty"`
+	UserPubkeyJson   string                 `protobuf:"bytes,4,opt,name=user_pubkey_json,json=userPubkeyJson,proto3" json:"user_pubkey_json,omitempty"` // Amino JSON pubkey — optional if user_address is set
+	UserAddress      string                 `protobuf:"bytes,5,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`            // Direct address — used when pubkey unavailable from wallet
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -313,6 +314,13 @@ func (x *TokenRequestInfo) GetUserBech32Prefix() string {
 func (x *TokenRequestInfo) GetUserPubkeyJson() string {
 	if x != nil {
 		return x.UserPubkeyJson
+	}
+	return ""
+}
+
+func (x *TokenRequestInfo) GetUserAddress() string {
+	if x != nil {
+		return x.UserAddress
 	}
 	return ""
 }
@@ -1786,12 +1794,13 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"expiration\x18\x02 \x01(\tR\n" +
 	"expiration\x12!\n" +
 	"\fuser_address\x18\x03 \x01(\tR\vuserAddress\x12)\n" +
-	"\x10server_signature\x18\x04 \x01(\tR\x0fserverSignature\"\xb1\x01\n" +
+	"\x10server_signature\x18\x04 \x01(\tR\x0fserverSignature\"\xd4\x01\n" +
 	"\x10TokenRequestInfo\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x121\n" +
 	"\tchallenge\x18\x02 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\x12,\n" +
 	"\x12user_bech32_prefix\x18\x03 \x01(\tR\x10userBech32Prefix\x12(\n" +
-	"\x10user_pubkey_json\x18\x04 \x01(\tR\x0euserPubkeyJson\"\x15\n" +
+	"\x10user_pubkey_json\x18\x04 \x01(\tR\x0euserPubkeyJson\x12!\n" +
+	"\fuser_address\x18\x05 \x01(\tR\vuserAddress\"\x15\n" +
 	"\x13GetChallengeRequest\"I\n" +
 	"\x14GetChallengeResponse\x121\n" +
 	"\tchallenge\x18\x01 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\"U\n" +

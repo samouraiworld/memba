@@ -185,40 +185,54 @@ func MakeToken(
 		return nil, errors.Wrap(err, "invalid challenge")
 	}
 
-	// Parse the user's secp256k1 public key.
-	userPubKey, err := ParsePubKeyJSON(info.UserPubkeyJson)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse user pubkey")
-	}
-	addressBytes := userPubKey.Address()
+	// Derive the user's address — either from pubkey or direct address field.
+	var chainUserAddress, universalAddress string
 
-	// Derive the user's bech32 address.
-	chainUserAddress, err := bech32.ConvertAndEncode(prefix, addressBytes)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode bech32 address")
-	}
-
-	// Verify ADR-036 signature when provided.
-	// Adena wallet does not support ADR-036 sign/MsgSignData, so the
-	// signature may be empty. In that case, auth relies on:
-	// 1. Server-signed challenge validation (nonce + expiry + server sig)
-	// 2. User pubkey → address derivation (proves pubkey knowledge)
-	// 3. Adena connection verifying wallet ownership on the client side
-	if signatureBase64 != "" {
-		signature, err := base64.StdEncoding.DecodeString(signatureBase64)
+	if info.UserPubkeyJson != "" {
+		// Standard path: parse pubkey → derive address.
+		userPubKey, err := ParsePubKeyJSON(info.UserPubkeyJson)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode user signature")
+			return nil, errors.Wrap(err, "failed to parse user pubkey")
 		}
-		signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress)
-		if !userPubKey.VerifySignature(signDoc, signature) {
-			return nil, errors.New("invalid user signature")
-		}
-	}
+		addressBytes := userPubKey.Address()
 
-	// Derive universal address for storage.
-	universalAddress, err := bech32.ConvertAndEncode(UniversalBech32Prefix, addressBytes)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode universal address")
+		chainUserAddress, err = bech32.ConvertAndEncode(prefix, addressBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encode bech32 address")
+		}
+
+		// Verify ADR-036 signature when provided.
+		if signatureBase64 != "" {
+			signature, err := base64.StdEncoding.DecodeString(signatureBase64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to decode user signature")
+			}
+			signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress)
+			if !userPubKey.VerifySignature(signDoc, signature) {
+				return nil, errors.New("invalid user signature")
+			}
+		}
+
+		universalAddress, err = bech32.ConvertAndEncode(UniversalBech32Prefix, addressBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encode universal address")
+		}
+	} else if info.UserAddress != "" {
+		// Address-only path: wallet didn't provide pubkey (e.g. Adena for
+		// accounts that haven't transacted on-chain yet).
+		chainUserAddress = info.UserAddress
+
+		// Re-encode to universal prefix for storage.
+		_, addressBytes, err := bech32.DecodeAndConvert(info.UserAddress)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode user address")
+		}
+		universalAddress, err = bech32.ConvertAndEncode(UniversalBech32Prefix, addressBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encode universal address")
+		}
+	} else {
+		return nil, errors.New("either user_pubkey_json or user_address must be provided")
 	}
 
 	nonce, err := makeNonce()
