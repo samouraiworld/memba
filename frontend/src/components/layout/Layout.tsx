@@ -35,14 +35,10 @@ export function Layout() {
 
         try {
             // 1. Get server challenge
-            console.log("[Memba] performLogin: getting challenge...")
             const challenge = await auth.getChallenge()
             if (!challenge) throw new Error("Failed to get challenge")
-            console.log("[Memba] performLogin: challenge received")
 
-            // 2. Build TokenRequestInfo JSON (must be valid protojson)
-            // Proto bytes fields must be base64-encoded for protojson.Unmarshal
-            // Send pubkey if available, otherwise send address directly.
+            // 2. Build TokenRequestInfo (protojson format)
             const info: Record<string, unknown> = {
                 kind: CLIENT_MAGIC,
                 challenge: {
@@ -52,30 +48,22 @@ export function Layout() {
                 },
                 userBech32Prefix: "g",
             }
+            // Send pubkey if available, otherwise use address-only auth
             if (adena.pubkeyJSON) {
                 info.userPubkeyJson = adena.pubkeyJSON
             } else {
                 info.userAddress = adena.address
-                console.log("[Memba] performLogin: using address-only auth (no pubkey)")
             }
             const infoJson = JSON.stringify(info)
 
-            // 3. Adena does not support ADR-036 arbitrary data signing
-            // (sign/MsgSignData returns UNSUPPORTED_TYPE). Auth security relies on:
-            // - Server-validated challenge (nonce + expiry + server signature)
-            // - Address derived from pubkey on the server side
-            // - Adena verifying wallet ownership on the client side
-            // When ADR-036 support is added to Adena, re-enable signing here.
+            // 3. ADR-036 signing skipped — Adena returns UNSUPPORTED_TYPE for sign/MsgSignData
             const signature = ""
-            console.log("[Memba] performLogin: skipping ADR-036 signing (Adena unsupported)")
 
             // 4. Exchange for auth token
-            console.log("[Memba] performLogin: exchanging for token...")
             const token = await auth.getToken(infoJson, signature)
             if (!token) throw new Error("Authentication failed")
-            console.log("[Memba] performLogin: authenticated!", { address: token.userAddress })
         } catch (err) {
-            console.error("[Memba] performLogin FAILED:", err)
+            console.error("[Memba] Login failed:", err)
             setAuthError(err instanceof Error ? err.message : "Login failed")
             adena.disconnect()
         } finally {

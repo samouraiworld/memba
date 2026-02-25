@@ -7,7 +7,7 @@
 | RPC | Auth | Description |
 |-----|------|-------------|
 | `GetChallenge` | No | Generate a server-signed ed25519 challenge (5min expiry) |
-| `GetToken` | No | Validate ADR-036 signature + challenge → auth token (24h) |
+| `GetToken` | No | Validate challenge + optional ADR-036 sig → auth token (24h) |
 | `CreateOrJoinMultisig` | ✅ | Register multisig (pubkey derivation) or join existing |
 | `MultisigInfo` | ✅ | Get multisig details + member list |
 | `Multisigs` | ✅ | List user's multisigs (filter by chain, join state) |
@@ -35,17 +35,27 @@ Client                          Server
   │  Build TokenRequestInfo:       │
   │  - kind: "Login to Memba..."   │
   │  - challenge: (from above)     │
-  │  - user_pubkey_json            │
+  │  - user_pubkey_json OR         │
+  │    user_address                │
   │  - user_bech32_prefix: "g"     │
   │                                │
-  │  Sign info_json with Adena     │
-  │  (ADR-036 SignAmino)           │
+  │  NOTE: ADR-036 signing skipped │
+  │  (Adena UNSUPPORTED_TYPE)      │
   │                                │
-  │── GetToken(info, sig) ────────►│  Validate challenge + ADR-036 sig
-  │◄─ Token (address, expiry) ─────│  → server-signed token (24h)
+  │── GetToken(info, "") ─────────►│  Validate challenge
+  │◄─ Token (address, expiry) ─────│  → derive address from pubkey or
+  │                                │    use direct address
+  │                                │  → server-signed token (24h)
   │                                │
   │── Any RPC(auth_token: Token) ─►│  ValidateToken() on each call
 ```
+
+> **Security note**: ADR-036 `sign/MsgSignData` is not supported by the Adena wallet
+> (returns `UNSUPPORTED_TYPE`). Auth relies on the server-validated challenge (nonce +
+> expiry + server ed25519 signature) and Adena's client-side wallet ownership verification.
+> When `user_pubkey_json` is provided, the address is derived server-side from the public key.
+> When only `user_address` is provided (accounts without on-chain pubkey), the address is
+> trusted from the Adena connection.
 
 ## Key Messages
 
@@ -53,6 +63,7 @@ Client                          Server
 |---------|--------|
 | `Challenge` | nonce (bytes), expiration (RFC3339), server_signature |
 | `Token` | nonce (base64), expiration (RFC3339), user_address, server_signature |
+| `TokenRequestInfo` | kind, challenge, user_bech32_prefix, user_pubkey_json (opt), user_address (opt) |
 | `Multisig` | chain_id, address, pubkey_json, threshold, members_count, joined, name |
 | `Transaction` | id, chain_id, multisig_address, msgs_json, fee_json, signatures[], final_hash |
 | `Signature` | value, user_address, body_bytes, created_at |

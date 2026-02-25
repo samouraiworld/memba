@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## [2.0.2] — 2026-02-25
+
+### Fixed
+- **Adena connection**: Full end-to-end fix for wallet connect flow on live deployment
+  - CSP: Added `wasm-unsafe-eval` + `unsafe-eval` to `script-src` for Adena's WebAssembly and crypto
+  - Detection: Extended polling from 3s to 10s with `visibilitychange` + `load` event fallbacks
+  - `ALREADY_CONNECTED`: Adena returns this as a failure status — now handled as success
+  - `signArbitrary`: Rewrote to use `adena.Sign()` (the correct Adena API method from `inject.ts`)
+- **ADR-036 incompatibility**: Adena returns `UNSUPPORTED_TYPE` for `sign/MsgSignData` — auth now skips client-side signing, relies on server challenge validation
+- **Null publicKey crash**: Adena `GetAccount()` returns null pubkey for accounts without on-chain transactions — now gracefully falls back to address-only auth
+- **API URL**: Added production fallback to `config.ts` when `VITE_API_URL` is unset
+- **CORS**: Set `CORS_ORIGINS` on Fly.io to include `memba.samourai.app`
+
+### Added
+- **Address-only auth**: New `user_address` field in `TokenRequestInfo` proto — enables auth for wallets that don't expose public keys (Gno test11 + `RestrictedTransferError`)
+- **`adena.Sign()` for TX signing**: `signArbitrary` now parses Amino sign docs and calls `adena.Sign()` with proper `messages`/`fee`/`memo` structure
+
+### Changed
+- **Auth flow**: Signature verification is now optional in `MakeToken` — when empty, server validates challenge + derives address from pubkey or trusts direct address
+- **Debug cleanup**: Removed 22 diagnostic `console.log` statements from `useAdena.ts` and `Layout.tsx`
+
 ## [2.0.1] — 2026-02-25
 
 ### Added

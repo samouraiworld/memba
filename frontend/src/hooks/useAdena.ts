@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 
 // Adena injects `window.adena` when the extension is installed.
-// Docs: https://docs.adena.app/integrations/adena-api
+// API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
+// CreateMultisigAccount, CreateMultisigTransaction, SignMultisigTransaction,
+// BroadcastMultisigTransaction, AddNetwork, SwitchNetwork, GetNetwork, On
+// Source: adena-wallet/packages/adena-extension/src/inject.ts
 
 interface AdenaAccount {
     status: string;
@@ -80,7 +83,6 @@ export function useAdena() {
     const connect = useCallback(async () => {
         const adena = getAdena();
         if (!adena) {
-            console.error("[Memba] Adena not found on window");
             setState((s) => ({ ...s, error: "Adena wallet not installed" }));
             return false;
         }
@@ -90,27 +92,20 @@ export function useAdena() {
         try {
             // Request connection — Adena returns status:"failure" + type:"ALREADY_CONNECTED"
             // when the site was previously established. This is actually a success case.
-            console.log("[Memba] Calling AddEstablish...");
             const connectRes = await adena.AddEstablish("Memba");
-            console.log("[Memba] AddEstablish result:", connectRes);
             if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
-                console.error("[Memba] AddEstablish rejected:", connectRes);
                 setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
                 return false;
             }
 
             // Get account info
-            console.log("[Memba] Calling GetAccount...");
             const accountRes: AdenaAccount = await adena.GetAccount();
-            console.log("[Memba] GetAccount result:", accountRes);
             if (accountRes.status === "failure") {
-                console.error("[Memba] GetAccount failed:", accountRes);
                 setState((s) => ({ ...s, loading: false, error: "Failed to get account" }));
                 return false;
             }
 
             const { address, publicKey, chainId } = accountRes.data;
-            console.log("[Memba] Connected:", { address, chainId, pubkeyType: publicKey?.["@type"] });
 
             // Public key may be null for accounts that haven't transacted on-chain yet.
             // In that case, connect with address-only — auth will use the direct address path.
@@ -120,8 +115,6 @@ export function useAdena() {
                     type: "tendermint/PubKeySecp256k1",
                     value: publicKey.value,
                 });
-            } else {
-                console.warn("[Memba] No public key from Adena — using address-only auth");
             }
 
             setState({
@@ -144,60 +137,34 @@ export function useAdena() {
         }
     }, []);
 
+    /** Sign an Amino sign doc string via Adena's Sign() method.
+     *  Used by TransactionView for MsgSend/MsgCall signing.
+     *  Note: sign/MsgSignData (ADR-036) is NOT supported by Adena —
+     *  only Gno-native types (/bank.MsgSend, /vm.m_call, etc.) work. */
     const signArbitrary = useCallback(
         async (data: string): Promise<string | null> => {
             const adena = getAdena();
-            if (!adena || !state.connected) {
-                console.error("[Memba] signArbitrary: not connected or no adena");
-                return null;
-            }
-
-            // Log available methods for diagnostics
-            const methods = Object.keys(adena).filter(k => typeof adena[k] === "function");
-            console.log("[Memba] Available adena methods:", methods);
+            if (!adena || !state.connected) return null;
 
             try {
-                // adena.Sign() is the correct sign-only method (no broadcast).
-                // Internally calls executor.signAmino. Confirmed from adena-wallet inject.ts.
-                // DoContract signs AND broadcasts — wrong for auth challenges.
-                if (typeof adena.Sign !== "function") {
-                    console.error("[Memba] signArbitrary: adena.Sign not available");
-                    return null;
-                }
-
-                console.log("[Memba] signArbitrary: calling adena.Sign...");
+                const parsed = JSON.parse(data);
                 const res = await adena.Sign({
-                    messages: [
-                        {
-                            type: "sign/MsgSignData",
-                            value: {
-                                signer: state.address,
-                                data: btoa(data),
-                            },
-                        },
-                    ],
-                    fee: { amount: [], gas: "0" },
-                    memo: "",
+                    messages: parsed.msgs,
+                    fee: parsed.fee,
+                    memo: parsed.memo || "",
                 });
 
-                console.log("[Memba] signArbitrary: Sign result:", res);
-                if (res.status === "failure") {
-                    console.error("[Memba] signArbitrary: Sign failed:", res);
-                    return null;
-                }
+                if (res.status === "failure") return null;
 
-                // Extract signature from response
-                const sig = res.data?.signature?.signature
+                return res.data?.signature?.signature
                     || res.data?.signed?.signature?.signature
                     || null;
-                console.log("[Memba] signArbitrary: signature:", sig ? "OK" : "null");
-                return sig;
             } catch (err) {
-                console.error("[Memba] signArbitrary: EXCEPTION:", err);
+                console.error("[Memba] Sign error:", err);
                 return null;
             }
         },
-        [state.connected, state.address]
+        [state.connected]
     );
 
     const disconnect = useCallback(() => {

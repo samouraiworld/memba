@@ -303,6 +303,42 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v2.0.2 — Adena Connection & Auth Fixes — ✅ COMPLETE
+
+> Full end-to-end Adena wallet connection fix for live deployment.
+
+| Finding | Root Cause | Fix |
+|---------|-----------|-----|
+| CSP blocks Adena WebAssembly | Missing `wasm-unsafe-eval`/`unsafe-eval` | Added to `netlify.toml` |
+| Extension detection fails | 3s polling too short | Extended to 10s + event listeners |
+| `ALREADY_CONNECTED` treated as error | Adena status quirk | Handle as success case |
+| Auth signing fails | `sign/MsgSignData` unsupported by Adena | Skip ADR-036, challenge-only auth |
+| Null pubkey crash | Account not on-chain yet | Address-only auth path |
+| API URL empty on prod | `VITE_API_URL` unset on Netlify | Production fallback in `config.ts` |
+| CORS rejection | `memba.samourai.app` not in origins | Set `CORS_ORIGINS` on Fly.io |
+
+### Adena API Reference (from inject.ts source)
+
+| Method | Purpose |
+|--------|---------|
+| `AddEstablish(name)` | Connect dApp to wallet |
+| `GetAccount()` | Get address, pubkey, chainId |
+| `Sign(tx)` | Sign without broadcast (auth/signing) |
+| `DoContract(tx)` | Sign + broadcast on-chain |
+| `SignTx(tx)` | Sign transaction |
+| `CreateMultisigAccount(params)` | Create multisig |
+| `SignMultisigTransaction(doc)` | Sign multisig TX |
+| `BroadcastMultisigTransaction(doc)` | Broadcast multisig TX |
+
+### Next Steps
+
+- [ ] E2E test samourai-crew import (requires member wallet with on-chain pubkey)
+- [ ] Re-enable ADR-036 signing when Adena adds support
+- [ ] Test TX signing flow (Sign button → `adena.Sign()` → backend)
+- [ ] Tighten CSP: investigate if `unsafe-eval` can be removed after Adena update
+
+---
+
 ## v2.1.0 — Treasury Management
 
 | Feature | Description |
