@@ -146,31 +146,63 @@ export function useAdena() {
                 return null;
             }
 
-            try {
-                console.log("[Memba] signArbitrary: calling SignAmino...");
-                const res = await adena.SignAmino({
-                    messages: [
-                        {
-                            type: "sign/MsgSignData",
-                            value: {
-                                signer: state.address,
-                                data: btoa(data),
-                            },
-                        },
-                    ],
-                    fee: { amount: [], gas: "0" },
-                    memo: "",
-                });
+            // Log all available methods on the adena object for diagnostics
+            const methods = Object.keys(adena).filter(k => typeof adena[k] === "function");
+            console.log("[Memba] Available adena methods:", methods);
 
-                console.log("[Memba] signArbitrary: SignAmino result:", res);
-                if (res.status === "failure") {
-                    console.error("[Memba] signArbitrary: SignAmino returned failure:", res);
-                    return null;
+            try {
+                // Try DoContract (Adena's primary signing method)
+                if (typeof adena.DoContract === "function") {
+                    console.log("[Memba] signArbitrary: using DoContract...");
+                    const res = await adena.DoContract({
+                        messages: [
+                            {
+                                type: "sign/MsgSignData",
+                                value: {
+                                    signer: state.address,
+                                    data: btoa(data),
+                                },
+                            },
+                        ],
+                        gasFee: 1,
+                        gasWanted: 10000000,
+                    });
+                    console.log("[Memba] signArbitrary: DoContract result:", res);
+                    if (res.status === "failure") {
+                        console.error("[Memba] signArbitrary: DoContract failed:", res);
+                        return null;
+                    }
+                    // Extract signature — DoContract response format may differ
+                    const sig = res.data?.signature?.signature
+                        || res.data?.signed?.signature?.signature
+                        || null;
+                    console.log("[Memba] signArbitrary: signature extracted:", sig ? "OK" : "null");
+                    return sig;
                 }
-                // Extract signature from response
-                const sig = res.data?.signature?.signature || null;
-                console.log("[Memba] signArbitrary: signature extracted:", sig ? "OK" : "null");
-                return sig;
+
+                // Fallback: try SignAmino (older Adena versions)
+                if (typeof adena.SignAmino === "function") {
+                    console.log("[Memba] signArbitrary: using SignAmino fallback...");
+                    const res = await adena.SignAmino({
+                        messages: [
+                            {
+                                type: "sign/MsgSignData",
+                                value: {
+                                    signer: state.address,
+                                    data: btoa(data),
+                                },
+                            },
+                        ],
+                        fee: { amount: [], gas: "0" },
+                        memo: "",
+                    });
+                    console.log("[Memba] signArbitrary: SignAmino result:", res);
+                    if (res.status === "failure") return null;
+                    return res.data?.signature?.signature || null;
+                }
+
+                console.error("[Memba] signArbitrary: no signing method found on adena object");
+                return null;
             } catch (err) {
                 console.error("[Memba] signArbitrary: EXCEPTION:", err);
                 return null;
