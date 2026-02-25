@@ -146,63 +146,46 @@ export function useAdena() {
                 return null;
             }
 
-            // Log all available methods on the adena object for diagnostics
+            // Log available methods for diagnostics
             const methods = Object.keys(adena).filter(k => typeof adena[k] === "function");
             console.log("[Memba] Available adena methods:", methods);
 
             try {
-                // Try DoContract (Adena's primary signing method)
-                if (typeof adena.DoContract === "function") {
-                    console.log("[Memba] signArbitrary: using DoContract...");
-                    const res = await adena.DoContract({
-                        messages: [
-                            {
-                                type: "sign/MsgSignData",
-                                value: {
-                                    signer: state.address,
-                                    data: btoa(data),
-                                },
-                            },
-                        ],
-                        gasFee: 1,
-                        gasWanted: 10000000,
-                    });
-                    console.log("[Memba] signArbitrary: DoContract result:", res);
-                    if (res.status === "failure") {
-                        console.error("[Memba] signArbitrary: DoContract failed:", res);
-                        return null;
-                    }
-                    // Extract signature — DoContract response format may differ
-                    const sig = res.data?.signature?.signature
-                        || res.data?.signed?.signature?.signature
-                        || null;
-                    console.log("[Memba] signArbitrary: signature extracted:", sig ? "OK" : "null");
-                    return sig;
+                // adena.Sign() is the correct sign-only method (no broadcast).
+                // Internally calls executor.signAmino. Confirmed from adena-wallet inject.ts.
+                // DoContract signs AND broadcasts — wrong for auth challenges.
+                if (typeof adena.Sign !== "function") {
+                    console.error("[Memba] signArbitrary: adena.Sign not available");
+                    return null;
                 }
 
-                // Fallback: try SignAmino (older Adena versions)
-                if (typeof adena.SignAmino === "function") {
-                    console.log("[Memba] signArbitrary: using SignAmino fallback...");
-                    const res = await adena.SignAmino({
-                        messages: [
-                            {
-                                type: "sign/MsgSignData",
-                                value: {
-                                    signer: state.address,
-                                    data: btoa(data),
-                                },
+                console.log("[Memba] signArbitrary: calling adena.Sign...");
+                const res = await adena.Sign({
+                    messages: [
+                        {
+                            type: "sign/MsgSignData",
+                            value: {
+                                signer: state.address,
+                                data: btoa(data),
                             },
-                        ],
-                        fee: { amount: [], gas: "0" },
-                        memo: "",
-                    });
-                    console.log("[Memba] signArbitrary: SignAmino result:", res);
-                    if (res.status === "failure") return null;
-                    return res.data?.signature?.signature || null;
+                        },
+                    ],
+                    fee: { amount: [], gas: "0" },
+                    memo: "",
+                });
+
+                console.log("[Memba] signArbitrary: Sign result:", res);
+                if (res.status === "failure") {
+                    console.error("[Memba] signArbitrary: Sign failed:", res);
+                    return null;
                 }
 
-                console.error("[Memba] signArbitrary: no signing method found on adena object");
-                return null;
+                // Extract signature from response
+                const sig = res.data?.signature?.signature
+                    || res.data?.signed?.signature?.signature
+                    || null;
+                console.log("[Memba] signArbitrary: signature:", sig ? "OK" : "null");
+                return sig;
             } catch (err) {
                 console.error("[Memba] signArbitrary: EXCEPTION:", err);
                 return null;
