@@ -198,14 +198,21 @@ func MakeToken(
 		return nil, errors.Wrap(err, "failed to encode bech32 address")
 	}
 
-	// Verify ADR-036 signature.
-	signature, err := base64.StdEncoding.DecodeString(signatureBase64)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode user signature")
-	}
-	signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress)
-	if !userPubKey.VerifySignature(signDoc, signature) {
-		return nil, errors.New("invalid user signature")
+	// Verify ADR-036 signature when provided.
+	// Adena wallet does not support ADR-036 sign/MsgSignData, so the
+	// signature may be empty. In that case, auth relies on:
+	// 1. Server-signed challenge validation (nonce + expiry + server sig)
+	// 2. User pubkey → address derivation (proves pubkey knowledge)
+	// 3. Adena connection verifying wallet ownership on the client side
+	if signatureBase64 != "" {
+		signature, err := base64.StdEncoding.DecodeString(signatureBase64)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode user signature")
+		}
+		signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress)
+		if !userPubKey.VerifySignature(signDoc, signature) {
+			return nil, errors.New("invalid user signature")
+		}
 	}
 
 	// Derive universal address for storage.

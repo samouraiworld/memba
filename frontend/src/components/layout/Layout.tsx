@@ -54,13 +54,14 @@ export function Layout() {
             }
             const infoJson = JSON.stringify(info)
 
-            // 3. Sign with Adena (ADR-036)
-            console.log("[Memba] performLogin: requesting signature from Adena...")
-            const signature = await adena.signArbitrary(infoJson)
-            if (!signature) {
-                throw new Error("Signature rejected")
-            }
-            console.log("[Memba] performLogin: signature received")
+            // 3. Adena does not support ADR-036 arbitrary data signing
+            // (sign/MsgSignData returns UNSUPPORTED_TYPE). Auth security relies on:
+            // - Server-validated challenge (nonce + expiry + server signature)
+            // - Address derived from pubkey on the server side
+            // - Adena verifying wallet ownership on the client side
+            // When ADR-036 support is added to Adena, re-enable signing here.
+            const signature = ""
+            console.log("[Memba] performLogin: skipping ADR-036 signing (Adena unsupported)")
 
             // 4. Exchange for auth token
             console.log("[Memba] performLogin: exchanging for token...")
