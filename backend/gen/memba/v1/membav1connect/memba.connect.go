@@ -51,6 +51,9 @@ const (
 	// MultisigServiceCreateTransactionProcedure is the fully-qualified name of the MultisigService's
 	// CreateTransaction RPC.
 	MultisigServiceCreateTransactionProcedure = "/memba.v1.MultisigService/CreateTransaction"
+	// MultisigServiceGetTransactionProcedure is the fully-qualified name of the MultisigService's
+	// GetTransaction RPC.
+	MultisigServiceGetTransactionProcedure = "/memba.v1.MultisigService/GetTransaction"
 	// MultisigServiceTransactionsProcedure is the fully-qualified name of the MultisigService's
 	// Transactions RPC.
 	MultisigServiceTransactionsProcedure = "/memba.v1.MultisigService/Transactions"
@@ -73,6 +76,7 @@ type MultisigServiceClient interface {
 	Multisigs(context.Context, *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error)
 	// Transactions — Propose, sign, complete
 	CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error)
+	GetTransaction(context.Context, *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error)
 	Transactions(context.Context, *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error)
 	SignTransaction(context.Context, *connect.Request[v1.SignTransactionRequest]) (*connect.Response[v1.SignTransactionResponse], error)
 	CompleteTransaction(context.Context, *connect.Request[v1.CompleteTransactionRequest]) (*connect.Response[v1.CompleteTransactionResponse], error)
@@ -125,6 +129,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("CreateTransaction")),
 			connect.WithClientOptions(opts...),
 		),
+		getTransaction: connect.NewClient[v1.GetTransactionRequest, v1.GetTransactionResponse](
+			httpClient,
+			baseURL+MultisigServiceGetTransactionProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetTransaction")),
+			connect.WithClientOptions(opts...),
+		),
 		transactions: connect.NewClient[v1.TransactionsRequest, v1.TransactionsResponse](
 			httpClient,
 			baseURL+MultisigServiceTransactionsProcedure,
@@ -154,6 +164,7 @@ type multisigServiceClient struct {
 	multisigInfo         *connect.Client[v1.MultisigInfoRequest, v1.MultisigInfoResponse]
 	multisigs            *connect.Client[v1.MultisigsRequest, v1.MultisigsResponse]
 	createTransaction    *connect.Client[v1.CreateTransactionRequest, v1.CreateTransactionResponse]
+	getTransaction       *connect.Client[v1.GetTransactionRequest, v1.GetTransactionResponse]
 	transactions         *connect.Client[v1.TransactionsRequest, v1.TransactionsResponse]
 	signTransaction      *connect.Client[v1.SignTransactionRequest, v1.SignTransactionResponse]
 	completeTransaction  *connect.Client[v1.CompleteTransactionRequest, v1.CompleteTransactionResponse]
@@ -189,6 +200,11 @@ func (c *multisigServiceClient) CreateTransaction(ctx context.Context, req *conn
 	return c.createTransaction.CallUnary(ctx, req)
 }
 
+// GetTransaction calls memba.v1.MultisigService.GetTransaction.
+func (c *multisigServiceClient) GetTransaction(ctx context.Context, req *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error) {
+	return c.getTransaction.CallUnary(ctx, req)
+}
+
 // Transactions calls memba.v1.MultisigService.Transactions.
 func (c *multisigServiceClient) Transactions(ctx context.Context, req *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error) {
 	return c.transactions.CallUnary(ctx, req)
@@ -215,6 +231,7 @@ type MultisigServiceHandler interface {
 	Multisigs(context.Context, *connect.Request[v1.MultisigsRequest]) (*connect.Response[v1.MultisigsResponse], error)
 	// Transactions — Propose, sign, complete
 	CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error)
+	GetTransaction(context.Context, *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error)
 	Transactions(context.Context, *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error)
 	SignTransaction(context.Context, *connect.Request[v1.SignTransactionRequest]) (*connect.Response[v1.SignTransactionResponse], error)
 	CompleteTransaction(context.Context, *connect.Request[v1.CompleteTransactionRequest]) (*connect.Response[v1.CompleteTransactionResponse], error)
@@ -263,6 +280,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("CreateTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetTransactionHandler := connect.NewUnaryHandler(
+		MultisigServiceGetTransactionProcedure,
+		svc.GetTransaction,
+		connect.WithSchema(multisigServiceMethods.ByName("GetTransaction")),
+		connect.WithHandlerOptions(opts...),
+	)
 	multisigServiceTransactionsHandler := connect.NewUnaryHandler(
 		MultisigServiceTransactionsProcedure,
 		svc.Transactions,
@@ -295,6 +318,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceMultisigsHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateTransactionProcedure:
 			multisigServiceCreateTransactionHandler.ServeHTTP(w, r)
+		case MultisigServiceGetTransactionProcedure:
+			multisigServiceGetTransactionHandler.ServeHTTP(w, r)
 		case MultisigServiceTransactionsProcedure:
 			multisigServiceTransactionsHandler.ServeHTTP(w, r)
 		case MultisigServiceSignTransactionProcedure:
@@ -332,6 +357,10 @@ func (UnimplementedMultisigServiceHandler) Multisigs(context.Context, *connect.R
 
 func (UnimplementedMultisigServiceHandler) CreateTransaction(context.Context, *connect.Request[v1.CreateTransactionRequest]) (*connect.Response[v1.CreateTransactionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.CreateTransaction is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetTransaction(context.Context, *connect.Request[v1.GetTransactionRequest]) (*connect.Response[v1.GetTransactionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetTransaction is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) Transactions(context.Context, *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error) {

@@ -11,7 +11,7 @@ import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { adena, balance, auth } = useOutletContext<LayoutContext>()
+    const { balance, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])

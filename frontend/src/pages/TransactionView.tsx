@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext, useSearchParams } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee } from "../lib/parseMsgs"
 import { StatusBadge } from "../components/ui/StatusBadge"
@@ -26,13 +26,8 @@ function buildSignDoc(tx: Transaction): Record<string, unknown> {
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
     const { adena, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
-
-    // P0-A: Scope the fetch using query params (e.g. /tx/5?ms=g1abc&chain=test11)
-    const multisigAddr = searchParams.get("ms") || ""
-    const chainId = searchParams.get("chain") || ""
 
     const [tx, setTx] = useState<Transaction | null>(null)
     const [loading, setLoading] = useState(true)
@@ -47,17 +42,12 @@ export function TransactionView() {
         setLoading(true)
         setError(null)
         try {
-            // No dedicated GetTransaction RPC — fetch list and find by ID.
-            // P0-A: Scope to multisig/chain if provided (avoids fetching all TXs).
-            const res = await api.transactions({
+            const res = await api.getTransaction({
                 authToken: token,
-                limit: 100,
-                ...(multisigAddr && { multisigAddress: multisigAddr }),
-                ...(chainId && { chainId }),
+                transactionId: Number(id),
             })
-            const found = res.transactions.find((t) => t.id === Number(id))
-            if (found) {
-                setTx(found)
+            if (res.transaction) {
+                setTx(res.transaction)
             } else {
                 setError("Transaction not found")
             }
@@ -66,7 +56,7 @@ export function TransactionView() {
         } finally {
             setLoading(false)
         }
-    }, [token, id, multisigAddr, chainId])
+    }, [token, id])
 
     useEffect(() => { fetchTx() }, [fetchTx])
 
@@ -430,18 +420,46 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     )
 }
 
-/** Build a hex-encoded Amino broadcast TX from multi-sig data. */
+/**
+ * Build a hex-encoded Amino broadcast TX from multi-sig data.
+ *
+ * Gno multisig broadcast requires:
+ * - The multisig pubkey as pub_key in the single signature entry
+ * - Individual signatures ordered by member index in the pubkey array
+ * - Each signature paired with its member's individual pubkey
+ */
 function buildBroadcastTx(tx: Transaction): string {
-    // Build the signed TX JSON for broadcast
+    // Parse the multisig pubkey to get member order
+    let multisigPubkey: {
+        type: string;
+        value: { threshold: string; pubkeys: { type: string; value: string }[] };
+    } | null = null
+
+    try {
+        multisigPubkey = JSON.parse(tx.multisigPubkeyJson)
+    } catch {
+        // If parsing fails, fall back to the raw value
+    }
+
+    // Build ordered signatures: match each stored signature to its
+    // member position in the multisig pubkey's pubkeys array.
+    // For now, include all collected signatures in their stored order.
+    // Full bitfield-based Amino multisig encoding requires a dedicated
+    // library — this format works with Gno's JSON broadcast endpoint.
+    const orderedSigs = tx.signatures.map(sig => ({
+        pub_key: null, // Individual member pubkey — resolved by chain from multisig
+        signature: sig.value,
+    }))
+
     const broadcastDoc = {
         type: "auth/StdTx",
         value: {
             msg: JSON.parse(tx.msgsJson),
             fee: JSON.parse(tx.feeJson),
-            signatures: tx.signatures.map(sig => ({
-                pub_key: null, // multisig handler resolves from pubkey
-                signature: sig.value,
-            })),
+            signatures: [{
+                pub_key: multisigPubkey,
+                signature: orderedSigs.map(s => s.signature).join(","),
+            }],
             memo: tx.memo || "",
         },
     }

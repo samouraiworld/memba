@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
+	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	"golang.org/x/net/http2"
@@ -72,6 +73,9 @@ func main() {
 
 	// Initialize rate limiter with app context for clean shutdown.
 	limiter = newIPRateLimiter(ctx)
+
+	// Start nonce tracker GC with app context for clean shutdown.
+	auth.StartNonceTracker(ctx)
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
 	mux.Handle(path, rateLimiter(handler))

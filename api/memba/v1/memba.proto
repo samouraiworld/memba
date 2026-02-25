@@ -17,6 +17,7 @@ service MultisigService {
 
   // Transactions — Propose, sign, complete
   rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
   rpc Transactions(TransactionsRequest) returns (TransactionsResponse);
   rpc SignTransaction(SignTransactionRequest) returns (SignTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
@@ -178,6 +179,15 @@ message TransactionsRequest {
 
 message TransactionsResponse {
   repeated Transaction transactions = 1;
+}
+
+message GetTransactionRequest {
+  Token auth_token = 1;
+  uint32 transaction_id = 2;
+}
+
+message GetTransactionResponse {
+  Transaction transaction = 1;
 }
 
 message SignTransactionRequest {

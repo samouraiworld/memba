@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/ed25519"
 	srand "crypto/rand"
 	"encoding/base64"
@@ -58,18 +59,27 @@ type nonceTracker struct {
 
 var usedNonces = &nonceTracker{used: make(map[string]time.Time)}
 
-func init() {
+// StartNonceTracker starts a background goroutine that prunes expired nonces.
+// It stops when ctx is cancelled, enabling graceful shutdown and preventing
+// goroutine leaks in tests. Call this once from main().
+func StartNonceTracker(ctx context.Context) {
 	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
 		for {
-			time.Sleep(time.Minute)
-			usedNonces.mu.Lock()
-			now := time.Now()
-			for k, exp := range usedNonces.used {
-				if now.After(exp) {
-					delete(usedNonces.used, k)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				usedNonces.mu.Lock()
+				now := time.Now()
+				for k, exp := range usedNonces.used {
+					if now.After(exp) {
+						delete(usedNonces.used, k)
+					}
 				}
+				usedNonces.mu.Unlock()
 			}
-			usedNonces.mu.Unlock()
 		}
 	}()
 }

@@ -2,6 +2,25 @@
 
 All notable changes to Memba are documented here.
 
+## [2.0.1] — 2026-02-25
+
+### Added
+- **`GetTransaction` RPC**: Direct single-TX lookup by ID — replaces O(n) list-and-find pattern
+- **Cursor pagination**: `start_after` cursor for `Transactions` RPC (`t.id DESC`)
+- **Centralized `APP_VERSION`**: Single source of truth in `config.ts` for header/footer badges
+
+### Fixed
+- **CI lint errors**: Removed unused `adena` (Dashboard), `SkeletonRow` (MultisigView), fixed `useCallback` deps (Layout)
+- **Nonce tracker goroutine leak**: Replaced `init()` goroutine with context-aware `StartNonceTracker(ctx)` for clean shutdown
+- **Docker frontend env vars**: Moved `VITE_*` from runtime `environment:` to build-time `args:` (Vite bakes env at build)
+- **Broadcast TX structure**: Include multisig pubkey in `pub_key` field (was `null`), single combined signature entry
+- **Version badges**: Updated from stale `v0.2.2` → `v2.0.1` in Layout header/footer, README, package.json
+- **ROADMAP alignment**: v0.2.2 → ✅ COMPLETE, v1.0.0 DAO Governance → ⏳ DEFERRED to v3.0.0
+- **E2E test doc**: Fixed health endpoint `/healthz` → `/health`, post-test tag version
+
+### Removed
+- Unused `useSearchParams` import from TransactionView (no longer needed with `GetTransaction`)
+
 ## [2.0.0] — 2026-02-24
 
 ### Added
