@@ -43,18 +43,38 @@ export function useAdena() {
         error: null,
     });
 
-    // Extensions inject globals after page load — poll briefly to detect.
+    // Extensions inject globals after page load — poll to detect.
+    // Adena can take up to 5-10s depending on browser load.
     useEffect(() => {
         if (installed) return;
+
+        // Check immediately
+        if (getAdena()) { setInstalled(true); return; }
+
+        let stopped = false;
         let attempts = 0;
+
+        // Poll every 200ms for up to 10s
         const timer = setInterval(() => {
-            if (getAdena()) {
-                setInstalled(true);
-                clearInterval(timer);
-            }
-            if (++attempts >= 15) clearInterval(timer); // stop after 3s
+            if (getAdena()) { setInstalled(true); stopped = true; clearInterval(timer); }
+            if (++attempts >= 50) clearInterval(timer);
         }, 200);
-        return () => clearInterval(timer);
+
+        // Detect when user returns to this tab (extension may have loaded meanwhile)
+        const onVisibility = () => {
+            if (!document.hidden && !stopped && getAdena()) setInstalled(true);
+        };
+        document.addEventListener("visibilitychange", onVisibility);
+
+        // Fallback: window.load fires after all resources (extensions may inject then)
+        const onLoad = () => { if (getAdena()) setInstalled(true); };
+        window.addEventListener("load", onLoad);
+
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("load", onLoad);
+        };
     }, [installed]);
 
     const connect = useCallback(async () => {
