@@ -88,12 +88,13 @@ export function useAdena() {
         setState((s) => ({ ...s, loading: true, error: null }));
 
         try {
-            // Request connection
+            // Request connection — Adena returns status:"failure" + type:"ALREADY_CONNECTED"
+            // when the site was previously established. This is actually a success case.
             console.log("[Memba] Calling AddEstablish...");
             const connectRes = await adena.AddEstablish("Memba");
             console.log("[Memba] AddEstablish result:", connectRes);
-            if (connectRes.status === "failure") {
-                console.error("[Memba] AddEstablish failed:", connectRes);
+            if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
+                console.error("[Memba] AddEstablish rejected:", connectRes);
                 setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
                 return false;
             }
