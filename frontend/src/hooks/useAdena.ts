@@ -112,6 +112,16 @@ export function useAdena() {
             const { address, publicKey, chainId } = accountRes.data;
             console.log("[Memba] Connected:", { address, chainId, pubkeyType: publicKey?.["@type"] });
 
+            // Public key is null for accounts that haven't transacted on-chain yet.
+            if (!publicKey?.value) {
+                console.error("[Memba] Public key not available — account may not have transacted yet");
+                setState((s) => ({
+                    ...s, loading: false,
+                    error: "Public key not available. Send any transaction first to register your key on-chain.",
+                }));
+                return false;
+            }
+
             // Build Amino JSON pubkey for auth
             const pubkeyJSON = JSON.stringify({
                 type: "tendermint/PubKeySecp256k1",
