@@ -8,8 +8,12 @@ export const APP_VERSION = "2.0.1"
 
 // Environment-driven config with sensible defaults.
 
-/** Backend API base URL. Falls back to empty string (uses vite proxy in dev). */
-export const API_BASE_URL = import.meta.env.VITE_API_URL || ""
+/** Backend API base URL.
+ * In dev: empty string → uses Vite proxy.
+ * In production: must be set via VITE_API_URL build arg, or falls back to Fly.io. */
+export const API_BASE_URL =
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.PROD ? "https://memba-backend.fly.dev" : "")
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
