@@ -80,6 +80,7 @@ export function useAdena() {
     const connect = useCallback(async () => {
         const adena = getAdena();
         if (!adena) {
+            console.error("[Memba] Adena not found on window");
             setState((s) => ({ ...s, error: "Adena wallet not installed" }));
             return false;
         }
@@ -88,20 +89,27 @@ export function useAdena() {
 
         try {
             // Request connection
+            console.log("[Memba] Calling AddEstablish...");
             const connectRes = await adena.AddEstablish("Memba");
+            console.log("[Memba] AddEstablish result:", connectRes);
             if (connectRes.status === "failure") {
+                console.error("[Memba] AddEstablish failed:", connectRes);
                 setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
                 return false;
             }
 
             // Get account info
+            console.log("[Memba] Calling GetAccount...");
             const accountRes: AdenaAccount = await adena.GetAccount();
+            console.log("[Memba] GetAccount result:", accountRes);
             if (accountRes.status === "failure") {
+                console.error("[Memba] GetAccount failed:", accountRes);
                 setState((s) => ({ ...s, loading: false, error: "Failed to get account" }));
                 return false;
             }
 
             const { address, publicKey, chainId } = accountRes.data;
+            console.log("[Memba] Connected:", { address, chainId, pubkeyType: publicKey?.["@type"] });
 
             // Build Amino JSON pubkey for auth
             const pubkeyJSON = JSON.stringify({
@@ -119,6 +127,7 @@ export function useAdena() {
             });
             return true;
         } catch (err) {
+            console.error("[Memba] Connect error:", err);
             setState((s) => ({
                 ...s,
                 loading: false,
