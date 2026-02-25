@@ -35,8 +35,10 @@ export function Layout() {
 
         try {
             // 1. Get server challenge
+            console.log("[Memba] performLogin: getting challenge...")
             const challenge = await auth.getChallenge()
             if (!challenge) throw new Error("Failed to get challenge")
+            console.log("[Memba] performLogin: challenge received")
 
             // 2. Build TokenRequestInfo JSON (must be valid protojson)
             // Proto bytes fields must be base64-encoded for protojson.Unmarshal
@@ -53,15 +55,20 @@ export function Layout() {
             const infoJson = JSON.stringify(info)
 
             // 3. Sign with Adena (ADR-036)
+            console.log("[Memba] performLogin: requesting signature from Adena...")
             const signature = await adena.signArbitrary(infoJson)
             if (!signature) {
                 throw new Error("Signature rejected")
             }
+            console.log("[Memba] performLogin: signature received")
 
             // 4. Exchange for auth token
+            console.log("[Memba] performLogin: exchanging for token...")
             const token = await auth.getToken(infoJson, signature)
             if (!token) throw new Error("Authentication failed")
+            console.log("[Memba] performLogin: authenticated!", { address: token.userAddress })
         } catch (err) {
+            console.error("[Memba] performLogin FAILED:", err)
             setAuthError(err instanceof Error ? err.message : "Login failed")
             adena.disconnect()
         } finally {
