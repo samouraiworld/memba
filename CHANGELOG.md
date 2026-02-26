@@ -25,6 +25,9 @@ All notable changes to Memba are documented here.
 - Input sanitization for ABCI query injection prevention
 - `grc20factory` realm: `NewWithAdmin()` enables multisig admin governance
 
+### Fixed
+- **CORS preflight**: Use wildcard `AllowedHeaders` to fix Fly.io proxy header canonicalization breaking `rs/cors` strict matching — origin restrictions still enforced
+
 ## [2.0.3] — 2026-02-26
 
 ### Added

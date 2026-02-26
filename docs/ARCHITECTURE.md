@@ -57,7 +57,7 @@
 
 | Package | Files | Responsibility |
 |---------|-------|---------------|
-| `cmd/memba` | `main.go` | Server entry, CORS, graceful shutdown |
+| `cmd/memba` | `main.go` | Server entry, CORS (`connectrpc.com/cors`), rate limiter, graceful shutdown |
 | `internal/auth` | `crypto.go`, `crypto_test.go` | Challenge/token lifecycle, ADR-036, secp256k1 |
 | `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go` | Core struct + 9 RPC handlers (split by domain) |
 | `internal/db` | `db.go`, `migrations/` | SQLite connection, migration runner |
