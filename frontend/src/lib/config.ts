@@ -16,11 +16,11 @@ export const API_BASE_URL =
     (import.meta.env.PROD ? "https://memba-backend.fly.dev" : "")
 
 /** Gno chain ID for all RPC calls. */
-export const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
+export const GNO_CHAIN_ID = import.meta.env.VITE_GNO_CHAIN_ID || "portal-loop"
 
 /** Gno RPC endpoint for ABCI queries and broadcasting. */
 export const GNO_RPC_URL =
-    import.meta.env.VITE_GNO_RPC_URL || "https://rpc.test11.testnets.gno.land:443"
+    import.meta.env.VITE_GNO_RPC_URL || "https://rpc.gno.land:443"
 
 /** Bech32 prefix for Gno addresses. */
 export const GNO_BECH32_PREFIX = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"

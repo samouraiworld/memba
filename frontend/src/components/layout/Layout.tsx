@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react"
-import { Outlet } from "react-router-dom"
+import { Outlet, Link } from "react-router-dom"
 import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
@@ -125,8 +125,8 @@ export function Layout() {
             {/* ── Header ──────────────────────────────────────────────── */}
             <header className="k-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #1a1a1a" }}>
                 <div className="k-header-content" style={{ maxWidth: 1152, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    {/* Logo */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    {/* Logo — clickable to home */}
+                    <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
                         <div
                             className="animate-glow"
                             style={{
@@ -144,7 +144,7 @@ export function Layout() {
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
                         }}>v{APP_VERSION}</span>
-                    </div>
+                    </Link>
 
                     {/* Right side */}
                     <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -197,25 +197,27 @@ export function Layout() {
                         )}
                     </div>
                 </div>
-            </header>
+            </header >
 
             {/* ── Auth error banner ────────────────────────────────────── */}
-            {authError && (
-                <div style={{
-                    background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.2)",
-                    padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-                }}>
-                    <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        ⚠ {authError}
-                    </span>
-                    <button
-                        onClick={() => setAuthError(null)}
-                        style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
+            {
+                authError && (
+                    <div style={{
+                        background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.2)",
+                        padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+                    }}>
+                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            ⚠ {authError}
+                        </span>
+                        <button
+                            onClick={() => setAuthError(null)}
+                            style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                )
+            }
 
             {/* ── Main ────────────────────────────────────────────────── */}
             <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
@@ -223,12 +225,39 @@ export function Layout() {
             </main>
 
             {/* ── Footer ──────────────────────────────────────────────── */}
-            <footer style={{ borderTop: "1px solid #111", padding: "16px 24px", textAlign: "center" }}>
-                <p style={{ color: "#333", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+            <footer style={{ borderTop: "1px solid #111", padding: "16px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    {[
+                        { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
+                        { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
+                        { href: "https://samourai.tv/", label: "YouTube", icon: "▶" },
+                        { href: "https://github.com/samouraiworld", label: "GitHub", icon: "⌘" },
+                        { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
+                        { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
+                        { href: "mailto:contact@samourai.coop", label: "Email", icon: "✉" },
+                    ].map(({ href, label, icon }) => (
+                        <a
+                            key={label}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={label}
+                            style={{
+                                color: "#444", fontSize: 13, textDecoration: "none",
+                                transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
+                            }}
+                            onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                            onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
+                        >
+                            {icon}
+                        </a>
+                    ))}
+                </div>
+                <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
                     memba v{APP_VERSION} • built by samourai coop
                 </p>
             </footer>
-        </div>
+        </div >
     )
 }
 
