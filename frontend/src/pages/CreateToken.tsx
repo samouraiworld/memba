@@ -8,6 +8,7 @@ import {
     buildCreateTokenWithAdminMsgs,
     calculateFee,
     feeDisclosure,
+    doContractBroadcast,
     GRC20_FACTORY_PATH,
 } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
@@ -115,42 +116,12 @@ export function CreateToken() {
                     parsedMint, faucet,
                 )
 
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const adenaGlobal = (window as any).adena
-                if (!adenaGlobal?.DoContract) {
-                    setError("Adena wallet not available — please install or refresh the page")
-                    setLoading(false)
-                    return
-                }
+                const { hash } = await doContractBroadcast(
+                    msgs,
+                    memo || `Create GRC20: ${trimSymbol}`,
+                )
 
-                // Convert Amino MsgCall to Adena's /vm.m_call format
-                const adenaMessages = msgs.map((m) => ({
-                    type: "/vm.m_call",
-                    value: {
-                        caller: m.value.caller,
-                        send: m.value.send || "",
-                        pkg_path: m.value.pkg_path,
-                        func: m.value.func,
-                        args: m.value.args,
-                    },
-                }))
-
-                const contractRes = await adenaGlobal.DoContract({
-                    messages: adenaMessages,
-                    gasFee: 1,
-                    gasWanted: 10000000,
-                    memo: memo || `Create GRC20: ${trimSymbol}`,
-                })
-
-                if (contractRes.status === "failure") {
-                    const errMsg = contractRes.message || contractRes.data?.message || "Transaction failed"
-                    setError(`Transaction failed: ${errMsg}`)
-                    setLoading(false)
-                    return
-                }
-
-                const txHash = contractRes.data?.hash || ""
-                setSuccess(`Token ${trimSymbol} created! TX: ${txHash.slice(0, 16)}...`)
+                setSuccess(`Token ${trimSymbol} created! TX: ${hash.slice(0, 16)}...`)
                 setTimeout(() => navigate(`/tokens/${trimSymbol}`), 2000)
             }
         } catch (err) {
@@ -396,8 +367,17 @@ function inputStyle(loading: boolean): React.CSSProperties {
 
 async function fetchAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
     try {
-        const url = `${GNO_RPC_URL}/abci_query?path=%22auth/accounts/${address}%22`
-        const res = await fetch(url)
+        // Use JSON-RPC POST to prevent ABCI query injection via address
+        const res = await fetch(GNO_RPC_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: "memba",
+                method: "abci_query",
+                params: { path: `auth/accounts/${address}`, data: "" },
+            }),
+        })
         const json = await res.json()
         const rawValue = json?.result?.response?.ResponseBase?.Value
         if (!rawValue) return { accountNumber: 0, sequence: 0 }

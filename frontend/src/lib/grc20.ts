@@ -32,6 +32,51 @@ export interface AminoMsg {
     value: Record<string, unknown>
 }
 
+// ── Adena DoContract Helpers ──────────────────────────────────
+
+/** Convert Amino MsgCall array to Adena's /vm.m_call format. */
+export function toAdenaMessages(msgs: AminoMsg[]) {
+    return msgs.map((m) => ({
+        type: "/vm.m_call",
+        value: {
+            caller: m.value.caller as string,
+            send: (m.value.send as string) || "",
+            pkg_path: m.value.pkg_path as string,
+            func: m.value.func as string,
+            args: m.value.args as string[],
+        },
+    }))
+}
+
+/**
+ * Sign + broadcast via Adena DoContract.
+ * Returns { hash, error } — throws if Adena is unavailable.
+ */
+export async function doContractBroadcast(
+    msgs: AminoMsg[],
+    memo: string,
+): Promise<{ hash: string }> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adena = (window as any).adena
+    if (!adena?.DoContract) {
+        throw new Error("Adena wallet not available — please install or refresh the page")
+    }
+
+    const res = await adena.DoContract({
+        messages: toAdenaMessages(msgs),
+        gasFee: 1,
+        gasWanted: 10000000,
+        memo,
+    })
+
+    if (res.status === "failure") {
+        const errMsg = res.message || res.data?.message || "Transaction failed"
+        throw new Error(errMsg)
+    }
+
+    return { hash: res.data?.hash || "" }
+}
+
 // ── ABCI Queries ──────────────────────────────────────────────
 
 /**
