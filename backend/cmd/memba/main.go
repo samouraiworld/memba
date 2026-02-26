@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	connectcors "connectrpc.com/cors"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -87,26 +88,12 @@ func main() {
 		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
 	})
 
-	// CORS
+	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(cors.Options{
-		AllowedOrigins: splitOrigins(corsOrigins),
-		AllowedMethods: []string{
-			http.MethodGet,
-			http.MethodPost,
-			http.MethodOptions,
-		},
-		AllowedHeaders: []string{
-			"Content-Type",
-			"Connect-Protocol-Version",
-			"Connect-Timeout-Ms",
-			"Grpc-Timeout",
-			"X-Grpc-Web",
-			"X-User-Agent",
-		},
-		ExposedHeaders: []string{
-			"Grpc-Status",
-			"Grpc-Message",
-		},
+		AllowedOrigins:   splitOrigins(corsOrigins),
+		AllowedMethods:   connectcors.AllowedMethods(),
+		AllowedHeaders:   connectcors.AllowedHeaders(),
+		ExposedHeaders:   connectcors.ExposedHeaders(),
 		AllowCredentials: false,
 		MaxAge:           7200,
 	})

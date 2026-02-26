@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	connectrpc.com/cors v0.1.0 // indirect
 	cosmossdk.io/api v0.9.2 // indirect
 	cosmossdk.io/collections v1.3.1 // indirect
 	cosmossdk.io/core v0.11.3 // indirect
