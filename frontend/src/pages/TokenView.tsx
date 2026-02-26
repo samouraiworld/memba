@@ -87,29 +87,38 @@ export function TokenView() {
                 default: return
             }
 
-            // Sign + broadcast via Adena
-            const tx = {
-                msgs,
-                fee: { gas_wanted: "200000", gas_fee: "10000ugnot" },
-                memo: `Memba: ${actionTab} ${symbol}`,
-            }
-
+            // Sign + broadcast via Adena DoContract
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const signRes = await (window as any).adena?.SignTx?.({ tx, chainId: GNO_CHAIN_ID })
-            if (!signRes || signRes.status === "REJECTED") {
-                setError("Transaction rejected by wallet")
+            const adenaGlobal = (window as any).adena
+            if (!adenaGlobal?.DoContract) {
+                setError("Adena wallet not available — please install or refresh the page")
                 return
             }
 
-            await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0", id: "memba",
-                    method: "broadcast_tx_commit",
-                    params: { tx: signRes.data?.encodedTransaction || signRes.encodedTransaction },
-                }),
+            // Convert Amino MsgCall to Adena's /vm.m_call format
+            const adenaMessages = msgs.map((m) => ({
+                type: "/vm.m_call",
+                value: {
+                    caller: m.value.caller,
+                    send: m.value.send || "",
+                    pkg_path: m.value.pkg_path,
+                    func: m.value.func,
+                    args: m.value.args,
+                },
+            }))
+
+            const contractRes = await adenaGlobal.DoContract({
+                messages: adenaMessages,
+                gasFee: 1,
+                gasWanted: 10000000,
+                memo: `Memba: ${actionTab} ${symbol}`,
             })
+
+            if (contractRes.status === "failure") {
+                const errMsg = contractRes.message || contractRes.data?.message || "Transaction failed"
+                setError(`Transaction failed: ${errMsg}`)
+                return
+            }
 
             setSuccess(`${actionTab} successful!`)
             setToAddress("")
