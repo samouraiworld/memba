@@ -380,14 +380,22 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v3.0.0 — Mobile & Ecosystem
+## v3.0.0 — GRC20 Token Launchpad — ✅ IMPLEMENTED
 
-| Feature | Description |
-|---------|-------------|
-| Mobile app | React Native signing companion |
-| Push notifications | Mobile alerts |
-| Batch transactions | Multi-tx proposals |
-| DAO registry | Discover public DAOs |
+> Create, manage, and govern GRC20 tokens from Memba — single user or multisig admin.
+
+| Feature | Status |
+|---------|--------|
+| ABCI query helpers (`grc20.ts`) | ✅ |
+| Create Token page (`/create-token`) | ✅ |
+| Token Dashboard (`/tokens`) | ✅ |
+| Token Detail (`/tokens/:symbol`) | ✅ |
+| GRC20 tabs in ProposeTransaction | ✅ |
+| 5% platform fee on mints | ✅ |
+| Multisig admin governance | ✅ |
+| Fee disclosure banner | ✅ |
+| Dashboard quick action button | ✅ |
+| Tokens nav link in header | ✅ |
 
 ---
 

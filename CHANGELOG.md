@@ -2,6 +2,29 @@
 
 All notable changes to Memba are documented here.
 
+## [3.0.0] — 2026-02-26
+
+### Added
+- **GRC20 Launchpad**: Full token creation + management feature
+  - **Create Token page** (`/create-token`): form with name, symbol, decimals, initial mint, faucet amount
+  - **Admin selector**: create as personal wallet or assign multisig as admin
+  - **Token Dashboard** (`/tokens`): lists all grc20factory tokens with user balances, admin badges, stat cards
+  - **Token Detail** (`/tokens/:symbol`): metadata card, user balance, action tabs (Transfer, Mint, Burn, Faucet)
+  - **Multisig GRC20 tabs**: Transfer/Mint/Burn/Approve tabs in ProposeTransaction for multisig governance
+  - **5% platform fee**: automatic fee transfer on every mint, sent to samourai-crew multisig
+  - **Fee disclosure banner**: transparent fee amount shown before transaction signing
+  - **ABCI query helpers** (`grc20.ts`): listFactoryTokens, getTokenInfo, getTokenBalance via vm/qrender + vm/qeval
+  - **Multi-msg TX builders**: atomic create + fee transfer in single transaction
+  - **🪙 Tokens nav link**: persistent navigation in Layout header
+  - **Dashboard quick action**: 🪙 Create a Token button (empty state + quick actions bar)
+
+### Technical
+- JSON-RPC POST for ABCI queries (more reliable than HTTP GET)
+- `ResponseBase.Data` (not Value) for VM query responses
+- Colon separator for vm/qrender, dot separator for vm/qeval (per Gno source)
+- Input sanitization for ABCI query injection prevention
+- `grc20factory` realm: `NewWithAdmin()` enables multisig admin governance
+
 ## [2.0.3] — 2026-02-26
 
 ### Added
