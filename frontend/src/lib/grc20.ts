@@ -43,8 +43,8 @@ export async function listFactoryTokens(rpcUrl: string): Promise<TokenInfo[]> {
     if (!data) return []
 
     const tokens: TokenInfo[] = []
-    // Parse markdown list items: "- [Name ($SYMBOL)](link)"
-    const re = /\[(.+?)\s+\(\$([A-Z0-9]+)\)\]/g
+    // Parse markdown list items: "- [Name \($SYMBOL\)](link)" (factory escapes parens)
+    const re = /\[(.+?)\s+\\?\(\$([A-Z0-9]+)\\?\)\]/g
     let match
     while ((match = re.exec(data)) !== null) {
         tokens.push({
