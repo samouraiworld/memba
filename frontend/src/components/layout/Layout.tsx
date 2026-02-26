@@ -3,6 +3,7 @@ import { Outlet, Link } from "react-router-dom"
 import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
+import { useNetwork } from "../../hooks/useNetwork"
 import { APP_VERSION } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -21,6 +22,7 @@ export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
     const { balance } = useBalance(adena.connected ? adena.address : null)
+    const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const loginAttemptedRef = useRef(false)
@@ -148,6 +150,27 @@ export function Layout() {
 
                     {/* Right side */}
                     <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        {/* Network selector */}
+                        <select
+                            value={network.networkKey}
+                            onChange={(e) => network.switchNetwork(e.target.value)}
+                            title="Switch network"
+                            style={{
+                                background: "rgba(0,212,170,0.06)", border: "1px solid #1a1a1a",
+                                color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                padding: "4px 8px", borderRadius: 6, cursor: "pointer",
+                                outline: "none", appearance: "none", WebkitAppearance: "none",
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23555'/%3E%3C/svg%3E\")",
+                                backgroundRepeat: "no-repeat", backgroundPosition: "right 6px center",
+                                paddingRight: 20,
+                            }}
+                        >
+                            {Object.entries(network.networks).map(([key, net]) => (
+                                <option key={key} value={key} style={{ background: "#111", color: "#ccc" }}>
+                                    {net.label}
+                                </option>
+                            ))}
+                        </select>
                         {adena.connected && auth.isAuthenticated ? (
                             <>
                                 <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
