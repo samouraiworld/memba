@@ -103,7 +103,15 @@ export function MultisigView() {
                         </p>
                         <button
                             onClick={() => {
-                                navigator.clipboard.writeText(window.location.href)
+                                // Build a shareable import link with encoded pubkey
+                                const origin = window.location.origin
+                                let shareUrl = `${origin}/multisig/${address}`
+                                if (multisig?.pubkeyJson) {
+                                    const encoded = btoa(multisig.pubkeyJson)
+                                    const name = encodeURIComponent(multisig.name || "")
+                                    shareUrl = `${origin}/import?pubkey=${encodeURIComponent(encoded)}&name=${name}`
+                                }
+                                navigator.clipboard.writeText(shareUrl)
                                 setCopied(true)
                                 setTimeout(() => setCopied(false), 2000)
                             }}
@@ -114,7 +122,7 @@ export function MultisigView() {
                                 marginTop: 6, transition: "all 0.15s",
                             }}
                         >
-                            {copied ? "✓ Copied!" : "Copy Shareable Link"}
+                            {copied ? "✓ Link Copied!" : "📎 Share Import Link"}
                         </button>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

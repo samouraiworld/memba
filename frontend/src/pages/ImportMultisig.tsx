@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
@@ -16,6 +16,26 @@ export function ImportMultisig() {
     const [walletName, setWalletName] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [searchParams] = useSearchParams()
+    const [sharedImport, setSharedImport] = useState<{ pubkeyJson: string; name: string } | null>(null)
+
+    // ── Auto-fill from shareable link (?pubkey=<base64>&name=<name>) ──
+    useEffect(() => {
+        const encoded = searchParams.get("pubkey")
+        const name = searchParams.get("name") || ""
+        if (!encoded) return
+        try {
+            const decoded = atob(encoded)
+            // Verify it's valid multisig pubkey JSON
+            const parsed = JSON.parse(decoded)
+            if (parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) {
+                setSharedImport({ pubkeyJson: decoded, name })
+                setPubkeyJson(decoded)
+                setWalletName(name)
+                setMode("pubkey")
+            }
+        } catch { /* invalid base64 or JSON — ignore */ }
+    }, [searchParams])
 
     const handleImportByAddress = async () => {
         const trimmed = address.trim()
@@ -140,6 +160,42 @@ export function ImportMultisig() {
                     Import an existing multisig wallet
                 </p>
             </div>
+
+            {/* ── Shareable link banner ──────────────────────────── */}
+            {sharedImport && (() => {
+                let threshold = "?", members = "?"
+                try {
+                    const parsed = JSON.parse(sharedImport.pubkeyJson)
+                    threshold = parsed.value?.threshold || "?"
+                    members = parsed.value?.pubkeys?.length?.toString() || "?"
+                } catch { /* ignore */ }
+                return (
+                    <div className="k-card" style={{ borderColor: "rgba(0,212,170,0.2)", display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>🔗</span>
+                            <span style={{ fontWeight: 600, fontSize: 14 }}>You've been invited to join a multisig</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 16, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                            {sharedImport.name && <span>Name: <span style={{ color: "#ccc" }}>{sharedImport.name}</span></span>}
+                            <span>Threshold: <span style={{ color: "#ccc" }}>{threshold}/{members}</span></span>
+                        </div>
+                        {auth.isAuthenticated ? (
+                            <button
+                                className="k-btn-primary"
+                                disabled={loading}
+                                onClick={handleImportByPubkey}
+                                style={{ alignSelf: "flex-start", opacity: loading ? 0.5 : 1 }}
+                            >
+                                {loading ? "Importing..." : "✓ Import This Multisig"}
+                            </button>
+                        ) : (
+                            <p style={{ color: "#f59e0b", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                                ⚠ Connect your wallet first to import
+                            </p>
+                        )}
+                    </div>
+                )
+            })()}
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
