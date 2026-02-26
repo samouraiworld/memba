@@ -4,6 +4,7 @@ import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
+import { CopyableAddress } from "../ui/CopyableAddress"
 import { APP_VERSION } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -77,11 +78,16 @@ export function Layout() {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {
             performLogin()
         }
+        // S1: When wallet is not connected, clear any persisted auth token.
+        // This prevents stale data from showing on hard refresh without wallet.
+        if (!adena.connected && auth.isAuthenticated) {
+            auth.logout()
+        }
         // Reset login gate when wallet disconnects
         if (!adena.connected) {
             loginAttemptedRef.current = false
         }
-    }, [adena.connected, auth.isAuthenticated, authLoading, performLogin])
+    }, [adena.connected, auth.isAuthenticated, authLoading, performLogin, auth])
 
     // ── Address mismatch: Adena switched accounts but old token persists ──
     useEffect(() => {
@@ -117,8 +123,7 @@ export function Layout() {
         loginAttemptedRef.current = false
     }, [adena, auth])
 
-    const truncateAddr = (addr: string) =>
-        addr.length > 16 ? `${addr.slice(0, 8)}...${addr.slice(-6)}` : addr
+
 
     const isLoggingIn = adena.loading || authLoading || auth.loading
 
@@ -178,8 +183,8 @@ export function Layout() {
                                 </span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#ccc" }}>
-                                        {truncateAddr(auth.address || adena.address)}
+                                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                        <CopyableAddress address={auth.address || adena.address} full={false} fontSize={12} />
                                     </span>
                                 </div>
                                 <button

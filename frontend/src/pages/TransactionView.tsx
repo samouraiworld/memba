@@ -7,6 +7,7 @@ import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
+import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
@@ -60,8 +61,7 @@ export function TransactionView() {
 
     useEffect(() => { fetchTx() }, [fetchTx])
 
-    const truncateAddr = (addr: string) =>
-        addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-8)}` : addr
+
 
     const formatDate = (dateStr: string) => {
         try {
@@ -142,7 +142,7 @@ export function TransactionView() {
                         </button>
                     </div>
                     <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
-                        {(tx.type || "send").toUpperCase()} • Created by {truncateAddr(tx.creatorAddress)} • {formatDate(tx.createdAt)}
+                        {(tx.type || "send").toUpperCase()} • Created by <CopyableAddress address={tx.creatorAddress} full={false} fontSize={12} /> • {formatDate(tx.createdAt)}
                     </p>
                 </div>
             </div>
@@ -182,7 +182,7 @@ export function TransactionView() {
 
             {/* ── Details card ─────────────────────────────────── */}
             <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <DetailRow label="Multisig" value={truncateAddr(tx.multisigAddress)} />
+                <DetailRow label="Multisig" value={<CopyableAddress address={tx.multisigAddress} fontSize={13} />} />
                 <DetailRow label="Chain" value={tx.chainId} />
                 <DetailRow label="Memo" value={tx.memo || "—"} />
                 <DetailRow label="Fee" value={fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`} />
@@ -225,9 +225,7 @@ export function TransactionView() {
                                 padding: "12px 20px", borderBottom: "1px solid #111",
                                 display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center",
                             }}>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "#ccc" }}>
-                                    {truncateAddr(sig.userAddress)}
-                                </span>
+                                <CopyableAddress address={sig.userAddress} fontSize={12} />
                                 <span style={{
                                     fontSize: 11, padding: "2px 8px", borderRadius: 4,
                                     background: "rgba(0,212,170,0.08)", color: "#00d4aa",
@@ -411,7 +409,7 @@ export function TransactionView() {
     )
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span className="k-label">{label}</span>
