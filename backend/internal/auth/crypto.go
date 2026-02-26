@@ -220,7 +220,7 @@ func MakeToken(
 	} else if info.UserAddress != "" {
 		// Address-only path: wallet didn't provide pubkey (e.g. Adena for
 		// accounts that haven't transacted on-chain yet).
-		chainUserAddress = info.UserAddress
+		// chainUserAddress is only needed for ADR-036 verification (pubkey path).
 
 		// Re-encode to universal prefix for storage.
 		_, addressBytes, err := bech32.DecodeAndConvert(info.UserAddress)
