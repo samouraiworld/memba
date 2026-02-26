@@ -2,11 +2,12 @@ import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { StatusBadge } from "../components/ui/StatusBadge"
-import { getTxStatus } from "../components/ui/txStatus"
-import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
+import { getTxStatus } from "../lib/txStatus"
+import { SkeletonCard, SkeletonRow } from "../components/ui/Skeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
+import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
@@ -19,6 +20,10 @@ export function Dashboard() {
     const [recentTxs, setRecentTxs] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [joiningAddr, setJoiningAddr] = useState<string | null>(null)
+
+    const joinedMultisigs = multisigs.filter(m => m.joined)
+    const discoverableMultisigs = multisigs.filter(m => !m.joined)
 
     const fetchData = useCallback(async () => {
         if (!token || !auth.isAuthenticated) return
@@ -54,6 +59,25 @@ export function Dashboard() {
         } catch { return dateStr }
     }
 
+    const handleJoinMultisig = async (ms: Multisig) => {
+        if (!token || !ms.pubkeyJson) return
+        setJoiningAddr(ms.address)
+        try {
+            await api.createOrJoinMultisig({
+                authToken: token,
+                chainId: ms.chainId || GNO_CHAIN_ID,
+                multisigPubkeyJson: ms.pubkeyJson,
+                name: ms.name || "",
+                bech32Prefix: GNO_BECH32_PREFIX,
+            })
+            fetchData() // refresh
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to join multisig")
+        } finally {
+            setJoiningAddr(null)
+        }
+    }
+
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {/* ── Page header ────────────────────────────────────────── */}
@@ -74,7 +98,7 @@ export function Dashboard() {
                     </>
                 ) : (
                     <>
-                        <StatCard label="Multisigs" value={auth.isAuthenticated ? String(multisigs.length) : "—"} />
+                        <StatCard label="Multisigs" value={auth.isAuthenticated ? String(joinedMultisigs.length) : "—"} />
                         <StatCard label="Pending TX" value={auth.isAuthenticated ? String(pendingTxs.length) : "—"} accent />
                         <StatCard label="Balance" value={auth.isAuthenticated ? balance : "— GNOT"} />
                     </>
@@ -92,7 +116,7 @@ export function Dashboard() {
                         Connect Adena to create or import multisig wallets
                     </p>
                 </div>
-            ) : multisigs.length === 0 && !loading ? (
+            ) : joinedMultisigs.length === 0 && discoverableMultisigs.length === 0 && !loading ? (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                         <span style={{ fontSize: 24 }}>🏛</span>
@@ -111,6 +135,76 @@ export function Dashboard() {
                     </div>
                 </div>
             ) : null}
+
+            {/* ── Discoverable Multisigs (auto-detect) ─────────────── */}
+            {auth.isAuthenticated && discoverableMultisigs.length > 0 && (
+                <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <span style={{ fontSize: 14 }}>🔍</span>
+                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Discovered Multisigs</h3>
+                        <span className="k-label" style={{ marginLeft: "auto" }}>{discoverableMultisigs.length} found</span>
+                    </div>
+                    <p style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
+                        These multisigs include your address as a member. Join to manage them.
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                        {discoverableMultisigs.map(ms => (
+                            <div key={ms.address} className="k-card" style={{ borderColor: "rgba(245,158,11,0.2)", display: "flex", flexDirection: "column", gap: 8 }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
+                                    <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#f59e0b", background: "rgba(245,158,11,0.1)", padding: "2px 6px", borderRadius: 4 }}>
+                                        {ms.threshold}/{ms.membersCount}
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", wordBreak: "break-all" }}>
+                                    {ms.address}
+                                </span>
+                                <button
+                                    className="k-btn-primary"
+                                    disabled={joiningAddr === ms.address}
+                                    onClick={() => handleJoinMultisig(ms)}
+                                    style={{ alignSelf: "flex-start", marginTop: 4, opacity: joiningAddr === ms.address ? 0.5 : 1 }}
+                                >
+                                    {joiningAddr === ms.address ? "Joining..." : "✓ Join Multisig"}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Your Multisigs ────────────────────────────────────── */}
+            {auth.isAuthenticated && joinedMultisigs.length > 0 && (
+                <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
+                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Your Multisigs</h3>
+                        <span className="k-label" style={{ marginLeft: "auto" }}>{joinedMultisigs.length} active</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                        {joinedMultisigs.map(ms => (
+                            <div
+                                key={ms.address}
+                                className="k-card"
+                                onClick={() => navigate(`/multisig/${ms.address}`)}
+                                style={{ cursor: "pointer", transition: "border-color 0.15s" }}
+                                onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
+                                onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                    <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
+                                    <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", background: "rgba(0,212,170,0.08)", padding: "2px 6px", borderRadius: 4 }}>
+                                        {ms.threshold}/{ms.membersCount}
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", wordBreak: "break-all" }}>
+                                    {truncateAddr(ms.address)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* ── Pending Transactions ───────────────────────────────── */}
             {auth.isAuthenticated && (
