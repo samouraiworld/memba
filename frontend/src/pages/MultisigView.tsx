@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { useBalance } from "../hooks/useBalance"
+import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -49,9 +50,6 @@ export function MultisigView() {
 
     useEffect(() => { fetchData() }, [fetchData])
 
-    const truncateAddr = (addr: string) =>
-        addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-8)}` : addr
-
     const formatDate = (dateStr: string) => {
         try {
             return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
@@ -98,9 +96,9 @@ export function MultisigView() {
                         <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
                             {multisig?.name || "Multisig Wallet"}
                         </h2>
-                        <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
-                            {address}
-                        </p>
+                        <div style={{ marginTop: 4 }}>
+                            <CopyableAddress address={address || ""} fontSize={12} />
+                        </div>
                         <button
                             onClick={() => {
                                 // Build a shareable import link with encoded pubkey
@@ -201,9 +199,7 @@ export function MultisigView() {
                                 padding: "12px 20px", borderBottom: "1px solid #111",
                                 display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center",
                             }}>
-                                <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "#ccc" }}>
-                                    {truncateAddr(addr)}
-                                </span>
+                                <CopyableAddress address={addr} fontSize={12} />
                                 <span style={{
                                     fontSize: 11, padding: "2px 8px", borderRadius: 4,
                                     background: "rgba(0,212,170,0.08)", color: "#00d4aa",

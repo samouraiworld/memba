@@ -5,6 +5,7 @@ import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../lib/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/Skeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
@@ -50,8 +51,14 @@ export function Dashboard() {
 
     useEffect(() => { fetchData() }, [fetchData])
 
-    const truncateAddr = (addr: string) =>
-        addr.length > 16 ? `${addr.slice(0, 8)}…${addr.slice(-6)}` : addr
+    // S1: Clear stale data when auth drops (wallet disconnect / token expiry)
+    useEffect(() => {
+        if (!auth.isAuthenticated) {
+            setMultisigs([])
+            setPendingTxs([])
+            setRecentTxs([])
+        }
+    }, [auth.isAuthenticated])
 
     const formatDate = (dateStr: string) => {
         try {
@@ -157,7 +164,7 @@ export function Dashboard() {
                                     </span>
                                 </div>
                                 <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", wordBreak: "break-all" }}>
-                                    {ms.address}
+                                    <CopyableAddress address={ms.address} />
                                 </span>
                                 <button
                                     className="k-btn-primary"
@@ -197,9 +204,7 @@ export function Dashboard() {
                                         {ms.threshold}/{ms.membersCount}
                                     </span>
                                 </div>
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", wordBreak: "break-all" }}>
-                                    {truncateAddr(ms.address)}
-                                </span>
+                                <CopyableAddress address={ms.address} />
                             </div>
                         ))}
                     </div>
@@ -244,7 +249,7 @@ export function Dashboard() {
                                         onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                     >
                                         <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
-                                        <span className="k-activity-hide-mobile" style={{ color: "#888" }}>{truncateAddr(tx.multisigAddress)}</span>
+                                        <span className="k-activity-hide-mobile"><CopyableAddress address={tx.multisigAddress} full={false} /></span>
                                         <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
                                         <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
                                     </div>
@@ -314,7 +319,7 @@ export function Dashboard() {
                                         onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                     >
                                         <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
-                                        <span style={{ color: "#888" }}>{truncateAddr(tx.multisigAddress)}</span>
+                                        <span><CopyableAddress address={tx.multisigAddress} full={false} /></span>
                                         <span>
                                             <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} hash={tx.finalHash} />
                                         </span>
