@@ -1,0 +1,30 @@
+{
+  "account_number": "0",
+  "chain_id": "test11",
+  "fee": {
+    "amount": [
+      {
+        "denom": "ugnot",
+        "amount": "10000"
+      }
+    ],
+    "gas": "100000"
+  },
+  "memo": "memba e2e test",
+  "msgs": [
+    {
+      "type": "bank/MsgSend",
+      "value": {
+        "from_address": "g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v",
+        "to_address": "g187sfsghc9tqayr5rgdmpy2tetnq9ttluxuk79h",
+        "amount": [
+          {
+            "denom": "ugnot",
+            "amount": "9997"
+          }
+        ]
+      }
+    }
+  ],
+  "sequence": "0"
+}

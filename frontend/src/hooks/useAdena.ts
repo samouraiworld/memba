@@ -200,25 +200,19 @@ export function useAdena() {
 
                 // Try SignMultisigTransaction first (correct for multisig)
                 if (typeof adena.SignMultisigTransaction === "function") {
-                    console.warn("[Memba] Trying SignMultisigTransaction:", JSON.stringify(multisigDoc));
                     const res = await adena.SignMultisigTransaction(multisigDoc);
-                    console.warn("[Memba] SignMultisigTransaction result:", JSON.stringify(res));
                     if (res.status !== "failure") {
                         const sig = res.data?.signature?.signature;
                         if (sig) return sig;
                     }
-                } else {
-                    console.warn("[Memba] SignMultisigTransaction not available");
                 }
 
                 // Fallback: try Sign() (uses signer's own account — may not work for multisig)
                 if (typeof adena.Sign === "function") {
-                    console.warn("[Memba] Trying Sign() fallback with messages:", JSON.stringify(adenaMessages));
                     const res = await adena.Sign({
                         messages: adenaMessages,
                         memo: parsed.memo || "",
                     });
-                    console.warn("[Memba] Sign result:", JSON.stringify(res));
                     if (res.status !== "failure") {
                         return res.data?.signature?.signature
                             || res.data?.signed?.signature?.signature
@@ -226,7 +220,6 @@ export function useAdena() {
                     }
                 }
 
-                console.warn("[Memba] All sign methods failed");
                 return null;
             } catch (err) {
                 console.error("[Memba] Sign error:", err);
