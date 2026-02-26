@@ -44,8 +44,8 @@ message TokenRequestInfo {
   string kind = 1;
   Challenge challenge = 2;
   string user_bech32_prefix = 3;
-  string user_pubkey_json = 4;   // Amino JSON pubkey — optional if user_address is set
-  string user_address = 5;       // Direct address — used when pubkey unavailable from wallet
+  string user_pubkey_json = 4; // Amino JSON pubkey — optional if user_address is set
+  string user_address = 5; // Direct address — used when pubkey unavailable from wallet
 }
 
 message GetChallengeRequest {}
