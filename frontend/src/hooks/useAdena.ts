@@ -163,13 +163,27 @@ export function useAdena() {
                         ? `${aminoFee.amount[0].amount}${aminoFee.amount[0].denom}`
                         : "10000ugnot",
                 };
-                // Convert Amino msg types to Adena protobuf-style:
-                // "bank/MsgSend" → "/bank.MsgSend", "vm/m_call" → "/vm.m_call"
+                // Convert Amino msgs to Adena-native format (from official docs):
+                // Amino:  {type: "bank/MsgSend", value: {from_address, to_address, amount: [{denom, amount}]}}
+                // Adena:  {"@type": "/bank.MsgSend", from_address, to_address, amount: "9997ugnot"}
+                // The executor normalizes @type msgs to {type, value} internally (executor.ts:228-233)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const adenaMessages = parsed.msgs.map((m: any) => ({
-                    type: m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`,
-                    value: m.value,
-                }));
+                const adenaMessages = parsed.msgs.map((m: any) => {
+                    const adenaType = m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`;
+                    const value = m.value || {};
+
+                    // Convert Cosmos SDK amount array to Gno string format
+                    let amount = value.amount;
+                    if (Array.isArray(amount) && amount.length > 0) {
+                        amount = `${amount[0].amount}${amount[0].denom}`;
+                    }
+
+                    return {
+                        "@type": adenaType,
+                        ...value,
+                        amount,
+                    };
+                });
 
                 // Build Adena's MultisigTransactionDocument format
                 const multisigDoc = {
