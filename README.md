@@ -7,29 +7,30 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
-## Features (v2.0.1)
+## Features (v2.0.3)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
 - 💰 GNOT balance display (live via ABCI query)
-- 📝 Propose GNOT send transactions
-- ✍️ Sign with Adena (individual member)
+- 📝 Propose GNOT send & contract call transactions
+- ✍️ Sign with Adena or paste gnokey signatures (air-gapped)
 - 📊 Signature tracking + threshold progress
 - 📡 Combine signatures + broadcast to chain
-- 🔐 Challenge-response authentication (ed25519 + ADR-036)
+- 🔐 Challenge-response authentication (ed25519)
 - 📜 TX history with parsed messages (MsgSend/MsgCall/MsgAddPackage)
 - 📱 Mobile responsive (375px+)
-- 🛡️ Threshold-enforced completion (v0.2.1 security fix)
-- ⚡ Batch signature loading (N+1 fix)
-- 🔍 Single transaction lookup via `GetTransaction` RPC
-- 📦 Cursor-based pagination
+- 🌐 Network selector (test11 ↔ portal-loop)
+- 🔗 Shareable import links for 1-click multisig onboarding
+- 🔍 Auto-detect multisig membership with 1-click join
+- 📋 Full addresses with 1-click copy everywhere
+- ✏️ Inline multisig rename (per-user, backend-persisted)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD pipeline (GitHub Actions + Netlify + Fly.io)
 
 ## Architecture
 
 ```
-frontend/   → React + Vite + Tailwind v4 + Kodera CSS (Netlify)
+frontend/   → React + Vite + Vanilla CSS + Kodera design system (Netlify)
 backend/    → Go + ConnectRPC + SQLite (Fly.io)
 api/        → Protobuf service definitions (Buf)
 contracts/  → Gno realms (future)
@@ -65,6 +66,7 @@ make proto-gen
 | Network | RPC | Chain ID |
 |---------|-----|----------|
 | test11 | `https://rpc.test11.testnets.gno.land:443` | `test11` |
+| portal-loop | `https://rpc.gno.land:443` | `portal-loop` |
 
 ## Target Multisig
 

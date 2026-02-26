@@ -339,6 +339,36 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v2.0.3 — Friction Reduction & UX — ✅ SHIPPED 2026-02-26
+
+> Reduce multisig onboarding friction, improve address UX, fix auth stale data bug.
+
+### Scope
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Network selector | test11 ↔ portal-loop switch with localStorage persistence | ✅ |
+| Shareable import links | `?pubkey=<base64>&name=<name>` URL for 1-click onboarding | ✅ |
+| Auto-detect membership | Dashboard discovers not-yet-joined multisigs, 1-click join | ✅ |
+| CopyableAddress | Full address + 📋 1-click copy, replaces all truncateAddr | ✅ |
+| Inline rename | Click multisig name → edit → save (per-user, backend-persisted) | ✅ |
+| Clickable logo | Header Memba logo links to home | ✅ |
+| Social footer | 7 Samourai Coop social icons | ✅ |
+| Auth stale data fix | Layout clears token on wallet disconnect | ✅ |
+| Local CI checklist | git-policy updated with required local checks | ✅ |
+
+### Acceptance Criteria
+| # | Criterion |
+|---|-----------|
+| 1 | Hard refresh without wallet → no multisig/TX data visible |
+| 2 | Click any address → copied to clipboard with ✓ feedback |
+| 3 | Share import link → recipient sees invite banner + 1-click import |
+| 4 | Dashboard shows "Discovered Multisigs" for not-yet-joined memberships |
+| 5 | Click multisig name → rename inline → saved in backend |
+| 6 | `npm run build` + `lint` + `go test` pass before push |
+
+---
+
 ## v2.1.0 — Treasury Management
 
 | Feature | Description |

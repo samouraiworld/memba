@@ -2,6 +2,29 @@
 
 All notable changes to Memba are documented here.
 
+## [2.0.3] — 2026-02-26
+
+### Added
+- **Network selector**: Switch between test11 (default) and portal-loop from header dropdown, persisted in localStorage
+- **Shareable import links**: "Share Import Link" button generates `?pubkey=<base64>&name=<name>` URL for 1-click multisig onboarding
+- **Auto-detect membership**: Dashboard discovers multisigs where user is a member but hasn't joined — with 1-click join button
+- **CopyableAddress component**: Full address display with 📋 icon, 1-click copy to clipboard with ✓ feedback — used across all views
+- **Inline multisig rename**: Click multisig name → edit → save (uses existing `CreateOrJoinMultisig` RPC, per-user naming)
+- **Your Multisigs section**: Dashboard shows clickable card grid for joined multisigs
+- **Discovered Multisigs section**: Amber-themed cards for not-yet-joined multisigs with join button
+- **Local CI Checklist**: Added to git-policy workflow — `npm run build` + `lint` + `go test` before every push
+
+### Fixed
+- **Auth stale data (root cause)**: Layout now calls `auth.logout()` when wallet disconnects, clearing persisted localStorage token — prevents Dashboard from showing stale data on hard refresh without wallet
+- **Broken import paths**: Fixed `../lib/txStatus` → `../components/ui/txStatus` and `../components/ui/Skeleton` → `../components/ui/LoadingSkeleton` in Dashboard (caused CI build failures)
+- **Stat card count**: Shows joined multisig count only (was showing total including not-joined)
+
+### Changed
+- **Addresses everywhere**: All `truncateAddr` helpers removed (zero remaining) — replaced with `CopyableAddress`
+- **DetailRow**: Accepts `ReactNode` for value prop (was `string` only)
+- **Clickable logo**: "Memba" header text + logo link to home page
+- **Social footer**: 7 Samourai Coop social icons (𝕏, IG, YT, GH, LI, TG, ✉)
+
 ## [2.0.2] — 2026-02-25
 
 ### Fixed
