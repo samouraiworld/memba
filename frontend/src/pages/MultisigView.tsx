@@ -9,7 +9,7 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-import { GNO_CHAIN_ID } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
 export function MultisigView() {
@@ -25,6 +25,8 @@ export function MultisigView() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [editing, setEditing] = useState(false)
+    const [editName, setEditName] = useState("")
 
     const { balance } = useBalance(address || null)
 
@@ -54,6 +56,25 @@ export function MultisigView() {
         try {
             return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
         } catch { return dateStr }
+    }
+
+    const handleRename = async () => {
+        const name = editName.trim()
+        if (!name || !token || !multisig?.pubkeyJson) { setEditing(false); return }
+        try {
+            await api.createOrJoinMultisig({
+                authToken: token,
+                chainId: multisig.chainId || GNO_CHAIN_ID,
+                multisigPubkeyJson: multisig.pubkeyJson,
+                name,
+                bech32Prefix: GNO_BECH32_PREFIX,
+            })
+            setEditing(false)
+            fetchData() // refresh to show new name
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Rename failed")
+            setEditing(false)
+        }
     }
 
     // ── Not authenticated ───────────────────────────────
@@ -93,9 +114,43 @@ export function MultisigView() {
                 </button>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
                     <div>
-                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                            {multisig?.name || "Multisig Wallet"}
-                        </h2>
+                        {editing ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                    autoFocus
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditing(false) }}
+                                    style={{
+                                        background: "#111", border: "1px solid #333", borderRadius: 6,
+                                        color: "#f0f0f0", fontSize: 18, fontWeight: 600, padding: "6px 12px",
+                                        fontFamily: "inherit", letterSpacing: "-0.02em", outline: "none",
+                                    }}
+                                    placeholder="Multisig name..."
+                                />
+                                <button
+                                    onClick={handleRename}
+                                    style={{ background: "#00d4aa", color: "#000", border: "none", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                                >
+                                    Save
+                                </button>
+                                <button
+                                    onClick={() => setEditing(false)}
+                                    style={{ background: "none", color: "#666", border: "1px solid #333", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12 }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <h2
+                                style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
+                                onClick={() => { setEditName(multisig?.name || ""); setEditing(true) }}
+                                title="Click to rename"
+                            >
+                                {multisig?.name || "Multisig Wallet"}
+                                <span style={{ fontSize: 14, opacity: 0.4 }}>✏️</span>
+                            </h2>
+                        )}
                         <div style={{ marginTop: 4 }}>
                             <CopyableAddress address={address || ""} fontSize={12} />
                         </div>
