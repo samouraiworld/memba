@@ -6,6 +6,7 @@ import { ImportMultisig } from "./pages/ImportMultisig"
 import { MultisigView } from "./pages/MultisigView"
 import { ProposeTransaction } from "./pages/ProposeTransaction"
 import { TransactionView } from "./pages/TransactionView"
+import { CreateToken } from "./pages/CreateToken"
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/multisig/:address" element={<MultisigView />} />
           <Route path="/multisig/:address/propose" element={<ProposeTransaction />} />
           <Route path="/tx/:id" element={<TransactionView />} />
+          <Route path="/create-token" element={<CreateToken />} />
         </Route>
       </Routes>
     </BrowserRouter>

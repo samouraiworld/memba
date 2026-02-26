@@ -139,6 +139,9 @@ export function Dashboard() {
                         <button className="k-btn-secondary" onClick={() => navigate("/import")}>
                             Import Existing
                         </button>
+                        <button className="k-btn-secondary" onClick={() => navigate("/create-token")}>
+                            🪙 Create a Token
+                        </button>
                     </div>
                 </div>
             ) : null}
@@ -208,6 +211,25 @@ export function Dashboard() {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* ── Quick Actions ───────────────────────────────────── */}
+            {auth.isAuthenticated && (joinedMultisigs.length > 0 || discoverableMultisigs.length > 0) && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button className="k-btn-primary" onClick={() => navigate("/create")} style={{ fontSize: 12 }}>
+                        + Multisig
+                    </button>
+                    <button className="k-btn-secondary" onClick={() => navigate("/import")} style={{ fontSize: 12 }}>
+                        Import
+                    </button>
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => navigate("/create-token")}
+                        style={{ fontSize: 12, borderColor: "rgba(245,166,35,0.3)", color: "#f5a623" }}
+                    >
+                        🪙 Create a Token
+                    </button>
                 </div>
             )}
 
