@@ -137,28 +137,59 @@ export function useAdena() {
         }
     }, []);
 
-    /** Sign an Amino sign doc string via Adena's Sign() method.
-     *  Used by TransactionView for MsgSend/MsgCall signing.
-     *  Note: sign/MsgSignData (ADR-036) is NOT supported by Adena —
-     *  only Gno-native types (/bank.MsgSend, /vm.m_call, etc.) work. */
+    /** Sign a multisig transaction via Adena's SignMultisigTransaction().
+     *  Input: JSON string of Amino sign doc from buildSignDoc().
+     *  Returns: base64 signature string, or null on failure.
+     *
+     *  Adena's Sign() uses the signer's own account (wrong for multisig).
+     *  SignMultisigTransaction() correctly signs with the multisig's
+     *  account_number and sequence. */
     const signArbitrary = useCallback(
         async (data: string): Promise<string | null> => {
-            const adena = getAdena();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const adena = getAdena() as any;
             if (!adena || !state.connected) return null;
 
             try {
                 const parsed = JSON.parse(data);
-                const res = await adena.Sign({
-                    messages: parsed.msgs,
-                    fee: parsed.fee,
-                    memo: parsed.memo || "",
-                });
 
-                if (res.status === "failure") return null;
+                // Build Adena's MultisigTransactionDocument format
+                const multisigDoc = {
+                    tx: {
+                        msg: parsed.msgs,
+                        fee: parsed.fee,
+                        signatures: null,
+                        memo: parsed.memo || "",
+                    },
+                    chainId: parsed.chain_id,
+                    accountNumber: parsed.account_number,
+                    sequence: parsed.sequence,
+                };
 
-                return res.data?.signature?.signature
-                    || res.data?.signed?.signature?.signature
-                    || null;
+                // Try SignMultisigTransaction first (correct for multisig)
+                if (typeof adena.SignMultisigTransaction === "function") {
+                    const res = await adena.SignMultisigTransaction(multisigDoc);
+                    if (res.status !== "failure") {
+                        // Extract signature from response
+                        const sig = res.data?.signature?.signature;
+                        if (sig) return sig;
+                    }
+                }
+
+                // Fallback: try Sign() (for non-multisig or old Adena versions)
+                if (typeof adena.Sign === "function") {
+                    const res = await adena.Sign({
+                        messages: parsed.msgs,
+                        memo: parsed.memo || "",
+                    });
+                    if (res.status !== "failure") {
+                        return res.data?.signature?.signature
+                            || res.data?.signed?.signature?.signature
+                            || null;
+                    }
+                }
+
+                return null;
             } catch (err) {
                 console.error("[Memba] Sign error:", err);
                 return null;
