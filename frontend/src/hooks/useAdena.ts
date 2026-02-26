@@ -153,11 +153,22 @@ export function useAdena() {
             try {
                 const parsed = JSON.parse(data);
 
+                // Convert Amino fee to Adena's multisig fee format:
+                // Amino: {amount: [{denom: "ugnot", amount: "10000"}], gas: "100000"}
+                // Adena: {gas_fee: "10000ugnot", gas_wanted: "100000"}
+                const aminoFee = parsed.fee;
+                const adenaFee = {
+                    gas_wanted: aminoFee.gas || "100000",
+                    gas_fee: aminoFee.amount?.[0]
+                        ? `${aminoFee.amount[0].amount}${aminoFee.amount[0].denom}`
+                        : "10000ugnot",
+                };
+
                 // Build Adena's MultisigTransactionDocument format
                 const multisigDoc = {
                     tx: {
                         msg: parsed.msgs,
-                        fee: parsed.fee,
+                        fee: adenaFee,
                         signatures: null,
                         memo: parsed.memo || "",
                     },
@@ -179,11 +190,16 @@ export function useAdena() {
                     console.warn("[Memba] SignMultisigTransaction not available");
                 }
 
-                // Fallback: try Sign()
+                // Fallback: try Sign() — convert msg types from "bank/MsgSend" to "/bank.MsgSend"
                 if (typeof adena.Sign === "function") {
-                    console.warn("[Memba] Trying Sign() fallback");
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const adenaMessages = parsed.msgs.map((m: any) => ({
+                        type: m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`,
+                        value: m.value,
+                    }));
+                    console.warn("[Memba] Trying Sign() fallback with messages:", JSON.stringify(adenaMessages));
                     const res = await adena.Sign({
-                        messages: parsed.msgs,
+                        messages: adenaMessages,
                         memo: parsed.memo || "",
                     });
                     console.warn("[Memba] Sign result:", JSON.stringify(res));
