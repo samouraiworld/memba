@@ -39,9 +39,7 @@ export function CreateToken() {
         if (!auth.isAuthenticated || !auth.token) return
             ; (async () => {
                 try {
-                    const res = await api.multisigs({ chainId: GNO_CHAIN_ID }, {
-                        headers: { Authorization: `Bearer ${auth.token}` },
-                    })
+                    const res = await api.multisigs({ authToken: auth.token ?? undefined, chainId: GNO_CHAIN_ID })
                     setMultisigs(
                         res.multisigs.map((m) => ({
                             address: m.address,
@@ -97,6 +95,7 @@ export function CreateToken() {
                 const acctInfo = await fetchAccountInfo(selectedMultisig)
 
                 await api.createTransaction({
+                    authToken: auth.token ?? undefined,
                     multisigAddress: selectedMultisig,
                     chainId: GNO_CHAIN_ID,
                     msgsJson: JSON.stringify(msgs),
@@ -105,8 +104,6 @@ export function CreateToken() {
                     accountNumber: acctInfo.accountNumber,
                     sequence: acctInfo.sequence,
                     type: "call",
-                }, {
-                    headers: { Authorization: `Bearer ${auth.token}` },
                 })
 
                 setSuccess(`Token proposal created! Requires multisig approval.`)
