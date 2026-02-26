@@ -4,6 +4,7 @@ import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
     buildMintMsgs, buildBurnMsg, calculateFee, feeDisclosure,
+    doContractBroadcast,
     type TokenInfo, type AminoMsg,
 } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -64,19 +65,20 @@ export function TokenView() {
 
             switch (actionTab) {
                 case "transfer": {
-                    if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); return }
-                    if (!/^g(no)?1[a-z0-9]{38,}$/.test(toAddress.trim())) { setError("Invalid address"); return }
+                    if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); setTxLoading(false); return }
+                    if (!/^g(no)?1[a-z0-9]{38,}$/.test(toAddress.trim())) { setError("Invalid address"); setTxLoading(false); return }
                     msgs = [buildTransferMsg(caller, symbol, toAddress.trim(), amount.trim())]
                     break
                 }
                 case "mint": {
-                    if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); return }
-                    const mintAmount = BigInt(amount.trim())
+                    if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); setTxLoading(false); return }
+                    let mintAmount: bigint
+                    try { mintAmount = BigInt(amount.trim()) } catch { setError("Invalid amount"); setTxLoading(false); return }
                     msgs = buildMintMsgs(caller, symbol, toAddress.trim(), mintAmount)
                     break
                 }
                 case "burn": {
-                    if (!toAddress.trim() || !amount.trim()) { setError("Address and amount required"); return }
+                    if (!toAddress.trim() || !amount.trim()) { setError("Address and amount required"); setTxLoading(false); return }
                     msgs = [buildBurnMsg(caller, symbol, toAddress.trim(), amount.trim())]
                     break
                 }
@@ -87,38 +89,7 @@ export function TokenView() {
                 default: return
             }
 
-            // Sign + broadcast via Adena DoContract
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const adenaGlobal = (window as any).adena
-            if (!adenaGlobal?.DoContract) {
-                setError("Adena wallet not available — please install or refresh the page")
-                return
-            }
-
-            // Convert Amino MsgCall to Adena's /vm.m_call format
-            const adenaMessages = msgs.map((m) => ({
-                type: "/vm.m_call",
-                value: {
-                    caller: m.value.caller,
-                    send: m.value.send || "",
-                    pkg_path: m.value.pkg_path,
-                    func: m.value.func,
-                    args: m.value.args,
-                },
-            }))
-
-            const contractRes = await adenaGlobal.DoContract({
-                messages: adenaMessages,
-                gasFee: 1,
-                gasWanted: 10000000,
-                memo: `Memba: ${actionTab} ${symbol}`,
-            })
-
-            if (contractRes.status === "failure") {
-                const errMsg = contractRes.message || contractRes.data?.message || "Transaction failed"
-                setError(`Transaction failed: ${errMsg}`)
-                return
-            }
+            await doContractBroadcast(msgs, `Memba: ${actionTab} ${symbol}`)
 
             setSuccess(`${actionTab} successful!`)
             setToAddress("")

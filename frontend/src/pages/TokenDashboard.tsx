@@ -19,21 +19,24 @@ export function TokenDashboard() {
             // List all factory tokens
             const list = await listFactoryTokens(GNO_RPC_URL)
 
-            // Enrich each with full info
-            const enriched: TokenInfo[] = []
-            for (const t of list) {
-                const info = await getTokenInfo(GNO_RPC_URL, t.symbol)
-                enriched.push(info || t)
-            }
+            // Enrich all tokens in parallel (was sequential N+1)
+            const enriched = await Promise.all(
+                list.map(async (t) => {
+                    const info = await getTokenInfo(GNO_RPC_URL, t.symbol)
+                    return info || t
+                })
+            )
             setTokens(enriched)
 
-            // Fetch user balances if connected
+            // Fetch user balances in parallel if connected
             if (adena.connected && adena.address) {
-                const bals: Record<string, bigint> = {}
-                for (const t of enriched) {
-                    bals[t.symbol] = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
-                }
-                setBalances(bals)
+                const entries = await Promise.all(
+                    enriched.map(async (t) => {
+                        const bal = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
+                        return [t.symbol, bal] as const
+                    })
+                )
+                setBalances(Object.fromEntries(entries))
             }
         } catch (err) {
             console.error("Failed to fetch tokens:", err)
