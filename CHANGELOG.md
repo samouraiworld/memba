@@ -26,7 +26,11 @@ All notable changes to Memba are documented here.
 - `grc20factory` realm: `NewWithAdmin()` enables multisig admin governance
 
 ### Fixed
-- **CORS preflight**: Use wildcard `AllowedHeaders` to fix Fly.io proxy header canonicalization breaking `rs/cors` strict matching — origin restrictions still enforced
+- **CORS preflight** (#13): Use wildcard `AllowedHeaders` to fix Fly.io proxy header canonicalization breaking `rs/cors` strict matching — origin restrictions still enforced
+- **Proto format** (#14): Fix `buf format` whitespace in `TokenRequestInfo` (pre-existing CI lint failure)
+- **CreateToken auth** (#15): Pass `authToken` in protobuf message body (was HTTP `Authorization` header — caused 401)
+- **Adena DoContract** (#16): Replace broken `SignTx` (doesn't exist on `window.adena`) with `DoContract` for sign + broadcast — fixes CreateToken and TokenView
+- **Token list regex** (#17): Handle escaped parentheses `\($SYMBOL\)` in `grc20factory` Render output — tokens now appear on `/tokens` page
 
 ## [2.0.3] — 2026-02-26
 
