@@ -81,6 +81,32 @@ export function Layout() {
         }
     }, [adena.connected, auth.isAuthenticated, authLoading, performLogin])
 
+    // ── Address mismatch: Adena switched accounts but old token persists ──
+    useEffect(() => {
+        if (!adena.connected || !auth.isAuthenticated) return
+        if (adena.address && auth.address && adena.address !== auth.address) {
+            // Stale token from different account — clear and re-authenticate
+            auth.logout()
+            loginAttemptedRef.current = false
+        }
+    }, [adena.connected, adena.address, auth.isAuthenticated, auth.address, auth])
+
+    // ── Listen for Adena account changes (user switches wallet in extension) ──
+    useEffect(() => {
+        const adenaGlobal = (window as unknown as Record<string, unknown>).adena
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!adenaGlobal || typeof (adenaGlobal as any).On !== "function") return
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const off = (adenaGlobal as any).On("changedAccount", () => {
+            // Account changed in Adena — clear everything and reconnect
+            auth.logout()
+            adena.disconnect()
+            loginAttemptedRef.current = false
+        })
+        return () => { if (typeof off === "function") off() }
+    }, [adena, auth])
+
     // ── Disconnect: also clear auth ──
     const handleDisconnect = useCallback(() => {
         adena.disconnect()
