@@ -3,9 +3,10 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_RPC_URL, UGNOT_PER_GNOT } from "../lib/config"
+import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, type AminoMsg } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
 
-type TxType = "send" | "call"
+type TxType = "send" | "call" | "grc20-transfer" | "grc20-mint" | "grc20-burn" | "grc20-approve"
 
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
@@ -23,6 +24,11 @@ export function ProposeTransaction() {
     const [args, setArgs] = useState("")
     const [sendAmount, setSendAmount] = useState("")
 
+    // GRC20 fields
+    const [grcSymbol, setGrcSymbol] = useState("")
+    const [grcTo, setGrcTo] = useState("")
+    const [grcAmount, setGrcAmount] = useState("")
+
     // Common fields
     const [memo, setMemo] = useState("")
     const [loading, setLoading] = useState(false)
@@ -35,8 +41,8 @@ export function ProposeTransaction() {
             return
         }
 
-        let msgsJson: string
-        let type: string
+        let msgsJson = ""
+        let type = ""
 
         if (txType === "send") {
             const trimmedRecipient = recipient.trim()
@@ -68,7 +74,7 @@ export function ProposeTransaction() {
                 },
             }])
             type = "send"
-        } else {
+        } else if (txType === "call") {
             const trimmedPkg = pkgPath.trim()
             const trimmedFunc = funcName.trim()
             if (!trimmedPkg || !trimmedFunc) {
@@ -108,6 +114,35 @@ export function ProposeTransaction() {
                     args: argsArray,
                 },
             }])
+            type = "call"
+        } else if (txType.startsWith("grc20-")) {
+            // GRC20 token operations
+            const trimSym = grcSymbol.trim().toUpperCase()
+            const trimTo = grcTo.trim()
+            const trimAmt = grcAmount.trim()
+            if (!trimSym) { setError("Token symbol required"); return }
+
+            let grcMsgs: AminoMsg[]
+            switch (txType) {
+                case "grc20-transfer":
+                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
+                    grcMsgs = [buildTransferMsg(address, trimSym, trimTo, trimAmt)]
+                    break
+                case "grc20-mint":
+                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
+                    grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt))
+                    break
+                case "grc20-burn":
+                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
+                    grcMsgs = [buildBurnMsg(address, trimSym, trimTo, trimAmt)]
+                    break
+                case "grc20-approve":
+                    if (!trimTo || !trimAmt) { setError("Spender and amount required"); return }
+                    grcMsgs = [buildApproveMsg(address, trimSym, trimTo, trimAmt)]
+                    break
+                default: return
+            }
+            msgsJson = JSON.stringify(grcMsgs)
             type = "call"
         }
 
@@ -163,32 +198,29 @@ export function ProposeTransaction() {
                 </div>
             )}
 
-            {/* TX Type tabs */}
-            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222" }}>
-                <button
-                    onClick={() => setTxType("send")}
-                    style={{
-                        padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: txType === "send" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: txType === "send" ? "#00d4aa" : "#666",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
-                        cursor: "pointer", transition: "all 0.15s",
-                    }}
-                >
-                    Send GNOT
-                </button>
-                <button
-                    onClick={() => setTxType("call")}
-                    style={{
-                        padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: txType === "call" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: txType === "call" ? "#00d4aa" : "#666",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
-                        cursor: "pointer", transition: "all 0.15s",
-                    }}
-                >
-                    Contract Call
-                </button>
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222", flexWrap: "wrap" }}>
+                {(["send", "call", "grc20-transfer", "grc20-mint", "grc20-burn", "grc20-approve"] as TxType[]).map(tab => {
+                    const labels: Record<TxType, string> = {
+                        send: "Send GNOT", call: "Contract Call",
+                        "grc20-transfer": "🪙 Transfer", "grc20-mint": "🪙 Mint",
+                        "grc20-burn": "🪙 Burn", "grc20-approve": "🪙 Approve",
+                    }
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => setTxType(tab)}
+                            style={{
+                                padding: "10px 14px", background: "none", border: "none",
+                                borderBottom: txType === tab ? "2px solid #00d4aa" : "2px solid transparent",
+                                color: txType === tab ? "#00d4aa" : "#666",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+                                cursor: "pointer", transition: "all 0.15s",
+                            }}
+                        >
+                            {labels[tab]}
+                        </button>
+                    )
+                })}
             </div>
 
             {/* Send GNOT form */}
@@ -264,6 +296,45 @@ export function ProposeTransaction() {
                 </div>
             )}
 
+            {/* GRC20 Token form */}
+            {txType.startsWith("grc20-") && (
+                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <label className="k-label">Token Symbol</label>
+                    <input
+                        type="text" value={grcSymbol}
+                        onChange={e => setGrcSymbol(e.target.value.toUpperCase())}
+                        placeholder="e.g. SAM" maxLength={10}
+                        disabled={loading} style={formInputStyle(loading)}
+                    />
+                    <label className="k-label">
+                        {txType === "grc20-approve" ? "Spender Address" : txType === "grc20-burn" ? "Burn From Address" : "Recipient Address"}
+                    </label>
+                    <input
+                        type="text" value={grcTo}
+                        onChange={e => setGrcTo(e.target.value)}
+                        placeholder="g1..." disabled={loading}
+                        style={formInputStyle(loading)}
+                    />
+                    <label className="k-label">Amount (smallest unit)</label>
+                    <input
+                        type="text" value={grcAmount}
+                        onChange={e => setGrcAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="e.g. 1000000" disabled={loading}
+                        style={formInputStyle(loading)}
+                    />
+                    {/* Mint fee disclosure */}
+                    {txType === "grc20-mint" && grcAmount.trim() && BigInt(grcAmount.trim() || "0") > 0n && (
+                        <div style={{
+                            padding: "10px 14px", borderRadius: 8,
+                            background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
+                            fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                        }}>
+                            💰 {feeDisclosure(BigInt(grcAmount.trim()), grcSymbol.trim() || "TOKEN")}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Memo */}
             <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <label className="k-label">Memo (optional)</label>
@@ -286,7 +357,7 @@ export function ProposeTransaction() {
                     disabled={loading || !auth.isAuthenticated}
                     style={{ opacity: !loading && auth.isAuthenticated ? 1 : 0.5 }}
                 >
-                    {loading ? "Proposing..." : txType === "send" ? "Propose Send" : "Propose Call"}
+                    {loading ? "Proposing..." : txType === "send" ? "Propose Send" : txType.startsWith("grc20-") ? `Propose ${txType.replace("grc20-", "").replace(/^./, c => c.toUpperCase())}` : "Propose Call"}
                 </button>
                 <button className="k-btn-secondary" onClick={() => navigate(`/multisig/${address}`)}>
                     Cancel
