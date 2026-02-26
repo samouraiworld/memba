@@ -163,11 +163,18 @@ export function useAdena() {
                         ? `${aminoFee.amount[0].amount}${aminoFee.amount[0].denom}`
                         : "10000ugnot",
                 };
+                // Convert Amino msg types to Adena protobuf-style:
+                // "bank/MsgSend" → "/bank.MsgSend", "vm/m_call" → "/vm.m_call"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const adenaMessages = parsed.msgs.map((m: any) => ({
+                    type: m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`,
+                    value: m.value,
+                }));
 
                 // Build Adena's MultisigTransactionDocument format
                 const multisigDoc = {
                     tx: {
-                        msg: parsed.msgs,
+                        msg: adenaMessages,
                         fee: adenaFee,
                         signatures: null,
                         memo: parsed.memo || "",
@@ -190,13 +197,8 @@ export function useAdena() {
                     console.warn("[Memba] SignMultisigTransaction not available");
                 }
 
-                // Fallback: try Sign() — convert msg types from "bank/MsgSend" to "/bank.MsgSend"
+                // Fallback: try Sign() (uses signer's own account — may not work for multisig)
                 if (typeof adena.Sign === "function") {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const adenaMessages = parsed.msgs.map((m: any) => ({
-                        type: m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`,
-                        value: m.value,
-                    }));
                     console.warn("[Memba] Trying Sign() fallback with messages:", JSON.stringify(adenaMessages));
                     const res = await adena.Sign({
                         messages: adenaMessages,
