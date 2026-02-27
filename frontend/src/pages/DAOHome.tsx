@@ -73,18 +73,6 @@ export function DAOHome() {
         )
     }
 
-    useEffect(() => {
-        if (!realmPath) navigate("/dao")
-    }, [realmPath, navigate])
-
-    if (!realmPath) {
-        return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                <SkeletonCard />
-            </div>
-        )
-    }
-
     if (loading) {
         return (
             <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
