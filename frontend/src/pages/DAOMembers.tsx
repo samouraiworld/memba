@@ -217,9 +217,14 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <CopyableAddress address={member.address} />
                 {member.username && (
-                    <span style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                    <a
+                        href={`https://test11.testnets.gno.land/u/${member.username.replace("@", "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                    >
                         {member.username}
-                    </span>
+                    </a>
                 )}
                 {isCurrentUser && (
                     <span style={{

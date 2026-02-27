@@ -410,6 +410,16 @@ function MemberCard({ member, isCurrentUser }: { member: DAOMember; isCurrentUse
         <div className="k-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <CopyableAddress address={member.address} />
+                {member.username && (
+                    <a
+                        href={`https://test11.testnets.gno.land/u/${member.username.replace("@", "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                    >
+                        {member.username}
+                    </a>
+                )}
                 {isCurrentUser && (
                     <span style={{
                         padding: "2px 6px", borderRadius: 4, fontSize: 9,

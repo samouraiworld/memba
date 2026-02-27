@@ -159,6 +159,7 @@ export async function getDAOMembers(
     if (memberstorePath) {
         const allMembers = await fetchAllMemberstorePages(rpcUrl, memberstorePath)
         if (allMembers.length > 0) {
+            await resolveUsernames(rpcUrl, allMembers)
             return allMembers
         }
     }
@@ -253,6 +254,39 @@ async function fetchAllMemberstorePages(
     }
 
     return allMembers
+}
+
+/** User registry realm path on gno.land. */
+const USER_REGISTRY = "gno.land/r/gnoland/users/v1"
+
+/**
+ * Resolve a single g1 address to @username via gno.land user registry.
+ * Queries Render(address) which returns: "# User - `username`"
+ * Returns "@username" or empty string if not registered.
+ */
+async function resolveUsername(rpcUrl: string, address: string): Promise<string> {
+    try {
+        const data = await queryRender(rpcUrl, USER_REGISTRY, address)
+        if (!data) return ""
+        // Parse: "# User - `username`"
+        const m = data.match(/# User - `([^`]+)`/)
+        return m ? `@${m[1]}` : ""
+    } catch {
+        return ""
+    }
+}
+
+/**
+ * Batch-resolve addresses to usernames for a list of members.
+ * Runs all lookups in parallel for speed (~200ms for 17 members).
+ */
+async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Promise<void> {
+    const results = await Promise.all(
+        members.map((m) => resolveUsername(rpcUrl, m.address)),
+    )
+    results.forEach((username, i) => {
+        if (username) members[i].username = username
+    })
 }
 
 
