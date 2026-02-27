@@ -72,12 +72,13 @@
 | `lib/grc20.ts` | GRC20 factory helpers: list, info, balance, MsgCall builders, DoContract broadcast |
 | `lib/dao.ts` | DAO helpers: ABCI queries (config, members, proposals), MsgCall builders (Vote, Execute, Propose) |
 | `lib/daoSlug.ts` | DAO slug encoding, realm path validation, saved DAOs localStorage persistence |
+| `lib/daoTemplate.ts` | DAO Factory: Gno realm code generator + MsgAddPackage builder |
 | `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO, Treasury, TreasuryProposal |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
 ## Data Flow — Multisig Transaction
@@ -199,5 +200,6 @@ resolveUsernames(members[])
 | DAOHome | — | ✅ config, members, proposals | ✅ usernames |
 | DAOMembers | — | ✅ members + tiers | ✅ usernames |
 | ProposalView | — | ✅ proposal + votes | — |
-| Treasury | — | ✅ GRC20 balances | — |
+| Treasury | — | ✅ GNOT + GRC20 balances | — |
+| CreateDAO | — | ✅ MsgAddPackage deploy | ✅ saved DAOs |
 

@@ -2,6 +2,17 @@
 
 All notable changes to Memba are documented here.
 
+## [5.0.1] — 2026-02-27
+
+### Fixed
+- **DAO Factory**: member address validation requires 39+ chars (bech32 minimum)
+- **DAO Factory**: invalid address count shown in error message
+
+### Added
+- **Treasury**: GNOT balance via `bank/balances` ABCI query for DAO realm address
+- **Treasury**: native GNOT displayed with micro-unit conversion alongside GRC20 tokens
+- **Treasury**: independent error handling for GNOT and GRC20 balance fetches
+
 ## [5.0.0] — 2026-02-27
 
 ### Added

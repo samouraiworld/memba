@@ -480,40 +480,43 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v4.4.0 — Username Cache + Performance — ⏳ NEXT
+## v4.4.0 — Username Cache — ✅ SHIPPED 2026-02-27
 
-> Cache resolved @usernames in localStorage, reduce ABCI calls on repeat visits.
+> Cache resolved @usernames in localStorage with 1-hour TTL.
 
-| Feature | Description |
-|---------|-------------|
-| Username localStorage cache | Cache `address→@username` map with TTL |
-| Stale-while-revalidate | Show cached names instantly, re-resolve in background |
-| Member profile cards | Click member → profile with bio, voting history |
-
----
-
-## v4.5.0 — Treasury Live Data — ⏳ PLANNED
-
-> Wire `/dao/:slug/treasury` to fetch real GRC20 balances from on-chain.
-
-| Feature | Description |
-|---------|-------------|
-| On-chain token balances | ABCI query for GRC20 balances in DAO treasury |
-| Asset table | Sortable list with live token balances |
-| Treasury stats | Total GNOT + GRC20 values |
+| Feature | Status |
+|---------|--------|
+| Username localStorage cache (1h TTL) | ✅ |
+| Two-phase resolve (cache first, ABCI for misses) | ✅ |
+| `readUsernameCache()` / `writeUsernameCache()` helpers | ✅ |
 
 ---
 
-## v5.0.0 — DAO Factory — ⏳ PLANNED
+## v4.5.0 / v5.0.1 — Treasury Live Data — ✅ SHIPPED 2026-02-27
 
-> Create new basedao DAOs from the Memba UI.
+> GNOT balance via `bank/balances` ABCI query + GRC20 token balances.
 
-| Feature | Description |
-|---------|-------------|
-| Create DAO form | Name, description, members, threshold, tiers |
-| basedao deployment | MsgAddPackage for new DAO realm |
-| Post-deploy redirect | Created DAO auto-added to saved DAOs |
-| Template selection | Pre-built DAO templates (multisig, grants, council) |
+| Feature | Status |
+|---------|--------|
+| GNOT balance via `bank/balances` | ✅ |
+| GRC20 token balances via `grc20factory` | ✅ |
+| Independent error handling (GNOT + GRC20) | ✅ |
+
+---
+
+## v5.0.0 — DAO Factory — ✅ SHIPPED 2026-02-27
+
+> Create and deploy governance DAOs from the Memba UI via MsgAddPackage.
+
+| Feature | Status |
+|---------|--------|
+| 4-step wizard (name → members → threshold → deploy) | ✅ |
+| `daoTemplate.ts`: self-contained Gno realm code generator (~227 lines) | ✅ |
+| MsgAddPackage deployment via Adena DoContract | ✅ |
+| Realm path validation (gno.land/r/username/daoname) | ✅ |
+| Auto-save deployed DAO to saved DAOs | ✅ |
+| Code preview before deployment | ✅ |
+| Address validation (39+ chars bech32, v5.0.1 fix) | ✅ |
 
 ---
 
@@ -535,7 +538,8 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 2026 Q1-Q2    v0.3.0 Air-gap/Wiring ──► v2.0.x UX & Friction
 2026 Q2       v3.0.0 GRC20 Launchpad ──► v4.0.0 DAO Governance ──► v4.1.0 Treasury
 2026 Q2       v4.2.0 DAO Hub ──► v4.3.x GovDAO v3 + Data Sync + Usernames
-2026 Q2-Q3    v4.4.0 Username Cache ──► v4.5.0 Treasury Live ──► v5.0.0 DAO Factory
+2026 Q2       v4.4.0 Username Cache ──► v5.0.0 DAO Factory ──► v5.0.1 Audit + Treasury
+2026 Q3       v5.1.0 Advanced Governance ──► v6.0.0 Multi-chain
 ```
 
 ---
