@@ -22,6 +22,11 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
         label: "Testnet 11",
     },
+    staging: {
+        chainId: "staging",
+        rpcUrl: "https://rpc.gno.land:443",
+        label: "Staging",
+    },
     "portal-loop": {
         chainId: "portal-loop",
         rpcUrl: "https://rpc.gno.land:443",

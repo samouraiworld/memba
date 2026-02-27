@@ -5,7 +5,7 @@ import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { APP_VERSION } from "../../lib/config"
+import { APP_VERSION, NETWORKS } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -256,6 +256,34 @@ export function Layout() {
                     </div>
                 )
             }
+
+            {/* ── Chain mismatch warning ───────────────────────────────── */}
+            {adena.connected && adena.chainId && network.chainId !== adena.chainId && (
+                <div style={{
+                    background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
+                    padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
+                }}>
+                    <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                        ⚠ Network mismatch — wallet is on <strong>{adena.chainId}</strong>, Memba is on <strong>{network.chainId}</strong>
+                    </span>
+                    {NETWORKS[adena.chainId] ? (
+                        <button
+                            onClick={() => network.switchNetwork(adena.chainId)}
+                            style={{
+                                background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
+                                color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                padding: "3px 10px", borderRadius: 4, cursor: "pointer",
+                            }}
+                        >
+                            Switch Memba to {adena.chainId}
+                        </button>
+                    ) : (
+                        <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                            Switch your wallet to {network.chainId} in Adena
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* ── Main ────────────────────────────────────────────────── */}
             <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
