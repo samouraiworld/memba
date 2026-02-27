@@ -9,6 +9,12 @@ import { TransactionView } from "./pages/TransactionView"
 import { CreateToken } from "./pages/CreateToken"
 import { TokenDashboard } from "./pages/TokenDashboard"
 import { TokenView } from "./pages/TokenView"
+import { DAOHome } from "./pages/DAOHome"
+import { ProposalView } from "./pages/ProposalView"
+import { DAOMembers } from "./pages/DAOMembers"
+import { ProposeDAO } from "./pages/ProposeDAO"
+import { Treasury } from "./pages/Treasury"
+import { TreasuryProposal } from "./pages/TreasuryProposal"
 
 function App() {
   return (
@@ -24,6 +30,12 @@ function App() {
           <Route path="/create-token" element={<CreateToken />} />
           <Route path="/tokens" element={<TokenDashboard />} />
           <Route path="/tokens/:symbol" element={<TokenView />} />
+          <Route path="/dao" element={<DAOHome />} />
+          <Route path="/dao/proposal/:id" element={<ProposalView />} />
+          <Route path="/dao/members" element={<DAOMembers />} />
+          <Route path="/dao/propose" element={<ProposeDAO />} />
+          <Route path="/dao/treasury" element={<Treasury />} />
+          <Route path="/dao/treasury/propose" element={<TreasuryProposal />} />
         </Route>
       </Routes>
     </BrowserRouter>
@@ -31,3 +43,4 @@ function App() {
 }
 
 export default App
+

@@ -2,7 +2,8 @@ import { useState } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { GNO_CHAIN_ID, GNO_RPC_URL, UGNOT_PER_GNOT } from "../lib/config"
+import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
+import { fetchAccountInfo } from "../lib/account"
 import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, type AminoMsg } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
 
@@ -380,28 +381,5 @@ function formInputStyle(loading: boolean): React.CSSProperties {
     }
 }
 
-async function fetchAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
-    // S3: Validate address format before ABCI query to prevent URL injection
-    if (!/^g(no)?1[a-z0-9]{38,}$/.test(address)) {
-        return { accountNumber: 0, sequence: 0 }
-    }
-    try {
-        const url = `${GNO_RPC_URL}/abci_query?path=%22auth/accounts/${address}%22`
-        const res = await fetch(url)
-        const json = await res.json()
 
-        const rawValue = json?.result?.response?.ResponseBase?.Value
-        if (!rawValue) return { accountNumber: 0, sequence: 0 }
 
-        const decoded = atob(rawValue)
-        const data = JSON.parse(decoded)
-
-        const account = data?.value || data
-        return {
-            accountNumber: parseInt(account.account_number || account.AccountNumber || "0", 10),
-            sequence: parseInt(account.sequence || account.Sequence || "0", 10),
-        }
-    } catch {
-        return { accountNumber: 0, sequence: 0 }
-    }
-}

@@ -36,6 +36,7 @@ jobs:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_GNO_CHAIN_ID: test11
           VITE_GNO_RPC_URL: https://rpc.test11.testnets.gno.land:443
+          VITE_DAO_REALM_PATH: gno.land/r/samcrew/samourai_dao
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

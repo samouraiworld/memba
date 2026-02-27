@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Go ≥ 1.23
+- Go ≥ 1.24
 - Node.js ≥ 20
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app/) browser extension (for signing)
@@ -41,6 +41,7 @@ npm run dev
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
 | `VITE_GNO_RPC_URL` | `https://rpc.test11.testnets.gno.land:443` | Gno chain RPC |
+| `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/samourai_dao` | DAO realm path on-chain |
 
 ### Proto Generation
 
@@ -68,6 +69,7 @@ buf generate
 VITE_API_URL = https://memba-backend.fly.dev
 VITE_GNO_CHAIN_ID = test11
 VITE_GNO_RPC_URL = https://rpc.test11.testnets.gno.land:443
+VITE_DAO_REALM_PATH = gno.land/r/samcrew/samourai_dao
 ```
 
 ### Backend — Fly.io

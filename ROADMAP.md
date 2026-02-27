@@ -333,9 +333,9 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 ### Next Steps
 
 - [ ] E2E test samourai-crew import (requires member wallet with on-chain pubkey)
-- [ ] Re-enable ADR-036 signing when Adena adds support
-- [ ] Test TX signing flow (Sign button → `adena.Sign()` → backend)
-- [ ] Tighten CSP: investigate if `unsafe-eval` can be removed after Adena update
+- [ ] Re-enable ADR-036 signing when Adena adds support (blocked on Adena)
+- [x] Test TX signing flow — verified end-to-end in v3.0.0
+- [ ] Tighten CSP: remove `unsafe-eval` when Adena drops WebAssembly eval (blocked on Adena)
 
 ---
 
@@ -369,14 +369,9 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v2.1.0 — Treasury Management
+## v2.1.0 — Treasury Management — ⬆ Moved to v4.1.0
 
-| Feature | Description |
-|---------|-------------|
-| Treasury dashboard | All assets overview |
-| Spending analytics | Charts and trends |
-| Budget proposals | Treasury spending via governance |
-| Spending limits | `daocond` policies |
+> See v4.1.0 below.
 
 ---
 
@@ -409,7 +404,39 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v4.0.0 — Public Platform
+## v4.0.0 — DAO Governance — ✅ IMPLEMENTED
+
+> Full on-chain DAO management: proposals, voting, execution, member management.
+
+| Feature | Status |
+|---------|--------|
+| ABCI query helpers (`lib/dao.ts`) — config, members, proposals | ✅ |
+| MsgCall builders — Vote, Execute, Propose | ✅ |
+| JSON + markdown fallback parsing | ✅ |
+| DAO Home page (`/dao`) — stats, proposals, member grid | ✅ |
+| Proposal Detail (`/dao/proposal/:id`) — vote tally, vote/execute actions | ✅ |
+| DAO Members page (`/dao/members`) — role badges, membership status | ✅ |
+| Propose page (`/dao/propose`) — form with validation | ✅ |
+| 🏛️ DAO nav link in header | ✅ |
+| `DAO_REALM_PATH` config (env-configurable) | ✅ |
+| Housekeeping: shared `lib/account.ts`, docs fixes | ✅ |
+
+---
+
+## v4.1.0 — Treasury Management — ✅ IMPLEMENTED
+
+> DAO treasury overview and spending proposals.
+
+| Feature | Status |
+|---------|--------|
+| Treasury overview page (`/dao/treasury`) — asset grid, GRC20 balances | ✅ |
+| Propose Spend page (`/dao/treasury/propose`) — recipient, amount, token, memo | ✅ |
+| Treasury quick-link card on DAO Home | ✅ |
+| Cross-navigation to token views from assets | ✅ |
+
+---
+
+## v5.0.0 — Public Platform
 
 | Feature | Description |
 |---------|-------------|
@@ -422,12 +449,10 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 ## Timeline
 
 ```
-2026 Q1-Q2   v0.1.0 MVP ──► v0.2.0 Polish ──► v0.2.1/v0.2.2 Hardening
-2026 Q2       v0.3.0 Air-gap/GRC20/Wiring
-2026 Q2-Q3   v1.0.0 DAO ──► v1.1.0 Realms ──► v1.2.0 Notifications
-2026 Q3-Q4   v2.0.0 On-chain ──► v2.1.0 Treasury
-2027 Q1      v3.0.0 Mobile ──► v3.1.0 Multi-chain
-2027 Q2+     v4.0.0 Public Platform
+2026 Q1       v0.1.0 MVP ──► v0.2.0 Polish ──► v0.2.1/v0.2.2 Hardening
+2026 Q1-Q2    v0.3.0 Air-gap/Wiring ──► v2.0.x UX & Friction
+2026 Q2       v3.0.0 GRC20 Launchpad ──► v4.0.0 DAO Governance ──► v4.1.0 Treasury
+2026 Q2-Q3    v3.1.0 Multi-chain ──► v5.0.0 Public Platform
 ```
 
 ---

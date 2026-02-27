@@ -154,9 +154,14 @@ export function Layout() {
                     </Link>
 
                     {/* Nav links */}
-                    <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                        🪙 Tokens
-                    </Link>
+                    <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                        <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                            🪙 Tokens
+                        </Link>
+                        <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                            🏛️ DAO
+                        </Link>
+                    </div>
 
                     {/* Right side */}
                     <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
