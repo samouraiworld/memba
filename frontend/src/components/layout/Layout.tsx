@@ -146,7 +146,7 @@ export function Layout() {
                             <span style={{ color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700 }}>M</span>
                         </div>
                         <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.03em" }}>Memba</span>
-                        <span style={{
+                        <span className="k-version-badge" style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
@@ -154,17 +154,17 @@ export function Layout() {
                     </Link>
 
                     {/* Nav links */}
-                    <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    <div className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
                         <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                            🪙 Tokens
+                            🪙 <span className="k-nav-label">Tokens</span>
                         </Link>
                         <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                            🏛️ DAO
+                            🏛️ <span className="k-nav-label">DAO</span>
                         </Link>
                     </div>
 
                     {/* Right side */}
-                    <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         {/* Network selector */}
                         <select
                             value={network.networkKey}

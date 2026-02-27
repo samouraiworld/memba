@@ -135,7 +135,7 @@ export function DAOHome() {
             )}
 
             {/* Stats Grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+            <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                 <StatCard label="Members" value={String(config?.memberCount || members.length)} icon="👥" />
                 <StatCard label="Active" value={String(activeProposals.length)} icon="📋" accent />
                 <StatCard label="Total Proposals" value={String(proposals.length)} icon="📜" />

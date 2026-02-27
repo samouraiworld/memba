@@ -256,7 +256,7 @@ export function ProposalView() {
             {/* Description */}
             {proposal.description && (
                 <div className="k-card" style={{ padding: 20 }}>
-                    <p style={{ color: "#ccc", fontSize: 14, lineHeight: 1.7, fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap" }}>
+                    <p style={{ color: "#ccc", fontSize: 14, lineHeight: 1.7, fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "anywhere" }}>
                         {proposal.description}
                     </p>
                 </div>
