@@ -4,7 +4,7 @@
  */
 
 /** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "4.3.0"
+export const APP_VERSION = "4.3.1"
 
 // Environment-driven config with sensible defaults.
 

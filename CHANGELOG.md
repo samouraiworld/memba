@@ -2,6 +2,19 @@
 
 All notable changes to Memba are documented here.
 
+## [4.3.1] — 2026-02-27
+
+### Fixed
+- **GovDAO data sync**: rewrite all ABCI parsers to match actual on-chain output formats
+  - Member parsing: ABCI table format `| T1 | g1address |` (was `[g1address]` link format)
+  - Memberstore link: handle full testnet URLs (was expecting `gno.land/` prefix)
+  - Pagination: fetch all pages via `?page=N`, detect `[2](?page=2)` links
+  - Tier extraction: inline from table rows (removed separate filtered fetch)
+  - Description: filter out memberstore link lines
+  - Sanitize: allow `?=&` chars for pagination/filter query params
+  - Removed unused `assignMemberTiers` function
+- **React hooks violation**: removed duplicate `useEffect` block in `DAOHome.tsx`
+
 ## [4.3.0] — 2026-02-27
 
 ### Added
