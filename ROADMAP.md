@@ -522,12 +522,12 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ## v5.1.0 — Advanced Governance
 
-| Feature | Description |
-|---------|-------------|
-| Proposal creation from UI | Full form → MsgCall |
-| Real-time updates | Polling for vote status during active proposals |
-| Notification system | Alerts for new proposals |
-| Multi-chain | Mainnet + portal-loop support |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Proposal creation from UI | Full form → MsgCall | ⬜ Planned |
+| Real-time updates | Polling for vote status during active proposals | ✅ SHIPPED (v5.0.3) |
+| Notification system | Alerts for new proposals | ⬜ Planned |
+| Multi-chain | Mainnet + portal-loop + staging support | ✅ SHIPPED (v5.0.2 — staging + chain mismatch) |
 
 ---
 
@@ -539,6 +539,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 2026 Q2       v3.0.0 GRC20 Launchpad ──► v4.0.0 DAO Governance ──► v4.1.0 Treasury
 2026 Q2       v4.2.0 DAO Hub ──► v4.3.x GovDAO v3 + Data Sync + Usernames
 2026 Q2       v4.4.0 Username Cache ──► v5.0.0 DAO Factory ──► v5.0.1 Audit + Treasury
+2026 Q2       v5.0.2 Staging Network ──► v5.0.3 Auto-refresh + Code Splitting + Responsive
 2026 Q3       v5.1.0 Advanced Governance ──► v6.0.0 Multi-chain
 ```
 

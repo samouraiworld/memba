@@ -2,6 +2,41 @@
 
 All notable changes to Memba are documented here.
 
+## [5.0.3] — 2026-02-27
+
+### Added
+- **Auto-refresh**: 30s silent polling for active (open) proposals — votes update live
+- **LIVE badge**: pulsing green indicator next to ACTIVE status during auto-refresh
+- **Network-aware explorer URLs**: `getExplorerBaseUrl()` maps each chainId to correct explorer domain
+- **DAO membership pre-check**: verifies wallet is DAO member before allowing vote
+- **Non-member warning**: amber banner with truncated address when wallet is not a DAO member
+- **Vote button disable**: vote buttons disabled for non-members
+
+### Changed
+- **Code splitting**: 17 static page imports → 16 lazy chunks via `React.lazy` + `Suspense`
+  - Main bundle: 517KB → 424KB (-18%)
+  - DAO pages: lazy chunk (~73KB)
+  - Token pages: lazy chunk (~21KB)
+  - Shimmer `PageLoader` fallback during chunk load
+
+### Fixed
+- **🏗️ Responsive overhaul**: comprehensive mobile UX fixes
+  - `overflow-x: hidden` on html/body prevents horizontal scroll
+  - `word-break: break-word` + `overflow-wrap: anywhere` on all cards
+  - Header: version badge hidden ≤480px, nav labels collapse to emoji-only ≤375px
+  - Proposal description: long URLs now wrap correctly on mobile
+  - Stats grid: 2-column layout on mobile via `k-stat-grid` class
+  - Tightened padding/sizing at 375px for iPhone SE
+- **Hardcoded URLs**: user profile links now use `getExplorerBaseUrl()` instead of hardcoded `test11.testnets.gno.land` (broken on staging/portal-loop)
+
+## [5.0.2] — 2026-02-27
+
+### Added
+- **Staging network**: added to network selector (chainId: `staging`, RPC: `rpc.gno.land:443`)
+- **Chain mismatch detection**: amber warning banner when Adena wallet chainId ≠ Memba's selected network
+  - Shows both chain IDs with 1-click "Switch Memba to X" button
+  - Fallback text when wallet is on unsupported network
+
 ## [5.0.1] — 2026-02-27
 
 ### Fixed

@@ -7,7 +7,7 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
-## Features (v5.0.1)
+## Features (v5.0.3)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -18,8 +18,8 @@
 - 📡 Combine signatures + broadcast to chain
 - 🔐 Challenge-response authentication (ed25519)
 - 📜 TX history with parsed messages (MsgSend/MsgCall/MsgAddPackage)
-- 📱 Mobile responsive (375px+)
-- 🌐 Network selector (test11 ↔ portal-loop)
+- 📱 Mobile responsive (375px+) with progressive header collapse
+- 🌐 Network selector (test11 ↔ staging ↔ portal-loop) with chain mismatch detection
 - 🔗 Shareable import links for 1-click multisig onboarding
 - 🔍 Auto-detect multisig membership with 1-click join
 - 📋 Full addresses with 1-click copy everywhere
@@ -32,6 +32,8 @@
 - 💰 Treasury Management (asset overview, spending proposals)
 - 🏗️ DAO Factory (create and deploy new governance DAOs on-chain)
 - 🔗 Multi-DAO support (connect to any DAO on gno.land by realm path)
+- 🔴 LIVE auto-refresh for active proposals (30s polling)
+- ⚡ Code splitting (424KB main bundle, lazy-loaded DAO/token chunks)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD pipeline (GitHub Actions + Netlify + Fly.io)
 
