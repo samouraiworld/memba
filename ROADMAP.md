@@ -520,6 +520,22 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
+
+> Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).
+
+| Fix / Feature | Status |
+|---------|--------|
+| `std` → `chain/runtime` migration (all 10 usages) | ✅ |
+| `gnomod.toml` with `gno = "0.9"` | ✅ |
+| Files sorted alphabetically (ValidateBasic) | ✅ |
+| Gas fee bumped to 10 GNOT | ✅ |
+| Storage deposit set to 10 GNOT | ✅ |
+| 2 GNOT dev fee → samourai-crew wallet | ✅ |
+| Verified on test11 via `gnokey` (height 401999) | ✅ |
+
+---
+
 ## v5.1.0 — Advanced Governance
 
 | Feature | Description | Status |

@@ -118,25 +118,13 @@ export function CreateDAO() {
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
-            // Bundle addpkg + 2 GNOT dev fee in one atomic transaction
-            const SAMOURAI_CREW = "g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh"
-            const DEV_FEE_UGNOT = "2000000" // 2 GNOT
-
+            // TODO: Re-add 2 GNOT dev fee when test11 lifts bank transfer restrictions
+            // (currently blocked by std.RestrictedTransferError)
             const res = await adenaWallet.DoContract({
-                messages: [
-                    {
-                        type: "/vm.m_addpkg",
-                        value: msg.value,
-                    },
-                    {
-                        type: "/bank.MsgSend",
-                        value: {
-                            from_address: adena.address,
-                            to_address: SAMOURAI_CREW,
-                            amount: `${DEV_FEE_UGNOT}ugnot`,
-                        },
-                    },
-                ],
+                messages: [{
+                    type: "/vm.m_addpkg",
+                    value: msg.value,
+                }],
                 gasFee: 10000000,
                 gasWanted: 50000000, // higher gas for package deployment
                 memo: `Deploy DAO: ${name}`,
