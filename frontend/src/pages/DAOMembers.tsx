@@ -3,7 +3,7 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
 import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
@@ -218,7 +218,7 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                 <CopyableAddress address={member.address} />
                 {member.username && (
                     <a
-                        href={`https://test11.testnets.gno.land/u/${member.username.replace("@", "")}`}
+                        href={`${getExplorerBaseUrl()}/u/${member.username.replace("@", "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}

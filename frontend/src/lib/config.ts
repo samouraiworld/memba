@@ -54,6 +54,16 @@ export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
 /** Gno RPC endpoint for ABCI queries and broadcasting. */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
 
+/** Explorer base URL for the active network (for user profile links, realm links, etc). */
+export function getExplorerBaseUrl(): string {
+    const chain = NETWORKS[_activeNetwork]?.chainId || "test11"
+    switch (chain) {
+        case "staging": return "https://staging.gno.land"
+        case "portal-loop": return "https://gno.land"
+        default: return `https://${chain}.testnets.gno.land`
+    }
+}
+
 /** Bech32 prefix for Gno addresses. */
 export const GNO_BECH32_PREFIX = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
 
