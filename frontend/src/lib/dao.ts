@@ -125,7 +125,7 @@ export async function getMemberstoreTiers(
 
     const tiers: TierInfo[] = []
     const re = /Tier\s+(T\d+)\s+contains\s+(\d+)\s+members?\s+with\s+power[:\s]+(\d+)/gi
-    let m
+    let m: RegExpExecArray | null
     while ((m = re.exec(data)) !== null) {
         tiers.push({
             tier: m[1].toUpperCase(),
@@ -178,7 +178,7 @@ export async function getDAOMembers(
 
     const members: DAOMember[] = []
     const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?/g
-    let match
+    let match: RegExpExecArray | null
     while ((match = re.exec(data)) !== null) {
         members.push({
             address: match[1],
@@ -425,7 +425,7 @@ export async function getProposalVotes(
 
     // Parse: "YES from T1 (VPPM 3):\n- @user\n- @user2\n\nNO from T1 (VPPM 3):"
     const voteBlockRe = /(YES|NO)\s+from\s+(T\d+)\s*\(VPPM\s+(\d+)\):\s*([\s\S]*?)(?=(?:YES|NO)\s+from\s+T\d+|$)/gi
-    let m
+    let m: RegExpExecArray | null
     while ((m = voteBlockRe.exec(data)) !== null) {
         const voteType = m[1].toUpperCase()
         const tier = m[2].toUpperCase()
@@ -435,7 +435,7 @@ export async function getProposalVotes(
         // Extract voter @usernames
         const voters: VoterEntry[] = []
         const voterRe = /@([^\]]+)\]\(([^)]+)\)/g
-        let vm
+        let vm: RegExpExecArray | null
         while ((vm = voterRe.exec(voterBlock)) !== null) {
             voters.push({ username: `@${vm[1]}`, profileUrl: vm[2] })
         }
