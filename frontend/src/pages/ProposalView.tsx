@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -31,12 +31,13 @@ export function ProposalView() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
+    const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
     const proposalId = parseInt(id || "0", 10)
 
-    const loadProposal = useCallback(async () => {
+    const loadProposal = useCallback(async (silent = false) => {
         if (!proposalId || !realmPath) return
-        setLoading(true)
+        if (!silent) setLoading(true)
         setError(null)
         try {
             const [p, votes] = await Promise.all([
@@ -45,14 +46,27 @@ export function ProposalView() {
             ])
             setProposal(p)
             setVoteRecords(votes)
+            setLastRefresh(new Date())
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load proposal")
+            if (!silent) setError(err instanceof Error ? err.message : "Failed to load proposal")
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
     }, [proposalId, realmPath])
 
     useEffect(() => { loadProposal() }, [loadProposal])
+
+    // Auto-refresh every 30s for active proposals
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    useEffect(() => {
+        // Only poll if proposal is active (open)
+        if (proposal?.status !== "open") {
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+            return
+        }
+        pollRef.current = setInterval(() => loadProposal(true), 30_000)
+        return () => { if (pollRef.current) clearInterval(pollRef.current) }
+    }, [proposal?.status, loadProposal])
 
     // Check if connected wallet is a DAO member
     useEffect(() => {
@@ -146,6 +160,7 @@ export function ProposalView() {
         executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
     }
     const sc = statusColors[proposal.status] || statusColors.open
+    const isLive = proposal.status === "open"
 
     const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
     const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
@@ -175,6 +190,17 @@ export function ProposalView() {
                     }}>
                         {sc.label}
                     </span>
+                    {isLive && (
+                        <span style={{
+                            padding: "3px 8px", borderRadius: 4, fontSize: 9,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: "rgba(0,212,170,0.06)", color: "#00d4aa",
+                            display: "flex", alignItems: "center", gap: 4,
+                        }}>
+                            <span className="animate-glow" style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa", display: "inline-block" }} />
+                            LIVE
+                        </span>
+                    )}
                     {proposal.tiers.length > 0 && (
                         <div style={{ display: "flex", gap: 3 }}>
                             {proposal.tiers.map((t) => (
