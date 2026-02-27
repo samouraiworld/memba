@@ -1,32 +1,37 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL, DAO_REALM_PATH } from "../lib/config"
+import { GNO_RPC_URL } from "../lib/config"
 import { getDAOMembers, type DAOMember } from "../lib/dao"
+import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOMembers() {
     const navigate = useNavigate()
+    const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
 
     const [members, setMembers] = useState<DAOMember[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     const loadMembers = useCallback(async () => {
+        if (!realmPath) return
         setLoading(true)
         setError(null)
         try {
-            const mems = await getDAOMembers(GNO_RPC_URL, DAO_REALM_PATH)
+            const mems = await getDAOMembers(GNO_RPC_URL, realmPath)
             setMembers(mems)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load members")
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [realmPath])
 
     useEffect(() => { loadMembers() }, [loadMembers])
 
@@ -48,7 +53,9 @@ export function DAOMembers() {
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Nav */}
             <button
-                onClick={() => navigate("/dao")}
+                id="members-back-btn"
+                aria-label="Back to DAO"
+                onClick={() => navigate(`/dao/${slug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -60,7 +67,7 @@ export function DAOMembers() {
                     👥 DAO Members ({members.length})
                 </h2>
                 <p style={{ color: "#888", fontSize: 12, marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
-                    Members of the {DAO_REALM_PATH.split("/").pop()} governance DAO
+                    Members of {realmPath.split("/").pop()} governance DAO
                 </p>
             </div>
 

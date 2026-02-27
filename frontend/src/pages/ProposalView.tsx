@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL, DAO_REALM_PATH } from "../lib/config"
+import { GNO_RPC_URL } from "../lib/config"
 import {
     getProposalDetail,
     buildVoteMsg,
@@ -11,12 +11,15 @@ import {
     type DAOProposal,
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposalView() {
-    const { id } = useParams<{ id: string }>()
+    const { slug, id } = useParams<{ slug: string; id: string }>()
     const navigate = useNavigate()
     const { auth, adena } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)
     const [loading, setLoading] = useState(true)
@@ -27,18 +30,18 @@ export function ProposalView() {
     const proposalId = parseInt(id || "0", 10)
 
     const loadProposal = useCallback(async () => {
-        if (!proposalId) return
+        if (!proposalId || !realmPath) return
         setLoading(true)
         setError(null)
         try {
-            const p = await getProposalDetail(GNO_RPC_URL, DAO_REALM_PATH, proposalId)
+            const p = await getProposalDetail(GNO_RPC_URL, realmPath, proposalId)
             setProposal(p)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load proposal")
         } finally {
             setLoading(false)
         }
-    }, [proposalId])
+    }, [proposalId, realmPath])
 
     useEffect(() => { loadProposal() }, [loadProposal])
 
@@ -53,10 +56,9 @@ export function ProposalView() {
         setSuccess(null)
 
         try {
-            const msg = buildVoteMsg(adena.address, DAO_REALM_PATH, proposalId, vote)
+            const msg = buildVoteMsg(adena.address, realmPath, proposalId, vote)
             await doContractBroadcast([msg], `Vote ${vote} on Proposal #${proposalId}`)
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
-            // Reload proposal to see updated votes
             await loadProposal()
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to vote")
@@ -76,7 +78,7 @@ export function ProposalView() {
         setSuccess(null)
 
         try {
-            const msg = buildExecuteMsg(adena.address, DAO_REALM_PATH, proposalId)
+            const msg = buildExecuteMsg(adena.address, realmPath, proposalId)
             await doContractBroadcast([msg], `Execute Proposal #${proposalId}`)
             setSuccess(`Proposal #${proposalId} executed!`)
             await loadProposal()
@@ -104,7 +106,9 @@ export function ProposalView() {
                     Proposal #{proposalId} not found
                 </p>
                 <button
-                    onClick={() => navigate("/dao")}
+                    onClick={() => navigate(`/dao/${slug}`)}
+                    aria-label="Back to DAO"
+                    id="proposal-notfound-back-btn"
                     style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginTop: 16, fontFamily: "JetBrains Mono, monospace" }}
                 >
                     ← Back to DAO
@@ -126,7 +130,9 @@ export function ProposalView() {
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Nav */}
             <button
-                onClick={() => navigate("/dao")}
+                onClick={() => navigate(`/dao/${slug}`)}
+                aria-label="Back to DAO"
+                id="proposal-back-btn"
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -198,44 +204,22 @@ export function ProposalView() {
             {/* Actions */}
             {auth.isAuthenticated && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {/* Vote buttons (only for open proposals) */}
                     {proposal.status === "open" && (
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <button
-                                className="k-btn-primary"
-                                onClick={() => handleVote("YES")}
-                                disabled={actionLoading}
-                                style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading ? 0.5 : 1 }}
-                            >
+                            <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading ? 0.5 : 1 }}>
                                 {actionLoading ? "..." : "✓ Vote Yes"}
                             </button>
-                            <button
-                                className="k-btn-primary"
-                                onClick={() => handleVote("NO")}
-                                disabled={actionLoading}
-                                style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading ? 0.5 : 1 }}
-                            >
+                            <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading ? 0.5 : 1 }}>
                                 {actionLoading ? "..." : "✗ Vote No"}
                             </button>
-                            <button
-                                className="k-btn-secondary"
-                                onClick={() => handleVote("ABSTAIN")}
-                                disabled={actionLoading}
-                                style={{ flex: 1, minWidth: 120, opacity: actionLoading ? 0.5 : 1 }}
-                            >
+                            <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, opacity: actionLoading ? 0.5 : 1 }}>
                                 {actionLoading ? "..." : "○ Abstain"}
                             </button>
                         </div>
                     )}
 
-                    {/* Execute button (only for passed proposals) */}
                     {proposal.status === "passed" && (
-                        <button
-                            className="k-btn-primary"
-                            onClick={handleExecute}
-                            disabled={actionLoading}
-                            style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}
-                        >
+                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
                     )}

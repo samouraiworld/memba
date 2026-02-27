@@ -1,14 +1,17 @@
 import { useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { DAO_REALM_PATH } from "../lib/config"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposeDAO() {
     const navigate = useNavigate()
+    const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
 
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
@@ -33,10 +36,10 @@ export function ProposeDAO() {
         setSuccess(null)
 
         try {
-            const msg = buildProposeMsg(adena.address, DAO_REALM_PATH, trimTitle, trimDesc)
+            const msg = buildProposeMsg(adena.address, realmPath, trimTitle, trimDesc)
             await doContractBroadcast([msg], `Propose: ${trimTitle}`)
             setSuccess("Proposal created!")
-            setTimeout(() => navigate("/dao"), 2000)
+            setTimeout(() => navigate(`/dao/${slug}`), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create proposal")
         } finally {
@@ -48,7 +51,9 @@ export function ProposeDAO() {
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Nav */}
             <button
-                onClick={() => navigate("/dao")}
+                id="propose-back-btn"
+                aria-label="Back to DAO"
+                onClick={() => navigate(`/dao/${slug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -111,7 +116,7 @@ export function ProposeDAO() {
             <div className="k-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "#666" }}>Realm</span>
-                    <span style={{ color: "#aaa" }}>{DAO_REALM_PATH}</span>
+                    <span style={{ color: "#aaa" }}>{realmPath}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "#666" }}>Function</span>
@@ -136,7 +141,7 @@ export function ProposeDAO() {
                 >
                     {loading ? "Proposing..." : "Submit Proposal"}
                 </button>
-                <button className="k-btn-secondary" onClick={() => navigate("/dao")}>
+                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${slug}`)}>
                     Cancel
                 </button>
             </div>
