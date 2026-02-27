@@ -291,6 +291,7 @@ export function ProposalView() {
                             </button>
                         </div>
                     )}
+
                     {proposal.status === "passed" && (
                         <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
