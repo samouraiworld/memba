@@ -547,17 +547,30 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## Timeline
+## Future Vision — Brainstorm (2026-02-27)
 
-```
-2026 Q1       v0.1.0 MVP ──► v0.2.0 Polish ──► v0.2.1/v0.2.2 Hardening
-2026 Q1-Q2    v0.3.0 Air-gap/Wiring ──► v2.0.x UX & Friction
-2026 Q2       v3.0.0 GRC20 Launchpad ──► v4.0.0 DAO Governance ──► v4.1.0 Treasury
-2026 Q2       v4.2.0 DAO Hub ──► v4.3.x GovDAO v3 + Data Sync + Usernames
-2026 Q2       v4.4.0 Username Cache ──► v5.0.0 DAO Factory ──► v5.0.1 Audit + Treasury
-2026 Q2       v5.0.2 Staging Network ──► v5.0.3 Auto-refresh + Code Splitting + Responsive
-2026 Q3       v5.1.0 Advanced Governance ──► v6.0.0 Multi-chain
-```
+> Feature ideas for future roadmap planning. Not scoped yet.
+
+### Governance UX
+- **Vote status indicator**: Show whether the connected user already voted on each proposal (badge/icon)
+- **Pending vote notifications**: UI notification when user is a DAO member with unvoted active proposals
+- **GovDAO special treatment**: Display GovDAO as a featured/pinned DAO — it's a chain-level governance body, not a user DAO
+
+### Dashboard UX
+- **Hide sections when disconnected**: "Pending transactions" and "Recent Activity" should be hidden when wallet not connected (no data to show)
+
+### User Profiles
+- **Dedicated profile page**: Aggregate all on-chain data for a user — deployed packages, realms, DAO memberships, token holdings, activity
+- **gnolove.world integration**: Enrich user profiles with off-chain data from GitHub contributions (leverage existing gnolove.world work)
+
+### DAO Communication
+- **Per-DAO /r/board**: Each DAO gets its own on-chain discussion board via `gno.land/r/boards2` — pure decentralized DAO communication
+- **Token-gated write access**: Only DAO members (or token holders) can write to the DAO's board
+
+### Settings & Notifications
+- **Settings menu**: Centralized user preferences panel
+- **Notification channels**: Email alerts, Telegram bot, browser push — configurable per DAO/event type
+- **Dev fee (deferred)**: 2 GNOT dev fee to samourai-crew — blocked by test11 `RestrictedTransferError`, re-add when restrictions lifted
 
 ---
 
