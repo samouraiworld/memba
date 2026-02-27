@@ -41,26 +41,57 @@ export function Treasury() {
             setConfig(cfg)
             setMembers(mems)
 
-            const tokens = await listFactoryTokens(GNO_RPC_URL)
-            const daoAddress = realmPath.replace("gno.land/r/", "").replace(/\//g, "")
+            const treasuryAssets: TreasuryAsset[] = []
 
-            const results = await Promise.allSettled(
-                tokens.map(async (token: TokenInfo) => {
-                    const balance = await getTokenBalance(GNO_RPC_URL, token.symbol, daoAddress)
-                    return { token, balance }
-                })
-            )
-            const treasuryAssets: TreasuryAsset[] = results
-                .filter((r): r is PromiseFulfilledResult<{ token: TokenInfo; balance: bigint }> =>
-                    r.status === "fulfilled" && r.value.balance > 0n
+            // 1. Fetch GNOT balance via bank/balances ABCI query
+            try {
+                const balanceUrl = `${GNO_RPC_URL}/abci_query?path=%22bank/balances/${realmPath}%22`
+                const balRes = await fetch(balanceUrl)
+                const balJson = await balRes.json()
+                const rawValue = balJson?.result?.response?.ResponseBase?.Value
+                if (rawValue) {
+                    const decoded = atob(rawValue)
+                    const match = decoded.match(/(\d+)ugnot/)
+                    const ugnot = match ? BigInt(match[1]) : 0n
+                    if (ugnot > 0n) {
+                        const whole = String(ugnot / 1000000n)
+                        const frac = String(ugnot % 1000000n).padStart(6, "0").replace(/0+$/, "")
+                        treasuryAssets.push({
+                            type: "gnot",
+                            symbol: "GNOT",
+                            name: "Gno.land",
+                            balance: frac ? `${whole}.${frac}` : whole,
+                            rawBalance: ugnot,
+                        })
+                    }
+                }
+            } catch { /* GNOT balance fetch failed silently */ }
+
+            // 2. Fetch GRC20 token balances
+            try {
+                const tokens = await listFactoryTokens(GNO_RPC_URL)
+                const daoAddress = realmPath.replace("gno.land/r/", "").replace(/\//g, "")
+
+                const results = await Promise.allSettled(
+                    tokens.map(async (token: TokenInfo) => {
+                        const balance = await getTokenBalance(GNO_RPC_URL, token.symbol, daoAddress)
+                        return { token, balance }
+                    })
                 )
-                .map((r) => ({
-                    type: "grc20" as const,
-                    symbol: r.value.token.symbol,
-                    name: r.value.token.name,
-                    balance: String(r.value.balance),
-                    rawBalance: r.value.balance,
-                }))
+                results
+                    .filter((r): r is PromiseFulfilledResult<{ token: TokenInfo; balance: bigint }> =>
+                        r.status === "fulfilled" && r.value.balance > 0n
+                    )
+                    .forEach((r) => {
+                        treasuryAssets.push({
+                            type: "grc20" as const,
+                            symbol: r.value.token.symbol,
+                            name: r.value.token.name,
+                            balance: String(r.value.balance),
+                            rawBalance: r.value.balance,
+                        })
+                    })
+            } catch { /* GRC20 fetch failed silently */ }
 
             setAssets(treasuryAssets)
         } catch (err) {

@@ -84,8 +84,10 @@ export function CreateDAO() {
             if (pathErr) return pathErr
         }
         if (step === 2) {
-            const valid = members.filter((m) => m.address.startsWith("g1"))
+            const valid = members.filter((m) => m.address.startsWith("g1") && m.address.length >= 39)
             if (valid.length === 0) return "At least one member with a valid g1 address is required"
+            const invalid = members.filter((m) => m.address.length > 0 && (!m.address.startsWith("g1") || m.address.length < 39))
+            if (invalid.length > 0) return `${invalid.length} address(es) look invalid — must start with g1 and be 39+ characters`
         }
         if (step === 3) {
             if (threshold < 1 || threshold > 100) return "Threshold must be between 1 and 100"
