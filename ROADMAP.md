@@ -434,15 +434,97 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 | Treasury quick-link card on DAO Home | ✅ |
 | Cross-navigation to token views from assets | ✅ |
 
+## v4.2.0 — DAO Hub (Multi-DAO Browser) — ✅ SHIPPED 2026-02-27
+
+> Multi-DAO browser with parameterized routes and localStorage persistence.
+
+| Feature | Status |
+|---------|--------|
+| DAO Hub (`/dao`) — featured GovDAO, connect form, saved DAOs | ✅ |
+| Parameterized routes (`/dao/:slug/*`) — multi-DAO support | ✅ |
+| `lib/daoSlug.ts` — URL slug encoding, realm path validation, localStorage CRUD | ✅ |
+| Slug traversal protection (rejects `..`, control chars) | ✅ |
+| Dashboard "🏛️ Explore DAOs" quick action | ✅ |
+
 ---
 
-## v5.0.0 — Public Platform
+## v4.3.0 — GovDAO v3 Support — ✅ SHIPPED 2026-02-27
+
+> Full GovDAO v3 tier-based governance: memberstore, tier distribution, VPPM-weighted votes.
+
+| Feature | Status |
+|---------|--------|
+| GovDAO v3 data layer (T1/T2/T3 tiers, memberstore, VPPM weights) | ✅ |
+| Tier distribution chart (power bars + percentages) | ✅ |
+| Author cards (proposals show @username + profile link) | ✅ |
+| Tier-grouped vote breakdown with VPPM per tier | ✅ |
+| Tier filter tabs on members page | ✅ |
+| Acceptance rate stat (governance health metric) | ✅ |
+
+---
+
+## v4.3.1 — GovDAO Data Sync + Usernames — ✅ SHIPPED 2026-02-27
+
+> Fix all ABCI parser bugs + add address→@username resolution.
+
+| Fix/Feature | Status |
+|---------|--------|
+| Memberstore link regex (handle full testnet URLs) | ✅ |
+| Member parsing (ABCI pipe table format `\| T1 \| g1addr \|`) | ✅ |
+| Pagination (fetch all pages via `?page=N`) | ✅ |
+| Tier extraction inline from table rows | ✅ |
+| `sanitize()` allow `?=&` for query params | ✅ |
+| Address→@username resolution via `gno.land/r/gnoland/users/v1` | ✅ |
+| Clickable @username links to gno.land profiles | ✅ |
+| 17-perspective deep audit (0 critical/high/medium) | ✅ |
+
+---
+
+## v4.4.0 — Username Cache + Performance — ⏳ NEXT
+
+> Cache resolved @usernames in localStorage, reduce ABCI calls on repeat visits.
 
 | Feature | Description |
 |---------|-------------|
-| Public instance | Self-service DAO creation |
-| Template library | Pre-built DAO templates |
-| Public API | Third-party integrations |
+| Username localStorage cache | Cache `address→@username` map with TTL |
+| Stale-while-revalidate | Show cached names instantly, re-resolve in background |
+| Member profile cards | Click member → profile with bio, voting history |
+
+---
+
+## v4.5.0 — Treasury Live Data — ⏳ PLANNED
+
+> Wire `/dao/:slug/treasury` to fetch real GRC20 balances from on-chain.
+
+| Feature | Description |
+|---------|-------------|
+| On-chain token balances | ABCI query for GRC20 balances in DAO treasury |
+| Asset table | Sortable list with live token balances |
+| Treasury stats | Total GNOT + GRC20 values |
+
+---
+
+## v5.0.0 — DAO Factory — ⏳ PLANNED
+
+> Create new basedao DAOs from the Memba UI.
+
+| Feature | Description |
+|---------|-------------|
+| Create DAO form | Name, description, members, threshold, tiers |
+| basedao deployment | MsgAddPackage for new DAO realm |
+| Post-deploy redirect | Created DAO auto-added to saved DAOs |
+| Template selection | Pre-built DAO templates (multisig, grants, council) |
+
+---
+
+## v5.1.0 — Advanced Governance
+
+| Feature | Description |
+|---------|-------------|
+| Proposal creation from UI | Full form → MsgCall |
+| Real-time updates | Polling for vote status during active proposals |
+| Notification system | Alerts for new proposals |
+| Multi-chain | Mainnet + portal-loop support |
 
 ---
 
@@ -452,7 +534,8 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 2026 Q1       v0.1.0 MVP ──► v0.2.0 Polish ──► v0.2.1/v0.2.2 Hardening
 2026 Q1-Q2    v0.3.0 Air-gap/Wiring ──► v2.0.x UX & Friction
 2026 Q2       v3.0.0 GRC20 Launchpad ──► v4.0.0 DAO Governance ──► v4.1.0 Treasury
-2026 Q2-Q3    v3.1.0 Multi-chain ──► v5.0.0 Public Platform
+2026 Q2       v4.2.0 DAO Hub ──► v4.3.x GovDAO v3 + Data Sync + Usernames
+2026 Q2-Q3    v4.4.0 Username Cache ──► v4.5.0 Treasury Live ──► v5.0.0 DAO Factory
 ```
 
 ---
@@ -473,3 +556,4 @@ All changes follow [Keep a Changelog](https://keepachangelog.com/) + [Semantic V
 - Challenge-response authentication
 - Dark mode dashboard UI
 ```
+

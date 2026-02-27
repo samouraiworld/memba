@@ -4,6 +4,12 @@ All notable changes to Memba are documented here.
 
 ## [4.3.1] — 2026-02-27
 
+### Added
+- **Member @usernames**: resolve g1 addresses to `@usernames` via `gno.land/r/gnoland/users/v1` registry
+  - Parallel batch resolution (17 members in ~200ms)
+  - Clickable links to gno.land user profiles
+  - Displayed on both DAO Home and Members pages
+
 ### Fixed
 - **GovDAO data sync**: rewrite all ABCI parsers to match actual on-chain output formats
   - Member parsing: ABCI table format `| T1 | g1address |` (was `[g1address]` link format)

@@ -28,6 +28,7 @@
 - 💎 5% platform fee on mints (supports Samouraï Coop)
 - 🏛️ Multisig admin governance for GRC20 tokens
 - 🏛️ DAO Governance (multi-DAO hub, proposals, voting, execution, member management)
+- 👤 Member @usernames resolved via gno.land user registry
 - 💰 Treasury Management (asset overview, spending proposals)
 - 🔗 Multi-DAO support (connect to any DAO on gno.land by realm path)
 - 🐳 Docker Compose self-hosting
