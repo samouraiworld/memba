@@ -33,8 +33,7 @@ export function CreateDAO() {
     // Auto-fill realm path from connected wallet username
     const autoFillPath = useCallback(() => {
         if (!adena.address) return
-        const shortAddr = adena.address.slice(0, 10)
-        setRealmPath(`gno.land/r/${shortAddr}/${name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 20) || "mydao"}`)
+        setRealmPath(`gno.land/r/${adena.address}/${name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 20) || "mydao"}`)
     }, [adena.address, name])
 
     // Add a member row
