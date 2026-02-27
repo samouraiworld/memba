@@ -105,3 +105,99 @@
 - `transactions` — proposed txs with msgs, fees, sequence, final_hash
 - `signatures` — per-user signature on a transaction
 - `_migrations` — schema version tracking
+
+## Hybrid Architecture — RPC vs Backend
+
+Memba is a **hybrid** application. DAO and token features talk **directly to the blockchain** via ABCI queries — no backend involvement. The Go backend only exists for **multisig coordination** (collecting partial signatures before broadcast).
+
+### Direct RPC (Frontend → gno.land)
+
+These features are **100% serverless** — they work without the backend:
+
+| Feature | ABCI Method | Realm / Path |
+|---------|-------------|-------------|
+| DAO config (name, description, tiers) | `vm/qrender` | `r/gov/dao:` |
+| DAO members | `vm/qrender` | `r/gov/dao/v3/memberstore:members` |
+| DAO proposals | `vm/qrender` | `r/gov/dao:` |
+| Proposal detail | `vm/qrender` | `r/gov/dao:N` |
+| Vote breakdown | `vm/qrender` | `r/gov/dao:N/votes` |
+| Username resolution | `vm/qrender` | `r/gnoland/users/v1:g1address` |
+| GRC20 token info | `vm/qrender` + `vm/qeval` | `r/tokens/*/grc20` |
+| GNOT balance | `bank/balances` | address query |
+| Vote / Execute | `MsgCall` via Adena | `r/gov/dao.MustVoteOnProposalSimple` |
+| Token actions | `MsgCall` via Adena | `r/tokens/*/grc20.Transfer` |
+
+### Backend-Dependent (Frontend → Go Backend → Chain)
+
+These features **require** the Go backend for off-chain coordination:
+
+| Feature | Why backend? | Protocol |
+|---------|-------------|----------|
+| Auth (challenge-response) | ed25519 keypair stored server-side | ConnectRPC |
+| Multisig CRUD | SQLite stores configs, members, thresholds | ConnectRPC |
+| Transaction coordination | Collect N partial signatures before broadcast | ConnectRPC |
+| Signature storage | Partial sigs can't live on-chain | ConnectRPC |
+| Inline rename | Per-user metadata, backend-persisted | ConnectRPC |
+
+### Implications
+
+- **DAO Hub could run as a pure static site** (no server, no backend)
+- **Multisig features require the Go backend** (signature coordination)
+- **All on-chain data is fetched via JSON-RPC POST** to gno.land RPC endpoints
+- **All on-chain actions go through Adena wallet** (user confirms in extension)
+
+## Data Flow — DAO ABCI Queries
+
+```
+┌─────────────┐     JSON-RPC POST      ┌──────────────────────┐
+│   Frontend   │ ──────────────────────► │  gno.land RPC        │
+│   lib/dao.ts │                         │  (test11 / mainnet)  │
+│              │ ◄────────────────────── │                      │
+│  queryRender │     base64 response     │  vm/qrender          │
+│  queryEval   │                         │  vm/qeval             │
+│  abciQuery   │                         │  bank/balances        │
+└──────┬───────┘                         └──────────────────────┘
+       │
+       │  Parse ABCI markdown/JSON
+       ▼
+┌──────────────────────────────────────────────────┐
+│                    Parsers                        │
+│                                                   │
+│  Config:  description, memberstorePath, tiers     │
+│  Members: pipe table → address + tier + power     │
+│  Proposals: regex → title, author, status, votes  │
+│  Votes: tier-grouped VPPM breakdown               │
+│  Usernames: "# User - `name`" → @name (cached)   │
+└──────────────────────────────────────────────────┘
+```
+
+## Username Resolution Pipeline
+
+```
+resolveUsernames(members[])
+    │
+    ├── Phase 1: Check localStorage cache (1h TTL)
+    │   ├── Cache hit → populate member.username instantly
+    │   └── Cache miss → mark for ABCI resolution
+    │
+    └── Phase 2: Resolve misses in parallel
+        ├── Promise.all(resolveUsername(address))
+        │   └── queryRender("r/gnoland/users/v1", address)
+        │       └── Parse "# User - `username`" → @username
+        └── Write results to localStorage cache
+```
+
+## Frontend Data Sources
+
+| Page | Backend | RPC | localStorage |
+|------|---------|-----|-------------|
+| Dashboard | ✅ multisigs, txs | ✅ balances | — |
+| MultisigView | ✅ members, sigs | ✅ balance | — |
+| CreateToken | — | ✅ Adena DoContract | — |
+| TokenDashboard | — | ✅ token list, balances | — |
+| DAOList | — | ✅ DAO configs | ✅ saved DAOs |
+| DAOHome | — | ✅ config, members, proposals | ✅ usernames |
+| DAOMembers | — | ✅ members + tiers | ✅ usernames |
+| ProposalView | — | ✅ proposal + votes | — |
+| Treasury | — | ✅ GRC20 balances | — |
+
