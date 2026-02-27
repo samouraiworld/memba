@@ -1,6 +1,8 @@
-# Gno Realms (Phase 2)
+# Gno Realms
 
-This directory will contain Gno realm contracts for on-chain DAO governance,
-deployed via gnodaokit in v1.0.0.
+This directory will contain Gno realm contracts.
+
+DAO governance frontend is available since v4.0.0 and targets the `gno.land/r/samcrew/samourai_dao` realm.
+Custom realm deployment planned for v5.0.0.
 
 See [ROADMAP.md](../ROADMAP.md) for the timeline.

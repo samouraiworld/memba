@@ -2,7 +2,8 @@ import { useState, useEffect } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
+import { GNO_CHAIN_ID } from "../lib/config"
+import { fetchAccountInfo } from "../lib/account"
 import {
     buildCreateTokenMsgs,
     buildCreateTokenWithAdminMsgs,
@@ -363,32 +364,5 @@ function inputStyle(loading: boolean): React.CSSProperties {
     }
 }
 
-// ── Helpers ────────────────────────────────────────────────
 
-async function fetchAccountInfo(address: string): Promise<{ accountNumber: number; sequence: number }> {
-    try {
-        // Use JSON-RPC POST to prevent ABCI query injection via address
-        const res = await fetch(GNO_RPC_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba",
-                method: "abci_query",
-                params: { path: `auth/accounts/${address}`, data: "" },
-            }),
-        })
-        const json = await res.json()
-        const rawValue = json?.result?.response?.ResponseBase?.Value
-        if (!rawValue) return { accountNumber: 0, sequence: 0 }
-        const decoded = atob(rawValue)
-        const parsed = JSON.parse(decoded)
-        const inner = parsed?.BaseAccount || parsed
-        return {
-            accountNumber: parseInt(inner?.account_number || "0", 10),
-            sequence: parseInt(inner?.sequence || "0", 10),
-        }
-    } catch {
-        return { accountNumber: 0, sequence: 0 }
-    }
-}
+

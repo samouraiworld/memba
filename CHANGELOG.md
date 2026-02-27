@@ -2,6 +2,35 @@
 
 All notable changes to Memba are documented here.
 
+## [4.1.0] — 2026-02-27
+
+### Added
+- **Treasury Management**: DAO treasury overview page
+  - **Treasury overview** (`/dao/treasury`): asset grid with GRC20 token balances
+  - **Propose Spend** (`/dao/treasury/propose`): submit spending proposals for DAO vote
+  - **Asset table**: sortable list with per-token balance display
+  - **Cross-navigation**: links to token views from treasury assets
+
+## [4.0.0] — 2026-02-27
+
+### Added
+- **DAO Governance**: Full on-chain DAO management feature
+  - **DAO Home** (`/dao`): stat cards, active/completed proposals, member preview grid
+  - **Proposal Detail** (`/dao/proposal/:id`): vote tally visualization, Vote/Execute actions
+  - **Members** (`/dao/members`): full member list with role badges, "YOU" indicator
+  - **New Proposal** (`/dao/propose`): proposal creation form with character limits
+  - **ABCI query helpers** (`lib/dao.ts`): getDAOConfig, getDAOMembers, getDAOProposals with JSON + markdown fallback
+  - **MsgCall builders**: Vote(YES/NO/ABSTAIN), Execute, Propose via Adena DoContract
+  - **🏛️ DAO nav link**: persistent navigation in Layout header
+  - **DAO_REALM_PATH**: configurable via `VITE_DAO_REALM_PATH` env var
+
+### Changed
+- **Shared account helper** (`lib/account.ts`): extracted `fetchAccountInfo` from `CreateToken.tsx` and `ProposeTransaction.tsx`, upgraded to hardened JSON-RPC POST with address validation
+- **ARCHITECTURE.md**: fixed "Tailwind v4" → "Vanilla CSS + Kodera design system"
+- **README.md**: updated features to v3.0.0, added GRC20 Launchpad features
+- **package.json**: bumped version from 2.0.3 → 3.0.0
+- **ROADMAP.md**: updated v2.0.2 deferred items with current status
+
 ## [3.0.0] — 2026-02-26
 
 ### Added

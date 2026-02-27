@@ -119,7 +119,8 @@ export function TokenView() {
         )
     }
 
-    const mintAmount = actionTab === "mint" && amount.trim() ? BigInt(amount.trim()) : 0n
+    let mintAmount = 0n
+    try { mintAmount = actionTab === "mint" && amount.trim() ? BigInt(amount.trim()) : 0n } catch { /* invalid input */ }
     const fee = mintAmount > 0n ? calculateFee(mintAmount) : 0n
 
     return (

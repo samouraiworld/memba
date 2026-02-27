@@ -4,7 +4,7 @@
  */
 
 /** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "3.0.0"
+export const APP_VERSION = "4.1.0"
 
 // Environment-driven config with sensible defaults.
 
@@ -54,4 +54,7 @@ export const GNO_BECH32_PREFIX = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
 
 /** Conversion factor: 1 GNOT = 1,000,000 ugnot. */
 export const UGNOT_PER_GNOT = 1_000_000
+
+/** DAO realm path on-chain. Update when the DAO realm is deployed. */
+export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
 

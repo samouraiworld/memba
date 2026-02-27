@@ -77,4 +77,4 @@
 
 - [ ] Screenshot key states for documentation
 - [ ] Report any issues as GitHub Issues on `samouraiworld/memba`
-- [ ] If all pass → tag v2.0.1 and deploy
+- [ ] If all pass → tag release and deploy

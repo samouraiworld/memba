@@ -47,7 +47,7 @@
 
 | Component | Tech | Responsibility |
 |-----------|------|---------------|
-| **Frontend** | React + Vite + Tailwind v4 + Kodera CSS | UI, wallet integration, tx assembly |
+| **Frontend** | React + Vite + Vanilla CSS + Kodera design system | UI, wallet integration, tx assembly |
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
@@ -68,12 +68,15 @@
 | Path | Responsibility |
 |------|---------------|
 | `lib/api.ts` | ConnectRPC transport + client |
+| `lib/account.ts` | ABCI query for account number + sequence (JSON-RPC POST) |
+| `lib/grc20.ts` | GRC20 factory helpers: list, info, balance, MsgCall builders, DoContract broadcast |
+| `lib/dao.ts` | DAO helpers: ABCI queries (config, members, proposals), MsgCall builders (Vote, Execute, Propose) |
 | `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOHome, ProposalView, DAOMembers, ProposeDAO, Treasury, TreasuryProposal |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
 ## Data Flow — Multisig Transaction
