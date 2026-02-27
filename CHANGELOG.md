@@ -2,6 +2,15 @@
 
 All notable changes to Memba are documented here.
 
+## [4.4.0] — 2026-02-27
+
+### Added
+- **Username cache**: localStorage cache for resolved @usernames with 1-hour TTL
+  - First visit: resolve 17 addresses via ABCI (~200ms)
+  - Repeat visits: instant username display from cache (0 ABCI calls)
+  - Stale cache entries auto-refreshed in background
+  - `UsernameCache` interface with `readUsernameCache()` / `writeUsernameCache()`
+
 ## [4.3.1] — 2026-02-27
 
 ### Added

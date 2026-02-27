@@ -259,6 +259,34 @@ async function fetchAllMemberstorePages(
 /** User registry realm path on gno.land. */
 const USER_REGISTRY = "gno.land/r/gnoland/users/v1"
 
+/** Username cache key in localStorage. */
+const USERNAME_CACHE_KEY = "memba_usernames"
+
+/** Cache TTL: 1 hour (in ms). */
+const USERNAME_CACHE_TTL = 60 * 60 * 1000
+
+interface UsernameCache {
+    entries: Record<string, { username: string; ts: number }>
+}
+
+/** Read username cache from localStorage. */
+function readUsernameCache(): UsernameCache {
+    try {
+        const raw = localStorage.getItem(USERNAME_CACHE_KEY)
+        if (!raw) return { entries: {} }
+        const parsed = JSON.parse(raw)
+        if (typeof parsed === "object" && parsed.entries) return parsed as UsernameCache
+    } catch { /* ignore corrupt cache */ }
+    return { entries: {} }
+}
+
+/** Write username cache to localStorage. */
+function writeUsernameCache(cache: UsernameCache): void {
+    try {
+        localStorage.setItem(USERNAME_CACHE_KEY, JSON.stringify(cache))
+    } catch { /* quota exceeded */ }
+}
+
 /**
  * Resolve a single g1 address to @username via gno.land user registry.
  * Queries Render(address) which returns: "# User - `username`"
@@ -278,15 +306,39 @@ async function resolveUsername(rpcUrl: string, address: string): Promise<string>
 
 /**
  * Batch-resolve addresses to usernames for a list of members.
- * Runs all lookups in parallel for speed (~200ms for 17 members).
+ * Uses localStorage cache with 1-hour TTL:
+ * - Cache hit (fresh): use cached username instantly, no ABCI call
+ * - Cache miss or stale: resolve via ABCI, update cache
+ * Resolves cache misses in parallel for speed.
  */
 async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Promise<void> {
-    const results = await Promise.all(
-        members.map((m) => resolveUsername(rpcUrl, m.address)),
-    )
-    results.forEach((username, i) => {
-        if (username) members[i].username = username
-    })
+    const cache = readUsernameCache()
+    const now = Date.now()
+    const toResolve: number[] = [] // indices of members needing ABCI resolution
+
+    // Phase 1: populate from cache, identify misses
+    for (let i = 0; i < members.length; i++) {
+        const entry = cache.entries[members[i].address]
+        if (entry && (now - entry.ts) < USERNAME_CACHE_TTL) {
+            // Cache hit — use cached username
+            members[i].username = entry.username
+        } else {
+            toResolve.push(i)
+        }
+    }
+
+    // Phase 2: resolve cache misses in parallel
+    if (toResolve.length > 0) {
+        const results = await Promise.all(
+            toResolve.map((idx) => resolveUsername(rpcUrl, members[idx].address)),
+        )
+        results.forEach((username, j) => {
+            const idx = toResolve[j]
+            members[idx].username = username
+            cache.entries[members[idx].address] = { username, ts: now }
+        })
+        writeUsernameCache(cache)
+    }
 }
 
 
