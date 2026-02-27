@@ -38,13 +38,13 @@ export function generateDAOCode(config: DAOCreationConfig): string {
     const pkgName = config.realmPath.split("/").pop() || "mydao"
 
     const memberInit = config.members
-        .map((m) => `\tmembers = append(members, Member{Address: std.Address("${m.address}"), Power: ${m.power}})`)
+        .map((m) => `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${m.power}})`)
         .join("\n")
 
     return `package ${pkgName}
 
 import (
-\t"std"
+\t"chain/runtime"
 \t"strings"
 \t"strconv"
 )
@@ -52,12 +52,12 @@ import (
 // ── Types ─────────────────────────────────────────────────
 
 type Member struct {
-\tAddress std.Address
+\tAddress address
 \tPower   int
 }
 
 type Vote struct {
-\tVoter std.Address
+\tVoter address
 \tValue string // "YES", "NO", "ABSTAIN"
 }
 
@@ -65,7 +65,7 @@ type Proposal struct {
 \tID          int
 \tTitle       string
 \tDescription string
-\tAuthor      std.Address
+\tAuthor      address
 \tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED"
 \tVotes       []Vote
 \tYesVotes    int
@@ -167,7 +167,7 @@ func renderVotes(id int) string {
 // ── Actions ───────────────────────────────────────────────
 
 func Propose(title, desc string) int {
-\tcaller := std.OrigCaller()
+\tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tid := nextID
 \tnextID++
@@ -182,7 +182,7 @@ func Propose(title, desc string) int {
 }
 
 func VoteOnProposal(id int, vote string) {
-\tcaller := std.OrigCaller()
+\tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
 \t\tpanic("invalid proposal ID")
@@ -221,7 +221,7 @@ func VoteOnProposal(id int, vote string) {
 }
 
 func ExecuteProposal(id int) {
-\tcaller := std.OrigCaller()
+\tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
 \t\tpanic("invalid proposal ID")
@@ -235,7 +235,7 @@ func ExecuteProposal(id int) {
 
 // ── Helpers ───────────────────────────────────────────────
 
-func assertMember(addr std.Address) {
+func assertMember(addr address) {
 \tfor _, m := range members {
 \t\tif m.Address == addr {
 \t\t\treturn
@@ -244,7 +244,7 @@ func assertMember(addr std.Address) {
 \tpanic("not a member")
 }
 
-func getMemberPower(addr std.Address) int {
+func getMemberPower(addr address) int {
 \tfor _, m := range members {
 \t\tif m.Address == addr {
 \t\t\treturn m.Power

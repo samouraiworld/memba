@@ -112,18 +112,32 @@ export function CreateDAO() {
                 members: members.filter((m) => m.address.startsWith("g1")),
             }
             const code = generateDAOCode(config)
-            const msg = buildDeployDAOMsg(adena.address, realmPath, code)
+            const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
+            // Bundle addpkg + 2 GNOT dev fee in one atomic transaction
+            const SAMOURAI_CREW = "g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh"
+            const DEV_FEE_UGNOT = "2000000" // 2 GNOT
+
             const res = await adenaWallet.DoContract({
-                messages: [{
-                    type: "/vm.m_addpkg",
-                    value: msg.value,
-                }],
-                gasFee: 1,
+                messages: [
+                    {
+                        type: "/vm.m_addpkg",
+                        value: msg.value,
+                    },
+                    {
+                        type: "/bank.MsgSend",
+                        value: {
+                            from_address: adena.address,
+                            to_address: SAMOURAI_CREW,
+                            amount: `${DEV_FEE_UGNOT}ugnot`,
+                        },
+                    },
+                ],
+                gasFee: 10000000,
                 gasWanted: 50000000, // higher gas for package deployment
                 memo: `Deploy DAO: ${name}`,
             })
@@ -167,6 +181,7 @@ export function CreateDAO() {
                     Deploy a new governance realm on gno.land
                 </p>
             </div>
+
 
             {/* Step indicator */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
