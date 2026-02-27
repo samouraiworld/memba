@@ -7,6 +7,7 @@ import { GNO_RPC_URL } from "../lib/config"
 import {
     getProposalDetail,
     getProposalVotes,
+    getDAOMembers,
     buildVoteMsg,
     buildExecuteMsg,
     type DAOProposal,
@@ -29,6 +30,7 @@ export function ProposalView() {
     const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
 
     const proposalId = parseInt(id || "0", 10)
 
@@ -52,6 +54,17 @@ export function ProposalView() {
 
     useEffect(() => { loadProposal() }, [loadProposal])
 
+    // Check if connected wallet is a DAO member
+    useEffect(() => {
+        if (!adena.address || !realmPath) { setIsMember(null); return }
+        getDAOMembers(GNO_RPC_URL, realmPath)
+            .then((members) => {
+                const found = members.some((m) => m.address === adena.address)
+                setIsMember(found)
+            })
+            .catch(() => setIsMember(null)) // on error, don't block — let user try
+    }, [adena.address, realmPath])
+
     const handleVote = async (vote: "YES" | "NO" | "ABSTAIN") => {
         if (!auth.isAuthenticated || !adena.address) {
             setError("Connect your wallet to vote")
@@ -66,7 +79,13 @@ export function ProposalView() {
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
             await loadProposal()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to vote")
+            const raw = err instanceof Error ? err.message : "Failed to vote"
+            // Make "member not found" error user-friendly
+            if (raw.toLowerCase().includes("member not found") || raw.toLowerCase().includes("not a member")) {
+                setError("Your connected wallet is not a member of this DAO. Please switch to the correct wallet in Adena.")
+            } else {
+                setError(raw)
+            }
         } finally {
             setActionLoading(false)
         }
@@ -279,17 +298,30 @@ export function ProposalView() {
             {auth.isAuthenticated && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {proposal.status === "open" && (
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading ? 0.5 : 1 }}>
-                                {actionLoading ? "..." : "✓ Vote Yes"}
-                            </button>
-                            <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading ? 0.5 : 1 }}>
-                                {actionLoading ? "..." : "✗ Vote No"}
-                            </button>
-                            <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading} style={{ flex: 1, minWidth: 120, opacity: actionLoading ? 0.5 : 1 }}>
-                                {actionLoading ? "..." : "○ Abstain"}
-                            </button>
-                        </div>
+                        <>
+                            {/* Membership warning */}
+                            {isMember === false && (
+                                <div style={{
+                                    padding: "12px 16px", borderRadius: 8,
+                                    background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
+                                    fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
+                                    marginBottom: 8,
+                                }}>
+                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
+                                </div>
+                            )}
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    {actionLoading ? "..." : "✓ Vote Yes"}
+                                </button>
+                                <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    {actionLoading ? "..." : "✗ Vote No"}
+                                </button>
+                                <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    {actionLoading ? "..." : "○ Abstain"}
+                                </button>
+                            </div>
+                        </>
                     )}
 
                     {proposal.status === "passed" && (
