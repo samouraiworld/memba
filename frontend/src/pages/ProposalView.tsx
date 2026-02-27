@@ -6,9 +6,11 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL } from "../lib/config"
 import {
     getProposalDetail,
+    getProposalVotes,
     buildVoteMsg,
     buildExecuteMsg,
     type DAOProposal,
+    type VoteRecord,
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { decodeSlug } from "../lib/daoSlug"
@@ -22,6 +24,7 @@ export function ProposalView() {
     const realmPath = slug ? decodeSlug(slug) : ""
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)
+    const [voteRecords, setVoteRecords] = useState<VoteRecord[]>([])
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -34,8 +37,12 @@ export function ProposalView() {
         setLoading(true)
         setError(null)
         try {
-            const p = await getProposalDetail(GNO_RPC_URL, realmPath, proposalId)
+            const [p, votes] = await Promise.all([
+                getProposalDetail(GNO_RPC_URL, realmPath, proposalId),
+                getProposalVotes(GNO_RPC_URL, realmPath, proposalId),
+            ])
             setProposal(p)
+            setVoteRecords(votes)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load proposal")
         } finally {
@@ -50,11 +57,9 @@ export function ProposalView() {
             setError("Connect your wallet to vote")
             return
         }
-
         setActionLoading(true)
         setError(null)
         setSuccess(null)
-
         try {
             const msg = buildVoteMsg(adena.address, realmPath, proposalId, vote)
             await doContractBroadcast([msg], `Vote ${vote} on Proposal #${proposalId}`)
@@ -72,11 +77,9 @@ export function ProposalView() {
             setError("Connect your wallet to execute")
             return
         }
-
         setActionLoading(true)
         setError(null)
         setSuccess(null)
-
         try {
             const msg = buildExecuteMsg(adena.address, realmPath, proposalId)
             await doContractBroadcast([msg], `Execute Proposal #${proposalId}`)
@@ -117,17 +120,19 @@ export function ProposalView() {
         )
     }
 
-    const totalVotes = proposal.yesVotes + proposal.noVotes + proposal.abstainVotes
     const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-        open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "OPEN" },
-        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
+        open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
+        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "ACCEPTED" },
         rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
         executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
     }
     const sc = statusColors[proposal.status] || statusColors.open
 
+    const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
+    const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
+
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Nav */}
             <button
                 onClick={() => navigate(`/dao/${slug}`)}
@@ -140,7 +145,7 @@ export function ProposalView() {
 
             {/* Header */}
             <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
                         Proposal #{proposal.id}
                     </span>
@@ -151,17 +156,57 @@ export function ProposalView() {
                     }}>
                         {sc.label}
                     </span>
+                    {proposal.tiers.length > 0 && (
+                        <div style={{ display: "flex", gap: 3 }}>
+                            {proposal.tiers.map((t) => (
+                                <span key={t} style={{
+                                    padding: "2px 6px", borderRadius: 3, fontSize: 9,
+                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                                    background: "rgba(255,255,255,0.04)", color: "#888",
+                                }}>
+                                    {t}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
                     {proposal.title}
                 </h2>
-                {proposal.proposer && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
-                        <span>Proposed by</span>
-                        <CopyableAddress address={proposal.proposer} />
-                    </div>
-                )}
             </div>
+
+            {/* Author Card */}
+            {proposal.author && (
+                <div className="k-card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.15)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 14, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa",
+                    }}>
+                        {proposal.author.charAt(0) === "@" ? proposal.author.charAt(1).toUpperCase() : "?"}
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
+                            {proposal.authorProfile ? (
+                                <a href={proposal.authorProfile} target="_blank" rel="noopener noreferrer"
+                                    style={{ color: "#00d4aa", textDecoration: "none" }}
+                                >
+                                    {proposal.author}
+                                </a>
+                            ) : proposal.author}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                            Proposer
+                        </div>
+                    </div>
+                    {proposal.proposer && proposal.proposer.startsWith("g1") && (
+                        <div style={{ marginLeft: "auto" }}>
+                            <CopyableAddress address={proposal.proposer} />
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Description */}
             {proposal.description && (
@@ -172,27 +217,56 @@ export function ProposalView() {
                 </div>
             )}
 
-            {/* Vote Tally */}
+            {/* Vote Summary */}
             <div className="k-card" style={{ padding: 20 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                    Votes {totalVotes > 0 && `(${totalVotes})`}
+                    Voting Results
                 </h3>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
-                    <VoteStat label="Yes" count={proposal.yesVotes} total={totalVotes} color="#4caf50" icon="✓" />
-                    <VoteStat label="No" count={proposal.noVotes} total={totalVotes} color="#f44336" icon="✗" />
-                    <VoteStat label="Abstain" count={proposal.abstainVotes} total={totalVotes} color="#888" icon="○" />
-                </div>
+                {/* Percentage bars */}
+                {(proposal.yesPercent > 0 || proposal.noPercent > 0) && (
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                            <span style={{ color: "#4caf50" }}>YES {proposal.yesPercent}%</span>
+                            <span style={{ color: "#f44336" }}>NO {proposal.noPercent}%</span>
+                        </div>
+                        <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                            <div style={{ width: `${proposal.yesPercent}%`, background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.4s" }} />
+                            <div style={{ width: `${proposal.noPercent}%`, background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.4s" }} />
+                        </div>
+                    </div>
+                )}
 
-                {/* Progress bar */}
-                {totalVotes > 0 && (
-                    <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden", display: "flex" }}>
-                        <div style={{ width: `${(proposal.yesVotes / totalVotes) * 100}%`, background: "#4caf50", transition: "width 0.3s" }} />
-                        <div style={{ width: `${(proposal.noVotes / totalVotes) * 100}%`, background: "#f44336", transition: "width 0.3s" }} />
-                        <div style={{ width: `${(proposal.abstainVotes / totalVotes) * 100}%`, background: "#666", transition: "width 0.3s" }} />
+                {/* Legacy vote counts */}
+                {proposal.yesPercent === 0 && proposal.noPercent === 0 && (proposal.yesVotes > 0 || proposal.noVotes > 0) && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+                        <VoteStat label="Yes" count={proposal.yesVotes} color="#4caf50" icon="✓" />
+                        <VoteStat label="No" count={proposal.noVotes} color="#f44336" icon="✗" />
+                        <VoteStat label="Abstain" count={proposal.abstainVotes} color="#888" icon="○" />
+                    </div>
+                )}
+
+                {/* Voter count summary */}
+                {(totalYesVoters > 0 || totalNoVoters > 0) && (
+                    <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+                        {totalYesVoters + totalNoVoters} total voters ({totalYesVoters} yes, {totalNoVoters} no)
                     </div>
                 )}
             </div>
+
+            {/* Tier-Grouped Vote Breakdown */}
+            {voteRecords.length > 0 && (
+                <div className="k-card" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                        Vote Breakdown by Tier
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {voteRecords.map((record) => (
+                            <TierVoteBlock key={record.tier} record={record} />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Success message */}
             {success && (
@@ -217,7 +291,6 @@ export function ProposalView() {
                             </button>
                         </div>
                     )}
-
                     {proposal.status === "passed" && (
                         <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
@@ -241,16 +314,93 @@ export function ProposalView() {
 
 // ── Components ────────────────────────────────────────────
 
-function VoteStat({ label, count, total, color, icon }: { label: string; count: number; total: number; color: string; icon: string }) {
-    const pct = total > 0 ? Math.round((count / total) * 100) : 0
+function VoteStat({ label, count, color, icon }: { label: string; count: number; color: string; icon: string }) {
     return (
         <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color }}>
                 {icon} {count}
             </div>
             <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>
-                {label} ({pct}%)
+                {label}
             </div>
+        </div>
+    )
+}
+
+const tierColors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
+
+function TierVoteBlock({ record }: { record: VoteRecord }) {
+    const color = tierColors[record.tier] || "#888"
+    return (
+        <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 12, color, fontFamily: "JetBrains Mono, monospace" }}>
+                    {record.tier}
+                </span>
+                <span style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                    VPPM {record.vppm}
+                </span>
+            </div>
+
+            {/* YES voters */}
+            {record.yesVoters.length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: "#4caf50", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                        YES ({record.yesVoters.length})
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                        {record.yesVoters.map((v) => (
+                            <a
+                                key={v.username}
+                                href={v.profileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    padding: "2px 8px", borderRadius: 4, fontSize: 10,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    background: "rgba(76,175,80,0.08)", color: "#4caf50",
+                                    textDecoration: "none", transition: "background 0.15s",
+                                }}
+                            >
+                                {v.username}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* NO voters */}
+            {record.noVoters.length > 0 && (
+                <div>
+                    <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                        NO ({record.noVoters.length})
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                        {record.noVoters.map((v) => (
+                            <a
+                                key={v.username}
+                                href={v.profileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    padding: "2px 8px", borderRadius: 4, fontSize: 10,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    background: "rgba(244,67,54,0.08)", color: "#f44336",
+                                    textDecoration: "none",
+                                }}
+                            >
+                                {v.username}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {record.yesVoters.length === 0 && record.noVoters.length === 0 && (
+                <div style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                    No votes from this tier
+                </div>
+            )}
         </div>
     )
 }

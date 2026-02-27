@@ -273,13 +273,36 @@ function DAOCard({
 
             {/* Stats */}
             {dao.config && (
-                <div style={{ display: "flex", gap: 16, fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#888" }}>
-                        👥 {dao.config.memberCount} members
-                    </span>
-                    <span style={{ color: "#888" }}>
-                        📊 {dao.config.threshold} threshold
-                    </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 16, fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ color: "#888" }}>
+                            👥 {dao.config.memberCount} members
+                        </span>
+                        <span style={{ color: "#888" }}>
+                            📊 {dao.config.threshold} threshold
+                        </span>
+                    </div>
+
+                    {/* Tier distribution badges */}
+                    {dao.config.tierDistribution && dao.config.tierDistribution.length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {dao.config.tierDistribution.map((t) => {
+                                const colors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
+                                const color = colors[t.tier] || "#888"
+                                return (
+                                    <span key={t.tier} style={{
+                                        display: "flex", alignItems: "center", gap: 4,
+                                        padding: "2px 8px", borderRadius: 4, fontSize: 9,
+                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                        background: `${color}12`, color,
+                                    }}>
+                                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block" }} />
+                                        {t.tier}: {t.memberCount} • {t.power}pw
+                                    </span>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
