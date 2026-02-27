@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [5.0.4] — 2026-02-27
+
+### Fixed
+- **🔥 DAO deployment**: Migrated from deprecated `std` stdlib to `chain/runtime` (gno PR #4040)
+  - `import "std"` → `import "chain/runtime"`
+  - `std.Address` → `address` (builtin type in gno 0.9)
+  - `std.OrigCaller()` → `runtime.OriginCaller()`
+  - Verified on test11 via `gnokey maketx addpkg` (TX height 401999)
+- **gnomod.toml**: Added required `gno = "0.9"` version field
+- **File sorting**: Files sorted alphabetically in MsgAddPackage (gno `ValidateBasic` requirement)
+- **Gas fee**: Bumped from 1 ugnot to 10 GNOT for package deployment
+- **Storage deposit**: Set to 10 GNOT (was 0)
+
+### Added
+- **2 GNOT dev fee**: Sent to samourai-crew multisig on every DAO deployment (atomic with addpkg)
+
 ## [5.0.3] — 2026-02-27
 
 ### Added
