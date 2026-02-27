@@ -291,6 +291,10 @@ export function buildDeployDAOMsg(
                 path: realmPath,
                 files: [
                     {
+                        name: "gnomod.toml",
+                        body: `module = "${realmPath}"\n`,
+                    },
+                    {
                         name: `${pkgName}.gno`,
                         body: code,
                     },

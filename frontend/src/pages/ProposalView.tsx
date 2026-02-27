@@ -31,7 +31,7 @@ export function ProposalView() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
-    const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+
 
     const proposalId = parseInt(id || "0", 10)
 
@@ -46,7 +46,7 @@ export function ProposalView() {
             ])
             setProposal(p)
             setVoteRecords(votes)
-            setLastRefresh(new Date())
+
         } catch (err) {
             if (!silent) setError(err instanceof Error ? err.message : "Failed to load proposal")
         } finally {
