@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [5.0.0] — 2026-02-27
+
+### Added
+- **DAO Factory**: create and deploy new governance DAOs on gno.land
+  - 4-step wizard: name/path → members + power → voting threshold → review + deploy
+  - `daoTemplate.ts`: generates self-contained Gno realm code (~227 lines)
+  - `MsgAddPackage` deployment via Adena wallet
+  - Generated DAO includes: member management, proposals, voting (YES/NO/ABSTAIN), execution
+  - Configurable voting threshold (1-100%)
+  - Auto-save deployed DAO to saved DAOs list
+  - Code preview with expandable section before deployment
+  - Realm path validation (gno.land/r/username/daoname format)
+
+### Changed
+- `ARCHITECTURE.md`: documented hybrid RPC vs backend architecture with data flow diagrams
+
 ## [4.4.0] — 2026-02-27
 
 ### Added
