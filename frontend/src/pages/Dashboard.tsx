@@ -130,7 +130,7 @@ export function Dashboard() {
                     </div>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Get started</h3>
                     <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto 20px", fontFamily: "JetBrains Mono, monospace" }}>
-                        Create a new multisig wallet or import an existing one
+                        Create multisig wallets, manage tokens, or explore DAO governance
                     </p>
                     <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                         <button className="k-btn-primary" onClick={() => navigate("/create")}>
@@ -141,6 +141,9 @@ export function Dashboard() {
                         </button>
                         <button className="k-btn-secondary" onClick={() => navigate("/create-token")}>
                             🪙 Create a Token
+                        </button>
+                        <button className="k-btn-secondary" onClick={() => navigate("/dao")}>
+                            🏛️ Explore DAOs
                         </button>
                     </div>
                 </div>

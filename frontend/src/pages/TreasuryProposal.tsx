@@ -1,14 +1,17 @@
 import { useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { DAO_REALM_PATH } from "../lib/config"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function TreasuryProposal() {
     const navigate = useNavigate()
+    const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
 
     const [recipient, setRecipient] = useState("")
     const [amount, setAmount] = useState("")
@@ -29,7 +32,7 @@ export function TreasuryProposal() {
         const trimSymbol = tokenSymbol.trim().toUpperCase()
 
         if (!trimRecipient) { setError("Recipient address is required"); return }
-        if (!/^g(no)?1[a-z0-9]{38,}$/.test(trimRecipient)) { setError("Invalid recipient address"); return }
+        if (!/^g1[a-z0-9]{38}$/.test(trimRecipient)) { setError("Invalid recipient address (must be g1... format, 40 characters)"); return }
         if (!trimAmount || isNaN(Number(trimAmount)) || Number(trimAmount) <= 0) { setError("Amount must be greater than 0"); return }
 
         setLoading(true)
@@ -37,7 +40,6 @@ export function TreasuryProposal() {
         setSuccess(null)
 
         try {
-            // Create a DAO proposal for the treasury spend
             const title = `Treasury: Send ${trimAmount} ${trimSymbol || "GNOT"} to ${trimRecipient.slice(0, 10)}...`
             const description = [
                 `**Type**: Treasury Spend`,
@@ -46,10 +48,10 @@ export function TreasuryProposal() {
                 memo ? `**Memo**: ${memo.trim()}` : "",
             ].filter(Boolean).join("\n")
 
-            const msg = buildProposeMsg(adena.address, DAO_REALM_PATH, title, description)
+            const msg = buildProposeMsg(adena.address, realmPath, title, description)
             await doContractBroadcast([msg], `Propose treasury spend: ${trimAmount} ${trimSymbol || "GNOT"}`)
             setSuccess("Treasury proposal created! Requires DAO vote to execute.")
-            setTimeout(() => navigate("/dao"), 2000)
+            setTimeout(() => navigate(`/dao/${slug}`), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create proposal")
         } finally {
@@ -61,7 +63,9 @@ export function TreasuryProposal() {
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Nav */}
             <button
-                onClick={() => navigate("/dao/treasury")}
+                id="treasury-propose-back-btn"
+                aria-label="Back to Treasury"
+                onClick={() => navigate(`/dao/${slug}/treasury`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to Treasury
@@ -91,7 +95,6 @@ export function TreasuryProposal() {
 
             {/* Form */}
             <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
-                {/* Recipient */}
                 <div>
                     <label style={labelStyle}>Recipient Address</label>
                     <input
@@ -101,7 +104,6 @@ export function TreasuryProposal() {
                     />
                 </div>
 
-                {/* Amount */}
                 <div>
                     <label style={labelStyle}>Amount</label>
                     <input
@@ -112,7 +114,6 @@ export function TreasuryProposal() {
                     />
                 </div>
 
-                {/* Token */}
                 <div>
                     <label style={labelStyle}>Token (GRC20 symbol, leave empty for GNOT)</label>
                     <input
@@ -124,7 +125,6 @@ export function TreasuryProposal() {
                     <p style={hintStyle}>Leave empty for GNOT transfers</p>
                 </div>
 
-                {/* Memo */}
                 <div>
                     <label style={labelStyle}>Memo (optional)</label>
                     <input
@@ -158,7 +158,7 @@ export function TreasuryProposal() {
                 >
                     {loading ? "Proposing..." : "Submit Treasury Proposal"}
                 </button>
-                <button className="k-btn-secondary" onClick={() => navigate("/dao/treasury")}>
+                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${slug}/treasury`)}>
                     Cancel
                 </button>
             </div>

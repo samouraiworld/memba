@@ -9,12 +9,14 @@ import { TransactionView } from "./pages/TransactionView"
 import { CreateToken } from "./pages/CreateToken"
 import { TokenDashboard } from "./pages/TokenDashboard"
 import { TokenView } from "./pages/TokenView"
+import { DAOList } from "./pages/DAOList"
 import { DAOHome } from "./pages/DAOHome"
 import { ProposalView } from "./pages/ProposalView"
 import { DAOMembers } from "./pages/DAOMembers"
 import { ProposeDAO } from "./pages/ProposeDAO"
 import { Treasury } from "./pages/Treasury"
 import { TreasuryProposal } from "./pages/TreasuryProposal"
+import { CreateDAO } from "./pages/CreateDAO"
 
 function App() {
   return (
@@ -30,12 +32,15 @@ function App() {
           <Route path="/create-token" element={<CreateToken />} />
           <Route path="/tokens" element={<TokenDashboard />} />
           <Route path="/tokens/:symbol" element={<TokenView />} />
-          <Route path="/dao" element={<DAOHome />} />
-          <Route path="/dao/proposal/:id" element={<ProposalView />} />
-          <Route path="/dao/members" element={<DAOMembers />} />
-          <Route path="/dao/propose" element={<ProposeDAO />} />
-          <Route path="/dao/treasury" element={<Treasury />} />
-          <Route path="/dao/treasury/propose" element={<TreasuryProposal />} />
+          {/* DAO Hub + parameterized DAO routes */}
+          <Route path="/dao" element={<DAOList />} />
+          <Route path="/dao/create" element={<CreateDAO />} />
+          <Route path="/dao/:slug" element={<DAOHome />} />
+          <Route path="/dao/:slug/proposal/:id" element={<ProposalView />} />
+          <Route path="/dao/:slug/members" element={<DAOMembers />} />
+          <Route path="/dao/:slug/propose" element={<ProposeDAO />} />
+          <Route path="/dao/:slug/treasury" element={<Treasury />} />
+          <Route path="/dao/:slug/treasury/propose" element={<TreasuryProposal />} />
         </Route>
       </Routes>
     </BrowserRouter>
@@ -43,4 +48,3 @@ function App() {
 }
 
 export default App
-

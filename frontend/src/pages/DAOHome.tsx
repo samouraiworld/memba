@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL, DAO_REALM_PATH } from "../lib/config"
+import { GNO_RPC_URL } from "../lib/config"
 import {
     getDAOConfig,
     getDAOMembers,
@@ -12,11 +12,16 @@ import {
     type DAOMember,
     type DAOProposal,
 } from "../lib/dao"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOHome() {
     const navigate = useNavigate()
+    const { slug } = useParams<{ slug: string }>()
     const { auth } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
+    const encodedSlug = slug || encodeSlug(realmPath)
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
@@ -25,13 +30,14 @@ export function DAOHome() {
     const [error, setError] = useState<string | null>(null)
 
     const loadData = useCallback(async () => {
+        if (!realmPath) return
         setLoading(true)
         setError(null)
         try {
             const [cfg, mems, props] = await Promise.all([
-                getDAOConfig(GNO_RPC_URL, DAO_REALM_PATH),
-                getDAOMembers(GNO_RPC_URL, DAO_REALM_PATH),
-                getDAOProposals(GNO_RPC_URL, DAO_REALM_PATH),
+                getDAOConfig(GNO_RPC_URL, realmPath),
+                getDAOMembers(GNO_RPC_URL, realmPath),
+                getDAOProposals(GNO_RPC_URL, realmPath),
             ])
             setConfig(cfg)
             setMembers(mems)
@@ -41,12 +47,24 @@ export function DAOHome() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [realmPath])
 
     useEffect(() => { loadData() }, [loadData])
 
     const activeProposals = proposals.filter((p) => p.status === "open")
     const completedProposals = proposals.filter((p) => p.status !== "open")
+
+    useEffect(() => {
+        if (!realmPath) navigate("/dao")
+    }, [realmPath, navigate])
+
+    if (!realmPath) {
+        return (
+            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                <SkeletonCard />
+            </div>
+        )
+    }
 
     if (loading) {
         return (
@@ -60,11 +78,24 @@ export function DAOHome() {
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+            {/* Back nav */}
+            <button
+                id="dao-back-btn"
+                aria-label="Back to DAO list"
+                onClick={() => navigate("/dao")}
+                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+            >
+                ← Back to DAOs
+            </button>
+
             {/* Header */}
             <div>
                 <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
                     🏛️ {config?.name || "DAO Governance"}
                 </h2>
+                <p style={{ color: "#555", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                    {realmPath}
+                </p>
                 {config?.description && (
                     <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
                         {config.description}
@@ -87,7 +118,7 @@ export function DAOHome() {
                     {auth.isAuthenticated && (
                         <button
                             className="k-btn-primary"
-                            onClick={() => navigate("/dao/propose")}
+                            onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
                             style={{ fontSize: 12, padding: "8px 16px" }}
                         >
                             + New Proposal
@@ -104,7 +135,7 @@ export function DAOHome() {
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {activeProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/proposal/${p.id}`)} />
+                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                         ))}
                     </div>
                 )}
@@ -118,7 +149,7 @@ export function DAOHome() {
                     </h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {completedProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/proposal/${p.id}`)} />
+                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                         ))}
                     </div>
                 </div>
@@ -131,7 +162,7 @@ export function DAOHome() {
                         Members ({members.length})
                     </h3>
                     <button
-                        onClick={() => navigate("/dao/members")}
+                        onClick={() => navigate(`/dao/${encodedSlug}/members`)}
                         style={{
                             color: "#00d4aa", fontSize: 12, background: "none",
                             border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
@@ -158,7 +189,7 @@ export function DAOHome() {
                     </div>
                 </div>
                 <button
-                    onClick={() => navigate("/dao/treasury")}
+                    onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
                     style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
                 >
                     Open →

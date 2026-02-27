@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
-import { GNO_RPC_URL, DAO_REALM_PATH } from "../lib/config"
+import { GNO_RPC_URL } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember } from "../lib/dao"
 import { getTokenBalance, listFactoryTokens, type TokenInfo } from "../lib/grc20"
+import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 interface TreasuryAsset {
@@ -17,7 +18,10 @@ interface TreasuryAsset {
 
 export function Treasury() {
     const navigate = useNavigate()
+    const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
+
+    const realmPath = slug ? decodeSlug(slug) : ""
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
@@ -26,26 +30,20 @@ export function Treasury() {
     const [error, setError] = useState<string | null>(null)
 
     const loadTreasury = useCallback(async () => {
+        if (!realmPath) return
         setLoading(true)
         setError(null)
         try {
-            // Load DAO config and members in parallel
             const [cfg, mems] = await Promise.all([
-                getDAOConfig(GNO_RPC_URL, DAO_REALM_PATH),
-                getDAOMembers(GNO_RPC_URL, DAO_REALM_PATH),
+                getDAOConfig(GNO_RPC_URL, realmPath),
+                getDAOMembers(GNO_RPC_URL, realmPath),
             ])
             setConfig(cfg)
             setMembers(mems)
 
-            // Load GNOT balance for the DAO realm (use first member's multisig or DAO address)
-            // For now, we'll query GRC20 tokens for the DAO
             const tokens = await listFactoryTokens(GNO_RPC_URL)
+            const daoAddress = realmPath.replace("gno.land/r/", "").replace(/\//g, "")
 
-            // Get balances for an address representing the DAO treasury
-            // In a real setup, this would be the DAO's treasury address
-            const daoAddress = DAO_REALM_PATH.replace("gno.land/r/", "").replace(/\//g, "")
-
-            // Query GRC20 balances in parallel — collect results safely
             const results = await Promise.allSettled(
                 tokens.map(async (token: TokenInfo) => {
                     const balance = await getTokenBalance(GNO_RPC_URL, token.symbol, daoAddress)
@@ -70,7 +68,7 @@ export function Treasury() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [realmPath])
 
     useEffect(() => { loadTreasury() }, [loadTreasury])
 
@@ -90,7 +88,9 @@ export function Treasury() {
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             {/* Nav */}
             <button
-                onClick={() => navigate("/dao")}
+                id="treasury-back-btn"
+                aria-label="Back to DAO"
+                onClick={() => navigate(`/dao/${slug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -120,7 +120,7 @@ export function Treasury() {
                     {auth.isAuthenticated && isCurrentUserMember && (
                         <button
                             className="k-btn-primary"
-                            onClick={() => navigate("/dao/treasury/propose")}
+                            onClick={() => navigate(`/dao/${slug}/treasury/propose`)}
                             style={{ fontSize: 12, padding: "8px 16px" }}
                         >
                             + Propose Spend
@@ -219,6 +219,5 @@ function StatCard({ label, value, icon, accent }: { label: string; value: string
 function formatBalance(balance: bigint): string {
     if (balance === 0n) return "0"
     const str = String(balance)
-    // Add comma separators
     return str.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }

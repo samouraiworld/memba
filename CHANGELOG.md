@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## [4.2.0] — 2026-02-27
+
+### Added
+- **DAO Hub** (`/dao`): multi-DAO browser with featured GovDAO card, "Connect to DAO" form, and localStorage persistence
+- **Create DAO** (`/dao/create`): v5.0.0 placeholder with planned feature overview and docs links
+- **Parameterized DAO routes**: all DAO sub-pages now use `/dao/:slug/*` URL params — supports multiple DAOs simultaneously
+- **Dashboard DAO quick-action**: "🏛️ Explore DAOs" button in empty state and quick-actions
+- **`lib/daoSlug.ts`**: URL slug encoding (`/` ↔ `~`), realm path validation, localStorage CRUD with schema validation
+
+### Security
+- **Slug traversal protection**: decoded slugs reject `..`, control chars, and non-`gno.land/r/` prefixes (C1)
+- **localStorage schema validation**: each SavedDAO entry validated for string types and non-empty fields (H3)
+- **Input validation**: realm path input limited to 100 chars with regex validation (M1)
+
+### Fixed
+- **Navigate-in-render fix**: `DAOHome.tsx` redirect wrapped in `useEffect` to avoid React state warnings (C2)
+
+### Improved
+- **Accessibility**: `aria-label` on all back navigation buttons across 7 pages (M2)
+- **E2E test readiness**: `id` attributes on all interactive elements (`dao-connect-input`, `dao-connect-btn`, etc.) (M3)
+
 ## [4.1.0] — 2026-02-27
 
 ### Added
