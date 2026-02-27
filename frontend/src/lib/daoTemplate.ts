@@ -282,6 +282,16 @@ export function buildDeployDAOMsg(
     deposit: string = "",
 ): AminoMsg {
     const pkgName = realmPath.split("/").pop() || "mydao"
+    const files = [
+        {
+            name: `${pkgName}.gno`,
+            body: code,
+        },
+        {
+            name: "gnomod.toml",
+            body: `module = "${realmPath}"\ngno = "0.9"\n`,
+        },
+    ].sort((a, b) => a.name.localeCompare(b.name))
     return {
         type: "/vm.m_addpkg",
         value: {
@@ -289,16 +299,7 @@ export function buildDeployDAOMsg(
             package: {
                 name: pkgName,
                 path: realmPath,
-                files: [
-                    {
-                        name: "gnomod.toml",
-                        body: `module = "${realmPath}"\n`,
-                    },
-                    {
-                        name: `${pkgName}.gno`,
-                        body: code,
-                    },
-                ],
+                files,
             },
             deposit: deposit || "",
         },
