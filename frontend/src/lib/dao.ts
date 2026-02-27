@@ -79,17 +79,27 @@ export async function getDAOConfig(
 
     // Try GovDAO v3 format first: "# GovDAO" + memberstore link
     const nameMatch = data.match(/^#\s+(.+)$/m)
-    const descMatch = data.match(/^#\s+.+\n+(.+?)(?:\n\n|\n##)/s)
-    const membersMatch = data.match(/##\s+Members\s*(?:\((\d+)\))?/)
     const thresholdMatch = data.match(/(?:Threshold|Quorum)[:\s]+(\S+)/i)
+    const membersMatch = data.match(/##\s+Members\s*(?:\((\d+)\))?/)
 
-    // GovDAO v3: extract memberstore link
-    const memberstoreMatch = data.match(/\[.*?Memberstore.*?\]\(.*?\/(gno\.land\/r\/[^)]+)\)/i)
-        || data.match(/\(https?:\/\/[^/]+\/(r\/[^)]+memberstore[^)]*)\)/i)
+    // Description: text between # title and ## section, excluding memberstore links
+    let description = ""
+    const descMatch = data.match(/^#\s+.+\n+([\s\S]*?)(?:\n##)/m)
+    if (descMatch) {
+        // Filter out memberstore link lines and empty lines
+        const descLines = descMatch[1].split("\n")
+            .filter((l) => !l.includes("Memberstore") && !l.includes("memberstore") && l.trim() !== "")
+        description = descLines.join("\n").trim()
+    }
+
+    // GovDAO v3: extract memberstore link from various URL formats
+    // Format: [> Go to Memberstore <](https://test11.testnets.gno.land/r/gov/dao/v3/memberstore)
     let memberstorePath = ""
-    if (memberstoreMatch) {
-        const raw = memberstoreMatch[1]
-        memberstorePath = raw.startsWith("gno.land/") ? raw : `gno.land/${raw}`
+    // Match any link containing "memberstore" — extract the /r/... path from the URL
+    const msLinkMatch = data.match(/\[.*?[Mm]emberstore.*?\]\((?:https?:\/\/[^/]+)?\/(r\/[^)]+)\)/i)
+    if (msLinkMatch) {
+        const rawPath = msLinkMatch[1].replace(/[\s)]/g, "")
+        memberstorePath = rawPath.startsWith("gno.land/") ? rawPath : `gno.land/${rawPath}`
     }
 
     // Fetch tier distribution if memberstore available
@@ -104,7 +114,7 @@ export async function getDAOConfig(
 
     return {
         name: nameMatch?.[1]?.trim() || "Unnamed DAO",
-        description: descMatch?.[1]?.trim() || "",
+        description,
         threshold: thresholdMatch?.[1] || "60%",
         memberCount: totalMembers,
         memberstorePath,
@@ -138,6 +148,7 @@ export async function getMemberstoreTiers(
 
 /**
  * Fetch DAO members via memberstore or fallback to basedao parsing.
+ * For memberstore: fetches all paginated pages with inline tier extraction.
  */
 export async function getDAOMembers(
     rpcUrl: string,
@@ -146,9 +157,9 @@ export async function getDAOMembers(
 ): Promise<DAOMember[]> {
     // Try memberstore members list first
     if (memberstorePath) {
-        const data = await queryRender(rpcUrl, memberstorePath, "members")
-        if (data) {
-            return parseMemberstoreMembers(data)
+        const allMembers = await fetchAllMemberstorePages(rpcUrl, memberstorePath)
+        if (allMembers.length > 0) {
+            return allMembers
         }
     }
 
@@ -192,40 +203,58 @@ export async function getDAOMembers(
 }
 
 /**
- * Parse memberstore :members page.
- * Format: table rows with Tier | Address columns, addresses as gno.land links.
+ * Fetch all pages of memberstore members.
+ * GovDAO v3 ABCI returns markdown table rows:
+ *   | ![T1 chip](base64...) T1 | g1address |
+ * Paginates at ~14/page. Next page link: [2](?page=2)
  */
-function parseMemberstoreMembers(data: string): DAOMember[] {
-    const members: DAOMember[] = []
-    // Extract addresses — memberstore lists them as linked addresses
-    const re = /\[(g1[a-z0-9]{38})\]/g
-    let m: RegExpExecArray | null
+async function fetchAllMemberstorePages(
+    rpcUrl: string,
+    memberstorePath: string,
+): Promise<DAOMember[]> {
+    const allMembers: DAOMember[] = []
     const seen = new Set<string>()
-    while ((m = re.exec(data)) !== null) {
-        if (seen.has(m[1])) continue
-        seen.add(m[1])
-        members.push({
-            address: m[1],
-            roles: [],
-            tier: "",
-            votingPower: 0,
-            username: "",
-        })
-    }
+    let page = 1
+    const maxPages = 10 // safety limit
+    const tierPowers: Record<string, number> = { T1: 3, T2: 2, T3: 1 }
 
-    // Try to extract tier info from table context
-    // The memberstore page has a table-like format with tier columns
-    const tierRe = /(T\d+)\s*\|\s*\[?(g1[a-z0-9]{38})/gi
-    let tm: RegExpExecArray | null
-    while ((tm = tierRe.exec(data)) !== null) {
-        const member = members.find((mem) => mem.address === tm![2])
-        if (member) {
-            member.tier = tm[1].toUpperCase()
+    while (page <= maxPages) {
+        const renderPath = page === 1 ? "members" : `members?page=${page}`
+        const data = await queryRender(rpcUrl, memberstorePath, renderPath)
+        if (!data) break
+
+        // Extract tier + address from markdown table rows:
+        // "... T1 | g1address |" or "... T2 | g1address |"
+        const tierAddrRe = /(T\d+)\s*\|\s*(g1[a-z0-9]+)\s*\|/gi
+        let m: RegExpExecArray | null
+        let foundNew = false
+        while ((m = tierAddrRe.exec(data)) !== null) {
+            const addr = m[2]
+            if (seen.has(addr)) continue
+            seen.add(addr)
+            foundNew = true
+            const tier = m[1].toUpperCase()
+            allMembers.push({
+                address: addr,
+                roles: [],
+                tier,
+                votingPower: tierPowers[tier] || 0,
+                username: "",
+            })
         }
+
+        // Check if there's a next page link: [2](?page=2)
+        const nextPageMatch = data.match(/\[\d+\]\(\??.*?page=(\d+)\)/)
+        if (!nextPageMatch || !foundNew) break
+
+        const nextPage = parseInt(nextPageMatch[1], 10)
+        if (nextPage <= page) break
+        page = nextPage
     }
 
-    return members
+    return allMembers
 }
+
 
 /**
  * Fetch DAO proposals via Render("") markdown parsing.
@@ -532,9 +561,10 @@ async function queryEval(rpcUrl: string, pkgPath: string, expr: string): Promise
     return abciQuery(rpcUrl, "vm/qeval", `${pkgPath}.${expr}`)
 }
 
-/** Sanitize render path to prevent ABCI query injection. */
+/** Sanitize render path to prevent ABCI query injection.
+ *  Allows query params (?key=val&key2=val2) for pagination and filtering. */
 function sanitize(str: string): string {
-    return str.replace(/[^a-zA-Z0-9_./:-]/g, "")
+    return str.replace(/[^a-zA-Z0-9_./:\-?=&]/g, "")
 }
 
 /** Low-level ABCI query via JSON-RPC POST. Returns decoded string or null. */
