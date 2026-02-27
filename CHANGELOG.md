@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## [4.3.0] — 2026-02-27
+
+### Added
+- **GovDAO v3 data layer**: full support for tier-based governance (T1/T2/T3), memberstore parsing, vote power distribution
+- **Tier distribution chart**: power bars with T1/T2/T3 color coding on DAO home and members pages
+- **User status banner**: shows connected user's membership tier and voting power
+- **Author cards**: proposal authors displayed with @username, avatar, and gno.land profile links
+- **Tier-grouped vote breakdown**: vote results organized by T1/T2/T3 with VPPM weights and clickable voter @usernames
+- **Tier filter tabs**: filter members by T1/T2/T3 on the members page
+- **Power distribution badges**: tier badges on DAOList cards displaying member count and power
+- **Vote percentage bars**: visual YES/NO gradient bars on proposal cards and detail views
+- **Acceptance rate stat**: governance health metric on DAO home
+- **Memberstore integration**: fetches tier data from GovDAO v3 memberstore realm
+
+### Changed
+- `lib/dao.ts`: complete rewrite with GovDAO v3 + basedao dual support (562 lines)
+- `DAOProposal` type now includes `author`, `authorProfile`, `tiers`, `yesPercent`, `noPercent`
+- `DAOMember` type now includes `tier`, `votingPower`, `username`
+- `DAOConfig` type now includes `memberstorePath`, `tierDistribution`
+- `buildVoteMsg` now targets GovDAO v3 `MustVoteOnProposalSimple` function
+
 ## [4.2.0] — 2026-02-27
 
 ### Added
