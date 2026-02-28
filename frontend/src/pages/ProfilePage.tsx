@@ -127,6 +127,7 @@ export function ProfilePage() {
                             <img
                                 src={avatar}
                                 alt="Avatar"
+                                referrerPolicy="no-referrer"
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 onError={(e) => { e.currentTarget.style.display = "none"; const sib = e.currentTarget.nextElementSibling as HTMLElement | null; if (sib) sib.style.display = "flex" }}
                             />
@@ -533,7 +534,7 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
     const [regLoading, setRegLoading] = useState(false)
     const [regError, setRegError] = useState<string | null>(null)
     const [regSuccess, setRegSuccess] = useState(false)
-    const isValid = /^[a-z][a-z0-9_]{2,19}$/.test(regInput)
+    const isValid = /^[a-z]{3,}[a-z_]*[0-9]{3,}$/.test(regInput) && regInput.length <= 20
 
     const handleRegister = async () => {
         if (!isValid) return
@@ -547,7 +548,7 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
                     send: "",
                     pkg_path: "gno.land/r/gnoland/users/v1",
                     func: "Register",
-                    args: ["", regInput, ""],
+                    args: [regInput],
                 },
             }
             await doContractBroadcast([msg], `Register @${regInput}`)
@@ -584,7 +585,7 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
                             type="text"
                             value={regInput}
                             onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
-                            placeholder="username"
+                            placeholder="zooma1337"
                             maxLength={20}
                             style={{
                                 width: 130, padding: "5px 8px", fontSize: 12,
@@ -618,7 +619,7 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
                     )}
                     {regInput && !isValid && (
                         <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                            3-20 chars, lowercase + numbers + _
+                            ≥3 letters + ≥3 digits (e.g. zooma1337)
                         </span>
                     )}
                 </>

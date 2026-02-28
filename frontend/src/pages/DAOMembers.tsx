@@ -241,6 +241,14 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
             padding: "12px 16px", alignItems: "center", gap: 12,
         }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {member.username && (
+                    <a
+                        href={`/u/${member.username.replace("@", "")}`}
+                        style={{ fontSize: 12, color: "#00d4aa", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                    >
+                        {member.username}
+                    </a>
+                )}
                 <CopyableAddress address={member.address} />
                 <Link
                     to={`/profile/${member.address}`}
@@ -251,16 +259,6 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                 >
                     👤
                 </Link>
-                {member.username && (
-                    <a
-                        href={`${getExplorerBaseUrl()}/u/${member.username.replace("@", "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
-                    >
-                        {member.username}
-                    </a>
-                )}
                 {isCurrentUser && (
                     <span style={{
                         padding: "1px 5px", borderRadius: 3, fontSize: 8,

@@ -2,6 +2,16 @@
 
 All notable changes to Memba are documented here.
 
+## [5.7.0] — 2026-02-28
+
+### Fixed
+- **Username registration** — `Register` takes 1 arg (`username`) not 3; regex updated to `^[a-z]{3,}[a-z_]*[0-9]{3,}$` (min 3 letters + min 3 digits per realm spec)
+- **GitHub verification** — `ghverify` realm 404 on test11; GithubCallback now saves login to backend profile instead of on-chain MsgCall
+- **Avatar display** — added `referrerPolicy="no-referrer"` to bypass Referer-based CORS blocks (Twitter CDN etc.)
+- **`/u/username` black screen** — added `/u/:username` route with `UserRedirect` component that resolves username → address via ABCI qrender
+- **Members list UX** — reordered to show username first (prominent), then truncated address (`g1abc...xyz`); internal `/u/` links instead of external gno.land
+- **Vote status** — `ProposalView` now detects if user already voted via voteRecords; shows "✓ You voted YES/NO" badge + disables buttons
+
 ## [5.6.0] — 2026-02-28
 
 ### Added

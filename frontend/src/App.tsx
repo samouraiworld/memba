@@ -31,6 +31,9 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ defaul
 // ── GitHub OAuth callback (lazy) ──
 const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ default: m.GithubCallback })))
 
+// ── Username resolver (lazy) ──
+const UserRedirect = lazy(() => import("./pages/UserRedirect").then(m => ({ default: m.UserRedirect })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -75,6 +78,9 @@ function App() {
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />
+
+          {/* Username → profile resolver (lazy) */}
+          <Route path="/u/:username" element={<Suspense fallback={<PageLoader />}><UserRedirect /></Suspense>} />
         </Route>
       </Routes>
     </BrowserRouter>

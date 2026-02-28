@@ -605,6 +605,19 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.7.0 — Production Bug Fixes — ✅ SHIPPED 2026-02-28
+
+| Fix | Status |
+|-----|--------|
+| 🐛 Username registration (args + regex) | ✅ |
+| 🐛 GitHub verify (ghverify 404 → backend) | ✅ |
+| 🐛 Avatar CORS (referrerPolicy) | ✅ |
+| 🐛 `/u/username` black screen (route + resolve) | ✅ |
+| 🎨 Members list UX (username first, truncated addr) | ✅ |
+| 🎨 Vote status badges (voted/pending) | ✅ |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.

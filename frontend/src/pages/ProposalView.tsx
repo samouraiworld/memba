@@ -174,6 +174,17 @@ export function ProposalView() {
     const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
     const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
 
+    // Detect if connected user already voted
+    const userVote: "YES" | "NO" | null = (() => {
+        if (!adena.address) return null
+        for (const r of voteRecords) {
+            if (r.yesVoters.some((v) => v.profileUrl.includes(adena.address!))) return "YES"
+            if (r.noVoters.some((v) => v.profileUrl.includes(adena.address!))) return "NO"
+        }
+        return null
+    })()
+    const hasVoted = userVote !== null
+
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Nav */}
@@ -345,14 +356,26 @@ export function ProposalView() {
                                     ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
                                 </div>
                             )}
+                            {hasVoted && (
+                                <div style={{
+                                    padding: "12px 16px", borderRadius: 8,
+                                    background: userVote === "YES" ? "rgba(76,175,80,0.08)" : "rgba(244,67,54,0.08)",
+                                    border: `1px solid ${userVote === "YES" ? "rgba(76,175,80,0.2)" : "rgba(244,67,54,0.2)"}`,
+                                    fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    color: userVote === "YES" ? "#4caf50" : "#f44336",
+                                    marginBottom: 8,
+                                }}>
+                                    ✓ You voted {userVote} on this proposal
+                                </div>
+                            )}
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
                                     {actionLoading ? "..." : "✓ Vote Yes"}
                                 </button>
-                                <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
                                     {actionLoading ? "..." : "✗ Vote No"}
                                 </button>
-                                <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
                                     {actionLoading ? "..." : "○ Abstain"}
                                 </button>
                             </div>

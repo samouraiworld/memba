@@ -123,7 +123,13 @@
 | 11.13 | Click "Link GitHub" CTA | Redirects to GitHub OAuth (not gnolove.world) |
 | 11.14 | Complete GitHub OAuth flow | GithubCallback page shows verify step, MsgCall signs |
 | 11.15 | Register username (@foo) | Inline form → Adena popup → success → profile refreshes |
-| 11.16 | Register invalid username | Validation shows "3-20 chars, lowercase + numbers + _" |
+| 11.16 | Register invalid username | Validation shows "≥3 letters + ≥3 digits (e.g. zooma1337)" |
+| 11.17 | Register username `zooma1337` | MsgCall with `args: ["zooma1337"]` succeeds |
+| 11.18 | Link GitHub (OAuth flow) | Saves login to backend profile, redirects to profile |
+| 11.19 | Navigate to `/u/the_sw360cab_250` | Resolves username → address, redirects to profile |
+| 11.20 | Navigate to `/u/nonexistent` | Shows "User not found" with Go Home button |
+| 11.21 | GovDAO member list | Username shown first, address truncated `g1abc...xyz` |
+| 11.22 | GovDAO proposal (already voted) | Shows "✓ You voted YES" badge, buttons disabled |
 
 ## Post-Test
 
