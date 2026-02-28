@@ -300,7 +300,7 @@ export function Layout() {
                         { href: "https://github.com/samouraiworld", label: "GitHub", icon: "⌘" },
                         { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
                         { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
-                        { href: "mailto:contact@samourai.coop", label: "Email", icon: "✉" },
+                        { href: "mailto:support@samourai.coop", label: "Email", icon: "✉" },
                     ].map(({ href, label, icon }) => (
                         <a
                             key={label}

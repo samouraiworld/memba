@@ -24,6 +24,7 @@ export interface DAOProposal {
     id: number
     title: string
     description: string
+    category: string           // proposal category ("governance", "treasury", etc.)
     status: "open" | "passed" | "rejected" | "executed"
     author: string             // @username or address
     authorProfile: string      // profile URL (empty if unknown)
@@ -189,14 +190,31 @@ export async function getDAOMembers(
     if (!data) return []
 
     const members: DAOMember[] = []
-    const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?/g
+    // v5.2.0 format: - g1abc... (roles: admin, dev) — power: 3
+    // v5.0.x format: - g1abc... (power: 1)
+    const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?(?:\s*—\s*power:\s*(\d+))?/g
     let match: RegExpExecArray | null
     while ((match = re.exec(data)) !== null) {
+        let roles: string[] = []
+        let power = 0
+        if (match[2]) {
+            const inner = match[2].trim()
+            if (inner.startsWith("roles:")) {
+                roles = inner.replace("roles:", "").split(",").map((r) => r.trim()).filter(Boolean)
+            } else if (inner.startsWith("power:")) {
+                power = parseInt(inner.replace("power:", "").trim(), 10) || 0
+            } else {
+                roles = inner.split(",").map((r) => r.trim()).filter(Boolean)
+            }
+        }
+        if (match[3]) {
+            power = parseInt(match[3], 10) || 0
+        }
         members.push({
             address: match[1],
-            roles: match[2] ? match[2].split(",").map((r) => r.trim()) : [],
+            roles,
             tier: "",
-            votingPower: 0,
+            votingPower: power,
             username: "",
         })
     }
@@ -362,6 +380,7 @@ export async function getDAOProposals(
                         id: Number(p.id || p.ID || 0),
                         title: String(p.title || p.Title || ""),
                         description: String(p.description || p.Description || ""),
+                        category: String(p.category || p.Category || ""),
                         status: normalizeStatus(String(p.status || p.Status || "open")),
                         author: String(p.author || p.Author || p.proposer || p.Proposer || ""),
                         authorProfile: "",
@@ -410,6 +429,7 @@ function parseProposalList(data: string): DAOProposal[] {
                 id: parseInt(altMatch[1], 10),
                 title: altMatch[2].trim(),
                 description: "",
+                category: "",
                 status: "open",
                 author: "",
                 authorProfile: "",
@@ -425,19 +445,25 @@ function parseProposalList(data: string): DAOProposal[] {
             continue
         }
 
-        // Extract author: Author: [@username](url)
+        // Extract author: Author: [@username](url) or Author: g1address
         const authorMatch = section.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
+            || section.match(/Author:\s*(g1[a-z0-9]+)/)
+        // Category: governance | treasury | membership | operations
+        const categoryMatch = section.match(/Category:\s*(\w+)/i)
         // Status: ACTIVE | ACCEPTED | etc
         const statusMatch = section.match(/Status:\s*(\w+)/i)
         // Tiers eligible to vote: T1, T2, T3
         const tiersMatch = section.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
 
+        const authorName = authorMatch?.[1] ? (authorMatch[1].startsWith("g1") ? authorMatch[1] : `@${authorMatch[1]}`) : ""
+
         proposals.push({
             id: parseInt(propMatch[1], 10),
             title: propMatch[2].trim(),
             description: "",
+            category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
-            author: authorMatch ? `@${authorMatch[1]}` : "",
+            author: authorName,
             authorProfile: authorMatch?.[2] || "",
             tiers: tiersMatch
                 ? tiersMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
@@ -448,7 +474,7 @@ function parseProposalList(data: string): DAOProposal[] {
             noVotes: 0,
             abstainVotes: 0,
             totalVoters: 0,
-            proposer: authorMatch ? `@${authorMatch[1]}` : "",
+            proposer: authorName,
         })
     }
 
@@ -501,10 +527,14 @@ export async function getProposalDetail(
     const descMatch = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats)/m)
         || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
 
+    // Category
+    const categoryMatch = data.match(/Category:\s*(\w+)/i)
+
     return {
         id,
         title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
         description: descMatch?.[1]?.trim() || "",
+        category: categoryMatch?.[1]?.toLowerCase() || "",
         status: normalizeStatus(statusMatch?.[1] || "open"),
         author: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
         authorProfile: authorMatch?.[2] || "",
@@ -596,14 +626,17 @@ export function buildExecuteMsg(
     return buildDAOMsgCall(realmPath, "Execute", [String(proposalId)], caller)
 }
 
-/** Build MsgCall for DAO.Propose(title, description). */
+/** Build MsgCall for DAO.Propose(title, description, category). */
 export function buildProposeMsg(
     caller: string,
     realmPath: string,
     title: string,
     description: string,
+    category: string = "governance",
 ): AminoMsg {
-    return buildDAOMsgCall(realmPath, "Propose", [title, description], caller)
+    // v5.2.0 Memba DAOs use Propose(title, desc, category)
+    // GovDAO v3 uses Propose(title, desc) — extra arg is ignored if not accepted
+    return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)
 }
 
 // ── Internal Helpers ──────────────────────────────────────────
