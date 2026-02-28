@@ -34,18 +34,32 @@ export interface AminoMsg {
 
 // ── Adena DoContract Helpers ──────────────────────────────────
 
-/** Convert Amino MsgCall array to Adena's /vm.m_call format. */
+/** Convert Amino messages to Adena's format. Supports MsgCall and MsgRun. */
 export function toAdenaMessages(msgs: AminoMsg[]) {
-    return msgs.map((m) => ({
-        type: "/vm.m_call",
-        value: {
-            caller: m.value.caller as string,
-            send: (m.value.send as string) || "",
-            pkg_path: m.value.pkg_path as string,
-            func: m.value.func as string,
-            args: m.value.args as string[],
-        },
-    }))
+    return msgs.map((m) => {
+        // MsgRun: send a Gno file that calls the target function
+        if (m.type === "vm/MsgRun") {
+            return {
+                type: "/vm.m_run",
+                value: {
+                    caller: m.value.caller as string,
+                    send: (m.value.send as string) || "",
+                    package: m.value.package as { name: string; path: string; files: { name: string; body: string }[] },
+                },
+            }
+        }
+        // MsgCall (default)
+        return {
+            type: "/vm.m_call",
+            value: {
+                caller: m.value.caller as string,
+                send: (m.value.send as string) || "",
+                pkg_path: m.value.pkg_path as string,
+                func: m.value.func as string,
+                args: m.value.args as string[],
+            },
+        }
+    })
 }
 
 /**

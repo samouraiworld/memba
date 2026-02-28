@@ -602,31 +602,45 @@ export async function getProposalVotes(
     return records
 }
 
-// ── MsgCall Builders ──────────────────────────────────────────
+// ── Message Builders ──────────────────────────────────────────
+//
+// GovDAO v3 functions ARE crossing → use MsgCall
+// Memba-deployed DAOs may NOT be crossing → use MsgRun as safe default
+// MsgRun wraps an inline Gno file that imports and calls the target realm
 
-/** Build MsgCall for DAO vote. GovDAO v3 uses MustVoteOnProposalSimple. */
+/** Known GovDAO paths that support crossing MsgCall. */
+function isGovDAO(realmPath: string): boolean {
+    return realmPath.includes("/gov/dao")
+}
+
+/** Build vote message — GovDAO uses MsgCall, Memba DAOs use MsgRun. */
 export function buildVoteMsg(
     caller: string,
     realmPath: string,
     proposalId: number,
     vote: "YES" | "NO" | "ABSTAIN",
 ): AminoMsg {
-    // GovDAO v3 uses "MustVoteOnProposalSimple" with args [pid, option]
-    // basedao uses "Vote" with args [proposalId, vote]
-    // Using GovDAO v3 function name — Adena will reject if func doesn't exist
-    return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
+    }
+    return buildDAOMsgRun(caller, realmPath,
+        `VoteOnProposal(${proposalId}, "${vote}")`)
 }
 
-/** Build MsgCall for DAO.Execute(proposalID). */
+/** Build execute message. */
 export function buildExecuteMsg(
     caller: string,
     realmPath: string,
     proposalId: number,
 ): AminoMsg {
-    return buildDAOMsgCall(realmPath, "Execute", [String(proposalId)], caller)
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, "Execute", [String(proposalId)], caller)
+    }
+    return buildDAOMsgRun(caller, realmPath,
+        `ExecuteProposal(${proposalId})`)
 }
 
-/** Build MsgCall for DAO.Propose(title, description, category). */
+/** Build propose message — v5.2.0+ Memba DAOs accept (title, desc, category). */
 export function buildProposeMsg(
     caller: string,
     realmPath: string,
@@ -634,14 +648,20 @@ export function buildProposeMsg(
     description: string,
     category: string = "governance",
 ): AminoMsg {
-    // v5.2.0 Memba DAOs use Propose(title, desc, category)
-    // GovDAO v3 uses Propose(title, desc) — extra arg is ignored if not accepted
-    return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, "Propose", [title, description], caller)
+    }
+    // Escape quotes in title/description for inline Gno code
+    const safeTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+    const safeDesc = description.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+    const safeCat = category.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+    return buildDAOMsgRun(caller, realmPath,
+        `Propose("${safeTitle}", "${safeDesc}", "${safeCat}")`)
 }
 
 // ── Internal Helpers ──────────────────────────────────────────
 
-/** Build Amino MsgCall for a DAO realm function. */
+/** Build Amino MsgCall for a DAO realm function (crossing-compatible only). */
 function buildDAOMsgCall(realmPath: string, func: string, args: string[], caller: string): AminoMsg {
     return {
         type: "vm/MsgCall",
@@ -651,6 +671,33 @@ function buildDAOMsgCall(realmPath: string, func: string, args: string[], caller
             pkg_path: realmPath,
             func,
             args,
+        },
+    }
+}
+
+/**
+ * Build Amino MsgRun that wraps an inline Gno file calling a non-crossing function.
+ * The file imports the target realm and calls the function directly.
+ */
+function buildDAOMsgRun(caller: string, realmPath: string, callExpr: string): AminoMsg {
+    const gnoCode = `package main
+
+import dao "${realmPath}"
+
+func main() {
+\tdao.${callExpr}
+}
+`
+    return {
+        type: "vm/MsgRun",
+        value: {
+            caller,
+            send: "",
+            package: {
+                name: "main",
+                path: "",
+                files: [{ name: "run.gno", body: gnoCode }],
+            },
         },
     }
 }
