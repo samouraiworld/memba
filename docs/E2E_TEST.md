@@ -115,6 +115,8 @@
 | 11.5 | Visit another user's profile | No "✏️ Edit" button visible |
 | 11.6 | Enter bio > 512 chars | Character count shows limit, input truncated at 512 |
 | 11.7 | Enter invalid avatar URL | Rejected server-side (empty on reload) |
+| 11.8 | Own profile, no GitHub linked | "🐙 Link your GitHub account" CTA card shown with link to gnolove.world |
+| 11.9 | Own profile, GitHub already linked | No CTA card shown, GitHub data displayed normally |
 
 ## Post-Test
 

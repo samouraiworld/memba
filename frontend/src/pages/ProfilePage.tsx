@@ -269,6 +269,46 @@ export function ProfilePage() {
                 </div>
             )}
 
+            {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
+            {isOwnProfile && profile && !profile.githubLogin && (
+                <div className="k-card" style={{ padding: 20, borderColor: "rgba(88,166,255,0.15)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                        <div style={{
+                            width: 44, height: 44, borderRadius: 10,
+                            background: "rgba(88,166,255,0.06)", border: "1px solid rgba(88,166,255,0.15)",
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}>
+                            <span style={{ fontSize: 22 }}>🐙</span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 180 }}>
+                            <h4 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 4 }}>
+                                Link your GitHub account
+                            </h4>
+                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
+                                Link your GitHub via gnolove.world to show your contribution stats, avatar, and deployed packages on your Memba profile.
+                            </p>
+                        </div>
+                        <a
+                            href="https://gnolove.world"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: "inline-flex", alignItems: "center", gap: 6,
+                                padding: "8px 16px", borderRadius: 6, fontSize: 11,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(88,166,255,0.1)", border: "1px solid rgba(88,166,255,0.25)",
+                                color: "#58a6ff", textDecoration: "none",
+                                transition: "background 0.15s, border-color 0.15s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.2)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.4)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.1)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.25)" }}
+                        >
+                            🔗 Link on gnolove.world →
+                        </a>
+                    </div>
+                </div>
+            )}
+
             {/* ── Gnolove Contribution Stats ───────────────────────── */}
             {profile && profile.lovePowerScore > 0 && (
                 <div className="k-card" style={{ padding: 20 }}>

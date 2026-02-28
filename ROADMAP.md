@@ -593,6 +593,18 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.5.0 — Link GitHub CTA — ✅ SHIPPED 2026-02-28
+
+> "Link your GitHub" CTA on own profile when no GitHub is linked — redirects to gnolove.world for OAuth + on-chain verification.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| ✨ **Link GitHub CTA card** | ✅ | Blue-themed card on own profile, opens gnolove.world |
+| 📄 **Documentation** | ✅ | CHANGELOG, E2E_TEST |
+| 🔍 **Cross-perspective audit** | ✅ | CTO, Security, UX, Engineering — all pass |
+
+---
+
 ## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
 
 > Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).
@@ -624,10 +636,12 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 > Ideas for major features beyond current versions. Not scoped, not committed.
 
-### User Profiles
-- **Dedicated profile page**: Aggregate all on-chain data for a user — deployed packages, realms, DAO memberships, token holdings, activity
-- **gnolove.world integration**: Enrich user profiles with off-chain data from GitHub contributions (leverage existing gnolove.world work)
-- **Username onboarding**: Prompt new users to register a username at `gno.land/r/gnoland/users/v1` — show "Create your username" CTA in header/profile area
+### User Profiles — ✅ SHIPPED (v5.3.0 → v5.5.0)
+- ~~**Dedicated profile page**: Aggregate all on-chain data for a user~~ → v5.3.0
+- ~~**gnolove.world integration**: Enrich user profiles with off-chain data~~ → v5.3.0
+- ~~**Username onboarding**: "Create your username" CTA~~ → v5.3.0
+- ~~**Editable profiles**: Bio, company, title, socials via backend RPCs~~ → v5.4.0
+- ~~**Link GitHub CTA**: Redirect to gnolove.world for OAuth~~ → v5.5.0
 
 ### DAO Board (IRC-style Discussion)
 - **Per-DAO `/r/board`**: Each DAO gets its own on-chain discussion board via `gno.land/r/boards2` remix — pure decentralized DAO communication

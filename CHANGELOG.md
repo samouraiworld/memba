@@ -2,6 +2,11 @@
 
 All notable changes to Memba are documented here.
 
+## [5.5.0] — 2026-02-28
+
+### Added
+- **"Link GitHub" CTA** — on own profile when GitHub not linked, card redirects to gnolove.world for OAuth + on-chain verification
+
 ## [5.4.0] — 2026-02-28
 
 ### Added
