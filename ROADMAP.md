@@ -543,17 +543,18 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## v5.2.1 — Post-Release Fixes (planned)
+## v5.2.1 — Crossing Fix + Archive DAO — ✅ SHIPPED 2026-02-28
 
-> Bug fixes and UX polish discovered during v5.2.0 on-chain testing.
+> Critical fix: generated DAO code used wrong crossing syntax. Verified correct pattern from live GovDAO source on gno.land.
 
-| Fix / Feature | Priority | Notes |
-|---------------|----------|-------|
-| 🐛 **Proposal creation fails** — MsgCall → MsgRun | 🔴 Critical | Adena error: "function Propose is non-crossing". Must use `MsgRun` for Memba DAO functions |
-| 🐛 **Role badges truncated** on DAOHome | 🟡 Medium | "memb er", "finan ce" — badge containers too narrow, text wraps. Need `white-space: nowrap` + `min-width` |
-| ✨ **Show member usernames** on DAOHome + DAOMembers | 🟡 Medium | Resolve `@username` via user registry, display alongside addresses |
-| ✨ **"Create your username" CTA** | 🟢 Nice | Prompt users to register at `gno.land/r/gnoland/users/v1` |
-| 🐛 **Threshold display encoding** | 🟢 Low | "Threshold: 66% â€" → em dash encoding issue in Render output |
+| Fix / Feature | Status | Notes |
+|---------------|--------|-------|
+| 🐛 **Proposal creation fails** — `crossing()` → `cur realm` | ✅ Fixed | `crossing()` doesn't exist in Gno. Correct: `func Name(cur realm, ...)` + `runtime.PreviousRealm().Address()` |
+| 🐛 **Role badges truncated** on DAOHome | ✅ Fixed | `whiteSpace: nowrap` + `flexWrap: wrap` |
+| ✨ **Archive DAO** — admin-only archival | ✅ Added | `Archive(cur realm)` + `IsArchived()` — blocks new proposals/votes |
+| ✨ **Show member usernames** on DAOHome + DAOMembers | 🟡 Next | Resolve `@username` via user registry, display alongside addresses |
+| ✨ **"Create your username" CTA** | 🟢 Next | Prompt users to register at `gno.land/r/gnoland/users/v1` |
+| 🐛 **Threshold display encoding** | 🟢 Next | "Threshold: 66% â€" → em dash encoding issue in Render output |
 
 ---
 
