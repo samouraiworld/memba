@@ -6,7 +6,7 @@
  */
 import { useState, useEffect } from "react"
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom"
-import { API_BASE_URL, GNO_RPC_URL } from "../lib/config"
+import { API_BASE_URL } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
 import type { LayoutContext } from "../types/layout"
@@ -25,7 +25,7 @@ const GHVERIFY_REALM_PATH = "gno.land/r/demo/ghverify"
 export function GithubCallback() {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
-    const { auth, adena } = useOutletContext<LayoutContext>()
+    const { adena } = useOutletContext<LayoutContext>()
 
     const [step, setStep] = useState<"exchanging" | "verify" | "signing" | "success" | "error">("exchanging")
     const [ghUser, setGhUser] = useState<GitHubUserInfo | null>(null)

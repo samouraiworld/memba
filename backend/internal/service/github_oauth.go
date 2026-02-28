@@ -44,7 +44,7 @@ func HandleGitHubOAuthExchange() http.HandlerFunc {
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "missing code parameter"})
+			writeJSON(w, map[string]string{"error": "missing code parameter"})
 			return
 		}
 
@@ -53,7 +53,7 @@ func HandleGitHubOAuthExchange() http.HandlerFunc {
 		if clientID == "" || clientSecret == "" {
 			slog.Error("github oauth not configured")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "GitHub OAuth not configured"})
+			writeJSON(w, map[string]string{"error": "GitHub OAuth not configured"})
 			return
 		}
 
@@ -62,7 +62,7 @@ func HandleGitHubOAuthExchange() http.HandlerFunc {
 		if err != nil {
 			slog.Error("github oauth exchange failed", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to exchange OAuth code"})
+			writeJSON(w, map[string]string{"error": "Failed to exchange OAuth code"})
 			return
 		}
 
@@ -71,16 +71,23 @@ func HandleGitHubOAuthExchange() http.HandlerFunc {
 		if err != nil {
 			slog.Error("github user fetch failed", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch GitHub user"})
+			writeJSON(w, map[string]string{"error": "Failed to fetch GitHub user"})
 			return
 		}
 
-		json.NewEncoder(w).Encode(GitHubOAuthExchangeResponse{
+		writeJSON(w, GitHubOAuthExchangeResponse{
 			Login:     user.Login,
 			AvatarURL: user.AvatarURL,
 			Name:      user.Name,
 			Token:     token,
 		})
+	}
+}
+
+// writeJSON encodes v as JSON to w, logging any encode error.
+func writeJSON(w http.ResponseWriter, v any) {
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Error("json encode failed", "error", err)
 	}
 }
 

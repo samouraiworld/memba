@@ -128,7 +128,7 @@ export function ProfilePage() {
                                 src={avatar}
                                 alt="Avatar"
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextElementSibling && ((e.currentTarget.nextElementSibling as HTMLElement).style.display = "flex") }}
+                                onError={(e) => { e.currentTarget.style.display = "none"; const sib = e.currentTarget.nextElementSibling as HTMLElement | null; if (sib) sib.style.display = "flex" }}
                             />
                         ) : null}
                         <span style={{ fontSize: 28, color: "#00d4aa", display: avatar ? "none" : "flex" }}>👤</span>
@@ -174,104 +174,9 @@ export function ProfilePage() {
                         </div>
 
                         {/* Username Registration (own profile, no username) */}
-                        {isOwnProfile && !profile?.username && auth.isAuthenticated && (() => {
-                            const [regInput, setRegInput] = useState("")
-                            const [regLoading, setRegLoading] = useState(false)
-                            const [regError, setRegError] = useState<string | null>(null)
-                            const [regSuccess, setRegSuccess] = useState(false)
-                            const isValid = /^[a-z][a-z0-9_]{2,19}$/.test(regInput)
-
-                            const handleRegister = async () => {
-                                if (!isValid || !adena.address) return
-                                setRegLoading(true)
-                                setRegError(null)
-                                try {
-                                    const msg = {
-                                        type: "vm/MsgCall",
-                                        value: {
-                                            caller: adena.address,
-                                            send: "",
-                                            pkg_path: "gno.land/r/gnoland/users/v1",
-                                            func: "Register",
-                                            args: ["", regInput, ""],
-                                        },
-                                    }
-                                    await doContractBroadcast([msg], `Register @${regInput}`)
-                                    setRegSuccess(true)
-                                    setTimeout(() => loadProfile(), 2000)
-                                } catch (err) {
-                                    const raw = err instanceof Error ? err.message : "Registration failed"
-                                    if (raw.toLowerCase().includes("already")) {
-                                        setRegError("Username already taken. Try a different one.")
-                                    } else {
-                                        setRegError(raw)
-                                    }
-                                } finally {
-                                    setRegLoading(false)
-                                }
-                            }
-
-                            return (
-                                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                    {regSuccess ? (
-                                        <span style={{ fontSize: 11, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>
-                                            ✓ Username @{regInput} registered!
-                                        </span>
-                                    ) : (
-                                        <>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                                                <span style={{
-                                                    fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                                                    color: "#00d4aa", padding: "5px 0 5px 10px",
-                                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
-                                                    borderRight: "none", borderRadius: "6px 0 0 6px",
-                                                }}>@</span>
-                                                <input
-                                                    type="text"
-                                                    value={regInput}
-                                                    onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
-                                                    placeholder="username"
-                                                    maxLength={20}
-                                                    style={{
-                                                        width: 130, padding: "5px 8px", fontSize: 12,
-                                                        fontFamily: "JetBrains Mono, monospace",
-                                                        background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
-                                                        borderLeft: "none", borderRadius: "0 6px 6px 0",
-                                                        color: "#f0f0f0", outline: "none",
-                                                    }}
-                                                    onKeyDown={(e) => e.key === "Enter" && isValid && handleRegister()}
-                                                    disabled={regLoading}
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={handleRegister}
-                                                disabled={!isValid || regLoading}
-                                                style={{
-                                                    padding: "5px 12px", borderRadius: 6, fontSize: 11,
-                                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                                    background: isValid ? "rgba(0,212,170,0.1)" : "transparent",
-                                                    border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "#222"}`,
-                                                    color: isValid ? "#00d4aa" : "#555", cursor: isValid ? "pointer" : "default",
-                                                    transition: "all 0.15s", opacity: regLoading ? 0.5 : 1,
-                                                }}
-                                            >
-                                                {regLoading ? "Registering..." : "Register"}
-                                            </button>
-                                            {regError && (
-                                                <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
-                                                    ✕ {regError}
-                                                </span>
-                                            )}
-                                            {regInput && !isValid && (
-                                                <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                                                    3-20 chars, lowercase + numbers + _
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            )
-                        })()}
+                        {isOwnProfile && !profile?.username && auth.isAuthenticated && adena.address && (
+                            <RegisterUsernameForm address={adena.address} onRegistered={loadProfile} />
+                        )}
 
                         {/* Bio */}
                         {(profile?.bio || profile?.githubBio) && (
@@ -620,4 +525,104 @@ function EditField({ label, value, onChange, multiline, maxLen, placeholder, ful
 function hasSocials(profile: UserProfile | null): boolean {
     if (!profile) return false
     return !!(profile.socialLinks.github || profile.socialLinks.twitter || profile.socialLinks.website || profile.username)
+}
+
+/** Inline username registration form — proper component to satisfy React hooks rules. */
+function RegisterUsernameForm({ address, onRegistered }: { address: string; onRegistered: () => void }) {
+    const [regInput, setRegInput] = useState("")
+    const [regLoading, setRegLoading] = useState(false)
+    const [regError, setRegError] = useState<string | null>(null)
+    const [regSuccess, setRegSuccess] = useState(false)
+    const isValid = /^[a-z][a-z0-9_]{2,19}$/.test(regInput)
+
+    const handleRegister = async () => {
+        if (!isValid) return
+        setRegLoading(true)
+        setRegError(null)
+        try {
+            const msg = {
+                type: "vm/MsgCall",
+                value: {
+                    caller: address,
+                    send: "",
+                    pkg_path: "gno.land/r/gnoland/users/v1",
+                    func: "Register",
+                    args: ["", regInput, ""],
+                },
+            }
+            await doContractBroadcast([msg], `Register @${regInput}`)
+            setRegSuccess(true)
+            setTimeout(onRegistered, 2000)
+        } catch (err) {
+            const raw = err instanceof Error ? err.message : "Registration failed"
+            if (raw.toLowerCase().includes("already")) {
+                setRegError("Username already taken. Try a different one.")
+            } else {
+                setRegError(raw)
+            }
+        } finally {
+            setRegLoading(false)
+        }
+    }
+
+    return (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {regSuccess ? (
+                <span style={{ fontSize: 11, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>
+                    ✓ Username @{regInput} registered!
+                </span>
+            ) : (
+                <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                        <span style={{
+                            fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                            color: "#00d4aa", padding: "5px 0 5px 10px",
+                            background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
+                            borderRight: "none", borderRadius: "6px 0 0 6px",
+                        }}>@</span>
+                        <input
+                            type="text"
+                            value={regInput}
+                            onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
+                            placeholder="username"
+                            maxLength={20}
+                            style={{
+                                width: 130, padding: "5px 8px", fontSize: 12,
+                                fontFamily: "JetBrains Mono, monospace",
+                                background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
+                                borderLeft: "none", borderRadius: "0 6px 6px 0",
+                                color: "#f0f0f0", outline: "none",
+                            }}
+                            onKeyDown={(e) => e.key === "Enter" && isValid && handleRegister()}
+                            disabled={regLoading}
+                        />
+                    </div>
+                    <button
+                        onClick={handleRegister}
+                        disabled={!isValid || regLoading}
+                        style={{
+                            padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: isValid ? "rgba(0,212,170,0.1)" : "transparent",
+                            border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "#222"}`,
+                            color: isValid ? "#00d4aa" : "#555", cursor: isValid ? "pointer" : "default",
+                            transition: "all 0.15s", opacity: regLoading ? 0.5 : 1,
+                        }}
+                    >
+                        {regLoading ? "Registering..." : "Register"}
+                    </button>
+                    {regError && (
+                        <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
+                            ✕ {regError}
+                        </span>
+                    )}
+                    {regInput && !isValid && (
+                        <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                            3-20 chars, lowercase + numbers + _
+                        </span>
+                    )}
+                </>
+            )}
+        </div>
+    )
 }
