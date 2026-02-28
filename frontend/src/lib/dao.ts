@@ -602,31 +602,43 @@ export async function getProposalVotes(
     return records
 }
 
-// ── MsgCall Builders ──────────────────────────────────────────
+// ── Message Builders ──────────────────────────────────────────
+//
+// All DAO functions use MsgCall. Functions MUST have crossing() to be callable.
+// - GovDAO v3: uses its own function names (MustVoteOnProposalSimple, etc.)
+// - Memba DAOs (v5.2.1+): have crossing() in template → MsgCall works
+// - Old Memba DAOs (pre-crossing): MUST be re-deployed with updated template
+//
+// NOTE: MsgRun cannot modify external realm state, so it's NOT a viable fallback.
 
-/** Build MsgCall for DAO vote. GovDAO v3 uses MustVoteOnProposalSimple. */
+/** Known GovDAO paths that use different function names. */
+function isGovDAO(realmPath: string): boolean {
+    return realmPath.includes("/gov/dao")
+}
+
+/** Build vote message. */
 export function buildVoteMsg(
     caller: string,
     realmPath: string,
     proposalId: number,
     vote: "YES" | "NO" | "ABSTAIN",
 ): AminoMsg {
-    // GovDAO v3 uses "MustVoteOnProposalSimple" with args [pid, option]
-    // basedao uses "Vote" with args [proposalId, vote]
-    // Using GovDAO v3 function name — Adena will reject if func doesn't exist
-    return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
+    }
+    return buildDAOMsgCall(realmPath, "VoteOnProposal", [String(proposalId), vote], caller)
 }
 
-/** Build MsgCall for DAO.Execute(proposalID). */
+/** Build execute message. */
 export function buildExecuteMsg(
     caller: string,
     realmPath: string,
     proposalId: number,
 ): AminoMsg {
-    return buildDAOMsgCall(realmPath, "Execute", [String(proposalId)], caller)
+    return buildDAOMsgCall(realmPath, "ExecuteProposal", [String(proposalId)], caller)
 }
 
-/** Build MsgCall for DAO.Propose(title, description, category). */
+/** Build propose message — v5.2.1+ Memba DAOs accept (title, desc, category). */
 export function buildProposeMsg(
     caller: string,
     realmPath: string,
@@ -634,14 +646,15 @@ export function buildProposeMsg(
     description: string,
     category: string = "governance",
 ): AminoMsg {
-    // v5.2.0 Memba DAOs use Propose(title, desc, category)
-    // GovDAO v3 uses Propose(title, desc) — extra arg is ignored if not accepted
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, "Propose", [title, description], caller)
+    }
     return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)
 }
 
 // ── Internal Helpers ──────────────────────────────────────────
 
-/** Build Amino MsgCall for a DAO realm function. */
+/** Build Amino MsgCall for a DAO realm function (crossing-compatible only). */
 function buildDAOMsgCall(realmPath: string, func: string, args: string[], caller: string): AminoMsg {
     return {
         type: "vm/MsgCall",

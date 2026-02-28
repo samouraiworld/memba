@@ -34,7 +34,11 @@ export interface AminoMsg {
 
 // ── Adena DoContract Helpers ──────────────────────────────────
 
-/** Convert Amino MsgCall array to Adena's /vm.m_call format. */
+/**
+ * Convert Amino MsgCall array to Adena's /vm.m_call format.
+ * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
+ *       so all DAO calls must use MsgCall with crossing() functions.
+ */
 export function toAdenaMessages(msgs: AminoMsg[]) {
     return msgs.map((m) => ({
         type: "/vm.m_call",

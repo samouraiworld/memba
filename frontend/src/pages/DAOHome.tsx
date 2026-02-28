@@ -430,27 +430,31 @@ function MemberCard({ member, isCurrentUser }: { member: DAOMember; isCurrentUse
                     </span>
                 )}
             </div>
-            <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {member.tier && (
                     <span style={{
                         padding: "2px 8px", borderRadius: 4, fontSize: 10,
-                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500, whiteSpace: "nowrap",
                         background: member.tier === "T1" ? "rgba(0,212,170,0.1)" : member.tier === "T2" ? "rgba(33,150,243,0.1)" : "rgba(245,166,35,0.1)",
                         color: member.tier === "T1" ? "#00d4aa" : member.tier === "T2" ? "#2196f3" : "#f5a623",
                     }}>
                         {member.tier}
                     </span>
                 )}
-                {member.roles.map((role) => (
-                    <span key={role} style={{
-                        padding: "2px 8px", borderRadius: 4, fontSize: 10,
-                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
-                        background: role === "admin" ? "rgba(0,212,170,0.1)" : "rgba(255,255,255,0.04)",
-                        color: role === "admin" ? "#00d4aa" : "#888",
-                    }}>
-                        {role}
-                    </span>
-                ))}
+                {member.roles.map((role) => {
+                    const rc: Record<string, string> = { admin: "#f5a623", dev: "#00d4aa", finance: "#7b61ff", ops: "#3b82f6", member: "#888" }
+                    const c = rc[role] || "#888"
+                    return (
+                        <span key={role} style={{
+                            padding: "2px 8px", borderRadius: 4, fontSize: 10,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                            whiteSpace: "nowrap",
+                            background: `${c}15`, color: c,
+                        }}>
+                            {role}
+                        </span>
+                    )
+                })}
             </div>
         </div>
     )

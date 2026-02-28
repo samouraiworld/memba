@@ -543,6 +543,20 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.2.1 — Post-Release Fixes (planned)
+
+> Bug fixes and UX polish discovered during v5.2.0 on-chain testing.
+
+| Fix / Feature | Priority | Notes |
+|---------------|----------|-------|
+| 🐛 **Proposal creation fails** — MsgCall → MsgRun | 🔴 Critical | Adena error: "function Propose is non-crossing". Must use `MsgRun` for Memba DAO functions |
+| 🐛 **Role badges truncated** on DAOHome | 🟡 Medium | "memb er", "finan ce" — badge containers too narrow, text wraps. Need `white-space: nowrap` + `min-width` |
+| ✨ **Show member usernames** on DAOHome + DAOMembers | 🟡 Medium | Resolve `@username` via user registry, display alongside addresses |
+| ✨ **"Create your username" CTA** | 🟢 Nice | Prompt users to register at `gno.land/r/gnoland/users/v1` |
+| 🐛 **Threshold display encoding** | 🟢 Low | "Threshold: 66% â€" → em dash encoding issue in Render output |
+
+---
+
 ## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
 
 > Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).
@@ -570,25 +584,25 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## Future Vision — Brainstorm (2026-02-27)
+## Future Vision — Brainstorm (updated 2026-02-28)
 
-> Feature ideas for future roadmap planning. Not scoped yet.
-
-### Governance UX
-- **Vote status indicator**: Show whether the connected user already voted on each proposal (badge/icon)
-- **Pending vote notifications**: UI notification when user is a DAO member with unvoted active proposals
-- **GovDAO special treatment**: Display GovDAO as a featured/pinned DAO — it's a chain-level governance body, not a user DAO
-
-### Dashboard UX
-- **Hide sections when disconnected**: "Pending transactions" and "Recent Activity" should be hidden when wallet not connected (no data to show)
+> Ideas for major features beyond current versions. Not scoped, not committed.
 
 ### User Profiles
 - **Dedicated profile page**: Aggregate all on-chain data for a user — deployed packages, realms, DAO memberships, token holdings, activity
 - **gnolove.world integration**: Enrich user profiles with off-chain data from GitHub contributions (leverage existing gnolove.world work)
+- **Username onboarding**: Prompt new users to register a username at `gno.land/r/gnoland/users/v1` — show "Create your username" CTA in header/profile area
 
-### DAO Communication
-- **Per-DAO /r/board**: Each DAO gets its own on-chain discussion board via `gno.land/r/boards2` — pure decentralized DAO communication
+### DAO Board (IRC-style Discussion)
+- **Per-DAO `/r/board`**: Each DAO gets its own on-chain discussion board via `gno.land/r/boards2` remix — pure decentralized DAO communication
 - **Token-gated write access**: Only DAO members (or token holders) can write to the DAO's board
+- **Multi-channel architecture** (IRC-like):
+  - `#general` — created by default for every DAO
+  - Members with admin/ops role can create/manage additional channels
+  - **Auto-created proposal channels**: When a proposal is created, a dedicated `#proposal-N` channel is automatically spawned for debate
+  - Proposal detail page links directly to its discussion channel
+- **Placement**: Under "Treasury" section on DAOHome — natural extension of DAO governance
+- **Audio/Video calls**: Integrate WebRTC-based calls (explore [suitenumerique/meet](https://github.com/suitenumerique/meet) as backend — use custom frontend, not theirs) — Discord-like voice/video channels within DAO Board
 
 ### Settings & Notifications
 - **Settings menu**: Centralized user preferences panel

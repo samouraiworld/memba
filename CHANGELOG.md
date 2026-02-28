@@ -2,6 +2,23 @@
 
 All notable changes to Memba are documented here.
 
+## [5.2.1] — 2026-02-28
+
+### Fixed
+- **Proposal creation fails** — generated DAO code used wrong crossing syntax (`crossing()` builtin doesn't exist in Gno). Fixed to use correct `cur realm` first parameter + `runtime.PreviousRealm().Address()`, matching live GovDAO on gno.land
+- **Role badges truncated** — added `whiteSpace: nowrap` + `flexWrap: wrap` to DAOHome member cards
+- **Role badge colors** — admin=gold, dev=cyan, finance=purple, ops=blue (consistent across DAOHome + DAOMembers)
+
+### Added
+- **Archive DAO** — admin-only `Archive(cur realm)` function in generated DAOs to mark obsolete DAOs as read-only (blocks new proposals and votes)
+- `IsArchived()` query function for checking archive status
+
+### Changed
+- `daoTemplate.ts`: all 5 public functions use `func Name(cur realm, ...)` crossing syntax (verified against live GovDAO source on gno.land)
+- `daoTemplate.ts`: `runtime.OriginCaller()` → `runtime.PreviousRealm().Address()` for proper crossing context
+- `dao.ts`: correct function names for Memba DAOs (`VoteOnProposal`, `ExecuteProposal`)
+- `ROADMAP.md`: added v5.2.1 fixes section, expanded Future Vision
+
 ## [5.2.0] — 2026-02-28
 
 ### Added
