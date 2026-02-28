@@ -73,7 +73,7 @@
 | `lib/dao.ts` | DAO helpers: ABCI queries (config, members, proposals), MsgCall builders (Vote, Execute, Propose) |
 | `lib/daoSlug.ts` | DAO slug encoding, realm path validation, saved DAOs localStorage persistence |
 | `lib/daoTemplate.ts` | DAO Factory: Gno realm code generator + MsgAddPackage builder |
-| `lib/profile.ts` | User profile data: hybrid fetcher (gno.land ABCI + gnolove REST API) |
+| `lib/profile.ts` | User profile data: hybrid fetcher (gno.land ABCI + gnolove REST API + Memba backend GetProfile/UpdateProfile) |
 | `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
@@ -131,6 +131,11 @@ These features are **100% serverless** — they work without the backend:
 | Token actions | `MsgCall` via Adena | `r/tokens/*/grc20.Transfer` |
 
 ### Backend-Dependent (Frontend → Go Backend → Chain)
+
+| Feature | Transport | Endpoint |
+|---------|-----------|----------|
+| Profile read | ConnectRPC `GetProfile` | `profiles` table (public, no auth) |
+| Profile write | ConnectRPC `UpdateProfile` | `profiles` table (auth required, sanitized) |
 
 These features **require** the Go backend for off-chain coordination:
 

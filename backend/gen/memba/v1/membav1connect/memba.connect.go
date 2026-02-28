@@ -63,6 +63,12 @@ const (
 	// MultisigServiceCompleteTransactionProcedure is the fully-qualified name of the MultisigService's
 	// CompleteTransaction RPC.
 	MultisigServiceCompleteTransactionProcedure = "/memba.v1.MultisigService/CompleteTransaction"
+	// MultisigServiceGetProfileProcedure is the fully-qualified name of the MultisigService's
+	// GetProfile RPC.
+	MultisigServiceGetProfileProcedure = "/memba.v1.MultisigService/GetProfile"
+	// MultisigServiceUpdateProfileProcedure is the fully-qualified name of the MultisigService's
+	// UpdateProfile RPC.
+	MultisigServiceUpdateProfileProcedure = "/memba.v1.MultisigService/UpdateProfile"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -80,6 +86,9 @@ type MultisigServiceClient interface {
 	Transactions(context.Context, *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error)
 	SignTransaction(context.Context, *connect.Request[v1.SignTransactionRequest]) (*connect.Response[v1.SignTransactionResponse], error)
 	CompleteTransaction(context.Context, *connect.Request[v1.CompleteTransactionRequest]) (*connect.Response[v1.CompleteTransactionResponse], error)
+	// Profile — Read/Write user profile
+	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
+	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -153,6 +162,18 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("CompleteTransaction")),
 			connect.WithClientOptions(opts...),
 		),
+		getProfile: connect.NewClient[v1.GetProfileRequest, v1.GetProfileResponse](
+			httpClient,
+			baseURL+MultisigServiceGetProfileProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetProfile")),
+			connect.WithClientOptions(opts...),
+		),
+		updateProfile: connect.NewClient[v1.UpdateProfileRequest, v1.UpdateProfileResponse](
+			httpClient,
+			baseURL+MultisigServiceUpdateProfileProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("UpdateProfile")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -168,6 +189,8 @@ type multisigServiceClient struct {
 	transactions         *connect.Client[v1.TransactionsRequest, v1.TransactionsResponse]
 	signTransaction      *connect.Client[v1.SignTransactionRequest, v1.SignTransactionResponse]
 	completeTransaction  *connect.Client[v1.CompleteTransactionRequest, v1.CompleteTransactionResponse]
+	getProfile           *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
+	updateProfile        *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -220,6 +243,16 @@ func (c *multisigServiceClient) CompleteTransaction(ctx context.Context, req *co
 	return c.completeTransaction.CallUnary(ctx, req)
 }
 
+// GetProfile calls memba.v1.MultisigService.GetProfile.
+func (c *multisigServiceClient) GetProfile(ctx context.Context, req *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error) {
+	return c.getProfile.CallUnary(ctx, req)
+}
+
+// UpdateProfile calls memba.v1.MultisigService.UpdateProfile.
+func (c *multisigServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
+	return c.updateProfile.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -235,6 +268,9 @@ type MultisigServiceHandler interface {
 	Transactions(context.Context, *connect.Request[v1.TransactionsRequest]) (*connect.Response[v1.TransactionsResponse], error)
 	SignTransaction(context.Context, *connect.Request[v1.SignTransactionRequest]) (*connect.Response[v1.SignTransactionResponse], error)
 	CompleteTransaction(context.Context, *connect.Request[v1.CompleteTransactionRequest]) (*connect.Response[v1.CompleteTransactionResponse], error)
+	// Profile — Read/Write user profile
+	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
+	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -304,6 +340,18 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("CompleteTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetProfileHandler := connect.NewUnaryHandler(
+		MultisigServiceGetProfileProcedure,
+		svc.GetProfile,
+		connect.WithSchema(multisigServiceMethods.ByName("GetProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceUpdateProfileHandler := connect.NewUnaryHandler(
+		MultisigServiceUpdateProfileProcedure,
+		svc.UpdateProfile,
+		connect.WithSchema(multisigServiceMethods.ByName("UpdateProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -326,6 +374,10 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceSignTransactionHandler.ServeHTTP(w, r)
 		case MultisigServiceCompleteTransactionProcedure:
 			multisigServiceCompleteTransactionHandler.ServeHTTP(w, r)
+		case MultisigServiceGetProfileProcedure:
+			multisigServiceGetProfileHandler.ServeHTTP(w, r)
+		case MultisigServiceUpdateProfileProcedure:
+			multisigServiceUpdateProfileHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -373,4 +425,12 @@ func (UnimplementedMultisigServiceHandler) SignTransaction(context.Context, *con
 
 func (UnimplementedMultisigServiceHandler) CompleteTransaction(context.Context, *connect.Request[v1.CompleteTransactionRequest]) (*connect.Response[v1.CompleteTransactionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.CompleteTransaction is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetProfile is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateProfile is not implemented"))
 }

@@ -1777,6 +1777,298 @@ func (*CompleteTransactionResponse) Descriptor() ([]byte, []int) {
 	return file_memba_v1_memba_proto_rawDescGZIP(), []int{25}
 }
 
+type Profile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Bio           string                 `protobuf:"bytes,2,opt,name=bio,proto3" json:"bio,omitempty"`
+	Company       string                 `protobuf:"bytes,3,opt,name=company,proto3" json:"company,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	Twitter       string                 `protobuf:"bytes,6,opt,name=twitter,proto3" json:"twitter,omitempty"`
+	Github        string                 `protobuf:"bytes,7,opt,name=github,proto3" json:"github,omitempty"`
+	Website       string                 `protobuf:"bytes,8,opt,name=website,proto3" json:"website,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Profile) Reset() {
+	*x = Profile{}
+	mi := &file_memba_v1_memba_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Profile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Profile) ProtoMessage() {}
+
+func (x *Profile) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Profile.ProtoReflect.Descriptor instead.
+func (*Profile) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *Profile) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Profile) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+func (x *Profile) GetCompany() string {
+	if x != nil {
+		return x.Company
+	}
+	return ""
+}
+
+func (x *Profile) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Profile) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *Profile) GetTwitter() string {
+	if x != nil {
+		return x.Twitter
+	}
+	return ""
+}
+
+func (x *Profile) GetGithub() string {
+	if x != nil {
+		return x.Github
+	}
+	return ""
+}
+
+func (x *Profile) GetWebsite() string {
+	if x != nil {
+		return x.Website
+	}
+	return ""
+}
+
+func (x *Profile) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type GetProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"` // no auth required — public read
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileRequest) Reset() {
+	*x = GetProfileRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileRequest) ProtoMessage() {}
+
+func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
+func (*GetProfileRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetProfileRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+type GetProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *Profile               `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProfileResponse) Reset() {
+	*x = GetProfileResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProfileResponse) ProtoMessage() {}
+
+func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
+func (*GetProfileResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetProfileResponse) GetProfile() *Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type UpdateProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"` // must match profile.address
+	Profile       *Profile               `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProfileRequest) Reset() {
+	*x = UpdateProfileRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileRequest) ProtoMessage() {}
+
+func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *UpdateProfileRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *UpdateProfileRequest) GetProfile() *Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type UpdateProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *Profile               `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProfileResponse) Reset() {
+	*x = UpdateProfileResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileResponse) ProtoMessage() {}
+
+func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *UpdateProfileResponse) GetProfile() *Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -1924,7 +2216,29 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\x02 \x01(\rR\rtransactionId\x12\x1d\n" +
 	"\n" +
 	"final_hash\x18\x03 \x01(\tR\tfinalHash\"\x1d\n" +
-	"\x1bCompleteTransactionResponse*N\n" +
+	"\x1bCompleteTransactionResponse\"\xef\x01\n" +
+	"\aProfile\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x10\n" +
+	"\x03bio\x18\x02 \x01(\tR\x03bio\x12\x18\n" +
+	"\acompany\x18\x03 \x01(\tR\acompany\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x05 \x01(\tR\tavatarUrl\x12\x18\n" +
+	"\atwitter\x18\x06 \x01(\tR\atwitter\x12\x16\n" +
+	"\x06github\x18\a \x01(\tR\x06github\x12\x18\n" +
+	"\awebsite\x18\b \x01(\tR\awebsite\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\tR\tupdatedAt\"-\n" +
+	"\x11GetProfileRequest\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\"A\n" +
+	"\x12GetProfileResponse\x12+\n" +
+	"\aprofile\x18\x01 \x01(\v2\x11.memba.v1.ProfileR\aprofile\"s\n" +
+	"\x14UpdateProfileRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12+\n" +
+	"\aprofile\x18\x02 \x01(\v2\x11.memba.v1.ProfileR\aprofile\"D\n" +
+	"\x15UpdateProfileResponse\x12+\n" +
+	"\aprofile\x18\x01 \x01(\v2\x11.memba.v1.ProfileR\aprofile*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -1932,7 +2246,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0eExecutionState\x12\x1f\n" +
 	"\x1bEXECUTION_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17EXECUTION_STATE_PENDING\x10\x01\x12\x1c\n" +
-	"\x18EXECUTION_STATE_EXECUTED\x10\x022\xdd\x06\n" +
+	"\x18EXECUTION_STATE_EXECUTED\x10\x022\xf8\a\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -1943,7 +2257,10 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0eGetTransaction\x12\x1f.memba.v1.GetTransactionRequest\x1a .memba.v1.GetTransactionResponse\x12M\n" +
 	"\fTransactions\x12\x1d.memba.v1.TransactionsRequest\x1a\x1e.memba.v1.TransactionsResponse\x12V\n" +
 	"\x0fSignTransaction\x12 .memba.v1.SignTransactionRequest\x1a!.memba.v1.SignTransactionResponse\x12b\n" +
-	"\x13CompleteTransaction\x12$.memba.v1.CompleteTransactionRequest\x1a%.memba.v1.CompleteTransactionResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\x13CompleteTransaction\x12$.memba.v1.CompleteTransactionRequest\x1a%.memba.v1.CompleteTransactionResponse\x12G\n" +
+	"\n" +
+	"GetProfile\x12\x1b.memba.v1.GetProfileRequest\x1a\x1c.memba.v1.GetProfileResponse\x12P\n" +
+	"\rUpdateProfile\x12\x1e.memba.v1.UpdateProfileRequest\x1a\x1f.memba.v1.UpdateProfileResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -1958,7 +2275,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -1988,6 +2305,11 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*SignTransactionResponse)(nil),      // 25: memba.v1.SignTransactionResponse
 	(*CompleteTransactionRequest)(nil),   // 26: memba.v1.CompleteTransactionRequest
 	(*CompleteTransactionResponse)(nil),  // 27: memba.v1.CompleteTransactionResponse
+	(*Profile)(nil),                      // 28: memba.v1.Profile
+	(*GetProfileRequest)(nil),            // 29: memba.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),           // 30: memba.v1.GetProfileResponse
+	(*UpdateProfileRequest)(nil),         // 31: memba.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),        // 32: memba.v1.UpdateProfileResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	2,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -2008,31 +2330,39 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	17, // 15: memba.v1.GetTransactionResponse.transaction:type_name -> memba.v1.Transaction
 	3,  // 16: memba.v1.SignTransactionRequest.auth_token:type_name -> memba.v1.Token
 	3,  // 17: memba.v1.CompleteTransactionRequest.auth_token:type_name -> memba.v1.Token
-	5,  // 18: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	7,  // 19: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	10, // 20: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	12, // 21: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	14, // 22: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	18, // 23: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	22, // 24: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
-	20, // 25: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	24, // 26: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	26, // 27: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	6,  // 28: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	8,  // 29: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	11, // 30: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	13, // 31: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	15, // 32: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	19, // 33: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	23, // 34: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	21, // 35: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	25, // 36: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	27, // 37: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	28, // [28:38] is the sub-list for method output_type
-	18, // [18:28] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	28, // 18: memba.v1.GetProfileResponse.profile:type_name -> memba.v1.Profile
+	3,  // 19: memba.v1.UpdateProfileRequest.auth_token:type_name -> memba.v1.Token
+	28, // 20: memba.v1.UpdateProfileRequest.profile:type_name -> memba.v1.Profile
+	28, // 21: memba.v1.UpdateProfileResponse.profile:type_name -> memba.v1.Profile
+	5,  // 22: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	7,  // 23: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	10, // 24: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	12, // 25: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	14, // 26: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	18, // 27: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	22, // 28: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	20, // 29: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	24, // 30: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	26, // 31: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	29, // 32: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
+	31, // 33: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
+	6,  // 34: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	8,  // 35: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	11, // 36: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	13, // 37: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	15, // 38: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	19, // 39: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	23, // 40: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	21, // 41: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	25, // 42: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	27, // 43: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	30, // 44: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	32, // 45: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	34, // [34:46] is the sub-list for method output_type
+	22, // [22:34] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -2046,7 +2376,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   26,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

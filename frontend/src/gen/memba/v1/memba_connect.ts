@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, TransactionsRequest, TransactionsResponse } from "./memba_pb.js";
+import { CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetProfileRequest, GetProfileResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -108,6 +108,26 @@ export const MultisigService = {
       name: "CompleteTransaction",
       I: CompleteTransactionRequest,
       O: CompleteTransactionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Profile — Read/Write user profile
+     *
+     * @generated from rpc memba.v1.MultisigService.GetProfile
+     */
+    getProfile: {
+      name: "GetProfile",
+      I: GetProfileRequest,
+      O: GetProfileResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.UpdateProfile
+     */
+    updateProfile: {
+      name: "UpdateProfile",
+      I: UpdateProfileRequest,
+      O: UpdateProfileResponse,
       kind: MethodKind.Unary,
     },
   }

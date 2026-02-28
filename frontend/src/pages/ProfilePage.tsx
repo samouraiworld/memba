@@ -4,17 +4,24 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
-import { fetchUserProfile, type UserProfile } from "../lib/profile"
+import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
 
 export function ProfilePage() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNavigate()
-    const { adena } = useOutletContext<LayoutContext>()
+    const { adena, auth } = useOutletContext<LayoutContext>()
 
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [editing, setEditing] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [saveSuccess, setSaveSuccess] = useState(false)
+    const [editForm, setEditForm] = useState({
+        bio: "", company: "", title: "", avatarUrl: "",
+        twitter: "", github: "", website: "",
+    })
 
     const isOwnProfile = adena.address === address
 
@@ -33,6 +40,35 @@ export function ProfilePage() {
     }, [address])
 
     useEffect(() => { loadProfile() }, [loadProfile])
+
+    const startEditing = () => {
+        if (!profile) return
+        setEditForm({
+            bio: profile.bio, company: profile.company, title: profile.title,
+            avatarUrl: profile.avatarUrl,
+            twitter: profile.socialLinks.twitter, github: profile.socialLinks.github,
+            website: profile.socialLinks.website,
+        })
+        setEditing(true)
+        setSaveSuccess(false)
+    }
+
+    const handleSave = async () => {
+        if (!auth.token) return
+        setSaving(true)
+        setError(null)
+        try {
+            await updateBackendProfile(auth.token, editForm)
+            setEditing(false)
+            setSaveSuccess(true)
+            setTimeout(() => setSaveSuccess(false), 3000)
+            await loadProfile() // refresh data
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to save profile")
+        } finally {
+            setSaving(false)
+        }
+    }
 
     if (!address) {
         return (
@@ -105,6 +141,24 @@ export function ProfilePage() {
                                     YOU
                                 </span>
                             )}
+                            {isOwnProfile && auth.isAuthenticated && !editing && (
+                                <button
+                                    onClick={startEditing}
+                                    style={{
+                                        padding: "3px 10px", borderRadius: 4, fontSize: 10,
+                                        fontFamily: "JetBrains Mono, monospace",
+                                        background: "rgba(255,255,255,0.04)", border: "1px solid #222",
+                                        color: "#888", cursor: "pointer", transition: "border-color 0.15s, color 0.15s",
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#00d4aa"; e.currentTarget.style.color = "#00d4aa" }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.color = "#888" }}
+                                >
+                                    ✏️ Edit
+                                </button>
+                            )}
+                            {saveSuccess && (
+                                <span style={{ fontSize: 10, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>✓ Saved</span>
+                            )}
                         </div>
 
                         <div style={{ marginTop: 6 }}>
@@ -151,6 +205,51 @@ export function ProfilePage() {
                     )}
                 </div>
             </div>
+
+            {/* ── Edit Profile Form ────────────────────────────────── */}
+            {editing && (
+                <div className="k-card" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                        ✏️ Edit Profile
+                    </h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <EditField label="Bio" value={editForm.bio} onChange={(v) => setEditForm(f => ({ ...f, bio: v }))} multiline maxLen={512} fullWidth />
+                        <EditField label="Company" value={editForm.company} onChange={(v) => setEditForm(f => ({ ...f, company: v }))} maxLen={128} />
+                        <EditField label="Title / Role" value={editForm.title} onChange={(v) => setEditForm(f => ({ ...f, title: v }))} maxLen={128} />
+                        <EditField label="Avatar URL" value={editForm.avatarUrl} onChange={(v) => setEditForm(f => ({ ...f, avatarUrl: v }))} maxLen={256} placeholder="https://..." />
+                        <EditField label="Twitter / X" value={editForm.twitter} onChange={(v) => setEditForm(f => ({ ...f, twitter: v }))} maxLen={256} placeholder="@handle or URL" />
+                        <EditField label="GitHub" value={editForm.github} onChange={(v) => setEditForm(f => ({ ...f, github: v }))} maxLen={256} placeholder="https://github.com/..." />
+                        <EditField label="Website" value={editForm.website} onChange={(v) => setEditForm(f => ({ ...f, website: v }))} maxLen={256} placeholder="https://..." />
+                    </div>
+                    <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
+                        <button
+                            onClick={() => setEditing(false)}
+                            disabled={saving}
+                            style={{
+                                padding: "6px 16px", borderRadius: 6, fontSize: 11,
+                                fontFamily: "JetBrains Mono, monospace",
+                                background: "none", border: "1px solid #333",
+                                color: "#888", cursor: "pointer",
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            style={{
+                                padding: "6px 16px", borderRadius: 6, fontSize: 11,
+                                fontFamily: "JetBrains Mono, monospace",
+                                background: saving ? "rgba(0,212,170,0.1)" : "rgba(0,212,170,0.15)",
+                                border: "1px solid rgba(0,212,170,0.3)",
+                                color: "#00d4aa", cursor: saving ? "wait" : "pointer",
+                            }}
+                        >
+                            {saving ? "Saving..." : "✅ Save Profile"}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* ── Social Links ─────────────────────────────────────── */}
             {hasSocials(profile) && (
@@ -345,6 +444,47 @@ function ContribStat({ label, value, icon, accent }: { label: string; value: str
             }}>
                 {value}
             </div>
+        </div>
+    )
+}
+
+function EditField({ label, value, onChange, multiline, maxLen, placeholder, fullWidth }: {
+    label: string; value: string; onChange: (v: string) => void
+    multiline?: boolean; maxLen?: number; placeholder?: string; fullWidth?: boolean
+}) {
+    const inputStyle: React.CSSProperties = {
+        width: "100%", padding: "8px 10px", borderRadius: 6,
+        background: "rgba(255,255,255,0.03)", border: "1px solid #222",
+        color: "#f0f0f0", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+        outline: "none", resize: multiline ? "vertical" as const : "none" as const,
+        transition: "border-color 0.15s",
+    }
+    return (
+        <div style={{ gridColumn: fullWidth ? "1 / -1" : undefined }}>
+            <label style={{ fontSize: 9, color: "#666", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
+                {label} {maxLen && <span style={{ color: "#333" }}>({value.length}/{maxLen})</span>}
+            </label>
+            {multiline ? (
+                <textarea
+                    value={value}
+                    onChange={(e) => onChange(e.target.value.slice(0, maxLen))}
+                    placeholder={placeholder}
+                    rows={3}
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "#00d4aa")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "#222")}
+                />
+            ) : (
+                <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value.slice(0, maxLen))}
+                    placeholder={placeholder}
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "#00d4aa")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "#222")}
+                />
+            )}
         </div>
     )
 }

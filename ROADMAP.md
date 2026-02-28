@@ -577,6 +577,22 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.4.0 — Profile Phase 2 (Editable Profiles) — ✅ SHIPPED 2026-02-28
+
+> Backend-persisted profile editing via ConnectRPC + SQLite. Edit bio, company, title, avatar, socials directly from the profile page.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| ✨ **GetProfile RPC** (public read) | ✅ | Returns empty profile for unknown addresses |
+| ✨ **UpdateProfile RPC** (auth write) | ✅ | Token address must match profile, sanitized inputs |
+| ✨ **SQLite `profiles` table** | ✅ | Migration `002_profiles.sql`, address PK |
+| ✨ **Profile edit UI** | ✅ | 7-field form, character counters, save/cancel |
+| 🔒 **Server-side sanitization** | ✅ | HTML strip, length limits, URL validation |
+| ✨ **Backend data merge** in `profile.ts` | ✅ | Parallel fetch, backend overrides gnolove defaults |
+| 📄 **Documentation** | ✅ | CHANGELOG, ROADMAP, ARCHITECTURE, E2E_TEST |
+
+---
+
 ## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
 
 > Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).

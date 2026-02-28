@@ -104,6 +104,18 @@
 | 10.2 | Open a DAO with threshold/quorum display | No mojibake (no `â€"`) — clean `|` or em dash |
 | 10.3 | Unregistered member → DAOHome (authenticated) | "Create your username" CTA card shown |
 
+## 11. Profile Edit (v5.4.0)
+
+| # | Step | Expected |
+|---|------|----------|
+| 11.1 | Connect wallet → open own profile | "✏️ Edit" button visible next to "YOU" badge |
+| 11.2 | Click "✏️ Edit" | Edit form appears with 7 fields (bio, company, title, avatar URL, twitter, github, website) |
+| 11.3 | Fill bio + company + title → Save | ✓ Saved feedback, form closes, fields shown on profile |
+| 11.4 | Refresh page | Edited fields persist (loaded from backend) |
+| 11.5 | Visit another user's profile | No "✏️ Edit" button visible |
+| 11.6 | Enter bio > 512 chars | Character count shows limit, input truncated at 512 |
+| 11.7 | Enter invalid avatar URL | Rejected server-side (empty on reload) |
+
 ## Post-Test
 
 - [ ] Screenshot key states for documentation

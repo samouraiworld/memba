@@ -21,6 +21,10 @@ service MultisigService {
   rpc Transactions(TransactionsRequest) returns (TransactionsResponse);
   rpc SignTransaction(SignTransactionRequest) returns (SignTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+
+  // Profile — Read/Write user profile
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
 }
 
 // --- Auth Messages ---
@@ -207,3 +211,34 @@ message CompleteTransactionRequest {
 }
 
 message CompleteTransactionResponse {}
+
+// --- Profile Messages ---
+
+message Profile {
+  string address = 1;
+  string bio = 2;
+  string company = 3;
+  string title = 4;
+  string avatar_url = 5;
+  string twitter = 6;
+  string github = 7;
+  string website = 8;
+  string updated_at = 9;
+}
+
+message GetProfileRequest {
+  string address = 1; // no auth required — public read
+}
+
+message GetProfileResponse {
+  Profile profile = 1;
+}
+
+message UpdateProfileRequest {
+  Token auth_token = 1; // must match profile.address
+  Profile profile = 2;
+}
+
+message UpdateProfileResponse {
+  Profile profile = 1;
+}

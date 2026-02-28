@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [5.4.0] — 2026-02-28
+
+### Added
+- **Backend: GetProfile RPC** — public read from SQLite `profiles` table, returns empty profile for new addresses
+- **Backend: UpdateProfile RPC** — authenticated write with input sanitization (HTML stripping, length limits, URL validation)
+- **SQLite migration** `002_profiles.sql` — `profiles` table with address (PK), bio, company, title, avatar_url, twitter, github, website, updated_at
+- **Profile edit mode** — "✏️ Edit" button on own profile, inline form (7 fields with character counters), Save/Cancel, ✓ Saved feedback
+- **Backend profile integration** — `profile.ts` fetches from Memba backend in parallel with gno.land + gnolove, backend data overrides gnolove defaults
+
+### Security
+- Server-side HTML tag stripping (`stripHTML`)
+- Input length validation: bio≤512, company/title≤128, URLs≤256
+- URL scheme validation (http/https only)
+- Auth token must match profile address for UpdateProfile
+- Parameterized SQL queries only
+
 ## [5.3.0] — 2026-02-28
 
 ### Added

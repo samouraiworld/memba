@@ -8,6 +8,8 @@
  */
 
 import { GNO_RPC_URL, getExplorerBaseUrl } from "./config"
+import { api } from "./api"
+import type { Token } from "../gen/memba/v1/memba_pb"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -91,11 +93,12 @@ export async function fetchUserProfile(
     }
 
     // Parallel fetch from all sources — graceful degradation on failure
-    const [usernameResult, gnoloveResult, packagesResult, votesResult] = await Promise.allSettled([
+    const [usernameResult, gnoloveResult, packagesResult, votesResult, backendResult] = await Promise.allSettled([
         resolveOnChainUsername(address),
         fetchGnoloveUser(gnoloveApiUrl, address),
         fetchGnolovePackages(gnoloveApiUrl, address),
         fetchGnoloveVotes(gnoloveApiUrl, address),
+        fetchBackendProfile(address),
     ])
 
     // On-chain username
@@ -145,6 +148,19 @@ export async function fetchUserProfile(
     // Governance votes
     if (votesResult.status === "fulfilled") {
         profile.governanceVotes = votesResult.value
+    }
+
+    // Backend editable profile — override gnolove defaults when present
+    if (backendResult.status === "fulfilled" && backendResult.value) {
+        const b = backendResult.value
+        if (b.bio) profile.bio = b.bio
+        if (b.company) profile.company = b.company
+        if (b.title) profile.title = b.title
+        if (b.avatarUrl) profile.avatarUrl = b.avatarUrl
+        // Backend socials override gnolove socials when set
+        if (b.twitter) profile.socialLinks.twitter = b.twitter
+        if (b.github) profile.socialLinks.github = b.github
+        if (b.website) profile.socialLinks.website = b.website
     }
 
     return profile
@@ -228,4 +244,64 @@ async function fetchGnoloveVotes(
     } catch {
         return []
     }
+}
+
+// ── Backend Profile (Memba ConnectRPC) ────────────────────────
+
+interface BackendProfile {
+    bio: string
+    company: string
+    title: string
+    avatarUrl: string
+    twitter: string
+    github: string
+    website: string
+}
+
+/** Fetch editable profile fields from Memba backend. */
+async function fetchBackendProfile(address: string): Promise<BackendProfile | null> {
+    try {
+        const res = await api.getProfile({ address })
+        const p = res.profile
+        if (!p) return null
+        return {
+            bio: p.bio,
+            company: p.company,
+            title: p.title,
+            avatarUrl: p.avatarUrl,
+            twitter: p.twitter,
+            github: p.github,
+            website: p.website,
+        }
+    } catch {
+        return null
+    }
+}
+
+/** Save editable profile fields via Memba backend. Returns updated profile. */
+export async function updateBackendProfile(
+    token: Token,
+    fields: {
+        bio?: string
+        company?: string
+        title?: string
+        avatarUrl?: string
+        twitter?: string
+        github?: string
+        website?: string
+    },
+): Promise<void> {
+    await api.updateProfile({
+        authToken: token,
+        profile: {
+            address: token.userAddress,
+            bio: fields.bio ?? "",
+            company: fields.company ?? "",
+            title: fields.title ?? "",
+            avatarUrl: fields.avatarUrl ?? "",
+            twitter: fields.twitter ?? "",
+            github: fields.github ?? "",
+            website: fields.website ?? "",
+        },
+    })
 }
