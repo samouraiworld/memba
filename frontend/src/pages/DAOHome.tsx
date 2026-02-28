@@ -97,9 +97,20 @@ export function DAOHome() {
 
             {/* Header */}
             <div>
-                <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                    🏛️ {config?.name || "DAO Governance"}
-                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
+                        🏛️ {config?.name || "DAO Governance"}
+                    </h2>
+                    {config?.isArchived && (
+                        <span style={{
+                            padding: "3px 10px", borderRadius: 6, fontSize: 10,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: "rgba(245,166,35,0.1)", color: "#f5a623",
+                        }}>
+                            📦 ARCHIVED
+                        </span>
+                    )}
+                </div>
                 <p style={{ color: "#555", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     {realmPath}
                 </p>
@@ -109,6 +120,21 @@ export function DAOHome() {
                     </p>
                 )}
             </div>
+
+            {/* Archive warning */}
+            {config?.isArchived && (
+                <div style={{
+                    padding: "12px 18px", borderRadius: 10,
+                    background: "rgba(245,166,35,0.05)",
+                    border: "1px solid rgba(245,166,35,0.15)",
+                    display: "flex", alignItems: "center", gap: 10,
+                }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                        This DAO has been archived. No new proposals or votes are allowed.
+                    </div>
+                </div>
+            )}
 
             {/* Your Status Banner */}
             {auth.isAuthenticated && (
@@ -134,6 +160,36 @@ export function DAOHome() {
                 </div>
             )}
 
+            {/* Username CTA — shown when member has no @username */}
+            {auth.isAuthenticated && currentMember && !currentMember.username && (
+                <div style={{
+                    padding: "12px 18px", borderRadius: 10,
+                    background: "rgba(0,212,170,0.03)",
+                    border: "1px dashed rgba(0,212,170,0.15)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 16 }}>🏷️</span>
+                        <div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "#00d4aa" }}>
+                                Register your @username
+                            </div>
+                            <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 1 }}>
+                                Get a username to be recognized across DAOs
+                            </div>
+                        </div>
+                    </div>
+                    <a
+                        href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="k-btn-primary"
+                        style={{ fontSize: 11, padding: "6px 14px", textDecoration: "none" }}
+                    >
+                        Register →
+                    </a>
+                </div>
+            )}
             {/* Stats Grid */}
             <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                 <StatCard label="Members" value={String(config?.memberCount || members.length)} icon="👥" />
@@ -166,7 +222,7 @@ export function DAOHome() {
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>Active Proposals</h3>
-                    {auth.isAuthenticated && (
+                    {auth.isAuthenticated && !config?.isArchived && (
                         <button
                             className="k-btn-primary"
                             onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
@@ -225,7 +281,7 @@ export function DAOHome() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
                     {members.slice(0, 6).map((m) => (
-                        <MemberCard key={m.address} member={m} isCurrentUser={m.address === adena.address} />
+                        <MemberCard key={m.address} member={m} isCurrentUser={m.address === adena.address} onProfileClick={(addr) => navigate(`/profile/${addr}`)} />
                     ))}
                 </div>
             </div>
@@ -405,11 +461,20 @@ function VoteBar({ yesPercent, noPercent }: { yesPercent: number; noPercent: num
     )
 }
 
-function MemberCard({ member, isCurrentUser }: { member: DAOMember; isCurrentUser: boolean }) {
+function MemberCard({ member, isCurrentUser, onProfileClick }: { member: DAOMember; isCurrentUser: boolean; onProfileClick: (addr: string) => void }) {
     return (
         <div className="k-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <CopyableAddress address={member.address} />
+                <button
+                    onClick={() => onProfileClick(member.address)}
+                    title="View profile"
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, color: "#555", transition: "color 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                >
+                    👤
+                </button>
                 {member.username && (
                     <a
                         href={`${getExplorerBaseUrl()}/u/${member.username.replace("@", "")}`}

@@ -552,9 +552,28 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 | 🐛 **Proposal creation fails** — `crossing()` → `cur realm` | ✅ Fixed | `crossing()` doesn't exist in Gno. Correct: `func Name(cur realm, ...)` + `runtime.PreviousRealm().Address()` |
 | 🐛 **Role badges truncated** on DAOHome | ✅ Fixed | `whiteSpace: nowrap` + `flexWrap: wrap` |
 | ✨ **Archive DAO** — admin-only archival | ✅ Added | `Archive(cur realm)` + `IsArchived()` — blocks new proposals/votes |
-| ✨ **Show member usernames** on DAOHome + DAOMembers | 🟡 Next | Resolve `@username` via user registry, display alongside addresses |
-| ✨ **"Create your username" CTA** | 🟢 Next | Prompt users to register at `gno.land/r/gnoland/users/v1` |
-| 🐛 **Threshold display encoding** | 🟢 Next | "Threshold: 66% â€" → em dash encoding issue in Render output |
+| ✨ **Show member usernames** on DAOHome + DAOMembers | ✅ Done (v5.3.0) | `resolveUsernames()` in JSON + Render paths |
+| ✨ **"Create your username" CTA** | ✅ Done (v5.3.0) | DAOHome card + DAOMembers inline link |
+| 🐛 **Threshold display encoding** | ✅ Fixed (v5.3.0) | `TextDecoder` pipeline in `abciQuery()` |
+
+---
+
+## v5.3.0 — User Profiles + Archive UI + Polish — ✅ SHIPPED 2026-02-28
+
+> User profiles with gnolove integration, archive DAO UI across all pages, username resolution, and encoding fixes.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| ✨ **User Profile pages** (`/profile/:address`) | ✅ | Hybrid data: gno.land (username), gnolove (GitHub stats, packages, votes) |
+| ✨ **Gnolove integration** (`profile.ts`) | ✅ | 4 parallel fetches, 5s timeouts, graceful degradation |
+| ✨ **👤 Profile nav link** in header | ✅ | Shown when wallet connected |
+| ✨ **Clickable member addresses** → profile | ✅ | DAOHome + DAOMembers |
+| ✨ **Archive DAO UI** — 4 pages | ✅ | Badge + warning + disabled actions on DAOHome, DAOList, ProposalView, ProposeDAO |
+| ✨ **Username CTA** | ✅ | DAOHome card + DAOMembers inline link |
+| ✨ **Username resolution** for custom DAOs | ✅ | JSON + Render-fallback code paths |
+| 🐛 **UTF-8 encoding fix** | ✅ | `TextDecoder` replaces `atob()` in `abciQuery()` |
+| 🐛 **Render separator** `—` → `\|` | ✅ | Prevents future encoding issues |
+| 📄 **Documentation** updated | ✅ | CHANGELOG, ROADMAP, ARCHITECTURE, E2E_TEST |
 
 ---
 

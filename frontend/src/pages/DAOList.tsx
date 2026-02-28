@@ -227,6 +227,7 @@ function DAOCard({
                 display: "flex", flexDirection: "column", gap: 14,
                 cursor: "pointer", transition: "border-color 0.15s",
                 borderColor: dao.featured ? "rgba(0,212,170,0.15)" : undefined,
+                opacity: dao.config?.isArchived ? 0.6 : 1,
             }}
             onClick={onOpen}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)")}
@@ -247,6 +248,15 @@ function DAOCard({
                                 background: "rgba(0,212,170,0.1)", color: "#00d4aa",
                             }}>
                                 FEATURED
+                            </span>
+                        )}
+                        {dao.config?.isArchived && (
+                            <span style={{
+                                marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(245,166,35,0.1)", color: "#f5a623",
+                            }}>
+                                📦 Archived
                             </span>
                         )}
                     </div>

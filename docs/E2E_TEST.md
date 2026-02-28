@@ -73,6 +73,37 @@
 | 7.3 | Disconnect mid-session → refresh | Graceful redirect to connect state |
 | 7.4 | Resize to 375px width | All content readable, no overflow |
 
+## 8. DAO Archive (v5.3.0)
+
+| # | Step | Expected |
+|---|------|----------|
+| 8.1 | Navigate to an archived DAO → DAOHome | `📦 ARCHIVED` badge next to name + amber warning banner |
+| 8.2 | Check "New Proposal" button | Hidden (not shown for archived DAOs) |
+| 8.3 | Navigate to DAOList with mix of active + archived | Archived card dimmed (opacity) + `📦 Archived` badge |
+| 8.4 | Open an active proposal on archived DAO | Vote/Execute buttons hidden + amber info banner |
+| 8.5 | Navigate to `/dao/:slug/propose` on archived DAO | Amber warning + submit button disabled |
+
+## 9. User Profile (v5.3.0)
+
+| # | Step | Expected |
+|---|------|----------|
+| 9.1 | Connect wallet → click "👤 Profile" in header | ProfilePage loads for connected address |
+| 9.2 | Verify header card | Avatar, address (CopyableAddress), badges |
+| 9.3 | Profile with registered username | Shows `@username` + gno.land link |
+| 9.4 | Profile without username (own) | Shows "Register your @username →" CTA |
+| 9.5 | Profile with gnolove data | GitHub stats, contribution score, deployed packages |
+| 9.6 | Profile with no data at all | Empty state: "No profile data yet" |
+| 9.7 | Click 👤 icon next to member in DAOHome | Navigates to `/profile/{address}` |
+| 9.8 | Click 👤 icon next to member in DAOMembers | Navigates to `/profile/{address}` |
+
+## 10. Username & Encoding (v5.3.0)
+
+| # | Step | Expected |
+|---|------|----------|
+| 10.1 | Open a DAO with registered members | `@usernames` shown on DAOHome + DAOMembers |
+| 10.2 | Open a DAO with threshold/quorum display | No mojibake (no `â€"`) — clean `|` or em dash |
+| 10.3 | Unregistered member → DAOHome (authenticated) | "Create your username" CTA card shown |
+
 ## Post-Test
 
 - [ ] Screenshot key states for documentation

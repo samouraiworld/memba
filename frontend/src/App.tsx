@@ -25,6 +25,9 @@ const Treasury = lazy(() => import("./pages/Treasury").then(m => ({ default: m.T
 const TreasuryProposal = lazy(() => import("./pages/TreasuryProposal").then(m => ({ default: m.TreasuryProposal })))
 const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
 
+// ── Profile page (lazy) ──
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -63,6 +66,9 @@ function App() {
           <Route path="/dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
           <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
           <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
+
+          {/* Profile route (lazy) */}
+          <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
         </Route>
       </Routes>
     </BrowserRouter>

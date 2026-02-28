@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useNavigate, useParams, useOutletContext, Link } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -242,6 +242,15 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
         }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <CopyableAddress address={member.address} />
+                <Link
+                    to={`/profile/${member.address}`}
+                    title="View profile"
+                    style={{ fontSize: 12, color: "#555", textDecoration: "none", transition: "color 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                >
+                    👤
+                </Link>
                 {member.username && (
                     <a
                         href={`${getExplorerBaseUrl()}/u/${member.username.replace("@", "")}`}
@@ -260,6 +269,16 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                     }}>
                         YOU
                     </span>
+                )}
+                {isCurrentUser && !member.username && (
+                    <a
+                        href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 9, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", opacity: 0.7 }}
+                    >
+                        Register @username →
+                    </a>
                 )}
             </div>
 

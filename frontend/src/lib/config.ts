@@ -4,7 +4,7 @@
  */
 
 /** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "5.2.1"
+export const APP_VERSION = "5.3.0"
 
 // Environment-driven config with sensible defaults.
 
@@ -73,3 +73,5 @@ export const UGNOT_PER_GNOT = 1_000_000
 /** DAO realm path on-chain. Update when the DAO realm is deployed. */
 export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
 
+/** Gnolove API base URL for profile enrichment and contribution data. */
+export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"

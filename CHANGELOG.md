@@ -2,6 +2,31 @@
 
 All notable changes to Memba are documented here.
 
+## [5.3.0] — 2026-02-28
+
+### Added
+- **User Profile pages** — `/profile/:address` with hybrid data from gno.land (username), gnolove REST API (GitHub stats, contribution score, deployed packages, governance votes), and Memba backend (editable bio/company/title — Phase 2)
+- **Gnolove integration** — `GNOLOVE_API_URL` config, `profile.ts` data layer fetches from 4 endpoints in parallel with 5s timeouts and graceful degradation
+- **👤 Profile nav link** in header (shown when wallet connected)
+- **👤 Clickable member addresses** in DAOHome + DAOMembers navigate to `/profile/{address}`
+- **Archive DAO UI** — full integration across 4 pages:
+  - `DAOHome`: `📦 ARCHIVED` badge + amber warning banner + disabled New Proposal
+  - `DAOList`: `📦 Archived` badge + dimmed card opacity
+  - `ProposalView`: vote/execute buttons hidden + archive info banner
+  - `ProposeDAO`: warning banner + disabled submit button
+- **"Create your username" CTA** on DAOHome (card) + DAOMembers (inline link) for authenticated users without `@username`
+- **Username resolution** for custom Memba DAOs (JSON-parsed + Render-fallback code paths)
+
+### Fixed
+- **Threshold display encoding** (em dash mojibake) — replaced `atob()` with `TextDecoder` pipeline in `abciQuery()` for proper UTF-8 decoding
+- **Render separator** — `—` → `|` in generated DAO Render output for threshold/quorum/power (prevents future encoding issues)
+- **Member parsing regex** backward-compatible with both `—` and `|` separators
+
+### Changed
+- `config.ts`: added `GNOLOVE_API_URL` constant
+- `App.tsx`: added lazy `ProfilePage` route
+- `Layout.tsx`: added conditional 👤 Profile nav link
+
 ## [5.2.1] — 2026-02-28
 
 ### Fixed

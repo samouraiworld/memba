@@ -73,12 +73,13 @@
 | `lib/dao.ts` | DAO helpers: ABCI queries (config, members, proposals), MsgCall builders (Vote, Execute, Propose) |
 | `lib/daoSlug.ts` | DAO slug encoding, realm path validation, saved DAOs localStorage persistence |
 | `lib/daoTemplate.ts` | DAO Factory: Gno realm code generator + MsgAddPackage builder |
+| `lib/profile.ts` | User profile data: hybrid fetcher (gno.land ABCI + gnolove REST API) |
 | `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage** |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
 ## Data Flow — Multisig Transaction
@@ -126,6 +127,7 @@ These features are **100% serverless** — they work without the backend:
 | GRC20 token info | `vm/qrender` + `vm/qeval` | `r/tokens/*/grc20` |
 | GNOT balance | `bank/balances` | address query |
 | Vote / Execute | `MsgCall` via Adena | `r/gov/dao.MustVoteOnProposalSimple` |
+| Archive status | `vm/qeval` | `r/dao.IsArchived()` |
 | Token actions | `MsgCall` via Adena | `r/tokens/*/grc20.Transfer` |
 
 ### Backend-Dependent (Frontend → Go Backend → Chain)
@@ -199,7 +201,37 @@ resolveUsernames(members[])
 | DAOList | — | ✅ DAO configs | ✅ saved DAOs |
 | DAOHome | — | ✅ config, members, proposals | ✅ usernames |
 | DAOMembers | — | ✅ members + tiers | ✅ usernames |
-| ProposalView | — | ✅ proposal + votes | — |
+| ProposalView | — | ✅ proposal + votes + archive check | — |
+| ProposeDAO | — | ✅ archive check | — |
 | Treasury | — | ✅ GNOT + GRC20 balances | — |
 | CreateDAO | — | ✅ MsgAddPackage deploy | ✅ saved DAOs |
+| **ProfilePage** | — | ✅ username (ABCI) | — |
+
+## Data Flow — User Profile (Hybrid)
+
+```
+┌─────────────────┐
+│   ProfilePage   │
+│  /profile/:addr │
+└───────┬─────────┘
+        │ fetchUserProfile()
+        ▼
+┌───────────────────────────────────────────────────┐
+│               profile.ts (parallel)               │
+│                                                   │
+│  1. gno.land ABCI ──► @username                   │
+│     vm/qrender r/gnoland/users/v1:address         │
+│                                                   │
+│  2. gnolove /users/:addr ──► GitHub profile       │
+│     avatar, bio, location, followers              │
+│                                                   │
+│  3. gnolove /onchain/packages/:addr               │
+│     ──► deployed packages/realms                  │
+│                                                   │
+│  4. gnolove /onchain/votes/:addr                  │
+│     ──► governance vote history                   │
+│                                                   │
+│  All fetches: 5s timeout, graceful degradation    │
+└───────────────────────────────────────────────────┘
+```
 

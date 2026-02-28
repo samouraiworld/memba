@@ -194,10 +194,10 @@ func Render(path string) string {
 func renderHome() string {
 \tout := "# " + name + "\\n"
 \tout += description + "\\n\\n"
-\tout += "Threshold: " + strconv.Itoa(threshold) + "% — Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
+\tout += "Threshold: " + strconv.Itoa(threshold) + "% | Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
 \tout += "## Members (" + strconv.Itoa(len(members)) + ")\\n"
 \tfor _, m := range members {
-\t\tout += "- " + string(m.Address) + " (roles: " + strings.Join(m.Roles, ", ") + ") — power: " + strconv.Itoa(m.Power) + "\\n"
+\t\tout += "- " + string(m.Address) + " (roles: " + strings.Join(m.Roles, ", ") + ") | power: " + strconv.Itoa(m.Power) + "\\n"
 \t}
 \tout += "\\n## Proposals\\n"
 \tfor i := len(proposals) - 1; i >= 0; i-- {
@@ -220,7 +220,7 @@ func renderProposal(id int) string {
 \tout += "Author: " + string(p.Author) + "\\n\\n"
 \tout += "Category: " + p.Category + "\\n\\n"
 \tout += "Status: " + p.Status + "\\n\\n"
-\tout += "YES: " + strconv.Itoa(p.YesVotes) + " — NO: " + strconv.Itoa(p.NoVotes) + " — ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
+\tout += "YES: " + strconv.Itoa(p.YesVotes) + " | NO: " + strconv.Itoa(p.NoVotes) + " | ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
 \tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(totalPower()) + "\\n"
 \treturn out
 }

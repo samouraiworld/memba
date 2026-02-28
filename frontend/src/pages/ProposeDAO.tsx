@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { buildProposeMsg } from "../lib/dao"
+import { buildProposeMsg, getDAOConfig } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { GNO_RPC_URL } from "../lib/config"
 import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
@@ -18,6 +19,15 @@ export function ProposeDAO() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    const [isArchived, setIsArchived] = useState(false)
+
+    // Check archive status on mount
+    useEffect(() => {
+        if (!realmPath) return
+        getDAOConfig(GNO_RPC_URL, realmPath).then((cfg) => {
+            if (cfg?.isArchived) setIsArchived(true)
+        }).catch(() => { /* ignore */ })
+    }, [realmPath])
 
     const handlePropose = async () => {
         if (!auth.isAuthenticated || !adena.address) {
@@ -66,6 +76,21 @@ export function ProposeDAO() {
                     Submit a proposal for the DAO to vote on
                 </p>
             </div>
+
+            {/* Archive warning */}
+            {isArchived && (
+                <div style={{
+                    padding: "12px 18px", borderRadius: 10,
+                    background: "rgba(245,166,35,0.05)",
+                    border: "1px solid rgba(245,166,35,0.15)",
+                    display: "flex", alignItems: "center", gap: 10,
+                }}>
+                    <span style={{ fontSize: 16 }}>📦</span>
+                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                        This DAO is archived — new proposals cannot be created
+                    </div>
+                </div>
+            )}
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
@@ -133,10 +158,10 @@ export function ProposeDAO() {
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
-                    disabled={loading || !auth.isAuthenticated || !title.trim()}
+                    disabled={loading || !auth.isAuthenticated || !title.trim() || isArchived}
                     style={{
                         flex: 1,
-                        opacity: (!auth.isAuthenticated || !title.trim()) ? 0.4 : loading ? 0.6 : 1,
+                        opacity: (!auth.isAuthenticated || !title.trim() || isArchived) ? 0.4 : loading ? 0.6 : 1,
                     }}
                 >
                     {loading ? "Proposing..." : "Submit Proposal"}

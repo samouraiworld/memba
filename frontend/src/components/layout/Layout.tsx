@@ -161,6 +161,11 @@ export function Layout() {
                         <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                             🏛️ <span className="k-nav-label">DAO</span>
                         </Link>
+                        {adena.connected && adena.address && (
+                            <Link to={`/profile/${adena.address}`} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                                👤 <span className="k-nav-label">Profile</span>
+                            </Link>
+                        )}
                     </div>
 
                     {/* Right side */}

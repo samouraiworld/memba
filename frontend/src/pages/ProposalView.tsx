@@ -8,6 +8,7 @@ import {
     getProposalDetail,
     getProposalVotes,
     getDAOMembers,
+    getDAOConfig,
     buildVoteMsg,
     buildExecuteMsg,
     type DAOProposal,
@@ -31,6 +32,7 @@ export function ProposalView() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
+    const [isArchived, setIsArchived] = useState(false)
 
 
     const proposalId = parseInt(id || "0", 10)
@@ -46,6 +48,11 @@ export function ProposalView() {
             ])
             setProposal(p)
             setVoteRecords(votes)
+
+            // Check archive status (nonblocking)
+            getDAOConfig(GNO_RPC_URL, realmPath).then((cfg) => {
+                if (cfg?.isArchived) setIsArchived(true)
+            }).catch(() => { /* ignore */ })
 
         } catch (err) {
             if (!silent) setError(err instanceof Error ? err.message : "Failed to load proposal")
@@ -321,7 +328,7 @@ export function ProposalView() {
             )}
 
             {/* Actions */}
-            {auth.isAuthenticated && (
+            {auth.isAuthenticated && !isArchived && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {proposal.status === "open" && (
                         <>
@@ -355,6 +362,21 @@ export function ProposalView() {
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
                     )}
+                </div>
+            )}
+
+            {/* Archived info */}
+            {auth.isAuthenticated && isArchived && (
+                <div style={{
+                    padding: "12px 18px", borderRadius: 10,
+                    background: "rgba(245,166,35,0.05)",
+                    border: "1px solid rgba(245,166,35,0.15)",
+                    display: "flex", alignItems: "center", gap: 10,
+                }}>
+                    <span style={{ fontSize: 16 }}>📦</span>
+                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                        This DAO is archived — voting and execution are disabled
+                    </div>
                 </div>
             )}
 

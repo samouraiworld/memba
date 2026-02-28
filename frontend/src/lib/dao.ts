@@ -45,6 +45,7 @@ export interface DAOConfig {
     memberCount: number
     memberstorePath: string    // memberstore realm path (empty if N/A)
     tierDistribution: TierInfo[]
+    isArchived: boolean        // true if DAO has been archived
 }
 
 export interface TierInfo {
@@ -80,7 +81,7 @@ export async function getDAOConfig(
 
     // Try GovDAO v3 format first: "# GovDAO" + memberstore link
     const nameMatch = data.match(/^#\s+(.+)$/m)
-    const thresholdMatch = data.match(/(?:Threshold|Quorum)[:\s]+(\S+)/i)
+    const thresholdMatch = data.match(/(?:Threshold|Quorum)[:\s]+(\d+%)/i)
     const membersMatch = data.match(/##\s+Members\s*(?:\((\d+)\))?/)
 
     // Description: text between # title and ## section, excluding memberstore links
@@ -113,6 +114,17 @@ export async function getDAOConfig(
         ? tierDistribution.reduce((sum, t) => sum + t.memberCount, 0)
         : (membersMatch?.[1] ? parseInt(membersMatch[1], 10) : 0)
 
+    // Check archive status (basedao/Memba DAOs only — GovDAO has no Archive)
+    let isArchived = false
+    if (!memberstorePath) {
+        try {
+            const archiveResult = await queryEval(rpcUrl, realmPath, `IsArchived()`)
+            if (archiveResult) {
+                isArchived = archiveResult.includes("true")
+            }
+        } catch { /* not a Memba DAO or function doesn't exist */ }
+    }
+
     return {
         name: nameMatch?.[1]?.trim() || "Unnamed DAO",
         description,
@@ -120,6 +132,7 @@ export async function getDAOConfig(
         memberCount: totalMembers,
         memberstorePath,
         tierDistribution,
+        isArchived,
     }
 }
 
@@ -173,13 +186,15 @@ export async function getDAOMembers(
             if (match) {
                 const parsed = JSON.parse(match[1].replace(/\\"/g, '"'))
                 if (Array.isArray(parsed)) {
-                    return parsed.map((m: Record<string, unknown>) => ({
+                    const members = parsed.map((m: Record<string, unknown>) => ({
                         address: String(m.address || m.Address || ""),
                         roles: (m.roles || m.Roles || []) as string[],
                         tier: String(m.tier || m.Tier || ""),
                         votingPower: Number(m.votingPower || m.VotingPower || 0),
                         username: String(m.username || m.Username || ""),
                     }))
+                    await resolveUsernames(rpcUrl, members)
+                    return members
                 }
             }
         } catch { /* fall through */ }
@@ -190,9 +205,10 @@ export async function getDAOMembers(
     if (!data) return []
 
     const members: DAOMember[] = []
-    // v5.2.0 format: - g1abc... (roles: admin, dev) — power: 3
+    // v5.3.0 format: - g1abc... (roles: admin, dev) | power: 3
+    // v5.2.0 format: - g1abc... (roles: admin, dev) — power: 3  (em dash, legacy)
     // v5.0.x format: - g1abc... (power: 1)
-    const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?(?:\s*—\s*power:\s*(\d+))?/g
+    const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?(?:\s*[—|]\s*power:\s*(\d+))?/g
     let match: RegExpExecArray | null
     while ((match = re.exec(data)) !== null) {
         let roles: string[] = []
@@ -218,6 +234,7 @@ export async function getDAOMembers(
             username: "",
         })
     }
+    await resolveUsernames(rpcUrl, members)
     return members
 }
 
@@ -652,6 +669,14 @@ export function buildProposeMsg(
     return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)
 }
 
+/** Build archive message — admin-only, Memba DAOs only. */
+export function buildArchiveMsg(
+    caller: string,
+    realmPath: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "Archive", [], caller)
+}
+
 // ── Internal Helpers ──────────────────────────────────────────
 
 /** Build Amino MsgCall for a DAO realm function (crossing-compatible only). */
@@ -699,7 +724,8 @@ function sanitize(str: string): string {
     return str.replace(/[^a-zA-Z0-9_./:\-?=&]/g, "")
 }
 
-/** Low-level ABCI query via JSON-RPC POST. Returns decoded string or null. */
+/** Low-level ABCI query via JSON-RPC POST. Returns decoded string or null.
+ *  Uses TextDecoder for proper UTF-8 handling (atob alone corrupts multi-byte chars like em dash). */
 async function abciQuery(rpcUrl: string, path: string, data: string): Promise<string | null> {
     try {
         const b64Data = btoa(data)
@@ -716,7 +742,10 @@ async function abciQuery(rpcUrl: string, path: string, data: string): Promise<st
         const json = await res.json()
         const value = json?.result?.response?.ResponseBase?.Data
         if (!value) return null
-        return atob(value)
+        // Decode base64 → binary string → Uint8Array → UTF-8 string
+        const binaryStr = atob(value)
+        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
+        return new TextDecoder().decode(bytes)
     } catch {
         return null
     }
