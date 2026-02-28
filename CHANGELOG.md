@@ -2,6 +2,13 @@
 
 All notable changes to Memba are documented here.
 
+## [5.6.0] — 2026-02-28
+
+### Fixed
+- **GovDAO membership bug** — ProposalView now passes `memberstorePath` to `getDAOMembers()`, fixing tier-based DAOs (GovDAO T1/T2/T3) showing "not a member" incorrectly
+- **Avatar rendering** — replaced CSS `background: url()` with `<img>` tag + `onError` fallback; fixes CORS-blocked external avatar URLs (e.g. Twitter)
+- **GitHub icon** — proper Invertocat SVG replacing 🐙 emoji in social links + CTA card
+
 ## [5.5.0] — 2026-02-28
 
 ### Added

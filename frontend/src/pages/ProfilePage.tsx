@@ -3,6 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
+import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
@@ -116,14 +117,20 @@ export function ProfilePage() {
                     {/* Avatar */}
                     <div style={{
                         width: 72, height: 72, borderRadius: "50%",
-                        background: avatar ? `url(${avatar}) center/cover` : "rgba(0,212,170,0.08)",
+                        background: "rgba(0,212,170,0.08)",
                         border: "2px solid rgba(0,212,170,0.2)",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0,
+                        flexShrink: 0, overflow: "hidden",
                     }}>
-                        {!avatar && (
-                            <span style={{ fontSize: 28, color: "#00d4aa" }}>👤</span>
-                        )}
+                        {avatar ? (
+                            <img
+                                src={avatar}
+                                alt="Avatar"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextElementSibling && ((e.currentTarget.nextElementSibling as HTMLElement).style.display = "flex") }}
+                            />
+                        ) : null}
+                        <span style={{ fontSize: 28, color: "#00d4aa", display: avatar ? "none" : "flex" }}>👤</span>
                     </div>
 
                     {/* Identity */}
@@ -255,7 +262,7 @@ export function ProfilePage() {
             {hasSocials(profile) && (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {profile?.socialLinks.github && (
-                        <SocialLink href={profile.socialLinks.github} icon="🐙" label="GitHub" />
+                        <SocialLink href={profile.socialLinks.github} icon={<GitHubIcon size={14} color="#f0f0f0" />} label="GitHub" />
                     )}
                     {profile?.socialLinks.twitter && (
                         <SocialLink href={`https://x.com/${profile.socialLinks.twitter}`} icon="𝕏" label="Twitter/X" />
@@ -278,14 +285,14 @@ export function ProfilePage() {
                             background: "rgba(88,166,255,0.06)", border: "1px solid rgba(88,166,255,0.15)",
                             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                         }}>
-                            <span style={{ fontSize: 22 }}>🐙</span>
+                            <GitHubIcon size={22} color="#58a6ff" />
                         </div>
                         <div style={{ flex: 1, minWidth: 180 }}>
                             <h4 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 4 }}>
                                 Link your GitHub account
                             </h4>
                             <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
-                                Link your GitHub via gnolove.world to show your contribution stats, avatar, and deployed packages on your Memba profile.
+                                Link your GitHub to verify your on-chain identity and show your contribution stats, avatar, and deployed packages.
                             </p>
                         </div>
                         <a
@@ -303,7 +310,7 @@ export function ProfilePage() {
                             onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.2)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.4)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.1)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.25)" }}
                         >
-                            🔗 Link on gnolove.world →
+                            <GitHubIcon size={12} color="#58a6ff" /> Link GitHub →
                         </a>
                     </div>
                 </div>
@@ -446,7 +453,7 @@ function MetaChip({ icon, text }: { icon: string; text: string }) {
     )
 }
 
-function SocialLink({ href, icon, label }: { href: string; icon: string; label: string }) {
+function SocialLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
     return (
         <a
             href={href}

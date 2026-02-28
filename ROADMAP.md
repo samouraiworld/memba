@@ -605,6 +605,18 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
+
+> Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.
+
+| Fix | Status | Notes |
+|-----|--------|-------|
+| 🐛 **GovDAO membership bug** | ✅ | ProposalView now passes `memberstorePath` for tier-based DAOs |
+| 🐛 **Avatar rendering** | ✅ | `<img>` tag with `onError` fallback replaces CSS `url()` |
+| 🎨 **GitHub SVG icon** | ✅ | Proper Invertocat SVG replaces 🐙 emoji |
+
+---
+
 ## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
 
 > Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).

@@ -76,9 +76,11 @@ export function ProposalView() {
     }, [proposal?.status, loadProposal])
 
     // Check if connected wallet is a DAO member
+    // Must pass memberstorePath for tier-based DAOs like GovDAO (fix: #v5.6.0)
     useEffect(() => {
         if (!adena.address || !realmPath) { setIsMember(null); return }
-        getDAOMembers(GNO_RPC_URL, realmPath)
+        getDAOConfig(GNO_RPC_URL, realmPath)
+            .then((cfg) => getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath))
             .then((members) => {
                 const found = members.some((m) => m.address === adena.address)
                 setIsMember(found)

@@ -117,6 +117,9 @@
 | 11.7 | Enter invalid avatar URL | Rejected server-side (empty on reload) |
 | 11.8 | Own profile, no GitHub linked | "🐙 Link your GitHub account" CTA card shown with link to gnolove.world |
 | 11.9 | Own profile, GitHub already linked | No CTA card shown, GitHub data displayed normally |
+| 11.10 | Set avatar via external URL | Avatar displayed via `<img>` tag, fallback 👤 on CORS error |
+| 11.11 | GovDAO proposal page (as member) | "You are a DAO member" — voting buttons enabled |
+| 11.12 | GitHub social link icon | Proper Invertocat SVG (not 🐙 emoji) |
 
 ## Post-Test
 
