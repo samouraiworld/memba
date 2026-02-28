@@ -251,6 +251,7 @@ func renderVotes(id int) string {
 // ── Actions ───────────────────────────────────────────────
 
 func Propose(title, desc, category string) int {
+\tcrossing()
 \tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tassertCategory(category)
@@ -268,6 +269,7 @@ func Propose(title, desc, category string) int {
 }
 
 func VoteOnProposal(id int, vote string) {
+\tcrossing()
 \tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
@@ -310,6 +312,7 @@ func VoteOnProposal(id int, vote string) {
 }
 
 func ExecuteProposal(id int) {
+\tcrossing()
 \tcaller := runtime.OriginCaller()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
@@ -325,6 +328,7 @@ func ExecuteProposal(id int) {
 // ── Role Management (admin-only) ──────────────────────────
 
 func AssignRole(target address, role string) {
+\tcrossing()
 \tcaller := runtime.OriginCaller()
 \tassertAdmin(caller)
 \tassertRole(role)
@@ -344,6 +348,7 @@ func AssignRole(target address, role string) {
 }
 
 func RemoveRole(target address, role string) {
+\tcrossing()
 \tcaller := runtime.OriginCaller()
 \tassertAdmin(caller)
 \t// Prevent removing last admin
