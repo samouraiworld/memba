@@ -604,16 +604,19 @@ export async function getProposalVotes(
 
 // ── Message Builders ──────────────────────────────────────────
 //
-// GovDAO v3 functions ARE crossing → use MsgCall
-// Memba-deployed DAOs may NOT be crossing → use MsgRun as safe default
-// MsgRun wraps an inline Gno file that imports and calls the target realm
+// All DAO functions use MsgCall. Functions MUST have crossing() to be callable.
+// - GovDAO v3: uses its own function names (MustVoteOnProposalSimple, etc.)
+// - Memba DAOs (v5.2.1+): have crossing() in template → MsgCall works
+// - Old Memba DAOs (pre-crossing): MUST be re-deployed with updated template
+//
+// NOTE: MsgRun cannot modify external realm state, so it's NOT a viable fallback.
 
-/** Known GovDAO paths that support crossing MsgCall. */
+/** Known GovDAO paths that use different function names. */
 function isGovDAO(realmPath: string): boolean {
     return realmPath.includes("/gov/dao")
 }
 
-/** Build vote message — GovDAO uses MsgCall, Memba DAOs use MsgRun. */
+/** Build vote message. */
 export function buildVoteMsg(
     caller: string,
     realmPath: string,
@@ -623,8 +626,7 @@ export function buildVoteMsg(
     if (isGovDAO(realmPath)) {
         return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
     }
-    return buildDAOMsgRun(caller, realmPath,
-        `VoteOnProposal(${proposalId}, "${vote}")`)
+    return buildDAOMsgCall(realmPath, "VoteOnProposal", [String(proposalId), vote], caller)
 }
 
 /** Build execute message. */
@@ -633,14 +635,10 @@ export function buildExecuteMsg(
     realmPath: string,
     proposalId: number,
 ): AminoMsg {
-    if (isGovDAO(realmPath)) {
-        return buildDAOMsgCall(realmPath, "Execute", [String(proposalId)], caller)
-    }
-    return buildDAOMsgRun(caller, realmPath,
-        `ExecuteProposal(${proposalId})`)
+    return buildDAOMsgCall(realmPath, "ExecuteProposal", [String(proposalId)], caller)
 }
 
-/** Build propose message — v5.2.0+ Memba DAOs accept (title, desc, category). */
+/** Build propose message — v5.2.1+ Memba DAOs accept (title, desc, category). */
 export function buildProposeMsg(
     caller: string,
     realmPath: string,
@@ -651,12 +649,7 @@ export function buildProposeMsg(
     if (isGovDAO(realmPath)) {
         return buildDAOMsgCall(realmPath, "Propose", [title, description], caller)
     }
-    // Escape quotes in title/description for inline Gno code
-    const safeTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-    const safeDesc = description.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-    const safeCat = category.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-    return buildDAOMsgRun(caller, realmPath,
-        `Propose("${safeTitle}", "${safeDesc}", "${safeCat}")`)
+    return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)
 }
 
 // ── Internal Helpers ──────────────────────────────────────────
@@ -671,33 +664,6 @@ function buildDAOMsgCall(realmPath: string, func: string, args: string[], caller
             pkg_path: realmPath,
             func,
             args,
-        },
-    }
-}
-
-/**
- * Build Amino MsgRun that wraps an inline Gno file calling a non-crossing function.
- * The file imports the target realm and calls the function directly.
- */
-function buildDAOMsgRun(caller: string, realmPath: string, callExpr: string): AminoMsg {
-    const gnoCode = `package main
-
-import dao "${realmPath}"
-
-func main() {
-\tdao.${callExpr}
-}
-`
-    return {
-        type: "vm/MsgRun",
-        value: {
-            caller,
-            send: "",
-            package: {
-                name: "main",
-                path: "",
-                files: [{ name: "run.gno", body: gnoCode }],
-            },
         },
     }
 }

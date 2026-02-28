@@ -162,6 +162,7 @@ var (
 \tnextID            = 0
 \tallowedCategories []string
 \tallowedRoles      []string
+\tarchived          = false
 )
 
 func init() {
@@ -250,9 +251,9 @@ func renderVotes(id int) string {
 
 // ── Actions ───────────────────────────────────────────────
 
-func Propose(title, desc, category string) int {
-\tcrossing()
-\tcaller := runtime.OriginCaller()
+func Propose(cur realm, title, desc, category string) int {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
 \tassertMember(caller)
 \tassertCategory(category)
 \tid := nextID
@@ -268,9 +269,9 @@ func Propose(title, desc, category string) int {
 \treturn id
 }
 
-func VoteOnProposal(id int, vote string) {
-\tcrossing()
-\tcaller := runtime.OriginCaller()
+func VoteOnProposal(cur realm, id int, vote string) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
 \t\tpanic("invalid proposal ID")
@@ -311,9 +312,8 @@ func VoteOnProposal(id int, vote string) {
 \t}
 }
 
-func ExecuteProposal(id int) {
-\tcrossing()
-\tcaller := runtime.OriginCaller()
+func ExecuteProposal(cur realm, id int) {
+\tcaller := runtime.PreviousRealm().Address()
 \tassertMember(caller)
 \tif id < 0 || id >= len(proposals) {
 \t\tpanic("invalid proposal ID")
@@ -327,9 +327,8 @@ func ExecuteProposal(id int) {
 
 // ── Role Management (admin-only) ──────────────────────────
 
-func AssignRole(target address, role string) {
-\tcrossing()
-\tcaller := runtime.OriginCaller()
+func AssignRole(cur realm, target address, role string) {
+\tcaller := runtime.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tassertRole(role)
 \tfor i, m := range members {
@@ -347,9 +346,8 @@ func AssignRole(target address, role string) {
 \tpanic("target is not a member")
 }
 
-func RemoveRole(target address, role string) {
-\tcrossing()
-\tcaller := runtime.OriginCaller()
+func RemoveRole(cur realm, target address, role string) {
+\tcaller := runtime.PreviousRealm().Address()
 \tassertAdmin(caller)
 \t// Prevent removing last admin
 \tif role == "admin" {
@@ -378,7 +376,25 @@ func RemoveRole(target address, role string) {
 \tpanic("target is not a member")
 }
 
+// ── Archive Management ────────────────────────────────────
+
+func Archive(cur realm) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertAdmin(caller)
+\tarchived = true
+}
+
+func IsArchived() bool {
+\treturn archived
+}
+
 // ── Helpers ───────────────────────────────────────────────
+
+func assertNotArchived() {
+\tif archived {
+\t\tpanic("DAO is archived — no new proposals or votes")
+\t}
+}
 
 func assertMember(addr address) {
 \tfor _, m := range members {
