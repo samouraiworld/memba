@@ -6,6 +6,9 @@
 /** Application version — single source of truth for header/footer badges. */
 export const APP_VERSION = "5.6.0"
 
+/** GitHub OAuth App Client ID (for redirect to GitHub authorize). */
+export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "Ov23lin7WthOvyDudvQV"
+
 // Environment-driven config with sensible defaults.
 
 /** Backend API base URL.

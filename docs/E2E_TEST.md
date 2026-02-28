@@ -120,6 +120,10 @@
 | 11.10 | Set avatar via external URL | Avatar displayed via `<img>` tag, fallback 👤 on CORS error |
 | 11.11 | GovDAO proposal page (as member) | "You are a DAO member" — voting buttons enabled |
 | 11.12 | GitHub social link icon | Proper Invertocat SVG (not 🐙 emoji) |
+| 11.13 | Click "Link GitHub" CTA | Redirects to GitHub OAuth (not gnolove.world) |
+| 11.14 | Complete GitHub OAuth flow | GithubCallback page shows verify step, MsgCall signs |
+| 11.15 | Register username (@foo) | Inline form → Adena popup → success → profile refreshes |
+| 11.16 | Register invalid username | Validation shows "3-20 chars, lowercase + numbers + _" |
 
 ## Post-Test
 

@@ -614,6 +614,8 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 | 🐛 **GovDAO membership bug** | ✅ | ProposalView now passes `memberstorePath` for tier-based DAOs |
 | 🐛 **Avatar rendering** | ✅ | `<img>` tag with `onError` fallback replaces CSS `url()` |
 | 🎨 **GitHub SVG icon** | ✅ | Proper Invertocat SVG replaces 🐙 emoji |
+| 🔗 **Native GitHub OAuth** | ✅ | Backend proxy + GithubCallback page + ghverify MsgCall |
+| 🏷️ **In-app username registration** | ✅ | Inline MsgCall form to `users/v1:Register` |
 
 ---
 

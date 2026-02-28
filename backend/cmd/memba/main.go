@@ -88,6 +88,9 @@ func main() {
 		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
 	})
 
+	// GitHub OAuth exchange (proxies token exchange which blocks browser CORS)
+	mux.HandleFunc("/github/oauth/exchange", service.HandleGitHubOAuthExchange())
+
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(cors.Options{
 		AllowedOrigins:   splitOrigins(corsOrigins),

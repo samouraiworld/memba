@@ -4,7 +4,8 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
-import { GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, getExplorerBaseUrl } from "../lib/config"
+import { doContractBroadcast } from "../lib/grc20"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
 
@@ -172,23 +173,105 @@ export function ProfilePage() {
                             <CopyableAddress address={address} />
                         </div>
 
-                        {/* Username CTA if own profile and no username */}
-                        {isOwnProfile && !profile?.username && (
-                            <a
-                                href={`${explorerUrl}/r/gnoland/users/v1`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    display: "inline-flex", alignItems: "center", gap: 6,
-                                    marginTop: 10, padding: "6px 14px", borderRadius: 6,
-                                    fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.2)",
-                                    color: "#00d4aa", textDecoration: "none",
-                                }}
-                            >
-                                🏷️ Register your @username →
-                            </a>
-                        )}
+                        {/* Username Registration (own profile, no username) */}
+                        {isOwnProfile && !profile?.username && auth.isAuthenticated && (() => {
+                            const [regInput, setRegInput] = useState("")
+                            const [regLoading, setRegLoading] = useState(false)
+                            const [regError, setRegError] = useState<string | null>(null)
+                            const [regSuccess, setRegSuccess] = useState(false)
+                            const isValid = /^[a-z][a-z0-9_]{2,19}$/.test(regInput)
+
+                            const handleRegister = async () => {
+                                if (!isValid || !adena.address) return
+                                setRegLoading(true)
+                                setRegError(null)
+                                try {
+                                    const msg = {
+                                        type: "vm/MsgCall",
+                                        value: {
+                                            caller: adena.address,
+                                            send: "",
+                                            pkg_path: "gno.land/r/gnoland/users/v1",
+                                            func: "Register",
+                                            args: ["", regInput, ""],
+                                        },
+                                    }
+                                    await doContractBroadcast([msg], `Register @${regInput}`)
+                                    setRegSuccess(true)
+                                    setTimeout(() => loadProfile(), 2000)
+                                } catch (err) {
+                                    const raw = err instanceof Error ? err.message : "Registration failed"
+                                    if (raw.toLowerCase().includes("already")) {
+                                        setRegError("Username already taken. Try a different one.")
+                                    } else {
+                                        setRegError(raw)
+                                    }
+                                } finally {
+                                    setRegLoading(false)
+                                }
+                            }
+
+                            return (
+                                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    {regSuccess ? (
+                                        <span style={{ fontSize: 11, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>
+                                            ✓ Username @{regInput} registered!
+                                        </span>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                                                <span style={{
+                                                    fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                                    color: "#00d4aa", padding: "5px 0 5px 10px",
+                                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
+                                                    borderRight: "none", borderRadius: "6px 0 0 6px",
+                                                }}>@</span>
+                                                <input
+                                                    type="text"
+                                                    value={regInput}
+                                                    onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
+                                                    placeholder="username"
+                                                    maxLength={20}
+                                                    style={{
+                                                        width: 130, padding: "5px 8px", fontSize: 12,
+                                                        fontFamily: "JetBrains Mono, monospace",
+                                                        background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
+                                                        borderLeft: "none", borderRadius: "0 6px 6px 0",
+                                                        color: "#f0f0f0", outline: "none",
+                                                    }}
+                                                    onKeyDown={(e) => e.key === "Enter" && isValid && handleRegister()}
+                                                    disabled={regLoading}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleRegister}
+                                                disabled={!isValid || regLoading}
+                                                style={{
+                                                    padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                                    background: isValid ? "rgba(0,212,170,0.1)" : "transparent",
+                                                    border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "#222"}`,
+                                                    color: isValid ? "#00d4aa" : "#555", cursor: isValid ? "pointer" : "default",
+                                                    transition: "all 0.15s", opacity: regLoading ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {regLoading ? "Registering..." : "Register"}
+                                            </button>
+                                            {regError && (
+                                                <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
+                                                    ✕ {regError}
+                                                </span>
+                                            )}
+                                            {regInput && !isValid && (
+                                                <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                                                    3-20 chars, lowercase + numbers + _
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )
+                        })()}
 
                         {/* Bio */}
                         {(profile?.bio || profile?.githubBio) && (
@@ -296,9 +379,7 @@ export function ProfilePage() {
                             </p>
                         </div>
                         <a
-                            href="https://gnolove.world"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={`https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + "/github/callback")}&scope=read:user`}
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: 6,
                                 padding: "8px 16px", borderRadius: 6, fontSize: 11,

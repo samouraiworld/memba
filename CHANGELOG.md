@@ -4,6 +4,10 @@ All notable changes to Memba are documented here.
 
 ## [5.6.0] — 2026-02-28
 
+### Added
+- **Native GitHub verification** — OAuth flow directly in Memba (no gnolove.world redirect). Backend proxy for code exchange, frontend `GithubCallback` page with multi-step UX (exchange → verify on-chain → success), and MsgCall to `ghverify.RequestVerification`
+- **In-app username registration** — inline form on profile page sends MsgCall to `gno.land/r/gnoland/users/v1:Register` via Adena. Input validation (3-20 chars, lowercase), auto-refresh on success
+
 ### Fixed
 - **GovDAO membership bug** — ProposalView now passes `memberstorePath` to `getDAOMembers()`, fixing tier-based DAOs (GovDAO T1/T2/T3) showing "not a member" incorrectly
 - **Avatar rendering** — replaced CSS `background: url()` with `<img>` tag + `onError` fallback; fixes CORS-blocked external avatar URLs (e.g. Twitter)

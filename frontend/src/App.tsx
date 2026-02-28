@@ -28,6 +28,9 @@ const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m
 // ── Profile page (lazy) ──
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
 
+// ── GitHub OAuth callback (lazy) ──
+const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ default: m.GithubCallback })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -69,6 +72,9 @@ function App() {
 
           {/* Profile route (lazy) */}
           <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
+
+          {/* GitHub OAuth callback (lazy) */}
+          <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />
         </Route>
       </Routes>
     </BrowserRouter>
