@@ -2,6 +2,33 @@
 
 All notable changes to Memba are documented here.
 
+## [5.2.0] — 2026-02-28
+
+### Added
+- **DAO Presets**: 4 configurable DAO templates: Basic, Team, Treasury, Enterprise — each with pre-configured roles, threshold, quorum, and proposal categories
+- **Role System**: DAO members can now have roles (admin, dev, finance, ops, member) — assigned during creation, manageable by admins post-deploy via `AssignRole`/`RemoveRole`
+- **Quorum**: configurable minimum participation % (0-100) before any proposal can pass
+- **Proposal Categories**: configurable allowed categories (governance, treasury, membership, operations) — validated on-chain
+- **DAO Factory wizard enhanced**:
+  - Step 1: preset cards with icon, description, auto-fill on select
+  - Step 2: per-member role tag toggles with color-coded badges
+  - Step 3: quorum slider + proposal categories multi-select + role permissions summary
+  - Step 4: roles distribution, preset type, quorum, categories in review summary
+- **Role filter tabs**: DAOMembers page shows role-based filter buttons alongside tier filters (when roles present)
+- **Role-aware ABCI parsing**: member parser supports `(roles: admin, dev) — power: 3` format from v5.2.0 DAOs
+- **Category in proposals**: proposal parsers extract `Category:` field from DAO Render output
+- **`buildProposeMsg` category**: MsgCall now passes category as 3rd argument (backward-compatible default: "governance")
+
+### Fixed
+- **Footer email**: `contact@samourai.coop` → `support@samourai.coop` in Layout footer
+
+### Changed
+- `daoTemplate.ts`: complete rewrite with role-aware Gno realm code generator (~470 lines), `DAO_PRESETS` export, `DAOPreset` interface
+- `CreateDAO.tsx`: 4-step wizard with preset selection, role assignment, quorum slider, category selector
+- `dao.ts`: `DAOProposal` gains `category` field, member parser enhanced for `roles:` prefix, author parser handles raw `g1` addresses
+- `DAOMembers.tsx`: role badges use proper colors (admin=gold, dev=cyan, finance=purple, ops=blue), role filter tabs
+- Generated realm code includes: `AssignRole`, `RemoveRole`, `assertAdmin`, `hasRole`, `assertCategory`, `assertRole`, quorum check in `VoteOnProposal`, last-admin protection
+
 ## [5.0.4] — 2026-02-27
 
 ### Fixed

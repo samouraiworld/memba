@@ -20,6 +20,7 @@ export function DAOMembers() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [tierFilter, setTierFilter] = useState<string>("all")
+    const [roleFilter, setRoleFilter] = useState<string>("all")
 
     const loadMembers = useCallback(async () => {
         if (!realmPath) return
@@ -41,7 +42,11 @@ export function DAOMembers() {
 
     const tiers = config?.tierDistribution || []
     const totalPower = tiers.reduce((sum, t) => sum + t.power, 0)
-    const filteredMembers = tierFilter === "all" ? members : members.filter((m) => m.tier === tierFilter)
+    const allRoles = Array.from(new Set(members.flatMap((m) => m.roles))).filter(Boolean)
+    let filteredMembers = tierFilter === "all" ? members : members.filter((m) => m.tier === tierFilter)
+    if (roleFilter !== "all") {
+        filteredMembers = filteredMembers.filter((m) => m.roles.includes(roleFilter))
+    }
 
     if (loading) {
         return (
@@ -123,6 +128,26 @@ export function DAOMembers() {
                 </div>
             )}
 
+            {/* Role Filters (shown when members have roles from Memba-deployed DAOs) */}
+            {allRoles.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <FilterButton label="All Roles" count={members.length} active={roleFilter === "all"} onClick={() => setRoleFilter("all")} color="#f0f0f0" />
+                    {allRoles.map((role) => {
+                        const count = members.filter((m) => m.roles.includes(role)).length
+                        return (
+                            <FilterButton
+                                key={role}
+                                label={role}
+                                count={count}
+                                active={roleFilter === role}
+                                onClick={() => setRoleFilter(role)}
+                                color={roleColors[role] || "#888"}
+                            />
+                        )
+                    })}
+                </div>
+            )}
+
             {/* Members List */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {/* Header row */}
@@ -158,6 +183,7 @@ export function DAOMembers() {
 // ── Components ────────────────────────────────────────────
 
 const tierColors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
+const roleColors: Record<string, string> = { admin: "#f5a623", dev: "#00d4aa", finance: "#7b61ff", ops: "#3b82f6", member: "#888" }
 
 function TierSummaryCard({ tier, totalPower }: { tier: TierInfo; totalPower: number }) {
     const color = tierColors[tier.tier] || "#888"
@@ -247,17 +273,19 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                 </span>
             ) : <span />}
 
-            <div style={{ display: "flex", gap: 3, justifyContent: "flex-end" }}>
-                {member.roles.map((role) => (
-                    <span key={role} style={{
-                        padding: "2px 6px", borderRadius: 3, fontSize: 9,
-                        fontFamily: "JetBrains Mono, monospace",
-                        background: role === "admin" ? "rgba(0,212,170,0.08)" : "rgba(255,255,255,0.03)",
-                        color: role === "admin" ? "#00d4aa" : "#888",
-                    }}>
-                        {role}
-                    </span>
-                ))}
+            <div style={{ display: "flex", gap: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                {member.roles.map((role) => {
+                    const color = roleColors[role] || "#888"
+                    return (
+                        <span key={role} style={{
+                            padding: "2px 6px", borderRadius: 3, fontSize: 9,
+                            fontFamily: "JetBrains Mono, monospace",
+                            background: `${color}15`, color,
+                        }}>
+                            {role}
+                        </span>
+                    )
+                })}
             </div>
         </div>
     )

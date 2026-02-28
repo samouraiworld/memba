@@ -520,6 +520,29 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v5.2.0 — Advanced DAO Configuration — ✅ SHIPPED 2026-02-28
+
+> Role-based governance, configurable presets, quorum enforcement, and proposal categories for the DAO Factory.
+
+| Feature | Status |
+|---------|--------|
+| DAO Presets (Basic / Team / Treasury / Enterprise) | ✅ |
+| Role system (admin, dev, finance, ops, member) | ✅ |
+| Role assignment per member in creation wizard | ✅ |
+| Admin-only `AssignRole` / `RemoveRole` functions | ✅ |
+| Last-admin protection (cannot remove sole admin) | ✅ |
+| Configurable quorum (0-100%) with slider UI | ✅ |
+| Proposal categories (governance, treasury, membership, operations) | ✅ |
+| Multi-select category UI with validation | ✅ |
+| Role-aware Gno realm code generator | ✅ |
+| Role badges in DAOMembers (color-coded) | ✅ |
+| Role filter tabs in DAOMembers | ✅ |
+| Category in ABCI proposal parser | ✅ |
+| Backward-compatible with v5.0.x DAOs | ✅ |
+| Footer email fix (support@samourai.coop) | ✅ |
+
+---
+
 ## v5.0.4 — DAO Deploy Fix (std → chain/runtime) — ✅ SHIPPED 2026-02-27
 
 > Fix DAO deployment by migrating from deprecated `std` stdlib to `chain/runtime` (gno PR #4040).

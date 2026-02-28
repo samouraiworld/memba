@@ -2,11 +2,12 @@
  * DAO Template Generator — generates Gno realm code for deploying a new DAO.
  *
  * Creates a self-contained governance realm with:
- * - Member management (address + voting power)
- * - Proposal creation with title + description
+ * - Member management (address + voting power + roles)
+ * - Role-based access control (admin, dev, finance, ops, member)
+ * - Configurable quorum (minimum participation %)
+ * - Proposal categories (governance, treasury, membership, operations)
  * - Voting (YES / NO / ABSTAIN)
  * - Execution of passed proposals
- * - Configurable voting threshold (percentage)
  *
  * Deployed via MsgAddPackage through Adena DoContract.
  */
@@ -22,11 +23,73 @@ export interface DAOCreationConfig {
     description: string
     /** Gno realm path (e.g., gno.land/r/username/mydao). */
     realmPath: string
-    /** Initial members with voting power. */
-    members: { address: string; power: number }[]
+    /** Initial members with voting power and roles. */
+    members: { address: string; power: number; roles: string[] }[]
     /** Voting threshold percentage (51 = simple majority). */
     threshold: number
+    /** Roles available in this DAO. */
+    roles: string[]
+    /** Minimum participation % required before votes can pass (0 = disabled). */
+    quorum: number
+    /** Allowed proposal categories. */
+    proposalCategories: string[]
 }
+
+// ── Presets ────────────────────────────────────────────────────
+
+export interface DAOPreset {
+    id: string
+    name: string
+    icon: string
+    description: string
+    roles: string[]
+    threshold: number
+    quorum: number
+    categories: string[]
+}
+
+export const DAO_PRESETS: DAOPreset[] = [
+    {
+        id: "basic",
+        name: "Basic",
+        icon: "🏠",
+        description: "Simple DAO with admin + member roles. No quorum requirement.",
+        roles: ["admin", "member"],
+        threshold: 51,
+        quorum: 0,
+        categories: ["governance"],
+    },
+    {
+        id: "team",
+        name: "Team",
+        icon: "👥",
+        description: "Team DAO with admin, dev, and member roles. 33% quorum.",
+        roles: ["admin", "dev", "member"],
+        threshold: 51,
+        quorum: 33,
+        categories: ["governance", "membership"],
+    },
+    {
+        id: "treasury",
+        name: "Treasury",
+        icon: "💰",
+        description: "Treasury DAO with admin, finance, and member roles. 66% threshold, 50% quorum.",
+        roles: ["admin", "finance", "member"],
+        threshold: 66,
+        quorum: 50,
+        categories: ["governance", "treasury"],
+    },
+    {
+        id: "enterprise",
+        name: "Enterprise",
+        icon: "🏢",
+        description: "Full-featured DAO with admin, dev, finance, ops, and member roles.",
+        roles: ["admin", "dev", "finance", "ops", "member"],
+        threshold: 66,
+        quorum: 50,
+        categories: ["governance", "treasury", "membership", "operations"],
+    },
+]
 
 // ── Code Generator ────────────────────────────────────────────
 
@@ -38,7 +101,18 @@ export function generateDAOCode(config: DAOCreationConfig): string {
     const pkgName = config.realmPath.split("/").pop() || "mydao"
 
     const memberInit = config.members
-        .map((m) => `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${m.power}})`)
+        .map((m) => {
+            const rolesStr = m.roles.map((r) => `"${r}"`).join(", ")
+            return `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${m.power}, Roles: []string{${rolesStr}}})`
+        })
+        .join("\n")
+
+    const categoriesInit = config.proposalCategories
+        .map((c) => `\tallowedCategories = append(allowedCategories, "${c}")`)
+        .join("\n")
+
+    const rolesInit = config.roles
+        .map((r) => `\tallowedRoles = append(allowedRoles, "${r}")`)
         .join("\n")
 
     return `package ${pkgName}
@@ -54,6 +128,7 @@ import (
 type Member struct {
 \tAddress address
 \tPower   int
+\tRoles   []string
 }
 
 type Vote struct {
@@ -65,6 +140,7 @@ type Proposal struct {
 \tID          int
 \tTitle       string
 \tDescription string
+\tCategory    string
 \tAuthor      address
 \tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED"
 \tVotes       []Vote
@@ -77,16 +153,21 @@ type Proposal struct {
 // ── State ─────────────────────────────────────────────────
 
 var (
-\tname        = ${JSON.stringify(config.name)}
-\tdescription = ${JSON.stringify(config.description)}
-\tthreshold   = ${config.threshold} // percentage required to pass
-\tmembers     []Member
-\tproposals   []Proposal
-\tnextID      = 0
+\tname              = ${JSON.stringify(config.name)}
+\tdescription       = ${JSON.stringify(config.description)}
+\tthreshold         = ${config.threshold} // percentage required to pass
+\tquorum            = ${config.quorum}  // minimum participation % (0 = disabled)
+\tmembers           []Member
+\tproposals         []Proposal
+\tnextID            = 0
+\tallowedCategories []string
+\tallowedRoles      []string
 )
 
 func init() {
 ${memberInit}
+${categoriesInit}
+${rolesInit}
 }
 
 // ── Queries ───────────────────────────────────────────────
@@ -112,15 +193,17 @@ func Render(path string) string {
 func renderHome() string {
 \tout := "# " + name + "\\n"
 \tout += description + "\\n\\n"
+\tout += "Threshold: " + strconv.Itoa(threshold) + "% — Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
 \tout += "## Members (" + strconv.Itoa(len(members)) + ")\\n"
 \tfor _, m := range members {
-\t\tout += "- " + string(m.Address) + " (power: " + strconv.Itoa(m.Power) + ")\\n"
+\t\tout += "- " + string(m.Address) + " (roles: " + strings.Join(m.Roles, ", ") + ") — power: " + strconv.Itoa(m.Power) + "\\n"
 \t}
 \tout += "\\n## Proposals\\n"
 \tfor i := len(proposals) - 1; i >= 0; i-- {
 \t\tp := proposals[i]
 \t\tout += "### [Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "](:" + strconv.Itoa(p.ID) + ")\\n"
 \t\tout += "Author: " + string(p.Author) + "\\n\\n"
+\t\tout += "Category: " + p.Category + "\\n\\n"
 \t\tout += "Status: " + p.Status + "\\n\\n---\\n\\n"
 \t}
 \tif len(proposals) == 0 {
@@ -134,6 +217,7 @@ func renderProposal(id int) string {
 \tout := "# Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "\\n"
 \tout += p.Description + "\\n\\n"
 \tout += "Author: " + string(p.Author) + "\\n\\n"
+\tout += "Category: " + p.Category + "\\n\\n"
 \tout += "Status: " + p.Status + "\\n\\n"
 \tout += "YES: " + strconv.Itoa(p.YesVotes) + " — NO: " + strconv.Itoa(p.NoVotes) + " — ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
 \tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(totalPower()) + "\\n"
@@ -166,15 +250,17 @@ func renderVotes(id int) string {
 
 // ── Actions ───────────────────────────────────────────────
 
-func Propose(title, desc string) int {
+func Propose(title, desc, category string) int {
 \tcaller := runtime.OriginCaller()
 \tassertMember(caller)
+\tassertCategory(category)
 \tid := nextID
 \tnextID++
 \tproposals = append(proposals, Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
 \t\tDescription: desc,
+\t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
 \t})
@@ -210,13 +296,16 @@ func VoteOnProposal(id int, vote string) {
 \t\tpanic("invalid vote: must be YES, NO, or ABSTAIN")
 \t}
 \tp.TotalPower += power
-\t// Check if threshold reached
+\t// Check quorum + threshold
 \ttpow := totalPower()
-\tif tpow > 0 && p.YesVotes * 100 / tpow >= threshold {
-\t\tp.Status = "ACCEPTED"
-\t}
-\tif tpow > 0 && p.NoVotes * 100 / tpow > (100 - threshold) {
-\t\tp.Status = "REJECTED"
+\tif tpow > 0 {
+\t\tquorumMet := quorum == 0 || (p.TotalPower * 100 / tpow >= quorum)
+\t\tif quorumMet && p.YesVotes * 100 / tpow >= threshold {
+\t\t\tp.Status = "ACCEPTED"
+\t\t}
+\t\tif quorumMet && p.NoVotes * 100 / tpow > (100 - threshold) {
+\t\t\tp.Status = "REJECTED"
+\t\t}
 \t}
 }
 
@@ -233,6 +322,57 @@ func ExecuteProposal(id int) {
 \tp.Status = "EXECUTED"
 }
 
+// ── Role Management (admin-only) ──────────────────────────
+
+func AssignRole(target address, role string) {
+\tcaller := runtime.OriginCaller()
+\tassertAdmin(caller)
+\tassertRole(role)
+\tfor i, m := range members {
+\t\tif m.Address == target {
+\t\t\t// Check role not already assigned
+\t\t\tfor _, r := range m.Roles {
+\t\t\t\tif r == role {
+\t\t\t\t\tpanic("role already assigned")
+\t\t\t\t}
+\t\t\t}
+\t\t\tmembers[i].Roles = append(members[i].Roles, role)
+\t\t\treturn
+\t\t}
+\t}
+\tpanic("target is not a member")
+}
+
+func RemoveRole(target address, role string) {
+\tcaller := runtime.OriginCaller()
+\tassertAdmin(caller)
+\t// Prevent removing last admin
+\tif role == "admin" {
+\t\tadminCount := 0
+\t\tfor _, m := range members {
+\t\t\tif hasRoleInternal(m, "admin") {
+\t\t\t\tadminCount++
+\t\t\t}
+\t\t}
+\t\tif adminCount <= 1 {
+\t\t\tpanic("cannot remove the last admin")
+\t\t}
+\t}
+\tfor i, m := range members {
+\t\tif m.Address == target {
+\t\t\tnewRoles := []string{}
+\t\t\tfor _, r := range m.Roles {
+\t\t\t\tif r != role {
+\t\t\t\t\tnewRoles = append(newRoles, r)
+\t\t\t\t}
+\t\t\t}
+\t\t\tmembers[i].Roles = newRoles
+\t\t\treturn
+\t\t}
+\t}
+\tpanic("target is not a member")
+}
+
 // ── Helpers ───────────────────────────────────────────────
 
 func assertMember(addr address) {
@@ -242,6 +382,37 @@ func assertMember(addr address) {
 \t\t}
 \t}
 \tpanic("not a member")
+}
+
+func assertAdmin(addr address) {
+\tfor _, m := range members {
+\t\tif m.Address == addr {
+\t\t\tfor _, r := range m.Roles {
+\t\t\t\tif r == "admin" {
+\t\t\t\t\treturn
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t}
+\tpanic("admin role required")
+}
+
+func hasRole(addr address, role string) bool {
+\tfor _, m := range members {
+\t\tif m.Address == addr {
+\t\t\treturn hasRoleInternal(m, role)
+\t\t}
+\t}
+\treturn false
+}
+
+func hasRoleInternal(m Member, role string) bool {
+\tfor _, r := range m.Roles {
+\t\tif r == role {
+\t\t\treturn true
+\t\t}
+\t}
+\treturn false
 }
 
 func getMemberPower(addr address) int {
@@ -259,6 +430,24 @@ func totalPower() int {
 \t\ttotal += m.Power
 \t}
 \treturn total
+}
+
+func assertCategory(cat string) {
+\tfor _, c := range allowedCategories {
+\t\tif c == cat {
+\t\t\treturn
+\t\t}
+\t}
+\tpanic("invalid proposal category: " + cat)
+}
+
+func assertRole(role string) {
+\tfor _, r := range allowedRoles {
+\t\tif r == role {
+\t\t\treturn
+\t\t}
+\t}
+\tpanic("invalid role: " + role)
 }
 
 // ── Config (for Memba integration) ────────────────────────
