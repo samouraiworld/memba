@@ -70,10 +70,13 @@ chore: bump Go dependencies
 4. **Run the local CI checklist** before pushing:
    ```bash
    # Backend
-   cd backend && go build ./... && go test -race -count=1 ./...
+   cd backend && go build ./... && go test -race -count=1 -cover ./...
    
    # Frontend
-   cd frontend && npm run build && npm run lint
+   cd frontend && npm test && npm run build && npm run lint
+   
+   # E2E (optional — requires Chromium)
+   cd frontend && npx playwright test
    
    # Proto
    make proto-lint
