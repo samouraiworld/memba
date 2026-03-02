@@ -618,6 +618,29 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v6.0.0 — Hardening & Public Readiness — ✅ SHIPPED 2026-03-02
+
+> Comprehensive hardening: CI security scanning, OAuth CSRF, Go 1.25, community files, branch protection.
+
+| Feature | Status |
+|---------|--------|
+| ✨ OAuth CSRF protection (256-bit state tokens, one-time-use, 10min TTL) | ✅ |
+| ✨ CI security scanning (`govulncheck` + `npm audit` + golangci-lint v2) | ✅ |
+| ✨ Community files (CONTRIBUTING, SECURITY, CODE_OF_CONDUCT) | ✅ |
+| ✨ Dependabot (weekly Go + npm dep updates) | ✅ |
+| ✨ CODEOWNERS + issue templates | ✅ |
+| ✨ ErrorBoundary (React error boundary with fallback UI) | ✅ |
+| 🔒 GO-2026-4559 fixed (`golang.org/x/net` v0.51.0) | ✅ |
+| 🔒 10 errcheck violations fixed | ✅ |
+| 🔒 `io.ReadAll` bounded with `io.LimitReader` (1 MB) | ✅ |
+| 🔒 `npm audit` CI now fails on real production vulns | ✅ |
+| 🔒 Branch protection on `main` (PR + review + CI + no force push) | ✅ |
+| ⬆️ Go 1.24 → 1.25 (go.mod, ci.yml, deploy-backend.yml, Dockerfile) | ✅ |
+| ⬆️ golangci-lint v2 via `go install` (Go 1.25 compat) | ✅ |
+| 📄 All docs updated (README, CONTRIBUTING, DEPLOYMENT, CHANGELOG) | ✅ |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.

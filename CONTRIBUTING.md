@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Memba! This guide will help you g
 
 ### Prerequisites
 
-- **Go** ≥ 1.24
+- **Go** ≥ 1.25
 - **Node.js** ≥ 20
 - **Buf CLI** (for protobuf generation)
 - **Adena** browser extension (for wallet interaction)

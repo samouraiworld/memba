@@ -7,7 +7,7 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
-## Features (v5.7.0)
+## Features (v6.0.0)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -63,7 +63,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
 ### Prerequisites
 
-- Go ≥ 1.24
+- Go ≥ 1.25
 - Node.js ≥ 20
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app) browser extension

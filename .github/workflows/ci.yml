@@ -25,7 +25,7 @@ jobs:
         run: go build ./...
 
       - name: Test
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -cover ./...
 
       - name: Vulnerability check
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
@@ -61,7 +61,7 @@ jobs:
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high --omit=dev
 
   proto:
     name: Proto (Buf)
