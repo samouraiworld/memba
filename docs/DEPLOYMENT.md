@@ -42,6 +42,7 @@ npm run dev
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
 | `VITE_GNO_RPC_URL` | `https://rpc.test11.testnets.gno.land:443` | Gno chain RPC |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/samourai_dao` | DAO realm path on-chain |
+| `VITE_GNOLOVE_API_URL` | `https://gnolove.world` | Gnolove API for profile enrichment |
 
 ### Proto Generation
 
@@ -71,6 +72,7 @@ VITE_GNO_CHAIN_ID = test11
 VITE_GNO_RPC_URL = https://rpc.test11.testnets.gno.land:443
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/samourai_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
+VITE_GNOLOVE_API_URL = https://gnolove.world
 ```
 
 ### Backend — Fly.io

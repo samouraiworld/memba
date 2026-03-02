@@ -81,6 +81,19 @@ cd frontend && npm install && npm run dev
 make proto-gen
 ```
 
+### Testing
+
+```bash
+# Frontend unit tests (Vitest)
+cd frontend && npm test
+
+# Frontend E2E smoke tests (Playwright)
+cd frontend && npx playwright test
+
+# Backend tests
+cd backend && go test -race -count=1 -cover ./...
+```
+
 ## Chain
 
 | Network | RPC | Chain ID |
