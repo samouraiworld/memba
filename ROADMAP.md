@@ -638,6 +638,11 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 | ⬆️ Go 1.24 → 1.25 (go.mod, ci.yml, deploy-backend.yml, Dockerfile) | ✅ |
 | ⬆️ golangci-lint v2 via `go install` (Go 1.25 compat) | ✅ |
 | 📄 All docs updated (README, CONTRIBUTING, DEPLOYMENT, CHANGELOG) | ✅ |
+| 🧪 Vitest unit tests — 34 tests (parseMsgs, daoSlug, config) | ✅ |
+| 🧪 Playwright E2E — 5 smoke tests (core routes) | ✅ |
+| 🧪 Backend OAuth state store tests (5 tests) | ✅ |
+| 🔒 gosec SAST — Go security scanner in CI (push/PR/weekly) | ✅ |
+| 📛 Security badge in README | ✅ |
 
 ---
 

@@ -13,6 +13,11 @@ All notable changes to Memba are documented here.
 - **Issue templates** — bug report + feature request
 - **ErrorBoundary** — React error boundary with Kodera fallback UI
 - **Go test coverage** — `-cover` flag in CI
+- **Vitest unit tests** — 34 tests for parseMsgs, daoSlug, config (PR #37)
+- **Playwright E2E** — 5 smoke tests for core routes (PR #37)
+- **Backend OAuth tests** — 5 tests for state store (PR #37)
+- **gosec SAST** — Go security scanner in CI on push/PR/weekly (PR #39)
+- **Security badge** — README status badge for security workflow
 
 ### Security
 - Fixed GO-2026-4559 (`golang.org/x/net` v0.50.0 → v0.51.0)
@@ -20,6 +25,7 @@ All notable changes to Memba are documented here.
 - Rate limiting on OAuth endpoints
 - Bounded `io.ReadAll` with `io.LimitReader` (1 MB cap) in GitHub OAuth
 - `npm audit` now fails CI on real production dependency vulnerabilities
+- `#nosec` annotations with documented justifications (G115, G704)
 
 ### Changed
 - Go 1.24 → 1.25 (all configs: go.mod, ci.yml, deploy-backend.yml, Dockerfile)
