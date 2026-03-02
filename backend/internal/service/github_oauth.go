@@ -207,7 +207,7 @@ func exchangeGitHubCode(code, clientID, clientSecret string) (string, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- URL is hardcoded GitHub API endpoint, not user-controlled
 	if err != nil {
 		return "", fmt.Errorf("github token exchange request failed: %w", err)
 	}
