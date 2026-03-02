@@ -16,6 +16,16 @@
 | `Transactions` | ✅ | List transactions (filter by multisig, execution state, cursor pagination) |
 | `SignTransaction` | ✅ | Add signature to pending transaction |
 | `CompleteTransaction` | ✅ | Record final tx hash after broadcast |
+| `GetProfile` | No | Get public user profile (bio, social links, avatar) |
+| `UpdateProfile` | ✅ | Update own profile (bio, company, title, avatar, socials) |
+
+## REST Endpoints (non-RPC)
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /health` | No | Health check → `{"status":"ok"}` |
+| `GET /github/oauth/state` | No | Generate CSRF state token (256-bit, 10min TTL, one-time-use) |
+| `GET /github/oauth/exchange?code=X&state=Y` | No | Exchange GitHub OAuth code for user info (validates CSRF state) |
 
 ## Protocol
 

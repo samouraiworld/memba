@@ -70,6 +70,7 @@ VITE_API_URL = https://memba-backend.fly.dev
 VITE_GNO_CHAIN_ID = test11
 VITE_GNO_RPC_URL = https://rpc.test11.testnets.gno.land:443
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/samourai_dao
+VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 ```
 
 ### Backend — Fly.io
@@ -95,6 +96,8 @@ curl https://memba-backend.fly.dev/health
 # Generate a seed: openssl rand -hex 32
 flyctl secrets set ED25519_SEED=<64-hex-chars>
 flyctl secrets set CORS_ORIGINS=https://memba.samourai.app
+flyctl secrets set GITHUB_OAUTH_CLIENT_ID=<from GitHub OAuth App>
+flyctl secrets set GITHUB_OAUTH_CLIENT_SECRET=<from GitHub OAuth App>
 ```
 
 > ⚠️ `ED25519_SEED` **must** be set before first production deploy. Without it, all tokens are invalidated on every restart.
@@ -106,6 +109,7 @@ flyctl secrets set CORS_ORIGINS=https://memba.samourai.app
 | `FLY_API_TOKEN` | Fly.io dashboard | Backend deploy |
 | `NETLIFY_AUTH_TOKEN` | Netlify dashboard | Frontend deploy |
 | `NETLIFY_SITE_ID` | Netlify dashboard | Site identifier |
+| `VITE_GITHUB_CLIENT_ID` | GitHub OAuth App | GitHub OAuth Client ID for frontend build |
 
 ---
 

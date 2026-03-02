@@ -49,7 +49,11 @@ func main() {
 		slog.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			slog.Error("failed to close database", "error", err)
+		}
+	}()
 
 	if err := db.Migrate(database); err != nil {
 		slog.Error("failed to run migrations", "error", err)
@@ -78,6 +82,9 @@ func main() {
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
+	// Initialize OAuth state store with app context for clean shutdown.
+	oauthStore := service.NewOAuthStateStore(ctx)
+
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
 	mux.Handle(path, rateLimiter(handler))
 
@@ -85,11 +92,14 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
+		if _, err := fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339)); err != nil {
+			slog.Error("failed to write health response", "error", err)
+		}
 	})
 
-	// GitHub OAuth exchange (proxies token exchange which blocks browser CORS)
-	mux.HandleFunc("/github/oauth/exchange", service.HandleGitHubOAuthExchange())
+	// GitHub OAuth — CSRF-protected state generation + code exchange
+	mux.Handle("/github/oauth/state", rateLimiter(service.HandleGitHubOAuthState(oauthStore)))
+	mux.Handle("/github/oauth/exchange", rateLimiter(service.HandleGitHubOAuthExchange(oauthStore)))
 
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(cors.Options{

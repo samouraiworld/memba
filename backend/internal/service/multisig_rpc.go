@@ -191,7 +191,11 @@ func (s *MultisigService) MultisigInfo(
 	if err != nil {
 		return nil, internalError("MultisigInfo: member query", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("failed to close rows", "error", err)
+		}
+	}()
 	for rows.Next() {
 		var memberAddr string
 		if err := rows.Scan(&memberAddr); err != nil {
@@ -251,7 +255,11 @@ func (s *MultisigService) Multisigs(
 	if err != nil {
 		return nil, internalError("Multisigs: query", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("failed to close rows", "error", err)
+		}
+	}()
 
 	var multisigs []*membav1.Multisig
 	for rows.Next() {

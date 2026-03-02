@@ -4,7 +4,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
-import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, getExplorerBaseUrl } from "../lib/config"
+import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
@@ -284,21 +284,33 @@ export function ProfilePage() {
                                 Link your GitHub to verify your on-chain identity and show your contribution stats, avatar, and deployed packages.
                             </p>
                         </div>
-                        <a
-                            href={`https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + "/github/callback")}&scope=read:user`}
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`)
+                                    const data = await res.json()
+                                    const state = data.state || ""
+                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
+                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${state}`
+                                } catch {
+                                    // Fallback: redirect without state (will fail validation, but won't crash)
+                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
+                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user`
+                                }
+                            }}
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: 6,
                                 padding: "8px 16px", borderRadius: 6, fontSize: 11,
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(88,166,255,0.1)", border: "1px solid rgba(88,166,255,0.25)",
-                                color: "#58a6ff", textDecoration: "none",
+                                color: "#58a6ff", cursor: "pointer",
                                 transition: "background 0.15s, border-color 0.15s",
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.2)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.4)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.1)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.25)" }}
                         >
                             <GitHubIcon size={12} color="#58a6ff" /> Link GitHub →
-                        </a>
+                        </button>
                     </div>
                 </div>
             )}

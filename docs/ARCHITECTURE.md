@@ -47,7 +47,7 @@
 
 | Component | Tech | Responsibility |
 |-----------|------|---------------|
-| **Frontend** | React + Vite + Vanilla CSS + Kodera design system | UI, wallet integration, tx assembly |
+| **Frontend** | React + Vite + Tailwind CSS v4 + Kodera design system | UI, wallet integration, tx assembly |
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
@@ -59,7 +59,7 @@
 |---------|-------|---------------|
 | `cmd/memba` | `main.go` | Server entry, CORS (`connectrpc.com/cors`), rate limiter, graceful shutdown |
 | `internal/auth` | `crypto.go`, `crypto_test.go` | Challenge/token lifecycle, ADR-036, secp256k1 |
-| `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go` | Core struct + 9 RPC handlers (split by domain) |
+| `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go`, `profile_rpc.go`, `github_oauth.go` | Core struct + 11 RPC handlers + GitHub OAuth (CSRF-protected) |
 | `internal/db` | `db.go`, `migrations/` | SQLite connection, migration runner |
 | `gen/memba/v1` | Generated | Proto stubs (Go + ConnectRPC) |
 
@@ -79,7 +79,7 @@
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage** |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect** |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 
 ## Data Flow — Multisig Transaction
@@ -101,11 +101,12 @@
 
 ## Database Schema
 
-4 tables + 1 migration tracker:
+5 tables + 1 migration tracker:
 - `multisigs` — chain_id, address, pubkey_json, threshold, members_count
 - `user_multisigs` — user↔multisig membership, join state, role
 - `transactions` — proposed txs with msgs, fees, sequence, final_hash
 - `signatures` — per-user signature on a transaction
+- `profiles` — user profile data (bio, company, title, avatar_url, social links)
 - `_migrations` — schema version tracking
 
 ## Hybrid Architecture — RPC vs Backend

@@ -46,7 +46,11 @@ func setup(t *testing.T) *testHarness {
 		privateKey: privKey,
 	}
 
-	t.Cleanup(func() { database.Close() })
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Errorf("failed to close database: %v", err)
+		}
+	})
 	return &testHarness{svc: svc, db: database, pubKey: pubKey}
 }
 

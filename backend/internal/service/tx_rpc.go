@@ -108,7 +108,11 @@ func (s *MultisigService) GetTransaction(
 	if err != nil {
 		return nil, internalError("GetTransaction: sig query", err)
 	}
-	defer sigRows.Close()
+	defer func() {
+		if err := sigRows.Close(); err != nil {
+			slog.Error("failed to close sigRows", "error", err)
+		}
+	}()
 
 	for sigRows.Next() {
 		var ignoredID uint32
@@ -186,7 +190,11 @@ func (s *MultisigService) Transactions(
 	if err != nil {
 		return nil, internalError("Transactions: query", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("failed to close rows", "error", err)
+		}
+	}()
 
 	var transactions []*membav1.Transaction
 	txByID := make(map[uint32]*membav1.Transaction)
@@ -228,7 +236,11 @@ func (s *MultisigService) Transactions(
 		if err != nil {
 			return nil, internalError("Transactions: sig batch query", err)
 		}
-		defer sigRows.Close()
+		defer func() {
+			if err := sigRows.Close(); err != nil {
+				slog.Error("failed to close sigRows", "error", err)
+			}
+		}()
 
 		for sigRows.Next() {
 			var txID uint32
