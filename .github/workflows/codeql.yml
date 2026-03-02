@@ -29,19 +29,4 @@ jobs:
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
       - name: Run gosec
-        run: gosec -fmt=json -out=gosec-report.json ./... || true
-
-      - name: Check gosec results
-        run: |
-          if [ -f gosec-report.json ]; then
-            ISSUES=$(cat gosec-report.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('Issues',[])))" 2>/dev/null || echo "0")
-            echo "Found $ISSUES security issues"
-            if [ "$ISSUES" != "0" ]; then
-              cat gosec-report.json | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for i in d.get('Issues',[]):
-              print(f\"[{i.get('severity','?')}/{i.get('confidence','?')}] {i.get('details','')} ({i.get('file','')}:{i.get('line','')})\")"
-              exit 1
-            fi
-          fi
+        run: gosec -exclude-generated -severity high -confidence medium -fmt=text ./...

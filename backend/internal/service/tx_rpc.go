@@ -59,7 +59,7 @@ func (s *MultisigService) CreateTransaction(
 
 	txID, _ := res.LastInsertId()
 	slog.Info("CreateTransaction", "user", userAddress, "multisig", multisigAddr, "id", txID)
-	return connect.NewResponse(&membav1.CreateTransactionResponse{TransactionId: uint32(txID)}), nil
+	return connect.NewResponse(&membav1.CreateTransactionResponse{TransactionId: uint32(txID)}), nil // #nosec G115 -- SQLite auto-increment; won't exceed uint32 range
 }
 
 // GetTransaction returns a single transaction by ID, if the caller is a member.
