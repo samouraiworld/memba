@@ -2,6 +2,30 @@
 
 All notable changes to Memba are documented here.
 
+## [6.0.0] — 2026-03-02
+
+### Added
+- **OAuth CSRF protection** — state tokens (256-bit, one-time-use, 10min TTL)
+- **CI security scanning** — `govulncheck` + `npm audit` + golangci-lint v2
+- **Community files** — CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md
+- **Dependabot** — weekly Go + npm dependency updates
+- **CODEOWNERS** — @zxxma owns all files
+- **Issue templates** — bug report + feature request
+- **ErrorBoundary** — React error boundary with Kodera fallback UI
+- **Go test coverage** — `-cover` flag in CI
+
+### Security
+- Fixed GO-2026-4559 (`golang.org/x/net` v0.50.0 → v0.51.0)
+- All `Close()`/`Fprintf()` errors checked (10 errcheck fixes)
+- Rate limiting on OAuth endpoints
+- Bounded `io.ReadAll` with `io.LimitReader` (1 MB cap) in GitHub OAuth
+- `npm audit` now fails CI on real production dependency vulnerabilities
+
+### Changed
+- Go 1.24 → 1.25 (all configs: go.mod, ci.yml, deploy-backend.yml, Dockerfile)
+- golangci-lint: action replaced with `go install` v2 (Go 1.25 compat)
+- Branch protection on `main` (require PR + review + CI + no force push)
+
 ## [5.7.0] — 2026-02-28
 
 ### Fixed

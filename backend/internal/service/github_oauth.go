@@ -248,7 +248,7 @@ func fetchGitHubUser(token string) (*githubUser, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MB cap
 		return nil, fmt.Errorf("github API returned %d: %s", resp.StatusCode, string(body))
 	}
 
