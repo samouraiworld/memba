@@ -60,6 +60,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: E2E tests
+        run: npx playwright test --reporter=list
+
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
 
