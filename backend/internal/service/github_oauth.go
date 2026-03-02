@@ -211,7 +211,11 @@ func exchangeGitHubCode(code, clientID, clientSecret string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("github token exchange request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("failed to close response body", "error", err)
+		}
+	}()
 
 	var tokenResp githubTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
@@ -237,7 +241,11 @@ func fetchGitHubUser(token string) (*githubUser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("github user request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("failed to close response body", "error", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
