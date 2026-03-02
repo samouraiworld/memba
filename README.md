@@ -7,7 +7,7 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
-## Features (v5.2.1)
+## Features (v5.7.0)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -40,11 +40,17 @@
 - ⚡ Code splitting (424KB main bundle, lazy-loaded DAO/token chunks)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD pipeline (GitHub Actions + Netlify + Fly.io)
+- 🔗 GitHub OAuth identity verification (link GitHub to profile)
+- 👤 User profiles (bio, social links, contributions, deployed packages)
+- 📛 Username registration via `gno.land/r/gnoland/users/v1`
+- 🗳️ Vote status badges ("You voted YES/NO/ABSTAIN")
+- 🔀 User redirect (`/u/username` → `/profile/address`)
+- 📊 Gnolove contribution stats (commits, PRs, issues, reviews)
 
 ## Architecture
 
 ```
-frontend/   → React + Vite + Vanilla CSS + Kodera design system (Netlify)
+frontend/   → React + Vite + Tailwind CSS v4 + Kodera design system (Netlify)
 backend/    → Go + ConnectRPC + SQLite (Fly.io)
 api/        → Protobuf service definitions (Buf)
 contracts/  → Gno realms (future)
@@ -93,6 +99,9 @@ samourai-crew 3-of-7: `g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh`
 - [Architecture](docs/ARCHITECTURE.md)
 - [API](docs/API.md)
 - [Deployment](docs/DEPLOYMENT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License
 

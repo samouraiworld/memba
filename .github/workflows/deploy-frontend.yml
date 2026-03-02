@@ -12,9 +12,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci-frontend:
+    name: Frontend CI Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+
   deploy:
     name: Deploy to Netlify
     runs-on: ubuntu-latest
+    needs: [ci-frontend]
     defaults:
       run:
         working-directory: frontend
@@ -37,6 +68,7 @@ jobs:
           VITE_GNO_CHAIN_ID: test11
           VITE_GNO_RPC_URL: https://rpc.test11.testnets.gno.land:443
           VITE_DAO_REALM_PATH: gno.land/r/samcrew/samourai_dao
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

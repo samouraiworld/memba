@@ -33,6 +33,7 @@ export function GithubCallback() {
     const [error, setError] = useState<string | null>(null)
 
     const code = searchParams.get("code")
+    const oauthState = searchParams.get("state")
 
     // Step 1: Exchange OAuth code for GitHub user info
     useEffect(() => {
@@ -44,7 +45,8 @@ export function GithubCallback() {
 
         const exchange = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/github/oauth/exchange?code=${encodeURIComponent(code)}`)
+                const stateParam = oauthState ? `&state=${encodeURIComponent(oauthState)}` : ""
+                const res = await fetch(`${API_BASE_URL}/github/oauth/exchange?code=${encodeURIComponent(code)}${stateParam}`)
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}))
                     throw new Error(data.error || `Exchange failed (${res.status})`)

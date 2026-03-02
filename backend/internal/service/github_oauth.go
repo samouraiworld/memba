@@ -1,6 +1,9 @@
 package service
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,7 +11,78 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
+
+// ── CSRF State Store ─────────────────────────────────────────────
+
+const (
+	oauthStateTTL     = 10 * time.Minute // state tokens expire after 10 minutes
+	oauthStateGCEvery = 5 * time.Minute  // GC stale tokens every 5 minutes
+)
+
+type oauthStateEntry struct {
+	expiry time.Time
+}
+
+// OAuthStateStore manages CSRF state tokens for GitHub OAuth.
+type OAuthStateStore struct {
+	mu      sync.Mutex
+	entries map[string]oauthStateEntry
+}
+
+// NewOAuthStateStore creates a new state store and starts a GC goroutine.
+func NewOAuthStateStore(ctx context.Context) *OAuthStateStore {
+	s := &OAuthStateStore{entries: make(map[string]oauthStateEntry)}
+	go func() {
+		ticker := time.NewTicker(oauthStateGCEvery)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.mu.Lock()
+				now := time.Now()
+				for k, v := range s.entries {
+					if now.After(v.expiry) {
+						delete(s.entries, k)
+					}
+				}
+				s.mu.Unlock()
+			}
+		}
+	}()
+	return s
+}
+
+// Generate creates a new cryptographically random state token and stores it.
+func (s *OAuthStateStore) Generate() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate state token: %w", err)
+	}
+	token := hex.EncodeToString(b)
+	s.mu.Lock()
+	s.entries[token] = oauthStateEntry{expiry: time.Now().Add(oauthStateTTL)}
+	s.mu.Unlock()
+	return token, nil
+}
+
+// Validate checks and consumes a state token (one-time use).
+func (s *OAuthStateStore) Validate(token string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry, ok := s.entries[token]
+	if !ok {
+		return false
+	}
+	delete(s.entries, token) // one-time use
+	return time.Now().Before(entry.expiry)
+}
+
+// ── GitHub OAuth Types ───────────────────────────────────────────
 
 // githubTokenResponse is the response from GitHub's OAuth token exchange.
 type githubTokenResponse struct {
@@ -32,14 +106,46 @@ type GitHubOAuthExchangeResponse struct {
 	Token     string `json:"token"`
 }
 
-// HandleGitHubOAuthExchange exchanges a GitHub OAuth code for an access token
-// and returns the GitHub user info. This proxies through the backend because
-// GitHub's token exchange endpoint blocks browser CORS.
+// ── Handlers ─────────────────────────────────────────────────────
+
+// HandleGitHubOAuthState generates a CSRF state token for the OAuth flow.
 //
-// GET /github/oauth/exchange?code=OAUTH_CODE
-func HandleGitHubOAuthExchange() http.HandlerFunc {
+// GET /github/oauth/state → {"state": "<hex>"}
+func HandleGitHubOAuthState(store *OAuthStateStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		state, err := store.Generate()
+		if err != nil {
+			slog.Error("failed to generate oauth state", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			writeJSON(w, map[string]string{"error": "failed to generate state"})
+			return
+		}
+		writeJSON(w, map[string]string{"state": state})
+	}
+}
+
+// HandleGitHubOAuthExchange exchanges a GitHub OAuth code for an access token
+// and returns the GitHub user info. Validates the CSRF state parameter.
+//
+// GET /github/oauth/exchange?code=OAUTH_CODE&state=STATE_TOKEN
+func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Validate CSRF state parameter
+		state := r.URL.Query().Get("state")
+		if state == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]string{"error": "missing state parameter"})
+			return
+		}
+		if !store.Validate(state) {
+			slog.Warn("invalid or expired oauth state", "state_prefix", state[:min(8, len(state))])
+			w.WriteHeader(http.StatusForbidden)
+			writeJSON(w, map[string]string{"error": "invalid or expired state token (CSRF protection)"})
+			return
+		}
 
 		code := r.URL.Query().Get("code")
 		if code == "" {

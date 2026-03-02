@@ -78,6 +78,9 @@ func main() {
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
+	// Initialize OAuth state store with app context for clean shutdown.
+	oauthStore := service.NewOAuthStateStore(ctx)
+
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
 	mux.Handle(path, rateLimiter(handler))
 
@@ -88,8 +91,9 @@ func main() {
 		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
 	})
 
-	// GitHub OAuth exchange (proxies token exchange which blocks browser CORS)
-	mux.HandleFunc("/github/oauth/exchange", service.HandleGitHubOAuthExchange())
+	// GitHub OAuth — CSRF-protected state generation + code exchange
+	mux.Handle("/github/oauth/state", rateLimiter(service.HandleGitHubOAuthState(oauthStore)))
+	mux.Handle("/github/oauth/exchange", rateLimiter(service.HandleGitHubOAuthExchange(oauthStore)))
 
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(cors.Options{

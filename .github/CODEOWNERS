@@ -1,0 +1,14 @@
+# Default owner for all files
+* @zxxma
+
+# Backend-specific
+/backend/ @zxxma
+
+# Frontend-specific
+/frontend/ @zxxma
+
+# Smart contracts
+/contracts/ @zxxma
+
+# CI/CD
+/.github/ @zxxma
