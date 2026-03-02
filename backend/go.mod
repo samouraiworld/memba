@@ -1,19 +1,19 @@
 module github.com/samouraiworld/memba/backend
 
-go 1.24.0
+go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.1
+	connectrpc.com/cors v0.1.0
 	github.com/cosmos/cosmos-sdk v0.53.6
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.11.1
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.46.1
 )
 
 require (
-	connectrpc.com/cors v0.1.0 // indirect
 	cosmossdk.io/api v0.9.2 // indirect
 	cosmossdk.io/collections v1.3.1 // indirect
 	cosmossdk.io/core v0.11.3 // indirect

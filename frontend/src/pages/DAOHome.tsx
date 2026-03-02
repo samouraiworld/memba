@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
-import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import {
     getDAOConfig,

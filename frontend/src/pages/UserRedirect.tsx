@@ -48,12 +48,16 @@ export function UserRedirect() {
 
     useEffect(() => {
         if (!username) {
-            setError(true)
-            return
+            // Defer state update to avoid synchronous setState in effect
+            const t = setTimeout(() => setError(true), 0)
+            return () => clearTimeout(t)
         }
+
+        let isMounted = true
 
         const resolve = async () => {
             const address = await resolveUsernameToAddress(username)
+            if (!isMounted) return
             if (address) {
                 navigate(`/profile/${address}`, { replace: true })
             } else {
@@ -62,6 +66,10 @@ export function UserRedirect() {
         }
 
         resolve()
+
+        return () => {
+            isMounted = false
+        }
     }, [username, navigate])
 
     if (error) {

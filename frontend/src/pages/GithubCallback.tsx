@@ -72,7 +72,7 @@ export function GithubCallback() {
         }
 
         exchange()
-    }, [code, auth.isAuthenticated, auth.token, adena.address, navigate])
+    }, [code, oauthState, auth.isAuthenticated, auth.token, adena.address, navigate])
 
     return (
         <div className="animate-fade-in" style={{
