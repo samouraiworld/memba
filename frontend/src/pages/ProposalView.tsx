@@ -35,6 +35,7 @@ export function ProposalView() {
     const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
     const [isArchived, setIsArchived] = useState(false)
     const [myUsername, setMyUsername] = useState<string | null>(null)
+    const [memberCount, setMemberCount] = useState(0)
 
 
     const proposalId = parseInt(id || "0", 10)
@@ -85,10 +86,15 @@ export function ProposalView() {
     useEffect(() => {
         if (!adena.address || !realmPath) { setIsMember(null); return }
         getDAOConfig(GNO_RPC_URL, realmPath)
-            .then((cfg) => getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath))
+            .then((cfg) => {
+                setIsArchived(cfg?.isArchived || false)
+                setMemberCount(cfg?.memberCount || 0)
+                return getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
+            })
             .then((members) => {
                 const found = members.some((m) => m.address === adena.address)
                 setIsMember(found)
+                if (members.length > 0 && memberCount === 0) setMemberCount(members.length)
             })
             .catch(() => setIsMember(null)) // on error, don't block — let user try
     }, [adena.address, realmPath])
@@ -200,7 +206,7 @@ export function ProposalView() {
 
     const statusColors: Record<string, { bg: string; color: string; label: string }> = {
         open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
-        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "ACCEPTED" },
+        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
         rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
         executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
     }
@@ -235,6 +241,11 @@ export function ProposalView() {
                     }}>
                         {sc.label}
                     </span>
+                    {proposal.status === "passed" && (
+                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                            ⚡ Awaiting execution
+                        </span>
+                    )}
                     {isLive && (
                         <span style={{
                             padding: "3px 8px", borderRadius: 4, fontSize: 9,
@@ -336,7 +347,7 @@ export function ProposalView() {
                                     {abstainPct > 0 && <span style={{ color: "#888" }}>○ {abstainPct}% Abstain</span>}
                                 </div>
                                 <span style={{ color: "#555" }}>
-                                    {totalYesVoters + totalNoVoters} voted
+                                    {totalYesVoters + totalNoVoters}{memberCount > 0 ? ` of ${memberCount}` : ""} voted{memberCount > 0 ? ` (${Math.round(((totalYesVoters + totalNoVoters) / memberCount) * 100)}%)` : ""}
                                 </span>
                             </div>
                             {/* Visual bar */}
