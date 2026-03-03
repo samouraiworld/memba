@@ -24,7 +24,7 @@ interface ErrorPattern {
 const ERROR_PATTERNS: ErrorPattern[] = [
     // Network errors
     {
-        test: (m) => m.includes("Failed to fetch") || m.includes("NetworkError") || m.includes("ERR_NETWORK"),
+        test: (m) => m.includes("failed to fetch") || m.includes("networkerror") || m.includes("err_network"),
         result: {
             title: "Connection failed",
             message: "Unable to reach the server. This usually means a network issue.",
@@ -34,7 +34,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Timeout
     {
-        test: (m) => m.includes("timeout") || m.includes("DEADLINE_EXCEEDED") || m.includes("AbortError"),
+        test: (m) => m.includes("timeout") || m.includes("deadline_exceeded") || m.includes("aborterror"),
         result: {
             title: "Request timed out",
             message: "The network is responding slowly.",
@@ -44,7 +44,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Auth errors
     {
-        test: (m) => m.includes("UNAUTHENTICATED") || m.includes("401") || m.includes("token expired"),
+        test: (m) => m.includes("unauthenticated") || m.includes("401") || m.includes("token expired"),
         result: {
             title: "Session expired",
             message: "Your authentication session has ended.",
@@ -53,7 +53,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Not found
     {
-        test: (m) => m.includes("NOT_FOUND") || m.includes("404") || m.includes("not found"),
+        test: (m) => m.includes("not_found") || m.includes("404") || m.includes("not found"),
         result: {
             title: "Not found",
             message: "The requested resource doesn't exist or has been moved.",
@@ -61,7 +61,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Invalid input
     {
-        test: (m) => m.includes("INVALID_ARGUMENT") || m.includes("invalid") || m.includes("validation"),
+        test: (m) => m.includes("invalid_argument") || m.includes("invalid") || m.includes("validation"),
         result: {
             title: "Invalid input",
             message: "Some of the provided data is incorrect.",
@@ -79,7 +79,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // ABCI / blockchain errors
     {
-        test: (m) => m.includes("ABCI") || m.includes("abci_query"),
+        test: (m) => m.includes("abci") || m.includes("abci_query"),
         result: {
             title: "Blockchain query failed",
             message: "Unable to read data from gno.land.",
@@ -89,7 +89,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // On-chain panic
     {
-        test: (m) => m.includes("panic") || m.includes("VM error"),
+        test: (m) => m.includes("panic") || m.includes("vm error"),
         result: {
             title: "Transaction failed",
             message: "The on-chain function returned an error.",
@@ -98,7 +98,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Permission denied
     {
-        test: (m) => m.includes("PERMISSION_DENIED") || m.includes("forbidden") || m.includes("not authorized"),
+        test: (m) => m.includes("permission_denied") || m.includes("forbidden") || m.includes("not authorized"),
         result: {
             title: "Permission denied",
             message: "You don't have permission to perform this action.",
@@ -106,7 +106,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
     // Adena wallet errors
     {
-        test: (m) => m.includes("Adena") || m.includes("wallet") || m.includes("rejected"),
+        test: (m) => m.includes("adena") || m.includes("wallet") || m.includes("rejected"),
         result: {
             title: "Wallet error",
             message: "The transaction was rejected or the wallet is unavailable.",
