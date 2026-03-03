@@ -4,7 +4,7 @@
  */
 
 /** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "9.0.0"
+export const APP_VERSION = "1.0.0"
 
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""

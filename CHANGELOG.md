@@ -2,6 +2,22 @@
 
 All notable changes to Memba are documented here.
 
+## [1.0.0] — 2026-03-03 — First Public Release 🎉
+
+> Version reset from v10.0.0 → v1.0.0 for clean open-source versioning. All previous development versions (v0.1.0–v10.0.0) are consolidated into this first public release.
+
+### Highlights
+- 🔑 Multisig wallets (create, import, sign, broadcast)
+- 🏛️ DAO governance (proposals, voting, execution, member management)
+- 🏗️ DAO Factory (4 presets: Basic, Team, Treasury, Enterprise)
+- 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)
+- 👤 User profiles (bio, socials, GitHub link, gnolove stats)
+- 📊 Vote intelligence (turnout %, progress bars, filter tabs, VOTED badges)
+- 🔐 Challenge-response auth (ed25519, persistent keys, rate-limited)
+- 🧪 189 unit tests (Vitest)
+- 🐳 Docker Compose self-hosting
+- 🚀 CI/CD: GitHub Actions + Netlify + Fly.io
+
 ## [10.0.0] — 2026-03-03 — Governance Intelligence & Docs Polish
 
 ### Added
