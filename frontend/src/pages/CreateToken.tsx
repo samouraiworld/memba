@@ -243,7 +243,7 @@ export function CreateToken() {
                     <label style={labelStyle}>Token Name</label>
                     <input
                         type="text" value={name} onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Samourai Token" maxLength={64}
+                        placeholder="e.g. Your Token Name" maxLength={64}
                         style={inputStyle(loading)} disabled={loading}
                     />
                 </div>
@@ -254,7 +254,7 @@ export function CreateToken() {
                     <input
                         type="text" value={symbol}
                         onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                        placeholder="e.g. SAM" maxLength={10}
+                        placeholder="e.g. $YTK" maxLength={10}
                         style={inputStyle(loading)} disabled={loading}
                     />
                     <p style={hintStyle}>1-10 uppercase letters/digits. Must be unique on-chain.</p>

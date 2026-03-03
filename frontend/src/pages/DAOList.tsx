@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL } from "../lib/config"
@@ -12,6 +12,8 @@ import {
     removeSavedDAO,
     validateRealmPath,
 } from "../lib/daoSlug"
+import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
+import type { LayoutContext } from "../types/layout"
 
 interface DAOEntry {
     realmPath: string
@@ -22,14 +24,20 @@ interface DAOEntry {
 
 export function DAOList() {
     const navigate = useNavigate()
+    const { auth } = useOutletContext<LayoutContext>()
 
     const [daoEntries, setDaoEntries] = useState<DAOEntry[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Connect form
+    // Connect form — collapsed by default
+    const [showConnect, setShowConnect] = useState(false)
     const [realmInput, setRealmInput] = useState("")
     const [connecting, setConnecting] = useState(false)
+
+    // Action Required: unvoted proposals
+    const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
+    const { proposals: unvotedProposals } = useUnvotedProposals(userAddress)
 
     const loadDAOs = useCallback(async () => {
         setLoading(true)
@@ -109,6 +117,9 @@ export function DAOList() {
         setDaoEntries((prev) => prev.filter((d) => d.realmPath !== realmPath || d.featured))
     }
 
+    // Compute summary stats
+    const totalMembers = daoEntries.reduce((sum, d) => sum + (d.config?.memberCount || 0), 0)
+
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {/* Header */}
@@ -117,65 +128,57 @@ export function DAOList() {
                     🏛️ DAO Governance
                 </h2>
                 <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
-                    Connect to any DAO on gno.land — browse proposals, vote, and manage governance
+                    Browse proposals, vote, and manage DAO governance on gno.land
                 </p>
             </div>
 
-            {/* Connect to DAO */}
-            <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>🔗</span>
-                    <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>Connect to a DAO</div>
-                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
-                            Enter a DAO realm path to explore its governance
-                        </div>
-                    </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                    <input
-                        id="dao-connect-input"
-                        type="text"
-                        value={realmInput}
-                        onChange={(e) => setRealmInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                        placeholder="gno.land/r/your/dao"
-                        maxLength={100}
-                        disabled={connecting}
-                        aria-label="DAO realm path"
-                        style={{
-                            flex: 1, height: 40, padding: "0 12px", borderRadius: 8,
-                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                            fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-                            opacity: connecting ? 0.5 : 1,
-                        }}
-                    />
+            {/* ── ⚡ Action Required Banner ──────────────────────── */}
+            {unvotedProposals.length > 0 && (
+                <div className="k-action-banner" style={{
+                    display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                    padding: "12px 18px", borderRadius: 10,
+                    background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))",
+                    border: "1px solid rgba(245,166,35,0.15)",
+                }}>
+                    <span style={{ fontSize: 14 }}>⚡</span>
+                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
+                        🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
+                    </span>
                     <button
-                        id="dao-connect-btn"
-                        className="k-btn-primary"
-                        onClick={handleConnect}
-                        disabled={connecting || !realmInput.trim()}
-                        style={{ whiteSpace: "nowrap", opacity: !realmInput.trim() ? 0.4 : 1 }}
+                        onClick={() => {
+                            const first = unvotedProposals[0]
+                            if (first) navigate(`/dao/${first.daoSlug}/proposal/${first.proposalId}`)
+                        }}
+                        style={{
+                            marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                            color: "#f5a623", background: "rgba(245,166,35,0.08)",
+                            border: "1px solid rgba(245,166,35,0.2)", borderRadius: 6,
+                            padding: "4px 12px", cursor: "pointer",
+                        }}
                     >
-                        {connecting ? "Connecting..." : "Connect"}
+                        Vote now →
                     </button>
                 </div>
-            </div>
+            )}
 
-            {/* Create DAO button */}
-            <div style={{ display: "flex", gap: 12 }}>
-                <button
-                    id="dao-create-btn"
-                    className="k-btn-secondary"
-                    onClick={() => navigate("/dao/create")}
-                    style={{ fontSize: 12 }}
-                >
-                    + Create a DAO
-                </button>
-            </div>
+            {/* ── Summary Line ───────────────────────────────────── */}
+            {!loading && daoEntries.length > 0 && (
+                <div style={{
+                    display: "flex", gap: 16, fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666",
+                }}>
+                    <span>{daoEntries.length} DAO{daoEntries.length !== 1 ? "s" : ""}</span>
+                    <span>·</span>
+                    <span>{unvotedProposals.length} pending vote{unvotedProposals.length !== 1 ? "s" : ""}</span>
+                    {totalMembers > 0 && (
+                        <>
+                            <span>·</span>
+                            <span>{totalMembers} member{totalMembers !== 1 ? "s" : ""} total</span>
+                        </>
+                    )}
+                </div>
+            )}
 
-            {/* DAO Grid */}
+            {/* ── DAO Grid (MOVED UP — primary content) ────────── */}
             {loading ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
                     <SkeletonCard />
@@ -188,7 +191,7 @@ export function DAOList() {
                     </div>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>No DAOs yet</h3>
                     <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto", fontFamily: "JetBrains Mono, monospace" }}>
-                        Enter a realm path above to connect to your first DAO
+                        Connect to a DAO by clicking below, or create your own
                     </p>
                 </div>
             ) : (
@@ -204,6 +207,69 @@ export function DAOList() {
                             onRemove={dao.featured ? undefined : () => handleRemove(dao.realmPath)}
                         />
                     ))}
+                </div>
+            )}
+
+            {/* ── Quick Actions ─────────────────────────────────── */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <button
+                    id="dao-create-btn"
+                    className="k-btn-primary"
+                    onClick={() => navigate("/dao/create")}
+                    style={{ fontSize: 12 }}
+                >
+                    + Create a DAO
+                </button>
+                <button
+                    className="k-btn-secondary"
+                    onClick={() => setShowConnect(!showConnect)}
+                    style={{ fontSize: 12 }}
+                >
+                    🔗 {showConnect ? "Hide" : "Connect to DAO"}
+                </button>
+            </div>
+
+            {/* ── Connect Form (COLLAPSED by default) ──────────── */}
+            {showConnect && (
+                <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontSize: 20 }}>🔗</span>
+                        <div>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>Connect to a DAO</div>
+                            <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                                Enter a DAO realm path to explore its governance
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10 }}>
+                        <input
+                            id="dao-connect-input"
+                            type="text"
+                            value={realmInput}
+                            onChange={(e) => setRealmInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                            placeholder="gno.land/r/your/dao"
+                            maxLength={100}
+                            disabled={connecting}
+                            aria-label="DAO realm path"
+                            style={{
+                                flex: 1, height: 40, padding: "0 12px", borderRadius: 8,
+                                background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+                                opacity: connecting ? 0.5 : 1,
+                            }}
+                        />
+                        <button
+                            id="dao-connect-btn"
+                            className="k-btn-primary"
+                            onClick={handleConnect}
+                            disabled={connecting || !realmInput.trim()}
+                            style={{ whiteSpace: "nowrap", opacity: !realmInput.trim() ? 0.4 : 1 }}
+                        >
+                            {connecting ? "Connecting..." : "Connect"}
+                        </button>
+                    </div>
                 </div>
             )}
 

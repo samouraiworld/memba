@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## [1.4.0] — 2026-03-03 — UX Optimization ✨
+
+### Added
+- **Landing page redesign** — feature showcase with 3 capability cards (Multisig, DAO, Token Factory) for logged-out users, replacing the empty "connect wallet" dead-end
+- **Activity Hub** — cross-feature "Action Required" strip on Dashboard showing unvoted proposal count + unsigned TX count with navigation shortcuts
+- **Quick Vote widget** — inline YES/NO voting for top 3 unvoted DAO proposals directly from Dashboard, eliminating 3-click friction
+- **Feature Cards grid** — always-visible cards showing multisig/DAO/token counts with contextual CTAs (Manage/Get Started/Create)
+- **DAO page Action Required banner** — amber notification showing proposals needing votes with "Vote now →" shortcut
+- **DAO summary line** — compact stats: "N DAOs · N pending votes · N members total"
+- **Multisig Action Required banner** — shows unsigned pending transaction count on MultisigView page
+- **Proposal type selector** — visual indicator of current (Text) and future (Add Member, Treasury Spend, Code Upgrade) proposal types on ProposeDAO
+- **MsgCall source code preview** — expandable "📋 View Source Code" section on ProposeDAO showing the exact MsgCall being built
+- **Vote scanner extension** — `scanUnvotedProposalDetails()` returns proposal metadata (not just count) for Quick Vote widget
+- **`useUnvotedProposals` hook** — new React hook with `refresh()` callback for post-vote re-scan
+- CSS utility classes: `.k-action-banner`, `.k-feature-grid` with responsive breakpoints
+
+### Changed
+- **DAO page hierarchy** — DAO grid moved to primary position; "Connect to DAO" form collapsed by default with toggle button
+- **Dashboard layout** — stat cards (Multisigs: 0, Pending: 0, Balance) replaced with Feature Cards + Activity Hub for better first-impression UX
+- **CreateToken placeholders** — "Samourai Token" / "SAM" → "Your Token Name" / "$YTK"
+
 ## [1.3.1] — 2026-03-03 — RPC Domain Security Fix v2 🛡️
 
 ### Security

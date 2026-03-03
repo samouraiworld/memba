@@ -765,6 +765,28 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v1.4.0 — UX Optimization — ✅ SHIPPED 2026-03-03
+
+> Redesign logged-out landing, connected dashboard, DAO page hierarchy, and proposal extensibility.
+
+| Feature / Change | Status |
+|---------|--------|
+| Landing page redesign (3 feature showcase cards for logged-out users) | ✅ |
+| Activity Hub (Action Required strip + Quick Vote widget on Dashboard) | ✅ |
+| Feature Cards grid (Multisig/DAO/Token with counts + CTAs) | ✅ |
+| DAO page hierarchy (DAO grid first, Connect form collapsed) | ✅ |
+| DAO Action Required banner + summary line | ✅ |
+| Multisig Action Required banner (unsigned TX count) | ✅ |
+| Proposal type selector (Text active, 3 future types disabled) | ✅ |
+| MsgCall source code preview on ProposeDAO | ✅ |
+| Vote scanner extension (`scanUnvotedProposalDetails`) | ✅ |
+| `useUnvotedProposals` hook with `refresh()` callback | ✅ |
+| CreateToken placeholders neutralized | ✅ |
+| CSS utility classes: `.k-action-banner`, `.k-feature-grid` | ✅ |
+| Mobile responsive (480px/375px) for new components | ✅ |
+
+---
+
 ## v1.3.1 — RPC Domain Security Fix v2 🛡️ — ✅ SHIPPED 2026-03-03
 
 > Critical: v1.2.0 fix was a self-check. Real fix validates Adena's actual RPC via GetNetwork().
