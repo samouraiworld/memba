@@ -713,6 +713,33 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v10.0.0 — Governance Intelligence & Docs Polish — ✅ SHIPPED 2026-03-03
+
+> Voter turnout, status label clarity, docs polish.
+
+| Feature | Status |
+|---------|--------|
+| 📊 Voter turnout display ("12 of 17 voted (71%)") | ✅ |
+| 🏷️ Status label: ACCEPTED → PASSED + "⚡ Awaiting execution" | ✅ |
+| 🐛 Vote % bars fallback from voter counts (GovDAO format fix) | ✅ |
+| 📄 README updated v7→v9, 167→189 tests | ✅ |
+| 📄 ROADMAP ordering fixed (v8→v9) | ✅ |
+
+---
+
+## v1.0.0 — First Public Release 🎉 — ✅ SHIPPED 2026-03-03
+
+> Version reset from v10.0.0 → v1.0.0 for clean open-source versioning. All development versions consolidated.
+
+| Change | Status |
+|--------|--------|
+| 🏷️ APP_VERSION → 1.0.0 | ✅ |
+| 📦 package.json version → 1.0.0 | ✅ |
+| 📄 README "Features (v1.0.0)" | ✅ |
+| 📋 CHANGELOG: consolidated release highlights | ✅ |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.
