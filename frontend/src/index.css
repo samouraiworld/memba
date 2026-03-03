@@ -282,6 +282,12 @@ body {
   }
 }
 
+/* ── Security banner (untrusted wallet RPC) ────────────────────── */
+.k-security-banner {
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.08), rgba(255, 71, 87, 0.04));
+  border-bottom: 2px solid rgba(255, 71, 87, 0.4);
+  padding: 12px 24px;
+}
 
 /* ── Responsive ────────────────────────────────────────────────── */
 

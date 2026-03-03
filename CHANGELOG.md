@@ -2,6 +2,18 @@
 
 All notable changes to Memba are documented here.
 
+## [1.3.1] — 2026-03-03 — RPC Domain Security Fix v2 🛡️
+
+### Security
+- **CRITICAL FIX**: v1.2.0 RPC domain validation was a self-check (always passed) — it only validated Memba's hardcoded config, never the wallet's actual RPC URL
+- **Adena GetNetwork() integration** — reads wallet's active RPC URL and validates against `*.gno.land` allowlist
+- **Transaction blocking** — all `DoContract` writes blocked when wallet RPC is untrusted or unverifiable
+- **Real-time re-validation** — `changedNetwork` event listener detects mid-session network switches
+- **Prominent security banner** with malicious URL display and step-by-step fix instructions
+
+### Added
+- 3 new security tests (200 total): tester's exact malicious URL, write guard validation
+
 ## [1.3.0] — 2026-03-03 — Notification & Vote History 🗳️
 
 ### Added

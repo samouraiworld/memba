@@ -52,14 +52,48 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
     }))
 }
 
+// ── Wallet RPC Security Guard ─────────────────────────────────
+
+/**
+ * Module-level state set by useAdena on connect/network-change.
+ * Used to block DoContract calls through untrusted Adena RPCs.
+ */
+let _walletRpcUrl: string | null = null
+let _walletRpcTrusted = false
+
+/** Called by useAdena to sync the wallet's active RPC validation state. */
+export function setWalletRpcContext(url: string | null, trusted: boolean) {
+    _walletRpcUrl = url
+    _walletRpcTrusted = trusted
+}
+
+/** Read current wallet RPC context (for UI components). */
+export function getWalletRpcContext(): { url: string | null; trusted: boolean } {
+    return { url: _walletRpcUrl, trusted: _walletRpcTrusted }
+}
+
 /**
  * Sign + broadcast via Adena DoContract.
  * Returns { hash, error } — throws if Adena is unavailable.
+ *
+ * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
+ * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
  */
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
 ): Promise<{ hash: string }> {
+    // SECURITY: Block transactions through untrusted or unverifiable RPC
+    if (!_walletRpcTrusted) {
+        const detail = _walletRpcUrl
+            ? `Your wallet is using an untrusted RPC: ${_walletRpcUrl}`
+            : "Unable to verify your wallet's RPC URL"
+        throw new Error(
+            `🛡️ Transaction blocked — ${detail}. ` +
+            `Open Adena → Settings → Networks → switch to a trusted *.gno.land RPC.`
+        )
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adena = (window as any).adena
     if (!adena?.DoContract) {

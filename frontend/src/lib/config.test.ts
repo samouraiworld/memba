@@ -10,8 +10,8 @@ import {
 } from './config'
 
 describe('config constants', () => {
-    it('APP_VERSION matches v1.3.0', () => {
-        expect(APP_VERSION).toBe('1.3.0')
+    it('APP_VERSION matches v1.3.1', () => {
+        expect(APP_VERSION).toBe('1.3.1')
     })
 
     it('UGNOT_PER_GNOT is 1 million', () => {
@@ -86,5 +86,24 @@ describe('isTrustedRpcDomain', () => {
     it('TRUSTED_RPC_DOMAINS is non-empty', () => {
         expect(TRUSTED_RPC_DOMAINS.length).toBeGreaterThan(0)
     })
+
+    // Bug report: tester's exact malicious URL was not caught by v1.2.0 fix
+    it('rejects tester-reported malicious URLs', () => {
+        expect(isTrustedRpcDomain('https://rpc.test11.testnets.malicious.land')).toBe(false)
+        expect(isTrustedRpcDomain('https://rpc.test11.testnets.malicious.land:443')).toBe(false)
+    })
 })
 
+describe('doContractBroadcast RPC guard', () => {
+    it('blocks transactions when wallet RPC is untrusted', async () => {
+        const { setWalletRpcContext, doContractBroadcast } = await import('./grc20')
+        setWalletRpcContext('https://rpc.test11.testnets.malicious.land', false)
+        await expect(doContractBroadcast([], 'test')).rejects.toThrow('Transaction blocked')
+    })
+
+    it('blocks transactions when wallet RPC is unknown', async () => {
+        const { setWalletRpcContext, doContractBroadcast } = await import('./grc20')
+        setWalletRpcContext(null, false)
+        await expect(doContractBroadcast([], 'test')).rejects.toThrow('Transaction blocked')
+    })
+})
