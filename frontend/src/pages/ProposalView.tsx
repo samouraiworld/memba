@@ -55,7 +55,10 @@ export function ProposalView() {
             }).catch(() => { /* ignore */ })
 
         } catch (err) {
-            if (!silent) setError(err instanceof Error ? err.message : "Failed to load proposal")
+            if (!silent) {
+                setError(err instanceof Error ? err.message : "Failed to load proposal")
+                setLoading(false)
+            }
         } finally {
             if (!silent) setLoading(false)
         }
@@ -382,10 +385,20 @@ export function ProposalView() {
                         </>
                     )}
 
-                    {proposal.status === "passed" && (
+                    {proposal.status === "passed" && isMember && (
                         <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
+                    )}
+
+                    {proposal.status === "passed" && isMember === false && (
+                        <div style={{
+                            padding: "12px 16px", borderRadius: 8,
+                            background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
+                            fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
+                        }}>
+                            ⚠ Only DAO members can execute passed proposals.
+                        </div>
                     )}
                 </div>
             )}

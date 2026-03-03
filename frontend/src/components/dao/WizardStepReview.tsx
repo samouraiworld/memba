@@ -1,4 +1,5 @@
 import { DAO_PRESETS } from "../../lib/daoTemplate"
+import { GnoCodeBlock } from "../ui/GnoCodeBlock"
 import { SummaryItem, ROLE_COLORS, ROLE_ICONS, type MemberInput, type Step } from "./wizardShared"
 
 interface Props {
@@ -123,14 +124,9 @@ export function WizardStepReview({
                 }}>
                     📄 View Generated Gno Code ({generatedCode.split("\n").length} lines)
                 </summary>
-                <pre style={{
-                    padding: "16px 20px", fontSize: 10, color: "#aaa",
-                    fontFamily: "JetBrains Mono, monospace", overflow: "auto",
-                    maxHeight: 400, borderTop: "1px solid rgba(255,255,255,0.06)",
-                    whiteSpace: "pre-wrap", lineHeight: 1.5,
-                }}>
-                    {generatedCode}
-                </pre>
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <GnoCodeBlock code={generatedCode} maxHeight={400} />
+                </div>
             </details>
 
             {/* Warning */}

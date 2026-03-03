@@ -8,8 +8,9 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, GNO_RPC_URL } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
+import { queryRender } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
@@ -23,6 +24,9 @@ export function Dashboard() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [joiningAddr, setJoiningAddr] = useState<string | null>(null)
+    // User identity (from on-chain profile)
+    const [username, setUsername] = useState<string | null>(null)
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
     const joinedMultisigs = multisigs.filter(m => m.joined)
     const discoverableMultisigs = multisigs.filter(m => !m.joined)
@@ -51,6 +55,20 @@ export function Dashboard() {
     }, [token, auth.isAuthenticated])
 
     useEffect(() => { fetchData() }, [fetchData])
+
+    // Fetch on-chain username for the identity card
+    useEffect(() => {
+        if (!auth.isAuthenticated || !balance) return
+        const addr = (auth as { address?: string }).address
+        if (!addr) return
+        queryRender(GNO_RPC_URL, "gno.land/r/gnoland/users/v1", addr)
+            .then((data) => {
+                if (!data) return
+                const m = data.match(/# User - `([^`]+)`/)
+                if (m) setUsername(`@${m[1]}`)
+            })
+            .catch(() => { /* silent */ })
+    }, [auth.isAuthenticated, balance, auth])
 
     // S1: Clear stale data when auth drops (wallet disconnect / token expiry)
     useEffect(() => {
@@ -88,11 +106,55 @@ export function Dashboard() {
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+            {/* ── User Identity Card (new) ────────────────────────── */}
+            {auth.isAuthenticated && (
+                <div className="k-card" style={{
+                    padding: "20px 24px", display: "flex", alignItems: "center", gap: 16,
+                    borderColor: "rgba(0,212,170,0.15)",
+                    background: "linear-gradient(135deg, rgba(0,212,170,0.04), transparent)",
+                }}>
+                    <div
+                        style={{
+                            width: 48, height: 48, borderRadius: "50%",
+                            background: avatarUrl ? "none" : "rgba(0,212,170,0.1)",
+                            border: "2px solid rgba(0,212,170,0.2)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            overflow: "hidden", cursor: "pointer",
+                        }}
+                        onClick={() => navigate(`/profile/${(auth as { address?: string }).address || ""}`)}
+                    >
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setAvatarUrl(null)} />
+                        ) : (
+                            <span style={{ fontSize: 24 }}>👤</span>
+                        )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16, fontWeight: 600 }}>
+                                {username || "Anonymous"}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: balance.startsWith("?") ? "#f5a623" : "#00d4aa" }}>
+                                {balance}
+                            </span>
+                        </div>
+                        <CopyableAddress address={(auth as { address?: string }).address || ""} fontSize={11} />
+                    </div>
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => navigate(`/profile/${(auth as { address?: string }).address || ""}`)}
+                        style={{ fontSize: 11, flexShrink: 0 }}
+                    >
+                        Edit Profile
+                    </button>
+                </div>
+            )}
+
             {/* ── Page header ────────────────────────────────────────── */}
             <div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
                 <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
-                    Manage your multisig wallets and transactions
+                    Your hub for multisig wallets, DAOs, and tokens
                 </p>
             </div>
 
@@ -254,10 +316,31 @@ export function Dashboard() {
                     </button>
                     <button
                         className="k-btn-secondary"
+                        onClick={() => navigate("/dao")}
+                        style={{ fontSize: 12, borderColor: "rgba(99,102,241,0.3)", color: "#818cf8" }}
+                    >
+                        🏛️ Explore DAOs
+                    </button>
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => navigate("/dao/create")}
+                        style={{ fontSize: 12, borderColor: "rgba(99,102,241,0.3)", color: "#818cf8" }}
+                    >
+                        + Create DAO
+                    </button>
+                    <button
+                        className="k-btn-secondary"
                         onClick={() => navigate("/create-token")}
                         style={{ fontSize: 12, borderColor: "rgba(245,166,35,0.3)", color: "#f5a623" }}
                     >
-                        🪙 Create a Token
+                        🪙 Create Token
+                    </button>
+                    <button
+                        className="k-btn-secondary"
+                        onClick={() => navigate("/tokens")}
+                        style={{ fontSize: 12, borderColor: "rgba(245,166,35,0.3)", color: "#f5a623" }}
+                    >
+                        Browse Tokens
                     </button>
                 </div>
             )}

@@ -43,6 +43,23 @@ export function ProfilePage() {
 
     useEffect(() => { loadProfile() }, [loadProfile])
 
+    // Auto-apply pending GitHub link (deferred from OAuth redirect)
+    useEffect(() => {
+        const pending = localStorage.getItem("pendingGithubLink")
+        if (pending && auth.isAuthenticated && auth.token && isOwnProfile) {
+            try {
+                const { login, ts } = JSON.parse(pending)
+                if (Date.now() - ts < 600_000) { // 10min expiry
+                    updateBackendProfile(auth.token, { github: login })
+                        .then(() => { localStorage.removeItem("pendingGithubLink"); loadProfile() })
+                        .catch(() => { /* silent — user can retry manually */ })
+                } else {
+                    localStorage.removeItem("pendingGithubLink")
+                }
+            } catch { localStorage.removeItem("pendingGithubLink") }
+        }
+    }, [auth.isAuthenticated, auth.token, isOwnProfile, loadProfile])
+
     const startEditing = () => {
         if (!profile) return
         setEditForm({
@@ -61,10 +78,12 @@ export function ProfilePage() {
         setError(null)
         try {
             await updateBackendProfile(auth.token, editForm)
+            // Optimistic update: show new avatar immediately (Bug 1.3)
+            setProfile(prev => prev ? { ...prev, avatarUrl: editForm.avatarUrl } : prev)
             setEditing(false)
             setSaveSuccess(true)
             setTimeout(() => setSaveSuccess(false), 3000)
-            await loadProfile() // refresh data
+            loadProfile() // background re-fetch for other fields
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save profile")
         } finally {
@@ -570,6 +589,8 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
             const raw = err instanceof Error ? err.message : "Registration failed"
             if (raw.toLowerCase().includes("already")) {
                 setRegError("Username already taken. Try a different one.")
+            } else if (raw.toLowerCase().includes("insufficient") || raw.toLowerCase().includes("coins") || raw.toLowerCase().includes("std.coins")) {
+                setRegError("Insufficient GNOT to register. Get test tokens from the faucet first.")
             } else {
                 setRegError(raw)
             }
@@ -597,7 +618,7 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
                             type="text"
                             value={regInput}
                             onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
-                            placeholder="zooma1337"
+                            placeholder="anonymous-user"
                             maxLength={20}
                             style={{
                                 width: 130, padding: "5px 8px", fontSize: 12,
@@ -625,14 +646,38 @@ function RegisterUsernameForm({ address, onRegistered }: { address: string; onRe
                         {regLoading ? "Registering..." : "Register"}
                     </button>
                     {regError && (
-                        <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
-                            ✕ {regError}
-                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
+                                ✕ {regError}
+                            </span>
+                            {regError.includes("faucet") && (
+                                <a
+                                    href="https://faucet.gno.land/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                                >
+                                    → Get test tokens at faucet.gno.land
+                                </a>
+                            )}
+                        </div>
                     )}
                     {regInput && !isValid && (
                         <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                            ≥3 letters + ≥3 digits (e.g. zooma1337)
+                            ≥3 letters + ≥3 digits (e.g. myname123)
                         </span>
+                    )}
+                    {!regInput && !regError && (
+                        <a
+                            href="https://faucet.gno.land/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                        >
+                            Need test tokens? → faucet.gno.land
+                        </a>
                     )}
                 </>
             )}
