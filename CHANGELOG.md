@@ -14,6 +14,9 @@ All notable changes to Memba are documented here.
 ### Added
 - 3 new security tests (200 total): tester's exact malicious URL, write guard validation
 
+### Fixed
+- **`/profile/` blank page** after GitHub OAuth callback — wallet disconnects during redirect leaving empty address; now redirects to dashboard + added `/profile` catch-all route
+
 ## [1.3.0] — 2026-03-03 — Notification & Vote History 🗳️
 
 ### Added

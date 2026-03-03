@@ -10,7 +10,7 @@
 
 **🌐 Live Demo:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v1.0.0)
+## Features (v1.3.1)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -54,7 +54,7 @@
 - ✅ Vote status badges + auto-hide buttons after voting
 - ✨ Gno/Go syntax highlighter for code previews
 - 🖼️ Dashboard identity card (avatar, @username, balance, address)
-- 🧪 197 unit tests (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation
+- 🧪 200 unit tests (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard
 - 🗺️ Centralised error mapping layer (10 error patterns → user-friendly messages + retry)
 - ⚡ Progressive loading (DAOHome, DAOList — per-section skeleton states)
 - ♻️ CreateDAO wizard split (5 components, draft persistence with 24h TTL)
@@ -62,6 +62,10 @@
 - 🏗️ Enhanced `/health` endpoint (DB status, uptime, memory, version)
 - 💾 SQLite automated backup (daily VACUUM INTO, 7-day retention)
 - 📥 TX history CSV export (client-side, 10 columns)
+- 🔴 Unvoted proposal notification dot — pulsing red badge on DAO nav for proposals needing the user's vote
+- 🗳️ "My Votes" history section — cross-DAO vote history on user profile
+- 🔄 Adena wallet auto-reconnect (sessionStorage persistence)
+- 🛡️ RPC domain security v2 — validates Adena's active RPC via `GetNetwork()`, blocks all writes through untrusted RPCs, real-time `changedNetwork` re-validation
 
 ## Architecture
 
