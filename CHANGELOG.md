@@ -2,6 +2,17 @@
 
 All notable changes to Memba are documented here.
 
+## [1.3.0] — 2026-03-03 — Notification & Vote History 🗳️
+
+### Added
+- **Unvoted proposal notification dot** — pulsing red badge on 🏛️ DAO nav link when saved DAOs have open proposals the user hasn't voted on
+- **Enhanced "My Votes" section** on own profile — cross-DAO vote history with DAO names, clickable proposal links, and vote filter tabs (All/YES/NO)
+- **Vote cache invalidation** — notification dot updates immediately after voting
+- **Shared vote scanner** (`lib/dao/voteScanner.ts`) — max 5 DAOs × 5 proposals, 100ms delay, sessionStorage caching
+
+### Fixed
+- **Adena wallet disconnect on refresh** — wallet now auto-reconnects using `sessionStorage` persistence; Layout auth guard waits for reconnect before clearing token
+
 ## [1.2.0] — 2026-03-03 — RPC Domain Validation 🛡️
 
 ### Added

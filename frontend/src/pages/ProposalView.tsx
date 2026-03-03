@@ -15,6 +15,7 @@ import {
     type VoteRecord,
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { clearVoteCache } from "../lib/dao/voteScanner"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
@@ -141,6 +142,7 @@ export function ProposalView() {
         try {
             const msg = buildVoteMsg(adena.address, realmPath, proposalId, vote)
             await doContractBroadcast([msg], `Vote ${vote} on Proposal #${proposalId}`)
+            clearVoteCache() // Invalidate notification dot cache immediately
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
             await loadProposal()
         } catch (err) {

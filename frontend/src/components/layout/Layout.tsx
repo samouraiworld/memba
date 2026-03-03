@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { APP_VERSION, NETWORKS, validateActiveRpcDomain } from "../../lib/config"
+import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -80,7 +81,8 @@ export function Layout() {
         }
         // S1: When wallet is not connected, clear any persisted auth token.
         // This prevents stale data from showing on hard refresh without wallet.
-        if (!adena.connected && auth.isAuthenticated) {
+        // BUT: don't clear during auto-reconnect — give adena time to restore.
+        if (!adena.connected && auth.isAuthenticated && !adena.reconnecting) {
             auth.logout()
         }
         // Reset login gate when wallet disconnects
@@ -125,7 +127,8 @@ export function Layout() {
 
 
 
-    const isLoggingIn = adena.loading || authLoading || auth.loading
+    const isLoggingIn = adena.loading || authLoading || auth.loading || adena.reconnecting
+    const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#000", color: "#f0f0f0" }}>
@@ -158,8 +161,9 @@ export function Layout() {
                         <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                             🪙 <span className="k-nav-label">Tokens</span>
                         </Link>
-                        <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                        <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s", position: "relative" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"} title={unvotedCount > 0 ? `${unvotedCount} unvoted proposal${unvotedCount > 1 ? "s" : ""}` : undefined}>
                             🏛️ <span className="k-nav-label">DAO</span>
+                            {unvotedCount > 0 && <span className="k-notif-dot" />}
                         </Link>
                         {adena.connected && adena.address && (
                             <Link to={`/profile/${adena.address}`} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
