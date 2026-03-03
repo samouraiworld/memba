@@ -8,6 +8,7 @@ import { WizardStepReview } from "../components/dao/WizardStepReview"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
 import { addSavedDAO } from "../lib/daoSlug"
+import { BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
 // ── Draft Persistence ─────────────────────────────────────
@@ -140,7 +141,7 @@ export function CreateDAO() {
             const config: DAOCreationConfig = {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
-                members: members.filter((m) => m.address.startsWith("g1")),
+                members: members.filter((m) => m.address.startsWith(BECH32_PREFIX)),
             }
             setGeneratedCode(generateDAOCode(config))
         }
@@ -158,11 +159,11 @@ export function CreateDAO() {
             if (pathErr) return pathErr
         }
         if (step === 2) {
-            const valid = members.filter((m) => m.address.startsWith("g1") && m.address.length >= 39)
+            const valid = members.filter((m) => m.address.startsWith(BECH32_PREFIX) && m.address.length >= 39)
             if (valid.length === 0) return "At least one member with a valid g1 address is required"
-            const invalid = members.filter((m) => m.address.length > 0 && (!m.address.startsWith("g1") || m.address.length < 39))
+            const invalid = members.filter((m) => m.address.length > 0 && (!m.address.startsWith(BECH32_PREFIX) || m.address.length < 39))
             if (invalid.length > 0) return `${invalid.length} address(es) look invalid — must start with g1 and be 39+ characters`
-            const hasAdmin = members.some((m) => m.address.startsWith("g1") && m.roles.includes("admin"))
+            const hasAdmin = members.some((m) => m.address.startsWith(BECH32_PREFIX) && m.roles.includes("admin"))
             if (!hasAdmin) return "At least one member must have the admin role"
         }
         if (step === 3) {
@@ -199,7 +200,7 @@ export function CreateDAO() {
             const config: DAOCreationConfig = {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
-                members: members.filter((m) => m.address.startsWith("g1")),
+                members: members.filter((m) => m.address.startsWith(BECH32_PREFIX)),
             }
             const code = generateDAOCode(config)
             const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")
@@ -237,7 +238,7 @@ export function CreateDAO() {
 
     // ── Derived ───────────────────────────────────────────
 
-    const validMembers = members.filter((m) => m.address.startsWith("g1"))
+    const validMembers = members.filter((m) => m.address.startsWith(BECH32_PREFIX))
     const totalPower = validMembers.reduce((sum, m) => sum + m.power, 0)
     const adminCount = validMembers.filter((m) => m.roles.includes("admin")).length
 

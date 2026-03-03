@@ -9,6 +9,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
 import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
@@ -310,10 +311,38 @@ export function Dashboard() {
                 </div>
             )}
 
-            {/* ── Recent Activity ────────────────────────────────────── */}
+            {/* ── Recent Activity ────────────────────────────────────────── */}
             {auth.isAuthenticated && (
                 <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Recent Activity</h3>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Recent Activity</h3>
+                        {recentTxs.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    const exportable: ExportableTransaction[] = recentTxs.map((tx) => ({
+                                        id: tx.id,
+                                        createdAt: tx.createdAt,
+                                        type: tx.type,
+                                        multisigAddress: tx.multisigAddress,
+                                        creatorAddress: tx.creatorAddress,
+                                        memo: tx.memo,
+                                        finalHash: tx.finalHash,
+                                        threshold: tx.threshold,
+                                        signatures: tx.signatures.map((s) => ({ userAddress: s.userAddress })),
+                                        msgsJson: tx.msgsJson,
+                                    }))
+                                    exportTransactionsCSV(exportable)
+                                }}
+                                style={{
+                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.15)",
+                                    color: "#00d4aa", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                    padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+                                }}
+                            >
+                                📥 Export CSV
+                            </button>
+                        )}
+                    </div>
                     {loading ? (
                         <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
                             <SkeletonRow />

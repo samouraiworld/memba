@@ -5,6 +5,7 @@
  */
 
 import { queryRender, queryEval, normalizeStatus, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
+import { BECH32_PREFIX } from "../config"
 
 /**
  * Parse proposal list from GovDAO v3 Render("") output.
@@ -56,7 +57,7 @@ export function parseProposalList(data: string): DAOProposal[] {
         // Tiers eligible to vote: T1, T2, T3
         const tiersMatch = section.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
 
-        const authorName = authorMatch?.[1] ? (authorMatch[1].startsWith("g1") ? authorMatch[1] : `@${authorMatch[1]}`) : ""
+        const authorName = authorMatch?.[1] ? (authorMatch[1].startsWith(BECH32_PREFIX) ? authorMatch[1] : `@${authorMatch[1]}`) : ""
 
         proposals.push({
             id: parseInt(propMatch[1], 10),

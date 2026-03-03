@@ -10,6 +10,7 @@ primary_region = 'cdg'
   dockerfile = 'Dockerfile'
 
 [env]
+  BACKUP_INTERVAL = '24h'
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
   GNO_CHAIN_ID = 'test11'

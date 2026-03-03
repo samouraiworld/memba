@@ -32,6 +32,16 @@ All notable changes to Memba are documented here.
 - **README.md**: "Tailwind CSS v4" → "Vanilla CSS" (architecture diagram)
 - **ARCHITECTURE.md**: "Tailwind CSS v4" → "Vanilla CSS" (components table)
 - **ROADMAP.md**: fixed version ordering (v5.6.0, v5.0.4 now before v6.0.0), added v7.0.0 section
+- **Error map case sensitivity** — all pattern tests now lowercase to match `.toLowerCase()` call on input (fixes `[unknown] Failed to fetch` not being caught)
+
+### Infrastructure (Step 6)
+- **Enhanced `/health` endpoint** — returns version, uptime, DB status (ping + file sizes), memory usage; HTTP 503 on degraded
+- **SQLite automated backup** — daily `VACUUM INTO` (WAL-safe, no lock), 7-day retention, configurable via `BACKUP_INTERVAL` env
+- **Bech32 prefix parameterisation** — `BECH32_PREFIX` constant in `config.ts`, replaces 8 hardcoded `"g1"` references across 4 files
+- **APP_VERSION** bumped to `7.0.0`
+
+### TX Export (Step 7)
+- **TX history CSV export** — client-side, 10 columns (ID, Date, Type, Status, Multisig, Creator, Memo, Signatures, TX Hash, Messages), CSV injection prevention, Blob download
 
 ## [6.0.0] — 2026-03-02
 

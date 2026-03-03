@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, BECH32_PREFIX } from "../lib/config"
 import {
     getProposalDetail,
     getProposalVotes,
@@ -265,7 +265,7 @@ export function ProposalView() {
                             Proposer
                         </div>
                     </div>
-                    {proposal.proposer && proposal.proposer.startsWith("g1") && (
+                    {proposal.proposer && proposal.proposer.startsWith(BECH32_PREFIX) && (
                         <div style={{ marginLeft: "auto" }}>
                             <CopyableAddress address={proposal.proposer} />
                         </div>

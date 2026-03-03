@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -23,6 +26,10 @@ import (
 	"golang.org/x/net/http2/h2c"
 	_ "modernc.org/sqlite"
 )
+
+const appVersion = "7.0.0"
+
+var startTime = time.Now()
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -62,6 +69,14 @@ func main() {
 
 	slog.Info("database initialized", "path", dbPath)
 
+	// Parse backup interval from env (default: 24h)
+	backupInterval := 24 * time.Hour
+	if bi := os.Getenv("BACKUP_INTERVAL"); bi != "" {
+		if d, err := time.ParseDuration(bi); err == nil {
+			backupInterval = d
+		}
+	}
+
 	// Create service
 	svc, err := service.NewMultisigService(database)
 	if err != nil {
@@ -82,20 +97,17 @@ func main() {
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
+	// Start SQLite backup scheduler with app context for clean shutdown.
+	db.StartBackupSchedule(ctx, database, dbPath, logger, backupInterval)
+
 	// Initialize OAuth state store with app context for clean shutdown.
 	oauthStore := service.NewOAuthStateStore(ctx)
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
 	mux.Handle(path, rateLimiter(handler))
 
-	// Health check
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if _, err := fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339)); err != nil {
-			slog.Error("failed to write health response", "error", err)
-		}
-	})
+	// Health check — enhanced with DB, uptime, memory diagnostics
+	mux.HandleFunc("/health", healthHandler(database, dbPath))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimiter(service.HandleGitHubOAuthState(oauthStore)))
@@ -227,4 +239,54 @@ func rateLimiter(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// ── Health handler ───────────────────────────────────────────────
+
+func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		status := "ok"
+		httpCode := http.StatusOK
+
+		// DB liveness
+		dbStatus := "ok"
+		if err := database.Ping(); err != nil {
+			dbStatus = "unreachable"
+			status = "degraded"
+			httpCode = http.StatusServiceUnavailable
+		}
+
+		// DB file sizes (filepath.Clean satisfies gosec G703 — dbPath is operator-set, not user input)
+		var dbSize, walSize int64
+		cleanPath := filepath.Clean(dbPath)
+		if info, err := os.Stat(cleanPath); err == nil {
+			dbSize = info.Size()
+		}
+		if info, err := os.Stat(cleanPath + "-wal"); err == nil {
+			walSize = info.Size()
+		}
+
+		// Memory
+		var mem runtime.MemStats
+		runtime.ReadMemStats(&mem)
+
+		resp := map[string]interface{}{
+			"status":         status,
+			"version":        appVersion,
+			"uptime_seconds": int(time.Since(startTime).Seconds()),
+			"db": map[string]interface{}{
+				"status":         dbStatus,
+				"size_bytes":     dbSize,
+				"wal_size_bytes": walSize,
+			},
+			"memory_mb": mem.Alloc / 1024 / 1024,
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(httpCode)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			slog.Error("failed to write health response", "error", err)
+		}
+	}
 }
