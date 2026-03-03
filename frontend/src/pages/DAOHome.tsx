@@ -26,29 +26,43 @@ export function DAOHome() {
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
     const [proposals, setProposals] = useState<DAOProposal[]>([])
-    const [loading, setLoading] = useState(true)
+    // Progressive loading: each section has its own loading state
+    const [configLoading, setConfigLoading] = useState(true)
+    const [membersLoading, setMembersLoading] = useState(true)
+    const [proposalsLoading, setProposalsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
-        setLoading(true)
+        setConfigLoading(true)
+        setMembersLoading(true)
+        setProposalsLoading(true)
         setError(null)
         try {
+            // Phase 1: config loads first → header renders immediately
             const cfg = await getDAOConfig(GNO_RPC_URL, realmPath)
             setConfig(cfg)
-            const [mems, props] = await Promise.all([
-                getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath),
-                getDAOProposals(GNO_RPC_URL, realmPath),
-            ])
-            setMembers(mems)
-            setProposals(props)
+            setConfigLoading(false)
+
+            // Phase 2: members + proposals load independently
+            getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
+                .then(setMembers)
+                .catch((err) => setError(err instanceof Error ? err.message : "Failed to load members"))
+                .finally(() => setMembersLoading(false))
+
+            getDAOProposals(GNO_RPC_URL, realmPath)
+                .then(setProposals)
+                .catch((err) => setError(err instanceof Error ? err.message : "Failed to load proposals"))
+                .finally(() => setProposalsLoading(false))
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load DAO data")
-        } finally {
-            setLoading(false)
+            setConfigLoading(false)
+            setMembersLoading(false)
+            setProposalsLoading(false)
         }
     }, [realmPath])
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching on mount
     useEffect(() => { loadData() }, [loadData])
 
     const activeProposals = proposals.filter((p) => p.status === "open")
@@ -72,7 +86,7 @@ export function DAOHome() {
         )
     }
 
-    if (loading) {
+    if (configLoading) {
         return (
             <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 <SkeletonCard />
@@ -232,7 +246,12 @@ export function DAOHome() {
                     )}
                 </div>
 
-                {activeProposals.length === 0 ? (
+                {proposalsLoading ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </div>
+                ) : activeProposals.length === 0 ? (
                     <div className="k-dashed" style={{ background: "#0c0c0c", padding: 28, textAlign: "center" }}>
                         <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                             No active proposals
@@ -248,7 +267,7 @@ export function DAOHome() {
             </div>
 
             {/* Completed Proposals */}
-            {completedProposals.length > 0 && (
+            {!proposalsLoading && completedProposals.length > 0 && (
                 <div>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
                         Completed ({completedProposals.length})
@@ -278,11 +297,19 @@ export function DAOHome() {
                     </button>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
-                    {members.slice(0, 6).map((m) => (
-                        <MemberCard key={m.address} member={m} isCurrentUser={m.address === adena.address} onProfileClick={(addr) => navigate(`/profile/${addr}`)} />
-                    ))}
-                </div>
+                {membersLoading ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </div>
+                ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+                        {members.slice(0, 6).map((m) => (
+                            <MemberCard key={m.address} member={m} isCurrentUser={m.address === adena.address} onProfileClick={(addr) => navigate(`/profile/${addr}`)} />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Treasury */}

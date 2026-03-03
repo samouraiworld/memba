@@ -1,16 +1,24 @@
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
+import { mapError, type UserError } from "../../lib/errorMap"
 
 interface ErrorToastProps {
     message: string | null
     duration?: number
     onDismiss?: () => void
+    onRetry?: () => void
 }
 
-export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastProps) {
+export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: ErrorToastProps) {
     const [hiding, setHiding] = useState(false)
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const lastMessageRef = useRef<string | null>(null)
+
+    // Derive mapped error from message (no side-effect needed)
+    const mapped: UserError | null = useMemo(
+        () => (message ? mapError(message) : null),
+        [message],
+    )
 
     const dismiss = useCallback(() => {
         setHiding(true)
@@ -20,7 +28,7 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
         }, 300)
     }, [onDismiss])
 
-    // Auto-dismiss after duration. P2-C: Skip if same message already being shown.
+    // Auto-dismiss after duration. Skip if same message already being shown.
     useEffect(() => {
         if (!message || message === lastMessageRef.current) return
         lastMessageRef.current = message
@@ -32,7 +40,7 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
     }, [message, duration, dismiss])
 
     // Derive visibility from props — no setState needed.
-    if (!message) return null
+    if (!message || !mapped) return null
 
     return (
         <div
@@ -42,16 +50,15 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
                 right: 24,
                 zIndex: 1000,
                 display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 20px",
+                flexDirection: "column",
+                gap: 8,
+                padding: "14px 20px",
                 borderRadius: 10,
                 background: "rgba(255,71,87,0.12)",
                 border: "1px solid rgba(255,71,87,0.25)",
                 color: "#ff4757",
                 fontSize: 13,
                 fontFamily: "JetBrains Mono, monospace",
-                fontWeight: 500,
                 maxWidth: 420,
                 backdropFilter: "blur(12px)",
                 transition: "opacity 0.3s, transform 0.3s",
@@ -59,24 +66,46 @@ export function ErrorToast({ message, duration = 5000, onDismiss }: ErrorToastPr
                 transform: hiding ? "translateY(8px)" : "translateY(0)",
             }}
         >
-            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-            <span style={{ flex: 1 }}>{message}</span>
-            <button
-                onClick={dismiss}
-                style={{
-                    background: "none",
-                    border: "none",
-                    color: "#ff4757",
-                    fontSize: 16,
-                    cursor: "pointer",
-                    padding: 0,
-                    lineHeight: 1,
-                    flexShrink: 0,
-                    opacity: 0.6,
-                }}
-            >
-                ×
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{mapped.title}</div>
+                    <div style={{ fontSize: 11, color: "#cc3d4a", marginTop: 2, lineHeight: 1.4 }}>
+                        {mapped.message}
+                    </div>
+                </div>
+                <button
+                    onClick={dismiss}
+                    style={{
+                        background: "none", border: "none", color: "#ff4757",
+                        fontSize: 16, cursor: "pointer", padding: 0,
+                        lineHeight: 1, flexShrink: 0, opacity: 0.6,
+                    }}
+                >
+                    ×
+                </button>
+            </div>
+            {(mapped.action || (mapped.retry && onRetry)) && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                    {mapped.action && (
+                        <span style={{ fontSize: 10, color: "#888", fontStyle: "italic" }}>
+                            💡 {mapped.action}
+                        </span>
+                    )}
+                    {mapped.retry && onRetry && (
+                        <button
+                            onClick={() => { dismiss(); onRetry() }}
+                            style={{
+                                background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
+                                color: "#ff4757", fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                cursor: "pointer", fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            }}
+                        >
+                            Retry
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     )
 }

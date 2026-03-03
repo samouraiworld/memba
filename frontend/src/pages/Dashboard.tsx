@@ -124,27 +124,52 @@ export function Dashboard() {
                     </p>
                 </div>
             ) : joinedMultisigs.length === 0 && discoverableMultisigs.length === 0 && !loading ? (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                        <span style={{ fontSize: 24 }}>🏛</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                    {/* Hero */}
+                    <div style={{ textAlign: "center", padding: "32px 16px 16px" }}>
+                        <div style={{ fontSize: 40, marginBottom: 12 }}>👋</div>
+                        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Welcome to Memba</h3>
+                        <p style={{ color: "#666", fontSize: 13, maxWidth: 420, margin: "0 auto", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6 }}>
+                            Your gateway to Gno multisig wallets, DAO governance, and token management
+                        </p>
                     </div>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Get started</h3>
-                    <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto 20px", fontFamily: "JetBrains Mono, monospace" }}>
-                        Create multisig wallets, manage tokens, or explore DAO governance
-                    </p>
-                    <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                        <button className="k-btn-primary" onClick={() => navigate("/create")}>
-                            Create Multisig
-                        </button>
-                        <button className="k-btn-secondary" onClick={() => navigate("/import")}>
-                            Import Existing
-                        </button>
-                        <button className="k-btn-secondary" onClick={() => navigate("/create-token")}>
-                            🪙 Create a Token
-                        </button>
-                        <button className="k-btn-secondary" onClick={() => navigate("/dao")}>
-                            🏛️ Explore DAOs
-                        </button>
+                    {/* Feature Cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                        {[
+                            { icon: "🔐", title: "Multisig Wallet", desc: "Create or import a shared wallet with threshold signing", cta: "Create Multisig", path: "/create", alt: "Import", altPath: "/import" },
+                            { icon: "🏛️", title: "DAO Governance", desc: "Explore DAOs, vote on proposals, or create your own", cta: "Explore DAOs", path: "/dao" },
+                            { icon: "🪙", title: "Token Factory", desc: "Create and manage GRC20 tokens on gno.land", cta: "Create Token", path: "/create-token" },
+                        ].map((f) => (
+                            <div
+                                key={f.title}
+                                className="k-card"
+                                style={{
+                                    padding: "24px 20px", display: "flex", flexDirection: "column", gap: 14,
+                                    cursor: "pointer", transition: "border-color 0.2s, transform 0.2s",
+                                }}
+                                onClick={() => navigate(f.path)}
+                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
+                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.transform = "" }}
+                            >
+                                <span style={{ fontSize: 28 }}>{f.icon}</span>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{f.title}</div>
+                                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.5, margin: 0 }}>
+                                        {f.desc}
+                                    </p>
+                                </div>
+                                <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+                                    <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.path) }}>
+                                        {f.cta} →
+                                    </button>
+                                    {f.alt && f.altPath && (
+                                        <button className="k-btn-secondary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.altPath) }}>
+                                            {f.alt}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             ) : null}
