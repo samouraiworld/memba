@@ -60,7 +60,12 @@ export function GithubCallback() {
                     setStep("saving")
                     await updateBackendProfile(auth.token, { github: data.login })
                     setStep("success")
-                    setTimeout(() => navigate(`/profile/${adena.address}`), 2500)
+                    // Guard: wallet may have disconnected during OAuth redirect
+                    if (adena.address) {
+                        setTimeout(() => navigate(`/profile/${adena.address}`), 2500)
+                    } else {
+                        setTimeout(() => navigate("/"), 2500)
+                    }
                 } else {
                     // Wallet disconnected during OAuth redirect — store for later
                     localStorage.setItem("pendingGithubLink", JSON.stringify({

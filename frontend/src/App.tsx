@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Layout } from "./components/layout/Layout"
 import { Dashboard } from "./pages/Dashboard"
 
@@ -73,7 +73,8 @@ function App() {
           <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
           <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
 
-          {/* Profile route (lazy) */}
+          {/* Profile routes (lazy) */}
+          <Route path="/profile" element={<Navigate to="/" replace />} />
           <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
