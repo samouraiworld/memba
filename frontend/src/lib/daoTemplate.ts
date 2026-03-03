@@ -91,27 +91,62 @@ export const DAO_PRESETS: DAOPreset[] = [
     },
 ]
 
+// ── Input Sanitization ────────────────────────────────────────
+
+/** Strict bech32 address validation — only g1 + lowercase alphanum. */
+const VALID_ADDRESS = /^g1[a-z0-9]{38}$/
+
+/** Alphanumeric + underscore only — safe for Gno string literals. */
+const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/
+
+/** Validate address is strict bech32 format. */
+export function isValidGnoAddress(addr: string): boolean {
+    return VALID_ADDRESS.test(addr)
+}
+
+/** Validate a role/category name — must be lowercase alphanumeric + underscore. */
+function isValidIdentifier(s: string): boolean {
+    return SAFE_IDENTIFIER.test(s) && s.length <= 30
+}
+
 // ── Code Generator ────────────────────────────────────────────
 
 /**
  * Generate Gno realm source code from a DAO configuration.
  * Returns a self-contained .gno file as a string.
+ *
+ * Security: all user inputs are sanitized before interpolation.
+ * - Addresses: strict bech32 validation (g1 + 38 lowercase alphanum)
+ * - Roles/Categories: lowercase alphanumeric + underscore only
+ * - Name/Description: JSON.stringify (auto-escapes) + control char strip
  */
 export function generateDAOCode(config: DAOCreationConfig): string {
     const pkgName = config.realmPath.split("/").pop() || "mydao"
 
-    const memberInit = config.members
+    // Validate and sanitize all member inputs
+    const validMembers = config.members.filter((m) => {
+        if (!isValidGnoAddress(m.address)) {
+            console.warn(`[daoTemplate] Skipping invalid address: ${m.address}`)
+            return false
+        }
+        return true
+    })
+
+    const memberInit = validMembers
         .map((m) => {
-            const rolesStr = m.roles.map((r) => `"${r}"`).join(", ")
-            return `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${m.power}, Roles: []string{${rolesStr}}})`
+            const safeRoles = m.roles.filter(isValidIdentifier)
+            const rolesStr = safeRoles.map((r) => `"${r}"`).join(", ")
+            return `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${Math.max(0, Math.floor(m.power))}, Roles: []string{${rolesStr}}})`
         })
         .join("\n")
 
-    const categoriesInit = config.proposalCategories
+    const safeCategories = config.proposalCategories.filter(isValidIdentifier)
+    const categoriesInit = safeCategories
         .map((c) => `\tallowedCategories = append(allowedCategories, "${c}")`)
         .join("\n")
 
-    const rolesInit = config.roles
+    const safeRoles = config.roles.filter(isValidIdentifier)
+    const rolesInit = safeRoles
         .map((r) => `\tallowedRoles = append(allowedRoles, "${r}")`)
         .join("\n")
 

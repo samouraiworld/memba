@@ -2,6 +2,28 @@
 
 All notable changes to Memba are documented here.
 
+## [7.0.0] — 2026-03-02 (IN PROGRESS)
+
+### Added
+- **Unit tests: `dao.test.ts`** — 40 tests covering `normalizeStatus`, `sanitize`, `parseProposalList`, `parseMemberstoreTiers`, `parseMembersFromRender`, and all message builders (vote, execute, propose, archive)
+- **Unit tests: `grc20.test.ts`** — 25 tests covering `calculateFee`, `feeDisclosure`, all MsgCall builders (create, mint, transfer, burn, approve, faucet), and `toAdenaMessages` Adena conversion
+- **Unit tests: `daoTemplate.test.ts`** — 53 tests covering code generation (crossing syntax, `chain/runtime`, presets), injection prevention (address validation, role/category filtering), `buildDeployDAOMsg`, `validateRealmPath`, `isValidGnoAddress`, and DAO presets
+- **Unit tests: `profile.test.ts`** — 15 tests covering type verification, love power score calculation, profile merge logic (backend overrides gnolove), and social links
+- **Test exports** — internal pure functions (`_normalizeStatus`, `_parseProposalList`, `_sanitize`, `_parseMemberstoreTiers`, `_parseMembersFromRender`) exported with `_` prefix for unit testing
+- **11-perspective cross-audit** — CTO, CSO, Red Team, Blue Team, Black Hat, UX/UI, Gno Core, DevRel, Fullstack, DeFi User, DAO User (43 findings: 2 High, 28 Medium, 13 Low)
+- **`isValidGnoAddress`** — strict bech32 address validation (g1 + 38 lowercase alphanum)
+
+### Changed
+- **Test count**: 34 → 167 (+133 tests, +391% increase)
+- **`dao.ts` → `dao/`** — split monolithic 778 LOC file into 5 sub-modules: `shared.ts` (types, ABCI, username resolution), `config.ts` (getDAOConfig), `members.ts` (getDAOMembers), `proposals.ts` (getDAOProposals, getProposalDetail, getProposalVotes), `builders.ts` (message builders) + barrel `index.ts`
+- **`daoTemplate.ts`** — hardened code generation with strict input sanitization: bech32 address validation, alphanumeric-only role/category validation, power value floor + non-negative clamp
+- **Zero breaking changes** — barrel re-export maintains all existing import paths
+
+### Fixed
+- **README.md**: "Tailwind CSS v4" → "Vanilla CSS" (architecture diagram)
+- **ARCHITECTURE.md**: "Tailwind CSS v4" → "Vanilla CSS" (components table)
+- **ROADMAP.md**: fixed version ordering (v5.6.0, v5.0.4 now before v6.0.0), added v7.0.0 section
+
 ## [6.0.0] — 2026-03-02
 
 ### Added
