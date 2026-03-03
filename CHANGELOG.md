@@ -2,6 +2,16 @@
 
 All notable changes to Memba are documented here.
 
+## [1.2.0] — 2026-03-03 — RPC Domain Validation 🛡️
+
+### Added
+- **RPC domain allowlist** — only `*.gno.land` domains are trusted
+- **🛡️ SECURITY WARNING** banner shown if untrusted RPC domain detected
+- **8 new unit tests** — malicious domains, subdomain spoofing, lookalikes, NETWORKS validation
+
+### Security
+- **Fixed**: malicious RPC URLs like `https://test11.malicious.land:443` with valid chain ID would silently bypass checks
+
 ## [1.1.0] — 2026-03-03 — Proposal Categories & Polish
 
 ### Added
