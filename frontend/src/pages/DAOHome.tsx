@@ -92,18 +92,27 @@ export function DAOHome() {
                 getProposalDetail(GNO_RPC_URL, realmPath, p.id).catch(() => null),
                 getProposalVotes(GNO_RPC_URL, realmPath, p.id).catch(() => []),
             ]).then(([detail, votes]) => {
-                // Enrich proposal with vote counts
-                if (detail) {
-                    setProposals(prev => prev.map(pp => pp.id === p.id ? {
-                        ...pp,
-                        yesPercent: detail.yesPercent,
-                        noPercent: detail.noPercent,
-                        yesVotes: detail.yesVotes,
-                        noVotes: detail.noVotes,
-                        abstainVotes: detail.abstainVotes,
-                        totalVoters: detail.totalVoters,
-                    } : pp))
-                }
+                // Compute voter counts from vote records (always reliable)
+                const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
+                const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
+                const totalCount = yesCount + noCount
+
+                // Use detail data if parsing succeeded, otherwise compute from voter counts
+                const yesPercent = detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0)
+                const noPercent = detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0)
+                const yesVotes = detail?.yesVotes || yesCount
+                const noVotes = detail?.noVotes || noCount
+
+                // Enrich proposal with vote data
+                setProposals(prev => prev.map(pp => pp.id === p.id ? {
+                    ...pp,
+                    yesPercent,
+                    noPercent,
+                    yesVotes,
+                    noVotes,
+                    abstainVotes: detail?.abstainVotes || 0,
+                    totalVoters: totalCount || detail?.totalVoters || 0,
+                } : pp))
                 // Check if user has voted
                 if (votes.length > 0) {
                     const addr = adena.address.toLowerCase()

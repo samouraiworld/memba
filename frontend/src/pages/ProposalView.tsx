@@ -315,11 +315,17 @@ export function ProposalView() {
 
                 {/* Vote summary bar — always show if we have any vote data */}
                 {(() => {
+                    // Use proposal parsed data first, fall back to voter counts from voteRecords
                     const totalVotes = proposal.yesVotes + proposal.noVotes + proposal.abstainVotes
-                    const yesPct = proposal.yesPercent || (totalVotes > 0 ? Math.round((proposal.yesVotes / totalVotes) * 100) : 0)
-                    const noPct = proposal.noPercent || (totalVotes > 0 ? Math.round((proposal.noVotes / totalVotes) * 100) : 0)
+                    const totalVoterCount = totalYesVoters + totalNoVoters
+                    const yesPct = proposal.yesPercent
+                        || (totalVotes > 0 ? Math.round((proposal.yesVotes / totalVotes) * 100) : 0)
+                        || (totalVoterCount > 0 ? Math.round((totalYesVoters / totalVoterCount) * 100) : 0)
+                    const noPct = proposal.noPercent
+                        || (totalVotes > 0 ? Math.round((proposal.noVotes / totalVotes) * 100) : 0)
+                        || (totalVoterCount > 0 ? Math.round((totalNoVoters / totalVoterCount) * 100) : 0)
                     const abstainPct = totalVotes > 0 ? Math.round((proposal.abstainVotes / totalVotes) * 100) : 0
-                    if (yesPct === 0 && noPct === 0 && totalVotes === 0 && totalYesVoters === 0 && totalNoVoters === 0) return null
+                    if (yesPct === 0 && noPct === 0 && totalVotes === 0 && totalVoterCount === 0) return null
                     return (
                         <div style={{ marginBottom: 16 }}>
                             {/* Percentage labels */}
