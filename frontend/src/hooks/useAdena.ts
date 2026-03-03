@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { isTrustedRpcDomain } from "../lib/config";
+import { setWalletRpcContext } from "../lib/grc20";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -29,6 +31,10 @@ interface AdenaState {
     loading: boolean;
     reconnecting: boolean;
     error: string | null;
+    /** Wallet's active RPC URL (from Adena GetNetwork). */
+    rpcUrl: string;
+    /** Whether the wallet's RPC URL is trusted (validated against allowlist). */
+    rpcTrusted: boolean;
 }
 
 // Session persistence key — cleared when browser is closed (not tab).
@@ -59,6 +65,8 @@ export function useAdena() {
         loading: false,
         reconnecting: wasConnected(), // true if we expect to auto-reconnect
         error: null,
+        rpcUrl: "",
+        rpcTrusted: false, // strict: untrusted until GetNetwork verifies
     });
     const autoReconnectAttempted = useRef(false);
 
@@ -134,6 +142,22 @@ export function useAdena() {
             }
 
             saveConnected();
+
+            // SECURITY: Read wallet's active RPC URL via GetNetwork()
+            let rpcUrl = "";
+            let rpcTrusted = false;
+            try {
+                if (typeof adena.GetNetwork === "function") {
+                    const netRes = await adena.GetNetwork();
+                    rpcUrl = netRes?.data?.rpcUrl || "";
+                    rpcTrusted = rpcUrl ? isTrustedRpcDomain(rpcUrl) : false;
+                }
+                // GetNetwork unavailable → strict: untrusted (can't verify)
+            } catch {
+                // GetNetwork failed → strict: untrusted
+            }
+            setWalletRpcContext(rpcUrl || null, rpcTrusted);
+
             setState({
                 connected: true,
                 address,
@@ -142,6 +166,8 @@ export function useAdena() {
                 loading: false,
                 reconnecting: false,
                 error: null,
+                rpcUrl,
+                rpcTrusted,
             });
             return true;
         } catch (err) {
@@ -262,6 +288,7 @@ export function useAdena() {
 
     const disconnect = useCallback(() => {
         clearConnected();
+        setWalletRpcContext(null, false);
         setState({
             connected: false,
             address: "",
@@ -270,8 +297,46 @@ export function useAdena() {
             loading: false,
             reconnecting: false,
             error: null,
+            rpcUrl: "",
+            rpcTrusted: false,
         });
     }, []);
+
+    // SECURITY: Listen for network changes in Adena — re-validate RPC immediately.
+    useEffect(() => {
+        if (!state.connected) return;
+        const adena = getAdena();
+        if (!adena?.On || typeof adena.GetNetwork !== "function") return;
+
+        const registered = adena.On("changedNetwork", async () => {
+            try {
+                const netRes = await adena.GetNetwork();
+                const url = netRes?.data?.rpcUrl || "";
+                const trusted = url ? isTrustedRpcDomain(url) : false;
+                setWalletRpcContext(url || null, trusted);
+                setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
+
+                // Also re-fetch account (address/chainId may change)
+                try {
+                    const acct = await adena.GetAccount();
+                    if (acct.status !== "failure" && acct.data) {
+                        setState((s) => ({
+                            ...s,
+                            address: acct.data.address,
+                            chainId: acct.data.chainId,
+                        }));
+                    }
+                } catch { /* silent */ }
+            } catch {
+                // GetNetwork failed after switch → strict: untrusted
+                setWalletRpcContext(null, false);
+                setState((s) => ({ ...s, rpcUrl: "", rpcTrusted: false }));
+            }
+        });
+
+        // Cleanup: Adena.On returns boolean, no unsubscribe available
+        void registered;
+    }, [state.connected]);
 
     return {
         ...state,

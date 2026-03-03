@@ -765,6 +765,20 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v1.3.1 — RPC Domain Security Fix v2 🛡️ — ✅ SHIPPED 2026-03-03
+
+> Critical: v1.2.0 fix was a self-check. Real fix validates Adena's actual RPC via GetNetwork().
+
+| Feature | Status |
+|---------|--------|
+| 🛡️ `adena.GetNetwork()` → validate wallet RPC URL | ✅ |
+| 🚫 Block `DoContract` writes when RPC untrusted | ✅ |
+| 📡 `changedNetwork` real-time re-validation | ✅ |
+| 🔴 Security banner with CTA + malicious URL display | ✅ |
+| 🧪 3 new tests (200 total) | ✅ |
+
+---
+
 ## v1.3.0 — Notification & Vote History 🗳️ — ✅ SHIPPED 2026-03-03
 
 > Unvoted proposal notification dot, enhanced My Votes, and Adena auto-reconnect fix.

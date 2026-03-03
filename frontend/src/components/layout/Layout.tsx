@@ -294,10 +294,40 @@ export function Layout() {
                 </div>
             )}
 
-            {/* ── Untrusted RPC domain warning ─────────────────────────── */}
+            {/* ── Untrusted wallet RPC warning ─────────────────────────── */}
+            {adena.connected && !adena.rpcTrusted && (
+                <div className="k-security-banner">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 18 }}>🛡️</span>
+                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>
+                            SECURITY WARNING
+                        </span>
+                        <span style={{ color: "#ff8a94", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                            — All transactions are blocked
+                        </span>
+                    </div>
+                    <div style={{ color: "#ccc", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
+                        {adena.rpcUrl ? (
+                            <>
+                                Your wallet is connected to an untrusted RPC:{" "}
+                                <code style={{ color: "#ff4757", background: "rgba(255,71,87,0.12)", padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>
+                                    {adena.rpcUrl}
+                                </code>
+                            </>
+                        ) : (
+                            <>Unable to verify your wallet&apos;s RPC URL.</>
+                        )}
+                        <br />
+                        <span style={{ color: "#00d4aa", fontWeight: 600 }}>
+                            Open Adena → Settings → Networks → switch to a *.gno.land RPC
+                        </span>
+                    </div>
+                </div>
+            )}
+            {/* Defense-in-depth: also check Memba's own config */}
             {(() => {
                 const rpcWarning = validateActiveRpcDomain()
-                if (!rpcWarning) return null
+                if (!rpcWarning || (adena.connected && !adena.rpcTrusted)) return null
                 return (
                     <div style={{
                         background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
