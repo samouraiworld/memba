@@ -2,6 +2,20 @@
 
 All notable changes to Memba are documented here.
 
+## [10.0.0] — 2026-03-03 — Governance Intelligence & Docs Polish
+
+### Added
+- **Voter turnout** — proposal cards + detail page show "12 of 17 members voted (71%)" instead of just "12 voted"
+- **"⚡ Awaiting execution"** subtitle on proposals with PASSED status
+
+### Changed
+- **Status label clarity** — "ACCEPTED" → "PASSED" to distinguish from "EXECUTED"
+- **README.md** — updated from v7.0.0 → v9.0.0, test count 167 → 189, added 5 missing features
+
+### Fixed
+- **ROADMAP ordering** — v8.0.0 now correctly appears before v9.0.0
+- **Vote % bars** — fallback computation from voter counts when on-chain render parsing returns 0 (GovDAO format)
+
 ## [9.0.0] — 2026-03-03 — DAO Governance UX & Vote Intelligence
 
 ### Added

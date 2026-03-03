@@ -369,6 +369,7 @@ export function DAOHome() {
                                     hasVoted={votedIds.has(p.id)}
                                     isMember={!!currentMember}
                                     enriched={enrichedIds.has(p.id)}
+                                    totalMembers={config?.memberCount || members.length}
                                     onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
                                 />
                             ))}
@@ -384,7 +385,7 @@ export function DAOHome() {
                     </h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {completedProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
+                            <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} totalMembers={config?.memberCount || members.length} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                         ))}
                     </div>
                 </div>
@@ -501,12 +502,12 @@ function TierBar({ tier, totalPower }: { tier: TierInfo; totalPower: number }) {
     )
 }
 
-function ProposalCard({ proposal, hasVoted, isMember, enriched, onClick }: {
-    proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; onClick: () => void
+function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMembers, onClick }: {
+    proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; totalMembers: number; onClick: () => void
 }) {
     const statusColors: Record<string, { bg: string; color: string; label: string }> = {
         open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
-        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "ACCEPTED" },
+        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
         rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
         executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
     }
@@ -606,6 +607,13 @@ function ProposalCard({ proposal, hasVoted, isMember, enriched, onClick }: {
                         yesPercent={proposal.yesPercent || (proposal.yesVotes + proposal.noVotes > 0 ? (proposal.yesVotes / (proposal.yesVotes + proposal.noVotes)) * 100 : 0)}
                         noPercent={proposal.noPercent || (proposal.yesVotes + proposal.noVotes > 0 ? (proposal.noVotes / (proposal.yesVotes + proposal.noVotes)) * 100 : 0)}
                     />
+                </div>
+            )}
+
+            {/* Voter turnout */}
+            {enriched && totalMembers > 0 && proposal.totalVoters > 0 && (
+                <div style={{ marginTop: 4, fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
+                    {proposal.totalVoters} of {totalMembers} members voted ({Math.round((proposal.totalVoters / totalMembers) * 100)}%)
                 </div>
             )}
         </div>
