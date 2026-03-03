@@ -5,7 +5,7 @@ import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { APP_VERSION, NETWORKS } from "../../lib/config"
+import { APP_VERSION, NETWORKS, validateActiveRpcDomain } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -289,6 +289,23 @@ export function Layout() {
                     )}
                 </div>
             )}
+
+            {/* ── Untrusted RPC domain warning ─────────────────────────── */}
+            {(() => {
+                const rpcWarning = validateActiveRpcDomain()
+                if (!rpcWarning) return null
+                return (
+                    <div style={{
+                        background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
+                        padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    }}>
+                        <span style={{ fontSize: 16 }}>🛡️</span>
+                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                            SECURITY WARNING: {rpcWarning}
+                        </span>
+                    </div>
+                )
+            })()}
 
             {/* ── Main ────────────────────────────────────────────────── */}
             <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>

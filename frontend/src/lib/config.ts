@@ -84,3 +84,52 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
+
+// ── RPC Domain Security ──────────────────────────────────────
+
+/**
+ * Trusted RPC domain patterns. Only these domains are considered safe.
+ * A malicious RPC with a valid chain ID (e.g. https://test11.evil.com)
+ * would pass chain ID checks but could intercept/manipulate queries.
+ */
+export const TRUSTED_RPC_DOMAINS = [
+    "gno.land",
+    "testnets.gno.land",
+    "rpc.gno.land",
+    "rpc.test11.testnets.gno.land",
+]
+
+/**
+ * Check if an RPC URL belongs to a trusted domain.
+ * Returns true if the URL's hostname is or ends with a trusted domain.
+ *
+ * Examples:
+ *   isTrustedRpcDomain("https://rpc.test11.testnets.gno.land:443") → true
+ *   isTrustedRpcDomain("https://rpc.gno.land:443") → true
+ *   isTrustedRpcDomain("https://test11.malicious.land:443") → false
+ *   isTrustedRpcDomain("https://fakegno.land:443") → false
+ */
+export function isTrustedRpcDomain(url: string): boolean {
+    try {
+        const hostname = new URL(url).hostname.toLowerCase()
+        return TRUSTED_RPC_DOMAINS.some(domain => {
+            const d = domain.toLowerCase()
+            // Exact match or subdomain match (preceded by a dot)
+            return hostname === d || hostname.endsWith("." + d)
+        })
+    } catch {
+        return false // invalid URL = untrusted
+    }
+}
+
+/**
+ * Validate that the active network config uses a trusted RPC domain.
+ * Returns an error message if untrusted, or null if safe.
+ */
+export function validateActiveRpcDomain(): string | null {
+    if (!isTrustedRpcDomain(GNO_RPC_URL)) {
+        return `Untrusted RPC domain detected: ${GNO_RPC_URL}. Expected a *.gno.land domain.`
+    }
+    return null
+}
+
