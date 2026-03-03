@@ -5,6 +5,8 @@ import {
     NETWORKS,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
+    isTrustedRpcDomain,
+    TRUSTED_RPC_DOMAINS,
 } from './config'
 
 describe('config constants', () => {
@@ -39,3 +41,50 @@ describe('config constants', () => {
         expect(GNOLOVE_API_URL).toBe('https://gnolove.world')
     })
 })
+
+describe('isTrustedRpcDomain', () => {
+    it('trusts official gno.land RPC URLs', () => {
+        expect(isTrustedRpcDomain('https://rpc.test11.testnets.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.gno.land')).toBe(true)
+    })
+
+    it('trusts subdomains of gno.land', () => {
+        expect(isTrustedRpcDomain('https://new-rpc.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://staging.testnets.gno.land')).toBe(true)
+    })
+
+    it('rejects malicious domains with matching chain keywords', () => {
+        expect(isTrustedRpcDomain('https://test11.malicious.land:443')).toBe(false)
+        expect(isTrustedRpcDomain('https://rpc.evil-gno.land:443')).toBe(false)
+        expect(isTrustedRpcDomain('https://gno.land.attacker.com:443')).toBe(false)
+    })
+
+    it('rejects domains that look similar to gno.land', () => {
+        expect(isTrustedRpcDomain('https://fakegno.land:443')).toBe(false)
+        expect(isTrustedRpcDomain('https://notgno.land')).toBe(false)
+        expect(isTrustedRpcDomain('https://xgno.land')).toBe(false)
+    })
+
+    it('rejects invalid URLs', () => {
+        expect(isTrustedRpcDomain('')).toBe(false)
+        expect(isTrustedRpcDomain('not-a-url')).toBe(false)
+        expect(isTrustedRpcDomain('ftp://gno.land')).toBe(true) // protocol doesn't matter for domain check
+    })
+
+    it('handles case insensitivity', () => {
+        expect(isTrustedRpcDomain('https://RPC.GNO.LAND:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://Rpc.Test11.Testnets.Gno.LAND')).toBe(true)
+    })
+
+    it('all hardcoded NETWORKS use trusted domains', () => {
+        for (const [key, net] of Object.entries(NETWORKS)) {
+            expect(isTrustedRpcDomain(net.rpcUrl), `Network "${key}" uses untrusted RPC: ${net.rpcUrl}`).toBe(true)
+        }
+    })
+
+    it('TRUSTED_RPC_DOMAINS is non-empty', () => {
+        expect(TRUSTED_RPC_DOMAINS.length).toBeGreaterThan(0)
+    })
+})
+
