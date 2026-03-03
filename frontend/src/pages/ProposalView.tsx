@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -16,6 +16,7 @@ import {
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { decodeSlug } from "../lib/daoSlug"
+import { resolveOnChainUsername } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposalView() {
@@ -33,6 +34,7 @@ export function ProposalView() {
     const [success, setSuccess] = useState<string | null>(null)
     const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
     const [isArchived, setIsArchived] = useState(false)
+    const [myUsername, setMyUsername] = useState<string | null>(null)
 
 
     const proposalId = parseInt(id || "0", 10)
@@ -90,6 +92,37 @@ export function ProposalView() {
             })
             .catch(() => setIsMember(null)) // on error, don't block — let user try
     }, [adena.address, realmPath])
+
+    // Resolve user's @username for hasVoted matching
+    useEffect(() => {
+        if (!adena.address) return
+        resolveOnChainUsername(adena.address)
+            .then(u => setMyUsername(u || null))
+            .catch(() => { })
+    }, [adena.address])
+
+    // Derive hasVoted + userVote from vote records
+    const { hasVoted, userVote } = useMemo(() => {
+        if (!voteRecords.length || !adena.address) return { hasVoted: false, userVote: "" }
+        const addr = adena.address.toLowerCase()
+        const uname = myUsername?.toLowerCase() || ""
+        const unameNoAt = uname.replace(/^@/, "")
+        for (const record of voteRecords) {
+            for (const v of record.yesVoters) {
+                const vl = v.username.toLowerCase()
+                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
+                    return { hasVoted: true, userVote: "YES" }
+                }
+            }
+            for (const v of record.noVoters) {
+                const vl = v.username.toLowerCase()
+                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
+                    return { hasVoted: true, userVote: "NO" }
+                }
+            }
+        }
+        return { hasVoted: false, userVote: "" }
+    }, [voteRecords, adena.address, myUsername])
 
     const handleVote = async (vote: "YES" | "NO" | "ABSTAIN") => {
         if (!auth.isAuthenticated || !adena.address) {
@@ -176,17 +209,6 @@ export function ProposalView() {
 
     const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
     const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
-
-    // Detect if connected user already voted
-    const userVote: "YES" | "NO" | null = (() => {
-        if (!adena.address) return null
-        for (const r of voteRecords) {
-            if (r.yesVoters.some((v) => v.profileUrl.includes(adena.address!))) return "YES"
-            if (r.noVoters.some((v) => v.profileUrl.includes(adena.address!))) return "NO"
-        }
-        return null
-    })()
-    const hasVoted = userVote !== null
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -291,22 +313,38 @@ export function ProposalView() {
                     Voting Results
                 </h3>
 
-                {/* Percentage bars */}
-                {(proposal.yesPercent > 0 || proposal.noPercent > 0) && (
-                    <div style={{ marginBottom: 16 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
-                            <span style={{ color: "#4caf50" }}>YES {proposal.yesPercent}%</span>
-                            <span style={{ color: "#f44336" }}>NO {proposal.noPercent}%</span>
+                {/* Vote summary bar — always show if we have any vote data */}
+                {(() => {
+                    const totalVotes = proposal.yesVotes + proposal.noVotes + proposal.abstainVotes
+                    const yesPct = proposal.yesPercent || (totalVotes > 0 ? Math.round((proposal.yesVotes / totalVotes) * 100) : 0)
+                    const noPct = proposal.noPercent || (totalVotes > 0 ? Math.round((proposal.noVotes / totalVotes) * 100) : 0)
+                    const abstainPct = totalVotes > 0 ? Math.round((proposal.abstainVotes / totalVotes) * 100) : 0
+                    if (yesPct === 0 && noPct === 0 && totalVotes === 0 && totalYesVoters === 0 && totalNoVoters === 0) return null
+                    return (
+                        <div style={{ marginBottom: 16 }}>
+                            {/* Percentage labels */}
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                                <div style={{ display: "flex", gap: 14 }}>
+                                    <span style={{ color: "#4caf50", fontWeight: 600 }}>✓ {yesPct}% Yes</span>
+                                    <span style={{ color: "#f44336", fontWeight: 600 }}>✗ {noPct}% No</span>
+                                    {abstainPct > 0 && <span style={{ color: "#888" }}>○ {abstainPct}% Abstain</span>}
+                                </div>
+                                <span style={{ color: "#555" }}>
+                                    {totalYesVoters + totalNoVoters} voted
+                                </span>
+                            </div>
+                            {/* Visual bar */}
+                            <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                                <div style={{ width: `${yesPct}%`, background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.4s" }} />
+                                <div style={{ width: `${noPct}%`, background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.4s" }} />
+                                {abstainPct > 0 && <div style={{ width: `${abstainPct}%`, background: "linear-gradient(90deg, #888, #88888888)", transition: "width 0.4s" }} />}
+                            </div>
                         </div>
-                        <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", display: "flex" }}>
-                            <div style={{ width: `${proposal.yesPercent}%`, background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.4s" }} />
-                            <div style={{ width: `${proposal.noPercent}%`, background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.4s" }} />
-                        </div>
-                    </div>
-                )}
+                    )
+                })()}
 
-                {/* Legacy vote counts */}
-                {proposal.yesPercent === 0 && proposal.noPercent === 0 && (proposal.yesVotes > 0 || proposal.noVotes > 0) && (
+                {/* Detailed vote counts */}
+                {(proposal.yesVotes > 0 || proposal.noVotes > 0) && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
                         <VoteStat label="Yes" count={proposal.yesVotes} color="#4caf50" icon="✓" />
                         <VoteStat label="No" count={proposal.noVotes} color="#f44336" icon="✗" />
@@ -359,29 +397,30 @@ export function ProposalView() {
                                     ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
                                 </div>
                             )}
-                            {hasVoted && (
+                            {hasVoted ? (
                                 <div style={{
-                                    padding: "12px 16px", borderRadius: 8,
+                                    padding: "14px 16px", borderRadius: 8,
                                     background: userVote === "YES" ? "rgba(76,175,80,0.08)" : "rgba(244,67,54,0.08)",
                                     border: `1px solid ${userVote === "YES" ? "rgba(76,175,80,0.2)" : "rgba(244,67,54,0.2)"}`,
-                                    fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    fontSize: 13, fontFamily: "JetBrains Mono, monospace",
                                     color: userVote === "YES" ? "#4caf50" : "#f44336",
-                                    marginBottom: 8,
+                                    fontWeight: 600,
                                 }}>
                                     ✓ You voted {userVote} on this proposal
                                 </div>
+                            ) : (
+                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        {actionLoading ? "..." : "✓ Vote Yes"}
+                                    </button>
+                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        {actionLoading ? "..." : "✗ Vote No"}
+                                    </button>
+                                    <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        {actionLoading ? "..." : "○ Abstain"}
+                                    </button>
+                                </div>
                             )}
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
-                                    {actionLoading ? "..." : "✓ Vote Yes"}
-                                </button>
-                                <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
-                                    {actionLoading ? "..." : "✗ Vote No"}
-                                </button>
-                                <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false || hasVoted} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false || hasVoted ? 0.5 : 1 }}>
-                                    {actionLoading ? "..." : "○ Abstain"}
-                                </button>
-                            </div>
                         </>
                     )}
 

@@ -11,6 +11,7 @@ import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, GNO_RPC_URL } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
 import { queryRender } from "../lib/dao/shared"
+import { fetchBackendProfile } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
@@ -56,17 +57,22 @@ export function Dashboard() {
 
     useEffect(() => { fetchData() }, [fetchData])
 
-    // Fetch on-chain username for the identity card
+    // Fetch on-chain username + avatar for the identity card
     useEffect(() => {
         if (!auth.isAuthenticated || !balance) return
         const addr = (auth as { address?: string }).address
         if (!addr) return
+        // Username from on-chain registry
         queryRender(GNO_RPC_URL, "gno.land/r/gnoland/users/v1", addr)
             .then((data) => {
                 if (!data) return
                 const m = data.match(/# User - `([^`]+)`/)
                 if (m) setUsername(`@${m[1]}`)
             })
+            .catch(() => { /* silent */ })
+        // Avatar from backend profile
+        fetchBackendProfile(addr)
+            .then((p) => { if (p?.avatarUrl) setAvatarUrl(p.avatarUrl) })
             .catch(() => { /* silent */ })
     }, [auth.isAuthenticated, balance, auth])
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -7,12 +7,15 @@ import {
     getDAOConfig,
     getDAOMembers,
     getDAOProposals,
+    getProposalDetail,
+    getProposalVotes,
     type DAOConfig,
     type DAOMember,
     type DAOProposal,
     type TierInfo,
 } from "../lib/dao"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { resolveOnChainUsername } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOHome() {
@@ -31,6 +34,11 @@ export function DAOHome() {
     const [membersLoading, setMembersLoading] = useState(true)
     const [proposalsLoading, setProposalsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    // Vote enrichment: track which proposals have been enriched and which the user voted on
+    const [votedIds, setVotedIds] = useState<Set<number>>(new Set())
+    const [enrichedIds, setEnrichedIds] = useState<Set<number>>(new Set())
+    const [voteFilter, setVoteFilter] = useState<"all" | "needs" | "voted">("all")
+    const usernameRef = useRef<string | null>(null)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
@@ -64,6 +72,57 @@ export function DAOHome() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching on mount
     useEffect(() => { loadData() }, [loadData])
+
+    // Phase 3: Lazy vote enrichment — fetch vote details per active proposal
+    useEffect(() => {
+        if (proposalsLoading || proposals.length === 0 || !adena.address) return
+        // Resolve username once for hasVoted matching
+        if (!usernameRef.current && adena.address) {
+            resolveOnChainUsername(adena.address)
+                .then(u => { usernameRef.current = u || null })
+                .catch(() => { })
+        }
+        const active = proposals.filter(p => p.status === "open")
+        // Limit to 10 concurrent fetches
+        active.slice(0, 10).forEach(p => {
+            if (enrichedIds.has(p.id)) return
+            setEnrichedIds(prev => new Set([...prev, p.id]))
+            // Fetch vote details + voter lists in parallel
+            Promise.all([
+                getProposalDetail(GNO_RPC_URL, realmPath, p.id).catch(() => null),
+                getProposalVotes(GNO_RPC_URL, realmPath, p.id).catch(() => []),
+            ]).then(([detail, votes]) => {
+                // Enrich proposal with vote counts
+                if (detail) {
+                    setProposals(prev => prev.map(pp => pp.id === p.id ? {
+                        ...pp,
+                        yesPercent: detail.yesPercent,
+                        noPercent: detail.noPercent,
+                        yesVotes: detail.yesVotes,
+                        noVotes: detail.noVotes,
+                        abstainVotes: detail.abstainVotes,
+                        totalVoters: detail.totalVoters,
+                    } : pp))
+                }
+                // Check if user has voted
+                if (votes.length > 0) {
+                    const addr = adena.address.toLowerCase()
+                    const uname = usernameRef.current?.toLowerCase() || ""
+                    const allVoters = votes.flatMap(v => [
+                        ...v.yesVoters.map(ve => ve.username.toLowerCase()),
+                        ...v.noVoters.map(ve => ve.username.toLowerCase()),
+                    ])
+                    const voted = allVoters.some(v =>
+                        v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
+                    )
+                    if (voted) {
+                        setVotedIds(prev => new Set([...prev, p.id]))
+                    }
+                }
+            })
+        })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [proposalsLoading, proposals.length, adena.address, realmPath])
 
     const activeProposals = proposals.filter((p) => p.status === "open")
     const completedProposals = proposals.filter((p) => p.status !== "open")
@@ -246,6 +305,35 @@ export function DAOHome() {
                     )}
                 </div>
 
+                {/* Filter tabs (only for members with active proposals) */}
+                {auth.isAuthenticated && currentMember && activeProposals.length > 0 && (
+                    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                        {(["all", "needs", "voted"] as const).map(f => {
+                            const count = f === "all" ? activeProposals.length
+                                : f === "needs" ? activeProposals.filter(p => !votedIds.has(p.id)).length
+                                    : activeProposals.filter(p => votedIds.has(p.id)).length
+                            const labels = { all: "All", needs: "Needs My Vote", voted: "Voted" }
+                            return (
+                                <button
+                                    key={f}
+                                    onClick={() => setVoteFilter(f)}
+                                    style={{
+                                        padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                                        border: "1px solid",
+                                        borderColor: voteFilter === f ? "rgba(0,212,170,0.3)" : "#222",
+                                        background: voteFilter === f ? "rgba(0,212,170,0.08)" : "transparent",
+                                        color: voteFilter === f ? "#00d4aa" : "#666",
+                                        cursor: "pointer", transition: "all 0.15s",
+                                    }}
+                                >
+                                    {labels[f]} ({count})
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
+
                 {proposalsLoading ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <SkeletonCard />
@@ -259,9 +347,22 @@ export function DAOHome() {
                     </div>
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {activeProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
-                        ))}
+                        {activeProposals
+                            .filter(p => {
+                                if (voteFilter === "needs") return !votedIds.has(p.id)
+                                if (voteFilter === "voted") return votedIds.has(p.id)
+                                return true
+                            })
+                            .map((p) => (
+                                <ProposalCard
+                                    key={p.id}
+                                    proposal={p}
+                                    hasVoted={votedIds.has(p.id)}
+                                    isMember={!!currentMember}
+                                    enriched={enrichedIds.has(p.id)}
+                                    onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
+                                />
+                            ))}
                     </div>
                 )}
             </div>
@@ -274,7 +375,7 @@ export function DAOHome() {
                     </h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {completedProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
+                            <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                         ))}
                     </div>
                 </div>
@@ -391,7 +492,9 @@ function TierBar({ tier, totalPower }: { tier: TierInfo; totalPower: number }) {
     )
 }
 
-function ProposalCard({ proposal, onClick }: { proposal: DAOProposal; onClick: () => void }) {
+function ProposalCard({ proposal, hasVoted, isMember, enriched, onClick }: {
+    proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; onClick: () => void
+}) {
     const statusColors: Record<string, { bg: string; color: string; label: string }> = {
         open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
         passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "ACCEPTED" },
@@ -442,13 +545,35 @@ function ProposalCard({ proposal, onClick }: { proposal: DAOProposal; onClick: (
                     </div>
                 </div>
 
-                <span style={{
-                    padding: "4px 10px", borderRadius: 6, fontSize: 10,
-                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                    background: sc.bg, color: sc.color, whiteSpace: "nowrap",
-                }}>
-                    {sc.label}
-                </span>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    {/* Voted / Needs Vote badge */}
+                    {proposal.status === "open" && isMember && enriched && (
+                        hasVoted ? (
+                            <span style={{
+                                padding: "4px 8px", borderRadius: 6, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(76,175,80,0.08)", color: "#4caf50",
+                            }}>
+                                ✓ VOTED
+                            </span>
+                        ) : (
+                            <span style={{
+                                padding: "4px 8px", borderRadius: 6, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(245,166,35,0.08)", color: "#f5a623",
+                            }}>
+                                ⏳ VOTE
+                            </span>
+                        )
+                    )}
+                    <span style={{
+                        padding: "4px 10px", borderRadius: 6, fontSize: 10,
+                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        background: sc.bg, color: sc.color, whiteSpace: "nowrap",
+                    }}>
+                        {sc.label}
+                    </span>
+                </div>
             </div>
 
             {/* Vote percentage bar */}

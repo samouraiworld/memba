@@ -169,7 +169,7 @@ export async function fetchUserProfile(
 // ── Internal Helpers ──────────────────────────────────────────
 
 /** Resolve @username from gno.land user registry via ABCI. */
-async function resolveOnChainUsername(address: string): Promise<string> {
+export async function resolveOnChainUsername(address: string): Promise<string> {
     try {
         const b64Data = btoa(`${USER_REGISTRY}:${address}`)
         const res = await fetch(GNO_RPC_URL, {
@@ -259,7 +259,7 @@ interface BackendProfile {
 }
 
 /** Fetch editable profile fields from Memba backend. */
-async function fetchBackendProfile(address: string): Promise<BackendProfile | null> {
+export async function fetchBackendProfile(address: string): Promise<BackendProfile | null> {
     try {
         const res = await api.getProfile({ address })
         const p = res.profile

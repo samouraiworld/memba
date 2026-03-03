@@ -2,6 +2,25 @@
 
 All notable changes to Memba are documented here.
 
+## [9.0.0] — 2026-03-03 — DAO Governance UX & Vote Intelligence
+
+### Added
+- **Lazy vote enrichment** — proposal cards progressively fetch vote percentages and voter counts for active proposals (Option A: progressive loading)
+- **VOTED / NEEDS VOTE badges** — proposal cards show ✓ VOTED (green) or ⏳ VOTE (yellow) badges for DAO members
+- **Filter tabs** — DAO home shows "All / Needs My Vote / Voted" filter tabs above active proposals (members only)
+- **Vote summary bar** — proposal detail page shows YES/NO/ABSTAIN percentages with visual bar + voter participation count
+- **hasVoted detection** — cross-references user @username (resolved from on-chain registry) against voter lists, with address fallback
+- **Dashboard avatar** — fetches avatar from backend profile API and displays in the Identity Card
+
+### Fixed
+- **Vote buttons visible after voting** — buttons now hide completely when user has already voted, showing "✓ You voted YES/NO" confirmation instead
+- **hasVoted never worked** — old code matched `profileUrl.includes(address)` which fails for GovDAO; replaced with username + address matching via `useMemo`
+- **APP_VERSION badge** — updated from v7.0.0 → v9.0.0
+
+### Changed
+- **`resolveOnChainUsername`** — exported from `profile.ts` for reuse in DAOHome hasVoted matching
+- **`fetchBackendProfile`** — exported from `profile.ts` for Dashboard avatar
+
 ## [8.0.0] — 2026-03-03 — Bug Fixes, UX Polish & Dashboard Hub
 
 ### Fixed
