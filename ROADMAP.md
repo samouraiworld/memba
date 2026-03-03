@@ -646,6 +646,23 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v9.0.0 — DAO Governance UX & Vote Intelligence — ✅ SHIPPED 2026-03-03
+
+> Lazy vote enrichment, hasVoted detection, filter tabs, vote summary bar, dashboard avatar.
+
+| Feature | Status |
+|---------|--------|
+| 📊 Lazy vote % on proposal cards (progressive loading) | ✅ |
+| ✓ VOTED / ⏳ VOTE badges on proposal cards | ✅ |
+| 🔍 Filter tabs: All / Needs My Vote / Voted | ✅ |
+| 📈 Enhanced vote summary bar (YES/NO/ABSTAIN %) | ✅ |
+| 🐛 hasVoted detection fixed (username + address matching) | ✅ |
+| 🐛 Vote buttons hidden after voting | ✅ |
+| 🖼️ Dashboard avatar from backend profile | ✅ |
+| 🏷️ APP_VERSION → v9.0.0 | ✅ |
+
+---
+
 ## v8.0.0 — Bug Fixes, UX Polish & Dashboard Hub — ✅ SHIPPED 2026-03-03
 
 > 10 critical bug fixes, syntax highlighting, dashboard redesign. Tests: 167→189 (+22).
