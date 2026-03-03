@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { buildProposeMsg, getDAOConfig } from "../lib/dao"
+import { buildProposeMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
 import { decodeSlug } from "../lib/daoSlug"
@@ -16,10 +16,19 @@ export function ProposeDAO() {
 
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
+    const [category, setCategory] = useState("governance")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [isArchived, setIsArchived] = useState(false)
+    const isGovDAO = checkIsGovDAO(realmPath)
+
+    const categories = [
+        { value: "governance", label: "🏛️ Governance" },
+        { value: "treasury", label: "💰 Treasury" },
+        { value: "membership", label: "👥 Membership" },
+        { value: "operations", label: "⚙️ Operations" },
+    ]
 
     // Check archive status on mount
     useEffect(() => {
@@ -46,7 +55,7 @@ export function ProposeDAO() {
         setSuccess(null)
 
         try {
-            const msg = buildProposeMsg(adena.address, realmPath, trimTitle, trimDesc)
+            const msg = buildProposeMsg(adena.address, realmPath, trimTitle, trimDesc, isGovDAO ? undefined : category)
             await doContractBroadcast([msg], `Propose: ${trimTitle}`)
             setSuccess("Proposal created!")
             setTimeout(() => navigate(`/dao/${slug}`), 2000)
@@ -135,6 +144,35 @@ export function ProposeDAO() {
                     />
                     <p style={hintStyle}>{description.length}/4096 characters</p>
                 </div>
+
+                {/* Category — not supported by GovDAO */}
+                {!isGovDAO && (
+                    <div>
+                        <label style={labelStyle}>Category</label>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {categories.map(c => (
+                                <button
+                                    key={c.value}
+                                    type="button"
+                                    onClick={() => setCategory(c.value)}
+                                    disabled={loading}
+                                    style={{
+                                        padding: "6px 14px", borderRadius: 6, fontSize: 12,
+                                        fontFamily: "JetBrains Mono, monospace",
+                                        border: "1px solid",
+                                        borderColor: category === c.value ? "rgba(0,212,170,0.3)" : "#222",
+                                        background: category === c.value ? "rgba(0,212,170,0.08)" : "#0c0c0c",
+                                        color: category === c.value ? "#00d4aa" : "#888",
+                                        cursor: loading ? "default" : "pointer",
+                                        transition: "all 0.15s",
+                                    }}
+                                >
+                                    {c.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Summary */}
@@ -145,7 +183,7 @@ export function ProposeDAO() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "#666" }}>Function</span>
-                    <span style={{ color: "#aaa" }}>Propose(title, description)</span>
+                    <span style={{ color: "#aaa" }}>Propose(title, description{isGovDAO ? "" : ", category"})</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "#666" }}>Proposer</span>

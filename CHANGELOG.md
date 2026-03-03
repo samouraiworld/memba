@@ -2,6 +2,16 @@
 
 All notable changes to Memba are documented here.
 
+## [1.1.0] — 2026-03-03 — Proposal Categories & Polish
+
+### Added
+- **Proposal category picker** — governance, treasury, membership, operations (hidden for GovDAO which doesn't support categories)
+- **Live demo link** in README → [memba.samourai.app](https://memba.samourai.app)
+
+### Changed
+- **`isGovDAO`** — exported from `builders.ts` for category visibility logic
+- **Summary card** in ProposeDAO shows `Propose(title, description, category)` for Memba DAOs
+
 ## [1.0.0] — 2026-03-03 — First Public Release 🎉
 
 > Version reset from v10.0.0 → v1.0.0 for clean open-source versioning. All previous development versions (v0.1.0–v10.0.0) are consolidated into this first public release.

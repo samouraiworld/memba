@@ -12,7 +12,7 @@
 import type { AminoMsg } from "./shared"
 
 /** Known GovDAO paths that use different function names. */
-function isGovDAO(realmPath: string): boolean {
+export function isGovDAO(realmPath: string): boolean {
     return realmPath.includes("/gov/dao")
 }
 

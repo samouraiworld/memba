@@ -42,6 +42,7 @@ export {
     buildExecuteMsg,
     buildProposeMsg,
     buildArchiveMsg,
+    isGovDAO,
 } from "./builders"
 
 // ── Test Exports ──────────────────────────────────────────────

@@ -8,6 +8,8 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
+**🌐 Live Demo:** [memba.samourai.app](https://memba.samourai.app)
+
 ## Features (v1.0.0)
 
 - 🔑 Create & import multisig wallets
