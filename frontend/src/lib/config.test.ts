@@ -8,8 +8,8 @@ import {
 } from './config'
 
 describe('config constants', () => {
-    it('APP_VERSION matches v7.0.0', () => {
-        expect(APP_VERSION).toBe('7.0.0')
+    it('APP_VERSION matches v9.0.0', () => {
+        expect(APP_VERSION).toBe('9.0.0')
     })
 
     it('UGNOT_PER_GNOT is 1 million', () => {
