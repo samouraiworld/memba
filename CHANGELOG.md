@@ -12,12 +12,21 @@ All notable changes to Memba are documented here.
 - **Test exports** — internal pure functions (`_normalizeStatus`, `_parseProposalList`, `_sanitize`, `_parseMemberstoreTiers`, `_parseMembersFromRender`) exported with `_` prefix for unit testing
 - **11-perspective cross-audit** — CTO, CSO, Red Team, Blue Team, Black Hat, UX/UI, Gno Core, DevRel, Fullstack, DeFi User, DAO User (43 findings: 2 High, 28 Medium, 13 Low)
 - **`isValidGnoAddress`** — strict bech32 address validation (g1 + 38 lowercase alphanum)
+- **Stale chunk auto-recovery** — `ErrorBoundary` detects Vite lazy-load failures after deploy and auto-reloads (sessionStorage loop guard), shows "New version available" on second failure
+- **Error mapping layer** — centralised `errorMap.ts` with 10 error patterns: network failures, timeouts, auth errors, blockchain queries, insufficient funds, wallet errors → user-friendly title + message + suggested action
+- **Progressive loading: DAOHome** — config renders header immediately (~200ms), members and proposals sections load independently with per-section skeleton states
+- **Progressive loading: DAOList** — placeholder cards show instantly (name + path from localStorage), config data fills in progressively per-card
+- **Rich dashboard onboarding** — feature cards (Multisig, DAO, Tokens) with icons, descriptions, hover animations, and contextual CTAs replace generic empty state
+- **CreateDAO wizard split** — 757 LOC monolith refactored into ~200 LOC orchestrator + 5 components (`wizardShared.tsx`, `WizardStepPreset.tsx`, `WizardStepMembers.tsx`, `WizardStepConfig.tsx`, `WizardStepReview.tsx`)
+- **DAO draft persistence** — localStorage auto-save (debounced 500ms) with "Resume draft?" banner, 24h TTL auto-expiry, cleared on deploy
 
 ### Changed
 - **Test count**: 34 → 167 (+133 tests, +391% increase)
 - **`dao.ts` → `dao/`** — split monolithic 778 LOC file into 5 sub-modules: `shared.ts` (types, ABCI, username resolution), `config.ts` (getDAOConfig), `members.ts` (getDAOMembers), `proposals.ts` (getDAOProposals, getProposalDetail, getProposalVotes), `builders.ts` (message builders) + barrel `index.ts`
 - **`daoTemplate.ts`** — hardened code generation with strict input sanitization: bech32 address validation, alphanumeric-only role/category validation, power value floor + non-negative clamp
 - **Zero breaking changes** — barrel re-export maintains all existing import paths
+- **`ErrorToast`** — enhanced with `mapError()` integration: title + message + action hint + optional retry button, `useMemo` for mapped state
+- **`CreateDAO.tsx`** — 757 LOC → ~200 LOC orchestrator (state management + step navigation); rendering delegated to 4 extracted components
 
 ### Fixed
 - **README.md**: "Tailwind CSS v4" → "Vanilla CSS" (architecture diagram)

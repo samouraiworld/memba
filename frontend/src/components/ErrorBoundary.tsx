@@ -10,10 +10,29 @@ interface State {
     error: Error | null
 }
 
+/** SessionStorage key for stale chunk reload guard. */
+const CHUNK_RELOAD_KEY = "memba_chunk_reload"
+
+/** Detect if an error is a Vite stale chunk failure (dynamic import 404 after deploy). */
+function isStaleChunkError(error: Error): boolean {
+    const msg = error.message || ""
+    return (
+        msg.includes("dynamically imported module") ||
+        msg.includes("Failed to fetch") ||
+        msg.includes("Loading chunk") ||
+        msg.includes("Loading CSS chunk")
+    )
+}
+
 /**
  * Root-level React error boundary.
+ *
  * Catches unhandled errors in the component tree and shows a fallback UI
  * instead of a blank white screen.
+ *
+ * **Stale chunk auto-recovery**: When a Vite lazy-loaded chunk fails
+ * (e.g. after a deploy changes chunk hashes), auto-reloads once.
+ * Uses sessionStorage guard to prevent infinite reload loops.
  */
 export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
@@ -27,11 +46,31 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("[ErrorBoundary]", error, errorInfo.componentStack)
+
+        // Stale chunk auto-recovery: reload once, guard with sessionStorage
+        if (isStaleChunkError(error)) {
+            const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY)
+            if (!alreadyReloaded) {
+                console.warn("[ErrorBoundary] Stale chunk detected — auto-reloading")
+                sessionStorage.setItem(CHUNK_RELOAD_KEY, "1")
+                window.location.reload()
+                return
+            }
+            // Already reloaded once — fall through to show UI
+            console.warn("[ErrorBoundary] Stale chunk persists after reload — showing fallback")
+        }
+    }
+
+    componentDidMount() {
+        // Clear the stale chunk reload flag on successful mount (page loaded OK)
+        sessionStorage.removeItem(CHUNK_RELOAD_KEY)
     }
 
     render() {
         if (this.state.hasError) {
             if (this.props.fallback) return this.props.fallback
+
+            const isChunkError = this.state.error && isStaleChunkError(this.state.error)
 
             return (
                 <div style={{
@@ -43,14 +82,18 @@ export class ErrorBoundary extends Component<Props, State> {
                         background: "#141414", border: "1px solid #222", borderRadius: 12,
                         padding: 32, textAlign: "center", maxWidth: 420,
                     }}>
-                        <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+                        <div style={{ fontSize: 40, marginBottom: 16 }}>
+                            {isChunkError ? "🔄" : "⚠️"}
+                        </div>
                         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                            Something went wrong
+                            {isChunkError ? "New version available" : "Something went wrong"}
                         </h2>
                         <p style={{ fontSize: 12, color: "#888", marginBottom: 20, lineHeight: 1.6 }}>
-                            An unexpected error occurred. Please try reloading the page.
+                            {isChunkError
+                                ? "Memba has been updated. Please reload to get the latest version."
+                                : "An unexpected error occurred. Please try reloading the page."}
                         </p>
-                        {this.state.error && (
+                        {!isChunkError && this.state.error && (
                             <pre style={{
                                 fontSize: 10, color: "#ff4757", background: "rgba(255,71,87,0.06)",
                                 padding: 12, borderRadius: 6, marginBottom: 20,
@@ -61,7 +104,10 @@ export class ErrorBoundary extends Component<Props, State> {
                             </pre>
                         )}
                         <button
-                            onClick={() => window.location.reload()}
+                            onClick={() => {
+                                sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+                                window.location.reload()
+                            }}
                             style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                                 height: 40, padding: "0 20px", borderRadius: 8,

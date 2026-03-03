@@ -46,27 +46,31 @@ export function DAOList() {
                 }
             }
 
-            // Fetch configs in parallel
-            const entries = await Promise.allSettled(
-                Array.from(allPaths.entries()).map(async ([realmPath, meta]) => {
-                    const config = await getDAOConfig(GNO_RPC_URL, realmPath)
-                    return {
-                        realmPath,
-                        name: config?.name || meta.name,
-                        config,
-                        featured: meta.featured,
-                    }
-                }),
+            // Immediately show placeholder cards (name + path, no config yet)
+            const placeholders: DAOEntry[] = Array.from(allPaths.entries()).map(
+                ([realmPath, meta]) => ({ realmPath, name: meta.name, config: null, featured: meta.featured }),
             )
+            setDaoEntries(placeholders)
+            setLoading(false)
 
-            setDaoEntries(
-                (entries
-                    .filter((r) => r.status === "fulfilled") as PromiseFulfilledResult<DAOEntry>[])
-                    .map((r) => r.value),
-            )
+            // Progressive: resolve each config independently, update cards as they arrive
+            for (const [realmPath, meta] of allPaths) {
+                getDAOConfig(GNO_RPC_URL, realmPath)
+                    .then((config) => {
+                        setDaoEntries((prev) =>
+                            prev.map((entry) =>
+                                entry.realmPath === realmPath
+                                    ? { ...entry, name: config?.name || meta.name, config }
+                                    : entry,
+                            ),
+                        )
+                    })
+                    .catch(() => {
+                        // Card stays as placeholder — name/path still visible
+                    })
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load DAOs")
-        } finally {
             setLoading(false)
         }
     }, [])
