@@ -765,6 +765,20 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v1.3.0 — Notification & Vote History 🗳️ — ✅ SHIPPED 2026-03-03
+
+> Unvoted proposal notification dot, enhanced My Votes, and Adena auto-reconnect fix.
+
+| Feature | Status |
+|---------|--------|
+| 🔴 Pulsing notification dot on 🏛️ DAO nav (unvoted proposals) | ✅ |
+| 🗳️ Enhanced "My Votes" on own profile (cross-DAO, filter tabs) | ✅ |
+| 🔧 Adena auto-reconnect on page refresh (`sessionStorage`) | ✅ |
+| ⚡ Shared `voteScanner.ts` utility (5×5 cap, cache, rate limit) | ✅ |
+| 🧹 Cache invalidation after voting (`clearVoteCache()`) | ✅ |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.

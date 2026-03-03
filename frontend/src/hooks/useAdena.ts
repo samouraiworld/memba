@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -27,12 +27,26 @@ interface AdenaState {
     pubkeyJSON: string;
     chainId: string;
     loading: boolean;
+    reconnecting: boolean;
     error: string | null;
 }
+
+// Session persistence key — cleared when browser is closed (not tab).
+const SESSION_KEY = "memba_adena_connected";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {
     return (window as unknown as Record<string, unknown>).adena;
+}
+
+function wasConnected(): boolean {
+    try { return sessionStorage.getItem(SESSION_KEY) === "true"; } catch { return false; }
+}
+function saveConnected() {
+    try { sessionStorage.setItem(SESSION_KEY, "true"); } catch { /* no-op */ }
+}
+function clearConnected() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* no-op */ }
 }
 
 export function useAdena() {
@@ -43,8 +57,10 @@ export function useAdena() {
         pubkeyJSON: "",
         chainId: "",
         loading: false,
+        reconnecting: wasConnected(), // true if we expect to auto-reconnect
         error: null,
     });
+    const autoReconnectAttempted = useRef(false);
 
     // Extensions inject globals after page load — poll to detect.
     // Adena can take up to 5-10s depending on browser load.
@@ -117,12 +133,14 @@ export function useAdena() {
                 });
             }
 
+            saveConnected();
             setState({
                 connected: true,
                 address,
                 pubkeyJSON,
                 chainId,
                 loading: false,
+                reconnecting: false,
                 error: null,
             });
             return true;
@@ -136,6 +154,19 @@ export function useAdena() {
             return false;
         }
     }, []);
+
+    // Auto-reconnect: if sessionStorage flag exists and Adena is installed, reconnect.
+    useEffect(() => {
+        if (!installed || autoReconnectAttempted.current) return;
+        if (!wasConnected()) {
+            setState((s) => ({ ...s, reconnecting: false }));
+            return;
+        }
+        autoReconnectAttempted.current = true;
+        connect().finally(() => {
+            setState((s) => ({ ...s, reconnecting: false }));
+        });
+    }, [installed, connect]);
 
     /** Sign a multisig transaction via Adena's SignMultisigTransaction().
      *  Input: JSON string of Amino sign doc from buildSignDoc().
@@ -230,12 +261,14 @@ export function useAdena() {
     );
 
     const disconnect = useCallback(() => {
+        clearConnected();
         setState({
             connected: false,
             address: "",
             pubkeyJSON: "",
             chainId: "",
             loading: false,
+            reconnecting: false,
             error: null,
         });
     }, []);
