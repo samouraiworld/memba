@@ -2,7 +2,7 @@
 
 All notable changes to Memba are documented here.
 
-## [7.0.0] — 2026-03-02 (IN PROGRESS)
+## [7.0.0] — 2026-03-03 — ✅ SHIPPED
 
 ### Added
 - **Unit tests: `dao.test.ts`** — 40 tests covering `normalizeStatus`, `sanitize`, `parseProposalList`, `parseMemberstoreTiers`, `parseMembersFromRender`, and all message builders (vote, execute, propose, archive)

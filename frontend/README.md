@@ -1,12 +1,12 @@
 # Memba Frontend
 
-> React + Vite + Tailwind CSS v4 + Kodera design system
+> React + Vite + Vanilla CSS + Kodera design system
 
 ## Stack
 
 - **React 19** with TypeScript strict mode
 - **Vite 7** for dev server and builds
-- **Tailwind CSS v4** as CSS engine with `@theme` design tokens
+- **Vanilla CSS** with design tokens
 - **Kodera design system** (`k-` prefixed component classes)
 - **ConnectRPC** for backend communication
 - **React Router v7** for client-side routing
@@ -53,7 +53,7 @@ npm run lint     # ESLint check
 
 ## Design System
 
-The **Kodera design system** uses Tailwind CSS v4's `@theme` directive for design tokens and custom component classes:
+The **Kodera design system** uses Vanilla CSS with design tokens and custom component classes:
 
 | Class | Description |
 |-------|-------------|
