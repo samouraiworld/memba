@@ -47,7 +47,7 @@
 
 | Component | Tech | Responsibility |
 |-----------|------|---------------|
-| **Frontend** | React + Vite + Tailwind CSS v4 + Kodera design system | UI, wallet integration, tx assembly |
+| **Frontend** | React + Vite + Vanilla CSS + Kodera design system | UI, wallet integration, tx assembly |
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |

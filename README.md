@@ -51,7 +51,7 @@
 ## Architecture
 
 ```
-frontend/   → React + Vite + Tailwind CSS v4 + Kodera design system (Netlify)
+frontend/   → React + Vite + Vanilla CSS + Kodera design system (Netlify)
 backend/    → Go + ConnectRPC + SQLite (Fly.io)
 api/        → Protobuf service definitions (Buf)
 contracts/  → Gno realms (future)

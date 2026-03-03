@@ -646,6 +646,31 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v7.0.0 — Testing & Code Quality — 🚧 IN PROGRESS
+
+> 11-perspective cross-audit, testing infrastructure, documentation fixes, code organization.
+
+| Feature | Status |
+|---------|--------|
+| 🔍 11-perspective cross-audit (43 findings) | ✅ |
+| 🧪 `dao.test.ts` — 40 unit tests for ABCI parser + message builders | ✅ |
+| 🧪 `grc20.test.ts` — 25 unit tests for fee calc + msg builders | ✅ |
+| 🧪 `daoTemplate.test.ts` — 40 unit tests for code gen + injection | ✅ |
+| 🧪 `profile.test.ts` — 15 unit tests for merge logic + score calc | ✅ |
+| 📄 Fix README + ARCHITECTURE "Tailwind" → "Vanilla CSS" | ✅ |
+| 📄 Fix ROADMAP version ordering | ✅ |
+| ♻️ Extract `parseMembersFromRender`, `parseMemberstoreTiers` (DRY) | ✅ |
+| ♻️ Export internal test functions via `_` prefix convention | ✅ |
+| ♻️ Split `dao.ts` into sub-modules | ⬜ Planned |
+| ♻️ Split `CreateDAO.tsx` into wizard steps | ⬜ Planned |
+| 🔒 DAO template injection audit + sanitization | ⬜ Planned |
+| 🔒 Parameterize bech32 prefix for mainnet | ⬜ Planned |
+| 🎨 Onboarding wizard for new users | ⬜ Planned |
+| 🏗️ Health monitoring + SQLite backup | ⬜ Planned |
+| 📥 TX history CSV export | ⬜ Planned |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.
