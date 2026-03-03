@@ -137,64 +137,74 @@ export async function getProposalDetail(
     realmPath: string,
     id: number,
 ): Promise<DAOProposal | null> {
-    // GovDAO v3 uses ":N" render path
-    let data = await queryRender(rpcUrl, realmPath, String(id))
-    if (!data) {
-        // basedao uses "proposal/N"
-        data = await queryRender(rpcUrl, realmPath, `proposal/${id}`)
-    }
-    if (!data) return null
+    try {
+        // Try multiple render path formats:
+        // 1. GovDAO v3: just the id number
+        // 2. basedao / custom DAO: "proposal/N"
+        // 3. GovDAO with colon: ":N"
+        let data = await queryRender(rpcUrl, realmPath, String(id))
+        if (!data) {
+            data = await queryRender(rpcUrl, realmPath, `proposal/${id}`)
+        }
+        if (!data) {
+            data = await queryRender(rpcUrl, realmPath, `:${id}`)
+        }
+        if (!data) return null
 
-    // Parse title
-    const titleMatch = data.match(/(?:Prop\s+#\d+\s*-\s*|Proposal\s+#\d+[:\s]+)(.+?)(?:\n|$)/m)
-        || data.match(/^#.*?#\d+\s*-\s*(.+?)$/m)
-        || data.match(/^##?\s+(?:Prop(?:osal)?\s+#\d+\s*-?\s*)?(.+)$/m)
+        // Parse title
+        const titleMatch = data.match(/(?:Prop\s+#\d+\s*-\s*|Proposal\s+#\d+[:\s]+)(.+?)(?:\n|$)/m)
+            || data.match(/^#.*?#\d+\s*-\s*(.+?)$/m)
+            || data.match(/^##?\s+(?:Prop(?:osal)?\s+#\d+\s*-?\s*)?(.+)$/m)
 
-    // Author
-    const authorMatch = data.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
+        // Author
+        const authorMatch = data.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
 
-    // Status  
-    const statusMatch = data.match(/(?:PROPOSAL HAS BEEN\s+)?(\w+ED|ACTIVE)/i)
-        || data.match(/Status:\s*(\w+)/i)
+        // Status  
+        const statusMatch = data.match(/(?:PROPOSAL HAS BEEN\s+)?(\w+ED|ACTIVE)/i)
+            || data.match(/Status:\s*(\w+)/i)
 
-    // Vote percentages
-    const yesPercentMatch = data.match(/YES\s+PERCENT:\s*(\d+)%/i)
-    const noPercentMatch = data.match(/NO\s+PERCENT:\s*(\d+)%/i)
+        // Vote percentages
+        const yesPercentMatch = data.match(/YES\s+PERCENT:\s*(\d+)%/i)
+        const noPercentMatch = data.match(/NO\s+PERCENT:\s*(\d+)%/i)
 
-    // Tiers eligible to vote
-    const tiersMatch = data.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
+        // Tiers eligible to vote
+        const tiersMatch = data.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
 
-    // Legacy: ** field format
-    const yesMatch = data.match(/\*\*Yes\*\*[:\s]+(\d+)/i)
-    const noMatch = data.match(/\*\*No\*\*[:\s]+(\d+)/i)
-    const abstainMatch = data.match(/\*\*Abstain\*\*[:\s]+(\d+)/i)
-    const proposerMatch = data.match(/\*\*Proposer\*\*[:\s]+(g\S+)/i)
+        // Legacy: ** field format
+        const yesMatch = data.match(/\*\*Yes\*\*[:\s]+(\d+)/i)
+        const noMatch = data.match(/\*\*No\*\*[:\s]+(\d+)/i)
+        const abstainMatch = data.match(/\*\*Abstain\*\*[:\s]+(\d+)/i)
+        const proposerMatch = data.match(/\*\*Proposer\*\*[:\s]+(g\S+)/i)
 
-    // Extract description (body text between metadata and ## sections)
-    const descMatch = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats)/m)
-        || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
+        // Extract description (body text between metadata and ## sections)
+        const descMatch = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats)/m)
+            || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
 
-    // Category
-    const categoryMatch = data.match(/Category:\s*(\w+)/i)
+        // Category
+        const categoryMatch = data.match(/Category:\s*(\w+)/i)
 
-    return {
-        id,
-        title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
-        description: descMatch?.[1]?.trim() || "",
-        category: categoryMatch?.[1]?.toLowerCase() || "",
-        status: normalizeStatus(statusMatch?.[1] || "open"),
-        author: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
-        authorProfile: authorMatch?.[2] || "",
-        tiers: tiersMatch
-            ? tiersMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
-            : [],
-        yesPercent: yesPercentMatch ? parseInt(yesPercentMatch[1], 10) : 0,
-        noPercent: noPercentMatch ? parseInt(noPercentMatch[1], 10) : 0,
-        yesVotes: yesMatch ? parseInt(yesMatch[1], 10) : 0,
-        noVotes: noMatch ? parseInt(noMatch[1], 10) : 0,
-        abstainVotes: abstainMatch ? parseInt(abstainMatch[1], 10) : 0,
-        totalVoters: 0,
-        proposer: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
+        return {
+            id,
+            title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
+            description: descMatch?.[1]?.trim() || "",
+            category: categoryMatch?.[1]?.toLowerCase() || "",
+            status: normalizeStatus(statusMatch?.[1] || "open"),
+            author: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
+            authorProfile: authorMatch?.[2] || "",
+            tiers: tiersMatch
+                ? tiersMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
+                : [],
+            yesPercent: yesPercentMatch ? parseInt(yesPercentMatch[1], 10) : 0,
+            noPercent: noPercentMatch ? parseInt(noPercentMatch[1], 10) : 0,
+            yesVotes: yesMatch ? parseInt(yesMatch[1], 10) : 0,
+            noVotes: noMatch ? parseInt(noMatch[1], 10) : 0,
+            abstainVotes: abstainMatch ? parseInt(abstainMatch[1], 10) : 0,
+            totalVoters: 0,
+            proposer: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
+        }
+    } catch (err) {
+        console.warn(`[getProposalDetail] Failed to parse proposal #${id} from ${realmPath}:`, err)
+        return null
     }
 }
 

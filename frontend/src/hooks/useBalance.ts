@@ -10,7 +10,7 @@ interface BalanceState {
 
 const UGNOT_PER_GNOT = 1_000_000n;
 
-function formatGnot(ugnot: bigint): string {
+export function formatGnot(ugnot: bigint): string {
     const whole = ugnot / UGNOT_PER_GNOT;
     const frac = ugnot % UGNOT_PER_GNOT;
     if (frac === 0n) return `${whole} GNOT`;
@@ -38,13 +38,27 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
 
         setState((s) => ({ ...s, loading: true, error: null }));
         try {
-            // Use Gno ABCI query for bank balance
-            const url = `${GNO_RPC_URL}/abci_query?path=%22bank/balances/${address}%22`;
-            const res = await fetch(url);
+            // Use JSON-RPC POST for reliability (same pattern as dao/shared.ts)
+            const res = await fetch(GNO_RPC_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "memba-balance",
+                    method: "abci_query",
+                    params: {
+                        path: `bank/balances/${address}`,
+                        data: "",
+                    },
+                }),
+            });
             const json = await res.json();
 
-            // Response value is base64 encoded
-            const rawValue = json?.result?.response?.ResponseBase?.Value;
+            // Try ResponseBase.Value first, then Data (different RPC versions)
+            const rawValue = json?.result?.response?.ResponseBase?.Value
+                || json?.result?.response?.ResponseBase?.Data
+                || json?.result?.response?.value;
+
             if (!rawValue) {
                 setState({ balance: "0 GNOT", rawUgnot: 0n, loading: false, error: null });
                 return;
@@ -62,8 +76,10 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
                 error: null,
             });
         } catch (err) {
+            console.warn("[useBalance] Failed to fetch balance:", err);
             setState((s) => ({
                 ...s,
+                balance: "? GNOT",
                 loading: false,
                 error: err instanceof Error ? err.message : "Failed to fetch balance",
             }));

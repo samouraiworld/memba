@@ -2,6 +2,31 @@
 
 All notable changes to Memba are documented here.
 
+## [8.0.0] — 2026-03-03 — Bug Fixes, UX Polish & Dashboard Hub
+
+### Fixed
+- **Username placeholder** — replaced hardcoded "zooma1337" with neutral "anonymous-user" (grey) + valid format hint "myname123"
+- **Faucet link** — added persistent "Need test tokens? → faucet.gno.land" link on registration + smart error detection for insufficient GNOT
+- **Avatar instant display** — optimistic UI update: avatar shows immediately after save instead of waiting for gnolove re-fetch
+- **GitHub OAuth** — fixed Adena wallet disconnect during OAuth redirect: deferred profile save via localStorage (10min expiry), auto-applies on wallet reconnect
+- **GNOT balance** — rewrote `useBalance.ts` from HTTP GET to JSON-RPC POST (same pattern as `dao/shared.ts`), added ResponseBase.Data fallback, shows "? GNOT" on error
+- **Token creation "Token not found"** — replaced auto-redirect with full success view (animated checkmark, TX hash link, manual "View Token" button); added retry logic in `TokenView.tsx` (3 retries × 2s)
+- **Proposal infinite loading** — wrapped `getProposalDetail` in try-catch with 3 render path formats (id, proposal/id, :id) and console.warn logging
+- **Execute button for non-members** — added `isMember` guard; non-members see "Only DAO members can execute" warning instead
+
+### Added
+- **`GnoCodeBlock.tsx`** — lightweight Gno/Go syntax highlighter (~115 LOC, no dependencies): keywords (cyan), types (purple), strings (amber), comments (grey), numbers (green)
+- **Unit tests: `gnoCodeBlock.test.ts`** — 15 tests covering keyword identification, string/backtick parsing, comment priority, type detection, number literals, full snippet tokenization, and text preservation
+- **Unit tests: `balance.test.ts`** — 7 tests covering zero/whole/fractional/sub-GNOT/trailing-zero/large balance formatting
+- **Dashboard User Identity Card** — avatar, @username, GNOT balance, address, "Edit Profile" link at top of dashboard
+- **Enhanced Quick Actions** — added "Explore DAOs", "Create DAO", "Browse Tokens" buttons alongside existing multisig actions
+
+### Changed
+- **Test count**: 167 → 189 (+22 tests, +13% increase)
+- **Dashboard subtitle** — "Manage your multisig wallets" → "Your hub for multisig wallets, DAOs, and tokens"
+- **Code preview** — `WizardStepReview.tsx` plain `<pre>` replaced with `<GnoCodeBlock>` syntax highlighter
+- **`GithubCallback.tsx`** — new "deferred" step state for when wallet disconnects during OAuth
+
 ## [7.0.0] — 2026-03-03 — ✅ SHIPPED
 
 ### Added

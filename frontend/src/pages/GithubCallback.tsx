@@ -28,7 +28,7 @@ export function GithubCallback() {
     const [searchParams] = useSearchParams()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const [step, setStep] = useState<"exchanging" | "saving" | "success" | "error">("exchanging")
+    const [step, setStep] = useState<"exchanging" | "saving" | "success" | "deferred" | "error">("exchanging")
     const [ghUser, setGhUser] = useState<GitHubUserInfo | null>(null)
     const [error, setError] = useState<string | null>(null)
 
@@ -55,15 +55,18 @@ export function GithubCallback() {
                 if (!data.login) throw new Error("No GitHub login returned")
                 setGhUser(data)
 
-                // Step 2: Save GitHub login to backend profile
+                // Step 2: Save GitHub login — or defer if wallet disconnected
                 if (auth.isAuthenticated && auth.token) {
                     setStep("saving")
                     await updateBackendProfile(auth.token, { github: data.login })
                     setStep("success")
                     setTimeout(() => navigate(`/profile/${adena.address}`), 2500)
                 } else {
-                    setError("Connect your wallet and sign in first.")
-                    setStep("error")
+                    // Wallet disconnected during OAuth redirect — store for later
+                    localStorage.setItem("pendingGithubLink", JSON.stringify({
+                        login: data.login, avatar: data.avatar_url, name: data.name, ts: Date.now()
+                    }))
+                    setStep("deferred")
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to link GitHub")
@@ -130,6 +133,33 @@ export function GithubCallback() {
                         <p style={{ fontSize: 12, color: "#888" }}>
                             Redirecting to your profile...
                         </p>
+                    </>
+                )}
+
+                {step === "deferred" && (
+                    <>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#4caf50", marginBottom: 8 }}>
+                            ✓ GitHub Verified!
+                        </h2>
+                        {ghUser?.avatar_url && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", margin: "16px 0" }}>
+                                <img src={ghUser.avatar_url} alt="GitHub avatar" referrerPolicy="no-referrer" style={{ width: 48, height: 48, borderRadius: "50%", border: "2px solid rgba(76,175,80,0.3)" }} />
+                                <div style={{ textAlign: "left" }}>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>{ghUser.name || ghUser.login}</div>
+                                    <div style={{ fontSize: 11, color: "#4caf50" }}>@{ghUser.login} verified ✓</div>
+                                </div>
+                            </div>
+                        )}
+                        <p style={{ fontSize: 12, color: "#f5a623", marginBottom: 16 }}>
+                            Your wallet disconnected during the redirect. Reconnect your wallet and visit your profile — we’ll link your GitHub automatically.
+                        </p>
+                        <button
+                            className="k-btn-primary"
+                            onClick={() => navigate("/")}
+                            style={{ padding: "8px 16px", fontSize: 12 }}
+                        >
+                            Go to Dashboard
+                        </button>
                     </>
                 )}
 

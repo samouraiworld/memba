@@ -34,9 +34,15 @@ export function TokenView() {
         if (!symbol) return
         setLoading(true)
         try {
-            const info = await getTokenInfo(GNO_RPC_URL, symbol)
+            // Retry logic: token may not be indexed immediately after creation
+            let info: TokenInfo | null = null
+            for (let attempt = 0; attempt < 4; attempt++) {
+                info = await getTokenInfo(GNO_RPC_URL, symbol)
+                if (info) break
+                if (attempt < 3) await new Promise(r => setTimeout(r, 2000))
+            }
             setToken(info)
-            if (adena.connected && adena.address) {
+            if (info && adena.connected && adena.address) {
                 const bal = await getTokenBalance(GNO_RPC_URL, symbol, adena.address)
                 setBalance(bal)
             }
@@ -114,7 +120,13 @@ export function TokenView() {
         return (
             <div className="animate-fade-in" style={{ textAlign: "center", padding: 64 }}>
                 <h2 style={{ fontSize: 18, marginBottom: 8 }}>Token not found</h2>
-                <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
+                <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
+                    If you just created this token, it may still be indexing. Try again in a few seconds.
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                    <button onClick={() => fetchData()} style={{ ...backBtnStyle, color: "#00d4aa" }}>🔄 Retry</button>
+                    <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
+                </div>
             </div>
         )
     }
