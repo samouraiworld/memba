@@ -54,7 +54,7 @@
 - ✅ Vote status badges + auto-hide buttons after voting
 - ✨ Gno/Go syntax highlighter for code previews
 - 🖼️ Dashboard identity card (avatar, @username, balance, address)
-- 🧪 189 unit tests (Vitest) — ABCI parsers, code generators, profile logic, balance formatting
+- 🧪 197 unit tests (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation
 - 🗺️ Centralised error mapping layer (10 error patterns → user-friendly messages + retry)
 - ⚡ Progressive loading (DAOHome, DAOList — per-section skeleton states)
 - ♻️ CreateDAO wizard split (5 components, draft persistence with 24h TTL)

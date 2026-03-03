@@ -740,6 +740,31 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v1.1.0 — Proposal Categories & Polish — ✅ SHIPPED 2026-03-03
+
+> Category picker on ProposeDAO, GovDAO-aware, demo link in README.
+
+| Feature | Status |
+|---------|--------|
+| 🏷️ Proposal category picker (governance, treasury, membership, operations) | ✅ |
+| 🏛️ GovDAO-aware category hiding | ✅ |
+| 🌐 Live demo link in README | ✅ |
+| ♻️ `isGovDAO` exported from builders.ts | ✅ |
+
+---
+
+## v1.2.0 — RPC Domain Validation 🛡️ — ✅ SHIPPED 2026-03-03
+
+> Security hardening: trusted domain allowlist prevents spoofed RPC URLs.
+
+| Feature | Status |
+|---------|--------|
+| 🛡️ `isTrustedRpcDomain()` + `TRUSTED_RPC_DOMAINS` allowlist | ✅ |
+| 🛡️ Red SECURITY WARNING banner for untrusted RPC | ✅ |
+| 🧪 8 new security tests (197 total) | ✅ |
+
+---
+
 ## v5.6.0 — Profile & UX Polish — ✅ SHIPPED 2026-02-28
 
 > Critical bug fixes: GovDAO membership detection, avatar rendering, GitHub icon.
