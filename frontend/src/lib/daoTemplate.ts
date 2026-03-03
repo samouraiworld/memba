@@ -91,10 +91,12 @@ export const DAO_PRESETS: DAOPreset[] = [
     },
 ]
 
+import { BECH32_PREFIX } from "./config"
+
 // ── Input Sanitization ────────────────────────────────────────
 
-/** Strict bech32 address validation — only g1 + lowercase alphanum. */
-const VALID_ADDRESS = /^g1[a-z0-9]{38}$/
+/** Strict bech32 address validation — prefix + lowercase alphanum. */
+const VALID_ADDRESS = new RegExp(`^${BECH32_PREFIX}[a-z0-9]{38}$`)
 
 /** Alphanumeric + underscore only — safe for Gno string literals. */
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/

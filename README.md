@@ -8,7 +8,7 @@
 
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built for the samourai-crew.
 
-## Features (v6.0.0)
+## Features (v7.0.0)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -47,6 +47,14 @@
 - 🗳️ Vote status badges ("You voted YES/NO/ABSTAIN")
 - 🔀 User redirect (`/u/username` → `/profile/address`)
 - 📊 Gnolove contribution stats (commits, PRs, issues, reviews)
+- 🧪 167 unit tests (Vitest) — ABCI parsers, code generators, profile logic
+- 🗺️ Centralised error mapping layer (10 error patterns → user-friendly messages + retry)
+- ⚡ Progressive loading (DAOHome, DAOList — per-section skeleton states)
+- ♻️ CreateDAO wizard split (5 components, draft persistence with 24h TTL)
+- 🔧 Stale chunk auto-recovery (auto-reload on Vite lazy-load failures)
+- 🏗️ Enhanced `/health` endpoint (DB status, uptime, memory, version)
+- 💾 SQLite automated backup (daily VACUUM INTO, 7-day retention)
+- 📥 TX history CSV export (client-side, 10 columns)
 
 ## Architecture
 

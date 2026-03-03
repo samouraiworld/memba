@@ -4,7 +4,7 @@
  */
 
 /** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "6.0.0"
+export const APP_VERSION = "7.0.0"
 
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""
@@ -67,8 +67,14 @@ export function getExplorerBaseUrl(): string {
     }
 }
 
-/** Bech32 prefix for Gno addresses. */
-export const GNO_BECH32_PREFIX = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
+/** Bech32 human-readable part (HRP) for Gno addresses. */
+export const GNO_BECH32_HRP = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
+
+/** @deprecated Use GNO_BECH32_HRP for HRP or BECH32_PREFIX for address validation. */
+export const GNO_BECH32_PREFIX = GNO_BECH32_HRP
+
+/** Full bech32 address prefix (HRP + separator) used for address validation. */
+export const BECH32_PREFIX = GNO_BECH32_HRP + "1"
 
 /** Conversion factor: 1 GNOT = 1,000,000 ugnot. */
 export const UGNOT_PER_GNOT = 1_000_000

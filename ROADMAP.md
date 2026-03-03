@@ -664,14 +664,14 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 | ♻️ Split `dao.ts` into sub-modules | ✅ |
 | ♻️ Split `CreateDAO.tsx` into wizard steps | ✅ |
 | 🔒 DAO template injection audit + sanitization | ✅ |
-| 🔒 Parameterize bech32 prefix for mainnet | ⬜ Planned |
+| 🔒 Parameterize bech32 prefix for mainnet | ✅ |
 | 🎨 Onboarding wizard for new users | ✅ |
 | ⚡ Progressive loading (DAOHome + DAOList) | ✅ |
 | 🗺️ Centralised error mapping layer | ✅ |
 | 🔧 Stale chunk auto-recovery (ErrorBoundary) | ✅ |
 | 💾 DAO wizard draft persistence (localStorage) | ✅ |
-| 🏗️ Health monitoring + SQLite backup | ⬜ Planned |
-| 📥 TX history CSV export | ⬜ Planned |
+| 🏗️ Health monitoring + SQLite backup | ✅ |
+| 📥 TX history CSV export | ✅ |
 
 ---
 
