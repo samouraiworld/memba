@@ -646,6 +646,27 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v8.0.0 — Bug Fixes, UX Polish & Dashboard Hub — ✅ SHIPPED 2026-03-03
+
+> 10 critical bug fixes, syntax highlighting, dashboard redesign. Tests: 167→189 (+22).
+
+| Feature | Status |
+|---------|--------|
+| 🐛 Username placeholder fix (`anonymous-user` grey) | ✅ |
+| 🐛 Faucet link for insufficient tokens | ✅ |
+| 🐛 Instant avatar display (optimistic UI) | ✅ |
+| 🐛 GitHub OAuth fix (deferred save on disconnect) | ✅ |
+| 🐛 GNOT balance fix (JSON-RPC POST rewrite) | ✅ |
+| 🐛 Token creation success flow (animated view + retry) | ✅ |
+| 🐛 Proposal infinite loading (try-catch + 3 render paths) | ✅ |
+| 🐛 Execute button guard (`isMember` check) | ✅ |
+| ✨ GnoCodeBlock syntax highlighter (no deps) | ✅ |
+| ✨ Dashboard Identity Card + enhanced quick actions | ✅ |
+| 🧪 `gnoCodeBlock.test.ts` — 15 tokenizer tests | ✅ |
+| 🧪 `balance.test.ts` — 7 formatting tests | ✅ |
+
+---
+
 ## v7.0.0 — Testing, Code Quality & Infrastructure — ✅ SHIPPED 2026-03-03
 
 > 11-perspective cross-audit, testing infrastructure, documentation fixes, code organization.
