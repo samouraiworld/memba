@@ -1,3 +1,9 @@
+/**
+ * Dashboard — Authenticated user hub for multisig wallets, DAOs, and tokens.
+ *
+ * Decomposed in v2.0.0: UI sections extracted into components/dashboard/.
+ * This file handles data fetching, state management, and composition.
+ */
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
@@ -8,7 +14,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
 import { queryRender } from "../lib/dao/shared"
 import { fetchBackendProfile } from "../lib/profile"
@@ -18,10 +24,16 @@ import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { getSavedDAOs } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
+import {
+    DashboardIdentityCard,
+    ActionRequiredStrip,
+    QuickVoteWidget,
+    DashboardFeatureCards,
+} from "../components/dashboard"
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { balance, auth, adena } = useOutletContext<LayoutContext>()
+    const { balance, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
@@ -40,7 +52,7 @@ export function Dashboard() {
     // Quick Vote: unvoted proposals from saved DAOs
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
     const { proposals: unvotedProposals, loading: unvotedLoading, refresh: refreshUnvoted } = useUnvotedProposals(userAddress)
-    const [votingId, setVotingId] = useState<string | null>(null) // "daoSlug:proposalId"
+    const [votingId, setVotingId] = useState<string | null>(null)
     const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
 
     // Saved DAOs count for feature card
@@ -51,18 +63,15 @@ export function Dashboard() {
         setLoading(true)
         setError(null)
         try {
-            // P1-A: All-or-nothing — either all succeed or previous state is preserved.
             const [msRes, pendRes, recentRes] = await Promise.all([
                 api.multisigs({ authToken: token, limit: 50 }),
                 api.transactions({ authToken: token, executionState: ExecutionState.PENDING, limit: 10 }),
                 api.transactions({ authToken: token, limit: 10 }),
             ])
-            // Atomic state update — only reached if all three RPCs succeed.
             setMultisigs(msRes.multisigs)
             setPendingTxs(pendRes.transactions)
             setRecentTxs(recentRes.transactions)
         } catch (err) {
-            // On failure, previous state is preserved (no partial updates).
             setError(err instanceof Error ? err.message : "Failed to load data")
         } finally {
             setLoading(false)
@@ -76,7 +85,6 @@ export function Dashboard() {
         if (!auth.isAuthenticated || !balance) return
         const addr = (auth as { address?: string }).address
         if (!addr) return
-        // Username from on-chain registry
         queryRender(GNO_RPC_URL, "gno.land/r/gnoland/users/v1", addr)
             .then((data) => {
                 if (!data) return
@@ -84,13 +92,12 @@ export function Dashboard() {
                 if (m) setUsername(`@${m[1]}`)
             })
             .catch(() => { /* silent */ })
-        // Avatar from backend profile
         fetchBackendProfile(addr)
             .then((p) => { if (p?.avatarUrl) setAvatarUrl(p.avatarUrl) })
             .catch(() => { /* silent */ })
     }, [auth.isAuthenticated, balance, auth])
 
-    // S1: Clear stale data when auth drops (wallet disconnect / token expiry)
+    // S1: Clear stale data when auth drops
     useEffect(() => {
         if (!auth.isAuthenticated) {
             setMultisigs([])
@@ -99,11 +106,10 @@ export function Dashboard() {
         }
     }, [auth.isAuthenticated])
 
-    const formatDate = (dateStr: string) => {
-        try {
-            return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-        } catch { return dateStr }
-    }
+    const formatDate = useCallback((dateStr: string) => {
+        const d = new Date(dateStr)
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    }, [])
 
     const handleJoinMultisig = async (ms: Multisig) => {
         if (!token || !ms.pubkeyJson) return
@@ -131,14 +137,13 @@ export function Dashboard() {
         setVotingId(key)
         setError(null)
         try {
-            const isGovDAO = checkIsGovDAO(realmPath)
+            const isGov = checkIsGovDAO(realmPath)
             const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
-            const fn = isGovDAO ? "MustVoteOnProposalSimple" : "VoteOnProposal"
+            const fn = isGov ? "MustVoteOnProposalSimple" : "VoteOnProposal"
             await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId} (${fn})`)
             setVotedIds(prev => new Set(prev).add(key))
             clearVoteCache()
-            // Refresh after a brief delay to let the cache clear
-            setTimeout(() => refreshUnvoted(), 500)
+            setTimeout(() => refreshUnvoted(), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Vote failed")
         } finally {
@@ -146,58 +151,28 @@ export function Dashboard() {
         }
     }
 
+    // Filter out voted proposals (optimistic UI)
+    const visibleUnvotedProposals = unvotedProposals.filter(p => !votedIds.has(`${p.realmPath}:${p.proposalId}`))
+
     // Count unsigned pending TXs
     const unsignedPendingCount = pendingTxs.filter(tx =>
-        !tx.signatures.some(s => s.userAddress === userAddress)
+        !tx.signatures.some((s: { userAddress: string }) => s.userAddress === userAddress)
     ).length
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {/* ── User Identity Card ────────────────────────── */}
             {auth.isAuthenticated && (
-                <div className="k-card" style={{
-                    padding: "20px 24px", display: "flex", alignItems: "center", gap: 16,
-                    borderColor: "rgba(0,212,170,0.15)",
-                    background: "linear-gradient(135deg, rgba(0,212,170,0.04), transparent)",
-                }}>
-                    <div
-                        style={{
-                            width: 48, height: 48, borderRadius: "50%",
-                            background: avatarUrl ? "none" : "rgba(0,212,170,0.1)",
-                            border: "2px solid rgba(0,212,170,0.2)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            overflow: "hidden", cursor: "pointer",
-                        }}
-                        onClick={() => navigate(`/profile/${(auth as { address?: string }).address || ""}`)}
-                    >
-                        {avatarUrl ? (
-                            <img src={avatarUrl} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setAvatarUrl(null)} />
-                        ) : (
-                            <span style={{ fontSize: 24 }}>👤</span>
-                        )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 16, fontWeight: 600 }}>
-                                {username || "Anonymous"}
-                            </span>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: balance.startsWith("?") ? "#f5a623" : "#00d4aa" }}>
-                                {balance}
-                            </span>
-                        </div>
-                        <CopyableAddress address={(auth as { address?: string }).address || ""} fontSize={11} />
-                    </div>
-                    <button
-                        className="k-btn-secondary"
-                        onClick={() => navigate(`/profile/${(auth as { address?: string }).address || ""}`)}
-                        style={{ fontSize: 11, flexShrink: 0 }}
-                    >
-                        Edit Profile
-                    </button>
-                </div>
+                <DashboardIdentityCard
+                    address={(auth as { address?: string }).address || ""}
+                    username={username}
+                    avatarUrl={avatarUrl}
+                    balance={balance}
+                    onAvatarError={() => setAvatarUrl(null)}
+                />
             )}
 
-            {/* ── Page header (logged-in only) ──────────────────────── */}
+            {/* ── Page header ──────────────────────── */}
             {auth.isAuthenticated && (
                 <div>
                     <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
@@ -207,305 +182,36 @@ export function Dashboard() {
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════════════════
-                 LOGGED-OUT: Feature Showcase Landing
-                ═══════════════════════════════════════════════════════════ */}
-            {!auth.isAuthenticated && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                    {/* Hero */}
-                    <div style={{ textAlign: "center", padding: "32px 16px 16px" }}>
-                        <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.02em" }}>
-                            Welcome to Memba <span style={{ color: "#666", fontWeight: 400 }}>メンバー</span>
-                        </h3>
-                        <p style={{ color: "#888", fontSize: 13, maxWidth: 480, margin: "0 auto", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.7 }}>
-                            Your gateway to Gno multisig wallets, DAO governance, and token management — all in one place.
-                        </p>
-                    </div>
-                    {/* CTA — above feature cards */}
-                    <div style={{ textAlign: "center", padding: "0 0 8px" }}>
-                        {adena.installed ? (
-                            <button
-                                onClick={() => adena.connect()}
-                                style={{
-                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                                    background: "none", border: "1px solid rgba(0,212,170,0.25)",
-                                    padding: "8px 20px", borderRadius: 6, cursor: "pointer",
-                                    transition: "all 0.15s",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
-                            >
-                                Connect your Adena wallet to get started →
-                            </button>
-                        ) : (
-                            <a
-                                href="https://adena.app"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                                    textDecoration: "none", border: "1px solid rgba(0,212,170,0.25)",
-                                    padding: "8px 20px", borderRadius: 6, display: "inline-block",
-                                    transition: "all 0.15s",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
-                            >
-                                Install Adena wallet to get started →
-                            </a>
-                        )}
-                    </div>
-                    {/* Feature Showcase Cards — clickable */}
-                    <div className="k-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-                        {[
-                            {
-                                icon: "🔐", title: "Multisig Wallets", href: "/",
-                                bullets: ["Create shared wallets with threshold signing (K-of-N)", "Air-gapped gnokey support for maximum security", "Import & share multisig configurations"],
-                            },
-                            {
-                                icon: "🏛️", title: "DAO Governance", href: "/dao",
-                                bullets: ["Browse & vote on DAO proposals", "Create your own DAO with custom roles & tiers", "Treasury management & member control"],
-                            },
-                            {
-                                icon: "🪙", title: "Token Factory", href: "/tokens",
-                                bullets: ["Deploy GRC20 tokens on gno.land", "Configure decimals, initial mint & faucet", "Multisig-governed token administration"],
-                            },
-                        ].map(f => (
-                            <div
-                                key={f.title}
-                                className="k-card"
-                                onClick={() => navigate(f.href)}
-                                style={{
-                                    padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16,
-                                    borderColor: "#222", cursor: "pointer", transition: "border-color 0.15s, transform 0.15s",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.transform = "translateY(0)" }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <span style={{ fontSize: 28 }}>{f.icon}</span>
-                                    <span style={{ fontSize: 15, fontWeight: 600 }}>{f.title}</span>
-                                </div>
-                                <ul style={{ margin: 0, paddingLeft: 18, listStyle: "none" }}>
-                                    {f.bullets.map((b, i) => (
-                                        <li key={i} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.8, position: "relative", paddingLeft: 4 }}>
-                                            <span style={{ position: "absolute", left: -14, color: "#00d4aa" }}>·</span>
-                                            {b}
-                                        </li>
-                                    ))}
-                                </ul>
-                                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", alignSelf: "flex-end" }}>
-                                    Explore →
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                    {/* Single gno.land tag — below grid */}
-                    <div style={{ textAlign: "center", padding: "8px 0 0" }}>
-                        <span style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#00d4aa", background: "rgba(0,212,170,0.06)",
-                            padding: "3px 10px", borderRadius: 4,
-                            border: "1px solid rgba(0,212,170,0.12)",
-                        }}>
-                            Built on gno.land — the smart contract platform
-                        </span>
-                    </div>
-                </div>
-            )}
-
-            {/* ═══════════════════════════════════════════════════════════
-                 LOGGED-IN: Action Required + Quick Vote + Feature Cards
-                ═══════════════════════════════════════════════════════════ */}
+            {/* ── Authenticated Content ──────────── */}
             {auth.isAuthenticated && (
                 <>
-                    {/* ── ⚡ Action Required Strip ─────────────────────── */}
+                    {/* Action Required Strip */}
                     {!loading && (
-                        <div className="k-action-banner" style={{
-                            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-                            padding: "12px 18px", borderRadius: 10,
-                            background: (unvotedProposals.length > 0 || unsignedPendingCount > 0)
-                                ? "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))"
-                                : "rgba(0,212,170,0.04)",
-                            border: `1px solid ${(unvotedProposals.length > 0 || unsignedPendingCount > 0) ? "rgba(245,166,35,0.15)" : "rgba(0,212,170,0.12)"}`,
-                        }}>
-                            {unvotedProposals.length > 0 || unsignedPendingCount > 0 ? (
-                                <>
-                                    <span style={{ fontSize: 14 }}>⚡</span>
-                                    {unvotedProposals.length > 0 && (
-                                        <span
-                                            onClick={() => navigate("/dao")}
-                                            style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", cursor: "pointer" }}
-                                        >
-                                            🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
-                                        </span>
-                                    )}
-                                    {unvotedProposals.length > 0 && unsignedPendingCount > 0 && (
-                                        <span style={{ color: "#333" }}>·</span>
-                                    )}
-                                    {unsignedPendingCount > 0 && (
-                                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
-                                            ✍️ {unsignedPendingCount} signature{unsignedPendingCount > 1 ? "s" : ""} needed
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    <span style={{ fontSize: 14 }}>✓</span>
-                                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
-                                        You're all caught up
-                                    </span>
-                                </>
-                            )}
-                            {unvotedLoading && (
-                                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", marginLeft: "auto" }}>
-                                    scanning...
-                                </span>
-                            )}
-                        </div>
+                        <ActionRequiredStrip
+                            unvotedCount={visibleUnvotedProposals.length}
+                            unsignedCount={unsignedPendingCount}
+                            unvotedLoading={unvotedLoading}
+                        />
                     )}
 
-                    {/* ── 🗳️ Quick Vote Widget ─────────────────────────── */}
-                    {unvotedProposals.length > 0 && (
-                        <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                <span style={{ fontSize: 14 }}>🗳️</span>
-                                <h3 style={{ fontSize: 14, fontWeight: 500 }}>Quick Vote</h3>
-                                <span className="k-label" style={{ marginLeft: "auto" }}>
-                                    {unvotedProposals.length} pending
-                                </span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {unvotedProposals.map(p => {
-                                    const key = `${p.realmPath}:${p.proposalId}`
-                                    const isVoting = votingId === key
-                                    const hasVoted = votedIds.has(key)
-                                    return (
-                                        <div key={key} className="k-card" style={{
-                                            padding: "14px 18px", display: "flex", alignItems: "center", gap: 12,
-                                            flexWrap: "wrap",
-                                            borderColor: hasVoted ? "rgba(0,212,170,0.2)" : "#222",
-                                            opacity: hasVoted ? 0.6 : 1,
-                                        }}>
-                                            <div style={{ flex: 1, minWidth: 160 }}>
-                                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 2 }}>
-                                                    {p.daoName}
-                                                </div>
-                                                <div
-                                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "#f0f0f0" }}
-                                                    onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
-                                                >
-                                                    #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
-                                                </div>
-                                            </div>
-                                            {hasVoted ? (
-                                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
-                                                    ✓ Voted
-                                                </span>
-                                            ) : (
-                                                <div style={{ display: "flex", gap: 6 }}>
-                                                    <button
-                                                        onClick={() => handleQuickVote(p.realmPath, p.proposalId, "YES")}
-                                                        disabled={isVoting}
-                                                        style={{
-                                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
-                                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                                            background: "rgba(0,212,170,0.1)", color: "#00d4aa",
-                                                            border: "1px solid rgba(0,212,170,0.25)", cursor: isVoting ? "default" : "pointer",
-                                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
-                                                        }}
-                                                    >
-                                                        {isVoting ? "..." : "✓ YES"}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleQuickVote(p.realmPath, p.proposalId, "NO")}
-                                                        disabled={isVoting}
-                                                        style={{
-                                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
-                                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                                            background: "rgba(255,71,87,0.08)", color: "#ff4757",
-                                                            border: "1px solid rgba(255,71,87,0.2)", cursor: isVoting ? "default" : "pointer",
-                                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
-                                                        }}
-                                                    >
-                                                        {isVoting ? "..." : "✗ NO"}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    {/* Quick Vote Widget */}
+                    <QuickVoteWidget
+                        proposals={visibleUnvotedProposals}
+                        votingId={votingId}
+                        votedIds={votedIds}
+                        onVote={handleQuickVote}
+                    />
 
-                    {/* ── Feature Cards Grid ────────────────────────────── */}
-                    <div className="k-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-                        {[
-                            {
-                                icon: "🔐", title: "Multisig",
-                                count: joinedMultisigs.length, unit: "wallet",
-                                cta: joinedMultisigs.length > 0 ? "Manage" : "Get Started",
-                                path: joinedMultisigs.length > 0 ? `/multisig/${joinedMultisigs[0].address}` : "/create",
-                                alt: "+ Create", altPath: "/create",
-                                showAlt: joinedMultisigs.length > 0,
-                            },
-                            {
-                                icon: "🏛️", title: "DAO Governance",
-                                count: savedDAOsCount, unit: "DAO",
-                                cta: "Explore", path: "/dao",
-                                alt: "+ Create", altPath: "/dao/create",
-                                showAlt: true,
-                            },
-                            {
-                                icon: "🪙", title: "Token Factory",
-                                count: null, unit: "",
-                                cta: "Browse Tokens", path: "/tokens",
-                                alt: "+ Create", altPath: "/create-token",
-                                showAlt: true,
-                            },
-                        ].map(f => (
-                            <div
-                                key={f.title}
-                                className="k-card"
-                                style={{
-                                    padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12,
-                                    cursor: "pointer", transition: "border-color 0.2s, transform 0.2s",
-                                }}
-                                onClick={() => navigate(f.path)}
-                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
-                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.transform = "" }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <span style={{ fontSize: 22 }}>{f.icon}</span>
-                                    <span style={{ fontSize: 14, fontWeight: 600 }}>{f.title}</span>
-                                    {f.count !== null && (
-                                        <span style={{
-                                            marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
-                                            padding: "2px 8px", borderRadius: 4,
-                                        }}>
-                                            {f.count} {f.unit}{f.count !== 1 ? "s" : ""}
-                                        </span>
-                                    )}
-                                </div>
-                                <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-                                    <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.path) }}>
-                                        {f.cta} →
-                                    </button>
-                                    {f.showAlt && (
-                                        <button className="k-btn-secondary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.altPath) }}>
-                                            {f.alt}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    {/* Feature Cards Grid */}
+                    <DashboardFeatureCards
+                        joinedMultisigCount={joinedMultisigs.length}
+                        firstMultisigAddress={joinedMultisigs[0]?.address || null}
+                        savedDAOsCount={savedDAOsCount}
+                    />
                 </>
             )}
 
-            {/* ── Discoverable Multisigs (auto-detect) ─────────────── */}
+            {/* ── Discoverable Multisigs ─────────────── */}
             {auth.isAuthenticated && discoverableMultisigs.length > 0 && (
                 <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
@@ -639,7 +345,7 @@ export function Dashboard() {
                                         memo: tx.memo,
                                         finalHash: tx.finalHash,
                                         threshold: tx.threshold,
-                                        signatures: tx.signatures.map((s) => ({ userAddress: s.userAddress })),
+                                        signatures: tx.signatures.map((s: { userAddress: string }) => ({ userAddress: s.userAddress })),
                                         msgsJson: tx.msgsJson,
                                     }))
                                     exportTransactionsCSV(exportable)

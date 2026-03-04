@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Layout } from "./components/layout/Layout"
 import { Dashboard } from "./pages/Dashboard"
 
+// ── Landing page (lazy — only for unauthenticated visitors) ──
+const Landing = lazy(() => import("./pages/Landing").then(m => ({ default: m.Landing })))
+
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
 import { ImportMultisig } from "./pages/ImportMultisig"
@@ -50,8 +53,14 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          {/* Core multisig routes (bundled with main chunk) */}
-          <Route path="/" element={<Dashboard />} />
+          {/* Landing page (public) */}
+          <Route path="/" element={<Suspense fallback={<PageLoader />}><Landing /></Suspense>} />
+
+          {/* Dashboard (authenticated hub) */}
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Core multisig routes */}
+          <Route path="/multisig" element={<Navigate to="/dashboard" replace />} />
           <Route path="/create" element={<CreateMultisig />} />
           <Route path="/import" element={<ImportMultisig />} />
           <Route path="/multisig/:address" element={<MultisigView />} />

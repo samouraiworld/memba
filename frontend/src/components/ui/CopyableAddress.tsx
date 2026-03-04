@@ -4,6 +4,8 @@ interface CopyableAddressProps {
     address: string
     /** Show full address or truncate. Default: true (full) */
     full?: boolean
+    /** Show ultra-short address (e.g., g174…59c). Overrides `full`. Default: false */
+    compact?: boolean
     /** Font size override. Default: 11 */
     fontSize?: number
 }
@@ -12,14 +14,18 @@ interface CopyableAddressProps {
  * Displays a Gno address with 1-click copy.
  * Shows the full address by default; click copies to clipboard.
  */
-export function CopyableAddress({ address, full = true, fontSize = 11 }: CopyableAddressProps) {
+export function CopyableAddress({ address, full = true, compact = false, fontSize = 11 }: CopyableAddressProps) {
     const [copied, setCopied] = useState(false)
 
-    const display = full
-        ? address
-        : address.length > 20
-            ? `${address.slice(0, 10)}…${address.slice(-8)}`
+    const display = compact
+        ? address.length > 8
+            ? `${address.slice(0, 4)}…${address.slice(-3)}`
             : address
+        : full
+            ? address
+            : address.length > 20
+                ? `${address.slice(0, 10)}…${address.slice(-8)}`
+                : address
 
     const handleCopy = (e: React.MouseEvent) => {
         e.stopPropagation() // prevent card click bubbling

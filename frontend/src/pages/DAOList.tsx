@@ -135,29 +135,48 @@ export function DAOList() {
             {/* ── ⚡ Action Required Banner ──────────────────────── */}
             {unvotedProposals.length > 0 && (
                 <div className="k-action-banner" style={{
-                    display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-                    padding: "12px 18px", borderRadius: 10,
+                    display: "flex", flexDirection: "column", gap: 10,
+                    padding: "14px 18px", borderRadius: 10,
                     background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))",
                     border: "1px solid rgba(245,166,35,0.15)",
                 }}>
-                    <span style={{ fontSize: 14 }}>⚡</span>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
-                        🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
-                    </span>
-                    <button
-                        onClick={() => {
-                            const first = unvotedProposals[0]
-                            if (first) navigate(`/dao/${first.daoSlug}/proposal/${first.proposalId}`)
-                        }}
-                        style={{
-                            marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                            color: "#f5a623", background: "rgba(245,166,35,0.08)",
-                            border: "1px solid rgba(245,166,35,0.2)", borderRadius: 6,
-                            padding: "4px 12px", cursor: "pointer",
-                        }}
-                    >
-                        Vote now →
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", fontWeight: 600 }}>
+                            🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
+                        </span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 26 }}>
+                        {unvotedProposals.slice(0, 3).map(p => (
+                            <div
+                                key={`${p.realmPath}:${p.proposalId}`}
+                                onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
+                                style={{
+                                    fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                                    color: "#ccc", cursor: "pointer", display: "flex", gap: 8,
+                                    padding: "4px 8px", borderRadius: 6,
+                                    transition: "background 0.15s",
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(245,166,35,0.06)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                                <span style={{ color: "#f5a623", flexShrink: 0 }}>{p.daoName}</span>
+                                <span style={{ color: "#888" }}>—</span>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    #{p.proposalId}: {p.proposalTitle}
+                                </span>
+                                <span style={{ color: "#f5a623", marginLeft: "auto", flexShrink: 0 }}>→</span>
+                            </div>
+                        ))}
+                        {unvotedProposals.length > 3 && (
+                            <span
+                                onClick={() => navigate("/dao")}
+                                style={{ fontSize: 10, color: "#888", cursor: "pointer", paddingLeft: 8 }}
+                            >
+                                +{unvotedProposals.length - 3} more…
+                            </span>
+                        )}
+                    </div>
                 </div>
             )}
 

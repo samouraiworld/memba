@@ -39,10 +39,10 @@ export function ProposalView() {
     const [memberCount, setMemberCount] = useState(0)
 
 
-    const proposalId = parseInt(id || "0", 10)
+    const proposalId = parseInt(id || "", 10)
 
     const loadProposal = useCallback(async (silent = false) => {
-        if (!proposalId || !realmPath) return
+        if (isNaN(proposalId) || !realmPath) return
         if (!silent) setLoading(true)
         setError(null)
         try {
@@ -220,15 +220,26 @@ export function ProposalView() {
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {/* Nav */}
-            <button
-                onClick={() => navigate(`/dao/${slug}`)}
-                aria-label="Back to DAO"
-                id="proposal-back-btn"
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
-            >
-                ← Back to DAO
-            </button>
+            {/* Breadcrumb navigation */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "JetBrains Mono, monospace", flexWrap: "wrap" }}>
+                <button
+                    onClick={() => navigate("/dao")}
+                    style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
+                >
+                    DAO
+                </button>
+                <span style={{ color: "#333" }}>›</span>
+                <button
+                    onClick={() => navigate(`/dao/${slug}`)}
+                    aria-label="Back to DAO"
+                    id="proposal-back-btn"
+                    style={{ color: "#00d4aa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
+                >
+                    {realmPath.split("/").pop() || "DAO"}
+                </button>
+                <span style={{ color: "#333" }}>›</span>
+                <span style={{ color: "#f0f0f0" }}>Proposal #{proposal?.id ?? proposalId}</span>
+            </div>
 
             {/* Header */}
             <div>
