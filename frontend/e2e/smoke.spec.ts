@@ -135,9 +135,10 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
         await expect(page.locator('body')).toContainText('メンバー')
     })
 
-    test('CTA text mentions Adena wallet', async ({ page }) => {
+    test('CTA links to Adena wallet', async ({ page }) => {
         await page.goto('/')
-        await expect(page.locator('body')).toContainText('Connect your Adena wallet')
+        // In Playwright (no Adena extension), the CTA shows "Install Adena wallet..."
+        await expect(page.locator('body')).toContainText('Adena wallet')
     })
 
     test('Multisig nav link visible in header', async ({ page }) => {

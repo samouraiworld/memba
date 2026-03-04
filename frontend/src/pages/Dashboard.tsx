@@ -21,7 +21,7 @@ import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { balance, auth } = useOutletContext<LayoutContext>()
+    const { balance, auth, adena } = useOutletContext<LayoutContext>()
     const token = auth.token
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
@@ -223,30 +223,65 @@ export function Dashboard() {
                     </div>
                     {/* CTA — above feature cards */}
                     <div style={{ textAlign: "center", padding: "0 0 8px" }}>
-                        <p style={{ color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                            Connect your Adena wallet to get started
-                        </p>
+                        {adena.installed ? (
+                            <button
+                                onClick={() => adena.connect()}
+                                style={{
+                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    background: "none", border: "1px solid rgba(0,212,170,0.25)",
+                                    padding: "8px 20px", borderRadius: 6, cursor: "pointer",
+                                    transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
+                            >
+                                Connect your Adena wallet to get started →
+                            </button>
+                        ) : (
+                            <a
+                                href="https://adena.app"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    textDecoration: "none", border: "1px solid rgba(0,212,170,0.25)",
+                                    padding: "8px 20px", borderRadius: 6, display: "inline-block",
+                                    transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
+                            >
+                                Install Adena wallet to get started →
+                            </a>
+                        )}
                     </div>
-                    {/* Feature Showcase Cards */}
+                    {/* Feature Showcase Cards — clickable */}
                     <div className="k-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
                         {[
                             {
-                                icon: "🔐", title: "Multisig Wallets",
+                                icon: "🔐", title: "Multisig Wallets", href: "/",
                                 bullets: ["Create shared wallets with threshold signing (K-of-N)", "Air-gapped gnokey support for maximum security", "Import & share multisig configurations"],
                             },
                             {
-                                icon: "🏛️", title: "DAO Governance",
+                                icon: "🏛️", title: "DAO Governance", href: "/dao",
                                 bullets: ["Browse & vote on DAO proposals", "Create your own DAO with custom roles & tiers", "Treasury management & member control"],
                             },
                             {
-                                icon: "🪙", title: "Token Factory",
+                                icon: "🪙", title: "Token Factory", href: "/tokens",
                                 bullets: ["Deploy GRC20 tokens on gno.land", "Configure decimals, initial mint & faucet", "Multisig-governed token administration"],
                             },
                         ].map(f => (
-                            <div key={f.title} className="k-card" style={{
-                                padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16,
-                                borderColor: "#222", cursor: "default",
-                            }}>
+                            <div
+                                key={f.title}
+                                className="k-card"
+                                onClick={() => navigate(f.href)}
+                                style={{
+                                    padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16,
+                                    borderColor: "#222", cursor: "pointer", transition: "border-color 0.15s, transform 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.transform = "translateY(0)" }}
+                            >
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                     <span style={{ fontSize: 28 }}>{f.icon}</span>
                                     <span style={{ fontSize: 15, fontWeight: 600 }}>{f.title}</span>
@@ -259,6 +294,9 @@ export function Dashboard() {
                                         </li>
                                     ))}
                                 </ul>
+                                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", alignSelf: "flex-end" }}>
+                                    Explore →
+                                </span>
                             </div>
                         ))}
                     </div>
