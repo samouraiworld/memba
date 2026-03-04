@@ -15,7 +15,7 @@ export function ActionRequiredStrip({ unvotedCount, unsignedCount, unvotedLoadin
     const hasAction = unvotedCount > 0 || unsignedCount > 0
 
     return (
-        <div className="k-action-banner" style={{
+        <div className="k-action-banner" aria-live="polite" style={{
             display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
             padding: "12px 18px", borderRadius: 10,
             background: hasAction

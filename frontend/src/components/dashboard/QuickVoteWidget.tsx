@@ -58,6 +58,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                     <button
                                         onClick={() => onVote(p.realmPath, p.proposalId, "YES")}
                                         disabled={isVoting}
+                                        aria-label={`Vote YES on proposal ${p.proposalId}`}
                                         style={{
                                             padding: "6px 14px", borderRadius: 6, fontSize: 11,
                                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
@@ -71,6 +72,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                     <button
                                         onClick={() => onVote(p.realmPath, p.proposalId, "NO")}
                                         disabled={isVoting}
+                                        aria-label={`Vote NO on proposal ${p.proposalId}`}
                                         style={{
                                             padding: "6px 14px", borderRadius: 6, fontSize: 11,
                                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,

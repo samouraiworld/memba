@@ -32,6 +32,7 @@ export function StatusBadge({ status, sigCount, threshold, hash }: StatusBadgePr
 
     return (
         <span
+            aria-label={`Status: ${c.label}${sigCount !== undefined && threshold !== undefined ? `, ${sigCount} of ${threshold} signatures` : ""}`}
             style={{
                 display: "inline-flex",
                 alignItems: "center",

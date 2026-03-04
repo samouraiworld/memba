@@ -133,10 +133,10 @@ export function Layout() {
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#000", color: "#f0f0f0" }}>
             {/* ── Header ──────────────────────────────────────────────── */}
-            <header className="k-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #1a1a1a" }}>
+            <header role="banner" className="k-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #1a1a1a" }}>
                 <div className="k-header-content" style={{ maxWidth: 1152, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     {/* Logo — clickable to home */}
-                    <Link to={auth.isAuthenticated ? "/dashboard" : "/"} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
+                    <Link to={auth.isAuthenticated ? "/dashboard" : "/"} aria-label="Memba home" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
                         <div
                             className="animate-glow"
                             style={{
@@ -157,7 +157,7 @@ export function Layout() {
                     </Link>
 
                     {/* Nav links */}
-                    <div className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    <nav aria-label="Main navigation" className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
                         <Link to="/dashboard" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                             🔐 <span className="k-nav-label">Multisig</span>
                         </Link>
@@ -173,7 +173,7 @@ export function Layout() {
                                 👤 <span className="k-nav-label">Profile</span>
                             </Link>
                         )}
-                    </div>
+                    </nav>
 
                     {/* Right side */}
                     <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -270,79 +270,85 @@ export function Layout() {
             }
 
             {/* ── Chain mismatch warning ───────────────────────────────── */}
-            {adena.connected && adena.chainId && network.chainId !== adena.chainId && (
-                <div style={{
-                    background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
-                    padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
-                }}>
-                    <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        ⚠ Network mismatch — wallet is on <strong>{adena.chainId}</strong>, Memba is on <strong>{network.chainId}</strong>
-                    </span>
-                    {NETWORKS[adena.chainId] ? (
-                        <button
-                            onClick={() => network.switchNetwork(adena.chainId)}
-                            style={{
-                                background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
-                                color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                            }}
-                        >
-                            Switch Memba to {adena.chainId}
-                        </button>
-                    ) : (
-                        <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                            Switch your wallet to {network.chainId} in Adena
-                        </span>
-                    )}
-                </div>
-            )}
-
-            {/* ── Untrusted wallet RPC warning ─────────────────────────── */}
-            {adena.connected && !adena.rpcTrusted && (
-                <div className="k-security-banner">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 18 }}>🛡️</span>
-                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>
-                            SECURITY WARNING
-                        </span>
-                        <span style={{ color: "#ff8a94", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                            — All transactions are blocked
-                        </span>
-                    </div>
-                    <div style={{ color: "#ccc", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
-                        {adena.rpcUrl ? (
-                            <>
-                                Your wallet is connected to an untrusted RPC:{" "}
-                                <code style={{ color: "#ff4757", background: "rgba(255,71,87,0.12)", padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>
-                                    {adena.rpcUrl}
-                                </code>
-                            </>
-                        ) : (
-                            <>Unable to verify your wallet&apos;s RPC URL.</>
-                        )}
-                        <br />
-                        <span style={{ color: "#00d4aa", fontWeight: 600 }}>
-                            Open Adena → Settings → Networks → switch to a *.gno.land RPC
-                        </span>
-                    </div>
-                </div>
-            )}
-            {/* Defense-in-depth: also check Memba's own config */}
-            {(() => {
-                const rpcWarning = validateActiveRpcDomain()
-                if (!rpcWarning || (adena.connected && !adena.rpcTrusted)) return null
-                return (
+            {
+                adena.connected && adena.chainId && network.chainId !== adena.chainId && (
                     <div style={{
-                        background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
-                        padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
+                        padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
                     }}>
-                        <span style={{ fontSize: 16 }}>🛡️</span>
-                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
-                            SECURITY WARNING: {rpcWarning}
+                        <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            ⚠ Network mismatch — wallet is on <strong>{adena.chainId}</strong>, Memba is on <strong>{network.chainId}</strong>
                         </span>
+                        {NETWORKS[adena.chainId] ? (
+                            <button
+                                onClick={() => network.switchNetwork(adena.chainId)}
+                                style={{
+                                    background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
+                                    color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                    padding: "3px 10px", borderRadius: 4, cursor: "pointer",
+                                }}
+                            >
+                                Switch Memba to {adena.chainId}
+                            </button>
+                        ) : (
+                            <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                                Switch your wallet to {network.chainId} in Adena
+                            </span>
+                        )}
                     </div>
                 )
-            })()}
+            }
+
+            {/* ── Untrusted wallet RPC warning ─────────────────────────── */}
+            {
+                adena.connected && !adena.rpcTrusted && (
+                    <div className="k-security-banner">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 18 }}>🛡️</span>
+                            <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>
+                                SECURITY WARNING
+                            </span>
+                            <span style={{ color: "#ff8a94", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                                — All transactions are blocked
+                            </span>
+                        </div>
+                        <div style={{ color: "#ccc", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
+                            {adena.rpcUrl ? (
+                                <>
+                                    Your wallet is connected to an untrusted RPC:{" "}
+                                    <code style={{ color: "#ff4757", background: "rgba(255,71,87,0.12)", padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>
+                                        {adena.rpcUrl}
+                                    </code>
+                                </>
+                            ) : (
+                                <>Unable to verify your wallet&apos;s RPC URL.</>
+                            )}
+                            <br />
+                            <span style={{ color: "#00d4aa", fontWeight: 600 }}>
+                                Open Adena → Settings → Networks → switch to a *.gno.land RPC
+                            </span>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Defense-in-depth: also check Memba's own config */}
+            {
+                (() => {
+                    const rpcWarning = validateActiveRpcDomain()
+                    if (!rpcWarning || (adena.connected && !adena.rpcTrusted)) return null
+                    return (
+                        <div style={{
+                            background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
+                            padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        }}>
+                            <span style={{ fontSize: 16 }}>🛡️</span>
+                            <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                                SECURITY WARNING: {rpcWarning}
+                            </span>
+                        </div>
+                    )
+                })()
+            }
 
             {/* ── Main ────────────────────────────────────────────────── */}
             <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
