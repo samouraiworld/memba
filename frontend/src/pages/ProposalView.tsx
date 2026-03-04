@@ -16,6 +16,7 @@ import {
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
+import { logChainError } from "../lib/errorLog"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import type { LayoutContext } from "../types/layout"
@@ -146,6 +147,7 @@ export function ProposalView() {
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
             await loadProposal()
         } catch (err) {
+            logChainError(`proposal:vote:${realmPath}#${proposalId}`, err, "critical", adena.address)
             const raw = err instanceof Error ? err.message : "Failed to vote"
             // Make "member not found" error user-friendly
             if (raw.toLowerCase().includes("member not found") || raw.toLowerCase().includes("not a member")) {
@@ -172,6 +174,7 @@ export function ProposalView() {
             setSuccess(`Proposal #${proposalId} executed!`)
             await loadProposal()
         } catch (err) {
+            logChainError(`proposal:execute:${realmPath}#${proposalId}`, err, "critical", adena.address)
             setError(err instanceof Error ? err.message : "Failed to execute")
         } finally {
             setActionLoading(false)
