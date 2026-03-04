@@ -23,7 +23,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
-    const { balance } = useBalance(adena.connected ? adena.address : null)
+    const { balance, compactBalance } = useBalance(adena.connected ? adena.address : null)
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
@@ -136,7 +136,7 @@ export function Layout() {
             <header className="k-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #1a1a1a" }}>
                 <div className="k-header-content" style={{ maxWidth: 1152, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     {/* Logo — clickable to home */}
-                    <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
+                    <Link to={auth.isAuthenticated ? "/dashboard" : "/"} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
                         <div
                             className="animate-glow"
                             style={{
@@ -158,7 +158,7 @@ export function Layout() {
 
                     {/* Nav links */}
                     <div className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                        <Link to="/" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                        <Link to="/dashboard" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                             🔐 <span className="k-nav-label">Multisig</span>
                         </Link>
                         <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
@@ -201,12 +201,12 @@ export function Layout() {
                         {adena.connected && auth.isAuthenticated ? (
                             <>
                                 <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
-                                    {balance}
+                                    {compactBalance}
                                 </span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
                                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                        <CopyableAddress address={auth.address || adena.address} full={false} fontSize={12} />
+                                        <CopyableAddress address={auth.address || adena.address} compact={true} fontSize={12} />
                                     </span>
                                 </div>
                                 <button

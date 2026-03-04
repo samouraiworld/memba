@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { GNO_RPC_URL } from "../lib/config";
 
 interface BalanceState {
-    balance: string; // human-readable, e.g. "1.5 GNOT"
+    balance: string; // human-readable full precision, e.g. "1.500001 GNOT"
+    compactBalance: string; // compact for header, e.g. "1.5 GNOT"
     rawUgnot: bigint;
     loading: boolean;
     error: string | null;
@@ -18,9 +19,21 @@ export function formatGnot(ugnot: bigint): string {
     return `${whole}.${fracStr} GNOT`;
 }
 
+/** Compact format for header: rounds down to 1 decimal (e.g. "19.3 GNOT"). */
+export function formatGnotCompact(ugnot: bigint): string {
+    const whole = ugnot / UGNOT_PER_GNOT;
+    const frac = ugnot % UGNOT_PER_GNOT;
+    if (frac === 0n) return `${whole} GNOT`;
+    // Take first decimal digit (floor — no rounding up for safety)
+    const firstDecimal = frac / 100_000n;
+    if (firstDecimal === 0n) return `${whole} GNOT`;
+    return `${whole}.${firstDecimal} GNOT`;
+}
+
 export function useBalance(address: string | null, refreshInterval = 30000) {
     const [state, setState] = useState<BalanceState>({
         balance: "— GNOT",
+        compactBalance: "— GNOT",
         rawUgnot: 0n,
         loading: false,
         error: null,
@@ -60,7 +73,7 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
                 || json?.result?.response?.value;
 
             if (!rawValue) {
-                setState({ balance: "0 GNOT", rawUgnot: 0n, loading: false, error: null });
+                setState({ balance: "0 GNOT", compactBalance: "0 GNOT", rawUgnot: 0n, loading: false, error: null });
                 return;
             }
 
@@ -71,6 +84,7 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
 
             setState({
                 balance: formatGnot(ugnot),
+                compactBalance: formatGnotCompact(ugnot),
                 rawUgnot: ugnot,
                 loading: false,
                 error: null,
@@ -80,6 +94,7 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
             setState((s) => ({
                 ...s,
                 balance: "? GNOT",
+                compactBalance: "? GNOT",
                 loading: false,
                 error: err instanceof Error ? err.message : "Failed to fetch balance",
             }));
