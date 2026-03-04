@@ -765,6 +765,26 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+## v1.5.0 — Hardening & GovDAO UX — ✅ SHIPPED 2026-03-04
+
+> Vote freshness fixes, page decomposition, CSP fix, GovDAO UX improvements.
+
+| Feature / Change | Status |
+|---------|--------|
+| P0: CSP blocking wallet connection (dual-policy fix) | ✅ |
+| 5 vote/proposal freshness bugs fixed (ABSTAIN, stale data, race conditions) | ✅ |
+| ProfilePage decomposition (814 → 464 LOC, 3 new components) | ✅ |
+| DAOHome decomposition (704 → 450 LOC, 3 new components) | ✅ |
+| ProposalView decomposition (604 → 512 LOC, 1 new component) | ✅ |
+| 7 lint fixes (4 errors + 3 warnings → 0/0) | ✅ |
+| Collapsible Proposal History | ✅ |
+| Red dot on DAO cards (per-card unvoted indicator) | ✅ |
+| Source transparency links (`</>` icon → gno.land explorer) | ✅ |
+| Acceptance Rate → Avg Voter Turnout | ✅ |
+| Total Power → Voting Power (label rename) | ✅ |
+
+---
+
 ## v1.4.0 — UX Optimization — ✅ SHIPPED 2026-03-03
 
 > Redesign logged-out landing, connected dashboard, DAO page hierarchy, and proposal extensibility.
