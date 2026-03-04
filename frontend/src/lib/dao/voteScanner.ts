@@ -69,6 +69,8 @@ export function clearVoteCache() {
         sessionStorage.removeItem(UNVOTED_CACHE_KEY)
         sessionStorage.removeItem(UNVOTED_DETAILS_CACHE_KEY)
         sessionStorage.removeItem(MYVOTES_CACHE_KEY)
+        // Notify hooks that cache was cleared so they re-scan immediately
+        window.dispatchEvent(new Event("memba:voteCacheCleared"))
     } catch { /* no-op */ }
 }
 
@@ -169,6 +171,7 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
                     const allVoters = voteRecords.flatMap(vr => [
                         ...vr.yesVoters,
                         ...vr.noVoters,
+                        ...vr.abstainVoters,
                     ])
                     if (!isInVoterList(allVoters, address, username)) {
                         unvotedCount++
@@ -231,6 +234,7 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
                     const allVoters = voteRecords.flatMap(vr => [
                         ...vr.yesVoters,
                         ...vr.noVoters,
+                        ...vr.abstainVoters,
                     ])
                     if (!isInVoterList(allVoters, address, username)) {
                         results.push({
@@ -299,6 +303,18 @@ export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
                                 proposalId: prop.id,
                                 proposalTitle: prop.title,
                                 vote: "NO",
+                                proposalStatus: prop.status,
+                            })
+                            found = true
+                            break
+                        }
+                        if (isInVoterList(vr.abstainVoters, address, username)) {
+                            votes.push({
+                                daoName: dao.name,
+                                daoSlug: encodeSlug(dao.path),
+                                proposalId: prop.id,
+                                proposalTitle: prop.title,
+                                vote: "ABSTAIN",
                                 proposalStatus: prop.status,
                             })
                             found = true

@@ -19,6 +19,7 @@ import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
+import { VoteStat, TierVoteBlock } from "../components/proposal"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposalView() {
@@ -99,7 +100,7 @@ export function ProposalView() {
                 if (members.length > 0 && memberCount === 0) setMemberCount(members.length)
             })
             .catch(() => setIsMember(null)) // on error, don't block — let user try
-    }, [adena.address, realmPath])
+    }, [adena.address, realmPath, memberCount])
 
     // Resolve user's @username for hasVoted matching
     useEffect(() => {
@@ -126,6 +127,12 @@ export function ProposalView() {
                 const vl = v.username.toLowerCase()
                 if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
                     return { hasVoted: true, userVote: "NO" }
+                }
+            }
+            for (const v of record.abstainVoters) {
+                const vl = v.username.toLowerCase()
+                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
+                    return { hasVoted: true, userVote: "ABSTAIN" }
                 }
             }
         }
@@ -499,99 +506,6 @@ export function ProposalView() {
             )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />
-        </div>
-    )
-}
-
-// ── Components ────────────────────────────────────────────
-
-function VoteStat({ label, count, color, icon }: { label: string; count: number; color: string; icon: string }) {
-    return (
-        <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color }}>
-                {icon} {count}
-            </div>
-            <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>
-                {label}
-            </div>
-        </div>
-    )
-}
-
-const tierColors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
-
-function TierVoteBlock({ record }: { record: VoteRecord }) {
-    const color = tierColors[record.tier] || "#888"
-    return (
-        <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: 12, color, fontFamily: "JetBrains Mono, monospace" }}>
-                    {record.tier}
-                </span>
-                <span style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
-                    VPPM {record.vppm}
-                </span>
-            </div>
-
-            {/* YES voters */}
-            {record.yesVoters.length > 0 && (
-                <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: "#4caf50", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
-                        YES ({record.yesVoters.length})
-                    </span>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                        {record.yesVoters.map((v) => (
-                            <a
-                                key={v.username}
-                                href={v.profileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    padding: "2px 8px", borderRadius: 4, fontSize: 10,
-                                    fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(76,175,80,0.08)", color: "#4caf50",
-                                    textDecoration: "none", transition: "background 0.15s",
-                                }}
-                            >
-                                {v.username}
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* NO voters */}
-            {record.noVoters.length > 0 && (
-                <div>
-                    <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
-                        NO ({record.noVoters.length})
-                    </span>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                        {record.noVoters.map((v) => (
-                            <a
-                                key={v.username}
-                                href={v.profileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    padding: "2px 8px", borderRadius: 4, fontSize: 10,
-                                    fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(244,67,54,0.08)", color: "#f44336",
-                                    textDecoration: "none",
-                                }}
-                            >
-                                {v.username}
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {record.yesVoters.length === 0 && record.noVoters.length === 0 && (
-                <div style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
-                    No votes from this tier
-                </div>
-            )}
         </div>
     )
 }

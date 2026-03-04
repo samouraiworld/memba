@@ -226,7 +226,7 @@ export async function getProposalVotes(
     const records: VoteRecord[] = []
 
     // Parse: "YES from T1 (VPPM 3):\n- @user\n- @user2\n\nNO from T1 (VPPM 3):"
-    const voteBlockRe = /(YES|NO)\s+from\s+(T\d+)\s*\(VPPM\s+(\d+)\):\s*([\s\S]*?)(?=(?:YES|NO)\s+from\s+T\d+|$)/gi
+    const voteBlockRe = /(YES|NO|ABSTAIN)\s+from\s+(T\d+)\s*\(VPPM\s+(\d+)\):\s*([\s\S]*?)(?=(?:YES|NO|ABSTAIN)\s+from\s+T\d+|$)/gi
     let m: RegExpExecArray | null
     while ((m = voteBlockRe.exec(data)) !== null) {
         const voteType = m[1].toUpperCase()
@@ -245,14 +245,16 @@ export async function getProposalVotes(
         // Find or create tier record
         let record = records.find((r) => r.tier === tier)
         if (!record) {
-            record = { tier, vppm, yesVoters: [], noVoters: [] }
+            record = { tier, vppm, yesVoters: [], noVoters: [], abstainVoters: [] }
             records.push(record)
         }
 
         if (voteType === "YES") {
             record.yesVoters.push(...voters)
-        } else {
+        } else if (voteType === "NO") {
             record.noVoters.push(...voters)
+        } else {
+            record.abstainVoters.push(...voters)
         }
     }
 
