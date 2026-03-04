@@ -197,13 +197,15 @@ export function Dashboard() {
                 </div>
             )}
 
-            {/* ── Page header ────────────────────────────────────────── */}
-            <div>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
-                <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
-                    Your hub for multisig wallets, DAOs, and tokens
-                </p>
-            </div>
+            {/* ── Page header (logged-in only) ──────────────────────── */}
+            {auth.isAuthenticated && (
+                <div>
+                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
+                    <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
+                        Your hub for multisig wallets, DAOs, and tokens
+                    </p>
+                </div>
+            )}
 
             {/* ═══════════════════════════════════════════════════════════
                  LOGGED-OUT: Feature Showcase Landing
@@ -217,6 +219,12 @@ export function Dashboard() {
                         </h3>
                         <p style={{ color: "#888", fontSize: 13, maxWidth: 480, margin: "0 auto", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.7 }}>
                             Your gateway to Gno multisig wallets, DAO governance, and token management — all in one place.
+                        </p>
+                    </div>
+                    {/* CTA — above feature cards */}
+                    <div style={{ textAlign: "center", padding: "0 0 8px" }}>
+                        <p style={{ color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            Connect your Adena wallet to get started
                         </p>
                     </div>
                     {/* Feature Showcase Cards */}
@@ -251,22 +259,19 @@ export function Dashboard() {
                                         </li>
                                     ))}
                                 </ul>
-                                <span style={{
-                                    fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                    color: "#00d4aa", background: "rgba(0,212,170,0.06)",
-                                    padding: "3px 8px", borderRadius: 4, alignSelf: "flex-start",
-                                    border: "1px solid rgba(0,212,170,0.12)",
-                                }}>
-                                    Available on gno.land
-                                </span>
                             </div>
                         ))}
                     </div>
-                    {/* CTA */}
-                    <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-                        <p style={{ color: "#666", fontSize: 12, fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
-                            Connect your Adena wallet to get started
-                        </p>
+                    {/* Single gno.land tag — below grid */}
+                    <div style={{ textAlign: "center", padding: "8px 0 0" }}>
+                        <span style={{
+                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                            color: "#00d4aa", background: "rgba(0,212,170,0.06)",
+                            padding: "3px 10px", borderRadius: 4,
+                            border: "1px solid rgba(0,212,170,0.12)",
+                        }}>
+                            Built on gno.land — the smart contract platform
+                        </span>
                     </div>
                 </div>
             )}

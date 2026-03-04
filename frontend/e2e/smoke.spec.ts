@@ -47,9 +47,12 @@ test.describe('v1.4.0 — Landing Page', () => {
         await expect(page.locator('body')).toContainText('Token Factory')
     })
 
-    test('"Available on gno.land" badge visible', async ({ page }) => {
+    test('"Built on gno.land" tag visible (single, not 3x)', async ({ page }) => {
         await page.goto('/')
-        await expect(page.locator('body')).toContainText('Available on gno.land')
+        await expect(page.locator('body')).toContainText('Built on gno.land')
+        // Should appear exactly once (not 3 times)
+        const count = await page.locator('text=Built on gno.land').count()
+        expect(count).toBe(1)
     })
 
     test('stat cards NOT visible when logged out', async ({ page }) => {
@@ -135,6 +138,19 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
     test('CTA text mentions Adena wallet', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('body')).toContainText('Connect your Adena wallet')
+    })
+
+    test('Multisig nav link visible in header', async ({ page }) => {
+        await page.goto('/')
+        const multisigLink = page.locator('header a', { hasText: 'Multisig' })
+        await expect(multisigLink).toBeVisible()
+    })
+
+    test('Dashboard header NOT shown when logged out', async ({ page }) => {
+        await page.goto('/')
+        // "Dashboard" as a heading should not appear for logged-out users
+        const dashboardHeading = page.locator('h2', { hasText: 'Dashboard' })
+        await expect(dashboardHeading).not.toBeVisible()
     })
 })
 
