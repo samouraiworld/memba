@@ -22,6 +22,7 @@ import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
 import { buildVoteMsg, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
+import { logChainError } from "../lib/errorLog"
 import { getSavedDAOs } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 import {
@@ -124,6 +125,7 @@ export function Dashboard() {
             })
             fetchData() // refresh
         } catch (err) {
+            logChainError("dashboard:joinMultisig", err, "error", userAddress || undefined)
             setError(err instanceof Error ? err.message : "Failed to join multisig")
         } finally {
             setJoiningAddr(null)
@@ -145,6 +147,7 @@ export function Dashboard() {
             clearVoteCache()
             setTimeout(() => refreshUnvoted(), 2000)
         } catch (err) {
+            logChainError(`dashboard:quickVote:${realmPath}#${proposalId}`, err, "critical", userAddress)
             setError(err instanceof Error ? err.message : "Vote failed")
         } finally {
             setVotingId(null)

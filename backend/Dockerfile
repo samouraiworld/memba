@@ -9,7 +9,8 @@ RUN go mod download
 
 # Build
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /memba ./cmd/memba
+ARG APP_VERSION=dev
+RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.appVersion=${APP_VERSION}" -o /memba ./cmd/memba
 
 # Runtime stage
 FROM alpine:3.19

@@ -27,7 +27,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const appVersion = "7.0.0"
+// appVersion is set at build time via: go build -ldflags "-X main.appVersion=v2.0.0"
+var appVersion = "dev"
 
 var startTime = time.Now()
 

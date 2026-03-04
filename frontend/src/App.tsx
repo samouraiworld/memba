@@ -36,6 +36,7 @@ const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ 
 
 // ── Username resolver (lazy) ──
 const UserRedirect = lazy(() => import("./pages/UserRedirect").then(m => ({ default: m.UserRedirect })))
+const NotFound = lazy(() => import("./pages/NotFound").then(m => ({ default: m.NotFound })))
 
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
@@ -91,6 +92,9 @@ function App() {
 
           {/* Username → profile resolver (lazy) */}
           <Route path="/u/:username" element={<Suspense fallback={<PageLoader />}><UserRedirect /></Suspense>} />
+
+          {/* Catch-all 404 */}
+          <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
         </Route>
       </Routes>
     </BrowserRouter>

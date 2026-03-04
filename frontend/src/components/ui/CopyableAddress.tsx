@@ -36,7 +36,11 @@ export function CopyableAddress({ address, full = true, compact = false, fontSiz
 
     return (
         <span
+            role="button"
+            tabIndex={0}
+            aria-label={copied ? "Address copied" : `Copy address ${address}`}
             onClick={handleCopy}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleCopy(e as unknown as React.MouseEvent) }}
             title={copied ? "Copied!" : `Click to copy: ${address}`}
             style={{
                 fontSize,
@@ -51,7 +55,7 @@ export function CopyableAddress({ address, full = true, compact = false, fontSiz
             }}
         >
             {display}
-            <span style={{ fontSize: fontSize - 1, opacity: copied ? 1 : 0.4, transition: "opacity 0.15s" }}>
+            <span aria-live="polite" style={{ fontSize: fontSize - 1, opacity: copied ? 1 : 0.4, transition: "opacity 0.15s" }}>
                 {copied ? "✓" : "📋"}
             </span>
         </span>

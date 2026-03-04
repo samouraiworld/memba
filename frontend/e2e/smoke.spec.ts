@@ -28,8 +28,9 @@ test.describe('Smoke Tests', () => {
 
     test('404 page handles unknown routes', async ({ page }) => {
         await page.goto('/nonexistent-route-12345')
-        // Should not crash — either shows 404 or redirects to home
-        await expect(page.locator('body')).toBeVisible()
+        // Should show the 404 page with back-to-dashboard CTA
+        await expect(page.locator('body')).toContainText('404')
+        await expect(page.locator('body')).toContainText('Back to Dashboard')
     })
 })
 

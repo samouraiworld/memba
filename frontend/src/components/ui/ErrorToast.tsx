@@ -44,6 +44,8 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
 
     return (
         <div
+            role="alert"
+            aria-live="assertive"
             style={{
                 position: "fixed",
                 bottom: 24,
@@ -76,6 +78,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 </div>
                 <button
                     onClick={dismiss}
+                    aria-label="Dismiss error"
                     style={{
                         background: "none", border: "none", color: "#ff4757",
                         fontSize: 16, cursor: "pointer", padding: 0,
