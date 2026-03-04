@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL, BECH32_PREFIX } from "../lib/config"
+import { GNO_RPC_URL, BECH32_PREFIX, getExplorerBaseUrl } from "../lib/config"
 import {
     getProposalDetail,
     getProposalVotes,
@@ -257,6 +257,22 @@ export function ProposalView() {
                     <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
                         Proposal #{proposal.id}
                     </span>
+                    <a
+                        href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View source on gno.land"
+                        style={{
+                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                            color: "#444", textDecoration: "none", transition: "color 0.15s",
+                            padding: "1px 5px", borderRadius: 3,
+                            border: "1px solid #222",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                    >
+                        &lt;/&gt;
+                    </a>
                     <span style={{
                         padding: "4px 10px", borderRadius: 6, fontSize: 10,
                         fontFamily: "JetBrains Mono, monospace", fontWeight: 600,

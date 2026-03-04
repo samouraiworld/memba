@@ -3,6 +3,7 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+
 import {
     getDAOConfig,
     getDAOMembers,
@@ -38,6 +39,7 @@ export function DAOHome() {
     const [votedIds, setVotedIds] = useState<Set<number>>(new Set())
     const [enrichedIds, setEnrichedIds] = useState<Set<number>>(new Set())
     const [voteFilter, setVoteFilter] = useState<"all" | "needs" | "voted">("all")
+    const [showHistory, setShowHistory] = useState(false)
     const usernameRef = useRef<string | null>(null)
 
     const loadData = useCallback(async () => {
@@ -138,8 +140,12 @@ export function DAOHome() {
 
     const activeProposals = proposals.filter((p) => p.status === "open")
     const completedProposals = proposals.filter((p) => p.status !== "open")
-    const acceptedCount = proposals.filter((p) => p.status === "passed" || p.status === "executed").length
-    const acceptanceRate = proposals.length > 0 ? Math.round((acceptedCount / proposals.length) * 100) : 0
+
+    // Voter Turnout: avg % of members who voted across completed proposals with data
+    const turnoutData = completedProposals.filter(p => p.totalVoters > 0)
+    const avgTurnout = turnoutData.length > 0 && (config?.memberCount || members.length) > 0
+        ? Math.round(turnoutData.reduce((sum, p) => sum + (p.totalVoters / (config?.memberCount || members.length)) * 100, 0) / turnoutData.length)
+        : 0
 
     // Check if current user is a member
     const currentMember = members.find((m) => m.address === adena.address)
@@ -195,9 +201,28 @@ export function DAOHome() {
                         </span>
                     )}
                 </div>
-                <p style={{ color: "#555", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
-                    {realmPath}
-                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    <p style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        {realmPath}
+                    </p>
+                    <a
+                        href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View source on gno.land"
+                        style={{
+                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                            color: "#444", textDecoration: "none", transition: "color 0.15s",
+                            padding: "1px 5px", borderRadius: 3,
+                            border: "1px solid #222",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        &lt;/&gt;
+                    </a>
+                </div>
                 {config?.description && (
                     <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
                         {config.description}
@@ -279,9 +304,9 @@ export function DAOHome() {
                 <StatCard label="Members" value={String(config?.memberCount || members.length)} icon="👥" />
                 <StatCard label="Active" value={String(activeProposals.length)} icon="📋" accent />
                 <StatCard label="Total Proposals" value={String(proposals.length)} icon="📜" />
-                <StatCard label="Acceptance Rate" value={acceptanceRate > 0 ? `${acceptanceRate}%` : "—"} icon="✓" />
+                <StatCard label="Avg Turnout" value={avgTurnout > 0 ? `${avgTurnout}%` : "—"} icon="🗳️" />
                 {totalPower > 0 && (
-                    <StatCard label="Total Power" value={String(totalPower)} icon="⚡" />
+                    <StatCard label="Voting Power" value={String(totalPower)} icon="⚡" />
                 )}
             </div>
 
@@ -380,17 +405,31 @@ export function DAOHome() {
                 )}
             </div>
 
-            {/* Completed Proposals */}
+            {/* Proposal History (collapsible) */}
             {!proposalsLoading && completedProposals.length > 0 && (
                 <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                        Completed ({completedProposals.length})
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {completedProposals.map((p) => (
-                            <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} totalMembers={config?.memberCount || members.length} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
-                        ))}
-                    </div>
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            background: "none", border: "none", cursor: "pointer",
+                            fontSize: 14, fontWeight: 600, color: "#888",
+                            fontFamily: "JetBrains Mono, monospace",
+                            padding: "8px 0", transition: "color 0.15s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "#f0f0f0")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#888")}
+                    >
+                        <span style={{ fontSize: 10, transition: "transform 0.2s", display: "inline-block", transform: showHistory ? "rotate(90deg)" : "none" }}>▶</span>
+                        Proposal History ({completedProposals.length})
+                    </button>
+                    {showHistory && (
+                        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                            {completedProposals.map((p) => (
+                                <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} totalMembers={config?.memberCount || members.length} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
