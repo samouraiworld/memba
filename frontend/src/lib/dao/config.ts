@@ -48,6 +48,8 @@ export async function getDAOConfig(
         const descLines = descMatch[1].split("\n")
             .filter((l) => !l.includes("Memberstore") && !l.includes("memberstore") && l.trim() !== "")
         description = descLines.join("\n").trim()
+        // R1: Strip any residual markdown heading markers from description
+        description = description.replace(/^#+\s+/gm, '').trim()
     }
 
     // GovDAO v3: extract memberstore link from various URL formats
@@ -82,7 +84,7 @@ export async function getDAOConfig(
     }
 
     return {
-        name: nameMatch?.[1]?.trim() || "Unnamed DAO",
+        name: (nameMatch?.[1]?.trim() || "Unnamed DAO").replace(/^#+\s*/, ''),
         description,
         threshold: thresholdMatch?.[1] || "60%",
         memberCount: totalMembers,

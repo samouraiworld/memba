@@ -338,3 +338,34 @@ describe('GovDAO detection (via buildVoteMsg)', () => {
         expect(msg.value.func).toBe('VoteOnProposal')
     })
 })
+
+// ── DAO config heading strip (R1 fix) ──────────────────────────
+
+describe('DAO config heading strip', () => {
+    /** Replicates the heading-strip logic from config.ts */
+    function stripDescriptionHeadings(description: string): string {
+        return description.replace(/^#+\s+/gm, '').trim()
+    }
+
+    function stripNameHeading(name: string): string {
+        return name.replace(/^#+\s*/, '')
+    }
+
+    it('strips markdown heading markers from description', () => {
+        const raw = '## Members\nSome text\n### Proposals\nMore text'
+        expect(stripDescriptionHeadings(raw)).toBe('Members\nSome text\nProposals\nMore text')
+    })
+
+    it('preserves description without headings', () => {
+        expect(stripDescriptionHeadings('Normal text here')).toBe('Normal text here')
+    })
+
+    it('strips heading marker from name', () => {
+        expect(stripNameHeading('## GovDAO')).toBe('GovDAO')
+        expect(stripNameHeading('### My DAO')).toBe('My DAO')
+    })
+
+    it('preserves name without heading', () => {
+        expect(stripNameHeading('GovDAO')).toBe('GovDAO')
+    })
+})

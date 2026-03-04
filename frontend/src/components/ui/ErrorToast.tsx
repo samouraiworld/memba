@@ -48,7 +48,8 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
             aria-live="assertive"
             style={{
                 position: "fixed",
-                bottom: 24,
+                bottom: undefined,
+                top: 80,
                 right: 24,
                 zIndex: 1000,
                 display: "flex",
@@ -62,7 +63,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 fontSize: 13,
                 fontFamily: "JetBrains Mono, monospace",
                 maxWidth: 420,
-                backdropFilter: "blur(12px)",
+                backdropFilter: "blur(4px)",
                 transition: "opacity 0.3s, transform 0.3s",
                 opacity: hiding ? 0 : 1,
                 transform: hiding ? "translateY(8px)" : "translateY(0)",

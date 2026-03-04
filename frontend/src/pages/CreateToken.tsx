@@ -127,6 +127,7 @@ export function CreateToken() {
                 setTxHash(hash)
                 setCreatedSymbol(trimSymbol)
                 setSuccess(`Token ${trimSymbol} created successfully!`)
+                window.scrollTo({ top: 0, behavior: "smooth" })
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create token")
