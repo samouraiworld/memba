@@ -10,7 +10,7 @@
 
 **🌐 Live Demo:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v1.4.0)
+## Features (v1.6.0)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)

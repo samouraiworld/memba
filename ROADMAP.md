@@ -29,6 +29,22 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v1.6.0 — UX Testing Fixes ✅ SHIPPED (2026-03-04)
+
+> Based on Dadidou's UX testing report — 16 findings addressed across 5 batches.
+
+| Category | Fixed | Tests |
+|----------|-------|-------|
+| P0 Critical Bugs | 4 (GitHub link, CTA guard, OAuth redirect, backend URL) | +7 |
+| Navigation | 5 (Landing redirect, feature gates, back buttons, header label) | — |
+| Rendering | 3 (heading strip, toast position, scroll-to-top) | +4 |
+| UX Polish | 2 (pubkey hint, unlink GitHub) | — |
+| Docs & Cleanup | Version bump, CHANGELOG, README, ROADMAP | — |
+
+**Total: 230/230 tests, 0 lint errors, clean build. Zero breaking changes.**
+
+---
+
 ## v0.1.0 — MVP: Multisig Wallet ✅ IMPLEMENTED
 
 > First usable version for samourai-crew 3-of-7 on test11.

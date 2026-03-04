@@ -2,6 +2,34 @@
 
 All notable changes to Memba are documented here.
 
+## [1.6.0] — 2026-03-04 — UX Testing Fixes 🧪
+
+### Added
+- **Pubkey validation hint** on CreateMultisig — explains why submit is disabled when member keys are missing
+- **Unlink GitHub** button on profile page (when GitHub is already linked)
+- **Back navigation** buttons on Dashboard (← Home) and DAOList (← Back to Dashboard)
+- **Adena lock tooltip** hint for users experiencing re-authentication after page reload
+- 11 new unit tests: 7 for GitHub URL normalization + CTA guard, 4 for DAO heading strip
+
+### Changed
+- **Header nav** label renamed from "Multisig" to "Dashboard" (matches actual destination)
+- **ErrorToast** repositioned from bottom-right to top-right (below header), blur reduced to 4px
+- **Landing page** auto-redirects connected users to Dashboard
+- **Feature cards** trigger wallet connect when not connected (instead of navigating to empty pages)
+- **Avatar priority** inverted: user-set `avatarUrl` now wins over `githubAvatar`
+
+### Fixed
+- **P0: GitHub link → Memba URL** — social link now normalizes username to full `https://github.com/` URL
+- **P0: "Link GitHub" CTA persists** — guard now checks both `githubLogin` AND `socialLinks.github`
+- **P0: GitHub OAuth redirect → `/`** — uses `sessionStorage` fallback when Adena disconnects during OAuth
+- **P0: Backend stores raw username** — `GithubCallback` now saves full GitHub URL in backend profile
+- **DAO card `## Members` raw markdown** — heading markers stripped from DAO config description/name
+- **Success message not visible** — `CreateToken` scrolls to top after successful creation
+
+### Tests
+- 230/230 tests passing (+11 from v1.5.0)
+- Build, lint, and backend tests verified at each batch gate
+
 ## [1.5.0] — 2026-03-04 — Hardening & GovDAO UX 🛡️🏛️
 
 ### Added
