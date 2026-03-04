@@ -204,3 +204,50 @@ describe('SocialLinks', () => {
         expect(links.twitter).toBe('')
     })
 })
+
+// ── GitHub URL Normalization (F1 fix) ───────────────────────────
+
+describe('GitHub URL normalization', () => {
+    /** Replicates the normalization logic from ProfilePage.tsx line 279 */
+    function normalizeGithubUrl(value: string): string {
+        return value.startsWith('http') ? value : `https://github.com/${value}`
+    }
+
+    it('normalizes raw username to full GitHub URL', () => {
+        expect(normalizeGithubUrl('WaDadidou')).toBe('https://github.com/WaDadidou')
+    })
+
+    it('passes through full GitHub URL unchanged', () => {
+        expect(normalizeGithubUrl('https://github.com/zooma')).toBe('https://github.com/zooma')
+    })
+
+    it('passes through http URL unchanged', () => {
+        expect(normalizeGithubUrl('http://github.com/legacy')).toBe('http://github.com/legacy')
+    })
+})
+
+// ── Link GitHub CTA Guard (F2 fix) ─────────────────────────────
+
+describe('Link GitHub CTA visibility', () => {
+    /** Replicates the guard condition from ProfilePage.tsx:
+     * Show CTA only when BOTH githubLogin AND socialLinks.github are empty */
+    function shouldShowLinkCTA(githubLogin: string, socialLinksGithub: string): boolean {
+        return !githubLogin && !socialLinksGithub
+    }
+
+    it('shows CTA when neither gnolove nor backend has GitHub', () => {
+        expect(shouldShowLinkCTA('', '')).toBe(true)
+    })
+
+    it('hides CTA when backend has GitHub link', () => {
+        expect(shouldShowLinkCTA('', 'https://github.com/WaDadidou')).toBe(false)
+    })
+
+    it('hides CTA when gnolove has GitHub login', () => {
+        expect(shouldShowLinkCTA('WaDadidou', '')).toBe(false)
+    })
+
+    it('hides CTA when both sources have GitHub', () => {
+        expect(shouldShowLinkCTA('WaDadidou', 'https://github.com/WaDadidou')).toBe(false)
+    })
+})

@@ -55,7 +55,8 @@ export function ProfilePage() {
             try {
                 const { login, ts } = JSON.parse(pending)
                 if (Date.now() - ts < 600_000) { // 10min expiry
-                    updateBackendProfile(auth.token, { github: login })
+                    const ghUrl = login.startsWith("http") ? login : `https://github.com/${login}`
+                    updateBackendProfile(auth.token, { github: ghUrl })
                         .then(() => { localStorage.removeItem("pendingGithubLink"); loadProfile() })
                         .catch(() => { /* silent — user can retry manually */ })
                 } else {
@@ -114,7 +115,7 @@ export function ProfilePage() {
         )
     }
 
-    const avatar = profile?.githubAvatar || profile?.avatarUrl || ""
+    const avatar = profile?.avatarUrl || profile?.githubAvatar || ""
     const displayName = profile?.username || `${address.slice(0, 10)}...${address.slice(-4)}`
     const explorerUrl = getExplorerBaseUrl()
 
@@ -275,7 +276,7 @@ export function ProfilePage() {
             {hasSocials(profile) && (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {profile?.socialLinks.github && (
-                        <SocialLink href={profile.socialLinks.github} icon={<GitHubIcon size={14} color="#f0f0f0" />} label="GitHub" />
+                        <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="#f0f0f0" />} label="GitHub" />
                     )}
                     {profile?.socialLinks.twitter && (
                         <SocialLink href={`https://x.com/${profile.socialLinks.twitter}`} icon="𝕏" label="Twitter/X" />
@@ -290,7 +291,7 @@ export function ProfilePage() {
             )}
 
             {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
-            {isOwnProfile && profile && !profile.githubLogin && (
+            {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (
                 <div className="k-card" style={{ padding: 20, borderColor: "rgba(88,166,255,0.15)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <div style={{
@@ -310,6 +311,8 @@ export function ProfilePage() {
                         </div>
                         <button
                             onClick={async () => {
+                                // Save address for OAuth return redirect (F3)
+                                if (adena.address) sessionStorage.setItem("returnToProfile", adena.address)
                                 try {
                                     const res = await fetch(`${API_BASE_URL}/github/oauth/state`)
                                     const data = await res.json()

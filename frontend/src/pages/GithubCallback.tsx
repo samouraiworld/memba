@@ -58,13 +58,16 @@ export function GithubCallback() {
                 // Step 2: Save GitHub login — or defer if wallet disconnected
                 if (auth.isAuthenticated && auth.token) {
                     setStep("saving")
-                    await updateBackendProfile(auth.token, { github: data.login })
+                    await updateBackendProfile(auth.token, { github: `https://github.com/${data.login}` })
                     setStep("success")
                     // Guard: wallet may have disconnected during OAuth redirect
                     if (adena.address) {
+                        sessionStorage.removeItem("returnToProfile")
                         setTimeout(() => navigate(`/profile/${adena.address}`), 2500)
                     } else {
-                        setTimeout(() => navigate("/"), 2500)
+                        const savedAddr = sessionStorage.getItem("returnToProfile")
+                        sessionStorage.removeItem("returnToProfile")
+                        setTimeout(() => navigate(savedAddr ? `/profile/${savedAddr}` : "/dashboard"), 2500)
                     }
                 } else {
                     // Wallet disconnected during OAuth redirect — store for later
