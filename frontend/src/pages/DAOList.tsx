@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
     FEATURED_DAO,
@@ -38,6 +38,15 @@ export function DAOList() {
     // Action Required: unvoted proposals
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
     const { proposals: unvotedProposals } = useUnvotedProposals(userAddress)
+
+    // Per-DAO unvoted count for red dot on cards
+    const unvotedByDao = useMemo(() => {
+        const map = new Map<string, number>()
+        for (const p of unvotedProposals) {
+            map.set(p.realmPath, (map.get(p.realmPath) || 0) + 1)
+        }
+        return map
+    }, [unvotedProposals])
 
     const loadDAOs = useCallback(async () => {
         setLoading(true)
@@ -219,6 +228,7 @@ export function DAOList() {
                         <DAOCard
                             key={dao.realmPath}
                             dao={dao}
+                            unvotedCount={unvotedByDao.get(dao.realmPath) || 0}
                             onOpen={() => {
                                 addSavedDAO(dao.realmPath, dao.name)
                                 navigate(`/dao/${encodeSlug(dao.realmPath)}`)
@@ -301,10 +311,12 @@ export function DAOList() {
 
 function DAOCard({
     dao,
+    unvotedCount,
     onOpen,
     onRemove,
 }: {
     dao: DAOEntry
+    unvotedCount: number
     onOpen: () => void
     onRemove?: () => void
 }) {
@@ -365,9 +377,48 @@ function DAOCard({
                 )}
             </div>
 
-            {/* Realm path */}
-            <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555", wordBreak: "break-all" }}>
-                {dao.realmPath}
+            {/* Unvoted indicator */}
+            {unvotedCount > 0 && (
+                <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "4px 10px", borderRadius: 6,
+                    background: "rgba(245,166,35,0.06)",
+                    border: "1px solid rgba(245,166,35,0.12)",
+                }}>
+                    <span style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        background: "#f5a623",
+                        animation: "pulse 2s infinite",
+                        display: "inline-block", flexShrink: 0,
+                    }} />
+                    <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", fontWeight: 600 }}>
+                        {unvotedCount} vote{unvotedCount > 1 ? "s" : ""} needed
+                    </span>
+                </div>
+            )}
+
+            {/* Realm path + source link */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555", wordBreak: "break-all" }}>
+                    {dao.realmPath}
+                </div>
+                <a
+                    href={`${getExplorerBaseUrl()}/r/${dao.realmPath.replace("gno.land/r/", "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View source on gno.land"
+                    style={{
+                        fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                        color: "#444", textDecoration: "none", transition: "color 0.15s",
+                        padding: "1px 4px", borderRadius: 3,
+                        border: "1px solid #222", flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    &lt;/&gt;
+                </a>
             </div>
 
             {/* Stats */}
