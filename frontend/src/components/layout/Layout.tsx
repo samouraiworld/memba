@@ -89,7 +89,7 @@ export function Layout() {
         if (!adena.connected) {
             loginAttemptedRef.current = false
         }
-    }, [adena.connected, auth.isAuthenticated, authLoading, performLogin, auth])
+    }, [adena.connected, adena.reconnecting, auth.isAuthenticated, authLoading, performLogin, auth])
 
     // ── Address mismatch: Adena switched accounts but old token persists ──
     useEffect(() => {

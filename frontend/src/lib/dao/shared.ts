@@ -58,6 +58,7 @@ export interface VoteRecord {
     vppm: number        // voting power per member
     yesVoters: VoterEntry[]
     noVoters: VoterEntry[]
+    abstainVoters: VoterEntry[]
 }
 
 export interface VoterEntry {

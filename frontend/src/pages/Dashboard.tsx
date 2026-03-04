@@ -52,7 +52,7 @@ export function Dashboard() {
 
     // Quick Vote: unvoted proposals from saved DAOs
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
-    const { proposals: unvotedProposals, loading: unvotedLoading, refresh: refreshUnvoted } = useUnvotedProposals(userAddress)
+    const { proposals: unvotedProposals, loading: unvotedLoading } = useUnvotedProposals(userAddress)
     const [votingId, setVotingId] = useState<string | null>(null)
     const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
 
@@ -145,7 +145,6 @@ export function Dashboard() {
             await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId} (${fn})`)
             setVotedIds(prev => new Set(prev).add(key))
             clearVoteCache()
-            setTimeout(() => refreshUnvoted(), 2000)
         } catch (err) {
             logChainError(`dashboard:quickVote:${realmPath}#${proposalId}`, err, "critical", userAddress)
             setError(err instanceof Error ? err.message : "Vote failed")
