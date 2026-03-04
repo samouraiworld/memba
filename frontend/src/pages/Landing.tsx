@@ -5,12 +5,17 @@
  * wallet connection. Moved from the Dashboard logged-out section in v2.0.0
  * for clean separation of public vs authenticated content.
  */
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useNavigate, useOutletContext, Navigate } from "react-router-dom"
 import type { LayoutContext } from "../types/layout"
 
 export function Landing() {
     const navigate = useNavigate()
     const { adena } = useOutletContext<LayoutContext>()
+
+    // N1: Redirect connected users to Dashboard
+    if (adena.connected) {
+        return <Navigate to="/dashboard" replace />
+    }
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -76,7 +81,7 @@ export function Landing() {
                     <div
                         key={f.title}
                         className="k-card"
-                        onClick={() => navigate(f.href)}
+                        onClick={() => adena.connected ? navigate(f.href) : adena.connect()}
                         style={{
                             padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16,
                             borderColor: "#222", cursor: "pointer", transition: "border-color 0.15s, transform 0.15s",
