@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
-import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
+import { SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
@@ -12,11 +12,16 @@ import { GNO_CHAIN_ID, GNO_BECH32_PREFIX, GNO_RPC_URL } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
 import { queryRender } from "../lib/dao/shared"
 import { fetchBackendProfile } from "../lib/profile"
+import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
+import { buildVoteMsg, isGovDAO as checkIsGovDAO } from "../lib/dao"
+import { doContractBroadcast } from "../lib/grc20"
+import { clearVoteCache } from "../lib/dao/voteScanner"
+import { getSavedDAOs } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { balance, auth } = useOutletContext<LayoutContext>()
+    const { balance, auth, adena } = useOutletContext<LayoutContext>()
     const token = auth.token
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
@@ -31,6 +36,15 @@ export function Dashboard() {
 
     const joinedMultisigs = multisigs.filter(m => m.joined)
     const discoverableMultisigs = multisigs.filter(m => !m.joined)
+
+    // Quick Vote: unvoted proposals from saved DAOs
+    const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
+    const { proposals: unvotedProposals, loading: unvotedLoading, refresh: refreshUnvoted } = useUnvotedProposals(userAddress)
+    const [votingId, setVotingId] = useState<string | null>(null) // "daoSlug:proposalId"
+    const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
+
+    // Saved DAOs count for feature card
+    const savedDAOsCount = auth.isAuthenticated ? getSavedDAOs().length : 0
 
     const fetchData = useCallback(async () => {
         if (!token || !auth.isAuthenticated) return
@@ -110,9 +124,36 @@ export function Dashboard() {
         }
     }
 
+    // Quick Vote handler
+    const handleQuickVote = async (realmPath: string, proposalId: number, vote: "YES" | "NO") => {
+        if (!userAddress) return
+        const key = `${realmPath}:${proposalId}`
+        setVotingId(key)
+        setError(null)
+        try {
+            const isGovDAO = checkIsGovDAO(realmPath)
+            const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
+            const fn = isGovDAO ? "MustVoteOnProposalSimple" : "VoteOnProposal"
+            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId} (${fn})`)
+            setVotedIds(prev => new Set(prev).add(key))
+            clearVoteCache()
+            // Refresh after a brief delay to let the cache clear
+            setTimeout(() => refreshUnvoted(), 500)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Vote failed")
+        } finally {
+            setVotingId(null)
+        }
+    }
+
+    // Count unsigned pending TXs
+    const unsignedPendingCount = pendingTxs.filter(tx =>
+        !tx.signatures.some(s => s.userAddress === userAddress)
+    ).length
+
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-            {/* ── User Identity Card (new) ────────────────────────── */}
+            {/* ── User Identity Card ────────────────────────── */}
             {auth.isAuthenticated && (
                 <div className="k-card" style={{
                     padding: "20px 24px", display: "flex", alignItems: "center", gap: 16,
@@ -156,82 +197,303 @@ export function Dashboard() {
                 </div>
             )}
 
-            {/* ── Page header ────────────────────────────────────────── */}
-            <div>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
-                <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
-                    Your hub for multisig wallets, DAOs, and tokens
-                </p>
-            </div>
-
-            {/* ── Stat cards ─────────────────────────────────────────── */}
-            <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-                {loading ? (
-                    <>
-                        <SkeletonCard />
-                        <SkeletonCard />
-                        <SkeletonCard />
-                    </>
-                ) : (
-                    <>
-                        <StatCard label="Multisigs" value={auth.isAuthenticated ? String(joinedMultisigs.length) : "—"} />
-                        <StatCard label="Pending TX" value={auth.isAuthenticated ? String(pendingTxs.length) : "—"} accent />
-                        <StatCard label="Balance" value={auth.isAuthenticated ? balance : "— GNOT"} />
-                    </>
-                )}
-            </div>
-
-            {/* ── Empty state / Quick actions ────────────────────────── */}
-            {!auth.isAuthenticated ? (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                        <span style={{ fontSize: 24 }}>🔗</span>
-                    </div>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Connect your wallet</h3>
-                    <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto 20px", fontFamily: "JetBrains Mono, monospace" }}>
-                        Connect Adena to create or import multisig wallets
+            {/* ── Page header (logged-in only) ──────────────────────── */}
+            {auth.isAuthenticated && (
+                <div>
+                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
+                    <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
+                        Your hub for multisig wallets, DAOs, and tokens
                     </p>
                 </div>
-            ) : joinedMultisigs.length === 0 && discoverableMultisigs.length === 0 && !loading ? (
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                 LOGGED-OUT: Feature Showcase Landing
+                ═══════════════════════════════════════════════════════════ */}
+            {!auth.isAuthenticated && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                     {/* Hero */}
                     <div style={{ textAlign: "center", padding: "32px 16px 16px" }}>
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>👋</div>
-                        <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Welcome to Memba</h3>
-                        <p style={{ color: "#666", fontSize: 13, maxWidth: 420, margin: "0 auto", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6 }}>
-                            Your gateway to Gno multisig wallets, DAO governance, and token management
+                        <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.02em" }}>
+                            Welcome to Memba <span style={{ color: "#666", fontWeight: 400 }}>メンバー</span>
+                        </h3>
+                        <p style={{ color: "#888", fontSize: 13, maxWidth: 480, margin: "0 auto", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.7 }}>
+                            Your gateway to Gno multisig wallets, DAO governance, and token management — all in one place.
                         </p>
                     </div>
-                    {/* Feature Cards */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                    {/* CTA — above feature cards */}
+                    <div style={{ textAlign: "center", padding: "0 0 8px" }}>
+                        {adena.installed ? (
+                            <button
+                                onClick={() => adena.connect()}
+                                style={{
+                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    background: "none", border: "1px solid rgba(0,212,170,0.25)",
+                                    padding: "8px 20px", borderRadius: 6, cursor: "pointer",
+                                    transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
+                            >
+                                Connect your Adena wallet to get started →
+                            </button>
+                        ) : (
+                            <a
+                                href="https://adena.app"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    textDecoration: "none", border: "1px solid rgba(0,212,170,0.25)",
+                                    padding: "8px 20px", borderRadius: 6, display: "inline-block",
+                                    transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,170,0.08)"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.5)" }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(0,212,170,0.25)" }}
+                            >
+                                Install Adena wallet to get started →
+                            </a>
+                        )}
+                    </div>
+                    {/* Feature Showcase Cards — clickable */}
+                    <div className="k-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
                         {[
-                            { icon: "🔐", title: "Multisig Wallet", desc: "Create or import a shared wallet with threshold signing", cta: "Create Multisig", path: "/create", alt: "Import", altPath: "/import" },
-                            { icon: "🏛️", title: "DAO Governance", desc: "Explore DAOs, vote on proposals, or create your own", cta: "Explore DAOs", path: "/dao" },
-                            { icon: "🪙", title: "Token Factory", desc: "Create and manage GRC20 tokens on gno.land", cta: "Create Token", path: "/create-token" },
-                        ].map((f) => (
+                            {
+                                icon: "🔐", title: "Multisig Wallets", href: "/",
+                                bullets: ["Create shared wallets with threshold signing (K-of-N)", "Air-gapped gnokey support for maximum security", "Import & share multisig configurations"],
+                            },
+                            {
+                                icon: "🏛️", title: "DAO Governance", href: "/dao",
+                                bullets: ["Browse & vote on DAO proposals", "Create your own DAO with custom roles & tiers", "Treasury management & member control"],
+                            },
+                            {
+                                icon: "🪙", title: "Token Factory", href: "/tokens",
+                                bullets: ["Deploy GRC20 tokens on gno.land", "Configure decimals, initial mint & faucet", "Multisig-governed token administration"],
+                            },
+                        ].map(f => (
+                            <div
+                                key={f.title}
+                                className="k-card"
+                                onClick={() => navigate(f.href)}
+                                style={{
+                                    padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16,
+                                    borderColor: "#222", cursor: "pointer", transition: "border-color 0.15s, transform 0.15s",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.transform = "translateY(0)" }}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <span style={{ fontSize: 28 }}>{f.icon}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 600 }}>{f.title}</span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 18, listStyle: "none" }}>
+                                    {f.bullets.map((b, i) => (
+                                        <li key={i} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.8, position: "relative", paddingLeft: 4 }}>
+                                            <span style={{ position: "absolute", left: -14, color: "#00d4aa" }}>·</span>
+                                            {b}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", alignSelf: "flex-end" }}>
+                                    Explore →
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Single gno.land tag — below grid */}
+                    <div style={{ textAlign: "center", padding: "8px 0 0" }}>
+                        <span style={{
+                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                            color: "#00d4aa", background: "rgba(0,212,170,0.06)",
+                            padding: "3px 10px", borderRadius: 4,
+                            border: "1px solid rgba(0,212,170,0.12)",
+                        }}>
+                            Built on gno.land — the smart contract platform
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════
+                 LOGGED-IN: Action Required + Quick Vote + Feature Cards
+                ═══════════════════════════════════════════════════════════ */}
+            {auth.isAuthenticated && (
+                <>
+                    {/* ── ⚡ Action Required Strip ─────────────────────── */}
+                    {!loading && (
+                        <div className="k-action-banner" style={{
+                            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                            padding: "12px 18px", borderRadius: 10,
+                            background: (unvotedProposals.length > 0 || unsignedPendingCount > 0)
+                                ? "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))"
+                                : "rgba(0,212,170,0.04)",
+                            border: `1px solid ${(unvotedProposals.length > 0 || unsignedPendingCount > 0) ? "rgba(245,166,35,0.15)" : "rgba(0,212,170,0.12)"}`,
+                        }}>
+                            {unvotedProposals.length > 0 || unsignedPendingCount > 0 ? (
+                                <>
+                                    <span style={{ fontSize: 14 }}>⚡</span>
+                                    {unvotedProposals.length > 0 && (
+                                        <span
+                                            onClick={() => navigate("/dao")}
+                                            style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", cursor: "pointer" }}
+                                        >
+                                            🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
+                                        </span>
+                                    )}
+                                    {unvotedProposals.length > 0 && unsignedPendingCount > 0 && (
+                                        <span style={{ color: "#333" }}>·</span>
+                                    )}
+                                    {unsignedPendingCount > 0 && (
+                                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
+                                            ✍️ {unsignedPendingCount} signature{unsignedPendingCount > 1 ? "s" : ""} needed
+                                        </span>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <span style={{ fontSize: 14 }}>✓</span>
+                                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
+                                        You're all caught up
+                                    </span>
+                                </>
+                            )}
+                            {unvotedLoading && (
+                                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", marginLeft: "auto" }}>
+                                    scanning...
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── 🗳️ Quick Vote Widget ─────────────────────────── */}
+                    {unvotedProposals.length > 0 && (
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <span style={{ fontSize: 14 }}>🗳️</span>
+                                <h3 style={{ fontSize: 14, fontWeight: 500 }}>Quick Vote</h3>
+                                <span className="k-label" style={{ marginLeft: "auto" }}>
+                                    {unvotedProposals.length} pending
+                                </span>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {unvotedProposals.map(p => {
+                                    const key = `${p.realmPath}:${p.proposalId}`
+                                    const isVoting = votingId === key
+                                    const hasVoted = votedIds.has(key)
+                                    return (
+                                        <div key={key} className="k-card" style={{
+                                            padding: "14px 18px", display: "flex", alignItems: "center", gap: 12,
+                                            flexWrap: "wrap",
+                                            borderColor: hasVoted ? "rgba(0,212,170,0.2)" : "#222",
+                                            opacity: hasVoted ? 0.6 : 1,
+                                        }}>
+                                            <div style={{ flex: 1, minWidth: 160 }}>
+                                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 2 }}>
+                                                    {p.daoName}
+                                                </div>
+                                                <div
+                                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "#f0f0f0" }}
+                                                    onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
+                                                >
+                                                    #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
+                                                </div>
+                                            </div>
+                                            {hasVoted ? (
+                                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
+                                                    ✓ Voted
+                                                </span>
+                                            ) : (
+                                                <div style={{ display: "flex", gap: 6 }}>
+                                                    <button
+                                                        onClick={() => handleQuickVote(p.realmPath, p.proposalId, "YES")}
+                                                        disabled={isVoting}
+                                                        style={{
+                                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
+                                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                                            background: "rgba(0,212,170,0.1)", color: "#00d4aa",
+                                                            border: "1px solid rgba(0,212,170,0.25)", cursor: isVoting ? "default" : "pointer",
+                                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                                        }}
+                                                    >
+                                                        {isVoting ? "..." : "✓ YES"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleQuickVote(p.realmPath, p.proposalId, "NO")}
+                                                        disabled={isVoting}
+                                                        style={{
+                                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
+                                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                                            background: "rgba(255,71,87,0.08)", color: "#ff4757",
+                                                            border: "1px solid rgba(255,71,87,0.2)", cursor: isVoting ? "default" : "pointer",
+                                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                                        }}
+                                                    >
+                                                        {isVoting ? "..." : "✗ NO"}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Feature Cards Grid ────────────────────────────── */}
+                    <div className="k-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                        {[
+                            {
+                                icon: "🔐", title: "Multisig",
+                                count: joinedMultisigs.length, unit: "wallet",
+                                cta: joinedMultisigs.length > 0 ? "Manage" : "Get Started",
+                                path: joinedMultisigs.length > 0 ? `/multisig/${joinedMultisigs[0].address}` : "/create",
+                                alt: "+ Create", altPath: "/create",
+                                showAlt: joinedMultisigs.length > 0,
+                            },
+                            {
+                                icon: "🏛️", title: "DAO Governance",
+                                count: savedDAOsCount, unit: "DAO",
+                                cta: "Explore", path: "/dao",
+                                alt: "+ Create", altPath: "/dao/create",
+                                showAlt: true,
+                            },
+                            {
+                                icon: "🪙", title: "Token Factory",
+                                count: null, unit: "",
+                                cta: "Browse Tokens", path: "/tokens",
+                                alt: "+ Create", altPath: "/create-token",
+                                showAlt: true,
+                            },
+                        ].map(f => (
                             <div
                                 key={f.title}
                                 className="k-card"
                                 style={{
-                                    padding: "24px 20px", display: "flex", flexDirection: "column", gap: 14,
+                                    padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12,
                                     cursor: "pointer", transition: "border-color 0.2s, transform 0.2s",
                                 }}
                                 onClick={() => navigate(f.path)}
                                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"; e.currentTarget.style.transform = "translateY(-2px)" }}
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.transform = "" }}
                             >
-                                <span style={{ fontSize: 28 }}>{f.icon}</span>
-                                <div>
-                                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{f.title}</div>
-                                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.5, margin: 0 }}>
-                                        {f.desc}
-                                    </p>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <span style={{ fontSize: 22 }}>{f.icon}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 600 }}>{f.title}</span>
+                                    {f.count !== null && (
+                                        <span style={{
+                                            marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
+                                            padding: "2px 8px", borderRadius: 4,
+                                        }}>
+                                            {f.count} {f.unit}{f.count !== 1 ? "s" : ""}
+                                        </span>
+                                    )}
                                 </div>
                                 <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                                     <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.path) }}>
                                         {f.cta} →
                                     </button>
-                                    {f.alt && f.altPath && (
+                                    {f.showAlt && (
                                         <button className="k-btn-secondary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={(e) => { e.stopPropagation(); navigate(f.altPath) }}>
                                             {f.alt}
                                         </button>
@@ -240,8 +502,8 @@ export function Dashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
-            ) : null}
+                </>
+            )}
 
             {/* ── Discoverable Multisigs (auto-detect) ─────────────── */}
             {auth.isAuthenticated && discoverableMultisigs.length > 0 && (
@@ -308,46 +570,6 @@ export function Dashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
-
-            {/* ── Quick Actions ───────────────────────────────────── */}
-            {auth.isAuthenticated && (joinedMultisigs.length > 0 || discoverableMultisigs.length > 0) && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button className="k-btn-primary" onClick={() => navigate("/create")} style={{ fontSize: 12 }}>
-                        + Multisig
-                    </button>
-                    <button className="k-btn-secondary" onClick={() => navigate("/import")} style={{ fontSize: 12 }}>
-                        Import
-                    </button>
-                    <button
-                        className="k-btn-secondary"
-                        onClick={() => navigate("/dao")}
-                        style={{ fontSize: 12, borderColor: "rgba(99,102,241,0.3)", color: "#818cf8" }}
-                    >
-                        🏛️ Explore DAOs
-                    </button>
-                    <button
-                        className="k-btn-secondary"
-                        onClick={() => navigate("/dao/create")}
-                        style={{ fontSize: 12, borderColor: "rgba(99,102,241,0.3)", color: "#818cf8" }}
-                    >
-                        + Create DAO
-                    </button>
-                    <button
-                        className="k-btn-secondary"
-                        onClick={() => navigate("/create-token")}
-                        style={{ fontSize: 12, borderColor: "rgba(245,166,35,0.3)", color: "#f5a623" }}
-                    >
-                        🪙 Create Token
-                    </button>
-                    <button
-                        className="k-btn-secondary"
-                        onClick={() => navigate("/tokens")}
-                        style={{ fontSize: 12, borderColor: "rgba(245,166,35,0.3)", color: "#f5a623" }}
-                    >
-                        Browse Tokens
-                    </button>
                 </div>
             )}
 
@@ -501,15 +723,6 @@ export function Dashboard() {
             )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />
-        </div>
-    )
-}
-
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-    return (
-        <div className={`k-card ${accent ? "k-card-accent" : ""}`}>
-            <p className="k-label">{label}</p>
-            <p className={`k-value ${accent ? "k-value-accent" : ""}`}>{value}</p>
         </div>
     )
 }

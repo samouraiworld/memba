@@ -73,11 +73,11 @@ export function DAOHome() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching on mount
     useEffect(() => { loadData() }, [loadData])
 
-    // Phase 3: Lazy vote enrichment — fetch vote details per active proposal
+    // Phase 3: Vote enrichment — always loads vote data (public), checks user vote when wallet connected
     useEffect(() => {
-        if (proposalsLoading || proposals.length === 0 || !adena.address) return
-        // Resolve username once for hasVoted matching
-        if (!usernameRef.current && adena.address) {
+        if (proposalsLoading || proposals.length === 0) return
+        // Resolve username once for hasVoted matching (only when connected)
+        if (adena.address && !usernameRef.current) {
             resolveOnChainUsername(adena.address)
                 .then(u => { usernameRef.current = u || null })
                 .catch(() => { })
@@ -103,7 +103,7 @@ export function DAOHome() {
                 const yesVotes = detail?.yesVotes || yesCount
                 const noVotes = detail?.noVotes || noCount
 
-                // Enrich proposal with vote data
+                // Enrich proposal with vote data (public — visible to all visitors)
                 setProposals(prev => prev.map(pp => pp.id === p.id ? {
                     ...pp,
                     yesPercent,
@@ -113,8 +113,9 @@ export function DAOHome() {
                     abstainVotes: detail?.abstainVotes || 0,
                     totalVoters: totalCount || detail?.totalVoters || 0,
                 } : pp))
-                // Check if user has voted
-                if (votes.length > 0) {
+
+                // Check if current user has voted (only when wallet connected)
+                if (adena.address && votes.length > 0) {
                     const addr = adena.address.toLowerCase()
                     const uname = usernameRef.current?.toLowerCase() || ""
                     const allVoters = votes.flatMap(v => [

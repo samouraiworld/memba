@@ -117,6 +117,38 @@ export function ProposeDAO() {
 
             {/* Form */}
             <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
+                {/* Proposal Type Selector */}
+                <div>
+                    <label style={labelStyle}>Proposal Type</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {[
+                            { id: "text", label: "📝 Text / Sentiment", enabled: true },
+                            { id: "member", label: "👥 Add Member", enabled: false, hint: "Coming in v2.x" },
+                            { id: "spend", label: "💰 Treasury Spend", enabled: false, hint: "Coming in v2.x" },
+                            { id: "upgrade", label: "⚙️ Code Upgrade", enabled: false, hint: "Coming in v2.x" },
+                        ].map(t => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                disabled={!t.enabled || loading}
+                                title={t.enabled ? undefined : t.hint}
+                                style={{
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    border: "1px solid",
+                                    borderColor: t.enabled ? "rgba(0,212,170,0.3)" : "#1a1a1a",
+                                    background: t.enabled ? "rgba(0,212,170,0.08)" : "#0a0a0a",
+                                    color: t.enabled ? "#00d4aa" : "#444",
+                                    cursor: t.enabled ? "default" : "not-allowed",
+                                    opacity: t.enabled ? 1 : 0.5,
+                                    transition: "all 0.15s",
+                                }}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <div>
                     <label style={labelStyle}>Title</label>
                     <input
@@ -190,6 +222,25 @@ export function ProposeDAO() {
                     <span style={{ color: "#aaa" }}>{adena.address || "—"}</span>
                 </div>
             </div>
+
+            {/* Source Code Preview */}
+            {auth.isAuthenticated && title.trim() && (
+                <details style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                    <summary style={{ cursor: "pointer", color: "#555", userSelect: "none" }}>
+                        📋 View Source Code (MsgCall)
+                    </summary>
+                    <pre style={{
+                        marginTop: 8, fontSize: 10, color: "#666", overflow: "auto",
+                        background: "#0c0c0c", padding: 12, borderRadius: 8,
+                        border: "1px solid #1a1a1a", maxHeight: 200,
+                    }}>
+                        {JSON.stringify(
+                            buildProposeMsg(adena.address || "", realmPath, title.trim(), description.trim(), isGovDAO ? undefined : category),
+                            null, 2,
+                        )}
+                    </pre>
+                </details>
+            )}
 
             {/* Submit */}
             <div style={{ display: "flex", gap: 12 }}>

@@ -282,6 +282,19 @@ body {
   }
 }
 
+/* ── Action Required banner ────────────────────────────────── */
+.k-action-banner {
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+
+/* ── Feature grid (Dashboard + Landing) ────────────────────── */
+.k-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
 /* ── Security banner (untrusted wallet RPC) ────────────────────── */
 .k-security-banner {
   background: linear-gradient(135deg, rgba(255, 71, 87, 0.08), rgba(255, 71, 87, 0.04));
@@ -370,6 +383,16 @@ body {
 
   .k-main {
     padding: 20px 12px !important;
+  }
+
+  .k-feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .k-action-banner {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
   }
 }
 

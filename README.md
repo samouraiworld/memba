@@ -10,7 +10,7 @@
 
 **🌐 Live Demo:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v1.3.1)
+## Features (v1.4.0)
 
 - 🔑 Create & import multisig wallets
 - 💼 Adena wallet connection (dApp mode)
@@ -66,6 +66,7 @@
 - 🗳️ "My Votes" history section — cross-DAO vote history on user profile
 - 🔄 Adena wallet auto-reconnect (sessionStorage persistence)
 - 🛡️ RPC domain security v2 — validates Adena's active RPC via `GetNetwork()`, blocks all writes through untrusted RPCs, real-time `changedNetwork` re-validation
+- ✨ UX Optimization v1.4.0 — landing page feature showcase, Activity Hub with Quick Vote widget, Action Required banners on Dashboard/DAO/Multisig pages, DAO page hierarchy fix, proposal type extensibility
 
 ## Architecture
 

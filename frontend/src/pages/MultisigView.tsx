@@ -217,6 +217,39 @@ export function MultisigView() {
                 </div>
             </div>
 
+            {/* ── ⚡ Action Required Banner ───────────────────── */}
+            {(() => {
+                const userAddr = (auth as { address?: string }).address || ""
+                const unsignedCount = pendingTxs.filter(tx =>
+                    !tx.signatures.some(s => s.userAddress === userAddr)
+                ).length
+                if (unsignedCount === 0) return null
+                return (
+                    <div className="k-action-banner" style={{
+                        display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                        padding: "12px 18px", borderRadius: 10,
+                        background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))",
+                        border: "1px solid rgba(245,166,35,0.15)",
+                    }}>
+                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
+                            ✍️ {unsignedCount} transaction{unsignedCount > 1 ? "s" : ""} need{unsignedCount === 1 ? "s" : ""} your signature
+                        </span>
+                        <button
+                            onClick={() => setTxTab("pending")}
+                            style={{
+                                marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                                color: "#f5a623", background: "rgba(245,166,35,0.08)",
+                                border: "1px solid rgba(245,166,35,0.2)", borderRadius: 6,
+                                padding: "4px 12px", cursor: "pointer",
+                            }}
+                        >
+                            View pending →
+                        </button>
+                    </div>
+                )
+            })()}
+
             {/* Info cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
                 <div className="k-card">

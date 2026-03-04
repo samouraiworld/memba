@@ -8,7 +8,7 @@ import { getDAOMembers } from "./members"
 import { getDAOProposals, getProposalVotes } from "./proposals"
 import { getDAOConfig } from "./config"
 import { GNO_RPC_URL } from "../config"
-import { getSavedDAOs, FEATURED_DAO } from "../daoSlug"
+import { getSavedDAOs, FEATURED_DAO, encodeSlug } from "../daoSlug"
 import { resolveOnChainUsername } from "../profile"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -22,9 +22,19 @@ export interface MyVoteEntry {
     proposalStatus: string
 }
 
+export interface UnvotedProposal {
+    daoName: string
+    daoSlug: string
+    realmPath: string
+    proposalId: number
+    proposalTitle: string
+    proposalStatus: string
+}
+
 // ── Cache ─────────────────────────────────────────────────────
 
 const UNVOTED_CACHE_KEY = "memba_unvoted_cache"
+const UNVOTED_DETAILS_CACHE_KEY = "memba_unvoted_details_cache"
 const MYVOTES_CACHE_KEY = "memba_myvotes_cache"
 const UNVOTED_TTL = 2 * 60 * 1000 // 2 minutes
 const MYVOTES_TTL = 5 * 60 * 1000 // 5 minutes
@@ -53,10 +63,11 @@ function writeCache<T>(key: string, data: T) {
     } catch { /* no-op */ }
 }
 
-/** Clear vote caches — call after voting to immediately update notification dot. */
+/** Clear vote caches — call after voting to immediately update notification dot + Quick Vote. */
 export function clearVoteCache() {
     try {
         sessionStorage.removeItem(UNVOTED_CACHE_KEY)
+        sessionStorage.removeItem(UNVOTED_DETAILS_CACHE_KEY)
         sessionStorage.removeItem(MYVOTES_CACHE_KEY)
     } catch { /* no-op */ }
 }
@@ -107,6 +118,9 @@ function isInVoterList(
         return false
     })
 }
+
+/** @internal Exported for testing only. */
+export const _isInVoterList = isInVoterList
 
 // ── Scanners ──────────────────────────────────────────────────
 
@@ -169,6 +183,75 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
     return unvotedCount
 }
 
+const MAX_UNVOTED_DETAILS = 3
+
+/**
+ * Scan saved DAOs for open proposals the user hasn't voted on.
+ * Returns up to 3 proposal details (for Quick Vote widget on Dashboard).
+ */
+export async function scanUnvotedProposalDetails(address: string): Promise<UnvotedProposal[]> {
+    // Check cache first
+    const cached = readCache<UnvotedProposal[]>(UNVOTED_DETAILS_CACHE_KEY, UNVOTED_TTL)
+    if (cached !== null) return cached
+
+    if (!address) return []
+
+    let username = ""
+    try { username = (await resolveOnChainUsername(address) || "").replace("@", "") } catch { /* silent */ }
+
+    const daos = getDAOsToScan()
+    const results: UnvotedProposal[] = []
+
+    for (const dao of daos) {
+        if (results.length >= MAX_UNVOTED_DETAILS) break
+        try {
+            // Get config for memberstore path
+            let memberstorePath: string | undefined
+            try {
+                const config = await getDAOConfig(GNO_RPC_URL, dao.path)
+                memberstorePath = config?.memberstorePath
+            } catch { /* use default */ }
+
+            // Check membership
+            const members = await getDAOMembers(GNO_RPC_URL, dao.path, memberstorePath)
+            const isMember = members.some(m =>
+                m.address.toLowerCase() === address.toLowerCase() ||
+                (username && m.username && m.username.replace("@", "").toLowerCase() === username.toLowerCase())
+            )
+            if (!isMember) { await delay(100); continue }
+
+            // Fetch open proposals
+            const proposals = await getDAOProposals(GNO_RPC_URL, dao.path)
+            const active = proposals.filter(p => p.status === "open").slice(0, MAX_PROPOSALS)
+
+            for (const prop of active) {
+                if (results.length >= MAX_UNVOTED_DETAILS) break
+                try {
+                    const voteRecords = await getProposalVotes(GNO_RPC_URL, dao.path, prop.id)
+                    const allVoters = voteRecords.flatMap(vr => [
+                        ...vr.yesVoters,
+                        ...vr.noVoters,
+                    ])
+                    if (!isInVoterList(allVoters, address, username)) {
+                        results.push({
+                            daoName: dao.name,
+                            daoSlug: encodeSlug(dao.path),
+                            realmPath: dao.path,
+                            proposalId: prop.id,
+                            proposalTitle: prop.title,
+                            proposalStatus: prop.status,
+                        })
+                    }
+                } catch { /* skip proposal on error */ }
+            }
+        } catch { /* skip DAO on error */ }
+        await delay(100) // Rate limit between DAOs
+    }
+
+    writeCache(UNVOTED_DETAILS_CACHE_KEY, results)
+    return results
+}
+
 /**
  * Scan saved DAOs for all proposals the user has voted on.
  * Returns a list of vote entries with DAO context.
@@ -200,7 +283,7 @@ export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
                         if (isInVoterList(vr.yesVoters, address, username)) {
                             votes.push({
                                 daoName: dao.name,
-                                daoSlug: dao.path.replace(/\//g, "~"),
+                                daoSlug: encodeSlug(dao.path),
                                 proposalId: prop.id,
                                 proposalTitle: prop.title,
                                 vote: "YES",
@@ -212,7 +295,7 @@ export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
                         if (isInVoterList(vr.noVoters, address, username)) {
                             votes.push({
                                 daoName: dao.name,
-                                daoSlug: dao.path.replace(/\//g, "~"),
+                                daoSlug: encodeSlug(dao.path),
                                 proposalId: prop.id,
                                 proposalTitle: prop.title,
                                 vote: "NO",
