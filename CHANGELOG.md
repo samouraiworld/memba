@@ -2,6 +2,36 @@
 
 All notable changes to Memba are documented here.
 
+## [1.5.0] — 2026-03-04 — Hardening & GovDAO UX 🛡️🏛️
+
+### Added
+- **Collapsible Proposal History** — past proposals section collapsed by default with `▶` toggle on DAOHome
+- **Red dot on DAO cards** — per-card pulsing amber indicator + vote count when unvoted proposals exist
+- **Source transparency links** — discreet `</>` icon on DAOHome, DAOCard, and ProposalView linking to gno.land explorer
+- **Voter Turnout stat** — replaces Acceptance Rate with average voter participation percentage (more actionable)
+- **ABSTAIN voter data model** — `abstainVoters` field added to `VoteRecord` type across all voter checks
+- **Event-based unvoted refresh** — `useUnvotedCount` now reacts to `memba:voteCacheCleared` custom DOM event
+- 10 new component files: `components/profile/`, `components/dao/`, `components/proposal/` with barrel exports
+
+### Changed
+- **ProfilePage.tsx** decomposed (814 → 464 LOC): `ProfileUIAtoms`, `RegisterUsernameForm`, `MyVotesSection`
+- **DAOHome.tsx** decomposed (704 → 450 LOC): `DAOCards`, `ProposalCard`, `MemberCard`
+- **ProposalView.tsx** decomposed (604 → 512 LOC): `VoteBreakdown` (enhanced with ABSTAIN rendering)
+- **"Total Power"** stat renamed to **"Voting Power"** for clarity
+- Unified CSP: `netlify.toml` is now single canonical source (removed duplicate `index.html` meta tag)
+
+### Fixed
+- **P0: CSP blocking wallet connection** — dual CSP sources (meta tag + HTTP header) were out of sync; meta tag missing `*.fly.dev` blocked backend gRPC calls
+- **BUG: DAOHome stale data on back-nav** — `enrichedIds`/`votedIds` now reset at start of `loadData()`
+- **BUG: Dashboard quick-vote race condition** — removed 2s `setTimeout`; vote cache clearing now event-driven
+- **BUG: ABSTAIN votes not counted** — voter matching and unvoted scanning now include ABSTAIN voters
+- 7 lint issues fixed (4 errors + 3 warnings → 0/0): unused imports, stale eslint-disables, missing deps
+
+### Security
+- CSP unified to single source in `netlify.toml` — eliminates dual-policy sync risk
+- CSP `connect-src` hardened: `*.fly.dev` wildcard pinned to exact `memba-backend.fly.dev` (least-privilege)
+- Added `adena.reconnecting` to Layout effect dependency array (correctness fix)
+
 ## [1.4.0] — 2026-03-03 — UX Optimization ✨
 
 ### Added
