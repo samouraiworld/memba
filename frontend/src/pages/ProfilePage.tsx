@@ -342,6 +342,31 @@ export function ProfilePage() {
                 </div>
             )}
 
+            {/* ── Unlink GitHub (own profile, GitHub already linked) ── */}
+            {isOwnProfile && profile && (profile.socialLinks.github || profile.githubLogin) && auth.isAuthenticated && (
+                <button
+                    onClick={async () => {
+                        try {
+                            if (!auth.token) return
+                            await updateBackendProfile(auth.token, { github: "" })
+                            loadProfile()
+                        } catch { /* silent */ }
+                    }}
+                    style={{
+                        background: "none", border: "1px solid #333",
+                        color: "#888", fontSize: 11, padding: "6px 14px",
+                        borderRadius: 6, cursor: "pointer",
+                        fontFamily: "JetBrains Mono, monospace",
+                        transition: "border-color 0.15s, color 0.15s",
+                        alignSelf: "flex-start",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ff4757"; e.currentTarget.style.color = "#ff4757" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.color = "#888" }}
+                >
+                    Unlink GitHub
+                </button>
+            )}
+
             {/* ── Gnolove Contribution Stats ───────────────────────── */}
             {profile && profile.lovePowerScore > 0 && (
                 <div className="k-card" style={{ padding: 20 }}>

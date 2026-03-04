@@ -289,6 +289,22 @@ export function CreateMultisig() {
                 </button>
             </div>
 
+            {/* P1: Validation hint — explain why submit is disabled */}
+            {!canSubmit && name.trim() && auth.isAuthenticated && !allHavePubkeys && !loading && (
+                <div style={{
+                    padding: "12px 16px", borderRadius: 8,
+                    background: "rgba(245,166,35,0.06)",
+                    border: "1px solid rgba(245,166,35,0.12)",
+                    color: "#f5a623", fontSize: 11,
+                    fontFamily: "JetBrains Mono, monospace",
+                    lineHeight: 1.6,
+                }}>
+                    ⚠ Each member needs a <strong>public key</strong> to build the multisig.
+                    Click &quot;Fetch Key&quot; next to each member address to retrieve their key from the chain.
+                    If a member hasn&apos;t made any on-chain transaction yet, paste their base64 secp256k1 public key manually.
+                </div>
+            )}
+
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )
