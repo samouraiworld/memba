@@ -142,16 +142,16 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
         await expect(page.locator('body')).toContainText('Adena wallet')
     })
 
-    test('Multisig nav link visible in header', async ({ page }) => {
+    test('Dashboard nav link visible in header', async ({ page }) => {
         await page.goto('/')
-        const multisigLink = page.locator('header a', { hasText: 'Multisig' })
-        await expect(multisigLink).toBeVisible()
+        const dashboardLink = page.locator('header a', { hasText: 'Dashboard' })
+        await expect(dashboardLink).toBeVisible()
     })
 
-    test('Dashboard header NOT shown when logged out', async ({ page }) => {
+    test('Dashboard page content NOT shown when logged out', async ({ page }) => {
         await page.goto('/')
-        // "Dashboard" as a heading should not appear for logged-out users
-        const dashboardHeading = page.locator('h2', { hasText: 'Dashboard' })
+        // Dashboard main-content heading should not appear for logged-out users
+        const dashboardHeading = page.locator('main h2', { hasText: 'Dashboard' })
         await expect(dashboardHeading).not.toBeVisible()
     })
 })
