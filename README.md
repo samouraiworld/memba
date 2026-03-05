@@ -70,7 +70,7 @@
 
 ### Testing
 - 🧪 **353 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins
-- 🧪 **7 E2E plugin smoke tests** (Playwright) — Board, GnoSwap, Leaderboard, Proposals
+- 🧪 **10 E2E spec files** (Playwright) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury
 
 ## Architecture
 

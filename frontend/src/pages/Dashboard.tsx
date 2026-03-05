@@ -57,7 +57,7 @@ export function Dashboard() {
     const discoverableMultisigs = multisigs.filter(m => !m.joined)
 
     // Quick Vote: unvoted proposals from saved DAOs
-    const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
+    const userAddress = auth.isAuthenticated ? auth.address || null : null
     const { proposals: unvotedProposals, loading: unvotedLoading } = useUnvotedProposals(userAddress)
     const [votingId, setVotingId] = useState<string | null>(null)
     const [votedIds, setVotedIds] = useState<Set<string>>(new Set())

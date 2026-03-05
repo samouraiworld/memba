@@ -31,6 +31,12 @@ All notable changes to Memba are documented here.
 
 #### Tests
 - 353 unit tests (17 files), all quality gates pass (tsc 0, lint 0, build 474KB)
+- **10 E2E spec files** (Playwright) — +4 new: multisig, settings, create-dao, treasury
+  - Covers: navigation, smoke, plugins, dao, profile, token, multisig, settings, create-dao, treasury
+  - Mobile overflow tests at 375px for all major pages
+
+#### Fixed
+- `Dashboard.tsx` — eliminated brittle type assertion `(auth as {}).address` → `auth.address`
 
 ### v2.0-δ Polish
 
