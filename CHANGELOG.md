@@ -2,6 +2,33 @@
 
 All notable changes to Memba are documented here.
 
+## [Unreleased — v2.0-α Foundation] — dev/v2
+
+> **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
+
+### Added
+- **Plugin Architecture Skeleton** — `PluginManifest` type, frozen registry with validation, `PluginLoader` lazy component with error boundary, DAOHome extensions section
+- **Deployment Pipeline** — `<DeploymentPipeline>` reusable 4-step animated timeline (Building → Signing → Broadcasting → Deployed), integrated into CreateDAO, CreateMultisig, CreateToken
+- **Member Proposals** — enabled "👥 Add Member" proposal type in ProposeDAO with target address + roles + auto-generated title/description
+- **Admin Role Management** — DAOMembers page: admin detection, assign/remove role per member row (inline `×` button on role badges + expandable `+` panel for unassigned roles)
+- **Executable Member Proposals** — `daoTemplate.ts` generated Gno code now supports:
+  - `ProposeAddMember(addr, power, roles)` — governance proposal that adds member when voted + executed
+  - `ProposeRemoveMember(addr)` — governance proposal to remove member
+  - `ProposeAssignRole(addr, role)` — governance proposal to assign role
+  - `ExecuteProposal` action dispatch (add_member, remove_member, assign_role)
+  - Safety checks: duplicate member prevention, last admin protection
+- **MsgCall builders**: `buildProposeAddMemberMsg`, `buildProposeRemoveMemberMsg`, `buildProposeAssignRoleMsg`, `buildAssignRoleMsg`, `buildRemoveRoleMsg`
+- **CI on dev/v2** — full pipeline (backend, frontend tsc/lint/build/unit/E2E, proto, docker) triggers on dev/v2 push/PR
+
+### Changed
+- `Proposal` struct gains `ActionType` + `ActionData` fields for embedded action dispatch
+- ProposeDAO member type now calls on-chain `ProposeAddMember` instead of generic `Propose`
+- `ci.yml` triggers include `dev/v2` alongside `main`
+
+### Tests
+- 261 unit tests (12 files, +31 from v1.7.1), E2E updated for v2 behavior
+- All quality gates pass: tsc, lint, build (470KB), backend
+
 ## [1.7.1] — 2026-03-05 — UX Polish 🎨
 
 ### Changed

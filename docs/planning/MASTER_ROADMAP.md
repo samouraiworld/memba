@@ -7,7 +7,7 @@
 
 | # | Codename | Phase | Status | Effort | Branch |
 |---|----------|-------|--------|--------|--------|
-| 1 | **Foundation** | v2.0-α | ⬜ NOT STARTED | ~14d | `feat/v2.0-alpha/*` |
+| 1 | **Foundation** | v2.0-α | 🟢 IN PROGRESS | ~14d | `dev/v2` (direct) |
 | 2 | **Board** | v2.0-β | ⬜ NOT STARTED | ~10d | `feat/v2.0-beta/*` |
 | 3 | **Swap** | v2.0-γ | ⬜ NOT STARTED | ~10d | `feat/v2.0-gamma/*` |
 | 4 | **Polish** | v2.0-δ | ⬜ NOT STARTED | ~10d | `feat/v2.0-delta/*` |
