@@ -1,0 +1,150 @@
+/* ── DeploymentPipeline — Animated deployment progress ──────── */
+
+/* Timeline connector */
+.deploy-pipeline-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+}
+
+/* Step row */
+.deploy-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 0;
+    position: relative;
+}
+
+/* Connector line between steps */
+.deploy-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 15px;
+    top: 42px;
+    bottom: -14px;
+    width: 2px;
+    background: #222;
+    transition: background 0.4s ease;
+}
+
+.deploy-step[data-done="true"]:not(:last-child)::after {
+    background: rgba(0, 212, 170, 0.3);
+}
+
+/* Step icon circle */
+.deploy-step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.deploy-step-icon[data-state="waiting"] {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #222;
+    color: #444;
+}
+
+.deploy-step-icon[data-state="active"] {
+    background: rgba(0, 212, 170, 0.12);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    animation: stepPulse 1.5s ease-in-out infinite;
+}
+
+.deploy-step-icon[data-state="done"] {
+    background: rgba(0, 212, 170, 0.15);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+}
+
+.deploy-step-icon[data-state="error"] {
+    background: rgba(255, 59, 48, 0.1);
+    border: 1px solid rgba(255, 59, 48, 0.3);
+    color: #ff3b30;
+}
+
+/* Step text */
+.deploy-step-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+    transition: color 0.3s ease;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.deploy-step-label[data-state="active"] {
+    color: #f0f0f0;
+}
+
+.deploy-step-label[data-state="done"] {
+    color: #888;
+}
+
+.deploy-step-hint {
+    font-size: 11px;
+    color: #444;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+    transition: color 0.3s ease;
+}
+
+.deploy-step[data-done="true"] .deploy-step-hint,
+.deploy-step[data-active="true"] .deploy-step-hint {
+    color: #666;
+}
+
+/* Completion card */
+.deploy-complete-card {
+    animation: slideUp 0.4s ease-out;
+    text-align: center;
+    padding: 28px 24px;
+}
+
+.deploy-complete-check {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(0, 212, 170, 0.1);
+    border: 2px solid #00d4aa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    animation: scaleIn 0.3s ease-out;
+}
+
+/* Error card */
+.deploy-error-card {
+    animation: slideUp 0.3s ease-out;
+    padding: 20px 24px;
+    border-radius: 10px;
+    background: rgba(255, 59, 48, 0.05);
+    border: 1px solid rgba(255, 59, 48, 0.15);
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+
+@keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(0, 212, 170, 0); }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { GNO_CHAIN_ID } from "../lib/config"
 import { fetchAccountInfo } from "../lib/account"
 import {
@@ -33,10 +34,10 @@ export function CreateToken() {
 
     // State
     const [loading, setLoading] = useState(false)
+    const [deployStep, setDeployStep] = useState<DeployStep>("idle")
+    const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
-    const [txHash, setTxHash] = useState<string | null>(null)
-    const [createdSymbol, setCreatedSymbol] = useState<string | null>(null)
 
     // Fetch user multisigs for admin selector
     useEffect(() => {
@@ -82,6 +83,7 @@ export function CreateToken() {
         }
 
         setLoading(true)
+        setDeployStep("preparing")
         setError(null)
         setSuccess(null)
 
@@ -98,6 +100,8 @@ export function CreateToken() {
                 // Fetch account info for multisig
                 const acctInfo = await fetchAccountInfo(selectedMultisig)
 
+                setDeployStep("signing")
+
                 await api.createTransaction({
                     authToken: auth.token ?? undefined,
                     multisigAddress: selectedMultisig,
@@ -110,8 +114,14 @@ export function CreateToken() {
                     type: "call",
                 })
 
-                setSuccess(`Token proposal created! Requires multisig approval.`)
-                setTimeout(() => navigate(`/multisig/${selectedMultisig}`), 2000)
+                setDeployStep("broadcasting")
+
+                setDeployResult({
+                    entityPath: `/multisig/${selectedMultisig}`,
+                    entityLabel: "Token Proposal",
+                    entityName: `${trimSymbol} (multisig approval required)`,
+                })
+                setDeployStep("complete")
             } else {
                 // ── Single user: sign + broadcast via Adena DoContract ──
                 const msgs = buildCreateTokenMsgs(
@@ -119,18 +129,26 @@ export function CreateToken() {
                     parsedMint, faucet,
                 )
 
+                setDeployStep("signing")
+
                 const { hash } = await doContractBroadcast(
                     msgs,
                     memo || `Create GRC20: ${trimSymbol}`,
                 )
 
-                setTxHash(hash)
-                setCreatedSymbol(trimSymbol)
-                setSuccess(`Token ${trimSymbol} created successfully!`)
-                window.scrollTo({ top: 0, behavior: "smooth" })
+                setDeployStep("broadcasting")
+
+                setDeployResult({
+                    txHash: hash,
+                    entityPath: `/tokens/${trimSymbol}`,
+                    entityLabel: "Token",
+                    entityName: `${trimName} (${trimSymbol})`,
+                })
+                setDeployStep("complete")
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create token")
+            setDeployStep("error")
         } finally {
             setLoading(false)
         }
@@ -156,54 +174,7 @@ export function CreateToken() {
                 </div>
             )}
 
-            {success && txHash && createdSymbol && (
-                <div className="k-card" style={{ padding: 32, textAlign: "center", borderColor: "rgba(0,212,170,0.2)" }}>
-                    {/* Animated checkmark */}
-                    <div style={{
-                        width: 64, height: 64, borderRadius: "50%",
-                        background: "rgba(0,212,170,0.1)", border: "2px solid #00d4aa",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        margin: "0 auto 16px", animation: "scaleIn 0.3s ease-out",
-                    }}>
-                        <span style={{ fontSize: 28, color: "#00d4aa" }}>✓</span>
-                    </div>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "#00d4aa", marginBottom: 8 }}>
-                        {success}
-                    </h2>
-                    <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 20 }}>
-                        TX: <a
-                            href={`https://gnoscan.io/tx/${txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: "#00d4aa", textDecoration: "none" }}
-                        >
-                            {txHash.slice(0, 20)}...
-                        </a>
-                    </p>
-                    <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-                        <button
-                            className="k-btn-primary"
-                            onClick={() => navigate(`/tokens/${createdSymbol}`)}
-                            style={{ padding: "10px 20px", fontSize: 12 }}
-                        >
-                            🪙 View Token →
-                        </button>
-                        <button
-                            className="k-btn-secondary"
-                            onClick={() => {
-                                setSuccess(null); setTxHash(null); setCreatedSymbol(null)
-                                setName(""); setSymbol(""); setInitialMint(""); setFaucetAmount("0"); setMemo("")
-                            }}
-                            style={{ padding: "10px 20px", fontSize: 12 }}
-                        >
-                            ← Create Another
-                        </button>
-                    </div>
-                    <style>{`@keyframes scaleIn { from { transform: scale(0); opacity: 0 } to { transform: scale(1); opacity: 1 } }`}</style>
-                </div>
-            )}
-
-            {success && !txHash && (
+            {success && !deployResult && (
                 <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
@@ -388,7 +359,18 @@ export function CreateToken() {
                 {loading ? "Creating..." : adminMode === "multisig" ? "Propose Token Creation" : "Create Token"}
             </button>
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            {/* Deployment Pipeline */}
+            <DeploymentPipeline
+                active={deployStep !== "idle"}
+                currentStep={deployStep}
+                result={deployResult}
+                error={error ?? undefined}
+                onNavigate={() => deployResult?.entityPath && navigate(deployResult.entityPath)}
+                onRetry={() => { setDeployStep("idle"); setError(null) }}
+                onClose={() => { setDeployStep("idle"); setError(null) }}
+            />
+
+            <ErrorToast message={deployStep === "idle" ? error : null} onDismiss={() => setError(null)} />
         </div>
     )
 }

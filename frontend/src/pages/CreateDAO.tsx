@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { WizardStepPreset } from "../components/dao/WizardStepPreset"
 import { WizardStepMembers } from "../components/dao/WizardStepMembers"
 import { WizardStepConfig } from "../components/dao/WizardStepConfig"
 import { WizardStepReview } from "../components/dao/WizardStepReview"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
-import { addSavedDAO } from "../lib/daoSlug"
+import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
@@ -68,6 +69,8 @@ export function CreateDAO() {
     const [proposalCategories, setProposalCategories] = useState<string[]>(["governance"])
     const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
     const [deploying, setDeploying] = useState(false)
+    const [deployStep, setDeployStep] = useState<DeployStep>("idle")
+    const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
     const [generatedCode, setGeneratedCode] = useState("")
     const [showDraftBanner, setShowDraftBanner] = useState(false)
@@ -195,6 +198,7 @@ export function CreateDAO() {
     const deployDAO = async () => {
         if (!adena.address) { setError("Connect your wallet first"); return }
         setDeploying(true)
+        setDeployStep("preparing")
         setError(null)
         try {
             const config: DAOCreationConfig = {
@@ -209,6 +213,8 @@ export function CreateDAO() {
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
+            setDeployStep("signing")
+
             // TODO: Re-add 2 GNOT dev fee when test11 lifts bank transfer restrictions
             // (currently blocked by std.RestrictedTransferError)
             const res = await adenaWallet.DoContract({
@@ -221,16 +227,26 @@ export function CreateDAO() {
                 memo: `Deploy DAO: ${name}`,
             })
 
+            setDeployStep("broadcasting")
+
             if (res.status === "failure") {
                 throw new Error(res.message || res.data?.message || "Deployment failed")
             }
 
             addSavedDAO(realmPath)
-            clearDraft() // ← Clear draft on successful deploy
-            const slug = realmPath.replace("gno.land/r/", "").replace(/\//g, "~")
-            navigate(`/dao/${slug}`)
+            clearDraft()
+            const slug = encodeSlug(realmPath)
+            setDeployResult({
+                realmPath,
+                entityPath: `/dao/${slug}`,
+                entityLabel: "DAO",
+                entityName: name,
+                txHash: res.data?.hash,
+            })
+            setDeployStep("complete")
         } catch (err) {
             setError(err instanceof Error ? err.message : "Deployment failed")
+            setDeployStep("error")
         } finally {
             setDeploying(false)
         }
@@ -363,7 +379,18 @@ export function CreateDAO() {
                 />
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            {/* Deployment Pipeline */}
+            <DeploymentPipeline
+                active={deployStep !== "idle"}
+                currentStep={deployStep}
+                result={deployResult}
+                error={error ?? undefined}
+                onNavigate={() => deployResult?.entityPath && navigate(deployResult.entityPath)}
+                onRetry={() => { setDeployStep("idle"); setError(null) }}
+                onClose={() => { setDeployStep("idle"); setError(null) }}
+            />
+
+            <ErrorToast message={deployStep === "idle" ? error : null} onDismiss={() => setError(null)} />
         </div>
     )
 }
