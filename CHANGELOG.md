@@ -6,6 +6,27 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-β Board
+
+#### Added
+- **Board Realm Template** — `boardTemplate.ts`: Gno code generator for `{daoname}_board` realms
+  - Channels (`#general` auto-created), threads (title + Markdown body), replies
+  - Rate limiting (`MIN_POST_INTERVAL` blocks between posts per member)
+  - Public read via `Render()` with path routing (home/channel/thread)
+  - Token-gated writes with `crossing` syntax (`runtime.PreviousRealm().Address()`)
+- **Board ABCI Parser** — `plugins/board/parser.ts`: typed parser for board `Render()` output
+  - `getBoardInfo`, `getBoardThreads`, `getBoardThread`, `boardExists`
+- **Board UI** — `plugins/board/BoardView.tsx`: 4-view discussion forum
+  - Channel list, thread list, thread detail with replies, new thread form
+  - Authenticated write actions via `doContractBroadcast`
+- **Board Plugin** — registered as 2nd built-in plugin in `registry.ts` (lazy-loaded)
+- **MsgCall builders**: `buildCreateThreadMsg`, `buildReplyToThreadMsg`, `buildCreateChannelMsg`, `buildDeployBoardMsg`
+
+#### Tests
+- 299 unit tests (14 files, +38 from v2.0-α), all quality gates pass
+
+### v2.0-α Foundation
+
 ### Added
 - **Plugin Architecture Skeleton** — `PluginManifest` type, frozen registry with validation, `PluginLoader` lazy component with error boundary, DAOHome extensions section
 - **Deployment Pipeline** — `<DeploymentPipeline>` reusable 4-step animated timeline (Building → Signing → Broadcasting → Deployed), integrated into CreateDAO, CreateMultisig, CreateToken
