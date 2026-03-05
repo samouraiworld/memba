@@ -16,9 +16,11 @@ test.describe('Header Navigation', () => {
 
     test('version badge visible in header', async ({ page }) => {
         await page.goto('/')
-        const badge = page.locator('.k-version-badge')
-        await expect(badge).toBeVisible()
-        await expect(badge).toContainText(/v\d+\.\d+/)
+        const alphaBadge = page.locator('.k-version-badge', { hasText: 'Alpha' })
+        const versionBadge = page.locator('.k-version-badge', { hasText: /v\d+\.\d+/ })
+        await expect(alphaBadge).toBeVisible()
+        await expect(versionBadge).toBeVisible()
+        await expect(versionBadge).toContainText(/v\d+\.\d+/)
     })
 
     test('Dashboard nav NOT visible when disconnected', async ({ page }) => {
@@ -90,7 +92,10 @@ test.describe('Mobile Navigation (375px)', () => {
     test('version badge hidden on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/')
-        const badge = page.locator('.k-version-badge')
-        await expect(badge).not.toBeVisible()
+        const badges = page.locator('.k-version-badge')
+        const count = await badges.count()
+        for (let i = 0; i < count; i++) {
+            await expect(badges.nth(i)).not.toBeVisible()
+        }
     })
 })

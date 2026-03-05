@@ -151,6 +151,12 @@ export function Layout() {
                         <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.03em" }}>Memba</span>
                         <span className="k-version-badge" style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                            color: "#f5a623", background: "rgba(245,166,35,0.1)",
+                            padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
+                            border: "1px solid rgba(245,166,35,0.2)",
+                        }}>Alpha</span>
+                        <span className="k-version-badge" style={{
+                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
                         }}>v{APP_VERSION}</span>
@@ -364,7 +370,7 @@ export function Layout() {
                         { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
                         { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
                         { href: "https://samourai.tv/", label: "YouTube", icon: "▶" },
-                        { href: "https://github.com/samouraiworld", label: "GitHub", icon: "⌘" },
+                        { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg> },
                         { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
                         { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
                         { href: "mailto:support@samourai.coop", label: "Email", icon: "✉" },
@@ -388,6 +394,13 @@ export function Layout() {
                 </div>
                 <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
                     memba v{APP_VERSION} • built by samourai coop
+                </p>
+                <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
+                    ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
+                    Unaudited, under active development. Use at your own risk.{" "}
+                    <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
+                        Tips & sponsorships
+                    </a>{" "}welcome.
                 </p>
             </footer>
         </div >

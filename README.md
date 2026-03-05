@@ -9,6 +9,8 @@
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
 [![Tests](https://img.shields.io/badge/Tests-285%20passing-brightgreen.svg)](#testing)
 
+> ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
+
 **Memba** is a standalone web application for managing multisig wallets and DAO governance on the [Gno](https://gno.land) blockchain. Built by [Samouraï Coop](https://www.samourai.world).
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
@@ -138,6 +140,7 @@ samourai-crew 3-of-7: `g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh`
 - [Contributing](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Disclaimer](DISCLAIMER.md)
 
 ## Contributors
 
