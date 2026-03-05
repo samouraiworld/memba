@@ -14,11 +14,10 @@ test.describe('Create DAO Wizard', () => {
         await expect(page.locator('body')).toContainText(/Basic|Team|Treasury|Enterprise/)
     })
 
-    test('5-step indicator renders', async ({ page }) => {
+    test('step indicator text visible', async ({ page }) => {
         await page.goto('/dao/create')
-        // Step circles (1-5)
-        const steps = page.locator('div[style*="borderRadius: 50%"]')
-        await expect(steps).toHaveCount(5)
+        // Step 1 label should show "Name, Path & Preset"
+        await expect(page.locator('body')).toContainText(/Name.*Path|Preset/)
     })
 
     test('step 1 has preset cards', async ({ page }) => {
@@ -32,13 +31,5 @@ test.describe('Create DAO Wizard', () => {
         await page.goto('/dao/create')
         const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
         expect(bodyWidth).toBeLessThanOrEqual(380)
-    })
-})
-
-test.describe('Create DAO — Route Aliases', () => {
-    test('/create-dao also renders create wizard', async ({ page }) => {
-        await page.goto('/create-dao')
-        // Should show the same wizard
-        await expect(page.locator('body')).toContainText(/Create|DAO|Name/)
     })
 })

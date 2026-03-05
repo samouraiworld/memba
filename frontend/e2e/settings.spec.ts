@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Settings Page', () => {
     test('settings page loads', async ({ page }) => {
         await page.goto('/settings')
-        await expect(page.locator('body')).toContainText(/Settings|Network|Gas/)
+        await expect(page.locator('body')).toContainText(/Settings/)
     })
 
     test('version displayed', async ({ page }) => {
@@ -18,17 +18,28 @@ test.describe('Settings Page', () => {
 
     test('network section shows chain options', async ({ page }) => {
         await page.goto('/settings')
-        await expect(page.locator('body')).toContainText(/Testnet|Network/)
+        // Network section is open by default
+        await expect(page.locator('body')).toContainText(/Testnet/)
     })
 
-    test('gas defaults section visible', async ({ page }) => {
+    test('gas section accessible via accordion', async ({ page }) => {
         await page.goto('/settings')
-        await expect(page.locator('body')).toContainText(/Gas/)
+        // Click the Gas Defaults section header to expand it
+        const gasHeader = page.locator('button', { hasText: '⛽ Gas Defaults' })
+        await expect(gasHeader).toBeVisible()
+        await gasHeader.click()
+        await expect(page.locator('#settings-gas-wanted')).toBeVisible()
     })
 
-    test('clear cache button present', async ({ page }) => {
+    test('advanced section has clear cache button', async ({ page }) => {
         await page.goto('/settings')
-        await expect(page.locator('body')).toContainText(/Clear|Cache|Reset/)
+        // Click the Advanced section header to expand it
+        const advancedHeader = page.locator('button', { hasText: '🔧 Advanced' })
+        await expect(advancedHeader).toBeVisible()
+        await advancedHeader.click()
+        // Now the clear cache button should be visible
+        await expect(page.locator('#settings-clear-cache')).toBeVisible()
+        await expect(page.locator('#settings-clear-cache')).toContainText('Clear Cache')
     })
 
     test('settings at 375px — no overflow', async ({ page }) => {
