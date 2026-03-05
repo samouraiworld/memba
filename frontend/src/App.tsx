@@ -41,6 +41,9 @@ const NotFound = lazy(() => import("./pages/NotFound").then(m => ({ default: m.N
 // ── Settings page (lazy) ──
 const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })))
 
+// ── Plugin page (lazy) ──
+const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default: m.PluginPage })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -85,6 +88,7 @@ function App() {
           <Route path="/dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
           <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
           <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
+          <Route path="/dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
 
           {/* Profile routes (lazy) */}
           <Route path="/profile" element={<Navigate to="/" replace />} />
