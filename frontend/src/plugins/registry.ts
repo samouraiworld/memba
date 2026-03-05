@@ -20,6 +20,15 @@ export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
         version: "1.0.0",
         component: () => import("./proposals/index").then(m => ({ default: m.default })),
     },
+    {
+        id: "board",
+        name: "Board",
+        icon: "💬",
+        route: "board",
+        description: "DAO discussion forum — channels, threads, and replies",
+        version: "1.0.0",
+        component: () => import("./board/index").then(m => ({ default: m.default })),
+    },
 ])
 
 // ── Lookup Helpers ──────────────────────────────────────────────
