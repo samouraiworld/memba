@@ -10,6 +10,8 @@ import {
     buildExecuteMsg,
     buildProposeMsg,
     buildArchiveMsg,
+    buildAssignRoleMsg,
+    buildRemoveRoleMsg,
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
     _parseProposalList,
@@ -317,6 +319,41 @@ describe('buildArchiveMsg', () => {
         expect(msg.value.func).toBe('Archive')
         expect(msg.value.args).toEqual([])
         expect(msg.value.caller).toBe('g1admin')
+    })
+})
+
+// ── Member Management Builders ──────────────────────────────────
+
+describe('buildAssignRoleMsg', () => {
+    it('builds AssignRole MsgCall with target and role', () => {
+        const msg = buildAssignRoleMsg('g1admin', 'gno.land/r/samcrew/dao', 'g1target', 'dev')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('AssignRole')
+        expect(msg.value.args).toEqual(['g1target', 'dev'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/samcrew/dao')
+        expect(msg.value.caller).toBe('g1admin')
+    })
+
+    it('includes correct caller for admin role assignment', () => {
+        const msg = buildAssignRoleMsg('g1specificadmin', 'gno.land/r/user/mydao', 'g1member', 'admin')
+        expect(msg.value.caller).toBe('g1specificadmin')
+        expect(msg.value.args).toEqual(['g1member', 'admin'])
+    })
+})
+
+describe('buildRemoveRoleMsg', () => {
+    it('builds RemoveRole MsgCall with target and role', () => {
+        const msg = buildRemoveRoleMsg('g1admin', 'gno.land/r/samcrew/dao', 'g1target', 'finance')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('RemoveRole')
+        expect(msg.value.args).toEqual(['g1target', 'finance'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/samcrew/dao')
+    })
+
+    it('includes correct caller for role removal', () => {
+        const msg = buildRemoveRoleMsg('g1myadmin', 'gno.land/r/user/dao', 'g1member', 'member')
+        expect(msg.value.caller).toBe('g1myadmin')
+        expect(msg.value.args[0]).toBe('g1member')
     })
 })
 

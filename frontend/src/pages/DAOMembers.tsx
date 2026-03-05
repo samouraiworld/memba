@@ -4,14 +4,15 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
-import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
+import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
+import { doContractBroadcast } from "../lib/grc20"
 import { decodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOMembers() {
     const navigate = useNavigate()
     const { slug } = useParams<{ slug: string }>()
-    const { adena } = useOutletContext<LayoutContext>()
+    const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
 
@@ -21,6 +22,8 @@ export function DAOMembers() {
     const [error, setError] = useState<string | null>(null)
     const [tierFilter, setTierFilter] = useState<string>("all")
     const [roleFilter, setRoleFilter] = useState<string>("all")
+    const [actionLoading, setActionLoading] = useState(false)
+    const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
     const loadMembers = useCallback(async () => {
         if (!realmPath) return
@@ -46,6 +49,45 @@ export function DAOMembers() {
     let filteredMembers = tierFilter === "all" ? members : members.filter((m) => m.tier === tierFilter)
     if (roleFilter !== "all") {
         filteredMembers = filteredMembers.filter((m) => m.roles.includes(roleFilter))
+    }
+
+    // Admin detection
+    const currentUserMember = members.find((m) => m.address === adena.address)
+    const isAdmin = currentUserMember?.roles.includes("admin") ?? false
+    const availableRoles = ["admin", "dev", "finance", "ops", "member"]
+
+    const handleAssignRole = async (target: string, role: string) => {
+        if (!adena.address || !auth.isAuthenticated) { setError("Connect your wallet first"); return }
+        setActionLoading(true)
+        setError(null)
+        setActionSuccess(null)
+        try {
+            const msg = buildAssignRoleMsg(adena.address, realmPath, target, role)
+            await doContractBroadcast([msg], `Assign role ${role} to ${target.slice(0, 10)}...`)
+            setActionSuccess(`Role "${role}" assigned to ${target.slice(0, 10)}...`)
+            await loadMembers()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to assign role")
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const handleRemoveRole = async (target: string, role: string) => {
+        if (!adena.address || !auth.isAuthenticated) { setError("Connect your wallet first"); return }
+        setActionLoading(true)
+        setError(null)
+        setActionSuccess(null)
+        try {
+            const msg = buildRemoveRoleMsg(adena.address, realmPath, target, role)
+            await doContractBroadcast([msg], `Remove role ${role} from ${target.slice(0, 10)}...`)
+            setActionSuccess(`Role "${role}" removed from ${target.slice(0, 10)}...`)
+            await loadMembers()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to remove role")
+        } finally {
+            setActionLoading(false)
+        }
     }
 
     if (loading) {
@@ -171,9 +213,24 @@ export function DAOMembers() {
                 )}
 
                 {filteredMembers.map((m) => (
-                    <MemberRow key={m.address} member={m} isCurrentUser={m.address === adena.address} />
+                    <MemberRow
+                        key={m.address}
+                        member={m}
+                        isCurrentUser={m.address === adena.address}
+                        isAdmin={isAdmin}
+                        availableRoles={availableRoles}
+                        onAssignRole={handleAssignRole}
+                        onRemoveRole={handleRemoveRole}
+                        actionLoading={actionLoading}
+                    />
                 ))}
             </div>
+
+            {actionSuccess && (
+                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    ✓ {actionSuccess}
+                </div>
+            )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
@@ -232,78 +289,147 @@ function FilterButton({ label, count, active, onClick, color }: {
     )
 }
 
-function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser: boolean }) {
+function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRole, onRemoveRole, actionLoading }: {
+    member: DAOMember; isCurrentUser: boolean; isAdmin: boolean;
+    availableRoles: string[]; onAssignRole: (target: string, role: string) => void;
+    onRemoveRole: (target: string, role: string) => void; actionLoading: boolean;
+}) {
+    const [showActions, setShowActions] = useState(false)
     const tierColor = tierColors[member.tier] || "#666"
+    const unassignedRoles = availableRoles.filter((r) => !member.roles.includes(r))
 
     return (
-        <div className="k-card" style={{
-            display: "grid", gridTemplateColumns: "1fr auto auto",
-            padding: "12px 16px", alignItems: "center", gap: 12,
-        }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {member.username && (
-                    <a
-                        href={`/u/${member.username.replace("@", "")}`}
-                        style={{ fontSize: 12, color: "#00d4aa", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+        <div className="k-card" style={{ padding: "12px 16px" }}>
+            <div style={{
+                display: "grid", gridTemplateColumns: "1fr auto auto",
+                alignItems: "center", gap: 12,
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {member.username && (
+                        <a
+                            href={`/u/${member.username.replace("@", "")}`}
+                            style={{ fontSize: 12, color: "#00d4aa", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                        >
+                            {member.username}
+                        </a>
+                    )}
+                    <CopyableAddress address={member.address} />
+                    <Link
+                        to={`/profile/${member.address}`}
+                        title="View profile"
+                        style={{ fontSize: 12, color: "#555", textDecoration: "none", transition: "color 0.15s" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
                     >
-                        {member.username}
-                    </a>
-                )}
-                <CopyableAddress address={member.address} />
-                <Link
-                    to={`/profile/${member.address}`}
-                    title="View profile"
-                    style={{ fontSize: 12, color: "#555", textDecoration: "none", transition: "color 0.15s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-                >
-                    👤
-                </Link>
-                {isCurrentUser && (
-                    <span style={{
-                        padding: "1px 5px", borderRadius: 3, fontSize: 8,
-                        fontFamily: "JetBrains Mono, monospace",
-                        background: "rgba(0,212,170,0.1)", color: "#00d4aa",
-                    }}>
-                        YOU
-                    </span>
-                )}
-                {isCurrentUser && !member.username && (
-                    <a
-                        href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 9, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", opacity: 0.7 }}
-                    >
-                        Register @username →
-                    </a>
-                )}
-            </div>
-
-            {member.tier ? (
-                <span style={{
-                    padding: "3px 10px", borderRadius: 4, fontSize: 10,
-                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                    background: `${tierColor}15`, color: tierColor,
-                }}>
-                    {member.tier}
-                </span>
-            ) : <span />}
-
-            <div style={{ display: "flex", gap: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                {member.roles.map((role) => {
-                    const color = roleColors[role] || "#888"
-                    return (
-                        <span key={role} style={{
-                            padding: "2px 6px", borderRadius: 3, fontSize: 9,
+                        👤
+                    </Link>
+                    {isCurrentUser && (
+                        <span style={{
+                            padding: "1px 5px", borderRadius: 3, fontSize: 8,
                             fontFamily: "JetBrains Mono, monospace",
-                            background: `${color}15`, color,
+                            background: "rgba(0,212,170,0.1)", color: "#00d4aa",
                         }}>
-                            {role}
+                            YOU
                         </span>
-                    )
-                })}
+                    )}
+                    {isCurrentUser && !member.username && (
+                        <a
+                            href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 9, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", opacity: 0.7 }}
+                        >
+                            Register @username →
+                        </a>
+                    )}
+                </div>
+
+                {member.tier ? (
+                    <span style={{
+                        padding: "3px 10px", borderRadius: 4, fontSize: 10,
+                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        background: `${tierColor}15`, color: tierColor,
+                    }}>
+                        {member.tier}
+                    </span>
+                ) : <span />}
+
+                <div style={{ display: "flex", gap: 3, justifyContent: "flex-end", flexWrap: "wrap", alignItems: "center" }}>
+                    {member.roles.map((role) => {
+                        const color = roleColors[role] || "#888"
+                        return (
+                            <span key={role} style={{
+                                padding: "2px 6px", borderRadius: 3, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace",
+                                background: `${color}15`, color,
+                                display: "inline-flex", alignItems: "center", gap: 3,
+                            }}>
+                                {role}
+                                {isAdmin && !isCurrentUser && (
+                                    <button
+                                        onClick={() => onRemoveRole(member.address, role)}
+                                        disabled={actionLoading}
+                                        title={`Remove ${role} role`}
+                                        style={{
+                                            background: "none", border: "none",
+                                            color: "#ff3b30", cursor: actionLoading ? "default" : "pointer",
+                                            fontSize: 9, padding: 0, lineHeight: 1,
+                                            opacity: actionLoading ? 0.3 : 0.6,
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </span>
+                        )
+                    })}
+                    {isAdmin && !isCurrentUser && (
+                        <button
+                            onClick={() => setShowActions(!showActions)}
+                            style={{
+                                background: "none", border: "1px solid #222",
+                                color: "#666", cursor: "pointer", fontSize: 9,
+                                padding: "2px 6px", borderRadius: 3,
+                                fontFamily: "JetBrains Mono, monospace",
+                                transition: "all 0.15s",
+                            }}
+                            title="Manage roles"
+                        >
+                            +
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Admin role assignment panel */}
+            {showActions && isAdmin && !isCurrentUser && unassignedRoles.length > 0 && (
+                <div style={{
+                    marginTop: 10, paddingTop: 10, borderTop: "1px solid #1a1a1a",
+                    display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                }}>
+                    <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}>
+                        Assign:
+                    </span>
+                    {unassignedRoles.map((role) => (
+                        <button
+                            key={role}
+                            onClick={() => { onAssignRole(member.address, role); setShowActions(false) }}
+                            disabled={actionLoading}
+                            style={{
+                                padding: "2px 8px", borderRadius: 4, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace",
+                                border: "1px solid #222", background: "#0c0c0c",
+                                color: roleColors[role] || "#888",
+                                cursor: actionLoading ? "default" : "pointer",
+                                opacity: actionLoading ? 0.5 : 1,
+                                transition: "all 0.15s",
+                            }}
+                        >
+                            + {role}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
