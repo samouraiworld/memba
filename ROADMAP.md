@@ -47,6 +47,27 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## Open Source Readiness ✅ SHIPPED (2026-03-05)
+
+> Repository hardened and prepared for public open-source launch.
+
+| Category | Change | PR |
+|----------|--------|----|
+| 📄 Legal | `DISCLAIMER.md` — alpha status, liability, sponsor links | [#65](https://github.com/samouraiworld/memba/pull/65) |
+| 💝 Funding | `.github/FUNDING.yml` — GitHub Sponsors for samouraiworld | #65 |
+| 🏷️ UI | Amber "Alpha" badge in header (separate from version badge) | #65 |
+| 🐙 UI | GitHub Octocat SVG icon in footer → links to repo | #65 |
+| ⚠️ UI | Footer disclaimer with sponsor link | #65 |
+| 📋 Docs | README alpha admonition + Disclaimer link | #65 |
+| 📦 Repo | Package name `"frontend"` → `"memba"` | #65 |
+| 🛡️ Security | Secret scanning + push protection enabled | Settings |
+| 🛡️ Security | Tag protection ruleset (`v*` — restrict create/delete) | Settings |
+| 🛡️ Security | Branch protection verified (5 CI checks, no bypass) | Settings |
+
+**Total: 285 tests (230 unit + 55 E2E). Zero breaking changes.**
+
+---
+
 ## v1.7.1 — UX Polish ✅ SHIPPED (2026-03-05)
 
 > Dashboard guard, ProposalView quorum bar, docs refresh.
