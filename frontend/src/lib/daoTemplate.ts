@@ -185,6 +185,8 @@ type Proposal struct {
 \tNoVotes     int
 \tAbstain     int
 \tTotalPower  int
+\tActionType  string // "none", "add_member", "remove_member", "assign_role"
+\tActionData  string // serialized action params (e.g. "addr|power|role1,role2")
 }
 
 // ── State ─────────────────────────────────────────────────
@@ -302,6 +304,7 @@ func Propose(cur realm, title, desc, category string) int {
 \t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
+\t\tActionType:  "none",
 \t})
 \treturn id
 }
@@ -359,7 +362,168 @@ func ExecuteProposal(cur realm, id int) {
 \tif p.Status != "ACCEPTED" {
 \t\tpanic("proposal must be ACCEPTED to execute")
 \t}
+\t// Dispatch action
+\tswitch p.ActionType {
+\tcase "add_member":
+\t\texecuteAddMember(p.ActionData)
+\tcase "remove_member":
+\t\texecuteRemoveMember(p.ActionData)
+\tcase "assign_role":
+\t\texecuteAssignRole(p.ActionData)
+\tcase "none":
+\t\t// Text-only proposal — no action
+\tdefault:
+\t\tpanic("unknown action type: " + p.ActionType)
+\t}
 \tp.Status = "EXECUTED"
+}
+
+// ── Member Proposals (governance-gated) ───────────────────
+
+func ProposeAddMember(cur realm, targetAddr address, power int, roles string) int {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
+\tassertMember(caller)
+\t// Validate target is not already a member
+\tfor _, m := range members {
+\t\tif m.Address == targetAddr {
+\t\t\tpanic("address is already a member")
+\t\t}
+\t}
+\tid := nextID
+\tnextID++
+\ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
+\tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
+\tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
+\tproposals = append(proposals, Proposal{
+\t\tID:          id,
+\t\tTitle:       title,
+\t\tDescription: desc,
+\t\tCategory:    "membership",
+\t\tAuthor:      caller,
+\t\tStatus:      "ACTIVE",
+\t\tActionType:  "add_member",
+\t\tActionData:  data,
+\t})
+\treturn id
+}
+
+func ProposeRemoveMember(cur realm, targetAddr address) int {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
+\tassertMember(caller)
+\tassertMember(targetAddr) // target must be a member
+\tid := nextID
+\tnextID++
+\ttitle := "Remove member " + string(targetAddr)[:10] + "..."
+\tdesc := "**Action**: Remove Member\\n**Address**: " + string(targetAddr)
+\tproposals = append(proposals, Proposal{
+\t\tID:          id,
+\t\tTitle:       title,
+\t\tDescription: desc,
+\t\tCategory:    "membership",
+\t\tAuthor:      caller,
+\t\tStatus:      "ACTIVE",
+\t\tActionType:  "remove_member",
+\t\tActionData:  string(targetAddr),
+\t})
+\treturn id
+}
+
+func ProposeAssignRole(cur realm, targetAddr address, role string) int {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
+\tassertMember(caller)
+\tassertMember(targetAddr) // target must be a member
+\tassertRole(role)
+\tid := nextID
+\tnextID++
+\ttitle := "Assign role " + strconv.Quote(role) + " to " + string(targetAddr)[:10] + "..."
+\tdesc := "**Action**: Assign Role\\n**Address**: " + string(targetAddr) + "\\n**Role**: " + role
+\tproposals = append(proposals, Proposal{
+\t\tID:          id,
+\t\tTitle:       title,
+\t\tDescription: desc,
+\t\tCategory:    "membership",
+\t\tAuthor:      caller,
+\t\tStatus:      "ACTIVE",
+\t\tActionType:  "assign_role",
+\t\tActionData:  string(targetAddr) + "|" + role,
+\t})
+\treturn id
+}
+
+// ── Action Executors (internal) ───────────────────────────
+
+func executeAddMember(data string) {
+\tparts := strings.Split(data, "|")
+\tif len(parts) != 3 {
+\t\tpanic("invalid add_member action data")
+\t}
+\taddr := address(parts[0])
+\tpower, err := strconv.Atoi(parts[1])
+\tif err != nil {
+\t\tpanic("invalid power in action data")
+\t}
+\troles := strings.Split(parts[2], ",")
+\t// Check not already a member
+\tfor _, m := range members {
+\t\tif m.Address == addr {
+\t\t\tpanic("address is already a member")
+\t\t}
+\t}
+\tmembers = append(members, Member{Address: addr, Power: power, Roles: roles})
+}
+
+func executeRemoveMember(data string) {
+\taddr := address(data)
+\t// Prevent removing last admin
+\tif hasRole(addr, "admin") {
+\t\tadminCount := 0
+\t\tfor _, m := range members {
+\t\t\tif hasRoleInternal(m, "admin") {
+\t\t\t\tadminCount++
+\t\t\t}
+\t\t}
+\t\tif adminCount <= 1 {
+\t\t\tpanic("cannot remove the last admin")
+\t\t}
+\t}
+\tnewMembers := []Member{}
+\tfound := false
+\tfor _, m := range members {
+\t\tif m.Address == addr {
+\t\t\tfound = true
+\t\t\tcontinue
+\t\t}
+\t\tnewMembers = append(newMembers, m)
+\t}
+\tif !found {
+\t\tpanic("member not found")
+\t}
+\tmembers = newMembers
+}
+
+func executeAssignRole(data string) {
+\tparts := strings.Split(data, "|")
+\tif len(parts) != 2 {
+\t\tpanic("invalid assign_role action data")
+\t}
+\taddr := address(parts[0])
+\trole := parts[1]
+\tassertRole(role)
+\tfor i, m := range members {
+\t\tif m.Address == addr {
+\t\t\tfor _, r := range m.Roles {
+\t\t\t\tif r == role {
+\t\t\t\t\tpanic("role already assigned")
+\t\t\t\t}
+\t\t\t}
+\t\t\tmembers[i].Roles = append(members[i].Roles, role)
+\t\t\treturn
+\t\t}
+\t}
+\tpanic("member not found")
 }
 
 // ── Role Management (admin-only) ──────────────────────────

@@ -83,6 +83,38 @@ export function buildRemoveRoleMsg(
     return buildDAOMsgCall(realmPath, "RemoveRole", [targetAddress, role], caller)
 }
 
+// ── Member Proposals (governance-gated) ──────────────────────
+
+/** Build MsgCall for ProposeAddMember — creates a governance proposal to add a member. */
+export function buildProposeAddMemberMsg(
+    caller: string,
+    realmPath: string,
+    targetAddress: string,
+    power: number,
+    roles: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "ProposeAddMember", [targetAddress, String(power), roles], caller)
+}
+
+/** Build MsgCall for ProposeRemoveMember — creates a governance proposal to remove a member. */
+export function buildProposeRemoveMemberMsg(
+    caller: string,
+    realmPath: string,
+    targetAddress: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "ProposeRemoveMember", [targetAddress], caller)
+}
+
+/** Build MsgCall for ProposeAssignRole — creates a governance proposal to assign a role. */
+export function buildProposeAssignRoleMsg(
+    caller: string,
+    realmPath: string,
+    targetAddress: string,
+    role: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "ProposeAssignRole", [targetAddress, role], caller)
+}
+
 // ── Internal Helpers ──────────────────────────────────────────
 
 /** Build Amino MsgCall for a DAO realm function (crossing-compatible only). */

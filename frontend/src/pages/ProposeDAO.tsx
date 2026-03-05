@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { buildProposeMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
+import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
 import { decodeSlug } from "../lib/daoSlug"
@@ -20,6 +20,7 @@ export function ProposeDAO() {
     const [proposalType, setProposalType] = useState<"text" | "member">("text")
     const [memberAddress, setMemberAddress] = useState("")
     const [memberRoles, setMemberRoles] = useState<string[]>(["member"])
+    const [memberPower] = useState(1)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
@@ -81,7 +82,14 @@ export function ProposeDAO() {
         setSuccess(null)
 
         try {
-            const msg = buildProposeMsg(adena.address, realmPath, finalTitle, finalDesc, finalCategory)
+            let msg
+            if (proposalType === "member") {
+                // Use executable ProposeAddMember — creates governance proposal with embedded action
+                const trimAddr = memberAddress.trim()
+                msg = buildProposeAddMemberMsg(adena.address, realmPath, trimAddr, memberPower, memberRoles.join(","))
+            } else {
+                msg = buildProposeMsg(adena.address, realmPath, finalTitle, finalDesc, finalCategory)
+            }
             await doContractBroadcast([msg], `Propose: ${finalTitle}`)
             setSuccess("Proposal created!")
             setTimeout(() => navigate(`/dao/${slug}`), 2000)
