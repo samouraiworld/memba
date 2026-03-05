@@ -38,6 +38,15 @@ export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
         version: "1.0.0",
         component: () => import("./gnoswap/index").then(m => ({ default: m.default })),
     },
+    {
+        id: "leaderboard",
+        name: "Leaderboard",
+        icon: "🏆",
+        route: "leaderboard",
+        description: "Member ranking by on-chain contributions and governance participation",
+        version: "1.0.0",
+        component: () => import("./leaderboard/index").then(m => ({ default: m.default })),
+    },
 ])
 
 // ── Lookup Helpers ──────────────────────────────────────────────
