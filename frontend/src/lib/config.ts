@@ -14,7 +14,7 @@
  */
 
 // ── 1. App Identity ──────────────────────────────────────────
-export const APP_VERSION = "1.7.1"
+export const APP_VERSION = __APP_VERSION__
 
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""

@@ -18,6 +18,7 @@ import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import { StatCard, TierBar, ProposalCard, MemberCard } from "../components/dao"
 import { getPlugins } from "../plugins"
+import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOHome() {
@@ -42,6 +43,7 @@ export function DAOHome() {
     const [voteFilter, setVoteFilter] = useState<"all" | "needs" | "voted">("all")
     const [showHistory, setShowHistory] = useState(false)
     const usernameRef = useRef<string | null>(null)
+    const [showDeployModal, setShowDeployModal] = useState(false)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
@@ -491,40 +493,63 @@ export function DAOHome() {
                     </h3>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
                         {getPlugins().map(plugin => (
-                            <button
-                                key={plugin.id}
-                                id={`plugin-card-${plugin.id}`}
-                                onClick={() => navigate(`/dao/${encodedSlug}/plugin/${plugin.id}`)}
-                                className="k-card"
-                                style={{
-                                    padding: "16px 20px", display: "flex", alignItems: "center", gap: 14,
-                                    cursor: "pointer", border: "1px solid #1a1a1a", textAlign: "left",
-                                    width: "100%", transition: "border-color 0.15s, background 0.15s",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"; e.currentTarget.style.background = "rgba(0,212,170,0.02)" }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.background = "" }}
-                            >
-                                <span style={{ fontSize: 22 }}>{plugin.icon}</span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{plugin.name}</span>
-                                        <span style={{
-                                            fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                                            background: "rgba(0,212,170,0.08)", color: "#00d4aa",
-                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                        }}>
-                                            v{plugin.version}
-                                        </span>
+                            <div key={plugin.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                <button
+                                    id={`plugin-card-${plugin.id}`}
+                                    onClick={() => navigate(`/dao/${encodedSlug}/plugin/${plugin.id}`)}
+                                    className="k-card"
+                                    style={{
+                                        padding: "16px 20px", display: "flex", alignItems: "center", gap: 14,
+                                        cursor: "pointer", border: "1px solid #1a1a1a", textAlign: "left",
+                                        width: "100%", transition: "border-color 0.15s, background 0.15s",
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"; e.currentTarget.style.background = "rgba(0,212,170,0.02)" }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.background = "" }}
+                                >
+                                    <span style={{ fontSize: 22 }}>{plugin.icon}</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{plugin.name}</span>
+                                            <span style={{
+                                                fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                                                background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                            }}>
+                                                v{plugin.version}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3 }}>
+                                            {plugin.description}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3 }}>
-                                        {plugin.description}
-                                    </div>
-                                </div>
-                                <span style={{ color: "#444", fontSize: 12 }}>→</span>
-                            </button>
+                                    <span style={{ color: "#444", fontSize: 12 }}>→</span>
+                                </button>
+                                {/* Deploy button for Board plugin — allows deploying to existing DAOs */}
+                                {plugin.id === "board" && auth.isAuthenticated && (
+                                    <button
+                                        id={`deploy-plugin-${plugin.id}`}
+                                        className="k-btn-secondary"
+                                        style={{ fontSize: 10, padding: "4px 12px", height: 28, alignSelf: "flex-start" }}
+                                        onClick={() => setShowDeployModal(true)}
+                                    >
+                                        ⚡ Deploy Board
+                                    </button>
+                                )}
+                            </div>
                         ))}
                     </div>
                 </div>
+            )}
+
+            {/* Deploy Plugin Modal */}
+            {showDeployModal && (
+                <DeployPluginModal
+                    daoRealmPath={realmPath}
+                    daoName={config?.name || realmPath.split("/").pop() || "DAO"}
+                    callerAddress={adena.address || ""}
+                    onClose={() => setShowDeployModal(false)}
+                    onDeployed={() => { setShowDeployModal(false); loadData() }}
+                />
             )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />

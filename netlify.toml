@@ -18,4 +18,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://gnolove.world https://api.github.com https://*.netlify.app; img-src 'self' data: https://avatars.githubusercontent.com https://pbs.twimg.com https://gnolove.world;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://gnolove.world https://api.github.com https://memba-multisig.netlify.app https://*--memba-multisig.netlify.app; img-src 'self' data: https://avatars.githubusercontent.com https://pbs.twimg.com https://gnolove.world;"

@@ -51,6 +51,32 @@ See [`.env.example`](.env.example) for all required environment variables. Never
 - Lazy-load pages for code splitting
 - Use `ErrorToast` component for user-facing errors
 
+### Plugin Development
+
+Memba uses a **plugin registry** to extend DAO pages with optional features. Each plugin lives in `frontend/src/plugins/<name>/` and is registered in `frontend/src/plugins/registry.ts`.
+
+**File structure for a new plugin:**
+
+```
+frontend/src/plugins/
+├── registry.ts          ← Register your plugin here
+├── types.ts             ← Plugin interface definition
+├── <name>/
+│   ├── index.tsx        ← Plugin entry: exports { id, name, icon, version, ... }
+│   ├── <Name>View.tsx   ← Main UI component
+│   ├── queries.ts       ← On-chain data fetching (optional)
+│   └── <name>.test.ts   ← Unit tests (required)
+```
+
+**Steps to add a plugin:**
+
+1. Create your plugin folder: `frontend/src/plugins/<name>/`
+2. Implement the `PluginDefinition` interface from `types.ts`
+3. Export your plugin from `index.tsx`
+4. Register it in `registry.ts`: `import { myPlugin } from './<name>'`
+5. Write tests in `<name>.test.ts`
+6. Run `npm test && npm run build` to verify
+
 ### Commit Conventions
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):

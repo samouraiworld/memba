@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-285%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-353%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -35,7 +35,7 @@
 - 🎭 Roles — admin, dev, finance, ops, member + role management
 - 📊 Quorum — configurable minimum participation %
 - 📁 Proposal Categories — governance, treasury, membership, operations
-- 📊 **Dual VoteBar** — 3-color vote split (YES/NO/ABSTAIN) + quorum progress bar
+- 📊 **SingleVoteBar** — participation % (green YES / red NO split) + tier pie chart
 - 📊 **Quorum threshold** — 50% marker with amber/teal participation indicator
 - 🗄️ Archive DAO — admin-only archival for obsolete DAOs
 - 💰 Treasury Management (asset overview, spending proposals)
@@ -64,13 +64,13 @@
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test11 ↔ staging ↔ portal-loop) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with progressive header collapse
-- ⚡ Code splitting (424KB main, lazy-loaded DAO/token chunks)
+- ⚡ Code splitting (474KB main, lazy-loaded DAO/token chunks)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **230 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard
-- 🧪 **55 E2E tests** (Playwright, Chromium + Firefox) — navigation, profiles, tokens, DAOs, smoke tests
+- 🧪 **353 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins
+- 🧪 **7 E2E plugin smoke tests** (Playwright) — Board, GnoSwap, Leaderboard, Proposals
 
 ## Architecture
 

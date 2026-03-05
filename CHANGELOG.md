@@ -6,6 +6,32 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-ε UX & Consistency
+
+#### Added
+- **Dashboard Redesign** — `DashboardDAOList` shows all saved DAOs with name, realm path, MEMBER badge
+  - My DAOs + My Multisigs always visible, even when empty
+  - Layout: Identity → Actions → Quick Vote → My DAOs → My Multisigs → Feature Cards → TXs
+- **Wallet Connect Loader** — `ConnectingLoader` with Memba logo pulse + progress bar
+  - Eliminates black screen during wallet authentication flow
+- **Proposal Vote Bar Consistency** — ProposalView now uses SingleVoteBar (same as ProposalCard)
+  - Single-line: filled width = participation %, green YES / red NO split
+  - TierPieChart SVG donut wired into ProposalView for tier vote distribution
+  - ARIA `role="progressbar"` + `aria-valuenow` for accessibility
+- **Deploy Plugin Modal** — `DeployPluginModal` wired into DAOHome Extensions section
+  - ⚡ Deploy Board button on Board plugin card for existing DAOs
+  - Channel configuration + Adena DoContract deployment flow
+- **Version Sync** — `APP_VERSION` now reads from `package.json` via Vite `define`
+  - No more manual sync between `config.ts` and `package.json`
+  - `vite-env.d.ts` TypeScript declaration for `__APP_VERSION__` global
+
+#### Changed
+- **Multisig Placeholder** — Default name changed from "samourai-crew" → "our-super-cool-dao"
+- **CSP Tightened** — `connect-src` narrowed from `*.netlify.app` to `memba-multisig.netlify.app`
+
+#### Tests
+- 353 unit tests (17 files), all quality gates pass (tsc 0, lint 0, build 474KB)
+
 ### v2.0-δ Polish
 
 #### Added
