@@ -9,7 +9,7 @@ export interface MemberInput {
     roles: string[]
 }
 
-export type Step = 1 | 2 | 3 | 4
+export type Step = 1 | 2 | 3 | 4 | 5
 
 // ── Role Colors ───────────────────────────────────────────
 

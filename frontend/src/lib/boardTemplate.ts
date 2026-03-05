@@ -50,7 +50,7 @@ export function defaultBoardConfig(daoRealmPath: string, daoName: string): Board
 
 const SAFE_CHANNEL = /^[a-z][a-z0-9_-]*$/
 
-function isValidChannel(s: string): boolean {
+export function isValidChannel(s: string): boolean {
     return SAFE_CHANNEL.test(s) && s.length <= 30
 }
 

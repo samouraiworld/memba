@@ -107,7 +107,7 @@ export function WizardStepConfig({
                     ← Back
                 </button>
                 <button className="k-btn-primary" onClick={onNext} style={{ fontSize: 13, padding: "10px 24px" }}>
-                    Next: Review →
+                    Next: Extensions →
                 </button>
             </div>
         </div>
