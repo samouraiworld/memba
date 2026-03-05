@@ -43,9 +43,21 @@ Review findings feed into the **next version's RFC** as action items.
 | 🔧 Playwright | Firefox, screenshot-on-failure, video-on-retry | — |
 | 🧹 Repo | 3 local + 7 remote stale branches pruned | — |
 
-**Total: 284 tests (230 unit + 54 E2E). Zero lint/TS/build errors.**
+**Total: 285 tests (230 unit + 55 E2E). Zero lint/TS/build errors.**
 
 ---
+
+## v1.7.1 — UX Polish ✅ SHIPPED (2026-03-05)
+
+> Dashboard guard, ProposalView quorum bar, docs refresh.
+
+| Category | Change | Tests |
+|----------|--------|-------|
+| 🏠 Dashboard | Nav hidden when disconnected, `/dashboard` → `/` redirect | +1 E2E |
+| 📊 Quorum | Quorum progress bar on ProposalView detail page (50% threshold) | — |
+| 📋 Docs | README refresh (v1.7.1, badges, categorized features), ROADMAP, E2E_TEST updated | — |
+
+**Total: 285 tests (230 unit + 55 E2E). Zero lint/TS/build errors.**
 
 ## v1.6.0 — UX Testing Fixes ✅ SHIPPED (2026-03-04)
 
