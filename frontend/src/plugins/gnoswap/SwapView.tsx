@@ -60,12 +60,20 @@ export default function SwapView({ auth, adena }: PluginProps) {
         if (!auth.isAuthenticated || !adena.address || !paths) return
         if (!tokenIn || !tokenOut || !amountIn) { setError("Fill all fields"); return }
 
+        // BT-M1: Validate token path format
+        const realmPathPattern = /^gno\.land\/r\/[a-z0-9_/]+$/
+        if (!realmPathPattern.test(tokenIn)) { setError("Invalid token-in path — must be gno.land/r/..."); return }
+        if (!realmPathPattern.test(tokenOut)) { setError("Invalid token-out path — must be gno.land/r/..."); return }
+
         const slippageError = validateSlippage(slippage)
         if (slippageError) { setError(slippageError); return }
 
         const pool = pools.find(p => (p.token0 === tokenIn && p.token1 === tokenOut) || (p.token0 === tokenOut && p.token1 === tokenIn))
         const route = pool?.path || `${tokenIn}_${tokenOut}_3000`
         const minOut = calculateMinOutput(amountIn, slippage)
+
+        // BT-L1: Warn if minOutput is 0
+        if (minOut === "0") { setError("Amount too small — minimum output would be 0"); return }
 
         setPosting(true)
         setError(null)

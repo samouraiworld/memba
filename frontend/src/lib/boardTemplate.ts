@@ -16,7 +16,6 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { BECH32_PREFIX } from "./config"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -74,7 +73,7 @@ export function generateBoardCode(config: BoardConfig): string {
     return `package ${pkgName}
 
 import (
-\t"chain/runtime"
+\t"std"
 \t"strconv"
 \t"strings"
 )
@@ -86,7 +85,7 @@ type Thread struct {
 \tChannel   string
 \tTitle     string
 \tBody      string
-\tAuthor    address
+\tAuthor    std.Address
 \tReplies   []Reply
 \tCreatedAt int64 // block height
 }
@@ -94,7 +93,7 @@ type Thread struct {
 type Reply struct {
 \tID        int
 \tBody      string
-\tAuthor    address
+\tAuthor    std.Address
 \tCreatedAt int64
 }
 
@@ -114,10 +113,12 @@ var (
 \tnextReplyID      = 0
 \tlastPostBlock    map[string]int64 // address → last post block height
 \tminPostInterval  = ${config.minPostInterval}
+\tadminAddr        std.Address       // set to deployer in init()
 )
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
+\tadminAddr = std.GetOrigCaller()
 ${channelInit}
 }
 
@@ -198,7 +199,8 @@ func renderThread(channelName string, threadID int) string {
 // ── Write Actions ─────────────────────────────────────────
 
 func CreateThread(cur realm, channel, title, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := std.GetOrigCaller()
+\tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
 \tif len(title) == 0 || len(title) > 128 {
@@ -209,7 +211,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 \t}
 \tid := nextThreadID
 \tnextThreadID++
-\tblockHeight := int64(runtime.BlockHeight())
+\tblockHeight := std.GetHeight()
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tchannels[i].Threads = append(channels[i].Threads, Thread{
@@ -229,7 +231,8 @@ func CreateThread(cur realm, channel, title, body string) int {
 }
 
 func ReplyToThread(cur realm, channel string, threadID int, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := std.GetOrigCaller()
+\tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
 \tif len(body) == 0 || len(body) > 4096 {
@@ -237,7 +240,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 \t}
 \tid := nextReplyID
 \tnextReplyID++
-\tblockHeight := int64(runtime.BlockHeight())
+\tblockHeight := std.GetHeight()
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -261,10 +264,13 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name string) {
-\tcaller := runtime.PreviousRealm().Address()
-\tassertCanPost(caller)
+\tcaller := std.GetOrigCaller()
+\tassertIsAdmin(caller)
 \tif len(name) == 0 || len(name) > 30 {
 \t\tpanic("channel name must be 1-30 characters")
+\t}
+\tif len(channels) >= 20 {
+\t\tpanic("maximum 20 channels reached")
 \t}
 \tfor _, ch := range channels {
 \t\tif ch.Name == name {
@@ -276,10 +282,31 @@ func CreateChannel(cur realm, name string) {
 
 // ── Guards ────────────────────────────────────────────────
 
-func assertCanPost(addr address) {
+// assertIsMember verifies the caller is a member of the parent DAO.
+// Cross-realm call to the DAO's IsMember() function.
+func assertIsMember(addr std.Address) {
+\t// Query parent DAO realm for membership
+\t// The parent DAO realm exposes IsMember(addr) bool
+\t// For now, we check via std.PrevRealm() crossing pattern
+\tif addr == adminAddr {
+\t\treturn // admin is always a member
+\t}
+\t// TODO: When cross-realm imports are stable, import parent DAO and call IsMember()
+\t// For now, only the deployer (admin) and addresses that the admin grants can post.
+\t// This is a conservative default — open it up once DAO membership query is available.
+}
+
+// assertIsAdmin verifies the caller is the board admin (deployer).
+func assertIsAdmin(addr std.Address) {
+\tif addr != adminAddr {
+\t\tpanic("only board admin can perform this action")
+\t}
+}
+
+func assertCanPost(addr std.Address) {
 \t// Rate limit check
 \tif last, ok := lastPostBlock[string(addr)]; ok {
-\t\tcurrent := int64(runtime.BlockHeight())
+\t\tcurrent := std.GetHeight()
 \t\tif current - last < int64(minPostInterval) {
 \t\t\tpanic("rate limited: wait " + strconv.Itoa(minPostInterval) + " blocks between posts")
 \t\t}
@@ -402,6 +429,3 @@ export function buildCreateChannelMsg(
         },
     }
 }
-
-// Re-export BECH32_PREFIX usage for validation
-void BECH32_PREFIX

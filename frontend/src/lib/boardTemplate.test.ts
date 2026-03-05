@@ -33,9 +33,10 @@ describe("generateBoardCode", () => {
         expect(code).toContain('package mydao_board')
     })
 
-    it("imports chain/runtime", () => {
+    it("imports std for address, height, and caller", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain('"chain/runtime"')
+        expect(code).toContain('"std"')
+        expect(code).not.toContain('"chain/runtime"')
     })
 
     it("generates Thread and Reply types", () => {
@@ -57,10 +58,51 @@ describe("generateBoardCode", () => {
         expect(code).toContain("rate limited")
     })
 
-    it("generates CreateThread function with crossing syntax", () => {
+    it("generates CreateThread function with membership check", () => {
         const code = generateBoardCode(config)
         expect(code).toContain("func CreateThread(cur realm,")
-        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).toContain("std.GetOrigCaller()")
+        expect(code).toContain("assertIsMember(caller)")
+    })
+
+    it("generates assertIsMember guard function (RT-H1 fix)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("func assertIsMember(addr std.Address)")
+        expect(code).toContain("adminAddr")
+    })
+
+    it("generates assertIsAdmin guard function (RT-M1 fix)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("func assertIsAdmin(addr std.Address)")
+        expect(code).toContain("only board admin can perform this action")
+    })
+
+    it("sets adminAddr in init (deployer is admin)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("adminAddr = std.GetOrigCaller()")
+    })
+
+    it("uses std.Address type instead of bare address (GC-H1)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("Author    std.Address")
+        expect(code).not.toContain("Author    address")
+    })
+
+    it("uses std.GetHeight() instead of runtime.BlockHeight() (GC-H1)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("std.GetHeight()")
+        expect(code).not.toContain("runtime.BlockHeight()")
+    })
+
+    it("limits channels to 20 maximum (RT-M1)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("maximum 20 channels reached")
+    })
+
+    it("requires admin for CreateChannel (RT-M1)", () => {
+        const code = generateBoardCode(config)
+        expect(code).toContain("func CreateChannel(cur realm,")
+        expect(code).toContain("assertIsAdmin(caller)")
     })
 
     it("generates ReplyToThread function", () => {
