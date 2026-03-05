@@ -47,6 +47,9 @@ main (v1.7.x — production, never commit directly)
 - ✅ When milestone is complete: create PR from `dev/v2` → `main`
 - ✅ Read `/git-policy` workflow before any git operations
 
+> [!CAUTION]
+> **MERGE FREEZE**: `dev/v2` must **NEVER** be merged to `main` until the **entire v2 roadmap** is finished and explicitly approved by the project owner. No exceptions.
+
 ### Hotfix path (for production v1.7.x bugs)
 ```
 main → hotfix/v1.7.x-<issue> → merge to main → tag v1.7.x
