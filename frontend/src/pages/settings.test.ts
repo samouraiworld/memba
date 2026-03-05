@@ -8,11 +8,10 @@ const SETTINGS_KEY = "memba_settings"
 interface UserSettings {
     gasWanted: number
     gasFee: number
-    devMode: boolean
 }
 
 function defaults(): UserSettings {
-    return { gasWanted: 10000000, gasFee: 1000000, devMode: false }
+    return { gasWanted: 10000000, gasFee: 1000000 }
 }
 
 function loadSettings(): UserSettings {
@@ -40,15 +39,13 @@ describe("Settings localStorage", () => {
         const s = loadSettings()
         expect(s.gasWanted).toBe(10000000)
         expect(s.gasFee).toBe(1000000)
-        expect(s.devMode).toBe(false)
     })
 
     it("persists and loads custom gas settings", () => {
-        saveSettings({ gasWanted: 5000000, gasFee: 500000, devMode: true })
+        saveSettings({ gasWanted: 5000000, gasFee: 500000 })
         const s = loadSettings()
         expect(s.gasWanted).toBe(5000000)
         expect(s.gasFee).toBe(500000)
-        expect(s.devMode).toBe(true)
     })
 
     it("merges partial saved data with defaults", () => {
@@ -56,7 +53,6 @@ describe("Settings localStorage", () => {
         const s = loadSettings()
         expect(s.gasWanted).toBe(1234)
         expect(s.gasFee).toBe(1000000) // default
-        expect(s.devMode).toBe(false) // default
     })
 
     it("handles corrupted localStorage gracefully", () => {
@@ -66,12 +62,11 @@ describe("Settings localStorage", () => {
     })
 
     it("saves and overwrites previous settings", () => {
-        saveSettings({ gasWanted: 1, gasFee: 2, devMode: false })
-        saveSettings({ gasWanted: 3, gasFee: 4, devMode: true })
+        saveSettings({ gasWanted: 1, gasFee: 2 })
+        saveSettings({ gasWanted: 3, gasFee: 4 })
         const s = loadSettings()
         expect(s.gasWanted).toBe(3)
         expect(s.gasFee).toBe(4)
-        expect(s.devMode).toBe(true)
     })
 })
 

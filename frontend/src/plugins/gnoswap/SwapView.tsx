@@ -206,6 +206,11 @@ export default function SwapView({ auth, adena }: PluginProps) {
     if (view === "swap") {
         const slippageWarning = isSlippageWarning(slippage)
 
+        // DF-M1: Compute estimated min output for display
+        const estimatedMinOut = amountIn ? calculateMinOutput(amountIn, slippage) : ""
+        // UX-L3: Collect unique tokens from loaded pools for dropdown
+        const knownTokens = [...new Set(pools.flatMap(p => [p.token0, p.token1]))]
+
         return (
             <div id="gnoswap-swap" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -225,6 +230,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                         <input
                             id="swap-token-in"
                             type="text"
+                            list="swap-tokens-list"
                             placeholder="gno.land/r/demo/gns"
                             value={tokenIn}
                             onChange={e => setTokenIn(e.target.value)}
@@ -236,12 +242,17 @@ export default function SwapView({ auth, adena }: PluginProps) {
                         <input
                             id="swap-token-out"
                             type="text"
+                            list="swap-tokens-list"
                             placeholder="gno.land/r/demo/wugnot"
                             value={tokenOut}
                             onChange={e => setTokenOut(e.target.value)}
                             style={inputStyle}
                         />
                     </div>
+                    {/* UX-L3: Token suggestions from loaded pools */}
+                    <datalist id="swap-tokens-list">
+                        {knownTokens.map(t => <option key={t} value={t} />)}
+                    </datalist>
                     <div>
                         <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Amount In</label>
                         <input
@@ -253,6 +264,24 @@ export default function SwapView({ auth, adena }: PluginProps) {
                             style={inputStyle}
                         />
                     </div>
+
+                    {/* DF-M1: Estimated output display */}
+                    {amountIn && estimatedMinOut && (
+                        <div id="swap-estimated-output" style={{
+                            padding: "12px 16px",
+                            borderRadius: 8,
+                            background: "rgba(0,212,170,0.04)",
+                            border: "1px solid rgba(0,212,170,0.1)",
+                        }}>
+                            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
+                                Minimum Output (after {slippage}% slippage)
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                                {estimatedMinOut}
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>
                             Slippage Tolerance (%)

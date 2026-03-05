@@ -1,5 +1,9 @@
 /**
  * Unit tests for board ABCI parser.
+ *
+ * @format-dependent — These tests rely on the exact Render() output format
+ * from the board realm. If the Gno board template changes its Render output,
+ * these tests must be updated accordingly.
  */
 import { describe, it, expect } from "vitest"
 import { parseBoardHome, parseThreadList, parseThreadDetail } from "./parser"

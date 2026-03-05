@@ -84,6 +84,13 @@ export function calculateScore(stats: { packages: number; proposals: number; vot
 
 // ── Sorting ───────────────────────────────────────────────────
 
+/**
+ * Sort leaderboard entries by field and direction.
+ * Returns a new array (does not mutate input).
+ * @param entries — leaderboard entries to sort
+ * @param field — field to sort by (packages, proposals, votes, score)
+ * @param dir — sort direction (asc or desc)
+ */
 export function sortEntries(entries: LeaderboardEntry[], field: SortField, dir: SortDir): LeaderboardEntry[] {
     return [...entries].sort((a, b) => dir === "asc" ? a[field] - b[field] : b[field] - a[field])
 }

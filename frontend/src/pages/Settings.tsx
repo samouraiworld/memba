@@ -1,12 +1,11 @@
 /**
  * Settings Page — user preferences and app configuration.
  *
- * Sections:
+ * Sections (collapsible accordion):
  * - Network: active chain selector
- * - Appearance: theme toggle (future)
  * - Gas Defaults: custom gas fee/wanted
- * - Data Export: export wallet activity
- * - Advanced: clear cache, developer mode
+ * - Profile: link to profile page
+ * - Advanced: clear cache, version info
  *
  * All settings stored in localStorage.
  * Profile editing is on /profile/:addr (linked from here).
@@ -23,7 +22,6 @@ const SETTINGS_KEY = "memba_settings"
 interface UserSettings {
     gasWanted: number
     gasFee: number
-    devMode: boolean
 }
 
 function loadSettings(): UserSettings {
@@ -35,13 +33,62 @@ function loadSettings(): UserSettings {
 }
 
 function defaults(): UserSettings {
-    return { gasWanted: 10000000, gasFee: 1000000, devMode: false }
+    return { gasWanted: 10000000, gasFee: 1000000 }
 }
 
 function saveSettings(s: UserSettings) {
     try {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
     } catch { /* quota */ }
+}
+
+// ── UX-L2: Collapsible section component ──────────────────────
+
+function Section({ title, icon, defaultOpen = false, children }: {
+    title: string; icon: string; defaultOpen?: boolean; children: React.ReactNode
+}) {
+    const [open, setOpen] = useState(defaultOpen)
+
+    return (
+        <div style={{
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            overflow: "hidden",
+        }}>
+            <button
+                onClick={() => setOpen(!open)}
+                style={{
+                    width: "100%",
+                    padding: "16px 20px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                    {icon} {title}
+                </span>
+                <span style={{ fontSize: 12, color: "#555", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
+                    ▼
+                </span>
+            </button>
+            {open && (
+                <div style={{
+                    padding: "0 20px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                }}>
+                    {children}
+                </div>
+            )}
+        </div>
+    )
 }
 
 export function Settings() {
@@ -64,22 +111,10 @@ export function Settings() {
 
     const handleClearCache = () => {
         if (!window.confirm("Clear all Memba cached data? This will reset network preferences and cached usernames.")) return
-        const keys = ["memba_usernames", "memba_settings", "memba_network"]
+        const keys = ["memba_usernames", "memba_settings", "memba_network", "memba_board_visits"]
         keys.forEach(k => localStorage.removeItem(k))
         setSaved(true)
         setTimeout(() => window.location.reload(), 300)
-    }
-
-    // ── Styles ────────────────────────────────────────────────
-
-    const sectionStyle: React.CSSProperties = {
-        padding: "20px 24px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
     }
 
     const labelStyle: React.CSSProperties = {
@@ -103,7 +138,7 @@ export function Settings() {
     }
 
     return (
-        <div id="settings-page" style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600 }}>
+        <div id="settings-page" style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0 }}>⚙️ Settings</h2>
 
             {saved && (
@@ -112,10 +147,9 @@ export function Settings() {
                 </div>
             )}
 
-            {/* Network */}
-            <div style={sectionStyle}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>🌐 Network</h3>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {/* Network — open by default */}
+            <Section title="Network" icon="🌐" defaultOpen>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 8 }}>
                     {Object.entries(NETWORKS).map(([key, net]) => (
                         <button
                             key={key}
@@ -132,12 +166,11 @@ export function Settings() {
                         </button>
                     ))}
                 </div>
-            </div>
+            </Section>
 
             {/* Gas Defaults */}
-            <div style={sectionStyle}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>⛽ Gas Defaults</h3>
-                <div>
+            <Section title="Gas Defaults" icon="⛽">
+                <div style={{ paddingTop: 8 }}>
                     <label style={labelStyle}>Gas Wanted</label>
                     <input
                         id="settings-gas-wanted"
@@ -157,12 +190,11 @@ export function Settings() {
                         style={inputStyle}
                     />
                 </div>
-            </div>
+            </Section>
 
             {/* Profile */}
-            <div style={sectionStyle}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>👤 Profile</h3>
-                <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
+            <Section title="Profile" icon="👤">
+                <p style={{ fontSize: 12, color: "#888", margin: 0, paddingTop: 8 }}>
                     Edit your profile, connect GitHub, and manage social links.
                 </p>
                 <button
@@ -172,31 +204,21 @@ export function Settings() {
                 >
                     Go to Profile →
                 </button>
-            </div>
+            </Section>
 
             {/* Advanced */}
-            <div style={sectionStyle}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>🔧 Advanced</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input
-                        id="settings-dev-mode"
-                        type="checkbox"
-                        checked={settings.devMode}
-                        onChange={e => setSettings(s => ({ ...s, devMode: e.target.checked }))}
-                    />
-                    <label style={{ fontSize: 12, color: "#ccc" }}>Developer Mode</label>
-                </div>
+            <Section title="Advanced" icon="🔧">
                 <button
                     id="settings-clear-cache"
                     onClick={handleClearCache}
-                    style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "#ff3b30", alignSelf: "flex-start" }}
+                    style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "#ff3b30", alignSelf: "flex-start", marginTop: 8 }}
                 >
                     Clear Cache
                 </button>
                 <div style={{ fontSize: 10, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
                     Memba v{APP_VERSION} · Chain: {GNO_CHAIN_ID}
                 </div>
-            </div>
+            </Section>
         </div>
     )
 }

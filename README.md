@@ -84,6 +84,24 @@ docs/       → Architecture, API, deployment docs
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
+### Plugin Architecture (v2.0)
+
+Memba uses a modular plugin system for extensible DAO features:
+
+```
+src/plugins/
+├── registry.ts        # Plugin registry (frozen after init)
+├── types.ts           # PluginProps interface
+├── styles.ts          # Shared plugin styles
+├── PluginLoader.tsx   # Lazy-loading error boundary
+├── board/             # 💬 Discussion board (ABCI parser)
+├── gnoswap/           # 🔄 GnoSwap DEX integration
+├── leaderboard/       # 🏆 Member ranking
+└── proposals/         # 📋 Governance proposals
+```
+
+Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`builders.ts` (logic).
+
 ## Quick Start
 
 ### Prerequisites

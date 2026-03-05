@@ -1,15 +1,25 @@
 /**
  * Centralized environment configuration for the Memba frontend.
+ *
+ * Sections:
+ * 1. App Identity — version, OAuth
+ * 2. Backend API — base URL
+ * 3. Gno Networks — chain configs, RPC, explorer
+ * 4. Address Constants — bech32, units
+ * 5. External Services — gnolove, DAO realm
+ * 6. GnoSwap DEX — per-chain contract paths
+ * 7. RPC Security — domain allowlist
+ *
  * All env vars read from Vite's import.meta.env with sensible defaults.
  */
 
-/** Application version — single source of truth for header/footer badges. */
+// ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = "1.7.1"
 
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""
 
-// Environment-driven config with sensible defaults.
+// ── 2. Backend API ───────────────────────────────────────────
 
 /** Backend API base URL.
  * In dev: empty string → uses Vite proxy.
@@ -17,6 +27,8 @@ export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "
 export const API_BASE_URL =
     import.meta.env.VITE_API_URL ||
     (import.meta.env.PROD ? "https://memba-backend.fly.dev" : "")
+
+// ── 3. Gno Networks ──────────────────────────────────────────
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string }> = {
@@ -73,11 +85,15 @@ export const GNO_BECH32_HRP = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
 /** @deprecated Use GNO_BECH32_HRP for HRP or BECH32_PREFIX for address validation. */
 export const GNO_BECH32_PREFIX = GNO_BECH32_HRP
 
+// ── 4. Address Constants ─────────────────────────────────────
+
 /** Full bech32 address prefix (HRP + separator) used for address validation. */
 export const BECH32_PREFIX = GNO_BECH32_HRP + "1"
 
 /** Conversion factor: 1 GNOT = 1,000,000 ugnot. */
 export const UGNOT_PER_GNOT = 1_000_000
+
+// ── 5. External Services ─────────────────────────────────────
 
 /** DAO realm path on-chain. Update when the DAO realm is deployed. */
 export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
@@ -85,7 +101,7 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
 
-// ── GnoSwap DEX Integration ──────────────────────────────────
+// ── 6. GnoSwap DEX Integration ───────────────────────────────
 
 /** GnoSwap realm paths per chain. */
 export interface GnoSwapPaths {
@@ -112,7 +128,7 @@ export function getGnoSwapPaths(): GnoSwapPaths | null {
     return paths
 }
 
-// ── RPC Domain Security ──────────────────────────────────────
+// ── 7. RPC Domain Security ───────────────────────────────────
 
 /**
  * Trusted RPC domain patterns. Only these domains are considered safe.

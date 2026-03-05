@@ -21,6 +21,56 @@ import { GNO_RPC_URL } from "../../lib/config"
 
 type View = "home" | "channel" | "thread" | "new-thread"
 
+// ── UX-L1: Lightweight inline Markdown renderer ──────────────
+
+/** Render basic Markdown: **bold**, *italic*, `code`, [links](url) */
+function renderMarkdown(text: string): React.ReactNode[] {
+    const parts: React.ReactNode[] = []
+    // Split by Markdown tokens
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g
+    let lastIdx = 0
+    let match: RegExpExecArray | null
+    let key = 0
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIdx) parts.push(text.slice(lastIdx, match.index))
+        const token = match[0]
+        if (token.startsWith("**")) {
+            parts.push(<strong key={key++} style={{ color: "#f0f0f0" }}>{token.slice(2, -2)}</strong>)
+        } else if (token.startsWith("*")) {
+            parts.push(<em key={key++}>{token.slice(1, -1)}</em>)
+        } else if (token.startsWith("`")) {
+            parts.push(<code key={key++} style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.06)", fontSize: 12 }}>{token.slice(1, -1)}</code>)
+        } else if (token.startsWith("[")) {
+            const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/)
+            if (linkMatch) {
+                parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa", textDecoration: "underline" }}>{linkMatch[1]}</a>)
+            }
+        }
+        lastIdx = match.index + match[0].length
+    }
+    if (lastIdx < text.length) parts.push(text.slice(lastIdx))
+    return parts
+}
+
+// ── DAO-L2: Unread thread tracking ───────────────────────────
+
+const BOARD_VISITS_KEY = "memba_board_visits"
+
+function getLastVisited(channel: string, threadId: number): number {
+    try {
+        const data = JSON.parse(localStorage.getItem(BOARD_VISITS_KEY) || "{}")
+        return data[`${channel}/${threadId}`] || 0
+    } catch { return 0 }
+}
+
+function markVisited(channel: string, threadId: number): void {
+    try {
+        const data = JSON.parse(localStorage.getItem(BOARD_VISITS_KEY) || "{}")
+        data[`${channel}/${threadId}`] = Date.now()
+        localStorage.setItem(BOARD_VISITS_KEY, JSON.stringify(data))
+    } catch { /* quota */ }
+}
+
 interface ViewState {
     view: View
     channel: string
@@ -92,6 +142,10 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
     }, [viewState, loadBoardHome, loadChannel, loadThread])
 
     const navigateTo = (view: View, channel = "general", threadId: number | null = null) => {
+        // DAO-L2: mark thread as visited when navigating to it
+        if (view === "thread" && threadId !== null) {
+            markVisited(channel, threadId)
+        }
         setViewState({ view, channel, threadId })
     }
 
@@ -291,7 +345,11 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                                 tabIndex={0}
                                 style={cardStyle}
                             >
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 4 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                                    {/* DAO-L2: Unread indicator */}
+                                    {getLastVisited(viewState.channel, t.id) === 0 && (
+                                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa", flexShrink: 0 }} />
+                                    )}
                                     {t.title}
                                 </div>
                                 <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
@@ -370,7 +428,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                     </h3>
                 </div>
 
-                {/* Thread body */}
+                {/* Thread body — UX-L1: render inline Markdown */}
                 <div style={{
                     ...cardStyle,
                     cursor: "default",
@@ -380,7 +438,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                     fontFamily: "JetBrains Mono, monospace",
                     lineHeight: 1.6,
                 }}>
-                    {threadDetail.body}
+                    {renderMarkdown(threadDetail.body)}
                     <div style={{ marginTop: 12, fontSize: 11, color: "#555" }}>
                         Posted by <code style={{ color: "#666" }}>{threadDetail.author}</code> at block {threadDetail.blockHeight}
                     </div>
@@ -398,7 +456,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                                     <strong style={{ color: "#aaa" }}>{r.author}</strong> · block {r.blockHeight}
                                 </div>
                                 <div style={{ fontSize: 12, color: "#ccc", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-                                    {r.body}
+                                    {renderMarkdown(r.body)}
                                 </div>
                             </div>
                         ))}
