@@ -9,6 +9,13 @@ All notable changes to Memba are documented here.
 ### v2.0-δ Polish
 
 #### Added
+- **Extensions Step in CreateDAO Wizard** — Step 4: toggle Board on/off, configure channels
+  - 5-step wizard flow: Name → Members → Governance → Extensions → Review
+  - Chained board realm deploy: DAO + companion board in one flow
+  - Draft persistence for extension choices
+- **Plugin Route** — `/dao/:slug/plugin/:pluginId` with lazy PluginPage
+  - PluginLoader renders each plugin or "not found" fallback
+  - Back-to-DAO navigation from all plugin pages
 - **Leaderboard Plugin** — 4th plugin: gnolove-powered member ranking
   - `calculateScore()`: packages×10 + proposals×5 + votes×2 + contributions×1
   - Sortable table with click-to-sort column headers

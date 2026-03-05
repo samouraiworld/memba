@@ -102,6 +102,8 @@ src/plugins/
 
 Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`builders.ts` (logic).
 
+**Extensions in CreateDAO:** The wizard's Step 4 lets users enable plugins during DAO creation. When Board is enabled, a companion board realm is deployed alongside the DAO in a chained transaction.
+
 ## Quick Start
 
 ### Prerequisites
