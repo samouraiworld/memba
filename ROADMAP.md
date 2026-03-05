@@ -943,43 +943,151 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-## Future Vision — Brainstorm (updated 2026-02-28)
+## v2.x — Roadmap (PM/CTO Planning Session — 2026-03-05)
 
-> Ideas for major features beyond current versions. Not scoped, not committed.
+> Consolidated vision for Memba v2.x. Scoped milestones, AAA quality, perfect execution per step.
+> Full planning documents: see [Consolidated Roadmap](docs/planning/memba_v2_consolidated_roadmap.md) and [Feature Implementation Plans](docs/planning/memba_v2_feature_plans.md).
 
-### User Profiles — ✅ SHIPPED (v5.3.0 → v5.5.0)
-- ~~**Dedicated profile page**: Aggregate all on-chain data for a user~~ → v5.3.0
-- ~~**gnolove.world integration**: Enrich user profiles with off-chain data~~ → v5.3.0
-- ~~**Username onboarding**: "Create your username" CTA~~ → v5.3.0
-- ~~**Editable profiles**: Bio, company, title, socials via backend RPCs~~ → v5.4.0
-- ~~**Link GitHub CTA**: Redirect to gnolove.world for OAuth~~ → v5.5.0
+### Shipped Features (prior brainstorm items)
+- ~~**User Profiles**: profile pages, gnolove integration, editable profiles, GitHub CTA~~ → v5.3.0–v5.5.0
+- ~~**Proposal Categories**: governance, treasury, membership, operations~~ → v5.2.0
+- ~~**Vote Intelligence**: turnout, progress bars, filter tabs, VOTED badges~~ → v9.0.0
+- ~~**Notification dots**: pulsing badges for unvoted proposals~~ → v1.3.0
 
-### DAO Board (IRC-style Discussion)
-- **Per-DAO `/r/board`**: Each DAO gets its own on-chain discussion board via `gno.land/r/boards2` remix — pure decentralized DAO communication
-- **Token-gated write access**: Only DAO members (or token holders) can write to the DAO's board
-- **Multi-channel architecture** (IRC-like):
-  - `#general` — created by default for every DAO
-  - Members with admin/ops role can create/manage additional channels
-  - **Auto-created proposal channels**: When a proposal is created, a dedicated `#proposal-N` channel is automatically spawned for debate
-  - Proposal detail page links directly to its discussion channel
-- **Placement**: Under "Treasury" section on DAOHome — natural extension of DAO governance
-- **Audio/Video calls**: Integrate WebRTC-based calls (explore [suitenumerique/meet](https://github.com/suitenumerique/meet) as backend — use custom frontend, not theirs) — Discord-like voice/video channels within DAO Board
+---
 
-### Settings & Notifications
-- **Settings menu**: Centralized user preferences panel
-- **Notification channels**: Email alerts, Telegram bot, browser push — configurable per DAO/event type
-- **Dev fee (deferred)**: 2 GNOT dev fee to samourai-crew — blocked by test11 `RestrictedTransferError`, re-add when restrictions lifted
+### Architectural Decisions (resolved via cross-perspective audit)
 
-### Proposal Type Extensibility (v2.x+)
+| Decision | Outcome | Audit |
+|----------|---------|-------|
+| **Plugin deployment** | Option A: separate realms per plugin (isolation, independent audits) | 11 perspectives |
+| **Notifications** | On-chain board-based activity feed (no backend, no PII) | 11 perspectives |
+| **Monetisation** | Phased freemium: Free → Soft limits → On-chain subscription realm | 22 perspectives |
+| **MsgRun vs MsgCall** | gnodaokit helper functions (`ProposeAddMember`, etc.) work with MsgCall ✅ | Code audit |
+| **Boards package** | Track HEAD, pin for milestones, abstract behind adapter | Git history audit |
 
-> gnodaokit provides the full on-chain Action infrastructure. Memba needs UI forms + MsgCall builders per type.
+---
 
-| Proposal Type | On-Chain API | Memba Frontend | Target |
-|--------------|-------------|----------------|--------|
-| 👥 **Add Member** | ✅ `basedao.AddMember(address, roles[])` | UI form + address validation + MsgCall | v2.0 |
-| 👥 **Remove Member** | ✅ `basedao.RemoveMember(address)` | Confirmation dialog + MsgCall | v2.0 |
-| 💰 **Treasury Spend** | ⚠️ Needs `ExecuteLambda` Action with `bank.MsgSend` | Amount/recipient form + MsgSend builder | v2.1 |
-| ⚙️ **Code Upgrade** | ⚠️ Needs `MsgAddPackage` Action | In-app code editor + realm path + deployment | v3.0+ |
+### v2.0-α — Foundation ⬜ PLANNED
+
+> Plugin architecture, deployment UX, Add/Remove Member proposals.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 🔌 Plugin architecture | `plugins/` directory, manifest schema, lazy loader, DAOHome plugin tabs | 🟢 High |
+| 🚀 Deployment Pipeline | `<DeploymentPipeline>` animated stepper for all deploy flows | 🟢 High |
+| 👥 Add Member proposal | UI form → `ProposeAddMember(addr, roles)` MsgCall | 🟢 High |
+| 👥 Remove Member proposal | Confirmation dialog → `ProposeRemoveMember(addr)` MsgCall | 🟢 High |
+
+---
+
+### v2.0-β — Board ⬜ PLANNED
+
+> DAO Board Plugin Phase 1: on-chain discussion, token-gated access.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 💬 Board realm generator | `boardTemplate.ts` — generate per-DAO board realm using `gno.land/p/gnoland/boards` | 🟢 High |
+| 💬 Board UI | Channel view, thread list, new post form, markdown preview | 🟢 High |
+| 🔒 Token-gated writes | gnodaokit `MembersViewExtension.IsMember()` check in board realm | 🟢 High |
+| 🔗 DAO Factory integration | Optional Board deployment in wizard Step 3 | 🟡 Medium |
+
+---
+
+### v2.0-γ — Swap ⬜ PLANNED
+
+> GnoSwap integration Plugin Phase 1: treasury swap via governance proposal. Partnership with [Onblocs](https://github.com/gnoswap-labs/gnoswap).
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 🔄 GnoSwap queries | ABCI query helpers for pool info, token prices (TWAP) | 🟢 High |
+| 🔄 Swap MsgCall builders | `SwapRoute` builder with slippage protection | 🟢 High |
+| 🔄 Swap proposal UI | Token selector, amount, slippage, preview → governance proposal | 🟢 High |
+| 💰 Treasury integration | "Swap" tab in Treasury for DAO members | 🟡 Medium |
+
+---
+
+### v2.0-δ — Polish ⬜ PLANNED
+
+> Leaderboard, Settings, Memba Feedback Feed, Network info.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 🏆 Leaderboard plugin | Sortable contributor table, gnolove + vote data, visual podium | 🟡 Medium |
+| ⚙️ Settings page | Network, appearance, security, data export, advanced sections | 🟡 Medium |
+| 📣 Feedback Feed | `r/samcrew/memba_feedback` board realm — eat-your-own-dogfood | 🟡 Medium |
+| 🌐 Network info | Basic chain status, block height, latest block time | 🔵 Low |
+
+---
+
+### v2.1 — Intelligence ⬜ PLANNED
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 🔄 GnoSwap Phase 2 | LP positions, portfolio view, on-chain position NFT display | 🟢 High |
+| 💬 Board Phase 2 | Multi-channel, `#proposal-N` auto-channels, @mentions | 🟢 High |
+| 💰 Payroll plugin | Payment configs, batch MsgSend, payment history, CSV export | 🟡 Medium |
+| 🔔 Webhook notifications | Optional Discord/Slack/Telegram relay (off-chain, opt-in) | 🟡 Medium |
+| 🌍 i18n | FR/EN with `react-intl` | 🟡 Medium |
+
+---
+
+### v2.2+ — Revenue ⬜ PLANNED
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 💳 Subscription realm | `r/samcrew/memba_subscription` — tier management + on-chain payment | 🟡 Medium |
+| 🔐 Tier enforcement | ABCI query `GetTier(addr)` → enforce plugin limits on-chain | 🟡 Medium |
+| 📊 DAO Analytics | Pure frontend aggregation dashboard | 🔵 Low |
+
+#### Freemium Tiers
+
+| | Free | Pro (~5 GNOT/mo) | Enterprise (~20 GNOT/mo) |
+|---|------|------|------|
+| DAOs | 1 (Basic preset) | Unlimited, all presets | Unlimited + custom |
+| Plugins | Board (#general) | All plugins | All + priority support |
+| Members | Up to 7 | Up to 50 | Unlimited |
+| Token fee | 5% | 3% | 1% |
+| GnoSwap | ❌ | ✅ | ✅ + advanced |
+| Payroll | ❌ | Up to 10 | Unlimited |
+
+---
+
+### v3.0+ — Horizon ⬜ FUTURE
+
+| Feature | Status |
+|---------|--------|
+| 🎙️ Voice/Video channels (WebRTC, suitenumerique/meet) | R&D |
+| 🔗 On-chain signature coordination (remove backend dependency) | Blocked on realm dev |
+| 🔐 Ledger hardware wallet | Blocked on Adena support |
+| 🌉 IBC transfers | Blocked on Gno IBC maturity |
+| 📅 Calendar, Task Board, NFT Badges | Community-driven plugins |
+| ⚖️ Delegation system | Needs on-chain voting power delegation |
+
+---
+
+### Proposal Type Extensibility
+
+> gnodaokit provides the full on-chain Action infrastructure. Memba generates **helper functions** in each DAO realm for MsgCall compatibility (no MsgRun needed).
+
+| Proposal Type | On-Chain API | Memba Helper Function | Target |
+|--------------|-------------|----------------------|--------|
+| 👥 **Add Member** | ✅ `basedao.NewAddMemberAction` | `ProposeAddMember(addr, roles)` | v2.0-α |
+| 👥 **Remove Member** | ✅ `basedao.NewRemoveMemberAction` | `ProposeRemoveMember(addr)` | v2.0-α |
+| 🏷️ **Assign Role** | ✅ `basedao.NewAssignRoleAction` | `ProposeAssignRole(addr, role)` | v2.0-α |
+| ✏️ **Edit Profile** | ✅ `basedao.NewEditProfileAction` | `ProposeEditProfile(field, value)` | v2.1 |
+| 💰 **Treasury Spend** | ⚠️ Needs `ExecuteLambda` Action | Amount/recipient form + MsgSend | v2.1 |
+| ⚙️ **Code Upgrade** | ⚠️ Needs `MsgAddPackage` Action | In-app code editor | v3.0+ |
+
+---
+
+### Chain Timeline
+
+| Chain | Target | Memba Milestone |
+|-------|--------|----------------|
+| test11 | Current | v2.0-α, v2.0-β dev + testing |
+| Betanet | Next week (2026-03-12) | v2.0-α, v2.0-β ready |
+| Mainnet | ~April 2026 | v2.0-γ (GnoSwap) live |
 
 ---
 
