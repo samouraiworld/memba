@@ -6,10 +6,15 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
@@ -34,8 +39,12 @@ jobs:
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest && golangci-lint run ./...
 
   frontend:
-    name: Frontend (React)
+    name: Frontend (React · Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: ['20', '22']
     defaults:
       run:
         working-directory: frontend
@@ -44,7 +53,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -64,10 +73,20 @@ jobs:
         run: npm test
 
       - name: Install Playwright
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install chromium firefox --with-deps
 
       - name: E2E tests
         run: npx playwright test --reporter=list
+
+      - name: Upload E2E artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-node${{ matrix.node-version }}
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
 
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
@@ -75,6 +94,7 @@ jobs:
   proto:
     name: Proto (Buf)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -87,6 +107,7 @@ jobs:
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
@@ -94,4 +115,3 @@ jobs:
         run: docker build -t memba-backend backend/
       - name: Build frontend image
         run: docker build -t memba-frontend frontend/
-
