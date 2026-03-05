@@ -21,10 +21,16 @@ test.describe('Header Navigation', () => {
         await expect(badge).toContainText(/v\d+\.\d+/)
     })
 
-    test('Dashboard nav link present', async ({ page }) => {
+    test('Dashboard nav NOT visible when disconnected', async ({ page }) => {
         await page.goto('/')
         const link = page.locator('header a', { hasText: 'Dashboard' })
-        await expect(link).toBeVisible()
+        await expect(link).not.toBeVisible()
+    })
+
+    test('/dashboard redirects to / when disconnected', async ({ page }) => {
+        await page.goto('/dashboard')
+        await page.waitForURL('/', { timeout: 5000 })
+        await expect(page).toHaveURL('/')
     })
 
     test('DAO nav link present', async ({ page }) => {
