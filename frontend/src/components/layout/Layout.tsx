@@ -223,8 +223,8 @@ export function Layout() {
                             </>
                         ) : isLoggingIn ? (
                             <span className="k-btn-wallet" style={{ cursor: "default", opacity: 0.7 }}>
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-glow" />
-                                Authenticating...
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.reconnecting ? "#00d4aa" : "#f59e0b" }} className="animate-glow" />
+                                {adena.reconnecting ? "Syncing..." : "Authenticating..."}
                             </span>
                         ) : (
                             adena.installed ? (

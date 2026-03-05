@@ -39,6 +39,7 @@ interface AdenaState {
 
 // Session persistence key — cleared when browser is closed (not tab).
 const SESSION_KEY = "memba_adena_connected";
+const SESSION_RPC_KEY = "memba_adena_rpc";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {
@@ -52,7 +53,19 @@ function saveConnected() {
     try { sessionStorage.setItem(SESSION_KEY, "true"); } catch { /* no-op */ }
 }
 function clearConnected() {
-    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* no-op */ }
+    try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_RPC_KEY); } catch { /* no-op */ }
+}
+
+/** Cache GetNetwork result for faster reconnect. */
+function getCachedRpc(): { url: string; trusted: boolean } | null {
+    try {
+        const raw = sessionStorage.getItem(SESSION_RPC_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch { return null; }
+}
+function setCachedRpc(url: string, trusted: boolean) {
+    try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url, trusted })); } catch { /* no-op */ }
 }
 
 export function useAdena() {
@@ -81,10 +94,10 @@ export function useAdena() {
         let stopped = false;
         let attempts = 0;
 
-        // Poll every 200ms for up to 10s
+        // Poll every 200ms for up to 5s (was 10s — extension usually injects in 1–3s)
         const timer = setInterval(() => {
             if (getAdena()) { setInstalled(true); stopped = true; clearInterval(timer); }
-            if (++attempts >= 50) clearInterval(timer);
+            if (++attempts >= 25) clearInterval(timer);
         }, 200);
 
         // Detect when user returns to this tab (extension may have loaded meanwhile)
@@ -151,10 +164,16 @@ export function useAdena() {
                     const netRes = await adena.GetNetwork();
                     rpcUrl = netRes?.data?.rpcUrl || "";
                     rpcTrusted = rpcUrl ? isTrustedRpcDomain(rpcUrl) : false;
+                    setCachedRpc(rpcUrl, rpcTrusted);
+                } else {
+                    // GetNetwork unavailable → try cached value from previous session
+                    const cached = getCachedRpc();
+                    if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
                 }
-                // GetNetwork unavailable → strict: untrusted (can't verify)
             } catch {
-                // GetNetwork failed → strict: untrusted
+                // GetNetwork failed → try cached, else strict: untrusted
+                const cached = getCachedRpc();
+                if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
             }
             setWalletRpcContext(rpcUrl || null, rpcTrusted);
 
