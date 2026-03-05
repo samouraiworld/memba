@@ -131,6 +131,27 @@
 | 11.21 | GovDAO member list | Username shown first, address truncated `g1abc...xyz` |
 | 11.22 | GovDAO proposal (already voted) | Shows "✓ You voted YES" badge, buttons disabled |
 
+## 12. Dual VoteBar & Quorum (v1.7.0)
+
+| # | Step | Expected |
+|---|------|----------|
+| 12.1 | Navigate to GovDAO → open a proposal with votes | 3-color vote split bar (green YES / red NO / grey ABSTAIN) |
+| 12.2 | Check quorum progress bar below vote split | Shows participation % with 50% threshold marker |
+| 12.3 | Quorum < 50% | Bar is amber, label says "Quorum XX%" |
+| 12.4 | Quorum ≥ 50% | Bar is teal, label says "Quorum XX%" |
+| 12.5 | Open ProposalView (detail page) for same proposal | Same quorum bar visible below vote split bar |
+| 12.6 | ABSTAIN votes present | ABSTAIN % shown in vote split (grey segment) |
+
+## 13. Dashboard Guard (v1.7.1)
+
+| # | Step | Expected |
+|---|------|----------|
+| 13.1 | Load Memba without Adena connected | Dashboard nav link NOT visible in header |
+| 13.2 | Navigate directly to `/dashboard` URL | Auto-redirect to `/` (landing page) |
+| 13.3 | Connect Adena wallet | Dashboard nav link appears in header |
+| 13.4 | Click Dashboard link | Dashboard page loads with identity card + feature cards |
+| 13.5 | Disconnect wallet while on Dashboard | Redirected to landing page |
+
 ## Post-Test
 
 - [ ] Screenshot key states for documentation
