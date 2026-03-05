@@ -158,9 +158,11 @@ export function Layout() {
 
                     {/* Nav links */}
                     <nav aria-label="Main navigation" className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                        <Link to="/dashboard" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                            🏠 <span className="k-nav-label">Dashboard</span>
-                        </Link>
+                        {adena.connected && (
+                            <Link to="/dashboard" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                                🏠 <span className="k-nav-label">Dashboard</span>
+                            </Link>
+                        )}
                         <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                             🪙 <span className="k-nav-label">Tokens</span>
                         </Link>

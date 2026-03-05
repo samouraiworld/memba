@@ -37,6 +37,11 @@ export function Dashboard() {
     const { balance, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
+    // Redirect disconnected users to landing page
+    useEffect(() => {
+        if (!auth.isAuthenticated) navigate("/", { replace: true })
+    }, [auth.isAuthenticated, navigate])
+
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
     const [recentTxs, setRecentTxs] = useState<Transaction[]>([])

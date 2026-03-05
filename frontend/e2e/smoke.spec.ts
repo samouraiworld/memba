@@ -142,10 +142,10 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
         await expect(page.locator('body')).toContainText('Adena wallet')
     })
 
-    test('Dashboard nav link visible in header', async ({ page }) => {
+    test('Dashboard nav hidden when logged out', async ({ page }) => {
         await page.goto('/')
         const dashboardLink = page.locator('header a', { hasText: 'Dashboard' })
-        await expect(dashboardLink).toBeVisible()
+        await expect(dashboardLink).not.toBeVisible()
     })
 
     test('Dashboard page content NOT shown when logged out', async ({ page }) => {

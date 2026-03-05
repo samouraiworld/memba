@@ -389,12 +389,30 @@ export function ProposalView() {
                                     {totalYesVoters + totalNoVoters}{memberCount > 0 ? ` of ${memberCount}` : ""} voted{memberCount > 0 ? ` (${Math.round(((totalYesVoters + totalNoVoters) / memberCount) * 100)}%)` : ""}
                                 </span>
                             </div>
-                            {/* Visual bar */}
+                            {/* Vote split bar */}
                             <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", display: "flex" }}>
                                 <div style={{ width: `${yesPct}%`, background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.4s" }} />
                                 <div style={{ width: `${noPct}%`, background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.4s" }} />
                                 {abstainPct > 0 && <div style={{ width: `${abstainPct}%`, background: "linear-gradient(90deg, #888, #88888888)", transition: "width 0.4s" }} />}
                             </div>
+                            {/* Quorum progress bar */}
+                            {memberCount > 0 && (() => {
+                                const totalVoterCount2 = totalYesVoters + totalNoVoters
+                                const quorumPct = Math.min(100, Math.round((totalVoterCount2 / memberCount) * 100))
+                                const quorumColor = quorumPct >= 50 ? "#00d4aa" : "#f59e0b"
+                                return (
+                                    <div style={{ marginTop: 6 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "JetBrains Mono, monospace", marginBottom: 3 }}>
+                                            <span style={{ color: quorumColor }}>Quorum {quorumPct}%</span>
+                                            <span style={{ color: "#444" }}>50% threshold</span>
+                                        </div>
+                                        <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", position: "relative" }}>
+                                            <div style={{ width: `${quorumPct}%`, height: "100%", background: quorumColor, borderRadius: 2, transition: "width 0.4s" }} />
+                                            <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "#555", borderRight: "1px dashed #333" }} />
+                                        </div>
+                                    </div>
+                                )
+                            })()}
                         </div>
                     )
                 })()}

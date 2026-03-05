@@ -2,6 +2,20 @@
 
 All notable changes to Memba are documented here.
 
+## [1.7.1] — 2026-03-05 — UX Polish 🎨
+
+### Changed
+- **Dashboard nav** hidden when wallet disconnected (matches Profile pattern)
+- **`/dashboard` route** redirects to `/` when disconnected (no more empty page)
+
+### Added
+- **Quorum progress bar** on ProposalView detail page — 50% threshold marker, amber/teal color based on participation
+- **E2E test**: Dashboard nav hidden when disconnected
+- **E2E test**: `/dashboard` → `/` redirect for disconnected users
+
+### Tests
+- 55 E2E tests (+1), 230 unit tests, build/lint/tsc clean
+
 ## [1.7.0] — 2026-03-05 — Governance UX & Testing 🗳️🧪
 
 ### Added
