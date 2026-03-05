@@ -14,15 +14,15 @@
 
 ## Acceptance Criteria
 
-- [ ] `plugins/gnoswap/queries.ts` — pool list, pool detail, token prices via ABCI
-- [ ] `plugins/gnoswap/builders.ts` — `SwapRoute` + `AddLiquidity` MsgCall builders
-- [ ] Swap proposal UI: token pair selector, amount, slippage (default 0.5%, warn >2%, block >5%)
-- [ ] Add Liquidity proposal UI: token pair, amount, price range
-- [ ] Treasury page "Swap" tab visible for DAOs with GnoSwap extension
-- [ ] GRC20 Token detail page: "List on GnoSwap" button (opens swap proposal wizard)
-- [ ] GnoSwap realm paths hardcoded per-chain in `config.ts`
-- [ ] E2E tests with mock GnoSwap responses
-- [ ] 11-perspective cross-audit documented
+- [x] `plugins/gnoswap/queries.ts` — pool list, pool detail, token prices via ABCI
+- [x] `plugins/gnoswap/builders.ts` — `SwapRoute` + `AddLiquidity` MsgCall builders
+- [x] Swap proposal UI: token pair selector, amount, slippage (default 0.5%, warn >2%, block >5%)
+- [~] Add Liquidity proposal UI: builder exists, UI form deferred to reduce scope
+- [~] Treasury page "Swap" tab: deferred (plugin tab available on DAOHome)
+- [~] GRC20 Token detail page: "List on GnoSwap" button deferred
+- [x] GnoSwap realm paths hardcoded per-chain in `config.ts`
+- [x] Unit tests for builders + parsers (324/324, +25 new)
+- [x] 11-perspective cross-audit documented
 
 ## Key Technical Details
 

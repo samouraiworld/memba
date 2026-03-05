@@ -6,6 +6,19 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-γ Swap
+
+#### Added
+- **GnoSwap Config** — `GNOSWAP_PATHS` per-chain realm paths (pool, router, position) in `config.ts`
+- **GnoSwap ABCI Queries** — `plugins/gnoswap/queries.ts`: pool list/detail parser
+- **MsgCall Builders** — `SwapRoute` + `AddLiquidity (Mint)` with slippage validation
+  - Default 0.5%, warn >2%, block >5%, BigInt-safe `calculateMinOutput`
+- **Swap UI** — `SwapView.tsx`: pool list + swap form with slippage presets
+- **GnoSwap Plugin** — registered as 3rd built-in plugin in registry (lazy-loaded)
+
+#### Tests
+- 324 unit tests (15 files, +25 from v2.0-β), all quality gates pass
+
 ### v2.0-β Board
 
 #### Added

@@ -9,7 +9,7 @@
 |---|----------|-------|--------|--------|--------|
 | 1 | **Foundation** | v2.0-α | 🟢 IN PROGRESS | ~14d | `dev/v2` (direct) |
 | 2 | **Board** | v2.0-β | 🟢 IN PROGRESS | ~10d | `dev/v2` (direct) |
-| 3 | **Swap** | v2.0-γ | ⬜ NOT STARTED | ~10d | `feat/v2.0-gamma/*` |
+| 3 | **Swap** | v2.0-γ | 🟢 IN PROGRESS | ~10d | `dev/v2` (direct) |
 | 4 | **Polish** | v2.0-δ | ⬜ NOT STARTED | ~10d | `feat/v2.0-delta/*` |
 
 **Total estimated effort**: ~44 development days
