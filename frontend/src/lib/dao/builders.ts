@@ -1,5 +1,6 @@
 /**
- * DAO message builders — MsgCall builders for Vote, Execute, Propose, Archive.
+ * DAO message builders — MsgCall builders for Vote, Execute, Propose, Archive,
+ * and Member Management (AssignRole, RemoveRole).
  *
  * All DAO functions use MsgCall. Functions MUST have crossing() to be callable.
  * - GovDAO v3: uses its own function names (MustVoteOnProposalSimple, etc.)
@@ -58,6 +59,28 @@ export function buildArchiveMsg(
     realmPath: string,
 ): AminoMsg {
     return buildDAOMsgCall(realmPath, "Archive", [], caller)
+}
+
+// ── Member Management (admin-only) ───────────────────────────
+
+/** Build AssignRole MsgCall — admin-only, adds a role to an existing member. */
+export function buildAssignRoleMsg(
+    caller: string,
+    realmPath: string,
+    targetAddress: string,
+    role: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "AssignRole", [targetAddress, role], caller)
+}
+
+/** Build RemoveRole MsgCall — admin-only, removes a role from a member. */
+export function buildRemoveRoleMsg(
+    caller: string,
+    realmPath: string,
+    targetAddress: string,
+    role: string,
+): AminoMsg {
+    return buildDAOMsgCall(realmPath, "RemoveRole", [targetAddress, role], caller)
 }
 
 // ── Internal Helpers ──────────────────────────────────────────
