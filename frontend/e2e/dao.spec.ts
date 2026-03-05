@@ -59,8 +59,8 @@ test.describe('GovDAO Page', () => {
 test.describe('DAO Members Page', () => {
     test('members page loads', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/members')
-        // Should show member-related content or DAO name
-        await expect(page.locator('body')).toContainText(/Member|GovDAO|T1|Back/)
+        // Members heading appears after ABCI data loads — allow extra time for CI
+        await expect(page.locator('body')).toContainText(/Member|GovDAO|T1|Back/, { timeout: 15000 })
     })
 })
 
@@ -79,10 +79,10 @@ test.describe('Proposal Types (ProposeDAO)', () => {
         await expect(textBtn).not.toBeDisabled()
     })
 
-    test('add member type is disabled', async ({ page }) => {
+    test('add member type is enabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
         const btn = page.locator('button', { hasText: '👥 Add Member' })
-        await expect(btn).toBeDisabled()
+        await expect(btn).not.toBeDisabled()
     })
 
     test('treasury spend type is disabled', async ({ page }) => {

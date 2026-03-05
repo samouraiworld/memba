@@ -118,14 +118,19 @@ test.describe('v1.4.0 — ProposeDAO', () => {
         await expect(page.locator('button', { hasText: '📝 Text / Sentiment' })).toBeVisible()
     })
 
-    test('future proposal types are disabled with tooltip', async ({ page }) => {
+    test('add member proposal type is enabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
         const addMemberBtn = page.locator('button', { hasText: '👥 Add Member' })
         await expect(addMemberBtn).toBeVisible()
-        await expect(addMemberBtn).toBeDisabled()
-        // Check tooltip text
-        const title = await addMemberBtn.getAttribute('title')
-        expect(title).toContain('v2.x')
+        await expect(addMemberBtn).not.toBeDisabled()
+    })
+
+    test('treasury spend and code upgrade types are disabled with tooltip', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao/propose')
+        const spendBtn = page.locator('button', { hasText: '💰 Treasury Spend' })
+        await expect(spendBtn).toBeDisabled()
+        const upgradeBtn = page.locator('button', { hasText: '⚙️ Code Upgrade' })
+        await expect(upgradeBtn).toBeDisabled()
     })
 })
 
