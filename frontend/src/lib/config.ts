@@ -85,6 +85,33 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
 
+// ── GnoSwap DEX Integration ──────────────────────────────────
+
+/** GnoSwap realm paths per chain. */
+export interface GnoSwapPaths {
+    pool: string
+    router: string
+    position: string
+}
+
+/** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
+export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
+    test11: {
+        pool: "gno.land/r/gnoswap/v1/pool",
+        router: "gno.land/r/gnoswap/v1/router",
+        position: "gno.land/r/gnoswap/v1/position",
+    },
+    staging: { pool: "", router: "", position: "" },
+    "portal-loop": { pool: "", router: "", position: "" },
+}
+
+/** Get GnoSwap paths for the active chain. Returns null if not deployed. */
+export function getGnoSwapPaths(): GnoSwapPaths | null {
+    const paths = GNOSWAP_PATHS[_activeNetwork]
+    if (!paths || !paths.router) return null
+    return paths
+}
+
 // ── RPC Domain Security ──────────────────────────────────────
 
 /**

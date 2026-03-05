@@ -29,6 +29,15 @@ export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
         version: "1.0.0",
         component: () => import("./board/index").then(m => ({ default: m.default })),
     },
+    {
+        id: "gnoswap",
+        name: "GnoSwap",
+        icon: "🔄",
+        route: "swap",
+        description: "DEX integration — swap tokens, add liquidity, manage pools",
+        version: "1.0.0",
+        component: () => import("./gnoswap/index").then(m => ({ default: m.default })),
+    },
 ])
 
 // ── Lookup Helpers ──────────────────────────────────────────────
