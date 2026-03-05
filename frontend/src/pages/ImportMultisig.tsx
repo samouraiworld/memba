@@ -280,7 +280,7 @@ export function ImportMultisig() {
                             type="text"
                             value={walletName}
                             onChange={(e) => setWalletName(e.target.value)}
-                            placeholder="e.g. samourai-crew"
+                            placeholder="e.g. our-super-cool-dao"
                             maxLength={256}
                             disabled={loading}
                             style={{

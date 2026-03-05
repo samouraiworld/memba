@@ -30,6 +30,7 @@ import {
     ActionRequiredStrip,
     QuickVoteWidget,
     DashboardFeatureCards,
+    DashboardDAOList,
 } from "../components/dashboard"
 
 export function Dashboard() {
@@ -214,6 +215,51 @@ export function Dashboard() {
                         onVote={handleQuickVote}
                     />
 
+                    {/* My DAOs */}
+                    <DashboardDAOList savedDAOs={getSavedDAOs()} userAddress={userAddress} />
+
+                    {/* My Multisigs (always visible) */}
+                    <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                            <span style={{ fontSize: 14 }}>🔐</span>
+                            <h3 style={{ fontSize: 16, fontWeight: 500 }}>My Multisigs</h3>
+                            <span className="k-label" style={{ marginLeft: "auto" }}>{joinedMultisigs.length} active</span>
+                        </div>
+                        {joinedMultisigs.length === 0 ? (
+                            <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
+                                <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
+                                    No multisig wallets yet
+                                </p>
+                                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                                    <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={() => navigate("/create")}>
+                                        Create Multisig →
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                                {joinedMultisigs.map(ms => (
+                                    <div
+                                        key={ms.address}
+                                        className="k-card"
+                                        onClick={() => navigate(`/multisig/${ms.address}`)}
+                                        style={{ cursor: "pointer", transition: "border-color 0.15s" }}
+                                        onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
+                                        onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
+                                    >
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                            <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
+                                            <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", background: "rgba(0,212,170,0.08)", padding: "2px 6px", borderRadius: 4 }}>
+                                                {ms.threshold}/{ms.membersCount}
+                                            </span>
+                                        </div>
+                                        <CopyableAddress address={ms.address} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Feature Cards Grid */}
                     <DashboardFeatureCards
                         joinedMultisigCount={joinedMultisigs.length}
@@ -254,37 +300,6 @@ export function Dashboard() {
                                 >
                                     {joiningAddr === ms.address ? "Joining..." : "✓ Join Multisig"}
                                 </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* ── Your Multisigs ────────────────────────────────────── */}
-            {auth.isAuthenticated && joinedMultisigs.length > 0 && (
-                <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Your Multisigs</h3>
-                        <span className="k-label" style={{ marginLeft: "auto" }}>{joinedMultisigs.length} active</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                        {joinedMultisigs.map(ms => (
-                            <div
-                                key={ms.address}
-                                className="k-card"
-                                onClick={() => navigate(`/multisig/${ms.address}`)}
-                                style={{ cursor: "pointer", transition: "border-color 0.15s" }}
-                                onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
-                                onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                                    <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
-                                    <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", background: "rgba(0,212,170,0.08)", padding: "2px 6px", borderRadius: 4 }}>
-                                        {ms.threshold}/{ms.membersCount}
-                                    </span>
-                                </div>
-                                <CopyableAddress address={ms.address} />
                             </div>
                         ))}
                     </div>

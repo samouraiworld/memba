@@ -184,7 +184,7 @@ export function CreateMultisig() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. samourai-crew"
+                    placeholder="e.g. our-super-cool-dao"
                     maxLength={256}
                     style={{
                         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,

@@ -5,6 +5,7 @@ import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { CopyableAddress } from "../ui/CopyableAddress"
+import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { APP_VERSION, NETWORKS, validateActiveRpcDomain } from "../../lib/config"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 
@@ -360,7 +361,11 @@ export function Layout() {
 
             {/* ── Main ────────────────────────────────────────────────── */}
             <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
-                <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError } }} />
+                {isLoggingIn ? (
+                    <ConnectingLoader />
+                ) : (
+                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError } }} />
+                )}
             </main>
 
             {/* ── Footer ──────────────────────────────────────────────── */}
