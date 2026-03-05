@@ -7,14 +7,21 @@ export default defineConfig({
     retries: process.env.CI ? 1 : 0,
     workers: process.env.CI ? 1 : undefined,
     reporter: process.env.CI ? 'list' : 'html',
+    timeout: 30_000,
     use: {
         baseURL: 'http://localhost:5173',
         trace: 'on-first-retry',
+        screenshot: 'only-on-failure',
+        video: 'on-first-retry',
     },
     projects: [
         {
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
+        },
+        {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'] },
         },
     ],
     webServer: {
@@ -24,3 +31,4 @@ export default defineConfig({
         timeout: 30_000,
     },
 })
+

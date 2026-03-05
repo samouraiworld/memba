@@ -29,6 +29,24 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v1.7.0 — Governance UX & Testing ✅ SHIPPED (2026-03-05)
+
+> Dual VoteBar redesign, Adena reconnect optimization, E2E test expansion, CI hardening.
+
+| Category | Change | Tests |
+|----------|--------|-------|
+| 🐛 VoteBar Bug | Dual-bar: 3-color split (YES/NO/ABSTAIN) + quorum progress | — |
+| 📊 Quorum | Participation % bar with 50% threshold marker | — |
+| ⚡ Adena | Polling 10s→5s, GetNetwork() cached, "Syncing..." label | — |
+| 🧪 E2E | 4 new spec files: navigation, profile, token, dao | +33 |
+| 🔧 CI | Concurrency groups, Node 22 matrix, timeouts, failure artifacts | — |
+| 🔧 Playwright | Firefox, screenshot-on-failure, video-on-retry | — |
+| 🧹 Repo | 3 local + 7 remote stale branches pruned | — |
+
+**Total: 284 tests (230 unit + 54 E2E). Zero lint/TS/build errors.**
+
+---
+
 ## v1.6.0 — UX Testing Fixes ✅ SHIPPED (2026-03-04)
 
 > Based on Dadidou's UX testing report — 16 findings addressed across 5 batches.
@@ -918,6 +936,17 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 - **Settings menu**: Centralized user preferences panel
 - **Notification channels**: Email alerts, Telegram bot, browser push — configurable per DAO/event type
 - **Dev fee (deferred)**: 2 GNOT dev fee to samourai-crew — blocked by test11 `RestrictedTransferError`, re-add when restrictions lifted
+
+### Proposal Type Extensibility (v2.x+)
+
+> gnodaokit provides the full on-chain Action infrastructure. Memba needs UI forms + MsgCall builders per type.
+
+| Proposal Type | On-Chain API | Memba Frontend | Target |
+|--------------|-------------|----------------|--------|
+| 👥 **Add Member** | ✅ `basedao.AddMember(address, roles[])` | UI form + address validation + MsgCall | v2.0 |
+| 👥 **Remove Member** | ✅ `basedao.RemoveMember(address)` | Confirmation dialog + MsgCall | v2.0 |
+| 💰 **Treasury Spend** | ⚠️ Needs `ExecuteLambda` Action with `bank.MsgSend` | Amount/recipient form + MsgSend builder | v2.1 |
+| ⚙️ **Code Upgrade** | ⚠️ Needs `MsgAddPackage` Action | In-app code editor + realm path + deployment | v3.0+ |
 
 ---
 

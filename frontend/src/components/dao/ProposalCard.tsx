@@ -1,16 +1,72 @@
 /**
- * ProposalCard — DAO proposal summary card with vote progress bar.
+ * ProposalCard — DAO proposal summary card with dual vote bar.
  *
- * Contains co-located VoteBar component.
- * Extracted in v1.5.0 from DAOHome.tsx.
+ * Contains co-located DualVoteBar component:
+ *   - Top bar: 3-color vote split (YES green / NO red / ABSTAIN grey)
+ *   - Bottom bar: quorum progress with threshold marker
+ *
+ * Extracted in v1.5.0 from DAOHome.tsx. Redesigned in v1.7.0.
  */
 import type { DAOProposal } from "../../lib/dao/shared"
 
-function VoteBar({ yesPercent, noPercent }: { yesPercent: number; noPercent: number }) {
+/**
+ * DualVoteBar — replaces old VoteBar which only showed YES/(YES+NO).
+ *
+ * Top: vote split across YES/NO/ABSTAIN (all 3 types visible)
+ * Bottom: participation % with optional quorum threshold marker
+ */
+function DualVoteBar({ yesVotes, noVotes, abstainVotes, totalMembers }: {
+    yesVotes: number; noVotes: number; abstainVotes: number; totalMembers: number
+}) {
+    const totalVoted = yesVotes + noVotes + abstainVotes
+    if (totalVoted === 0) return null
+
+    // Vote split percentages (of those who voted)
+    const yesPct = (yesVotes / totalVoted) * 100
+    const noPct = (noVotes / totalVoted) * 100
+    const abstainPct = (abstainVotes / totalVoted) * 100
+
+    // Quorum: participation % of total members
+    const quorumPct = totalMembers > 0 ? Math.min((totalVoted / totalMembers) * 100, 100) : 0
+
     return (
-        <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", display: "flex" }}>
-            <div style={{ width: `${yesPercent}%`, background: "#4caf50", transition: "width 0.3s" }} />
-            <div style={{ width: `${noPercent}%`, background: "#f44336", transition: "width 0.3s" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* Vote Split Bar */}
+            <div>
+                <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 3 }}>
+                    <span style={{ color: "#4caf50" }}>✓ {yesVotes}</span>
+                    <span style={{ color: "#f44336" }}>✗ {noVotes}</span>
+                    {abstainVotes > 0 && <span style={{ color: "#666" }}>○ {abstainVotes}</span>}
+                </div>
+                <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", display: "flex" }}>
+                    <div style={{ width: `${yesPct}%`, background: "#4caf50", transition: "width 0.3s" }} />
+                    <div style={{ width: `${noPct}%`, background: "#f44336", transition: "width 0.3s" }} />
+                    {abstainPct > 0 && (
+                        <div style={{ width: `${abstainPct}%`, background: "#555", transition: "width 0.3s" }} />
+                    )}
+                </div>
+            </div>
+
+            {/* Quorum Progress Bar (only if totalMembers known) */}
+            {totalMembers > 0 && (
+                <div style={{ position: "relative" }}>
+                    <div style={{ height: 3, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{
+                            width: `${quorumPct}%`,
+                            background: quorumPct >= 50 ? "rgba(0,212,170,0.5)" : "rgba(245,166,35,0.4)",
+                            transition: "width 0.3s",
+                            height: "100%",
+                        }} />
+                    </div>
+                    {/* 50% quorum threshold marker */}
+                    <div style={{
+                        position: "absolute", top: -1, left: "50%",
+                        width: 1, height: 5,
+                        background: "rgba(255,255,255,0.15)",
+                        borderRadius: 1,
+                    }} />
+                </div>
+            )}
         </div>
     )
 }
@@ -99,26 +155,14 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                 </div>
             </div>
 
-            {/* Vote percentage bar */}
-            {(proposal.yesPercent > 0 || proposal.noPercent > 0 || proposal.yesVotes > 0) && (
+            {/* Dual Vote Bar: vote split + quorum progress */}
+            {(proposal.yesVotes > 0 || proposal.noVotes > 0 || proposal.abstainVotes > 0 || proposal.yesPercent > 0) && (
                 <div style={{ marginTop: 10 }}>
-                    <div style={{ display: "flex", gap: 12, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 4 }}>
-                        {proposal.yesPercent > 0 ? (
-                            <>
-                                <span style={{ color: "#4caf50" }}>✓ {proposal.yesPercent}%</span>
-                                <span style={{ color: "#f44336" }}>✗ {proposal.noPercent}%</span>
-                            </>
-                        ) : (
-                            <>
-                                <span>✓ {proposal.yesVotes}</span>
-                                <span>✗ {proposal.noVotes}</span>
-                                {proposal.abstainVotes > 0 && <span>○ {proposal.abstainVotes}</span>}
-                            </>
-                        )}
-                    </div>
-                    <VoteBar
-                        yesPercent={proposal.yesPercent || (proposal.yesVotes + proposal.noVotes > 0 ? (proposal.yesVotes / (proposal.yesVotes + proposal.noVotes)) * 100 : 0)}
-                        noPercent={proposal.noPercent || (proposal.yesVotes + proposal.noVotes > 0 ? (proposal.noVotes / (proposal.yesVotes + proposal.noVotes)) * 100 : 0)}
+                    <DualVoteBar
+                        yesVotes={proposal.yesVotes || (proposal.yesPercent > 0 ? Math.round(proposal.yesPercent) : 0)}
+                        noVotes={proposal.noVotes || (proposal.noPercent > 0 ? Math.round(proposal.noPercent) : 0)}
+                        abstainVotes={proposal.abstainVotes}
+                        totalMembers={totalMembers}
                     />
                 </div>
             )}
@@ -132,3 +176,4 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
         </div>
     )
 }
+
