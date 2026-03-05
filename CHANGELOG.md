@@ -2,6 +2,38 @@
 
 All notable changes to Memba are documented here.
 
+## [1.7.0] — 2026-03-05 — Governance UX & Testing 🗳️🧪
+
+### Added
+- **Dual VoteBar** on proposal cards — 3-color vote split (YES/NO/ABSTAIN) + quorum progress bar with 50% threshold marker
+- **Quorum visualization** — participation % bar below vote split, amber <50% / teal ≥50%
+- **ABSTAIN vote visibility** — grey segment in vote split bar (previously invisible)
+- **Voter turnout** text on proposal cards ("8 of 17 members voted (47%)")
+- **33 new E2E tests** across 4 new spec files: `navigation`, `profile`, `token`, `dao` (54 total)
+- **Firefox** project in Playwright config for cross-browser testing
+- **Screenshot-on-failure** + **video-on-retry** in Playwright config
+- **CI concurrency groups** to cancel in-progress runs on same PR
+- **Node 22** added to CI matrix (Node 20 EOL April 2026)
+- **CI timeout-minutes** on all jobs to prevent stuck workflows
+- **E2E failure artifact upload** — screenshots + traces on failure
+
+### Changed
+- **Adena reconnect polling** reduced from 10s (50×200ms) to 5s (25×200ms) — extension injects in 1–3s
+- **GetNetwork() cached** in `sessionStorage` for faster reconnect on page navigation
+- **Reconnect label** — "Syncing..." (teal) during auto-reconnect vs "Authenticating..." (amber) during fresh login
+
+### Fixed
+- **VoteBar bug** — old bar calculated `YES/(YES+NO)`, completely ignoring ABSTAIN votes. Now shows all 3 vote types
+- **100% false positive** — proposals with ABSTAIN-only votes no longer show "100% YES"
+
+### Infrastructure
+- Repository cleaned: 3 stale local + 7 stale remote tracking refs pruned (all squash-merged via PRs)
+- Tailwind v4 confirmed as active (base reset + `@theme` tokens + animation utilities)
+
+### Tests
+- 284 total tests (230 unit + 54 E2E), up from 251 (230 + 21)
+- Build, lint, TypeScript, and backend tests verified
+
 ## [1.6.0] — 2026-03-04 — UX Testing Fixes 🧪
 
 ### Added
