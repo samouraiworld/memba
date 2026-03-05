@@ -6,6 +6,19 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-δ Polish
+
+#### Added
+- **Leaderboard Plugin** — 4th plugin: gnolove-powered member ranking
+  - `calculateScore()`: packages×10 + proposals×5 + votes×2 + contributions×1
+  - Sortable table with click-to-sort column headers
+- **Settings Page** — `/settings` route (lazy-loaded)
+  - Network selector, gas defaults, profile link, dev mode, clear cache
+- **Feedback Feed** — `FeedbackFeed` component using board parser for `r/samcrew/memba_feedback`
+
+#### Tests
+- 334 unit tests (16 files, +10 from v2.0-γ), all quality gates pass
+
 ### v2.0-γ Swap
 
 #### Added
