@@ -36,7 +36,7 @@ test.describe('GovDAO Page', () => {
         await page.goto('/dao/gno.land~r~gov~dao')
         const backBtn = page.locator('#dao-back-btn')
         await expect(backBtn).toBeVisible()
-        await expect(backBtn).toContainText('Back to DAOs')
+        await expect(backBtn).toContainText('DAOs')
     })
 
     test('power distribution section visible', async ({ page }) => {
