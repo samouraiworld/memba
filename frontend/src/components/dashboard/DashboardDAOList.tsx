@@ -91,15 +91,13 @@ export function DashboardDAOList({ savedDAOs, userAddress }: Props) {
 
                                 {/* Badges row */}
                                 <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-                                    {userAddress && (
-                                        <span style={{
-                                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
-                                            padding: "2px 6px", borderRadius: 3,
-                                        }}>
-                                            MEMBER
-                                        </span>
-                                    )}
+                                    <span style={{
+                                        fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                                        color: "#888", background: "rgba(255,255,255,0.04)",
+                                        padding: "2px 6px", borderRadius: 3,
+                                    }}>
+                                        SAVED
+                                    </span>
                                     <span style={{
                                         fontSize: 9, fontFamily: "JetBrains Mono, monospace",
                                         color: "#7b61ff", background: "rgba(123,97,255,0.08)",

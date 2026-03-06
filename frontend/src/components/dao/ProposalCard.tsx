@@ -35,7 +35,7 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {/* Vote counts */}
-            <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+            <div style={{ display: "flex", gap: 10, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
                 <span style={{ color: "#4caf50" }}>✓ {yesVotes}</span>
                 <span style={{ color: "#f44336" }}>✗ {noVotes}</span>
             </div>
@@ -46,7 +46,7 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-label={`${Math.round(participationPct)}% voted — ${yesVotes} yes, ${noVotes} no`}
-                style={{ height: 6, background: "rgba(255,255,255,0.04)", borderRadius: 3, overflow: "hidden", position: "relative" }}
+                style={{ height: 14, background: "rgba(255,255,255,0.04)", borderRadius: 7, overflow: "hidden", position: "relative" }}
             >
                 {/* Filled portion = participation %, split into YES (green) + NO (red) */}
                 <div style={{ width: `${participationPct}%`, height: "100%", display: "flex", transition: "width 0.4s ease" }}>

@@ -169,10 +169,7 @@ export function Dashboard() {
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-            {/* Back nav */}
-            <button onClick={() => navigate("/")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}>
-                ← Home
-            </button>
+
 
             {/* ── User Identity Card ────────────────────────── */}
             {auth.isAuthenticated && (

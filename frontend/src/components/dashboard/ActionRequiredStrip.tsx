@@ -45,9 +45,9 @@ export function ActionRequiredStrip({ unvotedCount, unsignedCount, unvotedLoadin
                 </>
             ) : (
                 <>
-                    <span style={{ fontSize: 14 }}>✓</span>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
-                        You're all caught up
+                    <span style={{ fontSize: 14 }}>📋</span>
+                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+                        No pending actions
                     </span>
                 </>
             )}

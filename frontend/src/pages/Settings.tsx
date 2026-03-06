@@ -168,6 +168,23 @@ export function Settings() {
                 </div>
             </Section>
 
+            {/* Directory — moved from main nav */}
+            <Section title="Directory" icon="📂">
+                <div style={{ paddingTop: 8 }}>
+                    <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", margin: "0 0 10px", lineHeight: 1.5 }}>
+                        Browse on-chain packages, realms, and user profiles deployed on gno.land.
+                    </p>
+                    <button
+                        id="settings-directory-btn"
+                        className="k-btn-primary"
+                        style={{ fontSize: 11, padding: "8px 16px" }}
+                        onClick={() => navigate("/directory")}
+                    >
+                        📂 Open Directory →
+                    </button>
+                </div>
+            </Section>
+
             {/* Gas Defaults */}
             <Section title="Gas Defaults" icon="⛽">
                 <div style={{ paddingTop: 8 }}>

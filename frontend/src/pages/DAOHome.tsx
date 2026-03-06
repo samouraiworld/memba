@@ -302,15 +302,15 @@ export function DAOHome() {
             {auth.isAuthenticated && (
                 <div style={{
                     padding: "14px 18px", borderRadius: 10,
-                    background: currentMember ? "rgba(0,212,170,0.05)" : "rgba(245,166,35,0.05)",
-                    border: `1px solid ${currentMember ? "rgba(0,212,170,0.12)" : "rgba(245,166,35,0.12)"}`,
+                    background: currentMember ? "rgba(0,212,170,0.05)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${currentMember ? "rgba(0,212,170,0.12)" : "rgba(255,255,255,0.06)"}`,
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>{currentMember ? "✓" : "⚠"}</span>
+                        <span style={{ fontSize: 16 }}>{currentMember ? "✓" : "ℹ️"}</span>
                         <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: currentMember ? "#00d4aa" : "#f5a623" }}>
-                                {currentMember ? "You are a DAO member" : "You are not a member"}
+                            <div style={{ fontSize: 12, fontWeight: 600, color: currentMember ? "#00d4aa" : "#666" }}>
+                                {currentMember ? "You are a DAO member" : "Viewing as guest — vote actions require membership"}
                             </div>
                             {currentMember?.tier && (
                                 <div style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", marginTop: 2 }}>
@@ -574,17 +574,6 @@ export function DAOHome() {
                                     </div>
                                     <span style={{ color: "#444", fontSize: 12 }}>→</span>
                                 </button>
-                                {/* Deploy button for Board plugin — allows deploying to existing DAOs */}
-                                {plugin.id === "board" && auth.isAuthenticated && (
-                                    <button
-                                        id={`deploy-plugin-${plugin.id}`}
-                                        className="k-btn-secondary"
-                                        style={{ fontSize: 10, padding: "4px 12px", height: 28, alignSelf: "flex-start" }}
-                                        onClick={() => setShowDeployModal(true)}
-                                    >
-                                        ⚡ Deploy Board
-                                    </button>
-                                )}
                             </div>
                         ))}
                     </div>

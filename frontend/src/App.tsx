@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useAdena } from "./hooks/useAdena"
 import { Layout } from "./components/layout/Layout"
 import { Dashboard } from "./pages/Dashboard"
 
@@ -58,6 +59,15 @@ function PageLoader() {
   )
 }
 
+/** Redirects /profile → /profile/{address} when connected, or / when not. */
+function ProfileRedirect() {
+  const adena = useAdena()
+  if (adena.connected && adena.address) {
+    return <Navigate to={`/profile/${adena.address}`} replace />
+  }
+  return <Navigate to="/" replace />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -94,7 +104,7 @@ function App() {
           <Route path="/dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
 
           {/* Profile routes (lazy) */}
-          <Route path="/profile" element={<Navigate to="/" replace />} />
+          <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
 
           {/* Settings */}

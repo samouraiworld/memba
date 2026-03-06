@@ -10,7 +10,13 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
         ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
         : member.address
     return (
-        <div className="k-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div
+            className="k-card"
+            style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer", transition: "border-color 0.15s" }}
+            onClick={() => onProfileClick(member.address)}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
+        >
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <button
                     onClick={() => onProfileClick(member.address)}

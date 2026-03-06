@@ -246,7 +246,7 @@ export function ProposalView() {
                     id="proposal-back-btn"
                     style={{ color: "#00d4aa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
                 >
-                    {realmPath.split("/").pop() || "DAO"}
+                    {(() => { const name = realmPath.split("/").pop() || "DAO"; return name.charAt(0).toUpperCase() + name.slice(1) })()}
                 </button>
                 <span style={{ color: "#333" }}>›</span>
                 <span style={{ color: "#f0f0f0" }}>Proposal #{proposal?.id ?? proposalId}</span>
@@ -397,7 +397,7 @@ export function ProposalView() {
                                 aria-valuemin={0}
                                 aria-valuemax={100}
                                 aria-label={`${Math.round(participationPct)}% voted — ${yesVotes} yes, ${noVotes} no`}
-                                style={{ height: 8, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden", position: "relative" }}
+                                style={{ height: 14, background: "rgba(255,255,255,0.04)", borderRadius: 7, overflow: "hidden", position: "relative" }}
                             >
                                 <div style={{ width: `${participationPct}%`, height: "100%", display: "flex", transition: "width 0.4s ease" }}>
                                     <div style={{ width: `${yesFraction}%`, height: "100%", background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.3s" }} />

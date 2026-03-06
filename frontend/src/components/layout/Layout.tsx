@@ -156,7 +156,7 @@ export function Layout() {
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                        }}>v{APP_VERSION}</span>
+                        }}>v2</span>
                     </Link>
 
                     {/* Nav links */}
@@ -173,9 +173,7 @@ export function Layout() {
                             🏛️ <span className="k-nav-label">DAO</span>
                             {unvotedCount > 0 && <span className="k-notif-dot" />}
                         </Link>
-                        <Link to="/directory" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                            📂 <span className="k-nav-label">Directory</span>
-                        </Link>
+
                         {adena.connected && adena.address && (
                             <Link to={`/profile/${adena.address}`} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                                 👤 <span className="k-nav-label">Profile</span>
@@ -391,8 +389,10 @@ export function Layout() {
                             rel="noopener noreferrer"
                             title={label}
                             style={{
-                                color: "#444", fontSize: 13, textDecoration: "none",
+                                color: "#444", fontSize: 18, textDecoration: "none",
                                 transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
+                                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                minWidth: 44, minHeight: 44,
                             }}
                             onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
                             onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
@@ -402,7 +402,7 @@ export function Layout() {
                     ))}
                 </div>
                 <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                    memba v{APP_VERSION} • built by samourai coop
+                    memba v2 • built by samourai coop
                 </p>
                 <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
                     ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.

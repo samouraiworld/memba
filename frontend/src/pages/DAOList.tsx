@@ -132,8 +132,8 @@ export function DAOList() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {/* Back nav */}
-            <button onClick={() => navigate("/dashboard")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}>
-                ← Back to Dashboard
+            <button onClick={() => navigate(auth.isAuthenticated ? "/dashboard" : "/")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}>
+                {auth.isAuthenticated ? "← Back to Dashboard" : "← Home"}
             </button>
 
             {/* Header */}
