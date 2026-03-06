@@ -17,7 +17,7 @@ import {
 } from "../lib/dao"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
-import { StatCard, TierBar, ProposalCard, MemberCard } from "../components/dao"
+import { ProposalCard, MemberCard } from "../components/dao"
 import { PowerDonut } from "../components/dao/TierPieChart"
 import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"

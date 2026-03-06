@@ -19,7 +19,7 @@ import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
-import { VoteStat, TierVoteBlock } from "../components/proposal"
+import { TierVoteBlock } from "../components/proposal"
 import { VotingInsights } from "../components/dao/TierPieChart"
 import type { LayoutContext } from "../types/layout"
 
@@ -230,8 +230,6 @@ export function ProposalView() {
     const sc = statusColors[proposal.status] || statusColors.open
     const isLive = proposal.status === "open"
 
-    const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
-    const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>

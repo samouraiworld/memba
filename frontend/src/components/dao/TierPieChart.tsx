@@ -56,18 +56,24 @@ function DonutChart({ segments, size, centerLabel, centerSub }: {
     const cy = size / 2
     const circumference = 2 * Math.PI * radius
 
-    let accumulatedPct = 0
+    // Pre-compute prefix sums for rotation offsets (avoids mutation during render)
+    const visibleSegments = segments.filter(s => s.value > 0)
+    const prefixPcts = visibleSegments.reduce<number[]>((acc, seg, i) => {
+        const prev = i > 0 ? acc[i - 1] : 0
+        acc.push(prev + seg.value / total)
+        return acc
+    }, [])
 
     return (
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0, overflow: "visible" }}>
             {/* Background ring */}
             <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={strokeWidth} />
-            {segments.filter(s => s.value > 0).map((seg) => {
+            {visibleSegments.map((seg, i) => {
                 const pct = seg.value / total
                 const dashLen = pct * circumference
                 const gapLen = circumference - dashLen
-                const rotation = -90 + accumulatedPct * 360
-                accumulatedPct += pct
+                const offset = i > 0 ? prefixPcts[i - 1] : 0
+                const rotation = -90 + offset * 360
                 return (
                     <circle
                         key={seg.key}
