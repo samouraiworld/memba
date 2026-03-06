@@ -230,7 +230,7 @@ export function DAOHome() {
             {/* ─── DAO Overview Card (single card: identity + stats) ─── */}
             <div className="k-card" style={{ padding: "16px 20px" }}>
                 {/* Breadcrumb */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                     <button
                         id="dao-back-btn"
                         aria-label="Back to DAO list"
@@ -249,10 +249,8 @@ export function DAOHome() {
 
                 {/* Title + membership pill */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>
-                            🏛️ {config?.name || "DAO Governance"}
-                        </h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        🏛️ {config?.name || "DAO Governance"}
                         {config?.isArchived && (
                             <span style={{
                                 padding: "2px 8px", borderRadius: 4, fontSize: 9,
@@ -262,7 +260,7 @@ export function DAOHome() {
                                 📦 ARCHIVED
                             </span>
                         )}
-                    </div>
+                    </h2>
                     {auth.isAuthenticated && currentMember && (
                         <div style={{
                             display: "flex", alignItems: "center", gap: 6,
@@ -278,38 +276,36 @@ export function DAOHome() {
                         </div>
                     )}
                     {auth.isAuthenticated && !currentMember && (
-                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555", padding: "4px 8px" }}>
-                            Guest
-                        </span>
+                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555", padding: "4px 8px" }}>Guest</span>
                     )}
                 </div>
 
-                {/* Realm path · source · address */}
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-                    <span style={{ color: "#444", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                        {realmPath}
-                    </span>
-                    <span style={{ color: "#333", fontSize: 10 }}>·</span>
-                    <a
-                        href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="View source on gno.land"
-                        style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", textDecoration: "none", transition: "color 0.15s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        Source
-                    </a>
-                    <span style={{ color: "#333", fontSize: 10 }}>·</span>
+                {/* Realm path · </> (left)    address (right) */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5, flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ color: "#444", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                            {realmPath}
+                        </span>
+                        <a
+                            href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View source on gno.land"
+                            style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#444", textDecoration: "none", transition: "color 0.15s", padding: "0 3px" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            &lt;/&gt;
+                        </a>
+                    </div>
                     <RealmAddressBadge realmPath={realmPath} />
                 </div>
 
                 {/* Description */}
-                {config?.description && (
-                    <p style={{ color: "#666", fontSize: 11, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600, lineHeight: 1.5, margin: "6px 0 0" }}>
-                        {config.description}
+                {(config?.description || realmPath === "gno.land/r/gov/dao") && (
+                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6, margin: "8px 0 0", maxWidth: 640 }}>
+                        {config?.description || "Top-level governance DAO for the Gno chain. Chain-wide proposals and membership are managed here."}
                     </p>
                 )}
 
@@ -347,8 +343,8 @@ export function DAOHome() {
                     </div>
                 )}
 
-                {/* ── Subtle divider ── */}
-                <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0" }} />
+                {/* ── Divider ── */}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0 10px" }} />
 
                 {/* Stats row: donut + pills */}
                 <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
@@ -359,25 +355,25 @@ export function DAOHome() {
                             size={80}
                         />
                     )}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flex: 1 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flex: 1, justifyContent: "flex-end" }}>
                         {[
-                            { icon: "👥", value: String(config?.memberCount || members.length), label: "MBR" },
-                            { icon: "📋", value: String(activeProposals.length), label: "ACTIVE", accent: true },
-                            { icon: "📜", value: String(proposals.length), label: "PROP" },
-                            { icon: "🗳️", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "TURN" },
-                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "PWR" }] : []),
+                            { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
+                            { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
+                            { icon: "📜", value: String(proposals.length), label: "Proposals" },
+                            { icon: "🗳️", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
+                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
                         ].map(s => (
                             <div key={s.label} style={{
-                                display: "flex", alignItems: "center", gap: 5,
-                                padding: "4px 8px", borderRadius: 6,
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "5px 10px", borderRadius: 6,
                                 background: (s as { accent?: boolean }).accent ? "rgba(0,212,170,0.06)" : "rgba(255,255,255,0.02)",
                             }}>
-                                <span style={{ fontSize: 11 }}>{s.icon}</span>
+                                <span style={{ fontSize: 13 }}>{s.icon}</span>
                                 <div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
                                         {s.value}
                                     </div>
-                                    <div style={{ fontSize: 7, color: "#555", fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.05em" }}>
+                                    <div style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}>
                                         {s.label}
                                     </div>
                                 </div>
