@@ -49,16 +49,17 @@ function DonutChart({ segments, size, centerLabel, centerSub }: {
     const total = segments.reduce((s, sg) => s + sg.value, 0)
     if (total === 0) return null
 
-    const radius = size / 2 - 4
+    const strokeWidth = size * 0.18
+    const pad = strokeWidth / 2 + 6   // half-stroke + glow clearance
+    const radius = size / 2 - pad
     const cx = size / 2
     const cy = size / 2
-    const strokeWidth = size * 0.18
     const circumference = 2 * Math.PI * radius
 
     let accumulatedPct = 0
 
     return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0, overflow: "visible" }}>
             {/* Background ring */}
             <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={strokeWidth} />
             {segments.filter(s => s.value > 0).map((seg) => {

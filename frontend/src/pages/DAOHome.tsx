@@ -353,32 +353,55 @@ export function DAOHome() {
                     </a>
                 </div>
             )}
-            {/* Stats Grid */}
-            <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-                <StatCard label="Members" value={String(config?.memberCount || members.length)} icon="👥" />
-                <StatCard label="Active" value={String(activeProposals.length)} icon="📋" accent />
-                <StatCard label="Total Proposals" value={String(proposals.length)} icon="📜" />
-                <StatCard label="Avg Turnout" value={avgTurnout > 0 ? `${avgTurnout}%` : "—"} icon="🗳️" />
-                {totalPower > 0 && (
-                    <StatCard label="Voting Power" value={String(totalPower)} icon="⚡" />
-                )}
-            </div>
-
-            {/* Power Distribution — Premium Donut */}
-            {config?.tierDistribution && config.tierDistribution.length > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                        Power Distribution
-                    </h3>
-                    <PowerDonut
-                        tiers={config.tierDistribution}
-                        totalPower={totalPower}
-                    />
-                    <div style={{ marginTop: 14, fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
-                        {config.tierDistribution.reduce((sum, t) => sum + t.memberCount, 0)} total members across {config.tierDistribution.length} tiers
+            {/* DAO Overview — merged stats + power distribution */}
+            <div className="k-card" style={{ padding: 20 }}>
+                <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    {/* Left: PowerDonut (80px) — only when tiers exist */}
+                    {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
+                        <PowerDonut
+                            tiers={config.tierDistribution}
+                            totalPower={totalPower}
+                            size={80}
+                        />
+                    )}
+                    {/* Right: Stat pills + summary */}
+                    <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 10 }}>
+                        {/* Stat pills row */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                            {[
+                                { icon: "👥", label: "Members", value: String(config?.memberCount || members.length) },
+                                { icon: "📋", label: "Active", value: String(activeProposals.length), accent: true },
+                                { icon: "📜", label: "Proposals", value: String(proposals.length) },
+                                { icon: "🗳️", label: "Turnout", value: avgTurnout > 0 ? `${avgTurnout}%` : "—" },
+                                ...(totalPower > 0 ? [{ icon: "⚡", label: "Power", value: String(totalPower) }] : []),
+                            ].map(s => (
+                                <div key={s.label} style={{
+                                    display: "flex", alignItems: "center", gap: 6,
+                                    padding: "6px 10px", borderRadius: 8,
+                                    background: (s as { accent?: boolean }).accent ? "rgba(0,212,170,0.06)" : "rgba(255,255,255,0.02)",
+                                    border: `1px solid ${(s as { accent?: boolean }).accent ? "rgba(0,212,170,0.12)" : "rgba(255,255,255,0.04)"}`,
+                                }}>
+                                    <span style={{ fontSize: 13 }}>{s.icon}</span>
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
+                                            {s.value}
+                                        </div>
+                                        <div style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}>
+                                            {s.label}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Members across tiers summary */}
+                        {config?.tierDistribution && config.tierDistribution.length > 0 && (
+                            <div style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                                {config.tierDistribution.reduce((sum, t) => sum + t.memberCount, 0)} members across {config.tierDistribution.length} tiers
+                            </div>
+                        )}
                     </div>
                 </div>
-            )}
+            </div>
 
             {/* Active Proposals */}
             <div>
@@ -543,20 +566,21 @@ export function DAOHome() {
                     </h3>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
                         {getPlugins().map(plugin => (
-                            <div key={plugin.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div key={plugin.id} style={{ display: "flex", flexDirection: "column" }}>
                                 <button
                                     id={`plugin-card-${plugin.id}`}
                                     onClick={() => navigate(`/dao/${encodedSlug}/plugin/${plugin.id}`)}
                                     className="k-card"
                                     style={{
-                                        padding: "16px 20px", display: "flex", alignItems: "center", gap: 14,
+                                        padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14,
                                         cursor: "pointer", border: "1px solid #1a1a1a", textAlign: "left",
-                                        width: "100%", transition: "border-color 0.15s, background 0.15s",
+                                        width: "100%", height: "100%", minHeight: 80,
+                                        transition: "border-color 0.15s, background 0.15s",
                                     }}
                                     onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"; e.currentTarget.style.background = "rgba(0,212,170,0.02)" }}
                                     onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.background = "" }}
                                 >
-                                    <span style={{ fontSize: 22 }}>{plugin.icon}</span>
+                                    <span style={{ fontSize: 22, marginTop: 2 }}>{plugin.icon}</span>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                             <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{plugin.name}</span>
@@ -568,11 +592,14 @@ export function DAOHome() {
                                                 v{plugin.version}
                                             </span>
                                         </div>
-                                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3 }}>
+                                        <div style={{
+                                            fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3,
+                                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+                                        }}>
                                             {plugin.description}
                                         </div>
                                     </div>
-                                    <span style={{ color: "#444", fontSize: 12 }}>→</span>
+                                    <span style={{ color: "#444", fontSize: 12, marginTop: 2 }}>→</span>
                                 </button>
                             </div>
                         ))}

@@ -1,12 +1,25 @@
 /**
  * DashboardDAOList — Shows user's DAO memberships on the dashboard.
  *
- * Each card includes a collapsible accordion showing proposal actions.
- * v2.0: Added quick-expand accordion for proposal visibility (Step 3).
+ * Each card includes:
+ * - DAO name + realm path
+ * - PINNED badge + active proposal count
+ * - Collapsible accordion with quick-navigation buttons
+ *
+ * v2.1: PINNED badge, async activity data, enriched card design.
  */
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { encodeSlug, type SavedDAO } from "../../lib/daoSlug"
+import { getDAOConfig, getDAOProposals } from "../../lib/dao"
+import { GNO_RPC_URL } from "../../lib/config"
+
+interface DAOActivity {
+    activeProposals: number
+    totalProposals: number
+    memberCount: number
+    threshold: string
+}
 
 interface Props {
     savedDAOs: SavedDAO[]
@@ -16,11 +29,35 @@ interface Props {
 export function DashboardDAOList({ savedDAOs }: Props) {
     const navigate = useNavigate()
     const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+    const [activity, setActivity] = useState<Record<string, DAOActivity>>({})
 
     const toggle = useCallback((path: string, e: React.MouseEvent) => {
         e.stopPropagation()
         setExpanded(prev => ({ ...prev, [path]: !prev[path] }))
     }, [])
+
+    // Fetch activity data for all saved DAOs
+    useEffect(() => {
+        if (savedDAOs.length === 0) return
+        savedDAOs.forEach(async (dao) => {
+            try {
+                const [cfg, proposals] = await Promise.all([
+                    getDAOConfig(GNO_RPC_URL, dao.realmPath),
+                    getDAOProposals(GNO_RPC_URL, dao.realmPath),
+                ])
+                const active = proposals.filter(p => p.status === "open").length
+                setActivity(prev => ({
+                    ...prev,
+                    [dao.realmPath]: {
+                        activeProposals: active,
+                        totalProposals: proposals.length,
+                        memberCount: cfg?.memberCount || 0,
+                        threshold: cfg?.threshold || "—",
+                    },
+                }))
+            } catch { /* silently fail — card still works without activity data */ }
+        })
+    }, [savedDAOs])
 
     return (
         <div>
@@ -50,6 +87,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
                     {savedDAOs.map(dao => {
                         const isExpanded = expanded[dao.realmPath] ?? false
+                        const act = activity[dao.realmPath]
                         return (
                             <div
                                 key={dao.realmPath}
@@ -90,22 +128,49 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                 </span>
 
                                 {/* Badges row */}
-                                <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+                                <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
                                     <span style={{
                                         fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                        color: "#888", background: "rgba(255,255,255,0.04)",
-                                        padding: "2px 6px", borderRadius: 3,
+                                        color: "#3b82f6", background: "rgba(59,130,246,0.08)",
+                                        padding: "2px 6px", borderRadius: 3, fontWeight: 600,
                                     }}>
-                                        SAVED
+                                        📌 PINNED
                                     </span>
-                                    <span style={{
-                                        fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                        color: "#7b61ff", background: "rgba(123,97,255,0.08)",
-                                        padding: "2px 6px", borderRadius: 3,
-                                    }}>
-                                        📋 Proposals
-                                    </span>
+                                    {act && act.activeProposals > 0 && (
+                                        <span style={{
+                                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
+                                            padding: "2px 6px", borderRadius: 3, fontWeight: 600,
+                                        }}>
+                                            📋 {act.activeProposals} active
+                                        </span>
+                                    )}
+                                    {act && act.totalProposals > 0 && (
+                                        <span style={{
+                                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                                            color: "#888", background: "rgba(255,255,255,0.04)",
+                                            padding: "2px 6px", borderRadius: 3,
+                                        }}>
+                                            {act.totalProposals} total
+                                        </span>
+                                    )}
+                                    {act && act.memberCount > 0 && (
+                                        <span style={{
+                                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                                            color: "#888", background: "rgba(255,255,255,0.04)",
+                                            padding: "2px 6px", borderRadius: 3,
+                                        }}>
+                                            👥 {act.memberCount}
+                                        </span>
+                                    )}
                                 </div>
+
+                                {/* Activity summary */}
+                                {act && (
+                                    <div style={{ marginTop: 8, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
+                                        Threshold: {act.threshold} • {act.memberCount} members
+                                    </div>
+                                )}
 
                                 {/* Accordion body */}
                                 {isExpanded && (
@@ -120,19 +185,16 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                                 style={{ fontSize: 10, padding: "4px 10px", flex: 1 }}
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/dao/${encodeSlug(dao.realmPath)}`) }}
                                             >
-                                                View Proposals →
+                                                View DAO →
                                             </button>
                                             <button
                                                 className="k-btn-secondary"
                                                 style={{ fontSize: 10, padding: "4px 10px" }}
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/dao/${encodeSlug(dao.realmPath)}/propose`) }}
                                             >
-                                                + New
+                                                + New Proposal
                                             </button>
                                         </div>
-                                        <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
-                                            Click "View Proposals" to see active governance activity.
-                                        </p>
                                     </div>
                                 )}
                             </div>
