@@ -14,7 +14,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { GNO_RPC_URL } from "../lib/config"
-import { encodeSlug, getSavedDAOs, type SavedDAO } from "../lib/daoSlug"
+import { encodeSlug, getSavedDAOs } from "../lib/daoSlug"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 
 type DirectoryTab = "daos" | "tokens" | "users"

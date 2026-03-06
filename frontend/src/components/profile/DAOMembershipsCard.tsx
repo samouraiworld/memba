@@ -17,11 +17,11 @@ interface Props {
     isOwnProfile: boolean
 }
 
-export function DAOMembershipsCard({ address, isOwnProfile }: Props) {
+export function DAOMembershipsCard(props: Props) {
     const navigate = useNavigate()
 
     // Only show saved DAOs for own profile (localStorage is per-user)
-    if (!isOwnProfile) return null
+    if (!props.isOwnProfile) return null
 
     const savedDAOs: SavedDAO[] = getSavedDAOs()
     if (savedDAOs.length === 0) return null

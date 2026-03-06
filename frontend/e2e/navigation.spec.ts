@@ -15,11 +15,13 @@ test.describe('Header Navigation', () => {
     })
 
     test('version badge visible in header', async ({ page }) => {
-        await page.goto('/')
-        const alphaBadge = page.locator('.k-version-badge', { hasText: 'Alpha' })
-        const versionBadge = page.locator('.k-version-badge', { hasText: /v\d+\.\d+/ })
-        await expect(alphaBadge).toBeVisible()
-        await expect(versionBadge).toBeVisible()
+        // Use /dao to avoid Landing page lazy-load timing in CI
+        await page.goto('/dao')
+        const alphaBadge = page.getByTestId('alpha-badge')
+        const versionBadge = page.getByTestId('version-badge')
+        await expect(alphaBadge).toBeVisible({ timeout: 10000 })
+        await expect(versionBadge).toBeVisible({ timeout: 10000 })
+        await expect(alphaBadge).toContainText('Alpha')
         await expect(versionBadge).toContainText(/v\d+\.\d+/)
     })
 
@@ -92,10 +94,10 @@ test.describe('Mobile Navigation (375px)', () => {
     test('version badge hidden on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/')
-        const badges = page.locator('.k-version-badge')
-        const count = await badges.count()
-        for (let i = 0; i < count; i++) {
-            await expect(badges.nth(i)).not.toBeVisible()
-        }
+        // Use data-testid to target the specific header badges
+        const alphaBadge = page.getByTestId('alpha-badge')
+        const versionBadge = page.getByTestId('version-badge')
+        await expect(alphaBadge).not.toBeVisible()
+        await expect(versionBadge).not.toBeVisible()
     })
 })

@@ -146,13 +146,13 @@ export function Layout() {
                             style={{ borderRadius: 8 }}
                         />
                         <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.03em" }}>Memba</span>
-                        <span className="k-version-badge" style={{
+                        <span className="k-version-badge" data-testid="alpha-badge" style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#f5a623", background: "rgba(245,166,35,0.1)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
                             border: "1px solid rgba(245,166,35,0.2)",
                         }}>Alpha</span>
-                        <span className="k-version-badge" style={{
+                        <span className="k-version-badge" data-testid="version-badge" style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
                             color: "#00d4aa", background: "rgba(0,212,170,0.08)",
                             padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
