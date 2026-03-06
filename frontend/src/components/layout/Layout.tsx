@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
-import { APP_VERSION, NETWORKS, validateActiveRpcDomain } from "../../lib/config"
+import { NETWORKS, validateActiveRpcDomain } from "../../lib/config"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 
 // Must exactly match backend auth.ClientMagic constant.

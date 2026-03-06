@@ -13,7 +13,7 @@ interface Props {
     userAddress: string | null
 }
 
-export function DashboardDAOList({ savedDAOs, userAddress }: Props) {
+export function DashboardDAOList({ savedDAOs }: Props) {
     const navigate = useNavigate()
     const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
