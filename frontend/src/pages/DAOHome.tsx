@@ -56,16 +56,16 @@ function RealmAddressBadge({ realmPath }: { realmPath: string }) {
                 }
             }}
             style={{
-                display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4,
-                background: "rgba(123,97,255,0.06)", border: "1px solid rgba(123,97,255,0.12)",
-                borderRadius: 4, padding: "2px 8px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                background: "none", border: "none",
+                padding: 0, cursor: "pointer",
                 fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#7b61ff",
-                transition: "background 0.15s",
+                transition: "color 0.15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(123,97,255,0.12)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(123,97,255,0.06)"}
+            onMouseEnter={e => e.currentTarget.style.color = "#9b85ff"}
+            onMouseLeave={e => e.currentTarget.style.color = "#7b61ff"}
         >
-            🔑 {copied ? "Copied!" : truncated}
+            {copied ? "✓ Copied!" : truncated}
         </button>
     )
 }
@@ -227,10 +227,10 @@ export function DAOHome() {
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* ─── Block A: Hero Header ─── */}
+            {/* ─── DAO Overview Card (single card: identity + stats) ─── */}
             <div className="k-card" style={{ padding: "16px 20px" }}>
-                {/* Row 1: Breadcrumb */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                {/* Breadcrumb */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                     <button
                         id="dao-back-btn"
                         aria-label="Back to DAO list"
@@ -247,8 +247,8 @@ export function DAOHome() {
                     </span>
                 </div>
 
-                {/* Row 2: Title + membership pill */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                {/* Title + membership pill */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>
                             🏛️ {config?.name || "DAO Governance"}
@@ -263,103 +263,95 @@ export function DAOHome() {
                             </span>
                         )}
                     </div>
-                    {/* Membership pill (compact, inline) */}
                     {auth.isAuthenticated && currentMember && (
                         <div style={{
                             display: "flex", alignItems: "center", gap: 6,
                             padding: "4px 10px", borderRadius: 6,
-                            background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
+                            background: "rgba(0,212,170,0.06)",
                             flexShrink: 0,
                         }}>
                             <span style={{ color: "#00d4aa", fontSize: 11 }}>✓</span>
                             <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
-                                {currentMember.tier ? `${currentMember.tier}` : "Member"}
-                                {currentMember.votingPower ? ` • Power ${currentMember.votingPower}` : ""}
+                                {currentMember.tier || ""}
+                                {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
                             </span>
                         </div>
                     )}
                     {auth.isAuthenticated && !currentMember && (
-                        <span style={{
-                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                            color: "#555", background: "rgba(255,255,255,0.03)",
-                            padding: "4px 8px", borderRadius: 4,
-                        }}>
+                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555", padding: "4px 8px" }}>
                             Guest
                         </span>
                     )}
                 </div>
 
-                {/* Row 3: Realm path + source + address (all inline) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    <span style={{ color: "#555", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                {/* Realm path · source · address */}
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                    <span style={{ color: "#444", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
                         {realmPath}
                     </span>
+                    <span style={{ color: "#333", fontSize: 10 }}>·</span>
                     <a
                         href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="View source on gno.land"
-                        style={{
-                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                            color: "#444", textDecoration: "none",
-                            padding: "1px 5px", borderRadius: 3, border: "1px solid #222",
-                            transition: "color 0.15s",
-                        }}
+                        style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", textDecoration: "none", transition: "color 0.15s" }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
                         onClick={(e) => e.stopPropagation()}
                     >
                         Source
                     </a>
+                    <span style={{ color: "#333", fontSize: 10 }}>·</span>
                     <RealmAddressBadge realmPath={realmPath} />
                 </div>
 
-                {/* Row 4: Description (optional) */}
+                {/* Description */}
                 {config?.description && (
-                    <p style={{ color: "#777", fontSize: 12, marginTop: 8, fontFamily: "JetBrains Mono, monospace", maxWidth: 600, lineHeight: 1.5, margin: "8px 0 0" }}>
+                    <p style={{ color: "#666", fontSize: 11, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600, lineHeight: 1.5, margin: "6px 0 0" }}>
                         {config.description}
                     </p>
                 )}
 
-                {/* Archive warning (integrated, not separate block) */}
+                {/* Archive warning */}
                 {config?.isArchived && (
                     <div style={{
-                        marginTop: 10, padding: "8px 12px", borderRadius: 6,
-                        background: "rgba(245,166,35,0.05)", border: "1px solid rgba(245,166,35,0.12)",
-                        fontSize: 11, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
+                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                        background: "rgba(245,166,35,0.05)",
+                        fontSize: 10, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
                     }}>
-                        ⚠️ This DAO has been archived. No new proposals or votes.
+                        ⚠️ Archived — no new proposals or votes.
                     </div>
                 )}
 
-                {/* Username CTA (compact, inline — only when member has no @username) */}
+                {/* Username CTA */}
                 {auth.isAuthenticated && currentMember && !currentMember.username && (
                     <div style={{
-                        marginTop: 10, padding: "8px 12px", borderRadius: 6,
-                        background: "rgba(0,212,170,0.03)", border: "1px dashed rgba(0,212,170,0.12)",
-                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                        background: "rgba(0,212,170,0.03)", border: "1px dashed rgba(0,212,170,0.08)",
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                         flexWrap: "wrap",
                     }}>
                         <span style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
-                            🏷️ Register your @username to be recognized across DAOs
+                            🏷️ Register @username to be recognized across DAOs
                         </span>
                         <a
                             href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="k-btn-primary"
-                            style={{ fontSize: 10, padding: "4px 10px", textDecoration: "none", flexShrink: 0 }}
+                            style={{ fontSize: 9, padding: "3px 8px", textDecoration: "none", flexShrink: 0 }}
                         >
                             Register →
                         </a>
                     </div>
                 )}
-            </div>
 
-            {/* ─── Block B: Stats Bar ─── */}
-            <div className="k-card" style={{ padding: "14px 20px" }}>
-                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-                    {/* Donut (80px) + tier legend — only when tiers exist */}
+                {/* ── Subtle divider ── */}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0" }} />
+
+                {/* Stats row: donut + pills */}
+                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
                         <PowerDonut
                             tiers={config.tierDistribution}
@@ -367,27 +359,25 @@ export function DAOHome() {
                             size={80}
                         />
                     )}
-                    {/* Stat pills */}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flex: 1 }}>
                         {[
-                            { icon: "👥", label: "Members", value: String(config?.memberCount || members.length) },
-                            { icon: "📋", label: "Active", value: String(activeProposals.length), accent: true },
-                            { icon: "📜", label: "Proposals", value: String(proposals.length) },
-                            { icon: "🗳️", label: "Turnout", value: avgTurnout > 0 ? `${avgTurnout}%` : "—" },
-                            ...(totalPower > 0 ? [{ icon: "⚡", label: "Power", value: String(totalPower) }] : []),
+                            { icon: "👥", value: String(config?.memberCount || members.length), label: "MBR" },
+                            { icon: "📋", value: String(activeProposals.length), label: "ACTIVE", accent: true },
+                            { icon: "📜", value: String(proposals.length), label: "PROP" },
+                            { icon: "🗳️", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "TURN" },
+                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "PWR" }] : []),
                         ].map(s => (
                             <div key={s.label} style={{
                                 display: "flex", alignItems: "center", gap: 5,
-                                padding: "5px 8px", borderRadius: 6,
+                                padding: "4px 8px", borderRadius: 6,
                                 background: (s as { accent?: boolean }).accent ? "rgba(0,212,170,0.06)" : "rgba(255,255,255,0.02)",
-                                border: `1px solid ${(s as { accent?: boolean }).accent ? "rgba(0,212,170,0.12)" : "rgba(255,255,255,0.04)"}`,
                             }}>
-                                <span style={{ fontSize: 12 }}>{s.icon}</span>
+                                <span style={{ fontSize: 11 }}>{s.icon}</span>
                                 <div>
                                     <div style={{ fontSize: 13, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
                                         {s.value}
                                     </div>
-                                    <div style={{ fontSize: 8, color: "#555", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}>
+                                    <div style={{ fontSize: 7, color: "#555", fontFamily: "JetBrains Mono, monospace", letterSpacing: "0.05em" }}>
                                         {s.label}
                                     </div>
                                 </div>
@@ -506,8 +496,8 @@ export function DAOHome() {
             {/* Members Preview */}
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>
-                        Members ({config?.memberCount || members.length})
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                        👥 ({config?.memberCount || members.length})
                     </h3>
                     <button
                         onClick={() => navigate(`/dao/${encodedSlug}/members`)}
