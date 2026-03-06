@@ -131,16 +131,16 @@
 | 11.21 | GovDAO member list | Username shown first, address truncated `g1abc...xyz` |
 | 11.22 | GovDAO proposal (already voted) | Shows "✓ You voted YES" badge, buttons disabled |
 
-## 12. Dual VoteBar & Quorum (v1.7.0)
+## 12. SingleVoteBar & Participation (v2.0)
 
 | # | Step | Expected |
 |---|------|----------|
-| 12.1 | Navigate to GovDAO → open a proposal with votes | 3-color vote split bar (green YES / red NO / grey ABSTAIN) |
-| 12.2 | Check quorum progress bar below vote split | Shows participation % with 50% threshold marker |
-| 12.3 | Quorum < 50% | Bar is amber, label says "Quorum XX%" |
-| 12.4 | Quorum ≥ 50% | Bar is teal, label says "Quorum XX%" |
-| 12.5 | Open ProposalView (detail page) for same proposal | Same quorum bar visible below vote split bar |
-| 12.6 | ABSTAIN votes present | ABSTAIN % shown in vote split (grey segment) |
+| 12.1 | Navigate to GovDAO → open a proposal with votes | Single-line vote bar: filled width = participation %, green YES / red NO split |
+| 12.2 | Check participation percentage | Shows "XX% participated" with 50% threshold marker |
+| 12.3 | Participation < 50% | Bar partially filled, below threshold marker |
+| 12.4 | Participation ≥ 50% | Bar crosses threshold marker |
+| 12.5 | Open ProposalView (detail page) for same proposal | Same SingleVoteBar visible + TierPieChart SVG donut |
+| 12.6 | TierPieChart visible | Shows vote distribution by tier (T1/T2/T3 segments) |
 
 ## 13. Dashboard Guard (v1.7.1)
 

@@ -37,6 +37,18 @@ All notable changes to Memba are documented here.
 
 #### Fixed
 - `Dashboard.tsx` — eliminated brittle type assertion `(auth as {}).address` → `auth.address`
+- **E2E CI Fix** — 3 specs rewritten for cross-browser robustness:
+  - `settings.spec.ts` — accordion expand before asserting collapsed content
+  - `plugins.spec.ts` — tilde-encoded slug (`~`) instead of double-hyphens (`--`)
+  - `create-dao.spec.ts` — text-based assertions instead of CSS attribute selectors
+
+#### Security
+- **Dependabot: `minimatch` ReDoS** — bumped via `npm audit fix` (dev dependency, 0 runtime impact)
+- Backend: `govulncheck` — 0 vulnerabilities
+
+#### Documentation
+- `docs/planning/SENTRY_INTEGRATION.md` — frontend observability implementation guide
+- `docs/planning/GNOSWAP_SLIPPAGE.md` — slippage tolerance implementation guide
 
 ### v2.0-δ Polish
 
