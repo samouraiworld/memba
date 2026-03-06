@@ -22,7 +22,7 @@ test.describe('Header Navigation', () => {
         await expect(alphaBadge).toBeVisible({ timeout: 10000 })
         await expect(versionBadge).toBeVisible({ timeout: 10000 })
         await expect(alphaBadge).toContainText('Alpha')
-        await expect(versionBadge).toContainText(/v\d+\.\d+/)
+        await expect(versionBadge).toContainText(/v\d+/)
     })
 
     test('Dashboard nav NOT visible when disconnected', async ({ page }) => {

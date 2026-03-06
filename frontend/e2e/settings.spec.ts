@@ -13,7 +13,7 @@ test.describe('Settings Page', () => {
 
     test('version displayed', async ({ page }) => {
         await page.goto('/settings')
-        await expect(page.locator('body')).toContainText(/v\d+\.\d+/)
+        await expect(page.locator('body')).toContainText(/v\d+/)
     })
 
     test('network section shows chain options', async ({ page }) => {

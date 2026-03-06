@@ -372,7 +372,7 @@ export function Layout() {
 
             {/* ── Footer ──────────────────────────────────────────────── */}
             <footer style={{ borderTop: "1px solid #111", padding: "16px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
                     {[
                         { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
                         { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
@@ -392,7 +392,7 @@ export function Layout() {
                                 color: "#444", fontSize: 18, textDecoration: "none",
                                 transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                minWidth: 44, minHeight: 44,
+                                minWidth: 36, minHeight: 36, padding: 4,
                             }}
                             onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
                             onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
