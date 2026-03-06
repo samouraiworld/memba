@@ -13,11 +13,11 @@ import type { PluginManifest } from "./types"
 export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
     {
         id: "proposals",
-        name: "Proposals",
+        name: "Proposal Explorer",
         icon: "📋",
         route: "proposals",
-        description: "View and manage DAO governance proposals",
-        version: "1.0.0",
+        description: "Search, filter, and manage DAO governance proposals",
+        version: "2.0.0",
         component: () => import("./proposals/index").then(m => ({ default: m.default })),
     },
     {

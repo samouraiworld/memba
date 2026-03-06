@@ -108,23 +108,26 @@ export interface GnoSwapPaths {
     pool: string
     router: string
     position: string
+    /** GNS token realm — has working Render() for availability checks. */
+    gns: string
 }
 
 /** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     test11: {
-        pool: "gno.land/r/gnoswap/v1/pool",
-        router: "gno.land/r/gnoswap/v1/router",
-        position: "gno.land/r/gnoswap/v1/position",
+        pool: "gno.land/r/gnoswap/pool",
+        router: "gno.land/r/gnoswap/router",
+        position: "gno.land/r/gnoswap/position",
+        gns: "gno.land/r/gnoswap/gns",
     },
-    staging: { pool: "", router: "", position: "" },
-    "portal-loop": { pool: "", router: "", position: "" },
+    staging: { pool: "", router: "", position: "", gns: "" },
+    "portal-loop": { pool: "", router: "", position: "", gns: "" },
 }
 
 /** Get GnoSwap paths for the active chain. Returns null if not deployed. */
 export function getGnoSwapPaths(): GnoSwapPaths | null {
     const paths = GNOSWAP_PATHS[_activeNetwork]
-    if (!paths || !paths.router) return null
+    if (!paths || !paths.gns) return null
     return paths
 }
 

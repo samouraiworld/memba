@@ -50,6 +50,38 @@ All notable changes to Memba are documented here.
 - `docs/planning/SENTRY_INTEGRATION.md` — frontend observability implementation guide
 - `docs/planning/GNOSWAP_SLIPPAGE.md` — slippage tolerance implementation guide
 
+### v2.0.0-alpha.1 — Sprint A+B+C (2026-03-06)
+
+#### Added
+- **Branding overhaul** — Open Graph / Twitter Card meta tags, `apple-touch-icon.png`, `og-image.png`, `<img>` logo replaces CSS-generated `M`
+- **GnoSwap Option C** — Token metadata discovery via `gns` realm (pool realm lacks `Render()`)
+- **Dashboard accordion** — Collapsible proposal summary (active/passed/rejected counts + quick links) per DAO card
+- **TierPieChart upgrade** — 48px default, center label with total votes, optional inline legend, exported `TierVote` interface
+- **Realm address derivation** — `derivePkgBech32Addr` via Web Crypto API (`SHA256("pkgPath:" + path)` → bech32)
+- **RealmAddressBadge** — Copyable truncated bech32 address on DAOHome
+- **Settings nav link** — ⚙️ Settings in header navigation
+- **Proposal Explorer** — Full proposal management plugin (replaces 45-line stub):
+  - Search by title or ID, status filter tabs (All/Active/Passed/Rejected with counts)
+  - Sort selector (Newest/Oldest/Most Votes), pagination (10/page)
+  - Status badges with color coding, inline vote counts, stats footer
+- **Profile DAO Memberships** — `DAOMembershipsCard` showing saved DAOs with MEMBER badge
+- **Directory Page** — `/directory` route with 3 tabs:
+  - DAOs: seed list + saved DAOs, search, "Create DAO" CTA
+  - Tokens: On-chain `grc20reg` registry query with pagination + 5-min cache
+  - Users: On-chain `demo/users` registry query with pagination + 5-min cache
+- **Avatar Upload** — Dual-mode `AvatarUploader` (🔗 URL / 📁 File), 2MB limit, type validation, live preview
+- **`.nvmrc`** — Node.js 22 LTS enforced locally
+
+#### Changed
+- **GnoSwap paths** — Corrected testnet11 paths (removed `/v1/`), added `gns` field
+- **Proposals plugin** — `name: "Proposals"` → `"Proposal Explorer"`, version 1.0.0 → 2.0.0
+- **ProfilePage** — Avatar URL text field replaced with `AvatarUploader` component
+- **Version** — `package.json` bumped to `2.0.0-alpha.1`
+
+#### Tests
+- **360 unit tests** (18 files, +7 from v2.0-ε), all quality gates pass (tsc 0, build 477KB / 138KB gzip)
+- npm audit: **0 vulnerabilities**
+
 ### v2.0-δ Polish
 
 #### Added

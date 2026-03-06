@@ -7,6 +7,8 @@ import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
+import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
+import { AvatarUploader } from "../components/profile/AvatarUploader"
 import type { LayoutContext } from "../types/layout"
 
 function hasSocials(profile: UserProfile | null): boolean {
@@ -237,7 +239,12 @@ export function ProfilePage() {
                         <EditField label="Bio" value={editForm.bio} onChange={(v) => setEditForm(f => ({ ...f, bio: v }))} multiline maxLen={512} fullWidth />
                         <EditField label="Company" value={editForm.company} onChange={(v) => setEditForm(f => ({ ...f, company: v }))} maxLen={128} />
                         <EditField label="Title / Role" value={editForm.title} onChange={(v) => setEditForm(f => ({ ...f, title: v }))} maxLen={128} />
-                        <EditField label="Avatar URL" value={editForm.avatarUrl} onChange={(v) => setEditForm(f => ({ ...f, avatarUrl: v }))} maxLen={256} placeholder="https://..." />
+                        <div style={{ gridColumn: "1 / -1" }}>
+                            <AvatarUploader
+                                currentUrl={editForm.avatarUrl}
+                                onUrlChange={(url) => setEditForm(f => ({ ...f, avatarUrl: url }))}
+                            />
+                        </div>
                         <EditField label="Twitter / X" value={editForm.twitter} onChange={(v) => setEditForm(f => ({ ...f, twitter: v }))} maxLen={256} placeholder="@handle or URL" />
                         <EditField label="GitHub" value={editForm.github} onChange={(v) => setEditForm(f => ({ ...f, github: v }))} maxLen={256} placeholder="https://github.com/..." />
                         <EditField label="Website" value={editForm.website} onChange={(v) => setEditForm(f => ({ ...f, website: v }))} maxLen={256} placeholder="https://..." />
@@ -289,6 +296,9 @@ export function ProfilePage() {
                     )}
                 </div>
             )}
+
+            {/* ── DAO Memberships ─────────────────────────────────── */}
+            {address && <DAOMembershipsCard address={address} isOwnProfile={isOwnProfile} />}
 
             {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
             {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (

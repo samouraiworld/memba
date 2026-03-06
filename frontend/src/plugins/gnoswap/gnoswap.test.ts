@@ -165,13 +165,13 @@ describe("calculateMinOutput", () => {
 // ── buildSwapRouteMsg ─────────────────────────────────────────
 
 describe("buildSwapRouteMsg", () => {
-    const paths = { pool: "gno.land/r/gnoswap/v1/pool", router: "gno.land/r/gnoswap/v1/router", position: "gno.land/r/gnoswap/v1/position" }
+    const paths = { pool: "gno.land/r/gnoswap/pool", router: "gno.land/r/gnoswap/router", position: "gno.land/r/gnoswap/position", gns: "gno.land/r/gnoswap/gns" }
 
     it("builds SwapRoute MsgCall", () => {
         const msg = buildSwapRouteMsg("g1caller", paths, "gno.land/r/demo/gns", "gno.land/r/demo/wugnot", "1000", "990", "GNS_WUGNOT_3000")
         expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("SwapRoute")
-        expect(msg.value.pkg_path).toBe("gno.land/r/gnoswap/v1/router")
+        expect(msg.value.pkg_path).toBe("gno.land/r/gnoswap/router")
         expect(msg.value.args).toEqual(["gno.land/r/demo/gns", "gno.land/r/demo/wugnot", "1000", "990", "GNS_WUGNOT_3000"])
     })
 })
@@ -179,13 +179,13 @@ describe("buildSwapRouteMsg", () => {
 // ── buildAddLiquidityMsg ──────────────────────────────────────
 
 describe("buildAddLiquidityMsg", () => {
-    const paths = { pool: "gno.land/r/gnoswap/v1/pool", router: "gno.land/r/gnoswap/v1/router", position: "gno.land/r/gnoswap/v1/position" }
+    const paths = { pool: "gno.land/r/gnoswap/pool", router: "gno.land/r/gnoswap/router", position: "gno.land/r/gnoswap/position", gns: "gno.land/r/gnoswap/gns" }
 
     it("builds AddLiquidity Mint MsgCall", () => {
         const msg = buildAddLiquidityMsg("g1caller", paths, "token0", "token1", 3000, "1000", "2000", "-887220", "887220")
         expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("Mint")
-        expect(msg.value.pkg_path).toBe("gno.land/r/gnoswap/v1/position")
+        expect(msg.value.pkg_path).toBe("gno.land/r/gnoswap/position")
         expect(msg.value.args).toEqual(["token0", "token1", "3000", "1000", "2000", "-887220", "887220", "0", "0"])
     })
 })

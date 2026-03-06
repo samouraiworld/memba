@@ -41,6 +41,9 @@ const NotFound = lazy(() => import("./pages/NotFound").then(m => ({ default: m.N
 // ── Settings page (lazy) ──
 const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })))
 
+// ── Directory page (lazy) ──
+const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m.Directory })))
+
 // ── Plugin page (lazy) ──
 const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default: m.PluginPage })))
 
@@ -96,6 +99,9 @@ function App() {
 
           {/* Settings */}
           <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+
+          {/* Directory */}
+          <Route path="/directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

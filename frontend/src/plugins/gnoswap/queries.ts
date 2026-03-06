@@ -66,11 +66,15 @@ export async function getPoolDetail(rpcUrl: string, paths: GnoSwapPaths, poolId:
 }
 
 /**
- * Check if GnoSwap is available by querying pool realm Render("").
+ * Check if GnoSwap is available by querying the GNS token realm Render("").
+ *
+ * NOTE: The pool realm has NO Render() function (NoRenderDeclError).
+ * We use the GNS token realm as presence-check since it does have Render().
  */
 export async function gnoswapAvailable(rpcUrl: string, paths: GnoSwapPaths): Promise<boolean> {
-    const raw = await queryRender(rpcUrl, paths.pool, "")
-    return raw !== null && !raw.includes("404")
+    if (!paths.gns) return false
+    const raw = await queryRender(rpcUrl, paths.gns, "")
+    return raw !== null && raw.includes("GNS")
 }
 
 // ── Parsers ───────────────────────────────────────────────────

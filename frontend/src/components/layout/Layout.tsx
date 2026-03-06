@@ -138,17 +138,13 @@ export function Layout() {
                 <div className="k-header-content" style={{ maxWidth: 1152, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     {/* Logo — clickable to home */}
                     <Link to={auth.isAuthenticated ? "/dashboard" : "/"} aria-label="Memba home" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
-                        <div
-                            className="animate-glow"
-                            style={{
-                                width: 36, height: 36, borderRadius: 8,
-                                border: "1px dashed rgba(0,212,170,0.35)",
-                                background: "rgba(0,212,170,0.06)",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                            }}
-                        >
-                            <span style={{ color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700 }}>M</span>
-                        </div>
+                        <img
+                            src="/memba-icon.png"
+                            alt="Memba"
+                            width={36}
+                            height={36}
+                            style={{ borderRadius: 8 }}
+                        />
                         <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.03em" }}>Memba</span>
                         <span className="k-version-badge" style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
@@ -177,9 +173,17 @@ export function Layout() {
                             🏛️ <span className="k-nav-label">DAO</span>
                             {unvotedCount > 0 && <span className="k-notif-dot" />}
                         </Link>
+                        <Link to="/directory" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                            📂 <span className="k-nav-label">Directory</span>
+                        </Link>
                         {adena.connected && adena.address && (
                             <Link to={`/profile/${adena.address}`} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
                                 👤 <span className="k-nav-label">Profile</span>
+                            </Link>
+                        )}
+                        {adena.connected && (
+                            <Link to="/settings" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
+                                ⚙️ <span className="k-nav-label">Settings</span>
                             </Link>
                         )}
                     </nav>

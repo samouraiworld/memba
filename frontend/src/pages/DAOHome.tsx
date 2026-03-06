@@ -3,6 +3,7 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { derivePkgBech32Addr } from "../lib/dao/realmAddress"
 
 import {
     getDAOConfig,
@@ -20,6 +21,53 @@ import { StatCard, TierBar, ProposalCard, MemberCard } from "../components/dao"
 import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import type { LayoutContext } from "../types/layout"
+
+/** Tiny component that derives + displays the realm's bech32 address. */
+function RealmAddressBadge({ realmPath }: { realmPath: string }) {
+    const [addr, setAddr] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
+
+    useEffect(() => {
+        derivePkgBech32Addr(realmPath).then(setAddr).catch(() => setAddr(null))
+    }, [realmPath])
+
+    if (!addr) return null
+
+    const truncated = `${addr.slice(0, 8)}…${addr.slice(-6)}`
+
+    return (
+        <button
+            title={`Realm address: ${addr}\nClick to copy`}
+            onClick={(e) => {
+                e.stopPropagation()
+                try {
+                    navigator.clipboard.writeText(addr).then(() => {
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 1500)
+                    }).catch(() => {
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 1500)
+                    })
+                } catch {
+                    // Clipboard API not available (HTTP context)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                }
+            }}
+            style={{
+                display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4,
+                background: "rgba(123,97,255,0.06)", border: "1px solid rgba(123,97,255,0.12)",
+                borderRadius: 4, padding: "2px 8px", cursor: "pointer",
+                fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#7b61ff",
+                transition: "background 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(123,97,255,0.12)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(123,97,255,0.06)"}
+        >
+            🔑 {copied ? "Copied!" : truncated}
+        </button>
+    )
+}
 
 export function DAOHome() {
     const navigate = useNavigate()
@@ -204,7 +252,7 @@ export function DAOHome() {
                         </span>
                     )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
                     <p style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
                         {realmPath}
                     </p>
@@ -226,6 +274,8 @@ export function DAOHome() {
                         &lt;/&gt;
                     </a>
                 </div>
+                {/* Derived realm address */}
+                <RealmAddressBadge realmPath={realmPath} />
                 {config?.description && (
                     <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
                         {config.description}

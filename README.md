@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-353%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-360%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v1.7.1)
+## Features (v2.0.0-alpha.1)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -56,6 +56,8 @@
 - 📊 Gnolove contribution stats (commits, PRs, issues, reviews)
 - 🔀 User redirect (`/u/username` → `/profile/address`)
 - 🗳️ "My Votes" — cross-DAO vote history on user profile
+- 🏛️ DAO Memberships — saved DAO list on profile with navigation
+- 🖼️ Avatar Upload — URL + file picker (JPEG/PNG/WebP/GIF, 2MB max)
 
 ### Security & Infrastructure
 - 🔐 Challenge-response auth (ed25519, ADR-036)
@@ -64,12 +66,12 @@
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test11 ↔ staging ↔ portal-loop) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with progressive header collapse
-- ⚡ Code splitting (474KB main, lazy-loaded DAO/token chunks)
+- ⚡ Code splitting (477KB main, 138KB gzip, lazy-loaded DAO/token/directory chunks)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **353 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins
+- 🧪 **360 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, address derivation
 - 🧪 **10 E2E spec files** (Playwright) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury
 
 ## Architecture
@@ -97,7 +99,7 @@ src/plugins/
 ├── board/             # 💬 Discussion board (ABCI parser)
 ├── gnoswap/           # 🔄 GnoSwap DEX integration
 ├── leaderboard/       # 🏆 Member ranking
-└── proposals/         # 📋 Governance proposals
+└── proposals/         # 📋 Proposal Explorer (search, filter, sort, paginate)
 ```
 
 Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`builders.ts` (logic).

@@ -12,10 +12,10 @@ describe("plugin registry", () => {
         const manifest = getPlugin("proposals")
         expect(manifest).toBeDefined()
         expect(manifest!.id).toBe("proposals")
-        expect(manifest!.name).toBe("Proposals")
+        expect(manifest!.name).toBe("Proposal Explorer")
         expect(manifest!.icon).toBe("📋")
         expect(manifest!.route).toBe("proposals")
-        expect(manifest!.version).toBe("1.0.0")
+        expect(manifest!.version).toBe("2.0.0")
     })
 
     it("getPlugin('nonexistent') returns undefined", () => {
