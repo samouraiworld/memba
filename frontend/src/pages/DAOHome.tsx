@@ -18,6 +18,7 @@ import {
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import { StatCard, TierBar, ProposalCard, MemberCard } from "../components/dao"
+import { PowerDonut } from "../components/dao/TierPieChart"
 import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import type { LayoutContext } from "../types/layout"
@@ -363,17 +364,16 @@ export function DAOHome() {
                 )}
             </div>
 
-            {/* Tier Distribution */}
+            {/* Power Distribution — Premium Donut */}
             {config?.tierDistribution && config.tierDistribution.length > 0 && (
                 <div className="k-card" style={{ padding: 20 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
                         Power Distribution
                     </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {config.tierDistribution.map((t) => (
-                            <TierBar key={t.tier} tier={t} totalPower={totalPower} />
-                        ))}
-                    </div>
+                    <PowerDonut
+                        tiers={config.tierDistribution}
+                        totalPower={totalPower}
+                    />
                     <div style={{ marginTop: 14, fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
                         {config.tierDistribution.reduce((sum, t) => sum + t.memberCount, 0)} total members across {config.tierDistribution.length} tiers
                     </div>

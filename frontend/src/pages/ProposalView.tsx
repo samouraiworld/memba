@@ -20,7 +20,7 @@ import { logChainError } from "../lib/errorLog"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import { VoteStat, TierVoteBlock } from "../components/proposal"
-import { TierPieChart } from "../components/dao/TierPieChart"
+import { VotingInsights } from "../components/dao/TierPieChart"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposalView() {
@@ -40,6 +40,7 @@ export function ProposalView() {
     const [isArchived, setIsArchived] = useState(false)
     const [myUsername, setMyUsername] = useState<string | null>(null)
     const [memberCount, setMemberCount] = useState(0)
+    const [thresholdPct, setThresholdPct] = useState(60)
 
 
     const proposalId = parseInt(id || "", 10)
@@ -93,6 +94,9 @@ export function ProposalView() {
             .then((cfg) => {
                 setIsArchived(cfg?.isArchived || false)
                 setMemberCount(cfg?.memberCount || 0)
+                // Parse threshold: "60%" → 60
+                const thr = parseInt(cfg?.threshold || "60", 10)
+                if (!isNaN(thr) && thr > 0) setThresholdPct(thr)
                 return getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
             })
             .then((members) => {
@@ -358,90 +362,15 @@ export function ProposalView() {
                 </div>
             )}
 
-            {/* Vote Summary */}
-            <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                    Voting Results
-                </h3>
-
-                {/* Vote summary — single-line participation bar (consistent with ProposalCard) */}
-                {(() => {
-                    const totalVoterCount = totalYesVoters + totalNoVoters
-                    const yesVotes = proposal.yesVotes || totalYesVoters
-                    const noVotes = proposal.noVotes || totalNoVoters
-                    const totalVoted = yesVotes + noVotes
-                    if (totalVoted === 0 && totalVoterCount === 0) return null
-
-                    // Participation as % of total members
-                    const participationPct = memberCount > 0 ? Math.min((totalVoted / memberCount) * 100, 100) : 0
-                    // Within voted: YES/NO split
-                    const yesFraction = totalVoted > 0 ? (yesVotes / totalVoted) * 100 : 0
-                    const noFraction = totalVoted > 0 ? (noVotes / totalVoted) * 100 : 0
-
-                    return (
-                        <div style={{ marginBottom: 16 }}>
-                            {/* Percentage labels */}
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
-                                <div style={{ display: "flex", gap: 14 }}>
-                                    <span style={{ color: "#4caf50", fontWeight: 600 }}>✓ {yesVotes} Yes</span>
-                                    <span style={{ color: "#f44336", fontWeight: 600 }}>✗ {noVotes} No</span>
-                                </div>
-                                <span style={{ color: "#555" }}>
-                                    {totalVoted}{memberCount > 0 ? ` of ${memberCount}` : ""} voted{memberCount > 0 ? ` (${Math.round(participationPct)}%)` : ""}
-                                </span>
-                            </div>
-                            {/* Single-line participation bar: green (YES) + red (NO) within filled, grey unfilled */}
-                            <div
-                                role="progressbar"
-                                aria-valuenow={Math.round(participationPct)}
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-label={`${Math.round(participationPct)}% voted — ${yesVotes} yes, ${noVotes} no`}
-                                style={{ height: 14, background: "rgba(255,255,255,0.04)", borderRadius: 7, overflow: "hidden", position: "relative" }}
-                            >
-                                <div style={{ width: `${participationPct}%`, height: "100%", display: "flex", transition: "width 0.4s ease" }}>
-                                    <div style={{ width: `${yesFraction}%`, height: "100%", background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.3s" }} />
-                                    <div style={{ width: `${noFraction}%`, height: "100%", background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.3s" }} />
-                                </div>
-                                {/* 50% threshold marker */}
-                                <div style={{ position: "absolute", top: 0, left: "50%", width: 1, height: "100%", background: "rgba(255,255,255,0.2)" }} />
-                            </div>
-                            {/* Tier pie chart (if we have tier vote data) */}
-                            {voteRecords.length > 0 && (
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                                    <TierPieChart
-                                        tiers={voteRecords.map(r => ({
-                                            tier: r.tier,
-                                            yesVotes: r.yesVoters.length,
-                                            noVotes: r.noVoters.length,
-                                        }))}
-                                        size={28}
-                                    />
-                                    <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
-                                        Tier distribution
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )
-                })()}
-
-                {/* Detailed vote counts */}
-                {(proposal.yesVotes > 0 || proposal.noVotes > 0) && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
-                        <VoteStat label="Yes" count={proposal.yesVotes} color="#4caf50" icon="✓" />
-                        <VoteStat label="No" count={proposal.noVotes} color="#f44336" icon="✗" />
-                        <VoteStat label="Abstain" count={proposal.abstainVotes} color="#888" icon="○" />
-                    </div>
-                )}
-
-                {/* Voter count summary */}
-                {(totalYesVoters > 0 || totalNoVoters > 0) && (
-                    <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
-                        {totalYesVoters + totalNoVoters} total voters ({totalYesVoters} yes, {totalNoVoters} no)
-                    </div>
-                )}
-            </div>
+            {/* Voting Insights — 3-layer card (Participation / Vote Split / Tier Breakdown) */}
+            <VotingInsights
+                yesVotes={proposal.yesVotes || voteRecords.reduce((s, r) => s + r.yesVoters.length, 0)}
+                noVotes={proposal.noVotes || voteRecords.reduce((s, r) => s + r.noVoters.length, 0)}
+                abstainVotes={proposal.abstainVotes || 0}
+                totalMembers={memberCount}
+                threshold={thresholdPct}
+                voteRecords={voteRecords}
+            />
 
             {/* Tier-Grouped Vote Breakdown */}
             {voteRecords.length > 0 && (
