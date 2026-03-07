@@ -24,14 +24,23 @@ All notable changes to Memba are documented here.
 - **Version Sync** — `APP_VERSION` now reads from `package.json` via Vite `define`
   - No more manual sync between `config.ts` and `package.json`
   - `vite-env.d.ts` TypeScript declaration for `__APP_VERSION__` global
+- **DAOHome V3 Redesign** — single-card layout with merged identity + stats
+  - Ghost "Members" text fix (parser filter for `## Members` residuals)
+  - Source `</>` symbol restored with hover effect
+  - DAO address right-aligned with click-to-copy
+  - Full stat labels: Members, Active, Proposals, Turnout, Power (9px)
+  - Description section with GovDAO fallback
+  - `TierPieChart` prefix-sum refactor (react-hooks/immutability fix)
 
 #### Changed
 - **Multisig Placeholder** — Default name changed from "samourai-crew" → "our-super-cool-dao"
 - **CSP Tightened** — `connect-src` narrowed from `*.netlify.app` to `memba-multisig.netlify.app`
+- **Go 1.25 → 1.26** in CI workflow (fixes govulncheck stdlib vulnerabilities)
 
 #### Tests
-- 353 unit tests (17 files), all quality gates pass (tsc 0, lint 0, build 474KB)
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build 478KB)
 - **10 E2E spec files** (Playwright) — +4 new: multisig, settings, create-dao, treasury
+  - 168 E2E tests across Chrome, Firefox, Webkit + mobile 375px
   - Covers: navigation, smoke, plugins, dao, profile, token, multisig, settings, create-dao, treasury
   - Mobile overflow tests at 375px for all major pages
 
@@ -41,10 +50,14 @@ All notable changes to Memba are documented here.
   - `settings.spec.ts` — accordion expand before asserting collapsed content
   - `plugins.spec.ts` — tilde-encoded slug (`~`) instead of double-hyphens (`--`)
   - `create-dao.spec.ts` — text-based assertions instead of CSS attribute selectors
+- **6 lint errors** — unused imports (`StatCard`, `TierBar`, `VoteStat`), unused vars, immutability violation
+- **E2E regression** — breadcrumb `Back to DAOs` → `DAOs` (V3 compact breadcrumb)
+- **UX regression** — removed `textTransform: uppercase` from stat pill labels
 
 #### Security
 - **Dependabot: `minimatch` ReDoS** — bumped via `npm audit fix` (dev dependency, 0 runtime impact)
 - Backend: `govulncheck` — 0 vulnerabilities
+- CodeQL: 0 alerts (JS/TS + Go)
 
 #### Documentation
 - `docs/planning/SENTRY_INTEGRATION.md` — frontend observability implementation guide

@@ -22,7 +22,10 @@
 
 | Check | Result |
 |-------|--------|
-| Unit tests | 334/334 ✅ |
+| Unit tests | 360/360 ✅ |
+| E2E tests | 168/168 ✅ |
 | TypeScript | 0 errors ✅ |
 | Lint | 0 errors ✅ |
-| Build | 470KB ✅ |
+| Build | 478KB ✅ |
+| govulncheck | 0 vulnerabilities ✅ |
+| CodeQL | 0 alerts ✅ |
