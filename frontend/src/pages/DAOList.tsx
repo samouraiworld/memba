@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
@@ -139,7 +140,7 @@ export function DAOList() {
             {/* Header */}
             <div>
                 <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                    🏛️ DAO Governance
+                    <Bank size={20} style={{ color: '#888' }} /> DAO Governance
                 </h2>
                 <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
                     Browse proposals, vote, and manage DAO governance on gno.land
@@ -220,7 +221,7 @@ export function DAOList() {
             ) : daoEntries.length === 0 ? (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                        <span style={{ fontSize: 24 }}>🏛️</span>
+                        <span style={{ fontSize: 24, display: 'flex' }}><Bank size={24} /></span>
                     </div>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>No DAOs yet</h3>
                     <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto", fontFamily: "JetBrains Mono, monospace" }}>
@@ -259,7 +260,7 @@ export function DAOList() {
                     onClick={() => setShowConnect(!showConnect)}
                     style={{ fontSize: 12 }}
                 >
-                    🔗 {showConnect ? "Hide" : "Connect to DAO"}
+                    <LinkSimple size={14} /> {showConnect ? "Hide" : "Connect to DAO"}
                 </button>
             </div>
 
@@ -267,7 +268,7 @@ export function DAOList() {
             {showConnect && (
                 <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 20 }}>🔗</span>
+                        <span style={{ fontSize: 20, display: 'flex' }}><LinkSimple size={20} /></span>
                         <div>
                             <div style={{ fontWeight: 600, fontSize: 14 }}>Connect to a DAO</div>
                             <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
@@ -342,7 +343,7 @@ function DAOCard({
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>🏛️</span>
+                    <span style={{ fontSize: 22, display: 'flex' }}><Bank size={22} /></span>
                     <div>
                         <span style={{ fontWeight: 600, fontSize: 15, color: "#f0f0f0" }}>
                             {dao.name}

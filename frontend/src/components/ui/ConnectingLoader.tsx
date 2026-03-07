@@ -25,7 +25,7 @@ export function ConnectingLoader() {
                     display: "flex", alignItems: "center", justifyContent: "center",
                 }}
             >
-                <span style={{ color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", fontSize: 22, fontWeight: 700 }}>M</span>
+                <img src="/memba-icon.png" alt="Memba" style={{ width: 32, height: 32, borderRadius: 6 }} />
             </div>
 
             {/* Indeterminate progress bar */}

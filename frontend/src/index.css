@@ -342,6 +342,7 @@ body {
 .k-sidebar {
   position: sticky;
   top: 0;
+  align-self: start;
   height: 100vh;
   width: var(--sidebar-width);
   background: #0c0c0c;
@@ -376,8 +377,8 @@ body {
 }
 
 .k-sidebar-header img {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   flex-shrink: 0;
 }
@@ -497,7 +498,7 @@ body {
 
 .k-sidebar.collapsed .k-sidebar-header {
   justify-content: center;
-  padding: 0 8px;
+  padding: 0;
 }
 
 .k-sidebar-user {
@@ -553,7 +554,7 @@ body {
 
 .k-footer {
   border-top: 1px solid #111;
-  padding: 16px 24px;
+  padding: 24px 24px 32px;
   text-align: center;
   display: flex;
   flex-direction: column;

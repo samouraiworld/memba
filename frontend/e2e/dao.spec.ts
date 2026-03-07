@@ -74,26 +74,26 @@ test.describe('Create DAO Wizard', () => {
 test.describe('Proposal Types (ProposeDAO)', () => {
     test('text proposal type is active', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const textBtn = page.locator('button', { hasText: '📝 Text / Sentiment' })
+        const textBtn = page.locator('button', { hasText: 'Text / Sentiment' })
         await expect(textBtn).toBeVisible()
         await expect(textBtn).not.toBeDisabled()
     })
 
     test('add member type is enabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '👥 Add Member' })
+        const btn = page.locator('button', { hasText: 'Add Member' })
         await expect(btn).not.toBeDisabled()
     })
 
     test('treasury spend type is disabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '💰 Treasury Spend' })
+        const btn = page.locator('button', { hasText: 'Treasury Spend' })
         await expect(btn).toBeDisabled()
     })
 
     test('code upgrade type is disabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '⚙️ Code Upgrade' })
+        const btn = page.locator('button', { hasText: 'Code Upgrade' })
         await expect(btn).toBeDisabled()
     })
 })

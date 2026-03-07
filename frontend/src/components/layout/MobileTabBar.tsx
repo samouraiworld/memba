@@ -17,12 +17,12 @@ interface MobileTabBarProps {
     }
 }
 
-// ── Tab definition ─────────────────────────────────────────────────────
-const TABS = [
-    { to: "/", icon: <House size={20} />, label: "Home" },
-    { to: "/dao", icon: <Buildings size={20} />, label: "DAOs" },
-    { to: "/tokens", icon: <Coins size={20} />, label: "Tokens" },
-    { to: "/directory", icon: <FolderOpen size={20} />, label: "Directory" },
+// ── Tab definition (data-only — icons rendered in component tree) ───
+const TAB_DEFS = [
+    { to: "/", Icon: House, label: "Home" },
+    { to: "/dao", Icon: Buildings, label: "DAOs" },
+    { to: "/tokens", Icon: Coins, label: "Tokens" },
+    { to: "/directory", Icon: FolderOpen, label: "Directory" },
 ] as const
 
 export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
@@ -56,14 +56,14 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
     return (
         <>
             <nav className="k-mobile-tabbar" data-testid="mobile-tabbar" aria-label="Mobile navigation">
-                {TABS.map(tab => (
+                {TAB_DEFS.map(tab => (
                     <Link
                         key={tab.to}
                         to={tab.to}
                         className={`k-mobile-tab${isTabActive(tab.to) ? " active" : ""}`}
                         aria-current={isTabActive(tab.to) ? "page" : undefined}
                     >
-                        <span className="k-mobile-tab-icon">{tab.icon}</span>
+                        <span className="k-mobile-tab-icon"><tab.Icon size={20} /></span>
                         <span>{tab.label}</span>
                     </Link>
                 ))}
@@ -125,11 +125,12 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                 <span
                                     key={p.id}
                                     className="k-sidebar-link disabled"
-                                    title="Select a DAO first"
                                     aria-disabled="true"
+                                    onClick={() => setSheetOpen(false)}
                                 >
                                     <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
                                     <span className="k-sidebar-label">{p.name}</span>
+                                    <small style={{ fontSize: 9, color: '#555', marginLeft: 'auto' }}>Select a DAO</small>
                                 </span>
                             )
                         ))}

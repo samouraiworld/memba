@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { Bank, Archive, UsersThree, Vault } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
@@ -258,14 +259,14 @@ export function DAOHome() {
                 {/* Title + membership pill */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        🏛️ {config?.name || "DAO Governance"}
+                        <Bank size={20} style={{ color: '#888' }} /> {config?.name || "DAO Governance"}
                         {config?.isArchived && (
                             <span style={{
                                 padding: "2px 8px", borderRadius: 4, fontSize: 9,
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(245,166,35,0.1)", color: "#f5a623",
                             }}>
-                                📦 ARCHIVED
+                                <Archive size={12} /> ARCHIVED
                             </span>
                         )}
                     </h2>
@@ -367,10 +368,10 @@ export function DAOHome() {
                     )}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flex: 1, justifyContent: "flex-end" }}>
                         {[
-                            { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
+                            { icon: "members", value: String(config?.memberCount || members.length), label: "Members" },
                             { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
                             { icon: "📜", value: String(proposals.length), label: "Proposals" },
-                            { icon: "🗳️", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
+                            { icon: "votes", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
                             ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
                         ].map(s => (
                             <div key={s.label} style={{
@@ -503,7 +504,7 @@ export function DAOHome() {
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
-                        👥 ({config?.memberCount || members.length})
+                        <UsersThree size={16} style={{ display: 'inline' }} /> ({config?.memberCount || members.length})
                     </h3>
                     <button
                         onClick={() => navigate(`/dao/${encodedSlug}/members`)}
@@ -534,7 +535,7 @@ export function DAOHome() {
             {/* Treasury */}
             <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 22 }}>💰</span>
+                    <span style={{ fontSize: 22, display: 'flex' }}><Vault size={22} /></span>
                     <div>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>Treasury</div>
                         <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>View DAO assets and balances</div>

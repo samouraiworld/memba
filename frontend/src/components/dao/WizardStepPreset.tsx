@@ -1,3 +1,9 @@
+/**
+ * WizardStepPreset — Step 1 of the DAO creation wizard.
+ *
+ * Lets the user choose a DAO preset (Community, Team, Treasury, Enterprise),
+ * set name/description, and auto-generate a realm path.
+ */
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
 import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS } from "./wizardShared"
 import { House, UsersThree, Vault, Buildings } from "@phosphor-icons/react"

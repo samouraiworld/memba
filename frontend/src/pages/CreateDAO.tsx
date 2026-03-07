@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { NotePencil } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { WizardStepPreset } from "../components/dao/WizardStepPreset"
@@ -317,7 +318,7 @@ export function CreateDAO() {
                     background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.15)",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>📝</span>
+                        <span style={{ fontSize: 16, display: 'flex' }}><NotePencil size={16} /></span>
                         <span style={{ fontSize: 12, color: "#ccc", fontFamily: "JetBrains Mono, monospace" }}>
                             You have an unsaved draft
                         </span>

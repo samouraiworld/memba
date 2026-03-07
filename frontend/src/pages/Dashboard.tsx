@@ -6,6 +6,7 @@
  */
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { LockKey, MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
@@ -224,7 +225,7 @@ export function Dashboard() {
                     {/* My Multisigs (always visible) */}
                     <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                            <span style={{ fontSize: 14 }}>🔐</span>
+                            <span style={{ fontSize: 14, display: 'flex' }}><LockKey size={16} /></span>
                             <h3 style={{ fontSize: 16, fontWeight: 500 }}>My Multisigs</h3>
                             <span className="k-label" style={{ marginLeft: "auto" }}>{joinedMultisigs.length} active</span>
                         </div>
@@ -276,7 +277,7 @@ export function Dashboard() {
             {auth.isAuthenticated && discoverableMultisigs.length > 0 && (
                 <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                        <span style={{ fontSize: 14 }}>🔍</span>
+                        <span style={{ fontSize: 14, display: 'flex' }}><MagnifyingGlass size={16} /></span>
                         <h3 style={{ fontSize: 16, fontWeight: 500 }}>Discovered Multisigs</h3>
                         <span className="k-label" style={{ marginLeft: "auto" }}>{discoverableMultisigs.length} found</span>
                     </div>
