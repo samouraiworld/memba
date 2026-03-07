@@ -329,20 +329,15 @@ body {
 
 /* ── App Layout (sidebar + main column) ────────────────────────── */
 .k-app-layout {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  display: flex;
   min-height: 100vh;
-}
-
-.k-app-layout.k-sidebar-collapsed {
-  grid-template-columns: var(--sidebar-collapsed-width) 1fr;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────── */
 .k-sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  align-self: start;
+  left: 0;
   height: 100vh;
   width: var(--sidebar-width);
   background: #0c0c0c;
@@ -364,6 +359,7 @@ body {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  margin: 0 8px;
   gap: 10px;
   flex-shrink: 0;
 }
@@ -377,8 +373,8 @@ body {
 }
 
 .k-sidebar-header img {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   flex-shrink: 0;
 }
@@ -542,6 +538,13 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  transition: margin-left 0.2s ease;
+}
+
+.k-sidebar-collapsed .k-main-column {
+  margin-left: var(--sidebar-collapsed-width);
 }
 
 .k-main {
@@ -554,7 +557,7 @@ body {
 
 .k-footer {
   border-top: 1px solid #111;
-  padding: 24px 24px 32px;
+  padding: 24px 24px 80px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -686,12 +689,12 @@ body {
 
 /* Large tablet: collapse sidebar */
 @media (max-width: 1024px) {
-  .k-app-layout {
-    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
-  }
-
   .k-sidebar {
     width: var(--sidebar-collapsed-width);
+  }
+
+  .k-main-column {
+    margin-left: var(--sidebar-collapsed-width);
   }
 
   .k-sidebar .k-sidebar-label,
@@ -710,6 +713,7 @@ body {
   .k-sidebar .k-sidebar-header {
     justify-content: center;
     padding: 0 8px;
+    margin: 0;
   }
 
   .k-sidebar .k-sidebar-toggle {
@@ -719,12 +723,12 @@ body {
 
 /* Tablet: hide sidebar, show mobile tab bar */
 @media (max-width: 768px) {
-  .k-app-layout {
-    grid-template-columns: 1fr;
-  }
-
   .k-sidebar {
     display: none;
+  }
+
+  .k-main-column {
+    margin-left: 0;
   }
 
   .k-mobile-tabbar {
