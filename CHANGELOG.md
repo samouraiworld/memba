@@ -294,7 +294,6 @@ All notable changes to Memba are documented here.
 
 ### Infrastructure
 - Repository cleaned: 3 stale local + 7 stale remote tracking refs pruned (all squash-merged via PRs)
-- Tailwind v4 confirmed as active (base reset + `@theme` tokens + animation utilities)
 
 ### Tests
 - 284 total tests (230 unit + 54 E2E), up from 251 (230 + 21)
