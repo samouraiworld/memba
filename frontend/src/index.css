@@ -722,6 +722,11 @@ body {
     padding: 0 16px;
   }
 
+  /* Hide version badges on mobile */
+  .k-topbar-left {
+    display: none;
+  }
+
   .k-header-content {
     padding: 0 16px !important;
   }
