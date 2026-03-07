@@ -105,6 +105,12 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                             <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.reconnecting ? "#00d4aa" : "#f59e0b" }} className="animate-glow" />
                             {adena.reconnecting ? "Syncing..." : "Authenticating..."}
                         </span>
+                    ) : adena.reconnecting ? (
+                        /* B3: Sync timed out — show retry */
+                        <span className="k-btn-wallet" style={{ cursor: "pointer", opacity: 0.8, borderColor: "rgba(245,166,35,0.3)" }} onClick={() => window.location.reload()}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                            Sync timeout — Retry
+                        </span>
                     ) : (
                         adena.installed ? (
                             <button className="k-btn-wallet" onClick={adena.connect} disabled={isLoggingIn}>

@@ -16,6 +16,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, APP_VERSION } from "../lib/config"
+import { Globe, FolderOpen, GasPump, User, Wrench, Gear } from "@phosphor-icons/react"
 
 const SETTINGS_KEY = "memba_settings"
 
@@ -45,7 +46,7 @@ function saveSettings(s: UserSettings) {
 // ── UX-L2: Collapsible section component ──────────────────────
 
 function Section({ title, icon, defaultOpen = false, children }: {
-    title: string; icon: string; defaultOpen?: boolean; children: React.ReactNode
+    title: string; icon: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode
 }) {
     const [open, setOpen] = useState(defaultOpen)
 
@@ -139,7 +140,7 @@ export function Settings() {
 
     return (
         <div id="settings-page" style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0 }}>⚙️ Settings</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0, display: "flex", alignItems: "center", gap: 8 }}><Gear size={22} /> Settings</h2>
 
             {saved && (
                 <div style={{ padding: "8px 14px", borderRadius: 8, background: "rgba(0,212,170,0.08)", color: "#00d4aa", fontSize: 12 }}>
@@ -148,7 +149,7 @@ export function Settings() {
             )}
 
             {/* Network — open by default */}
-            <Section title="Network" icon="🌐" defaultOpen>
+            <Section title="Network" icon={<Globe size={18} />} defaultOpen>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 8 }}>
                     {Object.entries(NETWORKS).map(([key, net]) => (
                         <button
@@ -169,7 +170,7 @@ export function Settings() {
             </Section>
 
             {/* Directory — moved from main nav */}
-            <Section title="Directory" icon="📂">
+            <Section title="Directory" icon={<FolderOpen size={18} />}>
                 <div style={{ paddingTop: 8 }}>
                     <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", margin: "0 0 10px", lineHeight: 1.5 }}>
                         Browse on-chain packages, realms, and user profiles deployed on gno.land.
@@ -186,7 +187,7 @@ export function Settings() {
             </Section>
 
             {/* Gas Defaults */}
-            <Section title="Gas Defaults" icon="⛽">
+            <Section title="Gas Defaults" icon={<GasPump size={18} />}>
                 <div style={{ paddingTop: 8 }}>
                     <label style={labelStyle}>Gas Wanted</label>
                     <input
@@ -210,7 +211,7 @@ export function Settings() {
             </Section>
 
             {/* Profile */}
-            <Section title="Profile" icon="👤">
+            <Section title="Profile" icon={<User size={18} />}>
                 <p style={{ fontSize: 12, color: "#888", margin: 0, paddingTop: 8 }}>
                     Edit your profile, connect GitHub, and manage social links.
                 </p>
@@ -224,7 +225,7 @@ export function Settings() {
             </Section>
 
             {/* Advanced */}
-            <Section title="Advanced" icon="🔧">
+            <Section title="Advanced" icon={<Wrench size={18} />}>
                 <button
                     id="settings-clear-cache"
                     onClick={handleClearCache}

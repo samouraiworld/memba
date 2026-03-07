@@ -6,6 +6,34 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-η UX Audit Sprint (2026-03-07)
+
+#### Fixed
+- **P0: ConnectingLoader gate** — `Layout.tsx` no longer blocks all page content during wallet sync; `<Outlet>` always renders
+  - `isLoggingIn` passed via `LayoutContext` → page-level guards in `Dashboard.tsx` + `ProfilePage.tsx`
+  - 10s syncing timeout with "Sync timeout — Retry" recovery UI in `TopBar.tsx`
+- **Plugin sidebar routes** — links now route to `/dao/{lastVisitedDAO}/plugin/{id}` instead of dead `/plugins/{id}`
+  - Disabled state with "Select a DAO first" tooltip when no DAO visited
+  - `memba_last_dao_slug` persisted to localStorage on DAO visit
+- **Footer bugs** — text contrast `#333`→`#666` / `#444`→`#555`, `&amp;` entity → `&`, `z-index: 1` prevents overlay bleed
+
+#### Changed
+- **Phosphor Icons** — all navigation emoji icons replaced with `@phosphor-icons/react` SVGs
+  - `Sidebar.tsx` — House, ChartBar, Buildings, Coins, FolderOpen, Briefcase, User, Gear, Megaphone, PuzzlePiece
+  - `MobileTabBar.tsx` — matching Phosphor icons + DotsThree for "More" tab
+  - `Settings.tsx` — Globe, FolderOpen, GasPump, User, Wrench, Gear section icons
+  - `Layout.tsx` footer — Envelope icon
+  - `WizardStepPreset.tsx` — House, UsersThree, Vault, Buildings for DAO presets
+- **`<main>` inline styles** moved to `.k-main` CSS class (`index.css`)
+
+#### Accessibility
+- `ConnectingLoader` — added `role="status"` + `aria-live="polite"` for screen reader announcements
+- DAO tier badge — added `title` tooltip with role and voting power context
+- Disabled sidebar links — `aria-disabled="true"` + `cursor: not-allowed`
+
+#### Tests
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build clean)
+
 ### v2.0-ζ Sidebar Navigation + Sentry (2026-03-07)
 
 #### Added
