@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
-> **Status tracker for all v2.0 milestones. Updated at the end of each session.**
-> Last updated: 2026-03-07 (deep audit session)
+> **Status tracker for all milestones. Updated at the end of each session.**
+> Last updated: 2026-03-07 (v2.1 planning session)
 
 ## Milestone Status
 
@@ -15,6 +15,8 @@
 | 6 | **Sidebar + Sentry** | v2.0-ζ | ✅ SHIPPED | PR #69 → `dev/v2` |
 | 7 | **UX Audit Sprint** | v2.0-η | ✅ SHIPPED | PR #70 → `dev/v2` |
 | 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
+| 9 | **Community Foundation** | v2.1a | ⬜ NEXT | `feat/v2.1a-*` → `dev/v2` |
+| 10 | **Validators & Notifications** | v2.1b | ⬜ PLANNED | `feat/v2.1b-*` → `dev/v2` |
 
 ## Quality Gates (as of v2.0-θ)
 
@@ -58,15 +60,32 @@
 | 2026-03-05 | Stealth mode: no public issues | Work silently on dev/v2, announce at merge |
 | 2026-03-05 | GnoSwap listing: part of v2.0-γ | "List on GnoSwap" button on GRC20 token detail |
 | 2026-03-05 | Version: v1.7.x hotfixes, v2.0 is public | Parallel tracks until v2.0 merges |
+| 2026-03-07 | Boards: 100% on-chain with gas sponsorship | No hybrid — abstract signing friction from UX |
+| 2026-03-07 | $MEMBA token: 10M supply, DAO-controlled mint | 40% treasury, 30% community, 20% core, 10% partnerships |
+| 2026-03-07 | MembaDAO candidature: public, 2-member approval | Airdrop 10 $MEMBA on approval, 90-day transfer lock |
+| 2026-03-07 | DAO deploy fee: 10 GNOT | Up from 2 GNOT |
+| 2026-03-07 | Token creation fee: 2.5% | Down from 5% |
+| 2026-03-07 | Validator Service: separate project, ~€200/mo | French VPS provider (Scaleway), Stripe billing |
+| 2026-03-07 | NFT metadata: IPFS via nft.storage (free, no backend) | Client-side pinning, CID on-chain |
+| 2026-03-07 | Extension Hub: MembaDAO curates "Official" badge | Others listed as "Unofficial / Untrusted" |
+| 2026-03-07 | Audio/Video: Jitsi Meet (or OSS P2P E2E) | Self-hosted, embed via iframe |
 
 ## File Index
 
 | File | Purpose |
 |------|---------|
 | [SESSION_CONVENTIONS.md](SESSION_CONVENTIONS.md) | **Read first** — session startup/end rules |
-| [milestones/v2.0-alpha/BRIEF.md](milestones/v2.0-alpha/BRIEF.md) | Foundation scope + acceptance |
-| [milestones/v2.0-beta/BRIEF.md](milestones/v2.0-beta/BRIEF.md) | Board scope + acceptance |
-| [milestones/v2.0-gamma/BRIEF.md](milestones/v2.0-gamma/BRIEF.md) | Swap scope + acceptance |
-| [milestones/v2.0-delta/BRIEF.md](milestones/v2.0-delta/BRIEF.md) | Polish scope + acceptance |
-| [milestones/v2.0-eta/SUMMARY.md](milestones/v2.0-eta/SUMMARY.md) | UX audit sprint results |
-| [milestones/v2.0-theta/SUMMARY.md](milestones/v2.0-theta/SUMMARY.md) | UX polish + fixes results |
+| [METHODOLOGY.md](METHODOLOGY.md) | Development methodology for v2.1+ |
+| [milestones/v2.1a-community/BRIEF.md](milestones/v2.1a-community/BRIEF.md) | Community Foundation scope |
+| [milestones/v2.1b-validators/BRIEF.md](milestones/v2.1b-validators/BRIEF.md) | Validators & Notifications scope |
+
+### Archived (v2.0)
+
+| File | Purpose |
+|------|---------|
+| [archive/v2.0-alpha/BRIEF.md](archive/v2.0-alpha/BRIEF.md) | Foundation scope |
+| [archive/v2.0-beta/BRIEF.md](archive/v2.0-beta/BRIEF.md) | Board scope |
+| [archive/v2.0-gamma/BRIEF.md](archive/v2.0-gamma/BRIEF.md) | Swap scope |
+| [archive/v2.0-delta/BRIEF.md](archive/v2.0-delta/BRIEF.md) | Polish scope |
+| [archive/v2.0-eta/SUMMARY.md](archive/v2.0-eta/SUMMARY.md) | UX audit results |
+| [archive/v2.0-theta/SUMMARY.md](archive/v2.0-theta/SUMMARY.md) | UX polish results |
