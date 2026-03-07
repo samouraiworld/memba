@@ -51,7 +51,7 @@
 
 ### User Profiles
 - 👤 User profiles (bio, social links, contributions, deployed packages)
-- 📛 Username registration via `gno.land/r/gnoland/users/v1`
+- 📛 Username registration via network-aware user registry (`getUserRegistryPath()`)
 - 🔗 GitHub OAuth identity verification
 - 📊 Gnolove contribution stats (commits, PRs, issues, reviews)
 - 🔀 User redirect (`/u/username` → `/profile/address`)
@@ -59,14 +59,22 @@
 - 🏛️ DAO Memberships — saved DAO list on profile with navigation
 - 🖼️ Avatar Upload — URL + file picker (JPEG/PNG/WebP/GIF, 2MB max)
 
+### Navigation & Layout
+- 📐 **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
+- 📱 **Mobile Tab Bar** — 5-tab bottom navigation (Home, DAOs, Tokens, Directory, More)
+- 📋 **Bottom Sheet** — Slide-up modal for mobile overflow menu
+- 🔒 **TopBar** — Alpha/v2 badges, network selector, wallet status, security banners
+- ♿ **Skip-to-content** — Accessibility link (focus-only)
+
 ### Security & Infrastructure
 - 🔐 Challenge-response auth (ed25519, ADR-036)
 - 🛡️ RPC domain validation — blocks writes through untrusted RPCs
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
-- 🌐 Network selector (test11 ↔ staging ↔ portal-loop) with chain mismatch detection
-- 📱 Mobile responsive (375px+) with progressive header collapse
-- ⚡ Code splitting (477KB main, 138KB gzip, lazy-loaded DAO/token/directory chunks)
+- 🌐 Network selector (test11 ↔ staging ↔ portal-loop ↔ betanet) with chain mismatch detection
+- 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
+- ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory chunks)
+- 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 

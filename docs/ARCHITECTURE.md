@@ -80,7 +80,9 @@
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
 | `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect** |
+| `components/layout/` | **Sidebar.tsx** (3-section nav), **TopBar.tsx** (badges + wallet), **MobileTabBar.tsx** (5-tab mobile), **BottomSheet.tsx** (slide-up modal), **Layout.tsx** (composer) |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
+| `lib/errorLog.ts` | Structured error logging → ring buffer + **Sentry forwarding** |
 
 ## Data Flow — Multisig Transaction
 
@@ -124,7 +126,7 @@ These features are **100% serverless** — they work without the backend:
 | DAO proposals | `vm/qrender` | `r/gov/dao:` |
 | Proposal detail | `vm/qrender` | `r/gov/dao:N` |
 | Vote breakdown | `vm/qrender` | `r/gov/dao:N/votes` |
-| Username resolution | `vm/qrender` | `r/gnoland/users/v1:g1address` |
+| Username resolution | `vm/qrender` | `getUserRegistryPath()` (network-aware) |
 | GRC20 token info | `vm/qrender` + `vm/qeval` | `r/tokens/*/grc20` |
 | GNOT balance | `bank/balances` | address query |
 | Vote / Execute | `MsgCall` via Adena | `r/gov/dao.MustVoteOnProposalSimple` |
@@ -191,7 +193,7 @@ resolveUsernames(members[])
     │
     └── Phase 2: Resolve misses in parallel
         ├── Promise.all(resolveUsername(address))
-        │   └── queryRender("r/gnoland/users/v1", address)
+        │   └── queryRender(getUserRegistryPath(), address)
         │       └── Parse "# User - `username`" → @username
         └── Write results to localStorage cache
 ```
