@@ -6,6 +6,44 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.1a — Community Foundation (2026-03-07)
+
+#### Added
+- **Channel Realm v2** (`channelTemplate.ts`) — Discord-like DAO channels with role-based ACL, token-gated writes, threads/replies, rate limiting, admin actions (create/archive/reorder channels, edit/delete messages), @mention support
+  - Backward compatible: `detectChannelRealm()` supports both `_channels` (v2) and `_board` (v1) suffixes
+  - `BoardView.tsx` upgraded with inline Markdown renderer, channel sidebar, type indicators (📢/🔒/💬)
+- **$MEMBA GRC20 Token** (`config.ts`, `grc20.ts`) — `$MEMBATEST` (dev) / `$MEMBA` (prod) token with 10M supply, 40/30/20/10% allocation
+  - Platform fee reduced from 5% → 2.5%
+  - `buildCreateMembaTokenMsgs()`, `getMembaBalance()`, `formatTokenAmount()` helpers
+- **MembaDAO Candidature Flow** (`candidatureTemplate.ts`) — Gno realm for membership applications
+  - Public submission (name, philosophy, skills), two-member approval, admin rejection
+  - Increasing re-candidature cost: 10 GNOT × past rejections (anti-spam)
+  - Self-approval guard: applicants cannot approve their own candidature
+  - Render path filtering: `Render("pending")`, `Render("approved")`, `Render("rejected")`
+  - `getCandidatureSendAmount()`, `RECANDIDATURE_COST_UGNOT` helpers
+- **IPFS Avatars** (`ipfs.ts`, `AvatarUploader.tsx`) — Lighthouse REST API upload with preprocessing
+  - Auto-resize to 256×256 WebP (≤512KB), MIME validation, CID validation
+  - Saves canonical `ipfs://` URI (gateway-agnostic) via `resolveAvatarUrl()`
+- **MembaDAO Bootstrap** (`membaDAO.ts`) — DAO config, deployment orchestrator, status checker
+  - ABCI-based deployment verification (DAO, channels, candidature, token realms)
+  - `isMembaDAOMember()`, `getDeploymentSteps()`, `buildAddMemberMsg()`
+
+#### Changed
+- **`FEE_RECIPIENT`** corrected to Samouraï Coop multisig (`g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v`)
+- **`GRC20_FACTORY_PATH`** re-export in `grc20.ts` marked `@deprecated` (import from `config.ts`)
+- **`MEMBA_CHANNELS`** renamed to `MEMBA_CHANNEL_DEFS` in `channelTemplate.ts` (resolves naming collision with `membaDAO.ts`)
+- **`toAdenaMessages()`** now validates msg type, throws on non-MsgCall messages
+
+#### Security
+- Skills length validation added to generated Gno candidature code (on-chain enforcement)
+- Self-approval guard prevents applicants from being their own approvers
+- Re-candidature cost deters spam re-applications after rejection
+- `toAdenaMessages()` type guard prevents silent MsgAddPackage corruption
+
+#### Tests
+- 528 unit tests (22 files, +168 from 360 baseline), all quality gates pass (tsc 0, lint 0, build clean)
+- 3-round deep audit: 17 findings total, 12 fixed, 5 deferred (low priority)
+
 ### v2.0-θ UX Polish & Layout Fixes (2026-03-07)
 
 #### Fixed

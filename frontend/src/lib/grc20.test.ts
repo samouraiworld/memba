@@ -1,8 +1,9 @@
 /**
  * Unit tests for grc20.ts — GRC20 token helpers.
  *
- * Tests cover: fee calculation, message builders, token list parsing,
- * token info parsing, sanitization, and Adena message conversion.
+ * Tests cover: fee calculation (2.5%), message builders, token list parsing,
+ * token info parsing, sanitization, Adena message conversion,
+ * and v2.1a Memba-specific helpers.
  */
 import { describe, it, expect } from 'vitest'
 import {
@@ -10,26 +11,28 @@ import {
     feeDisclosure,
     buildCreateTokenMsgs,
     buildCreateTokenWithAdminMsgs,
+    buildCreateMembaTokenMsgs,
     buildMintMsgs,
     buildTransferMsg,
     buildBurnMsg,
     buildApproveMsg,
     buildFaucetMsg,
     toAdenaMessages,
+    formatTokenAmount,
     PLATFORM_FEE_RATE,
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
 } from './grc20'
 
-// ── Fee Calculation ─────────────────────────────────────────────
+// ── Fee Calculation (v2.1a: 2.5%) ───────────────────────────────
 
 describe('calculateFee', () => {
-    it('calculates 5% of 1000', () => {
-        expect(calculateFee(1000n)).toBe(50n)
+    it('calculates 2.5% of 1000', () => {
+        expect(calculateFee(1000n)).toBe(25n) // 1000 * 25 / 1000
     })
 
     it('rounds down (floor division)', () => {
-        expect(calculateFee(99n)).toBe(4n) // 99 * 5 / 100 = 4.95 → 4
+        expect(calculateFee(99n)).toBe(2n) // 99 * 25 / 1000 = 2.475 → 2
     })
 
     it('returns 0 for 0 input', () => {
@@ -37,23 +40,23 @@ describe('calculateFee', () => {
     })
 
     it('handles large amounts', () => {
-        expect(calculateFee(1000000000n)).toBe(50000000n)
+        expect(calculateFee(1000000000n)).toBe(25000000n) // 2.5%
     })
 
-    it('returns 0 for amounts less than 20', () => {
-        expect(calculateFee(19n)).toBe(0n) // 19 * 5 / 100 = 0
+    it('returns 0 for amounts less than 40', () => {
+        expect(calculateFee(39n)).toBe(0n) // 39 * 25 / 1000 = 0
     })
 
-    it('returns 1 for amount 20', () => {
-        expect(calculateFee(20n)).toBe(1n) // 20 * 5 / 100 = 1
+    it('returns 1 for amount 40', () => {
+        expect(calculateFee(40n)).toBe(1n) // 40 * 25 / 1000 = 1
     })
 })
 
 describe('feeDisclosure', () => {
     it('generates correct disclosure text', () => {
         const text = feeDisclosure(1000n, 'FOO')
-        expect(text).toContain('5% platform fee')
-        expect(text).toContain('50 FOO')
+        expect(text).toContain('2.5% platform fee')
+        expect(text).toContain('25 FOO')
         expect(text).toContain('Samouraï Coop')
     })
 })
@@ -61,8 +64,8 @@ describe('feeDisclosure', () => {
 // ── Constants ───────────────────────────────────────────────────
 
 describe('constants', () => {
-    it('PLATFORM_FEE_RATE is 0.05 (5%)', () => {
-        expect(PLATFORM_FEE_RATE).toBe(0.05)
+    it('PLATFORM_FEE_RATE is 0.025 (2.5%)', () => {
+        expect(PLATFORM_FEE_RATE).toBe(0.025)
     })
 
     it('FEE_RECIPIENT is samourai-crew multisig', () => {
@@ -91,12 +94,12 @@ describe('buildCreateTokenMsgs', () => {
         expect(msgs).toHaveLength(2)
         expect(msgs[0].value.func).toBe('New')
         expect(msgs[1].value.func).toBe('Transfer')
-        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '50'])
+        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '25']) // 2.5%
     })
 
     it('does NOT add fee msg when fee rounds to 0', () => {
         const msgs = buildCreateTokenMsgs('g1caller', 'X', 'X', 6, 10n, 0n)
-        expect(msgs).toHaveLength(1) // fee of 10 = 0
+        expect(msgs).toHaveLength(1) // fee of 10 * 25 / 1000 = 0
     })
 
     it('uses correct factory path', () => {
@@ -127,7 +130,7 @@ describe('buildMintMsgs', () => {
         expect(msgs[0].value.func).toBe('Mint')
         expect(msgs[0].value.args).toEqual(['FOO', 'g1recipient', '1000'])
         expect(msgs[1].value.func).toBe('Transfer')
-        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '50'])
+        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '25']) // 2.5%
     })
 
     it('skips fee for zero-amount mint', () => {
@@ -169,6 +172,56 @@ describe('buildFaucetMsg', () => {
     })
 })
 
+// ── v2.1a: Memba Token Builders ─────────────────────────────────
+
+describe('buildCreateMembaTokenMsgs', () => {
+    it('uses MEMBATEST symbol in dev mode', () => {
+        const msgs = buildCreateMembaTokenMsgs('g1deployer')
+        expect(msgs.length).toBeGreaterThanOrEqual(1)
+        const createMsg = msgs[0]
+        expect(createMsg.value.func).toBe('New')
+        // Symbol should be MEMBATEST (dev) — args[1]
+        const symbol = (createMsg.value.args as string[])[1]
+        expect(symbol).toMatch(/^MEMBA/) // MEMBA or MEMBATEST
+    })
+
+    it('includes fee transfer for non-zero initial mint', () => {
+        const msgs = buildCreateMembaTokenMsgs('g1deployer', 1000000n)
+        expect(msgs).toHaveLength(2)
+        expect(msgs[1].value.func).toBe('Transfer')
+    })
+
+    it('uses 6 decimals', () => {
+        const msgs = buildCreateMembaTokenMsgs('g1deployer', 0n)
+        const decimals = (msgs[0].value.args as string[])[2]
+        expect(decimals).toBe('6')
+    })
+})
+
+// ── v2.1a: formatTokenAmount ────────────────────────────────────
+
+describe('formatTokenAmount', () => {
+    it('formats whole token amount', () => {
+        expect(formatTokenAmount(1000000n, 6)).toBe('1.000000')
+    })
+
+    it('formats fractional amount', () => {
+        expect(formatTokenAmount(1500000n, 6)).toBe('1.500000')
+    })
+
+    it('formats zero', () => {
+        expect(formatTokenAmount(0n, 6)).toBe('0.000000')
+    })
+
+    it('formats sub-unit amounts', () => {
+        expect(formatTokenAmount(123n, 6)).toBe('0.000123')
+    })
+
+    it('handles large amounts', () => {
+        expect(formatTokenAmount(10000000000000n, 6)).toBe('10000000.000000')
+    })
+})
+
 // ── Adena Message Conversion ────────────────────────────────────
 
 describe('toAdenaMessages', () => {
@@ -203,5 +256,10 @@ describe('toAdenaMessages', () => {
         const msg = buildTransferMsg('g1x', 'FOO', 'g1y', '1')
         const adena = toAdenaMessages([msg])
         expect(adena[0].value.send).toBe('')
+    })
+
+    it('throws on non-MsgCall messages (R2-M1 fix)', () => {
+        const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        expect(() => toAdenaMessages([addPkgMsg])).toThrow('only supports vm/MsgCall')
     })
 })

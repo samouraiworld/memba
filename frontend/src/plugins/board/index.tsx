@@ -1,25 +1,28 @@
 /**
- * Board Plugin — Entry point for the DAO discussion board.
+ * Board/Channels Plugin — Entry point for DAO discussion channels.
  *
- * Wraps BoardView with board existence detection.
- * Registered in the plugin registry as "board".
+ * v2.1a: Detects both _channels (v2) and _board (v1) realm suffixes.
+ * Wraps BoardView with realm existence detection.
+ * Registered in the plugin registry as "board" (id unchanged for compat).
  */
 
 import { useState, useEffect } from "react"
 import type { PluginProps } from "../types"
-import { boardExists } from "./parser"
+import { detectChannelRealm } from "./parser"
 import { GNO_RPC_URL } from "../../lib/config"
 import BoardView from "./BoardView"
 
 export default function BoardPlugin(props: PluginProps) {
-    const boardPath = `${props.realmPath}_board`
-    const [exists, setExists] = useState<boolean | null>(null)
+    const [detectedPath, setDetectedPath] = useState<string | null | undefined>(undefined)
 
     useEffect(() => {
-        boardExists(GNO_RPC_URL, boardPath).then(setExists).catch(() => setExists(false))
-    }, [boardPath])
+        detectChannelRealm(GNO_RPC_URL, props.realmPath)
+            .then(setDetectedPath)
+            .catch(() => setDetectedPath(null))
+    }, [props.realmPath])
 
-    if (exists === null) {
+    // Loading
+    if (detectedPath === undefined) {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
                 <div className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "#111" }} />
@@ -27,7 +30,8 @@ export default function BoardPlugin(props: PluginProps) {
         )
     }
 
-    if (!exists) {
+    // No board/channels realm found
+    if (detectedPath === null) {
         return (
             <div
                 id="board-not-deployed"
@@ -39,20 +43,21 @@ export default function BoardPlugin(props: PluginProps) {
                     textAlign: "center",
                 }}
             >
-                <div style={{ fontSize: 28, marginBottom: 10 }}>📋</div>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: "0 0 6px" }}>
-                    No Board Deployed
+                    No Channels Deployed
                 </h3>
                 <p style={{
                     fontSize: 12, color: "#888", margin: 0,
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
-                    This DAO doesn&apos;t have a discussion board yet.
-                    Board can be deployed alongside a DAO from the Create DAO wizard.
+                    This DAO doesn&apos;t have discussion channels yet.
+                    Channels can be deployed alongside a DAO from the Create DAO wizard.
                 </p>
             </div>
         )
     }
 
-    return <BoardView {...props} />
+    // Pass detected realm path — could be _channels or _board
+    return <BoardView {...props} boardPath={detectedPath} />
 }

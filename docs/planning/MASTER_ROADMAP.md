@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-07 (v2.1 planning session)
+> Last updated: 2026-03-07 (v2.1a complete)
 
 ## Milestone Status
 
@@ -15,14 +15,14 @@
 | 6 | **Sidebar + Sentry** | v2.0-ζ | ✅ SHIPPED | PR #69 → `dev/v2` |
 | 7 | **UX Audit Sprint** | v2.0-η | ✅ SHIPPED | PR #70 → `dev/v2` |
 | 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
-| 9 | **Community Foundation** | v2.1a | ⬜ NEXT | `feat/v2.1a-*` → `dev/v2` |
-| 10 | **Validators & Notifications** | v2.1b | ⬜ PLANNED | `feat/v2.1b-*` → `dev/v2` |
+| 9 | **Community Foundation** | v2.1a | ✅ COMPLETE | `dev/v2` |
+| 10 | **Validators & Notifications** | v2.1b | ⬜ NEXT | `feat/v2.1b-*` → `dev/v2` |
 
 ## Quality Gates (as of v2.0-θ)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 360 (18 files) |
+| Unit tests | 528 (22 files) |
 | E2E tests | 186 (10 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
@@ -69,6 +69,9 @@
 | 2026-03-07 | NFT metadata: IPFS via nft.storage (free, no backend) | Client-side pinning, CID on-chain |
 | 2026-03-07 | Extension Hub: MembaDAO curates "Official" badge | Others listed as "Unofficial / Untrusted" |
 | 2026-03-07 | Audio/Video: Jitsi Meet (or OSS P2P E2E) | Self-hosted, embed via iframe |
+| 2026-03-07 | FEE_RECIPIENT: Samouraï Coop multisig | `g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v` (was founder addr) |
+| 2026-03-07 | Re-candidature: increasing GNOT cost | 10 GNOT × past rejections — anti-spam |
+| 2026-03-07 | IPFS avatars: save ipfs:// canonical | Gateway-agnostic, resolveAvatarUrl() on display |
 
 ## File Index
 

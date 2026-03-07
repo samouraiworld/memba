@@ -198,3 +198,46 @@ export function validateActiveRpcDomain(): string | null {
     return null
 }
 
+// ── 8. MembaDAO Token ────────────────────────────────────────
+
+/** GRC20 factory realm path (shared with grc20.ts). */
+export const GRC20_FACTORY_PATH = "gno.land/r/demo/defi/grc20factory"
+
+/** Memba token config for development (test11). */
+export const MEMBA_TOKEN_DEV = {
+    symbol: "MEMBATEST",
+    name: "Memba Governance Token (Testnet)",
+    decimals: 6,
+    totalSupply: "10000000000000", // 10M * 10^6
+    factoryPath: GRC20_FACTORY_PATH,
+} as const
+
+/** Memba token config for production (betanet/mainnet). */
+export const MEMBA_TOKEN_PROD = {
+    symbol: "MEMBA",
+    name: "Memba Governance Token",
+    decimals: 6,
+    totalSupply: "10000000000000",
+    factoryPath: GRC20_FACTORY_PATH,
+} as const
+
+/** Active token config — MEMBATEST for dev, MEMBA for production. */
+export const MEMBA_TOKEN = import.meta.env.PROD
+    ? MEMBA_TOKEN_PROD
+    : MEMBA_TOKEN_DEV
+
+/** MembaDAO realm paths and deployment params. */
+export const MEMBA_DAO = {
+    realmPath: "gno.land/r/samcrew/memba_dao",
+    channelsPath: "gno.land/r/samcrew/memba_dao_channels",
+    candidaturePath: "gno.land/r/samcrew/memba_dao_candidature",
+    deployFee: 10_000_000, // 10 GNOT in ugnot
+} as const
+
+/** Token allocation percentages (total = 100%). */
+export const MEMBA_TOKEN_ALLOCATION = {
+    community: 40,    // 40% — airdrops, candidature rewards
+    treasury: 30,     // 30% — DAO treasury
+    development: 20,  // 20% — engineering & ops
+    founders: 10,     // 10% — founding team, 12-month vesting
+} as const

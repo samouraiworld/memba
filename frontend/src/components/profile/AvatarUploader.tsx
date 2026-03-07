@@ -1,20 +1,22 @@
 /**
  * AvatarUploader — File picker + URL input for profile avatars.
  *
- * Phase 1: Local file preview with DataURL (no external upload).
- * Phase 2 (future): Storacha/web3.storage IPFS upload when env var is configured.
+ * v2.1a Phase 2: IPFS upload via Lighthouse.
+ * - Upload mode: Select image → preview → pin to IPFS → save CID as avatarUrl
+ * - URL mode: Direct URL input (fallback for non-IPFS avatars)
+ * - Shows IPFS CID after successful pin
  *
  * Constraints:
- * - Max 2MB image file
+ * - Max 2MB input image file
+ * - Preprocessed to max 256×256 WebP (≤512KB) before upload
  * - Accepts: JPEG, PNG, WebP, GIF
- * - Shows preview before saving
- *
- * v2.0.0-alpha.1 (Sprint C, Step 12)
+ * - Shows preview before uploading
  */
 
 import { useState, useRef, useCallback } from "react"
+import { uploadAvatar, resolveAvatarUrl, isValidImageMime } from "../../lib/ipfs"
 
-const MAX_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
+const MAX_INPUT_SIZE = 2 * 1024 * 1024 // 2MB input limit
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
 interface Props {
@@ -26,33 +28,65 @@ interface Props {
 
 export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [urlInput, setUrlInput] = useState(currentUrl)
     const [error, setError] = useState<string | null>(null)
-    const [mode, setMode] = useState<"url" | "file">("url")
+    const [uploading, setUploading] = useState(false)
+    const [uploadedCid, setUploadedCid] = useState<string | null>(null)
+    const [mode, setMode] = useState<"url" | "file">("file")
     const fileRef = useRef<HTMLInputElement>(null)
+
+    const lighthouseKey = import.meta.env.VITE_LIGHTHOUSE_API_KEY || ""
 
     const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
         setError(null)
+        setUploadedCid(null)
 
-        if (!ACCEPTED_TYPES.includes(file.type)) {
+        if (!isValidImageMime(file.type)) {
             setError("Only JPEG, PNG, WebP, and GIF images are supported")
             return
         }
-        if (file.size > MAX_SIZE_BYTES) {
+        if (file.size > MAX_INPUT_SIZE) {
             setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max: 2 MB`)
             return
         }
 
+        setSelectedFile(file)
         const reader = new FileReader()
-        reader.onload = () => {
-            const dataUrl = reader.result as string
-            setPreviewUrl(dataUrl)
-        }
+        reader.onload = () => setPreviewUrl(reader.result as string)
         reader.onerror = () => setError("Failed to read file")
         reader.readAsDataURL(file)
     }, [])
+
+    const handleUpload = async () => {
+        if (!selectedFile) return
+
+        if (!lighthouseKey) {
+            // Fallback: use DataURL if no API key configured (dev mode)
+            if (previewUrl) {
+                onUrlChange(previewUrl)
+                setPreviewUrl(null)
+                setSelectedFile(null)
+            }
+            return
+        }
+
+        setUploading(true)
+        setError(null)
+        try {
+            const result = await uploadAvatar(selectedFile, lighthouseKey)
+            setUploadedCid(result.cid)
+            onUrlChange(`ipfs://${result.cid}`)
+            setPreviewUrl(null)
+            setSelectedFile(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Upload failed")
+        } finally {
+            setUploading(false)
+        }
+    }
 
     const applyUrl = () => {
         if (urlInput.trim()) {
@@ -62,21 +96,14 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
         }
     }
 
-    const applyFile = () => {
-        if (previewUrl) {
-            // For Phase 1, we pass the DataURL to the parent.
-            // In Phase 2, this would upload to IPFS first and return the CID URL.
-            onUrlChange(previewUrl)
-            setPreviewUrl(null)
-        }
-    }
+    const resolvedCurrent = resolveAvatarUrl(currentUrl)
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 12, fontWeight: 500, color: "#ccc" }}>Avatar</span>
                 <div style={{ display: "flex", gap: 2 }}>
-                    {(["url", "file"] as const).map(m => (
+                    {(["file", "url"] as const).map(m => (
                         <button
                             key={m}
                             onClick={() => { setMode(m); setError(null) }}
@@ -90,10 +117,15 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                 cursor: "pointer", transition: "all 0.15s",
                             }}
                         >
-                            {m === "url" ? "🔗 URL" : "📁 Upload"}
+                            {m === "file" ? "📁 Upload to IPFS" : "🔗 URL"}
                         </button>
                     ))}
                 </div>
+                {lighthouseKey && (
+                    <span style={{ fontSize: 9, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                        ✓ Lighthouse
+                    </span>
+                )}
             </div>
 
             {mode === "url" ? (
@@ -102,7 +134,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         type="text"
                         value={urlInput}
                         onChange={e => setUrlInput(e.target.value)}
-                        placeholder="https://example.com/avatar.png"
+                        placeholder="https://example.com/avatar.png or ipfs://bafybei..."
                         style={{
                             flex: 1, padding: "8px 12px", borderRadius: 6,
                             border: "1px solid #1a1a1a", background: "#0d0d0d",
@@ -136,10 +168,10 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                         }}
                     >
-                        📁 Choose Image (max 2 MB)
+                        📁 Choose Image (max 2 MB → resized to 256px)
                     </button>
 
-                    {/* Preview */}
+                    {/* Preview + Upload */}
                     {previewUrl && (
                         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12 }}>
                             <img
@@ -152,16 +184,29 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             />
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                                    Preview ready
+                                    {lighthouseKey ? "Ready to pin on IPFS" : "Preview ready (no IPFS key)"}
                                 </span>
                                 <button
-                                    onClick={applyFile}
+                                    onClick={handleUpload}
+                                    disabled={uploading}
                                     className="k-btn-primary"
-                                    style={{ fontSize: 10, padding: "4px 12px" }}
+                                    style={{ fontSize: 10, padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
                                 >
-                                    ✓ Use This Photo
+                                    {uploading ? "⏳ Pinning to IPFS..." : lighthouseKey ? "📌 Pin & Use" : "✓ Use This Photo"}
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Upload success: show CID */}
+                    {uploadedCid && (
+                        <div style={{
+                            marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                            background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.12)",
+                            fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace",
+                            wordBreak: "break-all",
+                        }}>
+                            ✓ Pinned: {uploadedCid.slice(0, 20)}...
                         </div>
                     )}
                 </div>
@@ -178,10 +223,10 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
             )}
 
             {/* Current avatar display */}
-            {currentUrl && !previewUrl && (
+            {resolvedCurrent && !previewUrl && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <img
-                        src={currentUrl}
+                        src={resolvedCurrent}
                         alt="Current avatar"
                         style={{
                             width: 32, height: 32, borderRadius: "50%",
@@ -191,6 +236,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                     />
                     <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
                         Current avatar
+                        {currentUrl.includes("lighthouse") || currentUrl.includes("ipfs") ? " (IPFS)" : ""}
                     </span>
                 </div>
             )}
