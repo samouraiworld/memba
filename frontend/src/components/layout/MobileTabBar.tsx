@@ -1,7 +1,11 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
+import {
+    House, Buildings, Coins, FolderOpen,
+    DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece,
+} from "@phosphor-icons/react"
 
 interface MobileTabBarProps {
     connected: boolean
@@ -15,16 +19,28 @@ interface MobileTabBarProps {
 
 // ── Tab definition ─────────────────────────────────────────────────────
 const TABS = [
-    { to: "/", icon: "🏠", label: "Home" },
-    { to: "/dao", icon: "🏛️", label: "DAOs" },
-    { to: "/tokens", icon: "🪙", label: "Tokens" },
-    { to: "/directory", icon: "📁", label: "Directory" },
+    { to: "/", icon: <House size={20} />, label: "Home" },
+    { to: "/dao", icon: <Buildings size={20} />, label: "DAOs" },
+    { to: "/tokens", icon: <Coins size={20} />, label: "Tokens" },
+    { to: "/directory", icon: <FolderOpen size={20} />, label: "Directory" },
 ] as const
 
 export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
     const location = useLocation()
     const [sheetOpen, setSheetOpen] = useState(false)
     const plugins = getPlugins()
+    const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
+
+    // Refresh when DAO slug changes
+    useEffect(() => {
+        const handler = () => setLastVisitedDAO(localStorage.getItem("memba_last_dao_slug"))
+        window.addEventListener("storage", handler)
+        window.addEventListener("memba:daoVisited", handler)
+        return () => {
+            window.removeEventListener("storage", handler)
+            window.removeEventListener("memba:daoVisited", handler)
+        }
+    }, [])
 
     const isTabActive = useCallback((to: string) => {
         if (to === "/") return location.pathname === "/"
@@ -57,7 +73,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     aria-expanded={sheetOpen}
                     aria-controls="mobile-more-sheet"
                 >
-                    <span className="k-mobile-tab-icon">••</span>
+                    <span className="k-mobile-tab-icon"><DotsThree size={20} weight="bold" /></span>
                     <span>More</span>
                 </button>
             </nav>
@@ -69,24 +85,24 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                         <div className="k-sidebar-section-label">Account</div>
                         {connected && address && (
                             <Link to={`/profile/${address}`} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon">👤</span>
+                                <span className="k-sidebar-icon"><User size={18} /></span>
                                 <span className="k-sidebar-label">Profile</span>
                             </Link>
                         )}
                         {connected && (
                             <Link to="/settings" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon">⚙️</span>
+                                <span className="k-sidebar-icon"><Gear size={18} /></span>
                                 <span className="k-sidebar-label">Settings</span>
                             </Link>
                         )}
                         {connected && (
                             <Link to="/create" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon">💼</span>
+                                <span className="k-sidebar-icon"><Briefcase size={18} /></span>
                                 <span className="k-sidebar-label">Multisig</span>
                             </Link>
                         )}
                         <Link to="/feedback" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon">📣</span>
+                            <span className="k-sidebar-icon"><Megaphone size={18} /></span>
                             <span className="k-sidebar-label">Feedback</span>
                         </Link>
                     </div>
@@ -95,15 +111,27 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Plugins</div>
                         {plugins.map(p => (
-                            <Link
-                                key={p.id}
-                                to={`/plugins/${p.id}`}
-                                className="k-sidebar-link"
-                                onClick={() => setSheetOpen(false)}
-                            >
-                                <span className="k-sidebar-icon">{p.icon}</span>
-                                <span className="k-sidebar-label">{p.name}</span>
-                            </Link>
+                            lastVisitedDAO ? (
+                                <Link
+                                    key={p.id}
+                                    to={`/dao/${lastVisitedDAO}/plugin/${p.id}`}
+                                    className="k-sidebar-link"
+                                    onClick={() => setSheetOpen(false)}
+                                >
+                                    <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
+                                    <span className="k-sidebar-label">{p.name}</span>
+                                </Link>
+                            ) : (
+                                <span
+                                    key={p.id}
+                                    className="k-sidebar-link disabled"
+                                    title="Select a DAO first"
+                                    aria-disabled="true"
+                                >
+                                    <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
+                                    <span className="k-sidebar-label">{p.name}</span>
+                                </span>
+                            )
                         ))}
                     </div>
 

@@ -128,6 +128,14 @@ export function DAOHome() {
 
     useEffect(() => { loadData() }, [loadData])
 
+    // Persist last visited DAO slug for plugin sidebar routing (B2)
+    useEffect(() => {
+        if (encodedSlug) {
+            localStorage.setItem("memba_last_dao_slug", encodedSlug)
+            window.dispatchEvent(new Event("memba:daoVisited"))
+        }
+    }, [encodedSlug])
+
     // Phase 3: Vote enrichment — always loads vote data (public), checks user vote when wallet connected
     useEffect(() => {
         if (proposalsLoading || proposals.length === 0) return
@@ -262,12 +270,14 @@ export function DAOHome() {
                         )}
                     </h2>
                     {auth.isAuthenticated && currentMember && (
-                        <div style={{
-                            display: "flex", alignItems: "center", gap: 6,
-                            padding: "4px 10px", borderRadius: 6,
-                            background: "rgba(0,212,170,0.06)",
-                            flexShrink: 0,
-                        }}>
+                        <div
+                            title={`Your role: ${currentMember.tier || "Member"} — Voting power: ${currentMember.votingPower || "1"}`}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "4px 10px", borderRadius: 6,
+                                background: "rgba(0,212,170,0.06)",
+                                flexShrink: 0,
+                            }}>
                             <span style={{ color: "#00d4aa", fontSize: 11 }}>✓</span>
                             <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
                                 {currentMember.tier || ""}

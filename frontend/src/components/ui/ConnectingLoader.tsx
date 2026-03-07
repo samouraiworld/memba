@@ -8,6 +8,8 @@
 export function ConnectingLoader() {
     return (
         <div
+            role="status"
+            aria-live="polite"
             style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 justifyContent: "center", minHeight: "60vh", gap: 24, animation: "fadeIn 0.3s ease-out",

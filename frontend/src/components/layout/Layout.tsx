@@ -4,11 +4,11 @@ import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
-import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
+import { Envelope } from "@phosphor-icons/react"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -140,7 +140,18 @@ export function Layout() {
         loginAttemptedRef.current = false
     }, [adena, auth])
 
-    const isLoggingIn = adena.loading || authLoading || auth.loading || adena.reconnecting
+    // ── B3: Syncing timeout — after 10s of reconnecting, stop blocking ──
+    const [syncTimedOut, setSyncTimedOut] = useState(false)
+    useEffect(() => {
+        if (!adena.reconnecting) {
+            setSyncTimedOut(false)
+            return
+        }
+        const timer = setTimeout(() => setSyncTimedOut(true), 10_000)
+        return () => clearTimeout(timer)
+    }, [adena.reconnecting])
+
+    const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
 
     return (
@@ -173,12 +184,8 @@ export function Layout() {
                 />
 
                 {/* ── Main ─────────────────────────────────────── */}
-                <main id="main-content" className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
-                    {isLoggingIn ? (
-                        <ConnectingLoader />
-                    ) : (
-                        <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError } }} />
-                    )}
+                <main id="main-content" className="k-main">
+                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn }} />
                 </main>
 
                 {/* ── Footer ───────────────────────────────────── */}
@@ -187,16 +194,16 @@ export function Layout() {
                         <a href="https://github.com/samouraiworld/memba" target="_blank" rel="noopener noreferrer" title="GitHub">
                             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
                         </a>
-                        <a href="mailto:support@samourai.coop" title="Support">✉</a>
+                        <a href="mailto:support@samourai.coop" title="Support"><Envelope size={16} /></a>
                     </div>
-                    <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
                         memba v2 • built by samourai coop
                     </p>
-                    <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
+                    <p style={{ color: "#555", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
                         ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
                         Unaudited, under active development. Use at your own risk.{" "}
                         <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
-                            Tips &amp; sponsorships
+                            Tips & sponsorships
                         </a>{" "}welcome.
                     </p>
                 </footer>

@@ -29,6 +29,21 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.0-η — UX Audit Sprint ✅ SHIPPED (2026-03-07)
+
+> 18-issue cross-perspective UX audit — 4 phases (A–D), P0–P3 fixes.
+
+| Phase | Focus | Items |
+|-------|-------|-------|
+| A (P0) | ConnectingLoader gate fix | `<Outlet>` always renders, page-level guards, `isLoggingIn` context |
+| B (P1) | Plugin routes, syncing timeout, footer | DAO-scoped plugin links, 10s timeout + retry, contrast/z-index fixes |
+| C (P1) | Phosphor icon migration | `@phosphor-icons/react` replaces emoji across 6 files |
+| D (P2) | UX polish | `.k-main` CSS, tier tooltips, `aria-live` on ConnectingLoader |
+
+**Total: 360 tests (18 files). Zero lint/TS/build errors.**
+
+---
+
 ## v1.7.0 — Governance UX & Testing ✅ SHIPPED (2026-03-05)
 
 > Dual VoteBar redesign, Adena reconnect optimization, E2E test expansion, CI hardening.

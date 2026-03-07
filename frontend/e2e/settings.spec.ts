@@ -25,7 +25,7 @@ test.describe('Settings Page', () => {
     test('gas section accessible via accordion', async ({ page }) => {
         await page.goto('/settings')
         // Click the Gas Defaults section header to expand it
-        const gasHeader = page.locator('button', { hasText: '⛽ Gas Defaults' })
+        const gasHeader = page.locator('button', { hasText: 'Gas Defaults' })
         await expect(gasHeader).toBeVisible()
         await gasHeader.click()
         await expect(page.locator('#settings-gas-wanted')).toBeVisible()
@@ -34,7 +34,7 @@ test.describe('Settings Page', () => {
     test('advanced section has clear cache button', async ({ page }) => {
         await page.goto('/settings')
         // Click the Advanced section header to expand it
-        const advancedHeader = page.locator('button', { hasText: '🔧 Advanced' })
+        const advancedHeader = page.locator('button', { hasText: 'Advanced' })
         await expect(advancedHeader).toBeVisible()
         await advancedHeader.click()
         // Now the clear cache button should be visible

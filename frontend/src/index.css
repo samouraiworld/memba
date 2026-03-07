@@ -543,6 +543,14 @@ body {
   min-height: 100vh;
 }
 
+.k-main {
+  flex: 1;
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+
 .k-footer {
   border-top: 1px solid #111;
   padding: 16px 24px;
@@ -551,6 +559,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  position: relative;
+  z-index: 1;
 }
 
 .k-footer-links {
@@ -570,6 +580,13 @@ body {
 
 .k-footer-links a:hover {
   color: var(--color-k-accent);
+}
+
+/* Disabled sidebar link (e.g. plugin with no DAO selected) */
+.k-sidebar-link.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto;
 }
 
 /* ── Mobile Tab Bar ────────────────────────────────────────────── */

@@ -21,5 +21,7 @@ export interface LayoutContext {
         loading: boolean
         error: string | null
     }
+    /** True while wallet is reconnecting or auth is in progress */
+    isLoggingIn: boolean
 }
 

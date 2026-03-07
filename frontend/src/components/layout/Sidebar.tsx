@@ -1,10 +1,15 @@
 import { Link, useLocation } from "react-router-dom"
+import { useState, useEffect } from "react"
 import { getPlugins } from "../../plugins"
+import {
+    House, ChartBar, Buildings, Coins, FolderOpen,
+    Briefcase, User, Gear, Megaphone, PuzzlePiece,
+} from "@phosphor-icons/react"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
     to: string
-    icon: string
+    icon: React.ReactNode
     label: string
     badge?: number
     badgeText?: string
@@ -13,9 +18,11 @@ interface SidebarLinkProps {
     /** If true, link is hidden when auth requirement not met */
     connected: boolean
     collapsed: boolean
+    disabled?: boolean
+    disabledTooltip?: string
 }
 
-function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, connected, collapsed }: SidebarLinkProps) {
+function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, connected, collapsed, disabled, disabledTooltip }: SidebarLinkProps) {
     const location = useLocation()
 
     // Hide auth-only links when not connected
@@ -25,6 +32,19 @@ function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, c
     const isActive = to === "/" || to === "/dashboard"
         ? location.pathname === to
         : location.pathname.startsWith(to)
+
+    if (disabled) {
+        return (
+            <span
+                className="k-sidebar-link disabled"
+                title={disabledTooltip || "Not available"}
+                aria-disabled="true"
+            >
+                <span className="k-sidebar-icon">{icon}</span>
+                <span className="k-sidebar-label">{label}</span>
+            </span>
+        )
+    }
 
     return (
         <Link
@@ -59,6 +79,19 @@ interface SidebarProps {
 
 export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleCollapse }: SidebarProps) {
     const plugins = getPlugins()
+    const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
+
+    // Refresh when DAO slug changes (e.g. user visits a DAO)
+    useEffect(() => {
+        const handler = () => setLastVisitedDAO(localStorage.getItem("memba_last_dao_slug"))
+        window.addEventListener("storage", handler)
+        // Custom event for same-tab updates
+        window.addEventListener("memba:daoVisited", handler)
+        return () => {
+            window.removeEventListener("storage", handler)
+            window.removeEventListener("memba:daoVisited", handler)
+        }
+    }, [])
 
     return (
         <aside
@@ -84,12 +117,12 @@ export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleC
 
             {/* ── Section 1: Navigation ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
-                <SidebarLink to="/" icon="🏠" label="Home" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/dashboard" icon="📊" label="Dashboard" auth connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/dao" icon="🏛️" label="DAOs" badge={unvotedCount} connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/tokens" icon="🪙" label="Tokens" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/directory" icon="📁" label="Directory" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/create" icon="💼" label="Multisig" auth connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/" icon={<House size={18} />} label="Home" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/dashboard" icon={<ChartBar size={18} />} label="Dashboard" auth connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount} connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/tokens" icon={<Coins size={18} />} label="Tokens" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/directory" icon={<FolderOpen size={18} />} label="Directory" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/create" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 2: Plugins ────────────────────────────── */}
@@ -98,11 +131,13 @@ export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleC
                 {plugins.map(p => (
                     <SidebarLink
                         key={p.id}
-                        to={`/plugins/${p.id}`}
-                        icon={p.icon}
+                        to={lastVisitedDAO ? `/dao/${lastVisitedDAO}/plugin/${p.id}` : "#"}
+                        icon={<PuzzlePiece size={18} />}
                         label={p.name}
                         connected={connected}
                         collapsed={collapsed}
+                        disabled={!lastVisitedDAO}
+                        disabledTooltip="Select a DAO first"
                     />
                 ))}
             </nav>
@@ -111,12 +146,12 @@ export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleC
             <div className="k-sidebar-user">
                 <div className="k-sidebar-section">
                     {connected && address && (
-                        <SidebarLink to={`/profile/${address}`} icon="👤" label="Profile" connected={connected} collapsed={collapsed} />
+                        <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
-                        <SidebarLink to="/settings" icon="⚙️" label="Settings" connected={connected} collapsed={collapsed} />
+                        <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
                     )}
-                    <SidebarLink to="/feedback" icon="📣" label="Feedback" connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/feedback" icon={<Megaphone size={18} />} label="Feedback" connected={connected} collapsed={collapsed} />
                 </div>
             </div>
         </aside>

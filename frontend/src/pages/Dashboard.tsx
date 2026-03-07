@@ -25,6 +25,7 @@ import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { getSavedDAOs } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
+import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import {
     DashboardIdentityCard,
     ActionRequiredStrip,
@@ -35,13 +36,13 @@ import {
 
 export function Dashboard() {
     const navigate = useNavigate()
-    const { balance, auth } = useOutletContext<LayoutContext>()
+    const { balance, auth, isLoggingIn } = useOutletContext<LayoutContext>()
     const token = auth.token
 
-    // Redirect disconnected users to landing page
+    // Redirect disconnected users to landing page (only after login state is resolved)
     useEffect(() => {
-        if (!auth.isAuthenticated) navigate("/", { replace: true })
-    }, [auth.isAuthenticated, navigate])
+        if (!isLoggingIn && !auth.isAuthenticated) navigate("/", { replace: true })
+    }, [auth.isAuthenticated, isLoggingIn, navigate])
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
@@ -166,6 +167,11 @@ export function Dashboard() {
     const unsignedPendingCount = pendingTxs.filter(tx =>
         !tx.signatures.some((s: { userAddress: string }) => s.userAddress === userAddress)
     ).length
+
+    // Show ConnectingLoader while wallet is syncing
+    if (isLoggingIn) {
+        return <ConnectingLoader />
+    }
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>

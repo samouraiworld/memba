@@ -4,6 +4,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
+import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
@@ -19,7 +20,7 @@ function hasSocials(profile: UserProfile | null): boolean {
 export function ProfilePage() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNavigate()
-    const { adena, auth } = useOutletContext<LayoutContext>()
+    const { adena, auth, isLoggingIn } = useOutletContext<LayoutContext>()
 
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
@@ -97,6 +98,11 @@ export function ProfilePage() {
         } finally {
             setSaving(false)
         }
+    }
+
+    // Show ConnectingLoader while wallet is syncing (fixes audit M1)
+    if (isLoggingIn) {
+        return <ConnectingLoader />
     }
 
     if (!address) {
