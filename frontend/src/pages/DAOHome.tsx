@@ -373,7 +373,7 @@ export function DAOHome() {
                                     <div style={{ fontSize: 14, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
                                         {s.value}
                                     </div>
-                                    <div style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}>
+                                    <div style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
                                         {s.label}
                                     </div>
                                 </div>
