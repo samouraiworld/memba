@@ -14,7 +14,7 @@
 | 6 | 🎨 UX/UI | ✅ PASS | Sortable table, dark theme, consistent styling |
 | 7 | ⚙️ Gno Core | ✅ PASS | Board parser reused for FeedbackFeed |
 | 8 | 📢 DevRel | ✅ PASS | Full CHANGELOG covering all 4 milestones |
-| 9 | 💻 Fullstack | ✅ PASS | 334 tests, 0 lint, 470KB, all gates green |
+| 9 | 💻 Fullstack | ✅ PASS | 360 tests, 0 lint, 496KB, all gates green |
 | 10 | 💰 DeFi User | N/A | No financial operations in this milestone |
 | 11 | 🏛️ DAO User | ✅ PASS | Leaderboard incentivizes governance participation |
 
@@ -26,6 +26,6 @@
 | E2E tests | 168/168 ✅ |
 | TypeScript | 0 errors ✅ |
 | Lint | 0 errors ✅ |
-| Build | 478KB ✅ |
+| Build | 496KB ✅ |
 | govulncheck | 0 vulnerabilities ✅ |
 | CodeQL | 0 alerts ✅ |

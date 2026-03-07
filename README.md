@@ -80,7 +80,7 @@
 
 ### Testing
 - 🧪 **360 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, address derivation
-- 🧪 **10 E2E spec files** (Playwright) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury
+- 🧪 **186 E2E tests** (Playwright) — 10 spec files: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury
 
 ## Architecture
 

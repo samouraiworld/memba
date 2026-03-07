@@ -228,7 +228,7 @@ resolveUsernames(members[])
 │               profile.ts (parallel)               │
 │                                                   │
 │  1. gno.land ABCI ──► @username                   │
-│     vm/qrender r/gnoland/users/v1:address         │
+│     vm/qrender getUserRegistryPath():address     │
 │                                                   │
 │  2. gnolove /users/:addr ──► GitHub profile       │
 │     avatar, bio, location, followers              │
