@@ -1,9 +1,11 @@
 # Sentry Frontend Observability — Implementation Guide
 
-> **Status:** Planned (pre-mainnet)  
-> **Priority:** Medium  
-> **Effort:** ~1 hour  
-> **Branch:** `dev/v2`
+> **Status:** ✅ IMPLEMENTED (2026-03-07, commit `dc08108`)
+> **Priority:** Medium
+> **Effort:** ~1 hour
+> **Branch:** `feat/v2.0-delta/sidebar-navigation` (merged into `dev/v2`)
+>
+> **Actual implementation:** Self-hosted Sentry at `sentry.samourai.pro` (not sentry.io). DSN provided via `VITE_SENTRY_DSN` env var. PII scrubbing strips `g1[a-z0-9]{38}` addresses. Source maps uploaded via `sentryVitePlugin` (deleted after upload). Error forwarding from `errorLog.ts` for `critical`/`error` severity.
 
 ## Overview
 

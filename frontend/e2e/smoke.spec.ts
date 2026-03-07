@@ -149,7 +149,7 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
 
     test('Dashboard nav hidden when logged out', async ({ page }) => {
         await page.goto('/')
-        const dashboardLink = page.locator('header a', { hasText: 'Dashboard' })
+        const dashboardLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Dashboard' })
         await expect(dashboardLink).not.toBeVisible()
     })
 

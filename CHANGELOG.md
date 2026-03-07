@@ -6,6 +6,40 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-ζ Sidebar Navigation + Sentry (2026-03-07)
+
+#### Added
+- **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
+  - `Sidebar.tsx` — Home/Dashboard/DAOs/Tokens/Directory/Multisig links, plugin list, Profile/Settings/Feedback pinned at bottom
+  - `TopBar.tsx` — Alpha/v2 badges, network selector, wallet status, security banners (auth error, chain mismatch, untrusted RPC)
+  - `MobileTabBar.tsx` — 5-tab bottom navigation (Home, DAOs, Tokens, Directory, More)
+  - `BottomSheet.tsx` — Slide-up modal with focus trap, Escape to close, body scroll lock
+  - Skip-to-content accessibility link (focus-only)
+  - Sidebar collapse toggle with localStorage persistence
+- **Sentry Integration** — Error monitoring for self-hosted Sentry (`sentry.samourai.pro`)
+  - `Sentry.init` in `main.tsx` with PII scrubbing (wallet addresses redacted via `beforeSend`)
+  - Browser tracing (20% sample rate in production, 100% in dev)
+  - Error forwarding from `errorLog.ts` → `Sentry.captureException` (critical/error only)
+  - Vite plugin for source map upload (`sentryVitePlugin` in `vite.config.ts`)
+  - Source maps deleted from `dist/` after upload
+- **Betanet Network Config** — `betanet` added to `NETWORKS` with `gno.land/r/sys/users` registry
+- **`getUserRegistryPath()`** — Abstracted user registry path (H1 audit fix for upstream migration)
+
+#### Changed
+- **Layout.tsx** — Refactored from 419 → 205 LOC, now composes Sidebar + TopBar + MobileTabBar
+- **Footer** — Stripped to GitHub SVG + support email + disclaimer (social links moved to sidebar/future dedicated page)
+- **index.css** — +400 LOC for layout tokens, sidebar, topbar, mobile tabbar, bottom sheet, skip-to-content, responsive breakpoints (1024px/768px/375px)
+
+#### Tests
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build 496KB)
+- **E2E navigation.spec.ts** — Rewritten header→sidebar selectors (104→180 LOC, 9→17 test cases)
+  - Covers: sidebar desktop, topbar badges, mobile tabbar, bottom sheet More, footer
+- **E2E smoke.spec.ts** — Updated header→sidebar selector
+
+#### Security
+- PII scrubbing: Gno bech32 addresses (`g1...`) redacted in Sentry events
+- Source maps not shipped to production (deleted after Sentry upload)
+
 ### v2.0-ε UX & Consistency
 
 #### Added

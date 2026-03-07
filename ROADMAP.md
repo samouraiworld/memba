@@ -1020,6 +1020,26 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
+### v2.0-ζ — Sidebar Navigation + Sentry ✅ SHIPPED 2026-03-07
+
+> Vercel-inspired sidebar navigation, mobile tab bar, Sentry integration, betanet config.
+
+| Feature | Status |
+|---------|--------|
+| 📐 Sidebar (3-section: nav, plugins, user) | ✅ |
+| 🔝 TopBar (badges, network, wallet, security banners) | ✅ |
+| 📱 Mobile TabBar (5 tabs + bottom sheet More) | ✅ |
+| 📋 BottomSheet (slide-up modal with a11y) | ✅ |
+| ♿ Skip-to-content link | ✅ |
+| 🔄 Layout.tsx refactor (419→205 LOC) | ✅ |
+| 🌐 Betanet network config + getUserRegistryPath() | ✅ |
+| 🪲 Sentry integration (PII scrubbing, source maps) | ✅ |
+| 🧪 E2E migration (header→sidebar, 9→17 tests) | ✅ |
+
+**Quality gates:** TS 0 | Lint 0 | 360/360 tests | Build 496KB
+
+---
+
 ### v2.1 — Intelligence ⬜ PLANNED
 
 | Feature | Description | Priority |

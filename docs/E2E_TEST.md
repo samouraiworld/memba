@@ -15,7 +15,7 @@
 | # | Step | Expected |
 |---|------|----------|
 | 1.1 | Open Memba → click "Connect Wallet" | Adena popup appears |
-| 1.2 | Approve connection in Adena | Address + balance shown in header |
+| 1.2 | Approve connection in Adena | Address + balance shown in topbar |
 | 1.3 | Refresh page | Session persists (no reconnect needed) |
 | 1.4 | Click "Disconnect" | Returns to "Connect Wallet" state |
 
@@ -87,7 +87,7 @@
 
 | # | Step | Expected |
 |---|------|----------|
-| 9.1 | Connect wallet → click "👤 Profile" in header | ProfilePage loads for connected address |
+| 9.1 | Connect wallet → click "Profile" in sidebar | ProfilePage loads for connected address |
 | 9.2 | Verify header card | Avatar, address (CopyableAddress), badges |
 | 9.3 | Profile with registered username | Shows `@username` + gno.land link |
 | 9.4 | Profile without username (own) | Shows "Register your @username →" CTA |
@@ -146,11 +146,28 @@
 
 | # | Step | Expected |
 |---|------|----------|
-| 13.1 | Load Memba without Adena connected | Dashboard nav link NOT visible in header |
+| 13.1 | Load Memba without Adena connected | Dashboard nav link NOT visible in sidebar |
 | 13.2 | Navigate directly to `/dashboard` URL | Auto-redirect to `/` (landing page) |
-| 13.3 | Connect Adena wallet | Dashboard nav link appears in header |
+| 13.3 | Connect Adena wallet | Dashboard nav link appears in sidebar |
 | 13.4 | Click Dashboard link | Dashboard page loads with identity card + feature cards |
 | 13.5 | Disconnect wallet while on Dashboard | Redirected to landing page |
+
+## 14. Sidebar Navigation (v2.0-ζ)
+
+| # | Step | Expected |
+|---|------|----------|
+| 14.1 | Desktop (≥1025px) → Load any page | Sidebar visible with 3 sections (Navigation, Plugins, User) |
+| 14.2 | Click collapse toggle (☰) | Sidebar collapses to icon-only mode |
+| 14.3 | Refresh page after collapse | Collapse state persists (localStorage) |
+| 14.4 | Click DAOs link in sidebar | Navigate to `/dao` |
+| 14.5 | Click Tokens link in sidebar | Navigate to `/tokens` |
+| 14.6 | Mobile (375px) → Load any page | Sidebar hidden, mobile tab bar visible at bottom |
+| 14.7 | Click "More" in mobile tab bar | Bottom sheet opens with Profile, Settings, Multisig, Feedback, Plugins |
+| 14.8 | Press Escape while bottom sheet is open | Bottom sheet closes |
+| 14.9 | Click outside bottom sheet overlay | Bottom sheet closes |
+| 14.10 | TopBar → Version badges visible (desktop) | Alpha badge + v2 badge visible |
+| 14.11 | TopBar → Network selector | Shows "Testnet 11" default, can switch to betanet |
+| 14.12 | Mobile → Version badges hidden | Alpha/v2 badges not visible at 375px |
 
 ## Post-Test
 

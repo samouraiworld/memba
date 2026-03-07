@@ -14,7 +14,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
-import { GNO_RPC_URL, GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, GNO_BECH32_PREFIX, getUserRegistryPath } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
 import { queryRender } from "../lib/dao/shared"
 import { fetchBackendProfile } from "../lib/profile"
@@ -92,7 +92,7 @@ export function Dashboard() {
         if (!auth.isAuthenticated || !balance) return
         const addr = (auth as { address?: string }).address
         if (!addr) return
-        queryRender(GNO_RPC_URL, "gno.land/r/gnoland/users/v1", addr)
+        queryRender(GNO_RPC_URL, getUserRegistryPath(), addr)
             .then((data) => {
                 if (!data) return
                 const m = data.match(/# User - `([^`]+)`/)

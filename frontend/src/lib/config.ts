@@ -31,21 +31,30 @@ export const API_BASE_URL =
 // ── 3. Gno Networks ──────────────────────────────────────────
 
 /** Available Gno networks for the chain selector. */
-export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string }> = {
+export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string }> = {
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
         label: "Testnet 11",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
     },
     staging: {
         chainId: "staging",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Staging",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
     },
     "portal-loop": {
         chainId: "portal-loop",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Portal Loop",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
+    },
+    betanet: {
+        chainId: "betanet",
+        rpcUrl: "https://rpc.betanet.gno.land:443",
+        label: "Betanet",
+        userRegistryPath: "gno.land/r/sys/users",
     },
 }
 
@@ -62,6 +71,16 @@ function getActiveNetworkKey(): string {
 }
 
 const _activeNetwork = getActiveNetworkKey()
+
+/**
+ * Returns the user registry realm path for the active network.
+ * On existing chains this is `gno.land/r/gnoland/users/v1`.
+ * On betanet/mainnet this will be `gno.land/r/sys/users` (upstream migration).
+ */
+export function getUserRegistryPath(): string {
+    return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/gnoland/users/v1"
+}
+
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
