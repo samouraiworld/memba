@@ -340,9 +340,8 @@ body {
 
 /* ── Sidebar ───────────────────────────────────────────────────── */
 .k-sidebar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
   height: 100vh;
   width: var(--sidebar-width);
   background: #0c0c0c;
