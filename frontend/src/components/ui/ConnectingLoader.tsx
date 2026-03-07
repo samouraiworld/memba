@@ -19,13 +19,11 @@ export function ConnectingLoader() {
             <div
                 className="animate-glow"
                 style={{
-                    width: 56, height: 56, borderRadius: 12,
-                    border: "1px dashed rgba(0,212,170,0.35)",
-                    background: "rgba(0,212,170,0.06)",
+                    width: 80, height: 80, borderRadius: 16,
                     display: "flex", alignItems: "center", justifyContent: "center",
                 }}
             >
-                <span style={{ color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", fontSize: 22, fontWeight: 700 }}>M</span>
+                <img src="/memba-icon.png" alt="Memba" style={{ width: 72, height: 72, borderRadius: 12 }} />
             </div>
 
             {/* Indeterminate progress bar */}

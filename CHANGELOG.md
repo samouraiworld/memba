@@ -6,6 +6,26 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.0-θ UX Polish & Layout Fixes (2026-03-07)
+
+#### Fixed
+- **Sidebar scroll** — switched from `position: sticky` to `position: fixed`; sidebar is now viewport-locked and never scrolls with page content
+- **Logo alignment** — added `margin: 0 8px` to sidebar header to match nav link offset (was 8px misaligned); logo increased from 24px to 30px
+- **Footer visibility** — bottom padding increased from 32px to 80px to prevent Netlify deploy preview toolbar from obscuring content
+- **ConnectingLoader** — removed dashed border container and green background; logo increased from 32px to 72px for clean brand presence
+
+#### Changed
+- **Phosphor icon migration** — migrated 30+ remaining emojis to `@phosphor-icons/react` SVGs across 10 page files (Dashboard, DAOList, DAOHome, ProposalView, ProposeDAO, CreateDAO, TokenView, ImportMultisig, TransactionView, UserRedirect)
+- **Layout architecture** — app layout changed from CSS Grid to Flexbox with `margin-left` compensation for fixed sidebar
+- **MobileTabBar** — `TABS` array refactored to data-only `TAB_DEFS` with Icon component references
+- **LayoutContext** — added `syncTimedOut` boolean to context + Outlet
+- **Disabled plugins** — BottomSheet closes on tap + shows inline "Select a DAO" hint
+- **JSDoc** — added to `WizardStepPreset` component
+
+#### Tests
+- 360 unit tests (18 files), 93 E2E tests, all quality gates pass (tsc 0, lint 0, build clean)
+- E2E: updated 8 emoji-based selectors in `dao.spec.ts` and `smoke.spec.ts`
+
 ### v2.0-η UX Audit Sprint (2026-03-07)
 
 #### Fixed

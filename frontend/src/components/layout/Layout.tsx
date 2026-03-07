@@ -185,7 +185,7 @@ export function Layout() {
 
                 {/* ── Main ─────────────────────────────────────── */}
                 <main id="main-content" className="k-main">
-                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn }} />
+                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
                 </main>
 
                 {/* ── Footer ───────────────────────────────────── */}

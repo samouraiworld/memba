@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { MagnifyingGlass } from "@phosphor-icons/react"
 import { GNO_RPC_URL, getUserRegistryPath } from "../lib/config"
 
 /**
@@ -80,7 +81,7 @@ export function UserRedirect() {
                 fontFamily: "JetBrains Mono, monospace", textAlign: "center",
             }}>
                 <div className="k-card" style={{ padding: 32 }}>
-                    <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
+                    <div style={{ fontSize: 40, marginBottom: 16, display: 'flex', justifyContent: 'center' }}><MagnifyingGlass size={40} /></div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: "#f0f0f0", marginBottom: 8 }}>
                         User not found
                     </h2>

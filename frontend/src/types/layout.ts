@@ -23,5 +23,7 @@ export interface LayoutContext {
     }
     /** True while wallet is reconnecting or auth is in progress */
     isLoggingIn: boolean
+    /** True when wallet sync has exceeded the 10s timeout */
+    syncTimedOut: boolean
 }
 

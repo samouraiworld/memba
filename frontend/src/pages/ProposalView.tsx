@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -460,7 +461,7 @@ export function ProposalView() {
                     border: "1px solid rgba(245,166,35,0.15)",
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
-                    <span style={{ fontSize: 16 }}>📦</span>
+                    <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
                     <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
                         This DAO is archived — voting and execution are disabled
                     </div>

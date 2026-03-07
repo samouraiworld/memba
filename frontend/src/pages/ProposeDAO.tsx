@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { NotePencil, UsersThree, Vault, GearSix, Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
@@ -28,10 +29,10 @@ export function ProposeDAO() {
     const isGovDAO = checkIsGovDAO(realmPath)
 
     const categories = [
-        { value: "governance", label: "🏛️ Governance" },
-        { value: "treasury", label: "💰 Treasury" },
-        { value: "membership", label: "👥 Membership" },
-        { value: "operations", label: "⚙️ Operations" },
+        { value: "governance", label: "Governance" },
+        { value: "treasury", label: "Treasury" },
+        { value: "membership", label: "Membership" },
+        { value: "operations", label: "Operations" },
     ]
 
     // Check archive status on mount
@@ -128,7 +129,7 @@ export function ProposeDAO() {
                     border: "1px solid rgba(245,166,35,0.15)",
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
-                    <span style={{ fontSize: 16 }}>📦</span>
+                    <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
                     <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
                         This DAO is archived — new proposals cannot be created
                     </div>
@@ -156,10 +157,10 @@ export function ProposeDAO() {
                     <label style={labelStyle}>Proposal Type</label>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {[
-                            { id: "text" as const, label: "📝 Text / Sentiment", enabled: true },
-                            { id: "member" as const, label: "👥 Add Member", enabled: true },
-                            { id: "spend" as const, label: "💰 Treasury Spend", enabled: false, hint: "Use Treasury → New Proposal" },
-                            { id: "upgrade" as const, label: "⚙️ Code Upgrade", enabled: false, hint: "Coming in v2.x" },
+                            { id: "text" as const, label: "Text / Sentiment", icon: NotePencil, enabled: true },
+                            { id: "member" as const, label: "Add Member", icon: UsersThree, enabled: true },
+                            { id: "spend" as const, label: "Treasury Spend", icon: Vault, enabled: false, hint: "Use Treasury → New Proposal" },
+                            { id: "upgrade" as const, label: "Code Upgrade", icon: GearSix, enabled: false, hint: "Coming in v2.x" },
                         ].map(t => (
                             <button
                                 key={t.id}
@@ -179,7 +180,7 @@ export function ProposeDAO() {
                                     transition: "all 0.15s",
                                 }}
                             >
-                                {t.label}
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><t.icon size={14} /> {t.label}</span>
                             </button>
                         ))}
                     </div>
