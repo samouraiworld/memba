@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback, useState } from "react"
-import { Outlet, Link } from "react-router-dom"
+import { Outlet } from "react-router-dom"
 import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
-import { CopyableAddress } from "../ui/CopyableAddress"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
-import { NETWORKS, validateActiveRpcDomain } from "../../lib/config"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
+import { Sidebar } from "./Sidebar"
+import { TopBar } from "./TopBar"
+import { MobileTabBar } from "./MobileTabBar"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -24,11 +25,24 @@ function bytesToBase64(bytes: Uint8Array): string {
 export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
-    const { balance, compactBalance } = useBalance(adena.connected ? adena.address : null)
+    const { compactBalance, balance } = useBalance(adena.connected ? adena.address : null)
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const loginAttemptedRef = useRef(false)
+
+    // ── Sidebar collapse state (persisted to localStorage) ──
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+        localStorage.getItem("k-sidebar-collapsed") === "true"
+    )
+
+    const handleToggleCollapse = useCallback(() => {
+        setSidebarCollapsed(prev => {
+            const next = !prev
+            localStorage.setItem("k-sidebar-collapsed", String(next))
+            return next
+        })
+    }, [])
 
     // ── Auth bridge: wallet connect → challenge-response → token ──
     const performLogin = useCallback(async () => {
@@ -126,293 +140,74 @@ export function Layout() {
         loginAttemptedRef.current = false
     }, [adena, auth])
 
-
-
     const isLoggingIn = adena.loading || authLoading || auth.loading || adena.reconnecting
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
 
     return (
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#000", color: "#f0f0f0" }}>
-            {/* ── Header ──────────────────────────────────────────────── */}
-            <header role="banner" className="k-glass" style={{ position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #1a1a1a" }}>
-                <div className="k-header-content" style={{ maxWidth: 1152, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    {/* Logo — clickable to home */}
-                    <Link to={auth.isAuthenticated ? "/dashboard" : "/"} aria-label="Memba home" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
-                        <img
-                            src="/memba-icon.png"
-                            alt="Memba"
-                            width={36}
-                            height={36}
-                            style={{ borderRadius: 8 }}
-                        />
-                        <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.03em" }}>Memba</span>
-                        <span className="k-version-badge" data-testid="alpha-badge" style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#f5a623", background: "rgba(245,166,35,0.1)",
-                            padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                            border: "1px solid rgba(245,166,35,0.2)",
-                        }}>Alpha</span>
-                        <span className="k-version-badge" data-testid="version-badge" style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
-                            padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                        }}>v2</span>
-                    </Link>
+        <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
+            {/* Skip to content (accessibility — focus-only) */}
+            <a href="#main-content" className="k-skip-to-content">
+                Skip to content
+            </a>
 
-                    {/* Nav links */}
-                    <nav aria-label="Main navigation" className="k-header-nav" style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                        {adena.connected && (
-                            <Link to="/dashboard" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                                🏠 <span className="k-nav-label">Dashboard</span>
-                            </Link>
-                        )}
-                        <Link to="/tokens" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                            🪙 <span className="k-nav-label">Tokens</span>
-                        </Link>
-                        <Link to="/dao" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s", position: "relative" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"} title={unvotedCount > 0 ? `${unvotedCount} unvoted proposal${unvotedCount > 1 ? "s" : ""}` : undefined}>
-                            🏛️ <span className="k-nav-label">DAO</span>
-                            {unvotedCount > 0 && <span className="k-notif-dot" />}
-                        </Link>
+            {/* ── Sidebar ──────────────────────────────────────── */}
+            <Sidebar
+                connected={adena.connected}
+                address={auth.address || adena.address}
+                unvotedCount={unvotedCount}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={handleToggleCollapse}
+            />
 
-                        {adena.connected && adena.address && (
-                            <Link to={`/profile/${adena.address}`} style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                                👤 <span className="k-nav-label">Profile</span>
-                            </Link>
-                        )}
-                        {adena.connected && (
-                            <Link to="/settings" style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"} onMouseLeave={e => e.currentTarget.style.color = "#888"}>
-                                ⚙️ <span className="k-nav-label">Settings</span>
-                            </Link>
-                        )}
-                    </nav>
+            {/* ── Main column ──────────────────────────────────── */}
+            <div className="k-main-column">
+                <TopBar
+                    adena={adena}
+                    auth={auth}
+                    compactBalance={compactBalance}
+                    network={network}
+                    isLoggingIn={isLoggingIn}
+                    authError={authError}
+                    onDisconnect={handleDisconnect}
+                    onClearError={() => setAuthError(null)}
+                />
 
-                    {/* Right side */}
-                    <div className="k-header-right" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                        {/* Network selector */}
-                        <select
-                            value={network.networkKey}
-                            onChange={(e) => network.switchNetwork(e.target.value)}
-                            title="Switch network"
-                            style={{
-                                background: "rgba(0,212,170,0.06)", border: "1px solid #1a1a1a",
-                                color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                padding: "4px 8px", borderRadius: 6, cursor: "pointer",
-                                outline: "none", appearance: "none", WebkitAppearance: "none",
-                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23555'/%3E%3C/svg%3E\")",
-                                backgroundRepeat: "no-repeat", backgroundPosition: "right 6px center",
-                                paddingRight: 20,
-                            }}
-                        >
-                            {Object.entries(network.networks).map(([key, net]) => (
-                                <option key={key} value={key} style={{ background: "#111", color: "#ccc" }}>
-                                    {net.label}
-                                </option>
-                            ))}
-                        </select>
-                        {adena.connected && auth.isAuthenticated ? (
-                            <>
-                                <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
-                                    {compactBalance}
-                                </span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                        <CopyableAddress address={auth.address || adena.address} compact={true} fontSize={12} />
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={handleDisconnect}
-                                    style={{
-                                        padding: "6px 12px", borderRadius: 6,
-                                        background: "none", border: "1px solid #333",
-                                        color: "#888", fontSize: 11, cursor: "pointer",
-                                        fontFamily: "JetBrains Mono, monospace",
-                                    }}
-                                >
-                                    Disconnect
-                                </button>
-                            </>
-                        ) : isLoggingIn ? (
-                            <span className="k-btn-wallet" style={{ cursor: "default", opacity: 0.7 }}>
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.reconnecting ? "#00d4aa" : "#f59e0b" }} className="animate-glow" />
-                                {adena.reconnecting ? "Syncing..." : "Authenticating..."}
-                            </span>
-                        ) : (
-                            adena.installed ? (
-                                <button className="k-btn-wallet" onClick={adena.connect} disabled={isLoggingIn}>
-                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} />
-                                    Connect Wallet
-                                </button>
-                            ) : (
-                                <a
-                                    href="https://adena.app"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="k-btn-wallet"
-                                    style={{ textDecoration: "none" }}
-                                >
-                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
-                                    Install Adena
-                                </a>
-                            )
-                        )}
-                    </div>
-                </div>
-            </header >
+                {/* ── Main ─────────────────────────────────────── */}
+                <main id="main-content" className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
+                    {isLoggingIn ? (
+                        <ConnectingLoader />
+                    ) : (
+                        <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError } }} />
+                    )}
+                </main>
 
-            {/* ── Auth error banner ────────────────────────────────────── */}
-            {
-                authError && (
-                    <div style={{
-                        background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.2)",
-                        padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-                    }}>
-                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                            ⚠ {authError}
-                        </span>
-                        <button
-                            onClick={() => setAuthError(null)}
-                            style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
-                        >
-                            ×
-                        </button>
-                    </div>
-                )
-            }
-
-            {/* ── Chain mismatch warning ───────────────────────────────── */}
-            {
-                adena.connected && adena.chainId && network.chainId !== adena.chainId && (
-                    <div style={{
-                        background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
-                        padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
-                    }}>
-                        <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                            ⚠ Network mismatch — wallet is on <strong>{adena.chainId}</strong>, Memba is on <strong>{network.chainId}</strong>
-                        </span>
-                        {NETWORKS[adena.chainId] ? (
-                            <button
-                                onClick={() => network.switchNetwork(adena.chainId)}
-                                style={{
-                                    background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
-                                    color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                    padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                                }}
-                            >
-                                Switch Memba to {adena.chainId}
-                            </button>
-                        ) : (
-                            <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                                Switch your wallet to {network.chainId} in Adena
-                            </span>
-                        )}
-                    </div>
-                )
-            }
-
-            {/* ── Untrusted wallet RPC warning ─────────────────────────── */}
-            {
-                adena.connected && !adena.rpcTrusted && (
-                    <div className="k-security-banner">
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 18 }}>🛡️</span>
-                            <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>
-                                SECURITY WARNING
-                            </span>
-                            <span style={{ color: "#ff8a94", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                                — All transactions are blocked
-                            </span>
-                        </div>
-                        <div style={{ color: "#ccc", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
-                            {adena.rpcUrl ? (
-                                <>
-                                    Your wallet is connected to an untrusted RPC:{" "}
-                                    <code style={{ color: "#ff4757", background: "rgba(255,71,87,0.12)", padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>
-                                        {adena.rpcUrl}
-                                    </code>
-                                </>
-                            ) : (
-                                <>Unable to verify your wallet&apos;s RPC URL.</>
-                            )}
-                            <br />
-                            <span style={{ color: "#00d4aa", fontWeight: 600 }}>
-                                Open Adena → Settings → Networks → switch to a *.gno.land RPC
-                            </span>
-                        </div>
-                    </div>
-                )
-            }
-            {/* Defense-in-depth: also check Memba's own config */}
-            {
-                (() => {
-                    const rpcWarning = validateActiveRpcDomain()
-                    if (!rpcWarning || (adena.connected && !adena.rpcTrusted)) return null
-                    return (
-                        <div style={{
-                            background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
-                            padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                        }}>
-                            <span style={{ fontSize: 16 }}>🛡️</span>
-                            <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
-                                SECURITY WARNING: {rpcWarning}
-                            </span>
-                        </div>
-                    )
-                })()
-            }
-
-            {/* ── Main ────────────────────────────────────────────────── */}
-            <main className="k-main" style={{ flex: 1, maxWidth: 1152, margin: "0 auto", padding: "32px 24px", width: "100%" }}>
-                {isLoggingIn ? (
-                    <ConnectingLoader />
-                ) : (
-                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError } }} />
-                )}
-            </main>
-
-            {/* ── Footer ──────────────────────────────────────────────── */}
-            <footer style={{ borderTop: "1px solid #111", padding: "16px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-                    {[
-                        { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
-                        { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
-                        { href: "https://samourai.tv/", label: "YouTube", icon: "▶" },
-                        { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg> },
-                        { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
-                        { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
-                        { href: "mailto:support@samourai.coop", label: "Email", icon: "✉" },
-                    ].map(({ href, label, icon }) => (
-                        <a
-                            key={label}
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={label}
-                            style={{
-                                color: "#444", fontSize: 18, textDecoration: "none",
-                                transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
-                                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                minWidth: 36, minHeight: 36, padding: 4,
-                            }}
-                            onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                            onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
-                        >
-                            {icon}
+                {/* ── Footer ───────────────────────────────────── */}
+                <footer className="k-footer">
+                    <div className="k-footer-links">
+                        <a href="https://github.com/samouraiworld/memba" target="_blank" rel="noopener noreferrer" title="GitHub">
+                            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
                         </a>
-                    ))}
-                </div>
-                <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                    memba v2 • built by samourai coop
-                </p>
-                <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
-                    ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
-                    Unaudited, under active development. Use at your own risk.{" "}
-                    <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
-                        Tips & sponsorships
-                    </a>{" "}welcome.
-                </p>
-            </footer>
-        </div >
+                        <a href="mailto:support@samourai.coop" title="Support">✉</a>
+                    </div>
+                    <p style={{ color: "#333", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                        memba v2 • built by samourai coop
+                    </p>
+                    <p style={{ color: "#444", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
+                        ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
+                        Unaudited, under active development. Use at your own risk.{" "}
+                        <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
+                            Tips &amp; sponsorships
+                        </a>{" "}welcome.
+                    </p>
+                </footer>
+            </div>
+
+            {/* ── Mobile Tab Bar ────────────────────────────────── */}
+            <MobileTabBar
+                connected={adena.connected}
+                address={auth.address || adena.address}
+                network={network}
+            />
+        </div>
     )
 }
-

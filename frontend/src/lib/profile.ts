@@ -7,7 +7,7 @@
  * See: gno.land/r/gnoland/users/v1, gnolove.world API
  */
 
-import { GNO_RPC_URL, getExplorerBaseUrl } from "./config"
+import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "./config"
 import { api } from "./api"
 import type { Token } from "../gen/memba/v1/memba_pb"
 
@@ -62,7 +62,7 @@ export interface UserProfile {
 
 // ── Fetchers ──────────────────────────────────────────────────
 
-const USER_REGISTRY = "gno.land/r/gnoland/users/v1"
+const USER_REGISTRY = getUserRegistryPath()
 
 /** Fetch a complete user profile from all data sources in parallel. */
 export async function fetchUserProfile(

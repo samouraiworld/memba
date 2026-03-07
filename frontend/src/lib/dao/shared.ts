@@ -8,6 +8,7 @@
  */
 
 import type { AminoMsg } from "../grc20"
+import { getUserRegistryPath } from "../config"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ async function abciQuery(rpcUrl: string, path: string, data: string): Promise<st
 // ── Username Resolution ───────────────────────────────────────
 
 /** User registry realm path on gno.land. */
-const USER_REGISTRY = "gno.land/r/gnoland/users/v1"
+const USER_REGISTRY = getUserRegistryPath()
 
 /** Username cache key in localStorage. */
 const USERNAME_CACHE_KEY = "memba_usernames"

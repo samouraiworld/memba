@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, getUserRegistryPath } from "../lib/config"
 
 /**
  * Resolve a gno.land username to a wallet address
@@ -15,7 +15,8 @@ import { GNO_RPC_URL } from "../lib/config"
  */
 async function resolveUsernameToAddress(username: string): Promise<string | null> {
     try {
-        const b64Data = btoa(`gno.land/r/gnoland/users/v1:${username}`)
+        const registryPath = getUserRegistryPath()
+        const b64Data = btoa(`${registryPath}:${username}`)
         const res = await fetch(GNO_RPC_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
