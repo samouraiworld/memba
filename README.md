@@ -6,7 +6,7 @@
 [![Security](https://github.com/samouraiworld/memba/actions/workflows/codeql.yml/badge.svg)](https://github.com/samouraiworld/memba/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
-[![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-≥1.26-00ADD8.svg)](https://go.dev)
 [![Tests](https://img.shields.io/badge/Tests-360%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -118,7 +118,7 @@ Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`
 
 ### Prerequisites
 
-- Go ≥ 1.25
+- Go ≥ 1.26
 - Node.js ≥ 20
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app) browser extension

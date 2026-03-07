@@ -961,7 +961,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 ## v2.x — Roadmap (PM/CTO Planning Session — 2026-03-05)
 
 > Consolidated vision for Memba v2.x. Scoped milestones, AAA quality, perfect execution per step.
-> Full planning documents: see [Consolidated Roadmap](docs/planning/memba_v2_consolidated_roadmap.md) and [Feature Implementation Plans](docs/planning/memba_v2_feature_plans.md).
+> Planning tracker: see [MASTER_ROADMAP.md](docs/planning/MASTER_ROADMAP.md).
 
 ### Shipped Features (prior brainstorm items)
 - ~~**User Profiles**: profile pages, gnolove integration, editable profiles, GitHub CTA~~ → v5.3.0–v5.5.0
@@ -983,7 +983,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-### v2.0-α — Foundation ⬜ PLANNED
+### v2.0-α — Foundation ✅ SHIPPED
 
 > Plugin architecture, deployment UX, Add/Remove Member proposals.
 
@@ -996,7 +996,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-### v2.0-β — Board ⬜ PLANNED
+### v2.0-β — Board ✅ SHIPPED
 
 > DAO Board Plugin Phase 1: on-chain discussion, token-gated access.
 
@@ -1009,7 +1009,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-### v2.0-γ — Swap ⬜ PLANNED
+### v2.0-γ — Swap ✅ SHIPPED
 
 > GnoSwap integration Plugin Phase 1: treasury swap via governance proposal. Partnership with [Onblocs](https://github.com/gnoswap-labs/gnoswap).
 
@@ -1022,7 +1022,7 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-### v2.0-δ — Polish ⬜ PLANNED
+### v2.0-δ — Polish ✅ SHIPPED
 
 > Leaderboard, Settings, Memba Feedback Feed, Network info.
 

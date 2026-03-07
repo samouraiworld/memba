@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Go ≥ 1.25
+- Go ≥ 1.26
 - Node.js ≥ 20
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app/) browser extension (for signing)

@@ -1,54 +1,49 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all v2.0 milestones. Updated at the end of each session.**
-> Last updated: 2026-03-07 (v2.0-θ session)
+> Last updated: 2026-03-07 (deep audit session)
 
 ## Milestone Status
 
-| # | Codename | Phase | Status | Effort | Branch |
-|---|----------|-------|--------|--------|--------|
-| 1 | **Foundation** | v2.0-α | 🟢 IN PROGRESS | ~14d | `dev/v2` (direct) |
-| 2 | **Board** | v2.0-β | 🟢 IN PROGRESS | ~10d | `dev/v2` (direct) |
-| 3 | **Swap** | v2.0-γ | 🟢 IN PROGRESS | ~10d | `dev/v2` (direct) |
-| 4 | **Polish** | v2.0-δ | 🟢 IN PROGRESS | ~10d | `dev/v2` (direct) |
-| 5 | **Audit Sprint** | v2.0-ε | ✅ SHIPPED | ~2d | PR → `dev/v2` |
-| 6 | **Sidebar + Sentry** | v2.0-ζ | ✅ SHIPPED | ~1d | PR #69 → `dev/v2` |
-| 7 | **UX Audit** | v2.0-η | ✅ SHIPPED | ~1d | PR #70 → `dev/v2` |
-| 8 | **UX Polish + Layout** | v2.0-θ | 🟡 IN REVIEW | ~1d | PR #71 → `dev/v2` |
+| # | Codename | Phase | Status | Branch |
+|---|----------|-------|--------|--------|
+| 1 | **Foundation** | v2.0-α | ✅ SHIPPED | `dev/v2` |
+| 2 | **Board** | v2.0-β | ✅ SHIPPED | `dev/v2` |
+| 3 | **Swap** | v2.0-γ | ✅ SHIPPED | `dev/v2` |
+| 4 | **Polish** | v2.0-δ | ✅ SHIPPED | `dev/v2` |
+| 5 | **UX & Consistency** | v2.0-ε | ✅ SHIPPED | `dev/v2` |
+| 6 | **Sidebar + Sentry** | v2.0-ζ | ✅ SHIPPED | PR #69 → `dev/v2` |
+| 7 | **UX Audit Sprint** | v2.0-η | ✅ SHIPPED | PR #70 → `dev/v2` |
+| 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
 
-**Total estimated effort**: ~49 development days
+## Quality Gates (as of v2.0-θ)
+
+| Metric | Value |
+|--------|-------|
+| Unit tests | 360 (18 files) |
+| E2E tests | 186 (10 spec files) |
+| TypeScript errors | 0 |
+| Lint errors | 0 |
+| Build size | 496KB (145KB gzip) |
 
 ## Chain Targets
 
 | Chain | Status | Memba target |
 |-------|--------|-------------|
-| test11 | ✅ Active | v2.0-α + v2.0-β dev |
+| test11 | ✅ Active | All dev + testing |
 | Betanet | 🟡 ~March 12 | v2.0 deployed |
 | Mainnet | 🟡 ~April 2026 | v2.0-γ (GnoSwap) live |
 
-## Execution Order
+## ⚠️ Upstream Tracking
 
-```
-v2.0-α Foundation → v2.0-β Board → v2.0-γ Swap → v2.0-δ Polish → merge dev/v2 → main
-                                                    ↑
-                                    v2.0-ε/ζ/η/θ (incremental polish, shipped)
-```
-Each milestone MUST be 100% complete before starting the next.
-
-## Next Session Ideas
-
-- **Extensions/Plugins page** — dedicated page showing upcoming extensions with descriptions and status badges (coming soon, available, under development)
-- Further v2.0-δ Polish items
-- Sentry integration completion
-- GnoSwap slippage configuration
+| Issue | Status | Impact |
+|-------|--------|--------|
+| `r/gnoland/users` removed (gno PR #5194) | 🟡 PENDING | 13 references in Memba. `getUserRegistryPath()` abstraction ready. Migrate when testnets upgrade to `r/sys/users`. |
 
 ## Key Decisions Log
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-03-07 | Sidebar: `position: fixed` | `sticky` was defeated by grid scroll — `fixed` is viewport-locked |
-| 2026-03-07 | Layout: Grid → Flexbox | Accommodates fixed sidebar with `margin-left` compensation |
-| 2026-03-07 | Bottom bar: Netlify toolbar | Not an app bug — added 80px footer safeguard padding |
 | 2026-03-05 | Plugin realms: separate (Option A) | Blast radius isolation, independent audits |
 | 2026-03-05 | Notifications: on-chain board-based | No backend, no PII, proven polling pattern |
 | 2026-03-05 | Monetisation: phased freemium | Free at launch, soft limits v2.2, on-chain subs v2.3+ |
@@ -73,6 +68,5 @@ Each milestone MUST be 100% complete before starting the next.
 | [milestones/v2.0-beta/BRIEF.md](milestones/v2.0-beta/BRIEF.md) | Board scope + acceptance |
 | [milestones/v2.0-gamma/BRIEF.md](milestones/v2.0-gamma/BRIEF.md) | Swap scope + acceptance |
 | [milestones/v2.0-delta/BRIEF.md](milestones/v2.0-delta/BRIEF.md) | Polish scope + acceptance |
-| [milestones/v2.0-eta/SUMMARY.md](milestones/v2.0-eta/SUMMARY.md) | η UX Audit Sprint results |
-| [milestones/v2.0-theta/SUMMARY.md](milestones/v2.0-theta/SUMMARY.md) | θ UX Polish + Layout fixes |
-
+| [milestones/v2.0-eta/SUMMARY.md](milestones/v2.0-eta/SUMMARY.md) | UX audit sprint results |
+| [milestones/v2.0-theta/SUMMARY.md](milestones/v2.0-theta/SUMMARY.md) | UX polish + fixes results |
