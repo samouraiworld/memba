@@ -20,7 +20,7 @@
 | 11 | **Organization Directory** | v2.2a | ✅ SHIPPED | PR #76 → `dev/v2` |
 | 12 | **Directory Enrichment** | v2.2b | ✅ SHIPPED | PR #77 → `dev/v2` |
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
-| 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | `feat/v2.5a/channel-pages` → `dev/v2` |
+| 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
 | 15 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
 | 16 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | 17 | **Premium** | v3.5 | 🔮 HORIZON | — |
