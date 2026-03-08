@@ -76,7 +76,7 @@
 - 🧩 **Extensions Hub** — dedicated `/extensions` page with status badges (Active/Coming Soon)
 - ⌘K **Command Palette** — 14 navigation commands, fuzzy search, keyboard shortcuts
 
-### Channels & Communication (v2.5)
+### Channels & Communication
 - 💬 **Channel Pages** — standalone `/dao/:slug/channels` route with sidebar, breadcrumb nav
 - 🔄 **Real-time UX** — 10s polling, Page Visibility API pause, "New messages" toast
 - 🔊 **Voice Channels** — Jitsi Meet iframe embed, "Join Room" gate
