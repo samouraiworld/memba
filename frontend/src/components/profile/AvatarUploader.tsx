@@ -107,6 +107,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         <button
                             key={m}
                             onClick={() => { setMode(m); setError(null) }}
+                            data-testid={`avatar-mode-${m}`}
                             style={{
                                 padding: "3px 10px", fontSize: 10, borderRadius: 4,
                                 fontFamily: "JetBrains Mono, monospace",
@@ -135,6 +136,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         value={urlInput}
                         onChange={e => setUrlInput(e.target.value)}
                         placeholder="https://example.com/avatar.png or ipfs://bafybei..."
+                        data-testid="avatar-url-input"
                         style={{
                             flex: 1, padding: "8px 12px", borderRadius: 6,
                             border: "1px solid #1a1a1a", background: "#0d0d0d",
@@ -146,6 +148,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         onClick={applyUrl}
                         disabled={!urlInput.trim()}
                         className="k-btn-primary"
+                        data-testid="avatar-apply-url"
                         style={{ fontSize: 10, padding: "6px 12px", opacity: urlInput.trim() ? 1 : 0.4 }}
                     >
                         Apply
@@ -163,6 +166,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                     <button
                         onClick={() => fileRef.current?.click()}
                         className="k-btn-secondary"
+                        data-testid="avatar-choose-file"
                         style={{
                             fontSize: 11, padding: "10px 18px", width: "100%",
                             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -190,6 +194,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                     onClick={handleUpload}
                                     disabled={uploading}
                                     className="k-btn-primary"
+                                    data-testid="avatar-upload-btn"
                                     style={{ fontSize: 10, padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
                                 >
                                     {uploading ? "⏳ Pinning to IPFS..." : lighthouseKey ? "📌 Pin & Use" : "✓ Use This Photo"}

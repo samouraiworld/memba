@@ -202,15 +202,15 @@ describe('buildCreateMembaTokenMsgs', () => {
 
 describe('formatTokenAmount', () => {
     it('formats whole token amount', () => {
-        expect(formatTokenAmount(1000000n, 6)).toBe('1.000000')
+        expect(formatTokenAmount(1000000n, 6)).toBe('1')
     })
 
     it('formats fractional amount', () => {
-        expect(formatTokenAmount(1500000n, 6)).toBe('1.500000')
+        expect(formatTokenAmount(1500000n, 6)).toBe('1.5')
     })
 
     it('formats zero', () => {
-        expect(formatTokenAmount(0n, 6)).toBe('0.000000')
+        expect(formatTokenAmount(0n, 6)).toBe('0')
     })
 
     it('formats sub-unit amounts', () => {
@@ -218,7 +218,7 @@ describe('formatTokenAmount', () => {
     })
 
     it('handles large amounts', () => {
-        expect(formatTokenAmount(10000000000000n, 6)).toBe('10000000.000000')
+        expect(formatTokenAmount(10000000000000n, 6)).toBe('10000000')
     })
 })
 

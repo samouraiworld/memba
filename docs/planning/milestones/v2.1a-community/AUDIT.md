@@ -33,7 +33,7 @@ All 23 files in `feat/v2.1a-channel-realm` branch (~3,993 lines added):
 | R4 | 0 | 0 | 3 | 3 | 6 |
 | R5 | 0 | 0 | 0 | 0 | 0 |
 | **Total** | **2** | **4** | **10** | **7** | **23** |
-| **Fixed** | **2** | **4** | **7** | **2** | **15** |
+| **Fixed** | **2** | **4** | **10** | **3** | **19** |
 
 ---
 
@@ -65,15 +65,20 @@ All 23 files in `feat/v2.1a-channel-realm` branch (~3,993 lines added):
 | R4-M2 | `isMembaDAOMember()` uses substring match | Line-by-line token matching |
 | R4-M3 | Edit window hardcoded to 100 blocks | Configurable `editWindowBlocks` in ChannelConfig |
 
-## Deferred (Low Priority)
+## Additional Fixes (Post-R5)
+
+| ID | Finding | Fix |
+|----|---------|-----|
+| I2 | `formatTokenAmount` trailing zeros (`1.000000`) | Strips trailing zeros (`1`, `1.5`). Tests updated. |
+| M5 | CID regex only accepts `bafybei[a-z0-9]{52}` | Broadened to `bafy[a-z2-7]{55,}` (all CIDv1 base32) |
+| N1 | AvatarUploader missing E2E test IDs | 5 `data-testid` attributes added |
+| N2 | BoardView 600+ lines of inline styles | `board.css` extracted (sidebar, cards, forms, tags) |
+
+## Deferred (Blocked)
 
 | ID | Finding | Reason |
 |----|---------|--------|
-| I2 | `formatTokenAmount` trailing zeros | Cosmetic, no user impact |
-| M5 | CID regex not V1-strict | No false positives observed |
-| N1 | Missing E2E test IDs | E2E IDs to add in v2.1b |
-| N2 | BoardView inline styles | CSS refactor planned in v2.2 |
-| N3 | `assertIsMember` no-op | Gno cross-realm limitation |
+| N3 | `assertIsMember` no-op | Gno cross-realm limitation — no fix possible until upstream adds stable cross-realm imports |
 
 ---
 

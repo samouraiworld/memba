@@ -26,6 +26,7 @@ import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemp
 import { buildChannelCreateThreadMsg, buildChannelReplyMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
+import "./board.css"
 
 type View = "home" | "channel" | "thread" | "new-thread"
 

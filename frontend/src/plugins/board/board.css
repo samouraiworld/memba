@@ -1,0 +1,189 @@
+/**
+ * BoardView CSS — Extracted styles for the Channels/Board plugin.
+ *
+ * v2.1a: Created to reduce inline styles in BoardView.tsx.
+ * Contains commonly repeated patterns: cards, thread items, forms, sidebar.
+ */
+
+/* ── Channel Sidebar ───────────────────────────────────────── */
+
+.board-sidebar {
+    width: 200px;
+    min-width: 200px;
+    border-right: 1px solid #1a1a1a;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+}
+
+.board-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #888;
+    transition: all 0.15s;
+    border-radius: 4px;
+    margin: 0 6px;
+    border: none;
+    background: none;
+    width: calc(100% - 12px);
+    text-align: left;
+    font-family: inherit;
+}
+
+.board-sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #ccc;
+}
+
+.board-sidebar-item.active {
+    background: rgba(0, 212, 170, 0.06);
+    color: #00d4aa;
+}
+
+/* ── Thread Cards ──────────────────────────────────────────── */
+
+.board-thread-card {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid #1a1a1a;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.board-thread-card:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(0, 212, 170, 0.15);
+}
+
+.board-thread-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 4px;
+}
+
+.board-thread-meta {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Thread Detail ─────────────────────────────────────────── */
+
+.board-thread-body {
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #ccc;
+}
+
+.board-reply {
+    padding: 12px 16px;
+    border-top: 1px solid #111;
+}
+
+.board-reply-author {
+    font-size: 11px;
+    font-weight: 600;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.board-reply-body {
+    font-size: 13px;
+    color: #ccc;
+    margin-top: 4px;
+    line-height: 1.6;
+}
+
+/* ── Forms ─────────────────────────────────────────────────── */
+
+.board-input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid #1a1a1a;
+    background: #0d0d0d;
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.board-input:focus {
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+.board-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid #1a1a1a;
+    background: #0d0d0d;
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.6;
+    transition: border-color 0.15s;
+}
+
+.board-textarea:focus {
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+
+.board-edited-tag {
+    font-size: 10px;
+    color: #666;
+    font-style: italic;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.board-deleted-tag {
+    font-size: 10px;
+    color: #ef4444;
+    font-style: italic;
+}
+
+.board-mention {
+    background: rgba(0, 212, 170, 0.12);
+    color: #00d4aa;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.board-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #555;
+    font-size: 13px;
+}
+
+.board-back-btn {
+    font-size: 12px;
+    color: #666;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    font-family: inherit;
+    transition: color 0.15s;
+}
+
+.board-back-btn:hover {
+    color: #00d4aa;
+}

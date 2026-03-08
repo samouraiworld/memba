@@ -46,9 +46,9 @@ export function isValidImageMime(mime: string): boolean {
     return ACCEPTED_MIMES.has(mime)
 }
 
-/** Validate a CID (basic bafybei... or Qm... format check). */
+/** Validate a CID (CIDv1 base32 bafy... or CIDv0 Qm... format check). */
 export function isValidCid(cid: string): boolean {
-    return /^(bafybei[a-z0-9]{52}|Qm[a-zA-Z0-9]{44})$/.test(cid)
+    return /^(bafy[a-z2-7]{55,}|Qm[a-zA-Z0-9]{44,})$/.test(cid)
 }
 
 // ── IPFS Gateway URL ──────────────────────────────────────────

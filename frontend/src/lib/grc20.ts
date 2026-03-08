@@ -367,13 +367,16 @@ export async function getMembaBalance(rpcUrl: string, address: string): Promise<
 
 /**
  * Format a token amount with decimals for display.
- * Example: formatTokenAmount(1000000n, 6) → "1.000000"
+ * Trailing zeros are stripped for readability.
+ * Example: formatTokenAmount(1000000n, 6) → "1"
+ * Example: formatTokenAmount(1500000n, 6) → "1.5"
  */
 export function formatTokenAmount(amount: bigint, decimals: number = MEMBA_TOKEN.decimals): string {
     const divisor = 10n ** BigInt(decimals)
     const whole = amount / divisor
     const frac = amount % divisor
-    const fracStr = frac.toString().padStart(decimals, "0")
+    if (frac === 0n) return whole.toString()
+    const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "")
     return `${whole}.${fracStr}`
 }
 
