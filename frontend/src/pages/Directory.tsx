@@ -17,10 +17,15 @@ import {
     getDirectoryDAOs,
     fetchTokens,
     fetchUsers,
+    calculateContributionScores,
+    parseDAOMemberAddresses,
+    SEED_DAOS,
     type DirectoryToken,
     type DirectoryUser,
+    type ContributionScore,
 } from "../lib/directory"
 import { batchGetDAOMetadata, type DAOMetadata } from "../lib/daoMetadata"
+import { queryRender } from "../lib/dao/shared"
 import { DAOCard, FeaturedDAOs } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import "./directory.css"
@@ -256,6 +261,7 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
+    const [scores, setScores] = useState<Map<string, ContributionScore>>(new Map())
     const PAGE_SIZE = 20
     const fetchedRef = useRef(false)
 
@@ -264,6 +270,20 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
         try {
             const data = await fetchUsers()
             setUsers(data)
+
+            // Fetch DAO member data for contribution scoring (best-effort)
+            const memberMap = new Map<string, string[]>()
+            const settled = await Promise.allSettled(
+                SEED_DAOS.map(async dao => {
+                    const raw = await queryRender(GNO_RPC_URL, dao.path, "")
+                    if (raw) memberMap.set(dao.path, parseDAOMemberAddresses(raw))
+                }),
+            )
+            // Suppress unused warning — settled used for await synchronization
+            void settled
+            if (memberMap.size > 0) {
+                setScores(calculateContributionScores(data, memberMap))
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load users")
         } finally { setLoading(false) }
@@ -315,27 +335,42 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                         {filtered.length} user{filtered.length !== 1 ? "s" : ""} found
                     </div>
                     <div className="dir-user-list">
-                        {pageItems.map(u => (
-                            <button
-                                key={u.address}
-                                className="dir-card"
-                                onClick={() => navigate(`/profile/${u.address}`)}
-                                data-testid="user-card"
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div className="dir-user-avatar">@</div>
-                                    <div className="dir-card-main">
-                                        <div className="dir-card-name">@{u.name}</div>
-                                        <div className="dir-card-path">
-                                            {u.address.length > 20
-                                                ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}`
-                                                : u.address}
+                        {pageItems.map(u => {
+                            const score = scores.get(u.address)
+                            return (
+                                <button
+                                    key={u.address}
+                                    className="dir-card"
+                                    onClick={() => navigate(`/profile/${u.address}`)}
+                                    data-testid="user-card"
+                                >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <div className="dir-user-avatar">{u.name.charAt(0)}</div>
+                                        <div className="dir-card-main">
+                                            <div className="dir-card-name">
+                                                @{u.name}
+                                                {score && score.daoCount > 0 && (
+                                                    <span
+                                                        className={`dir-activity-badge dir-activity-${score.level}`}
+                                                        title={`Member of ${score.daoCount} DAO${score.daoCount !== 1 ? "s" : ""}`}
+                                                        data-testid="user-score"
+                                                    >
+                                                        {score.level === "active" ? "⭐" : score.level === "moderate" ? "🔹" : "🔸"}
+                                                        {score.daoCount} DAO{score.daoCount !== 1 ? "s" : ""}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="dir-card-path">
+                                                {u.address.length > 20
+                                                    ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}`
+                                                    : u.address}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <ArrowRight size={14} className="dir-arrow" />
-                            </button>
-                        ))}
+                                    <ArrowRight size={14} className="dir-arrow" />
+                                </button>
+                            )
+                        })}
                     </div>
                     {hasMore && (
                         <button

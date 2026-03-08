@@ -110,6 +110,77 @@ export const SEED_DAOS: Array<{ name: string; path: string }> = [
     { name: "Worx DAO", path: "gno.land/r/demo/worx" },
 ]
 
+/**
+ * Known DAO paths to probe for auto-discovery.
+ * Each path is queried via ABCI Render("") — if it responds, it's a valid DAO.
+ */
+export const DISCOVERY_PROBES: Array<{ name: string; path: string }> = [
+    { name: "GovDAO", path: "gno.land/r/gov/dao" },
+    { name: "Worx DAO", path: "gno.land/r/demo/worx" },
+    { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2" },
+    { name: "Faucet Hub", path: "gno.land/r/faucet/admin" },
+]
+
+/**
+ * Probe a list of known DAO paths via ABCI Render("").
+ * Returns only paths that respond successfully (valid deployed DAOs).
+ * Results are cached in sessionStorage with 5-minute TTL.
+ */
+export async function discoverDAOs(rpcUrl: string): Promise<Array<{ name: string; path: string }>> {
+    const cached = getCached<Array<{ name: string; path: string }>>("discovered_daos")
+    if (cached) return cached
+
+    const discovered: Array<{ name: string; path: string }> = []
+
+    const results = await Promise.allSettled(
+        DISCOVERY_PROBES.map(async probe => {
+            const raw = await queryRender(rpcUrl, probe.path, "")
+            // A valid DAO returns non-empty Render output
+            if (raw && raw.length > 10) {
+                return probe
+            }
+            return null
+        }),
+    )
+
+    for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+            discovered.push(result.value)
+        }
+    }
+
+    setCache("discovered_daos", discovered)
+    return discovered
+}
+
+/**
+ * Enhanced DAO list: seed + saved + discovered (deduplicated by path).
+ * Use this instead of getDirectoryDAOs() when auto-discovery is desired.
+ */
+export async function getDirectoryDAOsWithDiscovery(rpcUrl: string): Promise<DirectoryDAO[]> {
+    const base = getDirectoryDAOs()
+    const existingPaths = new Set(base.map(d => d.path))
+
+    try {
+        const discovered = await discoverDAOs(rpcUrl)
+        for (const dao of discovered) {
+            if (!existingPaths.has(dao.path)) {
+                base.push({
+                    name: dao.name,
+                    path: dao.path,
+                    isSaved: false,
+                    category: getDAOCategory(dao.path, dao.name),
+                })
+                existingPaths.add(dao.path)
+            }
+        }
+    } catch {
+        // Discovery failed — return base list only
+    }
+
+    return base
+}
+
 // ── DAO Fetching ─────────────────────────────────────────────
 
 /**
@@ -230,4 +301,71 @@ export async function fetchUsers(): Promise<DirectoryUser[]> {
     const users = parseUserRegistry(raw)
     setCache("users", users)
     return users
+}
+
+// ── Contribution Scoring ─────────────────────────────────────
+
+export interface ContributionScore {
+    address: string
+    daoCount: number
+    level: "active" | "moderate" | "newcomer" | "observer"
+}
+
+/**
+ * Classify activity level by DAO membership count.
+ */
+export function getActivityLevel(daoCount: number): ContributionScore["level"] {
+    if (daoCount >= 3) return "active"
+    if (daoCount >= 2) return "moderate"
+    if (daoCount >= 1) return "newcomer"
+    return "observer"
+}
+
+/**
+ * Parse member addresses from a DAO Render output.
+ * Looks for g1... addresses in member lists.
+ */
+export function parseDAOMemberAddresses(raw: string): string[] {
+    const addresses: string[] = []
+    const matches = raw.matchAll(/\b(g1[a-z0-9]{38})\b/g)
+    for (const m of matches) {
+        if (!addresses.includes(m[1])) {
+            addresses.push(m[1])
+        }
+    }
+    return addresses
+}
+
+/**
+ * Calculate contribution scores for a list of users by cross-referencing
+ * with DAO membership data. This is a client-side heuristic that counts
+ * how many known DAOs each user address appears in.
+ *
+ * @param users - User list from the directory
+ * @param daoMemberMap - Map of daoPath → member addresses
+ */
+export function calculateContributionScores(
+    users: DirectoryUser[],
+    daoMemberMap: Map<string, string[]>,
+): Map<string, ContributionScore> {
+    const scores = new Map<string, ContributionScore>()
+
+    for (const user of users) {
+        const addr = user.address.toLowerCase()
+        let daoCount = 0
+
+        for (const members of daoMemberMap.values()) {
+            if (members.some(m => m.toLowerCase() === addr)) {
+                daoCount++
+            }
+        }
+
+        scores.set(user.address, {
+            address: user.address,
+            daoCount,
+            level: getActivityLevel(daoCount),
+        })
+    }
+
+    return scores
 }
