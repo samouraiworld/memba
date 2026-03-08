@@ -1,7 +1,7 @@
 # v2.1a — Community Foundation (BRIEF)
 
-> **Status**: ⬜ PLANNED | **Effort**: ~3 weeks | **Depends on**: v2.0-θ (✅)
-> **Branch**: `feat/v2.1a-*` → `dev/v2`
+> **Status**: ✅ COMPLETE | **Effort**: ~3 weeks | **Depends on**: v2.0-θ (✅)
+> **Branch**: `feat/v2.1a-channel-realm` → `dev/v2` | **PR**: [#74](https://github.com/samouraiworld/memba/pull/74)
 
 ---
 
