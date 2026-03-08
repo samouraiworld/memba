@@ -142,6 +142,7 @@ describe("generateChannelCode", () => {
         minTokenBalance: 0,
         tokenFactoryPath: "gno.land/r/demo/defi/grc20factory",
         tokenSymbol: "",
+        editWindowBlocks: 100,
     }
 
     it("generates valid Gno package declaration", () => {
@@ -339,6 +340,13 @@ describe("generateChannelCode", () => {
     it("generates edit window of 100 blocks", () => {
         const code = generateChannelCode(baseConfig)
         expect(code).toContain("edit window expired (100 blocks)")
+    })
+
+    it("uses custom edit window from config", () => {
+        const config: ChannelConfig = { ...baseConfig, editWindowBlocks: 50 }
+        const code = generateChannelCode(config)
+        expect(code).toContain("edit window expired (50 blocks)")
+        expect(code).not.toContain("100 blocks")
     })
 
     it("generates GetChannelConfig function", () => {

@@ -67,7 +67,7 @@ export interface MembaChannel {
 }
 
 /** Default MembaDAO channels. */
-export const MEMBA_CHANNELS: MembaChannel[] = [
+export const MEMBA_DAO_CHANNELS: MembaChannel[] = [
     { name: "general", type: "text", description: "General discussion for all members" },
     { name: "announcements", type: "announcements", description: "Official MembaDAO announcements — admin-write-only" },
     { name: "feature-requests", type: "text", description: "Propose and discuss new features" },
@@ -159,7 +159,12 @@ export async function isMembaDAOMember(rpcUrl: string, address: string): Promise
         const data = json?.result?.response?.ResponseBase?.Data
         if (!data) return false
         const rendered = atob(data)
-        return rendered.includes(address)
+        // Split by lines and check each for address as a distinct token
+        // (avoids false positives from substring matches)
+        return rendered.split("\n").some(line => {
+            const trimmed = line.trim()
+            return trimmed === address || trimmed.startsWith(address + " ") || trimmed.includes(" " + address)
+        })
     } catch {
         return false
     }

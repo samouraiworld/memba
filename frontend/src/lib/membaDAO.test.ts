@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest"
 import {
     MEMBA_DAO_CONFIG,
-    MEMBA_CHANNELS,
+    MEMBA_DAO_CHANNELS,
     ZOOMA_ADDRESS,
     getDeploymentSteps,
     isMembaDAO,
@@ -50,22 +50,22 @@ describe("MEMBA_DAO_CONFIG", () => {
 
 // ── Channels ──────────────────────────────────────────────────
 
-describe("MEMBA_CHANNELS", () => {
+describe("MEMBA_DAO_CHANNELS", () => {
     it("has 6 default channels", () => {
-        expect(MEMBA_CHANNELS).toHaveLength(6)
+        expect(MEMBA_DAO_CHANNELS).toHaveLength(6)
     })
 
     it("has general as first channel", () => {
-        expect(MEMBA_CHANNELS[0].name).toBe("general")
+        expect(MEMBA_DAO_CHANNELS[0].name).toBe("general")
     })
 
     it("has announcements channel with admin-write type", () => {
-        const ann = MEMBA_CHANNELS.find(c => c.name === "announcements")
+        const ann = MEMBA_DAO_CHANNELS.find(c => c.name === "announcements")
         expect(ann?.type).toBe("announcements")
     })
 
     it("all channels have descriptions", () => {
-        MEMBA_CHANNELS.forEach(ch => {
+        MEMBA_DAO_CHANNELS.forEach(ch => {
             expect(ch.description.length).toBeGreaterThan(0)
         })
     })

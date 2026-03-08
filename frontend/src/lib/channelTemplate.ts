@@ -64,6 +64,8 @@ export interface ChannelConfig {
     tokenFactoryPath: string
     /** Token symbol for balance check. */
     tokenSymbol: string
+    /** Blocks after creation during which author can edit (0 = no edit). */
+    editWindowBlocks: number
 }
 
 /** Default channel definitions for MembaDAO. */
@@ -90,6 +92,7 @@ export function defaultChannelConfig(daoRealmPath: string, daoName: string): Cha
         minTokenBalance: 0,
         tokenFactoryPath: "gno.land/r/demo/defi/grc20factory",
         tokenSymbol: "",
+        editWindowBlocks: 100,
     }
 }
 
@@ -405,48 +408,48 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 // ── Edit / Delete ─────────────────────────────────────────
 
 func EditMessage(cur realm, channel string, threadID int, replyID int, newBody string) {
-\tcaller := std.GetOrigCaller()
-\tblockHeight := std.GetHeight()
-\tif len(newBody) == 0 || len(newBody) > 8192 {
-\t\tpanic("body must be 1-8192 characters")
-\t}
-\tfor i, ch := range channels {
-\t\tif ch.Name == channel {
-\t\t\tfor j, t := range ch.Threads {
-\t\t\t\tif t.ID == threadID {
-\t\t\t\t\tif replyID < 0 {
-\t\t\t\t\t\t// Edit thread body
-\t\t\t\t\t\tif t.Author != caller {
-\t\t\t\t\t\t\tpanic("only the author can edit")
-\t\t\t\t\t\t}
-\t\t\t\t\t\tif blockHeight-t.CreatedAt > 100 {
-\t\t\t\t\t\t\tpanic("edit window expired (100 blocks)")
-\t\t\t\t\t\t}
-\t\t\t\t\t\tchannels[i].Threads[j].Body = newBody
-\t\t\t\t\t\tchannels[i].Threads[j].EditedAt = blockHeight
-\t\t\t\t\t\treturn
-\t\t\t\t\t}
-\t\t\t\t\t// Edit reply
-\t\t\t\t\tfor k, r := range t.Replies {
-\t\t\t\t\t\tif r.ID == replyID {
-\t\t\t\t\t\t\tif r.Author != caller {
-\t\t\t\t\t\t\t\tpanic("only the author can edit")
-\t\t\t\t\t\t\t}
-\t\t\t\t\t\t\tif blockHeight-r.CreatedAt > 100 {
-\t\t\t\t\t\t\t\tpanic("edit window expired (100 blocks)")
-\t\t\t\t\t\t\t}
-\t\t\t\t\t\t\tchannels[i].Threads[j].Replies[k].Body = newBody
-\t\t\t\t\t\t\tchannels[i].Threads[j].Replies[k].EditedAt = blockHeight
-\t\t\t\t\t\t\treturn
-\t\t\t\t\t\t}
-\t\t\t\t\t}
-\t\t\t\t\tpanic("reply not found")
-\t\t\t\t}
-\t\t\t}
-\t\t\tpanic("thread not found")
-\t\t}
-\t}
-\tpanic("channel not found")
+	caller := std.GetOrigCaller()
+	blockHeight := std.GetHeight()
+	if len(newBody) == 0 || len(newBody) > 8192 {
+		panic("body must be 1-8192 characters")
+	}
+	for i, ch := range channels {
+		if ch.Name == channel {
+			for j, t := range ch.Threads {
+				if t.ID == threadID {
+					if replyID < 0 {
+						// Edit thread body
+						if t.Author != caller {
+							panic("only the author can edit")
+						}
+						if blockHeight-t.CreatedAt > ${config.editWindowBlocks} {
+							panic("edit window expired (${config.editWindowBlocks} blocks)")
+						}
+						channels[i].Threads[j].Body = newBody
+						channels[i].Threads[j].EditedAt = blockHeight
+						return
+					}
+					// Edit reply
+					for k, r := range t.Replies {
+						if r.ID == replyID {
+							if r.Author != caller {
+								panic("only the author can edit")
+							}
+							if blockHeight-r.CreatedAt > ${config.editWindowBlocks} {
+								panic("edit window expired (${config.editWindowBlocks} blocks)")
+							}
+							channels[i].Threads[j].Replies[k].Body = newBody
+							channels[i].Threads[j].Replies[k].EditedAt = blockHeight
+							return
+						}
+					}
+					panic("reply not found")
+				}
+			}
+			panic("thread not found")
+		}
+	}
+	panic("channel not found")
 }
 
 func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
