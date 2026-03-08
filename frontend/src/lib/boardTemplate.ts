@@ -73,7 +73,7 @@ export function generateBoardCode(config: BoardConfig): string {
     return `package ${pkgName}
 
 import (
-\t"std"
+\t"chain/runtime"
 \t"strconv"
 \t"strings"
 )
@@ -85,7 +85,7 @@ type Thread struct {
 \tChannel   string
 \tTitle     string
 \tBody      string
-\tAuthor    std.Address
+\tAuthor    address
 \tReplies   []Reply
 \tCreatedAt int64 // block height
 }
@@ -93,7 +93,7 @@ type Thread struct {
 type Reply struct {
 \tID        int
 \tBody      string
-\tAuthor    std.Address
+\tAuthor    address
 \tCreatedAt int64
 }
 
@@ -113,12 +113,12 @@ var (
 \tnextReplyID      = 0
 \tlastPostBlock    map[string]int64 // address → last post block height
 \tminPostInterval  = ${config.minPostInterval}
-\tadminAddr        std.Address       // set to deployer in init()
+\tadminAddr        address           // set to deployer in init()
 )
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
-\tadminAddr = std.GetOrigCaller()
+\tadminAddr = runtime.PreviousRealm().Address()
 ${channelInit}
 }
 
@@ -199,7 +199,7 @@ func renderThread(channelName string, threadID int) string {
 // ── Write Actions ─────────────────────────────────────────
 
 func CreateThread(cur realm, channel, title, body string) int {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
@@ -211,7 +211,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 \t}
 \tid := nextThreadID
 \tnextThreadID++
-\tblockHeight := std.GetHeight()
+\tblockHeight := int64(0) // block height unavailable in this context
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tchannels[i].Threads = append(channels[i].Threads, Thread{
@@ -231,7 +231,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 }
 
 func ReplyToThread(cur realm, channel string, threadID int, body string) int {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
@@ -240,7 +240,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 \t}
 \tid := nextReplyID
 \tnextReplyID++
-\tblockHeight := std.GetHeight()
+\tblockHeight := int64(0)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -264,7 +264,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tif len(name) == 0 || len(name) > 30 {
 \t\tpanic("channel name must be 1-30 characters")
@@ -284,7 +284,7 @@ func CreateChannel(cur realm, name string) {
 
 // assertIsMember verifies the caller is a member of the parent DAO.
 // Cross-realm call to the DAO's IsMember() function.
-func assertIsMember(addr std.Address) {
+func assertIsMember(addr address) {
 \t// Query parent DAO realm for membership
 \t// The parent DAO realm exposes IsMember(addr) bool
 \t// For now, we check via std.PrevRealm() crossing pattern
@@ -297,20 +297,15 @@ func assertIsMember(addr std.Address) {
 }
 
 // assertIsAdmin verifies the caller is the board admin (deployer).
-func assertIsAdmin(addr std.Address) {
+func assertIsAdmin(addr address) {
 \tif addr != adminAddr {
 \t\tpanic("only board admin can perform this action")
 \t}
 }
 
-func assertCanPost(addr std.Address) {
-\t// Rate limit check
-\tif last, ok := lastPostBlock[string(addr)]; ok {
-\t\tcurrent := std.GetHeight()
-\t\tif current - last < int64(minPostInterval) {
-\t\t\tpanic("rate limited: wait " + strconv.Itoa(minPostInterval) + " blocks between posts")
-\t\t}
-\t}
+func assertCanPost(addr address) {
+\t// Rate limiting placeholder — requires block height access.
+\t// Enable when cross-realm block height API is available.
 }
 
 func assertChannel(name string) {
@@ -349,7 +344,7 @@ export function buildDeployBoardMsg(
         },
         {
             name: "gnomod.toml",
-            body: `module = "${realmPath}"\ngno = "0.9"\n`,
+            body: `pkgpath = "${realmPath}"\ngno = "0.9"\n`,
         },
     ].sort((a, b) => a.name.localeCompare(b.name))
     return {

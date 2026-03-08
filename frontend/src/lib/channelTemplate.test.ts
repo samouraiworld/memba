@@ -152,7 +152,7 @@ describe("generateChannelCode", () => {
 
     it("generates imports with std, strconv, strings", () => {
         const code = generateChannelCode(baseConfig)
-        expect(code).toContain('"std"')
+        expect(code).toContain('"chain/runtime"')
         expect(code).toContain('"strconv"')
         expect(code).toContain('"strings"')
     })

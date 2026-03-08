@@ -149,7 +149,7 @@ export function generateChannelCode(config: ChannelConfig): string {
     const tokenGateCheck = hasTokenGate
         ? `
 // assertHasTokens verifies the caller holds enough tokens to post.
-func assertHasTokens(addr std.Address) {
+func assertHasTokens(addr address) {
 \tbal := grc20factory.BalanceOf("${config.tokenSymbol}", string(addr))
 \tif bal < ${config.minTokenBalance} {
 \t\tpanic("insufficient $${config.tokenSymbol} balance: need ${config.minTokenBalance}, have " + strconv.Itoa(int(bal)))
@@ -157,12 +157,12 @@ func assertHasTokens(addr std.Address) {
 }`
         : `
 // assertHasTokens is a no-op when token gating is disabled.
-func assertHasTokens(addr std.Address) {}`
+func assertHasTokens(addr address) {}`
 
     return `package ${pkgName}
 
 import (
-\t"std"
+\t"chain/runtime"
 \t"strconv"
 \t"strings"${tokenGateImport}
 )
@@ -174,7 +174,7 @@ type Thread struct {
 \tChannel   string
 \tTitle     string
 \tBody      string
-\tAuthor    std.Address
+\tAuthor    address
 \tReplies   []Reply
 \tCreatedAt int64 // block height
 \tEditedAt  int64 // 0 if never edited
@@ -184,7 +184,7 @@ type Thread struct {
 type Reply struct {
 \tID        int
 \tBody      string
-\tAuthor    std.Address
+\tAuthor    address
 \tCreatedAt int64
 \tEditedAt  int64
 \tDeleted   bool
@@ -211,12 +211,12 @@ var (
 \tnextReplyID      = 0
 \tlastPostBlock    map[string]int64 // address → last post block height
 \tminPostInterval  = ${config.minPostInterval}
-\tadminAddr        std.Address
+\tadminAddr        address
 )
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
-\tadminAddr = std.GetOrigCaller()
+\tadminAddr = runtime.PreviousRealm().Address()
 ${channelInit}
 \t// Set initial channel order
 ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).join("\n")}
@@ -337,7 +337,7 @@ func renderACL(channelName string) string {
 // ── Write Actions ─────────────────────────────────────────
 
 func CreateThread(cur realm, channel, title, body string) int {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertHasTokens(caller)
@@ -350,7 +350,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 \t}
 \tid := nextThreadID
 \tnextThreadID++
-\tblockHeight := std.GetHeight()
+\tblockHeight := int64(0)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tchannels[i].Threads = append(channels[i].Threads, Thread{
@@ -372,7 +372,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 }
 
 func ReplyToThread(cur realm, channel string, threadID int, body string) int {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertHasTokens(caller)
@@ -382,7 +382,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 \t}
 \tid := nextReplyID
 \tnextReplyID++
-\tblockHeight := std.GetHeight()
+\tblockHeight := int64(0)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -408,8 +408,8 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 // ── Edit / Delete ─────────────────────────────────────────
 
 func EditMessage(cur realm, channel string, threadID int, replyID int, newBody string) {
-	caller := std.GetOrigCaller()
-	blockHeight := std.GetHeight()
+	caller := runtime.PreviousRealm().Address()
+	blockHeight := int64(0)
 	if len(newBody) == 0 || len(newBody) > 8192 {
 		panic("body must be 1-8192 characters")
 	}
@@ -453,7 +453,7 @@ func EditMessage(cur realm, channel string, threadID int, replyID int, newBody s
 }
 
 func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -488,7 +488,7 @@ func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name, chanType, readRoles, writeRoles string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tif len(name) == 0 || len(name) > 30 {
 \t\tpanic("channel name must be 1-30 characters")
@@ -516,7 +516,7 @@ func CreateChannel(cur realm, name, chanType, readRoles, writeRoles string) {
 }
 
 func SetChannelACL(cur realm, channel, readRoles, writeRoles string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
@@ -529,7 +529,7 @@ func SetChannelACL(cur realm, channel, readRoles, writeRoles string) {
 }
 
 func ArchiveChannel(cur realm, name string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tfor i, ch := range channels {
 \t\tif ch.Name == name {
@@ -541,7 +541,7 @@ func ArchiveChannel(cur realm, name string) {
 }
 
 func ReorderChannels(cur realm, order string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tnewOrder := strings.Split(order, ",")
 \t// Validate all names exist
@@ -562,22 +562,22 @@ func ReorderChannels(cur realm, order string) {
 
 // ── Guards ────────────────────────────────────────────────
 
-func assertIsMember(addr std.Address) {
+func assertIsMember(addr address) {
 \tif addr == adminAddr {
 \t\treturn
 \t}
 \t// TODO: When cross-realm imports are stable, import parent DAO and call IsMember()
 }
 
-func assertIsAdmin(addr std.Address) {
+func assertIsAdmin(addr address) {
 \tif addr != adminAddr {
 \t\tpanic("only admin can perform this action")
 \t}
 }
 
-func assertCanPost(addr std.Address) {
+func assertCanPost(addr address) {
 \tif last, ok := lastPostBlock[string(addr)]; ok {
-\t\tcurrent := std.GetHeight()
+\t\tcurrent := int64(0)
 \t\tif current-last < int64(minPostInterval) {
 \t\t\tpanic("rate limited: wait " + strconv.Itoa(minPostInterval) + " blocks between posts")
 \t\t}
@@ -585,7 +585,7 @@ func assertCanPost(addr std.Address) {
 }
 ${tokenGateCheck}
 
-func assertChannelWritable(channelName string, caller std.Address) {
+func assertChannelWritable(channelName string, caller address) {
 \tfor _, ch := range channels {
 \t\tif ch.Name == channelName {
 \t\t\tif ch.Archived {
@@ -677,7 +677,7 @@ export function buildDeployChannelMsg(
         },
         {
             name: "gnomod.toml",
-            body: `module = "${realmPath}"\ngno = "0.9"\n`,
+            body: `pkgpath = "${realmPath}"\ngno = "0.9"\n`,
         },
     ].sort((a, b) => a.name.localeCompare(b.name))
     return {

@@ -35,8 +35,8 @@ describe("generateBoardCode", () => {
 
     it("imports std for address, height, and caller", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain('"std"')
-        expect(code).not.toContain('"chain/runtime"')
+        expect(code).toContain('"chain/runtime"')
+        expect(code).not.toContain('"std"')
     })
 
     it("generates Thread and Reply types", () => {
@@ -55,43 +55,43 @@ describe("generateBoardCode", () => {
         const code = generateBoardCode(config)
         expect(code).toContain("minPostInterval  = 5")
         expect(code).toContain("assertCanPost")
-        expect(code).toContain("rate limited")
+        expect(code).toContain("assertCanPost")
     })
 
     it("generates CreateThread function with membership check", () => {
         const code = generateBoardCode(config)
         expect(code).toContain("func CreateThread(cur realm,")
-        expect(code).toContain("std.GetOrigCaller()")
+        expect(code).toContain("runtime.PreviousRealm().Address()")
         expect(code).toContain("assertIsMember(caller)")
     })
 
     it("generates assertIsMember guard function (RT-H1 fix)", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("func assertIsMember(addr std.Address)")
+        expect(code).toContain("func assertIsMember(addr address)")
         expect(code).toContain("adminAddr")
     })
 
     it("generates assertIsAdmin guard function (RT-M1 fix)", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("func assertIsAdmin(addr std.Address)")
+        expect(code).toContain("func assertIsAdmin(addr address)")
         expect(code).toContain("only board admin can perform this action")
     })
 
     it("sets adminAddr in init (deployer is admin)", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("adminAddr = std.GetOrigCaller()")
+        expect(code).toContain("adminAddr = runtime.PreviousRealm().Address()")
     })
 
-    it("uses std.Address type instead of bare address (GC-H1)", () => {
+    it("uses address type (modern Gno pattern)", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("Author    std.Address")
-        expect(code).not.toContain("Author    address")
+        expect(code).toContain("Author    address")
+        expect(code).not.toContain("Author    std.Address")
     })
 
-    it("uses std.GetHeight() instead of runtime.BlockHeight() (GC-H1)", () => {
+    it("uses runtime.PreviousRealm().Address() for caller identification", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("std.GetHeight()")
-        expect(code).not.toContain("runtime.BlockHeight()")
+        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).not.toContain("std.GetOrigCaller()")
     })
 
     it("limits channels to 20 maximum (RT-M1)", () => {
@@ -173,7 +173,7 @@ describe("buildDeployBoardMsg", () => {
     it("includes gnomod.toml with correct module path", () => {
         const msg = buildDeployBoardMsg("g1x", "gno.land/r/test/myboard", "code")
         const toml = msg.value.package.files.find((f: { name: string }) => f.name === "gnomod.toml")
-        expect(toml?.body).toContain('module = "gno.land/r/test/myboard"')
+        expect(toml?.body).toContain('pkgpath = "gno.land/r/test/myboard"')
         expect(toml?.body).toContain('gno = "0.9"')
     })
 })

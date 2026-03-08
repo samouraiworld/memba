@@ -231,7 +231,7 @@ export function generateCandidatureCode(config: CandidatureConfig = defaultCandi
     return `package candidature
 
 import (
-\t"std"
+\t"chain/runtime"
 \t"strings"
 \t"strconv"
 )
@@ -239,12 +239,12 @@ import (
 // ── Types ─────────────────────────────────────────────────────
 
 type Candidature struct {
-\tApplicant   std.Address
+\tApplicant   address
 \tName        string
 \tPhilosophy  string
 \tSkills      string
 \tStatus      string // "pending", "approved", "rejected"
-\tApprovedBy  []std.Address
+\tApprovedBy  []address
 \tCreatedAt   int64
 }
 
@@ -252,7 +252,7 @@ type Candidature struct {
 
 var (
 \tcandidatures []Candidature
-\tadminAddr    std.Address
+\tadminAddr    address
 \trequiredApprovals int = ${config.requiredApprovals}
 \t// Re-candidature cost: each rejection adds 10 GNOT to the next attempt
 \trejectionCount map[string]int
@@ -260,14 +260,14 @@ var (
 )
 
 func init() {
-\tadminAddr = std.GetOrigCaller()
+\tadminAddr = runtime.PreviousRealm().Address()
 \trejectionCount = make(map[string]int)
 }
 
 // ── Public Functions ──────────────────────────────────────────
 
 func SubmitCandidature(cur realm, name, philosophy, skills string) {
-\tcaller := std.GetOrigCaller()
+\tcaller := runtime.PreviousRealm().Address()
 \t// Prevent duplicate pending submissions
 \tfor _, c := range candidatures {
 \t\tif c.Applicant == caller && c.Status == "pending" {
@@ -278,7 +278,7 @@ func SubmitCandidature(cur realm, name, philosophy, skills string) {
 \trejections := rejectionCount[string(caller)]
 \tif rejections > 0 {
 \t\trequiredCost := int64(rejections) * baseCostUgnot
-\t\tsent := std.GetOrigSend()
+\t\tsent := runtime.PreviousRealm().Coins()
 \t\tif sent.AmountOf("ugnot") < requiredCost {
 \t\t\tpanic("Re-candidature requires " + strconv.FormatInt(requiredCost/1_000_000, 10) + " GNOT (attempt #" + strconv.Itoa(rejections+1) + ")")
 \t\t}
@@ -298,14 +298,14 @@ func SubmitCandidature(cur realm, name, philosophy, skills string) {
 \t\tPhilosophy: philosophy,
 \t\tSkills:     skills,
 \t\tStatus:     "pending",
-\t\tApprovedBy: []std.Address{},
-\t\tCreatedAt:  std.GetHeight(),
+\t\tApprovedBy: []address{},
+\t\tCreatedAt:  int64(0),
 \t})
 }
 
 func ApproveCandidature(cur realm, applicant string) {
-	caller := std.GetOrigCaller()
-	addr := std.Address(applicant)
+	caller := runtime.PreviousRealm().Address()
+	addr := address(applicant)
 	// Prevent self-approval
 	if caller == addr {
 		panic("Cannot approve your own candidature")
@@ -330,11 +330,11 @@ func ApproveCandidature(cur realm, applicant string) {
 }
 
 func RejectCandidature(cur realm, applicant string) {
-	caller := std.GetOrigCaller()
+	caller := runtime.PreviousRealm().Address()
 	if caller != adminAddr {
 		panic("Only admin can reject candidatures")
 	}
-	addr := std.Address(applicant)
+	addr := address(applicant)
 	for i, c := range candidatures {
 		if c.Applicant == addr && c.Status == "pending" {
 			candidatures[i].Status = "rejected"
