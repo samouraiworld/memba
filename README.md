@@ -93,7 +93,7 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **687 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata
+- 🧪 **718 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
 - 🧪 **119 E2E tests** (Playwright) — Chromium + Firefox: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory
 
 ## Architecture

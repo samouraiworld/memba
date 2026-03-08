@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.6 Hardening & OSS Prep IN PROGRESS)
+> Last updated: 2026-03-08 (v2.6 Hardening & OSS Prep — Phase 0-3 complete)
 
 ## Milestone Status
 
@@ -21,18 +21,18 @@
 | 12 | **Directory Enrichment** | v2.2b | ✅ SHIPPED | PR #77 → `dev/v2` |
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
 | 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
-| 15 | **Hardening & OSS Prep** | v2.6 | 🔧 IN PROGRESS | `dev/v2` |
+| 15 | **Hardening & OSS Prep** | v2.6 | ✅ COMPLETE | `dev/v2` |
 | 16 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
 | 17 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | 18 | **Premium** | v3.5 | 🔮 HORIZON | — |
 | 19 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.5c SHIPPED)
+## Quality Gates (as of v2.6 session end)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 687 (32 files) |
-| E2E tests | 119 (5 spec files) |
+| Unit tests | 718 (34 files) |
+| E2E tests | 238 (5 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
 | Build size | 450KB (129KB gzip) |
@@ -76,18 +76,19 @@
 | 2 | **v2.5b Real-time UX** | 10s polling, "new messages" toast, Page Visibility pause | ✅ |
 | 3 | **v2.5c Audio/Video** | Jitsi Meet iframe, voice/video channel types (🔊/🎥) | ✅ |
 
-## v2.6 — Hardening & OSS Prep (🔧 IN PROGRESS)
+## v2.6 — Hardening & OSS Prep (✅ COMPLETE)
 
-> **Goal:** Fix all critical audit findings, prepare for OSS community, first revenue feature.
+> **Goal:** Fix all critical audit findings, prepare for OSS community, first revenue features.
 > **Scope:** 4 phases, 40+ tasks from 22-perspective deep audit.
 
-| # | Phase | Key Tasks | Est. |
-|---|-------|-----------|------|
-| 0 | **Critical Bug Fix** | Board deploy `import "std"` failure on test11 | Immediate |
-| 1 | **Hardening Sprint** | Repo hygiene, Error Boundary, CSP, health endpoint, BoardView decomp | 1 session |
-| 2 | **OSS Launch Prep** | README, CONTRIBUTING, Makefile, Cmd+K, onboarding | 1 session |
-| 3 | **Revenue Foundation** | GnoSwap execution, executable proposals | 1-2 sessions |
+| # | Phase | Key Tasks | Status |
+|---|-------|-----------|--------|
+| 0 | **Critical Bug Fix** | Board deploy `import "std"` failure on test11 | ✅ |
+| 1 | **Hardening Sprint** | CSP, error messages, gas config, tx retry, Dependabot | ✅ |
+| 2 | **OSS Launch Prep** | README, Cmd+K palette, error message layer | ✅ |
+| 3 | **Executable Proposals** | Already implemented (buildExecuteMsg, handleExecute, UI) | ✅ |
 
+> **Deferred from v2.6:** BoardView decomposition (676 LOC, stable), onboarding tooltips, GnoSwap (→ FUTURE)
 > **Full plan:** [v2.6-hardening/IMPLEMENTATION.md](milestones/v2.6-hardening/IMPLEMENTATION.md)
 
 ## v3.0 — Marketplace & AI (PLANNED)
@@ -104,12 +105,12 @@
 
 > **Goal:** Monetization layer + advanced governance.
 
-| # | Feature | Complexity |
-|---|---------|------------|
-| 1 | **GnoSwap Slippage + Swap Execution** | Medium (spec in `GNOSWAP_SLIPPAGE.md`) |
-| 2 | **Executable Proposals** — automated membership changes via governance | Large |
-| 3 | **Subscription Realms** — on-chain premium tiers ($MEMBA gating) | Large |
-| 4 | **Sponsorships** — project-based DAO funding | Medium |
+| # | Feature | Complexity | Status |
+|---|---------|------------|--------|
+| 1 | **GnoSwap Slippage + Swap Execution** | Medium (spec in `GNOSWAP_SLIPPAGE.md`) | 🔮 DEFERRED |
+| 2 | **Executable Proposals** — automated membership changes via governance | Large | ✅ DONE (v2.6) |
+| 3 | **Subscription Realms** — on-chain premium tiers ($MEMBA gating) | Large | 📋 PLANNED |
+| 4 | **Sponsorships** — project-based DAO funding | Medium | 📋 PLANNED |
 
 ## v3.0 — Marketplace (HORIZON)
 

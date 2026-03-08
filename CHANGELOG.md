@@ -6,6 +6,45 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.6 Hardening & OSS Prep (2026-03-08)
+
+> Branch: `dev/v2` — 5 commits
+
+#### Fixed
+- **Critical: Board deploy failure on test11** — `import "std"` → `import "chain/runtime"` in all 4 realm templates
+  - `boardTemplate.ts`, `channelTemplate.ts`, `candidatureTemplate.ts`: `std.Address` → `address`, `std.GetOrigCaller()` → `runtime.PreviousRealm().Address()`
+  - `daoTemplate.ts`: `gnomod.toml` field from `module` → `pkgpath`
+- **Hardcoded gas values** — `CreateDAO.tsx`, `DeployPluginModal.tsx`, `grc20.ts` now use shared `getGasConfig()` from user settings
+
+#### Added
+- **Cmd+K Command Palette** — 12 navigation commands, fuzzy search, keyboard navigation (arrow keys + enter + esc)
+  - `CommandPalette.tsx` + `commands.ts` + `command-palette.css` (dark glassmorphism)
+  - Wired into `Layout.tsx` — available on all pages
+- **User-Friendly Error Messages** — `errorMessages.ts` with 20+ patterns
+  - Translates ABCI, Adena, and network errors into readable messages
+  - `friendlyError()`, `extractMessage()`, `isUserCancellation()` exports
+- **Shared Gas Configuration** — `gasConfig.ts` reads user settings from localStorage
+  - `getGasConfig()` returns `{ fee, wanted, deployWanted }` with safe defaults
+  - Deploy multiplier: 5× regular gas for realm deployment transactions
+- **Transaction Retry** — `doContractBroadcast()` retries transient failures up to 2×
+  - Exponential backoff (1s, 2s)
+  - Smart skip: never retries user cancellations or deterministic chain errors
+
+#### Security
+- **Content-Security-Policy** meta tag in `index.html`
+  - Restricts script, style, connect, and frame origins
+
+#### New Files
+- `errorMessages.ts` (168 LOC) + `errorMessages.test.ts` (120 LOC) — 26 tests
+- `CommandPalette.tsx` (130 LOC) + `commands.ts` (43 LOC) + `command-palette.css` (140 LOC)
+- `gasConfig.ts` (52 LOC) + `gasConfig.test.ts` (60 LOC) — 5 tests
+- `v2.6-hardening/BRIEF.md` + `v2.6-hardening/IMPLEMENTATION.md`
+
+#### Tests
+- **718 unit tests** (34 files, +31), **238 E2E**, tsc 0, lint 0, build 450KB
+
+---
+
 ### v2.5c Audio/Video Channels (2026-03-08)
 
 > Branch: `feat/v2.5a/channel-pages` (continued)

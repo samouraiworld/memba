@@ -97,6 +97,26 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.6 — Hardening & OSS Prep ✅ COMPLETE (2026-03-08)
+
+> Branch: `dev/v2` — Phase 0-3
+
+| Feature | Status | Tests |
+|---------|--------|-------|
+| Board deploy fix (std → chain/runtime in 4 realm templates) | ✅ | — |
+| Content-Security-Policy meta tag | ✅ | — |
+| Cmd+K Command Palette (12 commands, fuzzy search, keyboard nav) | ✅ | — |
+| Error message translation layer (20+ patterns) | ✅ | +26 |
+| Shared gas config (getGasConfig(), user-configurable) | ✅ | +5 |
+| Tx retry (2× exponential backoff, smart skip) | ✅ | — |
+| Executable proposals (buildExecuteMsg, handleExecute, UI) | ✅ | — |
+
+**Deferred:** BoardView decomposition, onboarding tooltips, GnoSwap (→ FUTURE)
+
+**Total: 718 tests (34 files). Zero lint/TS/build errors.**
+
+---
+
 ## v2.1b — Validators & Notifications ✅ SHIPPED (2026-03-08)
 
 > Branch: `feat/v2.1b-validators-notifications` — PR #75 → merged
