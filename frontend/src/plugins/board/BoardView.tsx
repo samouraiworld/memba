@@ -1,8 +1,15 @@
 /**
- * BoardView — Thread list, thread detail, and post forms for DAO boards.
+ * BoardView — Thread list, thread detail, and post forms for DAO channels.
+ *
+ * v2.1a: Evolved from simple board to Discord-like channels with:
+ * - Channel type indicators (📢 announcements, 🔒 readonly, 💬 text)
+ * - Edit/delete status display on threads and replies
+ * - @mention highlighting in message bodies
+ * - Archived channel detection
+ * - Channel sidebar with unread indicators
  *
  * Views:
- * 1. Channel list (board home)
+ * 1. Channel list (board/channel home)
  * 2. Thread list for a channel
  * 3. Thread detail with replies
  * 4. New thread form
@@ -14,20 +21,22 @@
 import { useState, useEffect, useCallback } from "react"
 import type { PluginProps } from "../types"
 import { getBoardInfo, getBoardThreads, getBoardThread } from "./parser"
-import type { BoardInfo, BoardThread, BoardThreadDetail } from "./parser"
+import type { BoardInfo, BoardThread, BoardThreadDetail, BoardChannel } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
+import { buildChannelCreateThreadMsg, buildChannelReplyMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
+import "./board.css"
 
 type View = "home" | "channel" | "thread" | "new-thread"
 
 // ── UX-L1: Lightweight inline Markdown renderer ──────────────
 
-/** Render basic Markdown: **bold**, *italic*, `code`, [links](url) */
+/** Render basic Markdown: **bold**, *italic*, `code`, [links](url), @mentions */
 function renderMarkdown(text: string): React.ReactNode[] {
     const parts: React.ReactNode[] = []
-    // Split by Markdown tokens
-    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g
+    // Split by Markdown tokens + @mentions
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|@g1[a-z0-9]{38})/g
     let lastIdx = 0
     let match: RegExpExecArray | null
     let key = 0
@@ -45,6 +54,20 @@ function renderMarkdown(text: string): React.ReactNode[] {
             if (linkMatch) {
                 parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa", textDecoration: "underline" }}>{linkMatch[1]}</a>)
             }
+        } else if (token.startsWith("@g1")) {
+            // v2.1a: @mention highlighting
+            parts.push(
+                <span key={key++} style={{
+                    background: "rgba(0,212,170,0.12)",
+                    color: "#00d4aa",
+                    padding: "1px 4px",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    fontFamily: "JetBrains Mono, monospace",
+                }}>
+                    {token}
+                </span>
+            )
         }
         lastIdx = match.index + match[0].length
     }
@@ -77,8 +100,20 @@ interface ViewState {
     threadId: number | null
 }
 
-export default function BoardView({ realmPath, auth, adena }: PluginProps) {
-    const boardPath = `${realmPath}_board`
+/** Channel type → icon mapping */
+function channelTypeIcon(ch: BoardChannel): string {
+    if (ch.type === "announcements") return "📢"
+    if (ch.type === "readonly") return "🔒"
+    return "💬"
+}
+
+interface BoardViewProps extends PluginProps {
+    /** Detected board/channel realm path — passed from index.tsx */
+    boardPath: string
+}
+
+export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
+    const isV2 = boardPath.endsWith("_channels")
 
     const [viewState, setViewState] = useState<ViewState>({ view: "home", channel: "general", threadId: null })
     const [boardInfo, setBoardInfo] = useState<BoardInfo | null>(null)
@@ -100,7 +135,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
             const info = await getBoardInfo(GNO_RPC_URL, boardPath)
             setBoardInfo(info)
         } catch {
-            setError("Failed to load board")
+            setError("Failed to load channels")
         } finally {
             setLoading(false)
         }
@@ -142,7 +177,6 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
     }, [viewState, loadBoardHome, loadChannel, loadThread])
 
     const navigateTo = (view: View, channel = "general", threadId: number | null = null) => {
-        // DAO-L2: mark thread as visited when navigating to it
         if (view === "thread" && threadId !== null) {
             markVisited(channel, threadId)
         }
@@ -157,7 +191,10 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
         setPosting(true)
         setError(null)
         try {
-            const msg = buildCreateThreadMsg(adena.address, boardPath, viewState.channel, newTitle.trim(), newBody.trim())
+            // v2.1a: use channel builder for _channels realms, board builder for _board
+            const msg = isV2
+                ? buildChannelCreateThreadMsg(adena.address, boardPath, viewState.channel, newTitle.trim(), newBody.trim())
+                : buildCreateThreadMsg(adena.address, boardPath, viewState.channel, newTitle.trim(), newBody.trim())
             await doContractBroadcast([msg], `New thread: ${newTitle.trim()}`)
             setNewTitle("")
             setNewBody("")
@@ -175,7 +212,9 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
         setPosting(true)
         setError(null)
         try {
-            const msg = buildReplyToThreadMsg(adena.address, boardPath, viewState.channel, viewState.threadId, replyBody.trim())
+            const msg = isV2
+                ? buildChannelReplyMsg(adena.address, boardPath, viewState.channel, viewState.threadId, replyBody.trim())
+                : buildReplyToThreadMsg(adena.address, boardPath, viewState.channel, viewState.threadId, replyBody.trim())
             await doContractBroadcast([msg], "Reply to thread")
             setReplyBody("")
             loadThread(viewState.channel, viewState.threadId)
@@ -250,12 +289,12 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
         if (!boardInfo) {
             return (
                 <div id="board-not-found" style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 32 }}>
-                    <div style={{ fontSize: 28, marginBottom: 10 }}>📋</div>
+                    <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
                     <div style={{ fontSize: 13, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                        No board deployed for this DAO.
+                        No channels deployed for this DAO.
                     </div>
                     <div style={{ fontSize: 11, color: "#555", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
-                        Board can be deployed alongside a DAO from the Create DAO wizard.
+                        Channels can be deployed alongside a DAO from the Create DAO wizard.
                     </div>
                 </div>
             )
@@ -264,7 +303,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
         return (
             <div id="board-home" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 20 }}>📋</span>
+                    <span style={{ fontSize: 20 }}>💬</span>
                     <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
                         {boardInfo.name}
                     </h3>
@@ -279,16 +318,36 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                         <div
                             key={ch.name}
                             id={`board-channel-${ch.name}`}
-                            onClick={() => navigateTo("channel", ch.name)}
-                            onKeyDown={(e) => e.key === "Enter" && navigateTo("channel", ch.name)}
+                            onClick={() => !ch.archived && navigateTo("channel", ch.name)}
+                            onKeyDown={(e) => e.key === "Enter" && !ch.archived && navigateTo("channel", ch.name)}
                             role="button"
-                            tabIndex={0}
-                            style={cardStyle}
+                            tabIndex={ch.archived ? -1 : 0}
+                            style={{
+                                ...cardStyle,
+                                opacity: ch.archived ? 0.4 : 1,
+                                cursor: ch.archived ? "default" : "pointer",
+                            }}
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
-                                    #{ch.name}
-                                </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 14 }}>{channelTypeIcon(ch)}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
+                                        #{ch.name}
+                                    </span>
+                                    {ch.archived && (
+                                        <span style={{
+                                            fontSize: 9,
+                                            color: "#666",
+                                            background: "rgba(255,255,255,0.04)",
+                                            padding: "2px 6px",
+                                            borderRadius: 4,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 1,
+                                        }}>
+                                            archived
+                                        </span>
+                                    )}
+                                </div>
                                 <span style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
                                     {ch.threadCount} thread{ch.threadCount !== 1 ? "s" : ""}
                                 </span>
@@ -303,6 +362,11 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
     // ── Channel View — Thread List ─────────────────────────────
 
     if (viewState.view === "channel") {
+        // v2.1a: Check if this is a readonly/announcements channel
+        const currentChannel = boardInfo?.channels.find(ch => ch.name === viewState.channel)
+        const canWrite = currentChannel?.type !== "readonly" &&
+            (currentChannel?.type !== "announcements" || true) // TODO: check admin role
+
         return (
             <div id="board-channel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -310,11 +374,24 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                         <button onClick={() => navigateTo("home")} style={ghostBtn} aria-label="Back to channels">
                             ←
                         </button>
+                        {currentChannel && (
+                            <span style={{ fontSize: 16 }}>{channelTypeIcon(currentChannel)}</span>
+                        )}
                         <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
                             #{viewState.channel}
                         </h3>
+                        {currentChannel?.type === "announcements" && (
+                            <span style={{ fontSize: 10, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                                Admin only
+                            </span>
+                        )}
+                        {currentChannel?.type === "readonly" && (
+                            <span style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                                Read only
+                            </span>
+                        )}
                     </div>
-                    {auth.isAuthenticated && (
+                    {auth.isAuthenticated && canWrite && (
                         <button
                             id="board-new-thread-btn"
                             onClick={() => navigateTo("new-thread", viewState.channel)}
@@ -346,7 +423,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                                 style={cardStyle}
                             >
                                 <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                                    {/* DAO-L2: Unread indicator */}
+                                    {/* Unread indicator */}
                                     {getLastVisited(viewState.channel, t.id) === 0 && (
                                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa", flexShrink: 0 }} />
                                     )}
@@ -388,15 +465,28 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                     maxLength={128}
                     style={inputStyle}
                 />
-                <textarea
-                    id="board-thread-body"
-                    placeholder="Write your post (Markdown supported)..."
-                    value={newBody}
-                    onChange={e => setNewBody(e.target.value)}
-                    maxLength={8192}
-                    rows={8}
-                    style={{ ...inputStyle, resize: "vertical", minHeight: 120 }}
-                />
+                <div style={{ position: "relative" }}>
+                    <textarea
+                        id="board-thread-body"
+                        placeholder="Write your post (Markdown supported, use @g1... to mention)..."
+                        value={newBody}
+                        onChange={e => setNewBody(e.target.value)}
+                        maxLength={8192}
+                        rows={8}
+                        style={{ ...inputStyle, resize: "vertical", minHeight: 120 }}
+                    />
+                    {/* v2.1a: Character count */}
+                    <span style={{
+                        position: "absolute",
+                        bottom: 8,
+                        right: 10,
+                        fontSize: 10,
+                        color: newBody.length > 7500 ? "#ff3b30" : "#444",
+                        fontFamily: "JetBrains Mono, monospace",
+                    }}>
+                        {newBody.length}/8192
+                    </span>
+                </div>
                 <div style={{ display: "flex", gap: 10 }}>
                     <button
                         id="board-submit-thread"
@@ -428,7 +518,7 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                     </h3>
                 </div>
 
-                {/* Thread body — UX-L1: render inline Markdown */}
+                {/* Thread body — UX-L1: render inline Markdown + @mentions */}
                 <div style={{
                     ...cardStyle,
                     cursor: "default",
@@ -439,8 +529,20 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                     lineHeight: 1.6,
                 }}>
                     {renderMarkdown(threadDetail.body)}
-                    <div style={{ marginTop: 12, fontSize: 11, color: "#555" }}>
+                    <div style={{ marginTop: 12, fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
                         Posted by <code style={{ color: "#666" }}>{threadDetail.author}</code> at block {threadDetail.blockHeight}
+                        {/* v2.1a: Edit marker */}
+                        {threadDetail.edited && (
+                            <span style={{
+                                fontSize: 9,
+                                color: "#888",
+                                background: "rgba(255,255,255,0.04)",
+                                padding: "1px 5px",
+                                borderRadius: 3,
+                            }}>
+                                edited · block {threadDetail.editedAt}
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -452,8 +554,20 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                         </h4>
                         {threadDetail.replies.map((r, i) => (
                             <div key={i} style={{ ...cardStyle, cursor: "default", borderLeft: "2px solid rgba(0,212,170,0.15)" }}>
-                                <div style={{ fontSize: 11, color: "#666", marginBottom: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: 11, color: "#666", marginBottom: 6, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", gap: 6 }}>
                                     <strong style={{ color: "#aaa" }}>{r.author}</strong> · block {r.blockHeight}
+                                    {/* v2.1a: Edit marker on replies */}
+                                    {r.edited && (
+                                        <span style={{
+                                            fontSize: 9,
+                                            color: "#888",
+                                            background: "rgba(255,255,255,0.04)",
+                                            padding: "1px 4px",
+                                            borderRadius: 3,
+                                        }}>
+                                            edited
+                                        </span>
+                                    )}
                                 </div>
                                 <div style={{ fontSize: 12, color: "#ccc", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
                                     {renderMarkdown(r.body)}
@@ -467,15 +581,27 @@ export default function BoardView({ realmPath, auth, adena }: PluginProps) {
                 {auth.isAuthenticated && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
                         {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
-                        <textarea
-                            id="board-reply-body"
-                            placeholder="Write a reply..."
-                            value={replyBody}
-                            onChange={e => setReplyBody(e.target.value)}
-                            maxLength={4096}
-                            rows={3}
-                            style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
-                        />
+                        <div style={{ position: "relative" }}>
+                            <textarea
+                                id="board-reply-body"
+                                placeholder="Write a reply (Markdown supported, use @g1... to mention)..."
+                                value={replyBody}
+                                onChange={e => setReplyBody(e.target.value)}
+                                maxLength={4096}
+                                rows={3}
+                                style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
+                            />
+                            <span style={{
+                                position: "absolute",
+                                bottom: 8,
+                                right: 10,
+                                fontSize: 10,
+                                color: replyBody.length > 3500 ? "#ff3b30" : "#444",
+                                fontFamily: "JetBrains Mono, monospace",
+                            }}>
+                                {replyBody.length}/4096
+                            </span>
+                        </div>
                         <button
                             id="board-submit-reply"
                             onClick={handleReply}

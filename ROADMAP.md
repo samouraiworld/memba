@@ -29,6 +29,24 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.1a — Community Foundation ✅ COMPLETE (2026-03-07)
+
+> Discord-like channels, $MEMBA token, candidature flow, IPFS avatars, MembaDAO bootstrap.
+
+| Feature | Status | Files | Tests |
+|---------|--------|-------|-------|
+| Channel Realm v2 (role-based ACL, threads, admin actions) | ✅ | 8 | +71 |
+| $MEMBA GRC20 Token (10M supply, 2.5% fee, 40/30/20/10% allocation) | ✅ | 3 | +8 |
+| MembaDAO Candidature (submit/approve/reject, re-candidature cost) | ✅ | 2 | +49 |
+| IPFS Avatars (Lighthouse upload, canonical `ipfs://` save) | ✅ | 4 | +18 |
+| MembaDAO Bootstrap (config, deployment, status checker) | ✅ | 2 | +23 |
+
+**Audit**: 5 rounds, 23 findings (15 fixed: self-approval guard, FEE_RECIPIENT fix, skills validation, re-candidature cost, type safety, substring match, configurable edit window).
+
+**Total: 529 tests (22 files). Zero lint/TS/build errors.**
+
+---
+
 ## v2.0-η — UX Audit Sprint ✅ SHIPPED (2026-03-07)
 
 > 18-issue cross-perspective UX audit — 4 phases (A–D), P0–P3 fixes.

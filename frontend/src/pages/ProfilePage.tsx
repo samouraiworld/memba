@@ -6,6 +6,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
+import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
@@ -123,7 +124,7 @@ export function ProfilePage() {
         )
     }
 
-    const avatar = profile?.avatarUrl || profile?.githubAvatar || ""
+    const avatar = resolveAvatarUrl(profile?.avatarUrl || profile?.githubAvatar || "")
     const displayName = profile?.username || `${address.slice(0, 10)}...${address.slice(-4)}`
     const explorerUrl = getExplorerBaseUrl()
 

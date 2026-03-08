@@ -22,11 +22,11 @@ export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
     },
     {
         id: "board",
-        name: "Board",
+        name: "Channels",
         icon: "💬",
         route: "board",
-        description: "DAO discussion forum — channels, threads, and replies",
-        version: "1.0.0",
+        description: "Discord-like channels — async messaging, role-based ACL, @mentions",
+        version: "2.0.0",
         component: () => import("./board/index").then(m => ({ default: m.default })),
     },
     {
