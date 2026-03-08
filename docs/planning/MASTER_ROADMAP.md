@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.5 Channels & Comms SHIPPED)
+> Last updated: 2026-03-08 (v2.6 Hardening & OSS Prep IN PROGRESS)
 
 ## Milestone Status
 
@@ -21,10 +21,11 @@
 | 12 | **Directory Enrichment** | v2.2b | ✅ SHIPPED | PR #77 → `dev/v2` |
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
 | 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
-| 15 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
-| 16 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 17 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 18 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 15 | **Hardening & OSS Prep** | v2.6 | 🔧 IN PROGRESS | `dev/v2` |
+| 16 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
+| 17 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 18 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 19 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
 ## Quality Gates (as of v2.5c SHIPPED)
 
@@ -65,17 +66,29 @@
 | Validator monikers (human names) | v2.1b HANDOFF | Needs upstream support |
 | Faucet Phase 3 (treasury signing) | v2.1b HANDOFF | Backend concern |
 
-## v2.5 — Channels & Comms (NEXT)
+## v2.5 — Channels & Comms (✅ SHIPPED — PR #79)
 
 > **Goal:** Full channel experience with real-time messaging and audio/video rooms.
 
-| # | Sub-milestone | Key Features | Est. |
-|---|--------------|-------------|------|
-| 1 | **v2.5a Channel Pages** | Standalone `/channels/:daoSlug` route, sidebar nav, reuse BoardView | 1 session |
-| 2 | **v2.5b Real-time UX** | 10s polling, "new messages" toast, presence dots | 1 session |
-| 3 | **v2.5c Audio/Video** | Jitsi Meet iframe, voice/video channel types | 1-2 sessions |
+| # | Sub-milestone | Key Features | Status |
+|---|--------------|-------------|--------|
+| 1 | **v2.5a Channel Pages** | Standalone `/channels/:daoSlug` route, sidebar nav, reuse BoardView | ✅ |
+| 2 | **v2.5b Real-time UX** | 10s polling, "new messages" toast, Page Visibility pause | ✅ |
+| 3 | **v2.5c Audio/Video** | Jitsi Meet iframe, voice/video channel types (🔊/🎥) | ✅ |
 
-> **Builds on:** Channel Realm v2 (v2.1a — 856 LOC codegen, 72 tests, 8 MsgCall builders) + BoardView (622 LOC Discord-like UI).
+## v2.6 — Hardening & OSS Prep (🔧 IN PROGRESS)
+
+> **Goal:** Fix all critical audit findings, prepare for OSS community, first revenue feature.
+> **Scope:** 4 phases, 40+ tasks from 22-perspective deep audit.
+
+| # | Phase | Key Tasks | Est. |
+|---|-------|-----------|------|
+| 0 | **Critical Bug Fix** | Board deploy `import "std"` failure on test11 | Immediate |
+| 1 | **Hardening Sprint** | Repo hygiene, Error Boundary, CSP, health endpoint, BoardView decomp | 1 session |
+| 2 | **OSS Launch Prep** | README, CONTRIBUTING, Makefile, Cmd+K, onboarding | 1 session |
+| 3 | **Revenue Foundation** | GnoSwap execution, executable proposals | 1-2 sessions |
+
+> **Full plan:** [v2.6-hardening/IMPLEMENTATION.md](milestones/v2.6-hardening/IMPLEMENTATION.md)
 
 ## v3.0 — Marketplace & AI (PLANNED)
 
@@ -180,6 +193,10 @@
 | [milestones/v2.1b-validators/SUMMARY.md](milestones/v2.1b-validators/SUMMARY.md) | v2.1b completion summary |
 | [milestones/v2.2a-directory/BRIEF.md](milestones/v2.2a-directory/BRIEF.md) | Organization Directory scope |
 | [milestones/v2.2a-directory/HANDOFF.md](milestones/v2.2a-directory/HANDOFF.md) | v2.2a handoff (5 deferred items) |
+| [milestones/v2.5-channels/HANDOFF.md](milestones/v2.5-channels/HANDOFF.md) | v2.5 handoff (voice/video, polling) |
+| [milestones/v2.5-channels/AUDIT.md](milestones/v2.5-channels/AUDIT.md) | v2.5 audit (13 findings, 12 fixed) |
+| [milestones/v2.6-hardening/BRIEF.md](milestones/v2.6-hardening/BRIEF.md) | v2.6 scope & acceptance criteria |
+| [milestones/v2.6-hardening/IMPLEMENTATION.md](milestones/v2.6-hardening/IMPLEMENTATION.md) | v2.6 full implementation plan (40+ tasks) |
 | [GNOSWAP_SLIPPAGE.md](GNOSWAP_SLIPPAGE.md) | GnoSwap swap execution spec |
 | [SENTRY_INTEGRATION.md](SENTRY_INTEGRATION.md) | Sentry integration guide (✅ done) |
 
