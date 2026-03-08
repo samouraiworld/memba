@@ -19,15 +19,15 @@
 | 10 | **Validators & Notifications** | v2.1b | ✅ SHIPPED | PR #75 → `dev/v2` |
 | 11 | **Intelligence & Directory** | v2.2a | 🟡 IN PROGRESS | `feat/v2.2a-directory` → `dev/v2` |
 
-## Quality Gates (as of v2.1b Phase 2)
+## Quality Gates (as of v2.2a)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 612 (27 files) |
-| E2E tests | 186 (10 spec files) |
+| Unit tests | 636 (29 files) |
+| E2E tests | 199 (11 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | 569KB (165KB gzip) |
+| Build size | 449KB (129KB gzip) |
 
 ## Chain Targets
 

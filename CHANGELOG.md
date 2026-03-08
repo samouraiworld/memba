@@ -6,9 +6,42 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.2a Intelligence & Directory — Phase 1 (2026-03-08)
+
+> Branch: `feat/v2.2a-directory` — PR #76
+
+#### Added
+- **Organization Directory** — transformed basic list into premium Organization Hub
+  - `lib/directory.ts` — centralized data layer with sessionStorage cache (5-min TTL)
+  - `lib/daoMetadata.ts` — DAO Render parser (member count, proposal count, description) with `Promise.allSettled` batch fetch (max 10 concurrent)
+  - `components/directory/DAOCard.tsx` — rich card with metadata, save-to-Memba button, status badges
+  - `components/directory/FeaturedDAOs.tsx` — curated carousel with Render metadata
+  - `pages/directory.css` — premium glassmorphism (330 LOC), responsive grid
+  - Refactored `Directory.tsx` — all inline styles → CSS classes, data layer, `useMemo` filtering, ARIA tabs (`role=tab`, `aria-selected`)
+
+#### Tests
+- 24 new unit tests (`daoMetadata.test.ts`, `directory.test.ts`)
+- 13 E2E tests (`e2e/directory.spec.ts` — tabs, search, cards, mobile)
+- **636+ unit tests**, tsc 0, lint 0, build clean
+
+---
+
 ### v2.1b Validators & Notifications (2026-03-08)
 
-> Branch: `feat/v2.1b-validators-notifications` — 6 commits, 84 new tests
+> Branch: `feat/v2.1b-validators-notifications` — 8 commits, 84+ new tests
+
+#### Phase 2 Audit Hardening (7 findings)
+- **C1**: Stale eligibility memo → `claimVersion` counter forces `useMemo` recalculation
+- **C2**: `daoPaths` callback instability → `useRef` for stable references
+- **I1**: Hardcoded faucet URL → `faucetUrl` in `NETWORKS` config (multi-chain)
+- **I2**: Duplicated cooldown reason → separated description and timer text
+- **I3**: Filter/sort recomputed every render → `useMemo` with proper deps
+- **I4**: Pagination not keyboard-accessible → `aria-label` + `aria-live` region
+- **M1**: Sequential DAO polling → `Promise.allSettled` parallel (max 5/cycle)
+- **Bundle**: `manualChunks` — vendor-react (41KB), vendor-ui (99KB), vendor-sentry (18KB)
+  - index.js: 568KB → 449KB (**-21%**)
+- **E2E**: `e2e/validators.spec.ts` (10 tests)
+
 
 #### Added
 - **Notification Center** — bell icon in header with unread badge, dropdown panel grouped by date (Today/Yesterday/This Week/Older), 30s ABCI polling for new proposals, Page Visibility API (pauses when tab hidden), per-wallet localStorage isolation, XSS sanitization
