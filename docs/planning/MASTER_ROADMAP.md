@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.7 Monitoring Integration session)
+> Last updated: 2026-03-08 (v2.9 Consolidation plan prepared)
 
 ## Milestone Status
 
@@ -22,11 +22,12 @@
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
 | 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
 | 15 | **Hardening & OSS Prep** | v2.6 | ✅ COMPLETE | `dev/v2` |
-| 16 | **Monitoring Integration** | v2.7 | 🔄 IN PROGRESS | `dev/v2` |
-| 17 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
-| 18 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 19 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 20 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 16 | **Monitoring Integration** | v2.7 | ✅ COMPLETE | `dev/v2` |
+| 17 | **Consolidation & Main Merge** | v2.9 | 📋 NEXT | `dev/v2` |
+| 18 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 19 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 20 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 21 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
 ## Quality Gates (as of v2.6 session end)
 
