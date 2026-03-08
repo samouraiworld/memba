@@ -4,6 +4,7 @@ import { getPlugins } from "../../plugins"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
+    LinkSimpleHorizontal,
 } from "@phosphor-icons/react"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
@@ -122,6 +123,7 @@ export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleC
                 <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount} connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/tokens" icon={<Coins size={18} />} label="Tokens" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/directory" icon={<FolderOpen size={18} />} label="Directory" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/validators" icon={<LinkSimpleHorizontal size={18} />} label="Validators" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/create" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
             </nav>
 
