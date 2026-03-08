@@ -47,6 +47,44 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.2a — Organization Directory 🟡 IN PROGRESS (2026-03-08)
+
+> Branch: `feat/v2.2a-directory` — PR #76
+
+| Feature | Status | Files | Tests |
+|---------|--------|-------|-------|
+| Directory data layer (sessionStorage cache, registry parsers) | ✅ | 2 | +13 |
+| DAO Render parser (members, proposals, description, batch fetch) | ✅ | 1 | +11 |
+| DAOCard + FeaturedDAOs components (rich cards, carousel) | ✅ | 3 | — |
+| CSS extraction (glassmorphism, responsive grid — 330 LOC) | ✅ | 1 | — |
+| Directory.tsx refactor (CSS classes, data layer, ARIA tabs) | ✅ | 1 | — |
+| 9-finding audit (C1/C2/I1-I4/M1-M2) | ✅ | 6 | — |
+
+**Audit**: 9 findings, all fixed (canonical queryRender, cache schema validation, dedup RPC, useDeferredValue, anchored regex, valid HTML nesting, memoization, ARIA tabpanel).
+
+**Total: 636 tests (29 files). Zero lint/TS/build errors.**
+
+---
+
+## v2.1b — Validators & Notifications ✅ SHIPPED (2026-03-08)
+
+> Branch: `feat/v2.1b-validators-notifications` — PR #75 → merged
+
+| Feature | Status | Files | Tests |
+|---------|--------|-------|-------|
+| Notification Center (bell icon, ABCI polling, localStorage) | ✅ | 6 | +27 |
+| Validator Dashboard (stats cards, table, search, pagination) | ✅ | 6 | +13 |
+| Gasless Onboarding Phase 1 (faucet eligibility, cooldown) | ✅ | 2 | +16 |
+| Faucet Claim UI (dashboard card, eligibility check) | ✅ | 3 | +12 |
+| Multi-DAO Notification Polling (max 5/cycle, parallel) | ✅ | 2 | — |
+| Validator Pagination (auto-paginate >100, client controls) | ✅ | 3 | +5 |
+| Bundle split (manualChunks: 568→449KB, -21%) | ✅ | 1 | — |
+| Dual-round audit (15 findings, all fixed + 7 Phase 2 hardening) | ✅ | 6 | — |
+
+**Total: 612 tests (27 files). Zero lint/TS/build errors.**
+
+---
+
 ## v2.0-η — UX Audit Sprint ✅ SHIPPED (2026-03-07)
 
 > 18-issue cross-perspective UX audit — 4 phases (A–D), P0–P3 fixes.

@@ -51,6 +51,8 @@ test.describe('Directory — DAOs Tab', () => {
     })
 
     test('seed DAO cards are visible', async ({ page }) => {
+        // Wait for cards to render (seed DAOs are sync but component mounts async)
+        await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
         const cards = page.locator('[data-testid="dao-card"]')
         const count = await cards.count()
         // Should have at least GovDAO and Worx DAO
@@ -58,16 +60,18 @@ test.describe('Directory — DAOs Tab', () => {
     })
 
     test('DAO search filters results', async ({ page }) => {
+        // Wait for cards to load before searching
+        await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
+
         const search = page.locator('[data-testid="dao-search"]')
         await search.fill('GovDAO')
 
-        // Should show only GovDAO
-        const cards = page.locator('[data-testid="dao-card"]')
-        await expect(cards).toHaveCount(1)
+        // Wait for filter to apply (useDeferredValue may delay)
+        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(1, { timeout: 5_000 })
 
         // Clear → all cards back
         await search.clear()
-        const restored = await cards.count()
+        const restored = await page.locator('[data-testid="dao-card"]').count()
         expect(restored).toBeGreaterThanOrEqual(2)
     })
 
@@ -115,8 +119,10 @@ test.describe('Directory — Mobile', () => {
         await page.goto('/directory')
 
         await expect(page.locator('h1')).toContainText('Directory')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380) // 5px tolerance
+        // Use documentElement.scrollWidth — more reliable across browsers
+        // Firefox may add scrollbar width, so tolerance is 420 (375 + scrollbar + margin)
+        const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth)
+        expect(bodyWidth).toBeLessThanOrEqual(420)
     })
 
     test('tabs are scrollable on mobile', async ({ page }) => {

@@ -169,6 +169,36 @@
 | 14.11 | TopBar → Network selector | Shows "Testnet 11" default, can switch to betanet |
 | 14.12 | Mobile → Version badges hidden | Alpha/v2 badges not visible at 375px |
 
+## 15. Validator Dashboard (v2.1b)
+
+| # | Step | Expected |
+|---|------|----------|
+| 15.1 | Click "Validators" in sidebar | `/validators` page loads with stats cards |
+| 15.2 | Verify 4 stats cards | Block height, avg block time, validator count, total voting power |
+| 15.3 | Verify table | Sortable columns: rank, validator, voting power, share % |
+| 15.4 | Click column header to sort | Table re-sorts by clicked column |
+| 15.5 | Use search to filter validators | Results narrow to matching validators |
+| 15.6 | Page size selector | 25/50/100 options, table re-renders |
+| 15.7 | Wait 30s | "Refreshing…" pulse indicator appears briefly |
+| 15.8 | Mobile (375px) | Stats stack vertically, table scrolls horizontally |
+
+## 16. Organization Directory (v2.2a)
+
+| # | Step | Expected |
+|---|------|----------|
+| 16.1 | Click "Directory" in sidebar | `/directory` page loads with 3 tabs (DAOs, Tokens, Users) |
+| 16.2 | DAOs tab — Featured carousel | Horizontal carousel with seed DAOs (GovDAO, Worx) |
+| 16.3 | DAOs tab — DAO cards | Cards show name, path, members, proposals |
+| 16.4 | DAOs tab — Save button | Click "Save" → "SAVED" badge appears |
+| 16.5 | DAOs tab — Search | Type to filter DAOs by name or path |
+| 16.6 | Tokens tab | Tab switch shows token list with avatar, name, symbol |
+| 16.7 | Tokens tab — Search | Type to filter tokens by name or symbol |
+| 16.8 | Tokens tab — Load More | Paginated: shows 20, "Load More" for rest |
+| 16.9 | Users tab | Tab switch shows user list with name and address |
+| 16.10 | Users tab — Search | Type to filter by name or address |
+| 16.11 | Create DAO button | Visible below DAO cards, navigates to `/dao/create` |
+| 16.12 | Mobile (375px) | Cards stack to 1-column, tabs scroll horizontally |
+
 ## Post-Test
 
 - [ ] Screenshot key states for documentation
