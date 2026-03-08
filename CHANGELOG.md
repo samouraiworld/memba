@@ -25,11 +25,16 @@ All notable changes to Memba are documented here.
 - **DAORooms Component** — instant-access voice/video rooms for ALL DAOs (no channel realm required)
   - `🔊 Public Room` — visible to everyone (guests + members), open to join
   - `🔒 Members Room` — visible only to DAO members in the UI ("kind of private")
-  - Room names scoped per DAO via `jitsiRoomName()`: `memba-{slug}-public-room` / `memba-{slug}-members-room`
   - Modal overlay with Jitsi embed, ESC/click-outside close, body scroll lock
   - "Manage channels →" link appears when full Channels feature is deployed
   - `dao-rooms.css` — glassmorphism buttons, hover glow, responsive (mobile column layout)
-- **JitsiMeet Enhanced** — added optional `label` and `description` props for custom room display
+- **JaaS Integration** — lobby-free rooms via 8x8.vc (free tier, 25 concurrent users)
+  - `VITE_JAAS_APP_ID` env var configures JaaS; fallback to `meet.jit.si` when empty
+  - CSP `frame-src` updated for both `meet.jit.si` and `8x8.vc`
+- **Deterministic Room Hash** — 5-char djb2 hash suffix appended to room names
+  - Format: `memba-{slug}-{channel}-{hash}` — unpredictable but reproducible per DAO
+  - Prevents room name guessing from slug alone
+- **JitsiMeet Enhanced** — `label`, `description` props + `jitsiIframeSrc()` URL builder
 
 #### Phase 3: Tech Debt
 - **BoardView Decomposition** — 676 LOC → 5 sub-components + orchestrator (~260 LOC)
@@ -62,7 +67,7 @@ All notable changes to Memba are documented here.
 - `e2e/channels.spec.ts` (72 LOC)
 
 #### Tests
-- **733 unit tests** (35 files, +15), tsc 0, lint 0, build 457KB (131KB gzip)
+- **738 unit tests** (35 files, +20), tsc 0, lint 0, build 457KB (131KB gzip)
 
 ### Monitoring API Integration & GovDAO Polish (2026-03-08)
 
