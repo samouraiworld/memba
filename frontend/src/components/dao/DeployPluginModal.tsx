@@ -6,6 +6,7 @@
  */
 import { useState } from "react"
 import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig, isValidChannel } from "../../lib/boardTemplate"
+import { getGasConfig } from "../../lib/gasConfig"
 import { inputStyle } from "../dao/wizardShared"
 
 interface Props {
@@ -51,11 +52,12 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
             config.channels = channels
             const code = generateBoardCode(config)
             const msg = buildDeployBoardMsg(callerAddress, config.boardRealmPath, code, "10000000ugnot")
+            const gas = getGasConfig()
 
             const res = await adenaWallet.DoContract({
                 messages: [{ type: "/vm.m_addpkg", value: msg.value }],
-                gasFee: 10000000,
-                gasWanted: 50000000,
+                gasFee: gas.fee,
+                gasWanted: gas.deployWanted,
                 memo: `Deploy Board for ${daoName}`,
             })
 

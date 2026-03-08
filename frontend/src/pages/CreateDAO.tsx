@@ -13,6 +13,7 @@ import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, type DAOCreation
 import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig } from "../lib/boardTemplate"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
+import { getGasConfig } from "../lib/gasConfig"
 import type { LayoutContext } from "../types/layout"
 
 // ── Draft Persistence ─────────────────────────────────────
@@ -226,6 +227,8 @@ export function CreateDAO() {
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
+            const gas = getGasConfig()
+
             setDeployStep("signing")
 
             // TODO: Re-add 2 GNOT dev fee when test11 lifts bank transfer restrictions
@@ -235,8 +238,8 @@ export function CreateDAO() {
                     type: "/vm.m_addpkg",
                     value: msg.value,
                 }],
-                gasFee: 10000000,
-                gasWanted: 50000000,
+                gasFee: gas.fee,
+                gasWanted: gas.deployWanted,
                 memo: `Deploy DAO: ${name}`,
             })
 
@@ -258,8 +261,8 @@ export function CreateDAO() {
                     const boardMsg = buildDeployBoardMsg(adena.address, boardConfig.boardRealmPath, boardCode, "10000000ugnot")
                     const boardRes = await adenaWallet.DoContract({
                         messages: [{ type: "/vm.m_addpkg", value: boardMsg.value }],
-                        gasFee: 10000000,
-                        gasWanted: 50000000,
+                        gasFee: gas.fee,
+                        gasWanted: gas.deployWanted,
                         memo: `Deploy Board for ${name}`,
                     })
                     if (boardRes.status === "failure") {

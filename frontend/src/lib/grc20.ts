@@ -8,6 +8,7 @@
  */
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN } from "./config"
+import { getGasConfig } from "./gasConfig"
 
 // ── Platform Fee ──────────────────────────────────────────────
 
@@ -93,6 +94,9 @@ export function getWalletRpcContext(): { url: string | null; trusted: boolean } 
  *
  * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
  * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
+ *
+ * RESILIENCE: Retries transient network failures (timeout, fetch) up to 2 times
+ * with exponential backoff. User-initiated cancellations are never retried.
  */
 export async function doContractBroadcast(
     msgs: AminoMsg[],
@@ -115,19 +119,49 @@ export async function doContractBroadcast(
         throw new Error("Adena wallet not available — please install or refresh the page")
     }
 
-    const res = await adena.DoContract({
-        messages: toAdenaMessages(msgs),
-        gasFee: 1,
-        gasWanted: 10000000,
-        memo,
-    })
+    const gas = getGasConfig()
+    const maxRetries = 2
+    let lastError: Error | null = null
 
-    if (res.status === "failure") {
-        const errMsg = res.message || res.data?.message || "Transaction failed"
-        throw new Error(errMsg)
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const res = await adena.DoContract({
+                messages: toAdenaMessages(msgs),
+                gasFee: gas.fee,
+                gasWanted: gas.wanted,
+                memo,
+            })
+
+            if (res.status === "failure") {
+                const errMsg = res.message || res.data?.message || "Transaction failed"
+                // Don't retry user cancellations or wallet rejections
+                if (/user (rejected|denied)|cancelled/i.test(errMsg)) {
+                    throw new Error(errMsg)
+                }
+                // Don't retry deterministic chain errors
+                if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(errMsg)) {
+                    throw new Error(errMsg)
+                }
+                lastError = new Error(errMsg)
+            } else {
+                return { hash: res.data?.hash || "" }
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            // Don't retry user cancellations
+            if (/user (rejected|denied)|cancelled/i.test(msg)) throw err
+            // Don't retry deterministic errors
+            if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(msg)) throw err
+            lastError = err instanceof Error ? err : new Error(msg)
+        }
+
+        // Exponential backoff: 1s, 2s
+        if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        }
     }
 
-    return { hash: res.data?.hash || "" }
+    throw lastError || new Error("Transaction failed after retries")
 }
 
 // ── ABCI Queries ──────────────────────────────────────────────
