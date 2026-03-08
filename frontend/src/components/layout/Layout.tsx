@@ -10,6 +10,7 @@ import { getSavedDAOs } from "../../lib/daoSlug"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
+import { CommandPalette } from "../ui/CommandPalette"
 import { Envelope } from "@phosphor-icons/react"
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -228,6 +229,9 @@ export function Layout() {
                 address={auth.address || adena.address}
                 network={network}
             />
+
+            {/* ── Command Palette (Cmd+K) ─────────────────────── */}
+            <CommandPalette />
         </div>
     )
 }
