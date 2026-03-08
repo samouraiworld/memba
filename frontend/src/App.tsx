@@ -54,6 +54,9 @@ const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default:
 // ── Validators page (lazy) ──
 const Validators = lazy(() => import("./pages/Validators"))
 
+// ── Extensions Hub (lazy — v2.6) ──
+const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default: m.Extensions })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -123,6 +126,9 @@ function App() {
 
           {/* Validators (v2.1b) */}
           <Route path="/validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
+
+          {/* Extensions Hub (v2.6) */}
+          <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

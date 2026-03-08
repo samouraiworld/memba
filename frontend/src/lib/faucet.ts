@@ -34,7 +34,20 @@ export interface FaucetEligibility {
 export const FAUCET_AMOUNT_UGNOT = 3_000_000
 
 /** Display amount for the claim card. */
-export const FAUCET_AMOUNT_DISPLAY = "3 GNOT"
+export const FAUCET_AMOUNT_DISPLAY = "Free Test Tokens"
+
+/** localStorage key for faucet card dismissal. */
+const FAUCET_DISMISSED_KEY = "memba_faucet_dismissed"
+
+/** Check if user dismissed the faucet card. */
+export function isFaucetDismissed(): boolean {
+    return localStorage.getItem(FAUCET_DISMISSED_KEY) === "1"
+}
+
+/** Dismiss the faucet card. */
+export function dismissFaucet(): void {
+    try { localStorage.setItem(FAUCET_DISMISSED_KEY, "1") } catch { /* */ }
+}
 
 /** Cooldown: 7 days between claims. */
 export const FAUCET_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000

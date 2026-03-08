@@ -1,6 +1,4 @@
 import { Link, useLocation } from "react-router-dom"
-import { useState, useEffect } from "react"
-import { getPlugins } from "../../plugins"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
@@ -80,20 +78,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
-    const plugins = getPlugins()
-    const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
-
-    // Refresh when DAO slug changes (e.g. user visits a DAO)
-    useEffect(() => {
-        const handler = () => setLastVisitedDAO(localStorage.getItem("memba_last_dao_slug"))
-        window.addEventListener("storage", handler)
-        // Custom event for same-tab updates
-        window.addEventListener("memba:daoVisited", handler)
-        return () => {
-            window.removeEventListener("storage", handler)
-            window.removeEventListener("memba:daoVisited", handler)
-        }
-    }, [])
 
     return (
         <aside
@@ -128,21 +112,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 <SidebarLink to="/create" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
             </nav>
 
-            {/* ── Section 2: Plugins ────────────────────────────── */}
-            <nav className="k-sidebar-section" aria-label="Plugins">
-                <div className="k-sidebar-section-label">Plugins</div>
-                {plugins.map(p => (
-                    <SidebarLink
-                        key={p.id}
-                        to={lastVisitedDAO ? `/dao/${lastVisitedDAO}/plugin/${p.id}` : "#"}
-                        icon={<PuzzlePiece size={18} />}
-                        label={p.name}
-                        connected={connected}
-                        collapsed={collapsed}
-                        disabled={!lastVisitedDAO}
-                        disabledTooltip="Select a DAO first"
-                    />
-                ))}
+            {/* ── Section 2: Extensions ─────────────────────────── */}
+            <nav className="k-sidebar-section" aria-label="Extensions">
+                <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
