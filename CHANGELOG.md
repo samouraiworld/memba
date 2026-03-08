@@ -6,6 +6,33 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.5b Real-time UX (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Channel Polling** — `useChannelPolling` hook with 10s interval for thread/reply updates
+  - Page Visibility API: pauses when tab is hidden (saves bandwidth)
+  - Typing guard: pauses when user is composing (avoids content jump)
+  - In-flight dedup: no concurrent ABCI queries
+  - New content detection: compares thread/reply counts between polls
+- **"New Messages" Toast** — `NewMessagesToast` component (teal-themed, auto-dismiss 8s)
+  - Rendered in both channel list and thread detail views
+  - Click to dismiss, slide-up animation
+- **BoardView Refactor** — replaced manual `loadChannel`/`loadThread` with polling hook
+  - `formError` state split for post validation (isolated from poll state)
+  - `refresh()` called after post/reply for immediate content update
+
+#### New Files
+- `hooks/useChannelPolling.ts` (160 LOC) — polling hook
+- `hooks/useChannelPolling.test.ts` (24 LOC) — 3 unit tests
+- `components/ui/NewMessagesToast.tsx` (80 LOC) — toast component
+
+#### Tests
+- **677 unit tests** (31 files, +3), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
 ### v2.5a Channel Pages (2026-03-08)
 
 > Branch: `feat/v2.5a/channel-pages`
