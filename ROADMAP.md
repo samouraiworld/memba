@@ -47,9 +47,9 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v2.2a — Organization Directory 🟡 IN PROGRESS (2026-03-08)
+## v2.2a — Organization Directory ✅ SHIPPED (2026-03-08)
 
-> Branch: `feat/v2.2a-directory` — PR #76
+> Branch: `feat/v2.2a-directory` — PR #76 → merged
 
 | Feature | Status | Files | Tests |
 |---------|--------|-------|-------|
