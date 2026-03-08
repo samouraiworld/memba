@@ -6,6 +6,29 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.2b Directory Enrichment (2026-03-08)
+
+> Branch: `feat/v2.2b-enrichment` — 4 commits
+
+#### Added
+- **DAO Category Tags** — `getDAOCategory()` heuristic (6 categories: governance, community, treasury, defi, infrastructure, unknown), colored badges with `dir-inline-badge` shared CSS
+- **User Avatar Enhancement** — gradient CSS avatars with first-letter placeholder, `img` support for future IPFS
+- **Contribution Scores** — `calculateContributionScores()` cross-references DAO membership, activity badges (⭐ active / 🔹 moderate / 🔸 newcomer)
+- **DAO Auto-Discovery** — `discoverDAOs()` ABCI probe, `addDiscoveryProbe()` extensible API, sessionStorage cache
+- **Per-DAO Notification View** — `getNotificationsForDAO()`, `getUnreadCountForDAO()`, `getDAOUnreadCount` hook callback
+
+#### Fixed (Deep Review)
+- I1: O(n×m) → Set-indexed O(1) scoring lookup
+- I2: Hardcoded discovery probes → `addDiscoveryProbe()` + `getDiscoveryProbes()` API
+- I3: Category false positives → word-boundary regex (`wordMatch()` helper)
+- M1-M4: CSS dedup, hook cache, naming, E2E assertions
+
+#### Tests
+- 29 new tests (unit + E2E category badge assertions)
+- **665+ unit tests**, tsc 0, lint 0, build 449KB
+
+---
+
 ### v2.2a Intelligence & Directory — Phase 1 (2026-03-08)
 
 > Branch: `feat/v2.2a-directory` — PR #76
