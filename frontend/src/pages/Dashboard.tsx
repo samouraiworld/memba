@@ -82,7 +82,15 @@ export function Dashboard() {
             setPendingTxs(pendRes.transactions)
             setRecentTxs(recentRes.transactions)
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load data")
+            // Silently degrade when backend API is unreachable
+            // On-chain features (DAOs, tokens, voting) still work without backend
+            const msg = err instanceof Error ? err.message : ""
+            const isNetworkError = /failed to fetch|networkerror|econnrefused|err_network|timeout|aborted/i.test(msg)
+            if (isNetworkError) {
+                console.warn("[Dashboard] Backend API unreachable — multisig features unavailable:", msg)
+            } else {
+                setError(msg || "Failed to load data")
+            }
         } finally {
             setLoading(false)
         }
