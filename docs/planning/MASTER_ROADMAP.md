@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.2a SHIPPED, v2.2b scoped)
+> Last updated: 2026-03-08 (v2.2b features complete, PR pending)
 
 ## Milestone Status
 
@@ -18,18 +18,18 @@
 | 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
 | 10 | **Validators & Notifications** | v2.1b | ✅ SHIPPED | PR #75 → `dev/v2` |
 | 11 | **Organization Directory** | v2.2a | ✅ SHIPPED | PR #76 → `dev/v2` |
-| 12 | **Directory Enrichment** | v2.2b | 📋 SCOPED | — |
+| 12 | **Directory Enrichment** | v2.2b | � IN REVIEW | `feat/v2.2b-enrichment` |
 | 13 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
 | 14 | **Marketplace** | v3.0 | 🔮 HORIZON | — |
 | 15 | **Premium** | v3.5 | 🔮 HORIZON | — |
 | 16 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.2a SHIPPED)
+## Quality Gates (as of v2.2b IN REVIEW)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 636 (29 files) |
-| E2E tests | 234 (11 spec files) |
+| Unit tests | 665 (29 files) |
+| E2E tests | 236 (11 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
 | Build size | 449KB (129KB gzip) |

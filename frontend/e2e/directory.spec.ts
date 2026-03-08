@@ -137,3 +137,33 @@ test.describe('Directory — Mobile', () => {
         expect(overflow).toBe('auto')
     })
 })
+
+// M4 fix: E2E assertions for v2.2b badge features
+test.describe('Directory — v2.2b Badges', () => {
+    test('DAO cards display category badges', async ({ page }) => {
+        await page.goto('/directory')
+        // Wait for seed DAO cards to render
+        await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
+
+        // At least one card should have a category badge (GovDAO = governance)
+        const badges = page.locator('[data-testid="dao-category"]')
+        const count = await badges.count()
+        expect(count).toBeGreaterThanOrEqual(1)
+
+        // Verify badge contains a valid category label
+        const firstBadge = badges.first()
+        const text = await firstBadge.textContent()
+        const validCategories = ['Governance', 'Community', 'Treasury', 'DeFi', 'Infra']
+        expect(validCategories.some(c => text?.includes(c))).toBe(true)
+    })
+
+    test('category badge uses shared inline-badge base class', async ({ page }) => {
+        await page.goto('/directory')
+        await page.locator('[data-testid="dao-category"]').first().waitFor({ state: 'visible', timeout: 10_000 })
+
+        const badge = page.locator('[data-testid="dao-category"]').first()
+        const classes = await badge.getAttribute('class')
+        expect(classes).toContain('dir-inline-badge')
+        expect(classes).toContain('dir-category-badge')
+    })
+})

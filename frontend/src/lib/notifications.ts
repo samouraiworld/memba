@@ -137,6 +137,16 @@ export function getUnreadCount(address: string): number {
     return getNotifications(address).filter(n => !n.read).length
 }
 
+/** Get notifications filtered by DAO path. */
+export function getNotificationsForDAO(address: string, daoPath: string): Notification[] {
+    return getNotifications(address).filter(n => n.daoPath === daoPath)
+}
+
+/** Get unread count for a specific DAO. */
+export function getUnreadCountForDAO(address: string, daoPath: string): number {
+    return getNotificationsForDAO(address, daoPath).filter(n => !n.read).length
+}
+
 /** Clear all notifications for a wallet. */
 export function clearNotifications(address: string): void {
     try {

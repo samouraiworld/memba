@@ -159,5 +159,11 @@ export function useNotifications(daoPaths: string[], address: string | null) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address])
 
-    return { notifications, unreadCount, markRead, markAllRead }
+    // M2 fix: Use already-loaded notifications state for O(filtered) lookup
+    // instead of re-reading localStorage on every call.
+    const getDAOUnreadCount = useCallback((daoPath: string): number => {
+        return notifications.filter(n => n.daoPath === daoPath && !n.read).length
+    }, [notifications])
+
+    return { notifications, unreadCount, markRead, markAllRead, getDAOUnreadCount }
 }

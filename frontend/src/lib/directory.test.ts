@@ -13,6 +13,12 @@ import {
     parseTokenRegistry,
     parseUserRegistry,
     getDirectoryDAOs,
+    getDAOCategory,
+    getActivityLevel,
+    parseDAOMemberAddresses,
+    calculateContributionScores,
+    getDiscoveryProbes,
+    addDiscoveryProbe,
     SEED_DAOS,
 } from "./directory"
 
@@ -143,5 +149,165 @@ describe("getDirectoryDAOs", () => {
         const custom = daos.find(d => d.path === "gno.land/r/custom/dao")
         expect(custom).toBeDefined()
         expect(custom!.isSaved).toBe(true)
+    })
+
+    test("all DAOs have a category field", () => {
+        const daos = getDirectoryDAOs()
+        for (const dao of daos) {
+            expect(dao).toHaveProperty("category")
+            expect(typeof dao.category).toBe("string")
+        }
+    })
+})
+
+// ── DAO Category Heuristic ───────────────────────────────────
+
+describe("getDAOCategory", () => {
+    test("classifies governance DAOs by path", () => {
+        expect(getDAOCategory("gno.land/r/gov/dao", "GovDAO")).toBe("governance")
+        expect(getDAOCategory("gno.land/r/gov_v2/dao", "DAO")).toBe("governance")
+    })
+
+    test("classifies governance by name", () => {
+        expect(getDAOCategory("gno.land/r/test/council", "Council DAO")).toBe("governance")
+        expect(getDAOCategory("gno.land/r/test/x", "Senate")).toBe("governance")
+    })
+
+    test("classifies community DAOs", () => {
+        expect(getDAOCategory("gno.land/r/demo/worx", "Worx DAO")).toBe("community")
+        expect(getDAOCategory("gno.land/r/demo/test", "Test")).toBe("community")
+    })
+
+    test("classifies treasury DAOs", () => {
+        expect(getDAOCategory("gno.land/r/treasury", "Treasury")).toBe("treasury")
+        expect(getDAOCategory("gno.land/r/test/x", "Fund DAO")).toBe("treasury")
+    })
+
+    test("classifies DeFi DAOs", () => {
+        expect(getDAOCategory("gno.land/r/swap/pool", "SwapPool")).toBe("defi")
+        expect(getDAOCategory("gno.land/r/test/x", "Liquidity DAO")).toBe("defi")
+    })
+
+    test("classifies infrastructure DAOs", () => {
+        expect(getDAOCategory("gno.land/r/infra/x", "Infra DAO")).toBe("infrastructure")
+        expect(getDAOCategory("gno.land/r/test/y", "Validator Set")).toBe("infrastructure")
+    })
+
+    test("returns unknown for unrecognized DAOs", () => {
+        expect(getDAOCategory("gno.land/r/some/thing", "Random DAO")).toBe("unknown")
+    })
+
+    test("governance takes priority over community for /demo/ gov DAOs", () => {
+        expect(getDAOCategory("gno.land/r/demo/gov", "Gov Test")).toBe("governance")
+    })
+
+    test("case insensitive matching", () => {
+        expect(getDAOCategory("gno.land/r/GOV/dao", "GOVDAO")).toBe("governance")
+    })
+
+    // I3 regression: word-boundary prevents false positives
+    test("does NOT match 'node' inside other words (I3 fix)", () => {
+        expect(getDAOCategory("gno.land/r/test/x", "AntiNode DAO")).toBe("unknown")
+        expect(getDAOCategory("gno.land/r/test/x", "Nodemon")).toBe("unknown")
+    })
+
+    test("does NOT match 'pool' inside other words (I3 fix)", () => {
+        expect(getDAOCategory("gno.land/r/test/x", "Carpool Group")).toBe("unknown")
+        expect(getDAOCategory("gno.land/r/test/x", "Liverpool DAO")).toBe("unknown")
+    })
+
+    test("matches 'node' as a standalone word", () => {
+        expect(getDAOCategory("gno.land/r/test/x", "Node Operators")).toBe("infrastructure")
+        expect(getDAOCategory("gno.land/r/test/x", "node-dao")).toBe("infrastructure")
+    })
+})
+
+// ── Discovery Probe API (I2 fix) ───────────────────────────
+
+describe("Discovery Probe API", () => {
+    test("getDiscoveryProbes returns default probes", () => {
+        const probes = getDiscoveryProbes()
+        expect(probes.length).toBeGreaterThanOrEqual(2)
+        expect(probes.some(p => p.path === "gno.land/r/gov/dao")).toBe(true)
+    })
+
+    test("addDiscoveryProbe adds new probe", () => {
+        const before = getDiscoveryProbes().length
+        addDiscoveryProbe("Test DAO", "gno.land/r/test/unique-probe")
+        const after = getDiscoveryProbes()
+        expect(after.length).toBe(before + 1)
+        expect(after.some(p => p.path === "gno.land/r/test/unique-probe")).toBe(true)
+    })
+
+    test("addDiscoveryProbe deduplicates by path", () => {
+        const before = getDiscoveryProbes().length
+        addDiscoveryProbe("Duplicate", "gno.land/r/gov/dao") // already exists
+        expect(getDiscoveryProbes().length).toBe(before)
+    })
+})
+
+// ── Contribution Scoring ───────────────────────────────────
+
+describe("getActivityLevel", () => {
+    test("active for 3+ DAOs", () => {
+        expect(getActivityLevel(3)).toBe("active")
+        expect(getActivityLevel(5)).toBe("active")
+    })
+
+    test("moderate for 2 DAOs", () => {
+        expect(getActivityLevel(2)).toBe("moderate")
+    })
+
+    test("newcomer for 1 DAO", () => {
+        expect(getActivityLevel(1)).toBe("newcomer")
+    })
+
+    test("observer for 0 DAOs", () => {
+        expect(getActivityLevel(0)).toBe("observer")
+    })
+})
+
+describe("parseDAOMemberAddresses", () => {
+    test("extracts g1 addresses from Render output", () => {
+        const raw = "Members:\n- g1abcdefghij1234567890abcdefghij12345678 (admin)\n- g1zyxwvutsrq9876543210zyxwvutsrq98765432 (member)"
+        const addrs = parseDAOMemberAddresses(raw)
+        expect(addrs).toHaveLength(2)
+        expect(addrs[0]).toMatch(/^g1/)
+    })
+
+    test("deduplicates addresses", () => {
+        const raw = "g1abcdefghij1234567890abcdefghij12345678 voted YES\ng1abcdefghij1234567890abcdefghij12345678 proposed"
+        const addrs = parseDAOMemberAddresses(raw)
+        expect(addrs).toHaveLength(1)
+    })
+
+    test("returns empty for no addresses", () => {
+        expect(parseDAOMemberAddresses("no addresses here")).toHaveLength(0)
+    })
+})
+
+describe("calculateContributionScores", () => {
+    test("counts DAO memberships per user", () => {
+        const users = [
+            { name: "alice", address: "g1abcdefghij1234567890abcdefghij12345678" },
+            { name: "bob", address: "g1zyxwvutsrq9876543210zyxwvutsrq98765432" },
+        ]
+        const memberMap = new Map([
+            ["dao1", ["g1abcdefghij1234567890abcdefghij12345678", "g1zyxwvutsrq9876543210zyxwvutsrq98765432"]],
+            ["dao2", ["g1abcdefghij1234567890abcdefghij12345678"]],
+        ])
+
+        const scores = calculateContributionScores(users, memberMap)
+        expect(scores.get("g1abcdefghij1234567890abcdefghij12345678")!.daoCount).toBe(2)
+        expect(scores.get("g1abcdefghij1234567890abcdefghij12345678")!.level).toBe("moderate")
+        expect(scores.get("g1zyxwvutsrq9876543210zyxwvutsrq98765432")!.daoCount).toBe(1)
+        expect(scores.get("g1zyxwvutsrq9876543210zyxwvutsrq98765432")!.level).toBe("newcomer")
+    })
+
+    test("returns observer for users not in any DAO", () => {
+        const users = [{ name: "nobody", address: "g1nobody0000000000000000000000000000000a" }]
+        const memberMap = new Map([["dao1", ["g1abcdefghij1234567890abcdefghij12345678"]]])
+        const scores = calculateContributionScores(users, memberMap)
+        expect(scores.get("g1nobody0000000000000000000000000000000a")!.level).toBe("observer")
     })
 })

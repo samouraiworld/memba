@@ -14,10 +14,56 @@ import { GNO_RPC_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
+export type DAOCategory = "governance" | "community" | "treasury" | "defi" | "infrastructure" | "unknown"
+
 export interface DirectoryDAO {
     name: string
     path: string
     isSaved: boolean
+    category: DAOCategory
+}
+
+/**
+ * I3 fix: Word-boundary matcher to prevent false positives.
+ * e.g. "antinode" should NOT match "node", but "node-dao" should.
+ */
+function wordMatch(text: string, ...words: string[]): boolean {
+    return words.some(w => new RegExp(`\\b${w}\\b`, "i").test(text))
+}
+
+/**
+ * Heuristic DAO categorization based on realm path patterns.
+ * Falls back to "unknown" for unrecognized paths.
+ *
+ * I3 fix: Uses word-boundary matching to prevent false positives
+ * (e.g. "AntiNode" no longer matches infrastructure category).
+ */
+export function getDAOCategory(path: string, name: string): DAOCategory {
+    const p = path.toLowerCase()
+    const n = name.toLowerCase()
+
+    // Governance DAOs (gov, vote, council, senate)
+    if (p.includes("/gov/") || p.includes("/gov_") || wordMatch(n, "gov", "council", "senate")) {
+        return "governance"
+    }
+    // Treasury / Finance
+    if (wordMatch(n, "treasury", "finance", "fund") || p.includes("/treasury")) {
+        return "treasury"
+    }
+    // DeFi (swap, pool, liquidity, dex)
+    if (wordMatch(n, "swap", "pool", "liquidity", "dex") || p.includes("/swap")) {
+        return "defi"
+    }
+    // Infrastructure (infra, validator, node, ops)
+    if (wordMatch(n, "infra", "validator", "node", "ops") || p.includes("/infra")) {
+        return "infrastructure"
+    }
+    // Community (everything else with demo, worx, social, community)
+    if (p.includes("/demo/") || wordMatch(n, "community", "social", "worx", "club")) {
+        return "community"
+    }
+
+    return "unknown"
 }
 
 export interface DirectoryToken {
@@ -75,6 +121,96 @@ export const SEED_DAOS: Array<{ name: string; path: string }> = [
     { name: "Worx DAO", path: "gno.land/r/demo/worx" },
 ]
 
+/**
+ * Known DAO paths to probe for auto-discovery.
+ * Each path is queried via ABCI Render("") — if it responds, it's a valid DAO.
+ *
+ * I2 fix: Mutable array with addDiscoveryProbe() for runtime extensibility.
+ * External integrations can register new probes without code changes.
+ */
+const _discoveryProbes: Array<{ name: string; path: string }> = [
+    { name: "GovDAO", path: "gno.land/r/gov/dao" },
+    { name: "Worx DAO", path: "gno.land/r/demo/worx" },
+    { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2" },
+    { name: "Faucet Hub", path: "gno.land/r/faucet/admin" },
+]
+
+/** Read-only snapshot of current discovery probes. */
+export function getDiscoveryProbes(): ReadonlyArray<{ name: string; path: string }> {
+    return [..._discoveryProbes]
+}
+
+/**
+ * Register a new DAO path to probe during auto-discovery.
+ * Deduplicates by path — silently ignores duplicates.
+ */
+export function addDiscoveryProbe(name: string, path: string): void {
+    if (!_discoveryProbes.some(p => p.path === path)) {
+        _discoveryProbes.push({ name, path })
+    }
+}
+
+/**
+ * Probe a list of known DAO paths via ABCI Render("").
+ * Returns only paths that respond successfully (valid deployed DAOs).
+ * Results are cached in sessionStorage with 5-minute TTL.
+ */
+export async function discoverDAOs(rpcUrl: string): Promise<Array<{ name: string; path: string }>> {
+    const cached = getCached<Array<{ name: string; path: string }>>("discovered_daos")
+    if (cached) return cached
+
+    const discovered: Array<{ name: string; path: string }> = []
+
+    const probes = getDiscoveryProbes()
+    const results = await Promise.allSettled(
+        probes.map(async probe => {
+            const raw = await queryRender(rpcUrl, probe.path, "")
+            // A valid DAO returns non-empty Render output
+            if (raw && raw.length > 10) {
+                return probe
+            }
+            return null
+        }),
+    )
+
+    for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+            discovered.push(result.value)
+        }
+    }
+
+    setCache("discovered_daos", discovered)
+    return discovered
+}
+
+/**
+ * Enhanced DAO list: seed + saved + discovered (deduplicated by path).
+ * Use this instead of getDirectoryDAOs() when auto-discovery is desired.
+ */
+export async function getDirectoryDAOsWithDiscovery(rpcUrl: string): Promise<DirectoryDAO[]> {
+    const base = getDirectoryDAOs()
+    const existingPaths = new Set(base.map(d => d.path))
+
+    try {
+        const discovered = await discoverDAOs(rpcUrl)
+        for (const dao of discovered) {
+            if (!existingPaths.has(dao.path)) {
+                base.push({
+                    name: dao.name,
+                    path: dao.path,
+                    isSaved: false,
+                    category: getDAOCategory(dao.path, dao.name),
+                })
+                existingPaths.add(dao.path)
+            }
+        }
+    } catch {
+        // Discovery failed — return base list only
+    }
+
+    return base
+}
+
 // ── DAO Fetching ─────────────────────────────────────────────
 
 /**
@@ -91,6 +227,7 @@ export function getDirectoryDAOs(): DirectoryDAO[] {
             name: seed.name,
             path: seed.path,
             isSaved: savedPaths.has(seed.path),
+            category: getDAOCategory(seed.path, seed.name),
         })
     }
 
@@ -101,6 +238,7 @@ export function getDirectoryDAOs(): DirectoryDAO[] {
                 name: dao.name,
                 path: dao.realmPath,
                 isSaved: true,
+                category: getDAOCategory(dao.realmPath, dao.name),
             })
         }
     }
@@ -193,4 +331,82 @@ export async function fetchUsers(): Promise<DirectoryUser[]> {
     const users = parseUserRegistry(raw)
     setCache("users", users)
     return users
+}
+
+// ── Contribution Scoring ─────────────────────────────────────
+
+export interface ContributionScore {
+    address: string
+    daoCount: number
+    level: "active" | "moderate" | "newcomer" | "observer"
+}
+
+/**
+ * Classify activity level by DAO membership count.
+ */
+export function getActivityLevel(daoCount: number): ContributionScore["level"] {
+    if (daoCount >= 3) return "active"
+    if (daoCount >= 2) return "moderate"
+    if (daoCount >= 1) return "newcomer"
+    return "observer"
+}
+
+/**
+ * Parse member addresses from a DAO Render output.
+ * Looks for g1... addresses in member lists.
+ */
+export function parseDAOMemberAddresses(raw: string): string[] {
+    const addresses: string[] = []
+    const matches = raw.matchAll(/\b(g1[a-z0-9]{38})\b/g)
+    for (const m of matches) {
+        if (!addresses.includes(m[1])) {
+            addresses.push(m[1])
+        }
+    }
+    return addresses
+}
+
+/**
+ * Calculate contribution scores for a list of users by cross-referencing
+ * with DAO membership data. This is a client-side heuristic that counts
+ * how many known DAOs each user address appears in.
+ *
+ * @param users - User list from the directory
+ * @param daoMemberMap - Map of daoPath → member addresses
+ */
+/**
+ * I1 fix: Pre-builds a Set<string> index per DAO for O(1) membership checks.
+ * Previous O(n×m) approach iterated all members for every user×DAO pair.
+ * New approach: O(n + m) index build + O(n × d) lookups where d = DAO count.
+ */
+export function calculateContributionScores(
+    users: DirectoryUser[],
+    daoMemberMap: Map<string, string[]>,
+): Map<string, ContributionScore> {
+    const scores = new Map<string, ContributionScore>()
+
+    // I1: Pre-build Set index for O(1) member lookups
+    const daoMemberSets = new Map<string, Set<string>>()
+    for (const [daoPath, members] of daoMemberMap.entries()) {
+        daoMemberSets.set(daoPath, new Set(members.map(m => m.toLowerCase())))
+    }
+
+    for (const user of users) {
+        const addr = user.address.toLowerCase()
+        let daoCount = 0
+
+        for (const memberSet of daoMemberSets.values()) {
+            if (memberSet.has(addr)) {
+                daoCount++
+            }
+        }
+
+        scores.set(user.address, {
+            address: user.address,
+            daoCount,
+            level: getActivityLevel(daoCount),
+        })
+    }
+
+    return scores
 }
