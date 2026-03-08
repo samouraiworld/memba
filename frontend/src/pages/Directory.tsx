@@ -127,6 +127,7 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                             name={dao.name}
                             path={dao.path}
                             isSaved={dao.isSaved}
+                            category={dao.category}
                             metadata={metadata.get(dao.path)}
                             onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
                             onSave={() => setDaoRefreshKey(k => k + 1)}

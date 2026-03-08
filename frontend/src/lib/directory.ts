@@ -14,10 +14,45 @@ import { GNO_RPC_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
+export type DAOCategory = "governance" | "community" | "treasury" | "defi" | "infrastructure" | "unknown"
+
 export interface DirectoryDAO {
     name: string
     path: string
     isSaved: boolean
+    category: DAOCategory
+}
+
+/**
+ * Heuristic DAO categorization based on realm path patterns.
+ * Falls back to "unknown" for unrecognized paths.
+ */
+export function getDAOCategory(path: string, name: string): DAOCategory {
+    const p = path.toLowerCase()
+    const n = name.toLowerCase()
+
+    // Governance DAOs (gov, vote, council, senate)
+    if (p.includes("/gov/") || p.includes("/gov_") || n.includes("gov") || n.includes("council") || n.includes("senate")) {
+        return "governance"
+    }
+    // Treasury / Finance
+    if (n.includes("treasury") || n.includes("finance") || n.includes("fund") || p.includes("/treasury")) {
+        return "treasury"
+    }
+    // DeFi (swap, pool, liquidity, dex)
+    if (n.includes("swap") || n.includes("pool") || n.includes("liquidity") || n.includes("dex") || p.includes("/swap")) {
+        return "defi"
+    }
+    // Infrastructure (infra, validator, node, ops)
+    if (n.includes("infra") || n.includes("validator") || n.includes("node") || n.includes("ops") || p.includes("/infra")) {
+        return "infrastructure"
+    }
+    // Community (everything else with demo, worx, social, community)
+    if (p.includes("/demo/") || n.includes("community") || n.includes("social") || n.includes("worx") || n.includes("club")) {
+        return "community"
+    }
+
+    return "unknown"
 }
 
 export interface DirectoryToken {
@@ -91,6 +126,7 @@ export function getDirectoryDAOs(): DirectoryDAO[] {
             name: seed.name,
             path: seed.path,
             isSaved: savedPaths.has(seed.path),
+            category: getDAOCategory(seed.path, seed.name),
         })
     }
 
@@ -101,6 +137,7 @@ export function getDirectoryDAOs(): DirectoryDAO[] {
                 name: dao.name,
                 path: dao.realmPath,
                 isSaved: true,
+                category: getDAOCategory(dao.realmPath, dao.name),
             })
         }
     }

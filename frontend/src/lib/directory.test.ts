@@ -13,6 +13,7 @@ import {
     parseTokenRegistry,
     parseUserRegistry,
     getDirectoryDAOs,
+    getDAOCategory,
     SEED_DAOS,
 } from "./directory"
 
@@ -143,5 +144,59 @@ describe("getDirectoryDAOs", () => {
         const custom = daos.find(d => d.path === "gno.land/r/custom/dao")
         expect(custom).toBeDefined()
         expect(custom!.isSaved).toBe(true)
+    })
+
+    test("all DAOs have a category field", () => {
+        const daos = getDirectoryDAOs()
+        for (const dao of daos) {
+            expect(dao).toHaveProperty("category")
+            expect(typeof dao.category).toBe("string")
+        }
+    })
+})
+
+// ── DAO Category Heuristic ───────────────────────────────────
+
+describe("getDAOCategory", () => {
+    test("classifies governance DAOs by path", () => {
+        expect(getDAOCategory("gno.land/r/gov/dao", "GovDAO")).toBe("governance")
+        expect(getDAOCategory("gno.land/r/gov_v2/dao", "DAO")).toBe("governance")
+    })
+
+    test("classifies governance by name", () => {
+        expect(getDAOCategory("gno.land/r/test/council", "Council DAO")).toBe("governance")
+        expect(getDAOCategory("gno.land/r/test/x", "Senate")).toBe("governance")
+    })
+
+    test("classifies community DAOs", () => {
+        expect(getDAOCategory("gno.land/r/demo/worx", "Worx DAO")).toBe("community")
+        expect(getDAOCategory("gno.land/r/demo/test", "Test")).toBe("community")
+    })
+
+    test("classifies treasury DAOs", () => {
+        expect(getDAOCategory("gno.land/r/treasury", "Treasury")).toBe("treasury")
+        expect(getDAOCategory("gno.land/r/test/x", "Fund DAO")).toBe("treasury")
+    })
+
+    test("classifies DeFi DAOs", () => {
+        expect(getDAOCategory("gno.land/r/swap/pool", "SwapPool")).toBe("defi")
+        expect(getDAOCategory("gno.land/r/test/x", "Liquidity DAO")).toBe("defi")
+    })
+
+    test("classifies infrastructure DAOs", () => {
+        expect(getDAOCategory("gno.land/r/infra/x", "Infra DAO")).toBe("infrastructure")
+        expect(getDAOCategory("gno.land/r/test/y", "Validator Set")).toBe("infrastructure")
+    })
+
+    test("returns unknown for unrecognized DAOs", () => {
+        expect(getDAOCategory("gno.land/r/some/thing", "Random DAO")).toBe("unknown")
+    })
+
+    test("governance takes priority over community for /demo/ gov DAOs", () => {
+        expect(getDAOCategory("gno.land/r/demo/gov", "Gov Test")).toBe("governance")
+    })
+
+    test("case insensitive matching", () => {
+        expect(getDAOCategory("gno.land/r/GOV/dao", "GOVDAO")).toBe("governance")
     })
 })
