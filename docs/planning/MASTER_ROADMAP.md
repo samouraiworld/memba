@@ -18,15 +18,15 @@
 | 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
 | 10 | **Validators & Notifications** | v2.1b | 🟡 IN PROGRESS | `feat/v2.1b-validators-notifications` → `dev/v2` |
 
-## Quality Gates (as of v2.1a)
+## Quality Gates (as of v2.1b Phase 2)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 529 (22 files) |
+| Unit tests | 612 (27 files) |
 | E2E tests | 186 (10 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | 496KB (145KB gzip) |
+| Build size | 569KB (165KB gzip) |
 
 ## Chain Targets
 

@@ -8,7 +8,7 @@ All notable changes to Memba are documented here.
 
 ### v2.1b Validators & Notifications (2026-03-08)
 
-> Branch: `feat/v2.1b-validators-notifications` — 4 commits, 56 new tests
+> Branch: `feat/v2.1b-validators-notifications` — 6 commits, 84 new tests
 
 #### Added
 - **Notification Center** — bell icon in header with unread badge, dropdown panel grouped by date (Today/Yesterday/This Week/Older), 30s ABCI polling for new proposals, Page Visibility API (pauses when tab hidden), per-wallet localStorage isolation, XSS sanitization
@@ -24,6 +24,14 @@ All notable changes to Memba are documented here.
   - 7-day cooldown with per-address localStorage keys
   - `MsgSend` builder for treasury transfer (signing is deployment concern)
 - **Sidebar nav** — Validators link with chain icon
+- **Faucet Claim UI** — Dashboard card with eligibility check, cooldown timer, external faucet link (Phase 2)
+  - `FaucetCard.tsx` — premium glassmorphism card, mobile responsive
+  - Shown when wallet connected + eligible (hides after claim or during cooldown)
+- **Multi-DAO Notification Polling** — refactored `useNotifications` from `daoPath: string | null` to `daoPaths: string[]`
+  - Layout polls all saved DAOs (max 5/cycle), per-DAO tracking via `lastKnownCounts` Map
+  - Bell icon aggregates notifications from all saved DAOs
+- **Validator Pagination** — auto-paginate `getValidators()` for >100 validators (parallel page fetch)
+  - Client-side page controls: page size selector (25/50/100), prev/next buttons, "Showing X-Y of Z"
 
 #### Fixed (Dual-Round Audit — 15 items)
 - **C2**: Validator polling 5s→30s + Page Visibility API (was 48 RPCs/min)
