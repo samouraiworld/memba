@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-636%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-687%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.2a)
+## Features (v2.5)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -65,6 +65,13 @@
 - ⚡ **Validator Dashboard** — network stats, voting power distribution, sortable table, pagination
 - 💧 **Faucet Card** — gasless onboarding with eligibility check and cooldown timer
 
+### Channels & Communication (v2.5)
+- 💬 **Channel Pages** — standalone `/dao/:slug/channels` route with sidebar, breadcrumb nav
+- 🔄 **Real-time UX** — 10s polling, Page Visibility API pause, "New messages" toast
+- 🔊 **Voice Channels** — Jitsi Meet iframe embed, "Join Room" gate
+- 🎥 **Video Channels** — Jitsi Meet with camera, deterministic room names
+- 🧵 **Thread Types** — text (💬), announcements (📢), readonly (🔒), voice (🔊), video (🎥)
+
 ### Navigation & Layout
 - 📐 **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
 - 📱 **Mobile Tab Bar** — 5-tab bottom navigation (Home, DAOs, Tokens, Directory, More)
@@ -75,18 +82,19 @@
 ### Security & Infrastructure
 - 🔐 Challenge-response auth (ed25519, ADR-036)
 - 🛡️ RPC domain validation — blocks writes through untrusted RPCs
+- 🔒 **Content Security Policy** — CSP meta tag restricting script/style/connect/frame origins
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test11 ↔ staging ↔ portal-loop ↔ betanet) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
-- ⚡ Code splitting (449KB main, 129KB gzip, lazy-loaded DAO/token/directory chunks)
+- ⚡ Code splitting (450KB main, 129KB gzip, lazy-loaded DAO/token/directory/channel chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **636 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, DAO metadata
-- 🧪 **199 E2E tests** (Playwright) — 11 spec files: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory
+- 🧪 **687 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata
+- 🧪 **119 E2E tests** (Playwright) — Chromium + Firefox: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory
 
 ## Architecture
 
