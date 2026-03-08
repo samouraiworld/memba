@@ -159,5 +159,11 @@ export function useNotifications(daoPaths: string[], address: string | null) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address])
 
-    return { notifications, unreadCount, markRead, markAllRead }
+    // Get unread count for a specific DAO
+    const getDAOUnreadCount = useCallback((daoPath: string): number => {
+        if (!address) return 0
+        return getNotifications(address).filter(n => n.daoPath === daoPath && !n.read).length
+    }, [address])
+
+    return { notifications, unreadCount, markRead, markAllRead, getDAOUnreadCount }
 }

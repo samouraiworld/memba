@@ -12,6 +12,8 @@ import {
     markRead,
     markAllRead,
     getUnreadCount,
+    getNotificationsForDAO,
+    getUnreadCountForDAO,
     clearNotifications,
     groupNotifications,
     formatRelativeTime,
@@ -137,8 +139,44 @@ describe("getUnreadCount", () => {
         expect(getUnreadCount(TEST_ADDR)).toBe(1)
     })
 })
+// ── Per-DAO Filtering ─────────────────────────────────────
 
-// ── Isolation ─────────────────────────────────────────────────
+describe("getNotificationsForDAO", () => {
+    it("filters notifications by daoPath", () => {
+        addNotification(TEST_ADDR, makeNotification({ daoPath: "gno.land/r/dao1" }))
+        addNotification(TEST_ADDR, makeNotification({ type: "proposal_passed", daoPath: "gno.land/r/dao2" }))
+        addNotification(TEST_ADDR, makeNotification({ type: "member_added", daoPath: "gno.land/r/dao1" }))
+
+        const dao1 = getNotificationsForDAO(TEST_ADDR, "gno.land/r/dao1")
+        expect(dao1).toHaveLength(2)
+        expect(dao1.every(n => n.daoPath === "gno.land/r/dao1")).toBe(true)
+    })
+
+    it("returns empty for unknown daoPath", () => {
+        addNotification(TEST_ADDR, makeNotification())
+        expect(getNotificationsForDAO(TEST_ADDR, "gno.land/r/nonexistent")).toHaveLength(0)
+    })
+})
+
+describe("getUnreadCountForDAO", () => {
+    it("counts unread for specific DAO", () => {
+        const n1 = addNotification(TEST_ADDR, makeNotification({ daoPath: "gno.land/r/dao1" }))
+        addNotification(TEST_ADDR, makeNotification({ type: "proposal_passed", daoPath: "gno.land/r/dao2" }))
+        addNotification(TEST_ADDR, makeNotification({ type: "member_added", daoPath: "gno.land/r/dao1" }))
+
+        // Mark one from dao1 as read
+        markRead(TEST_ADDR, n1.id)
+
+        expect(getUnreadCountForDAO(TEST_ADDR, "gno.land/r/dao1")).toBe(1)
+        expect(getUnreadCountForDAO(TEST_ADDR, "gno.land/r/dao2")).toBe(1)
+    })
+
+    it("returns 0 for DAO with no notifications", () => {
+        expect(getUnreadCountForDAO(TEST_ADDR, "gno.land/r/empty")).toBe(0)
+    })
+})
+
+// ── Isolation ─────────────────────────────────────────────
 
 describe("per-wallet isolation", () => {
     it("notifications are scoped to address", () => {
