@@ -22,10 +22,13 @@ export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) 
     const [hiding, setHiding] = useState(false)
     const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // C3 fix: ref for onDismiss to prevent stale closure in setTimeout
+    const onDismissRef = useRef(onDismiss)
+    onDismissRef.current = onDismiss
 
     const startDismiss = () => {
         setHiding(true)
-        dismissTimerRef.current = setTimeout(onDismiss, 300)
+        dismissTimerRef.current = setTimeout(() => onDismissRef.current(), 300)
     }
 
     // Auto-dismiss after 8s

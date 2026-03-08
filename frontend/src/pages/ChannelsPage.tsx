@@ -145,6 +145,8 @@ export function ChannelsPage() {
 
     // ── Main Layout ───────────────────────────────────────────
     const channels = boardInfo?.channels || []
+    // C4 fix: compute once instead of inline filter every render
+    const activeChannelCount = channels.filter(c => !c.archived).length
 
     return (
         <div id="channels-page" className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -169,7 +171,7 @@ export function ChannelsPage() {
             >
                 <span>{sidebarOpen ? "▼" : "▶"}</span>
                 <span>#{activeChannel}</span>
-                <span style={{ color: "#444" }}>({channels.filter(c => !c.archived).length} channels)</span>
+                <span style={{ color: "#444" }}>({activeChannelCount} channels)</span>
             </button>
 
             {/* ── Layout: Sidebar + Content ──────────────────── */}

@@ -21,13 +21,14 @@
 import { useState, useEffect, useCallback } from "react"
 import type { PluginProps } from "../types"
 import { getBoardInfo } from "./parser"
-import type { BoardInfo, BoardChannel } from "./parser"
+import type { BoardInfo } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
 import { buildChannelCreateThreadMsg, buildChannelReplyMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
 import { useChannelPolling } from "../../hooks/useChannelPolling"
 import { NewMessagesToast } from "../../components/ui/NewMessagesToast"
+import { channelIcon } from "../../pages/channelHelpers"
 import "./board.css"
 
 type View = "home" | "channel" | "thread" | "new-thread"
@@ -102,12 +103,7 @@ interface ViewState {
     threadId: number | null
 }
 
-/** Channel type → icon mapping */
-function channelTypeIcon(ch: BoardChannel): string {
-    if (ch.type === "announcements") return "📢"
-    if (ch.type === "readonly") return "🔒"
-    return "💬"
-}
+// M3 fix: channelTypeIcon removed — use channelIcon from channelHelpers (shared)
 
 interface BoardViewProps extends PluginProps {
     /** Detected board/channel realm path — passed from index.tsx */
@@ -192,6 +188,7 @@ export default function BoardView({ boardPath, auth, adena, initialChannel, onCh
     const error = formError || (viewState.view === "home" ? homeError : pollingError)
 
     const navigateTo = (view: View, channel = "general", threadId: number | null = null) => {
+        setFormError(null) // I1 fix: clear form error on navigation
         if (view === "thread" && threadId !== null) {
             markVisited(channel, threadId)
         }
@@ -354,7 +351,7 @@ export default function BoardView({ boardPath, auth, adena, initialChannel, onCh
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ fontSize: 14 }}>{channelTypeIcon(ch)}</span>
+                                    <span style={{ fontSize: 14 }}>{channelIcon(ch)}</span>
                                     <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
                                         #{ch.name}
                                     </span>
@@ -401,7 +398,7 @@ export default function BoardView({ boardPath, auth, adena, initialChannel, onCh
                             ←
                         </button>
                         {currentChannel && (
-                            <span style={{ fontSize: 16 }}>{channelTypeIcon(currentChannel)}</span>
+                            <span style={{ fontSize: 16 }}>{channelIcon(currentChannel)}</span>
                         )}
                         <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
                             #{viewState.channel}

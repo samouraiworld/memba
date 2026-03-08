@@ -68,6 +68,11 @@ export function useChannelPolling({
     const isFetching = useRef(false)
     const prevCounts = useRef<{ threads: number; replies: number }>({ threads: 0, replies: 0 })
     const isInitialLoad = useRef(true)
+    // C2 fix: store volatile props in refs to prevent stale closures in interval
+    const channelRef = useRef(channel)
+    channelRef.current = channel
+    const threadIdRef = useRef(threadId)
+    threadIdRef.current = threadId
 
     // ── Page Visibility API ───────────────────────────────────
     useEffect(() => {
@@ -83,15 +88,19 @@ export function useChannelPolling({
         if (isFetching.current) return
         isFetching.current = true
 
+        // C2 fix: read from refs to always get latest values (not stale closure)
+        const currentChannel = channelRef.current
+        const currentThreadId = threadIdRef.current
+
         if (isFirstLoad) {
             setLoading(true)
             setError(null)
         }
 
         try {
-            if (threadId !== null) {
+            if (currentThreadId !== null) {
                 // Thread detail view — poll for new replies
-                const detail = await getBoardThread(GNO_RPC_URL, boardPath, channel, threadId)
+                const detail = await getBoardThread(GNO_RPC_URL, boardPath, currentChannel, currentThreadId)
                 const newReplyCount = detail?.replies?.length || 0
                 const prevReplyCount = prevCounts.current.replies
 
@@ -103,7 +112,7 @@ export function useChannelPolling({
                 setThreadDetail(detail)
             } else {
                 // Channel list view — poll for new threads
-                const threadList = await getBoardThreads(GNO_RPC_URL, boardPath, channel)
+                const threadList = await getBoardThreads(GNO_RPC_URL, boardPath, currentChannel)
                 const newThreadCount = threadList.length
                 const prevThreadCount = prevCounts.current.threads
 
@@ -118,14 +127,15 @@ export function useChannelPolling({
             setError(null)
         } catch {
             if (isFirstLoad) {
-                setError(threadId !== null ? "Failed to load thread" : "Failed to load threads")
+                setError(currentThreadId !== null ? "Failed to load thread" : "Failed to load threads")
             }
             // Silently ignore poll errors (transient network issues)
         } finally {
             if (isFirstLoad) setLoading(false)
             isFetching.current = false
         }
-    }, [boardPath, channel, threadId])
+        // C2 fix: deps reduced to boardPath only — channel/threadId read from refs
+    }, [boardPath])
 
     // ── Initial fetch on channel/thread change ────────────────
     useEffect(() => {
@@ -134,10 +144,16 @@ export function useChannelPolling({
         setHasNewContent(false)
         setThreads([])
         setThreadDetail(null)
+        // C1 fix: skip initial fetch when not enabled (home view)
+        if (!enabled) {
+            setLoading(false)
+            return
+        }
         fetchData(true).then(() => {
             isInitialLoad.current = false
         })
-    }, [fetchData])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [boardPath, channel, threadId, enabled])
 
     // ── Polling interval ──────────────────────────────────────
     useEffect(() => {
