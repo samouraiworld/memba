@@ -41,8 +41,8 @@ All notable changes to Memba are documented here.
 - `toAdenaMessages()` type guard prevents silent MsgAddPackage corruption
 
 #### Tests
-- 528 unit tests (22 files, +168 from 360 baseline), all quality gates pass (tsc 0, lint 0, build clean)
-- 3-round deep audit: 17 findings total, 12 fixed, 5 deferred (low priority)
+- 529 unit tests (22 files, +169 from 360 baseline), all quality gates pass (tsc 0, lint 0, build clean)
+- 5-round deep audit: 23 findings total, 15 fixed, 5 deferred (low priority), 3 notes
 
 ### v2.0-θ UX Polish & Layout Fixes (2026-03-07)
 

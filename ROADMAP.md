@@ -41,9 +41,9 @@ Review findings feed into the **next version's RFC** as action items.
 | IPFS Avatars (Lighthouse upload, canonical `ipfs://` save) | ✅ | 4 | +18 |
 | MembaDAO Bootstrap (config, deployment, status checker) | ✅ | 2 | +23 |
 
-**Audit**: 3 rounds, 17 findings (12 fixed: self-approval guard, FEE_RECIPIENT fix, skills validation, re-candidature cost, type safety).
+**Audit**: 5 rounds, 23 findings (15 fixed: self-approval guard, FEE_RECIPIENT fix, skills validation, re-candidature cost, type safety, substring match, configurable edit window).
 
-**Total: 528 tests (22 files). Zero lint/TS/build errors.**
+**Total: 529 tests (22 files). Zero lint/TS/build errors.**
 
 ---
 
