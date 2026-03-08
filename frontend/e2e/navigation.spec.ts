@@ -64,10 +64,10 @@ test.describe('Sidebar Navigation (Desktop ≥1025px)', () => {
         await expect(link).not.toBeVisible()
     })
 
-    test('Plugins section visible', async ({ page }) => {
+    test('Extensions link visible', async ({ page }) => {
         await page.goto('/')
-        const pluginSection = page.locator('[data-testid="sidebar"]').getByText('Plugins')
-        await expect(pluginSection).toBeVisible()
+        const extensionsLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Extensions' })
+        await expect(extensionsLink).toBeVisible()
     })
 
     test('Feedback link always visible', async ({ page }) => {
