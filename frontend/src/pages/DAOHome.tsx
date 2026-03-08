@@ -532,6 +532,24 @@ export function DAOHome() {
                 )}
             </div>
 
+            {/* Channels (v2.5a) */}
+            <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 22 }}>💬</span>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>Channels</div>
+                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>Discussion channels and announcements</div>
+                    </div>
+                </div>
+                <button
+                    id="dao-channels-btn"
+                    onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
+                    style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
+                >
+                    Open →
+                </button>
+            </div>
+
             {/* Treasury */}
             <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

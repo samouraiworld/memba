@@ -29,6 +29,9 @@ const Treasury = lazy(() => import("./pages/Treasury").then(m => ({ default: m.T
 const TreasuryProposal = lazy(() => import("./pages/TreasuryProposal").then(m => ({ default: m.TreasuryProposal })))
 const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
 
+// ── Channels page (lazy — v2.5a) ──
+const ChannelsPage = lazy(() => import("./pages/ChannelsPage").then(m => ({ default: m.ChannelsPage })))
+
 // ── Profile page (lazy) ──
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
 
@@ -104,6 +107,8 @@ function App() {
           <Route path="/dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
           <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
           <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
+          <Route path="/dao/:slug/channels" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
+          <Route path="/dao/:slug/channels/:channel" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
           <Route path="/dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
 
           {/* Profile routes (lazy) */}

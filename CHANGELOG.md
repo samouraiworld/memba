@@ -6,6 +6,30 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.5a Channel Pages (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages`
+
+#### Added
+- **Standalone Channel Page** — `/dao/:slug/channels` route with full-page layout
+  - Left sidebar (220px) with channel list, type icons (💬/📢/🔒), active highlight, archived badges
+  - Breadcrumb navigation (DAOs › DaoName › Channels) with clickable links
+  - Deep-link support: `/dao/:slug/channels/:channel` opens specific channel
+  - Mobile responsive: sidebar collapses below 768px with toggle button
+- **BoardView Headless Mode** — 3 new optional props (`initialChannel`, `onChannelChange`, `hideChannelList`) for external control
+- **DAOHome Channels Card** — 💬 icon + "Open →" entry point, positioned before Treasury
+
+#### New Files
+- `pages/ChannelsPage.tsx` (223 LOC) — channel page with sidebar + BoardView integration
+- `pages/channelHelpers.ts` (24 LOC) — `channelIcon()` + `defaultChannel()` helpers
+- `pages/channels.css` (200 LOC) — responsive layout, empty/loading states
+- `pages/channels.test.ts` (75 LOC) — 9 unit tests for helpers
+
+#### Tests
+- **674 unit tests** (30 files, +9), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
 ### v2.2c Quick Wins (2026-03-08)
 
 > Branch: `feat/v2.2c-quick-wins` — PR #78

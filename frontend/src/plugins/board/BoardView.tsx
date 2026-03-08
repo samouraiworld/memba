@@ -110,12 +110,23 @@ function channelTypeIcon(ch: BoardChannel): string {
 interface BoardViewProps extends PluginProps {
     /** Detected board/channel realm path — passed from index.tsx */
     boardPath: string
+    /** v2.5a: Pre-select a channel (skip home view). Used by ChannelsPage. */
+    initialChannel?: string
+    /** v2.5a: Callback when user navigates between channels. */
+    onChannelChange?: (channel: string) => void
+    /** v2.5a: Hide internal channel list — ChannelsPage provides its own sidebar. */
+    hideChannelList?: boolean
 }
 
-export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
+export default function BoardView({ boardPath, auth, adena, initialChannel, onChannelChange, hideChannelList }: BoardViewProps) {
     const isV2 = boardPath.endsWith("_channels")
 
-    const [viewState, setViewState] = useState<ViewState>({ view: "home", channel: "general", threadId: null })
+    // v2.5a: Start in "channel" view when initialChannel is provided (headless mode)
+    const [viewState, setViewState] = useState<ViewState>(() => ({
+        view: initialChannel ? "channel" : "home",
+        channel: initialChannel || "general",
+        threadId: null,
+    }))
     const [boardInfo, setBoardInfo] = useState<BoardInfo | null>(null)
     const [threads, setThreads] = useState<BoardThread[]>([])
     const [threadDetail, setThreadDetail] = useState<BoardThreadDetail | null>(null)
@@ -127,6 +138,14 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
     const [newBody, setNewBody] = useState("")
     const [replyBody, setReplyBody] = useState("")
     const [posting, setPosting] = useState(false)
+
+    // v2.5a: Sync initialChannel prop changes → switch channel view
+    useEffect(() => {
+        if (initialChannel && initialChannel !== viewState.channel) {
+            setViewState({ view: "channel", channel: initialChannel, threadId: null })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialChannel])
 
     const loadBoardHome = useCallback(async () => {
         setLoading(true)
@@ -179,6 +198,14 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
     const navigateTo = (view: View, channel = "general", threadId: number | null = null) => {
         if (view === "thread" && threadId !== null) {
             markVisited(channel, threadId)
+        }
+        // v2.5a: When navigating back to home in headless mode, go to channel instead
+        if (view === "home" && hideChannelList) {
+            view = "channel"
+        }
+        // v2.5a: Notify parent of channel change
+        if (view === "channel" && onChannelChange && channel !== viewState.channel) {
+            onChannelChange(channel)
         }
         setViewState({ view, channel, threadId })
     }
