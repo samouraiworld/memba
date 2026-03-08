@@ -30,7 +30,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 684 (32 files) |
+| Unit tests | 687 (32 files) |
 | E2E tests | 119 (5 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
