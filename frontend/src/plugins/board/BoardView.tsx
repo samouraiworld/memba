@@ -135,7 +135,10 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
     const [posting, setPosting] = useState(false)
 
     // v2.5b: Real-time polling — replaces manual loadChannel/loadThread
-    const isPollingEnabled = viewState.view !== "home"
+    // P4 fix: skip polling for voice/video channels (thread data not displayed)
+    const currentChannelInfo = boardInfo?.channels.find(ch => ch.name === viewState.channel)
+    const isVoiceOrVideoChannel = currentChannelInfo?.type === "voice" || currentChannelInfo?.type === "video"
+    const isPollingEnabled = viewState.view !== "home" && !isVoiceOrVideoChannel
     const {
         threads,
         threadDetail,

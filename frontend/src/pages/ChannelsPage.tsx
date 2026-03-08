@@ -198,7 +198,11 @@ export function ChannelsPage() {
                                 <span className="channel-icon">{channelIcon(ch)}</span>
                                 <span className="channel-name">{ch.name}</span>
                                 {ch.archived && <span className="channel-badge">archived</span>}
-                                {!ch.archived && ch.threadCount > 0 && (
+                                {/* U1 fix: show "Join" for voice/video, thread count for text */}
+                                {!ch.archived && (ch.type === "voice" || ch.type === "video") && (
+                                    <span className="channel-badge" style={{ color: "#00d4aa", background: "rgba(0, 212, 170, 0.08)" }}>Join</span>
+                                )}
+                                {!ch.archived && ch.type !== "voice" && ch.type !== "video" && ch.threadCount > 0 && (
                                     <span className="thread-count">{ch.threadCount}</span>
                                 )}
                             </button>

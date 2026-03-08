@@ -22,8 +22,6 @@ interface JitsiMeetProps {
     mode: "voice" | "video"
 }
 
-
-
 export function JitsiMeet({ daoSlug, channelName, mode }: JitsiMeetProps) {
     const [joined, setJoined] = useState(false)
     const roomName = jitsiRoomName(daoSlug, channelName)

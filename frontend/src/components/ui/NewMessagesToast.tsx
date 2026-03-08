@@ -62,7 +62,7 @@ export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) 
                 fontFamily: "JetBrains Mono, monospace",
                 cursor: "pointer",
                 marginBottom: 12,
-                animation: "fadeIn 0.3s ease",
+                animation: "fade-in 0.3s ease",
             }}
         >
             <span>↓</span>
