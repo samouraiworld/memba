@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.1b SHIPPED, v2.2 started)
+> Last updated: 2026-03-08 (v2.2a SHIPPED, v2.2b scoped)
 
 ## Milestone Status
 
@@ -17,17 +17,78 @@
 | 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
 | 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
 | 10 | **Validators & Notifications** | v2.1b | ✅ SHIPPED | PR #75 → `dev/v2` |
-| 11 | **Intelligence & Directory** | v2.2a | 🟡 IN PROGRESS | `feat/v2.2a-directory` → `dev/v2` |
+| 11 | **Organization Directory** | v2.2a | ✅ SHIPPED | PR #76 → `dev/v2` |
+| 12 | **Directory Enrichment** | v2.2b | 📋 SCOPED | — |
+| 13 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 14 | **Marketplace** | v3.0 | 🔮 HORIZON | — |
+| 15 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 16 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.2a)
+## Quality Gates (as of v2.2a SHIPPED)
 
 | Metric | Value |
 |--------|-------|
 | Unit tests | 636 (29 files) |
-| E2E tests | 199 (11 spec files) |
+| E2E tests | 234 (11 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
 | Build size | 449KB (129KB gzip) |
+| package.json | 2.2.0-alpha.1 |
+
+## v2.2b — Directory Enrichment (SCOPED)
+
+> **Goal:** Complete deferred items from v2.1b + v2.2a HANDOFFs. Quick wins + medium features.
+
+| # | Feature | Source | Complexity | Status |
+|---|---------|--------|------------|--------|
+| 1 | **DAO Category Tags** — governance/community/treasury labels | v2.2a HANDOFF | Small | ☐ |
+| 2 | **User IPFS Avatars** — avatar display in directory user cards | v2.2a HANDOFF | Small | ☐ |
+| 3 | **Token Detail Navigation** — click token → `/tokens/:symbol` | v2.2a HANDOFF | Small | ☐ |
+| 4 | **Per-DAO Notification View** — DAO-specific count/filter in DAOHome | v2.1b HANDOFF | Medium | ☐ |
+| 5 | **Contribution Scores** — proposal activity metric on user cards | v2.2a HANDOFF | Medium | ☐ |
+| 6 | **DAO Auto-Discovery** — scan on-chain DAO factories | v2.2a HANDOFF | Medium-Large | ☐ |
+
+### Also Deferred (Lower Priority)
+
+| Feature | Source | Notes |
+|---------|--------|-------|
+| Validator monikers (human names) | v2.1b HANDOFF | Needs upstream support |
+| Faucet Phase 3 (treasury signing) | v2.1b HANDOFF | Backend concern |
+
+## v2.3 — Revenue & Sustainability (PLANNED)
+
+> **Goal:** Monetization layer + advanced governance.
+
+| # | Feature | Complexity |
+|---|---------|------------|
+| 1 | **GnoSwap Slippage + Swap Execution** | Medium (spec in `GNOSWAP_SLIPPAGE.md`) |
+| 2 | **Executable Proposals** — automated membership changes via governance | Large |
+| 3 | **Subscription Realms** — on-chain premium tiers ($MEMBA gating) | Large |
+| 4 | **Sponsorships** — project-based DAO funding | Medium |
+
+## v3.0 — Marketplace (HORIZON)
+
+| Feature | Notes |
+|---------|-------|
+| **Professional Services Marketplace** for DAOs | DAO-to-contributor matching |
+| **Extension Hub** — MembaDAO curates "Official" badges | Plugin marketplace |
+| **AI Facilitator** — proposal summarization, voting guidance | Read-only bot, LLM integration |
+
+## v3.5 — Premium (HORIZON)
+
+| Feature | Notes |
+|---------|-------|
+| **Governance-as-a-Service** | White-label DAO tooling |
+| **Ad Hub** — decentralized ad placement | Gno project promotion |
+| **NFT Metadata** — IPFS via nft.storage | Client-side pinning, CID on-chain |
+
+## v4.0 — Horizon (HORIZON)
+
+| Feature | Notes |
+|---------|-------|
+| **Inter-DAO Bridge** + sovereign community hub | Cross-chain governance |
+| **Audio/Video** — Jitsi Meet or OSS P2P E2E | Self-hosted, iframe embed |
+| **Validator Service** — separate project (~€200/mo) | Scaleway VPS, Stripe billing |
 
 ## Chain Targets
 
@@ -85,6 +146,10 @@
 | [milestones/v2.1b-validators/AUDIT.md](milestones/v2.1b-validators/AUDIT.md) | v2.1b dual-round audit results |
 | [milestones/v2.1b-validators/HANDOFF.md](milestones/v2.1b-validators/HANDOFF.md) | v2.1b handoff for next agent |
 | [milestones/v2.1b-validators/SUMMARY.md](milestones/v2.1b-validators/SUMMARY.md) | v2.1b completion summary |
+| [milestones/v2.2a-directory/BRIEF.md](milestones/v2.2a-directory/BRIEF.md) | Organization Directory scope |
+| [milestones/v2.2a-directory/HANDOFF.md](milestones/v2.2a-directory/HANDOFF.md) | v2.2a handoff (5 deferred items) |
+| [GNOSWAP_SLIPPAGE.md](GNOSWAP_SLIPPAGE.md) | GnoSwap swap execution spec |
+| [SENTRY_INTEGRATION.md](SENTRY_INTEGRATION.md) | Sentry integration guide (✅ done) |
 
 ### Archived (v2.0)
 
