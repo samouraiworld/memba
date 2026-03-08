@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react"
-import { JITSI_DOMAIN, jitsiRoomName } from "./jitsiHelpers"
+import { jitsiRoomName, jitsiIframeSrc } from "./jitsiHelpers"
 
 interface JitsiMeetProps {
     /** DAO slug or realm path — used to scope the room. */
@@ -30,7 +30,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
     const [joined, setJoined] = useState(false)
     const roomName = jitsiRoomName(daoSlug, channelName)
 
-    // Jitsi iframe config — disable lobby so anyone can join directly
+    // Jitsi iframe config
     const configParams = [
         "config.startWithAudioMuted=false",
         `config.startWithVideoMuted=${mode === "voice" ? "true" : "false"}`,
@@ -38,16 +38,12 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
         "config.disableDeepLinking=true",
         "config.disableProfile=true",
         "config.hideConferenceSubject=true",
-        "config.lobby.autoKnock=true",
-        "config.lobby.enableChat=false",
-        "config.enableLobbyChat=false",
-        "config.hideLobbyButton=true",
         "interfaceConfig.SHOW_JITSI_WATERMARK=false",
         "interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false",
         "interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS=true",
-    ].join("\u0026")
+    ].join("&")
 
-    const iframeSrc = `https://${JITSI_DOMAIN}/${roomName}#${configParams}`
+    const iframeSrc = jitsiIframeSrc(roomName, configParams)
 
     if (!joined) {
         return (
