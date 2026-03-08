@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.2b + v2.2c SHIPPED, v2.5 NEXT)
+> Last updated: 2026-03-08 (v2.5 Channels & Comms SHIPPED)
 
 ## Milestone Status
 
@@ -20,21 +20,21 @@
 | 11 | **Organization Directory** | v2.2a | ✅ SHIPPED | PR #76 → `dev/v2` |
 | 12 | **Directory Enrichment** | v2.2b | ✅ SHIPPED | PR #77 → `dev/v2` |
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
-| 14 | **Channels & Comms** | v2.5 | 📋 NEXT | — |
-| 15 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | `feat/v2.5a/channel-pages` → `dev/v2` |
+| 15 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
 | 16 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | 17 | **Premium** | v3.5 | 🔮 HORIZON | — |
 | 18 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.2c SHIPPED)
+## Quality Gates (as of v2.5c SHIPPED)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 665 (29 files) |
-| E2E tests | 236 (11 spec files) |
+| Unit tests | 684 (32 files) |
+| E2E tests | 119 (5 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | 449KB (129KB gzip) |
+| Build size | 450KB (129KB gzip) |
 | package.json | 2.2.0-alpha.1 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
