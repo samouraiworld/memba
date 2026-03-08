@@ -3,13 +3,15 @@
  *
  * Covers: eligibility checks, cooldown, claim recording,
  * history storage, formatting, and MsgSend builder.
+ *
+ * I9 fix: Updated tests for per-address storage pattern.
+ * M12 fix: Removed unused vi import.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 import {
     canClaimFaucet,
     recordFaucetClaim,
-    getFaucetHistory,
     getLastClaim,
     clearFaucetHistory,
     formatCooldown,
@@ -23,7 +25,6 @@ const TEST_ADDR_2 = "g1faucetother234567890abcdefghij"
 
 beforeEach(() => {
     localStorage.clear()
-    vi.restoreAllMocks()
 })
 
 // ── Eligibility ───────────────────────────────────────────────
@@ -56,7 +57,7 @@ describe("canClaimFaucet", () => {
             claimedAt: Date.now() - FAUCET_COOLDOWN_MS - 1000,
             amount: FAUCET_AMOUNT_UGNOT,
         }
-        localStorage.setItem("memba_faucet_claims", JSON.stringify([oldClaim]))
+        localStorage.setItem(`memba_faucet_${TEST_ADDR.toLowerCase()}`, JSON.stringify(oldClaim))
         const result = canClaimFaucet(TEST_ADDR)
         expect(result.eligible).toBe(true)
     })
@@ -78,12 +79,12 @@ describe("recordFaucetClaim", () => {
         expect(claim.claimedAt).toBeGreaterThan(0)
     })
 
-    it("prepends to history", () => {
+    it("stores claims per-address (I9 fix)", () => {
         recordFaucetClaim(TEST_ADDR)
         recordFaucetClaim(TEST_ADDR_2)
-        const history = getFaucetHistory()
-        expect(history).toHaveLength(2)
-        expect(history[0].address).toBe(TEST_ADDR_2.toLowerCase())
+        // Each address gets its own key
+        expect(getLastClaim(TEST_ADDR)).not.toBeNull()
+        expect(getLastClaim(TEST_ADDR_2)).not.toBeNull()
     })
 })
 
@@ -94,26 +95,26 @@ describe("getLastClaim", () => {
         expect(getLastClaim(TEST_ADDR)).toBeNull()
     })
 
-    it("returns the most recent claim for address", () => {
+    it("returns the claim for address", () => {
         recordFaucetClaim(TEST_ADDR)
         const claim = getLastClaim(TEST_ADDR)
         expect(claim).not.toBeNull()
         expect(claim!.address).toBe(TEST_ADDR.toLowerCase())
+    })
+
+    it("returns null on corrupt data", () => {
+        localStorage.setItem(`memba_faucet_${TEST_ADDR.toLowerCase()}`, "not-json")
+        expect(getLastClaim(TEST_ADDR)).toBeNull()
     })
 })
 
 describe("clearFaucetHistory", () => {
     it("removes all claims", () => {
         recordFaucetClaim(TEST_ADDR)
+        recordFaucetClaim(TEST_ADDR_2)
         clearFaucetHistory()
-        expect(getFaucetHistory()).toEqual([])
-    })
-})
-
-describe("getFaucetHistory", () => {
-    it("returns empty on corrupt data", () => {
-        localStorage.setItem("memba_faucet_claims", "not-json")
-        expect(getFaucetHistory()).toEqual([])
+        expect(getLastClaim(TEST_ADDR)).toBeNull()
+        expect(getLastClaim(TEST_ADDR_2)).toBeNull()
     })
 })
 

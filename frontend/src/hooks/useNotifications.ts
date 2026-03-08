@@ -6,6 +6,9 @@
  * - Interval-based polling: checks for new proposals every 30s
  * - State sync: re-reads localStorage on interval to pick up cross-tab updates
  * - Cleanup: clears interval on unmount
+ *
+ * C3 fix: daoPath is now optional — when null, only cross-tab sync runs.
+ * I1 fix: ABCI query documented as best-effort; returns 0 on unknown render format.
  */
 
 import { useState, useEffect, useCallback, useRef } from "react"
@@ -21,10 +24,17 @@ import { GNO_RPC_URL } from "../lib/config"
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
 
-/** ABCI query to get proposal count for a DAO. */
+/**
+ * ABCI query to get proposal count for a DAO.
+ *
+ * I1 note: This queries Render("") and tries to extract a count from the
+ * markdown output. Works for DAOs that include "N proposal(s)" in their
+ * Render output. Returns 0 for DAOs with different format — this is by
+ * design (best-effort).
+ */
 async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number> {
     try {
-        const data = btoa(`${daoPath}\n__count__`)
+        const data = btoa(`${daoPath}\n`)
         const res = await fetch(rpcUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,7 +55,13 @@ async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number
     }
 }
 
-export function useNotifications(daoPath: string, address: string | null) {
+/**
+ * useNotifications — poll for new proposals and manage notification state.
+ *
+ * @param daoPath - DAO realm path to poll (null = no polling, sync-only)
+ * @param address - Wallet address (null = disconnected, empty state)
+ */
+export function useNotifications(daoPath: string | null, address: string | null) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const lastKnownCount = useRef<number | null>(null)
@@ -64,6 +80,7 @@ export function useNotifications(daoPath: string, address: string | null) {
 
     // Poll for new proposals
     const pollForChanges = useCallback(async () => {
+        // C3 fix: skip polling if no daoPath provided
         if (!address || !daoPath || !isVisible.current) return
 
         try {
@@ -72,13 +89,16 @@ export function useNotifications(daoPath: string, address: string | null) {
             if (lastKnownCount.current !== null && count > lastKnownCount.current) {
                 // New proposals detected
                 const newCount = count - lastKnownCount.current
+                // I2 fix: use proposal index in the link to ensure unique navigation
+                const slug = daoPath.split("/").pop() || daoPath
                 for (let i = 0; i < Math.min(newCount, 5); i++) {
+                    const proposalNumber = count - i
                     addNotification(address, {
                         type: "proposal_new",
-                        title: "New Proposal",
+                        title: `New Proposal #${proposalNumber}`,
                         body: `A new proposal has been created in the DAO`,
                         daoPath,
-                        link: `/dao/${daoPath.split("/").pop()}/proposal/${count - i}`,
+                        link: `/dao/${slug}/proposal/${proposalNumber}`,
                     })
                 }
                 syncState()
@@ -114,10 +134,12 @@ export function useNotifications(daoPath: string, address: string | null) {
     }, [])
 
     // Initial sync + polling interval
+    // I4 fix: visibility check in interval callback itself
     useEffect(() => {
         syncState()
         pollForChanges()
         const interval = setInterval(() => {
+            if (!isVisible.current) return // I4: skip entirely when hidden
             pollForChanges()
             syncState()
         }, POLL_INTERVAL_MS)

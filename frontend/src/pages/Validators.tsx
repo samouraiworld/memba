@@ -23,37 +23,56 @@ import "./validators.css"
 
 type SortKey = "rank" | "votingPower" | "powerPercent"
 
+const REFRESH_INTERVAL_MS = 30_000 // 30s (C2 fix: was 5s = 48 RPCs/min)
+
 export default function Validators() {
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false) // I5 fix: subtle refresh indicator
     const [error, setError] = useState<string | null>(null)
     const [sortKey, setSortKey] = useState<SortKey>("rank")
     const [sortAsc, setSortAsc] = useState(true)
     const [search, setSearch] = useState("")
-    const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+    const isVisible = useRef(true) // C2 fix: Page Visibility API
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true)
         try {
-            const [vals, netStats] = await Promise.all([
-                getValidators(GNO_RPC_URL),
-                getNetworkStats(GNO_RPC_URL),
-            ])
+            // I7 fix: fetch validators first, pass to getNetworkStats
+            const vals = await getValidators(GNO_RPC_URL)
+            const netStats = await getNetworkStats(GNO_RPC_URL, vals)
             setValidators(vals)
             setStats(netStats)
             setError(null)
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load validator data")
+            if (!isRefresh) { // Only show error on initial load
+                setError(err instanceof Error ? err.message : "Failed to load validator data")
+            }
         } finally {
             setLoading(false)
+            setRefreshing(false)
         }
     }, [])
 
+    // Page Visibility API: pause polling when tab is hidden (C2/M8 fix)
+    useEffect(() => {
+        const handleVisibility = () => {
+            isVisible.current = document.visibilityState === "visible"
+        }
+        document.addEventListener("visibilitychange", handleVisibility)
+        return () => document.removeEventListener("visibilitychange", handleVisibility)
+    }, [])
+
+    // M6 fix: page title
+    useEffect(() => { document.title = "Validators — Memba" }, [])
+
     useEffect(() => {
         loadData()
-        // Auto-refresh block height every 5 seconds
-        refreshTimer.current = setInterval(loadData, 5_000)
-        return () => { if (refreshTimer.current) clearInterval(refreshTimer.current) }
+        const interval = setInterval(() => {
+            if (isVisible.current) loadData(true)
+        }, REFRESH_INTERVAL_MS)
+        return () => clearInterval(interval)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -92,6 +111,7 @@ export default function Validators() {
             <div className="val-header">
                 <h1>⛓️ Validators</h1>
                 <span className="val-chain-badge">{GNO_CHAIN_ID}</span>
+                {refreshing && <span className="val-refreshing" aria-live="polite">Refreshing…</span>}
             </div>
 
             {/* ── Network Overview Cards ───────────────────────── */}

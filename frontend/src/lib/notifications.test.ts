@@ -5,7 +5,7 @@
  * FIFO eviction, deduplication, grouping, and formatting.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 import {
     getNotifications,
     addNotification,
@@ -37,7 +37,6 @@ const makeNotification = (overrides: Partial<Omit<Notification, "id" | "timestam
 
 beforeEach(() => {
     localStorage.clear()
-    vi.restoreAllMocks()
 })
 
 // ── CRUD ──────────────────────────────────────────────────────

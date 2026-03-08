@@ -10,7 +10,7 @@
  * - Smooth open/close animations
  */
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Bell } from "@phosphor-icons/react"
 import {
@@ -31,6 +31,7 @@ interface NotificationBellProps {
 export function NotificationBell({ notifications, unreadCount, onMarkRead, onMarkAllRead }: NotificationBellProps) {
     const [open, setOpen] = useState(false)
     const panelRef = useRef<HTMLDivElement>(null)
+    const bellRef = useRef<HTMLButtonElement>(null)
     const navigate = useNavigate()
 
     // Close on outside click
@@ -49,11 +50,14 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
         }
     }, [open])
 
-    // Close on Escape
+    // Close on Escape + return focus to bell (I8 fix)
     useEffect(() => {
         if (!open) return
         const handleKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setOpen(false)
+            if (e.key === "Escape") {
+                setOpen(false)
+                bellRef.current?.focus()
+            }
         }
         document.addEventListener("keydown", handleKey)
         return () => document.removeEventListener("keydown", handleKey)
@@ -62,29 +66,37 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
     const handleNotificationClick = (n: Notification) => {
         onMarkRead(n.id)
         setOpen(false)
+        bellRef.current?.focus()
         if (n.link) navigate(n.link)
     }
 
-    const groups = groupNotifications(notifications)
+    // M10 fix: only compute groups when panel is open
+    const groups = useMemo(
+        () => open ? groupNotifications(notifications) : [],
+        [open, notifications],
+    )
 
     return (
         <div className="notif-bell-container" ref={panelRef}>
             <button
                 className="notif-bell-btn"
+                ref={bellRef}
                 onClick={() => setOpen(!open)}
                 aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+                aria-expanded={open}
+                aria-haspopup="true"
                 data-testid="notification-bell"
             >
                 <Bell size={20} weight={unreadCount > 0 ? "fill" : "regular"} />
                 {unreadCount > 0 && (
-                    <span className="notif-badge" data-testid="notification-badge">
+                    <span className="notif-badge" aria-live="polite" data-testid="notification-badge">
                         {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                 )}
             </button>
 
             {open && (
-                <div className="notif-panel" data-testid="notification-panel">
+                <div className="notif-panel" role="menu" data-testid="notification-panel">
                     <div className="notif-panel-header">
                         <span className="notif-panel-title">Notifications</span>
                         {unreadCount > 0 && (

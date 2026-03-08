@@ -49,6 +49,7 @@ export interface NotificationGroup {
 const STORAGE_PREFIX = "memba_notifications_"
 const MAX_NOTIFICATIONS = 100
 const DAY_MS = 86_400_000
+let _idCounter = 0 // I6 fix: monotonic counter to prevent dedup race
 
 // ── Sanitization ──────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ export function addNotification(
         ...n,
         title: sanitizeText(n.title, 100),
         body: sanitizeText(n.body, 200),
-        id: `${n.type}:${n.daoPath}:${Date.now()}`,
+        id: `${n.type}:${n.daoPath}:${Date.now()}:${_idCounter++}`,
         timestamp: Date.now(),
         read: false,
     }

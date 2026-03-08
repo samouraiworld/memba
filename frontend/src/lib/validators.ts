@@ -61,13 +61,19 @@ export interface ValidatorUptime {
 // ── RPC Helpers ───────────────────────────────────────────────
 
 /** Make a Tendermint JSON-RPC call. */
-async function rpcCall(rpcUrl: string, method: string, params: Record<string, string> = {}): Promise<unknown> {
+async function rpcCall(
+    rpcUrl: string,
+    method: string,
+    params: Record<string, string> = {},
+    signal?: AbortSignal,
+): Promise<unknown> {
     const url = new URL(rpcUrl)
     url.pathname = method
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
 
     const res = await fetch(url.toString(), {
         headers: { Accept: "application/json" },
+        signal,
     })
     if (!res.ok) throw new Error(`RPC ${method} failed: ${res.status}`)
     const json = await res.json()
@@ -105,8 +111,14 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
 
 // ── Network Stats ─────────────────────────────────────────────
 
-/** Fetch network overview stats (block height, avg time, validator count). */
-export async function getNetworkStats(rpcUrl: string): Promise<NetworkStats> {
+/**
+ * Fetch network overview stats (block height, avg time, validator count).
+ * Pass pre-fetched validators to avoid redundant RPC call (I7 fix).
+ */
+export async function getNetworkStats(
+    rpcUrl: string,
+    prefetchedValidators?: ValidatorInfo[],
+): Promise<NetworkStats> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const status = await rpcCall(rpcUrl, "/status") as any
     const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
@@ -118,7 +130,6 @@ export async function getNetworkStats(rpcUrl: string): Promise<NetworkStats> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }) as any
     const totalValidators = parseInt(valResult?.total || "0", 10)
-    const totalVotingPower = parseInt(valResult?.validators?.[0]?.voting_power || "0", 10) // approximation from first
 
     // Calculate avg block time from last 10 blocks
     let avgBlockTime = 0
@@ -136,22 +147,16 @@ export async function getNetworkStats(rpcUrl: string): Promise<NetworkStats> {
         }
     }
 
-    // Get actual total voting power from full validator list
-    let actualTotalPower = totalVotingPower
-    if (totalValidators > 1) {
-        try {
-            const validators = await getValidators(rpcUrl)
-            actualTotalPower = validators.reduce((sum, v) => sum + v.votingPower, 0)
-        } catch {
-            // use approximation
-        }
-    }
+    // Use pre-fetched validators or fetch validator count from summary
+    const totalVotingPower = prefetchedValidators
+        ? prefetchedValidators.reduce((sum, v) => sum + v.votingPower, 0)
+        : parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
 
     return {
         blockHeight: latestHeight,
         avgBlockTime: Math.round(avgBlockTime * 100) / 100,
         totalValidators,
-        totalVotingPower: actualTotalPower,
+        totalVotingPower,
         chainId,
         catchingUp,
         latestBlockTime,

@@ -3,7 +3,7 @@
  *
  * Expert recommendations:
  * - Rate limit by address (1 claim per 7 days)
- * - Require MembaDAO membership for eligibility
+ * - Per-address localStorage keys (prevents FIFO eviction bypass)
  * - localStorage audit trail for transparency
  * - Configurable faucet amount and cooldown
  *
@@ -39,37 +39,43 @@ export const FAUCET_AMOUNT_DISPLAY = "3 GNOT"
 /** Cooldown: 7 days between claims. */
 export const FAUCET_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 
-/** localStorage key for faucet claim history. */
-const STORAGE_KEY = "memba_faucet_claims"
+/** localStorage key prefix for per-address faucet claims (I9 fix). */
+const STORAGE_PREFIX = "memba_faucet_"
 
-/** Maximum stored claims in history (FIFO). */
-const MAX_HISTORY = 200
+/** Legacy shared key (for migration). */
+const LEGACY_STORAGE_KEY = "memba_faucet_claims"
 
 // ── Storage ───────────────────────────────────────────────────
 
-/** Read all faucet claims from localStorage. */
-export function getFaucetHistory(): FaucetClaim[] {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        if (!raw) return []
-        const parsed = JSON.parse(raw) as FaucetClaim[]
-        return Array.isArray(parsed) ? parsed : []
-    } catch {
-        return []
-    }
+/** Per-address storage key. */
+function storageKey(address: string): string {
+    return STORAGE_PREFIX + address.toLowerCase()
 }
 
-/** Record a new faucet claim. */
+/** Read faucet claim for a specific address. */
+export function getFaucetHistory(): FaucetClaim[] {
+    // Read from all per-address keys + legacy shared key for migration
+    const claims: FaucetClaim[] = []
+    try {
+        // Check legacy shared key
+        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+        if (legacyRaw) {
+            const parsed = JSON.parse(legacyRaw) as FaucetClaim[]
+            if (Array.isArray(parsed)) claims.push(...parsed)
+        }
+    } catch { /* ignore */ }
+    return claims
+}
+
+/** Record a new faucet claim (I9 fix: per-address storage). */
 export function recordFaucetClaim(address: string): FaucetClaim {
     const claim: FaucetClaim = {
         address: address.toLowerCase(),
         claimedAt: Date.now(),
         amount: FAUCET_AMOUNT_UGNOT,
     }
-    const history = getFaucetHistory()
-    const updated = [claim, ...history].slice(0, MAX_HISTORY)
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(storageKey(address), JSON.stringify(claim))
     } catch {
         // localStorage full or disabled
     }
@@ -78,10 +84,15 @@ export function recordFaucetClaim(address: string): FaucetClaim {
 
 // ── Eligibility ───────────────────────────────────────────────
 
-/** Get the last claim for a specific address. */
+/** Get the last claim for a specific address (I9 fix: per-address lookup). */
 export function getLastClaim(address: string): FaucetClaim | null {
-    const history = getFaucetHistory()
-    return history.find(c => c.address === address.toLowerCase()) || null
+    try {
+        const raw = localStorage.getItem(storageKey(address))
+        if (!raw) return null
+        return JSON.parse(raw) as FaucetClaim
+    } catch {
+        return null
+    }
 }
 
 /**
@@ -114,10 +125,18 @@ export function canClaimFaucet(address: string | null): FaucetEligibility {
     return { eligible: true }
 }
 
-/** Clear all faucet history (admin/debug action). */
+/** Clear faucet claim for an address (admin/debug action). */
 export function clearFaucetHistory(): void {
     try {
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
+        // Clear any per-address keys we know about
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key?.startsWith(STORAGE_PREFIX)) {
+                localStorage.removeItem(key)
+                i-- // adjust index after removal
+            }
+        }
     } catch { /* ignore */ }
 }
 

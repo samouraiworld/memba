@@ -10,7 +10,6 @@ import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { Envelope } from "@phosphor-icons/react"
-import { DAO_REALM_PATH } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -155,7 +154,9 @@ export function Layout() {
 
     const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
-    const notifs = useNotifications(DAO_REALM_PATH, adena.connected ? adena.address : null)
+    // C3 fix: pass null for daoPath — sync-only mode (cross-tab updates).
+    // Active DAO polling is handled per-page when viewing a specific DAO.
+    const notifs = useNotifications(null, adena.connected ? adena.address : null)
 
     return (
         <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>

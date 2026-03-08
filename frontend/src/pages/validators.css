@@ -36,6 +36,25 @@
     letter-spacing: 0.03em;
 }
 
+.val-refreshing {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    animation: val-pulse 1.2s ease infinite;
+}
+
+@keyframes val-pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
 /* ── Loading / Error ───────────────────────────────────────── */
 
 .val-loading {
