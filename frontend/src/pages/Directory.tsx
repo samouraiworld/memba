@@ -1,196 +1,146 @@
 /**
- * Directory Page — Central hub for discovering DAOs, Tokens, and Users.
+ * Directory Page — Organization Hub for discovering DAOs, Tokens, and Users.
  *
- * Queries on-chain registries via ABCI:
- * - DAOs: Hardcoded seed list + user's saved DAOs
- * - Tokens: gno.land/r/demo/grc20reg GRC20 registry
- * - Users: gno.land/r/demo/users namespace registry
+ * v2.2a upgrade: premium design with glassmorphism cards, rich DAO metadata,
+ * featured carousel, and proper CSS extraction (no inline styles).
  *
- * Client-side caching (5-minute TTL). Pagination via "Load More".
- *
- * v2.0.0-alpha.1 (Sprint C, Step 11)
+ * Data layer: lib/directory.ts (token/user parsing + cache)
+ * Metadata: lib/daoMetadata.ts (DAO Render parsing)
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
 import { useNavigate } from "react-router-dom"
+import { ArrowRight } from "@phosphor-icons/react"
 import { GNO_RPC_URL } from "../lib/config"
-import { encodeSlug, getSavedDAOs } from "../lib/daoSlug"
+import { encodeSlug } from "../lib/daoSlug"
+import {
+    getDirectoryDAOs,
+    fetchTokens,
+    fetchUsers,
+    type DirectoryToken,
+    type DirectoryUser,
+} from "../lib/directory"
+import { batchGetDAOMetadata, type DAOMetadata } from "../lib/daoMetadata"
+import { DAOCard, FeaturedDAOs } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
+import "./directory.css"
 
 type DirectoryTab = "daos" | "tokens" | "users"
-
-// ── ABCI query helper (with 1 retry for flaky RPC) ───────────────
-async function queryRender(rpcUrl: string, path: string, args: string = ""): Promise<string> {
-    const url = `${rpcUrl}/abci_query?path="vm/qrender"&data="${path}:${args}"`
-    for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-            const res = await fetch(url)
-            const json = await res.json()
-            const raw = json?.result?.response?.ResponseBase?.Data
-            if (!raw) return ""
-            try { return atob(raw) } catch { return raw }
-        } catch (err) {
-            if (attempt === 0) {
-                await new Promise(r => setTimeout(r, 2000))
-                continue
-            }
-            throw err
-        }
-    }
-    return ""
-}
-
-// ── Known seed DAOs ──────────────────────────────────────────────
-const SEED_DAOS = [
-    { name: "GovDAO", path: "gno.land/r/gov/dao" },
-    { name: "Worx DAO", path: "gno.land/r/demo/worx" },
-]
-
-// ── Token entry ──────────────────────────────────────────────────
-interface TokenEntry { slug: string; name: string; symbol: string; path: string }
-interface UserEntry { name: string; address: string }
-
-// ── Cache ────────────────────────────────────────────────────────
-const cache: Record<string, { data: unknown; ts: number }> = {}
-const CACHE_TTL = 5 * 60 * 1000
-
-function getCached<T>(key: string): T | null {
-    const entry = cache[key]
-    if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data as T
-    return null
-}
-
-function setCache(key: string, data: unknown) {
-    cache[key] = { data, ts: Date.now() }
-}
 
 export function Directory() {
     const navigate = useNavigate()
     const [tab, setTab] = useState<DirectoryTab>("daos")
 
+    // M6 pattern: page title
+    useEffect(() => { document.title = "Directory — Memba" }, [])
+
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {/* Header */}
-            <div>
-                <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                    📂 Directory
-                </h2>
-                <p style={{ color: "#666", fontSize: 12, fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
-                    Discover DAOs, tokens, and users on gno.land
-                </p>
+        <div className="dir-page">
+            <div className="dir-header">
+                <h1>📂 Directory</h1>
+                <p>Discover DAOs, tokens, and users on gno.land</p>
             </div>
 
-            {/* Tab bar */}
-            <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #1a1a1a", paddingBottom: 0, overflowX: "auto" }}>
+            <div className="dir-tabs" role="tablist">
                 {([
-                    { key: "daos" as const, label: "🏛️ DAOs", emoji: "🏛️" },
-                    { key: "tokens" as const, label: "🪙 Tokens", emoji: "🪙" },
-                    { key: "users" as const, label: "👤 Users", emoji: "👤" },
+                    { key: "daos" as const, label: "🏛️ DAOs" },
+                    { key: "tokens" as const, label: "🪙 Tokens" },
+                    { key: "users" as const, label: "👤 Users" },
                 ]).map(t => (
                     <button
                         key={t.key}
+                        id={`tab-${t.key}`}
+                        className="dir-tab"
+                        role="tab"
+                        aria-selected={tab === t.key}
+                        data-active={tab === t.key}
                         onClick={() => setTab(t.key)}
-                        style={{
-                            padding: "10px 18px", fontSize: 12,
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
-                            background: "none", border: "none", cursor: "pointer",
-                            color: tab === t.key ? "#00d4aa" : "#666",
-                            borderBottom: tab === t.key ? "2px solid #00d4aa" : "2px solid transparent",
-                            transition: "color 0.15s, border-color 0.15s",
-                            whiteSpace: "nowrap",
-                        }}
                     >
                         {t.label}
                     </button>
                 ))}
             </div>
 
-            {/* Tab content */}
-            {tab === "daos" && <DAOsTab navigate={navigate} />}
-            {tab === "tokens" && <TokensTab navigate={navigate} />}
-            {tab === "users" && <UsersTab navigate={navigate} />}
+            {/* M2 audit fix: tabpanel role + aria-labelledby for complete ARIA pattern */}
+            <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
+                {tab === "daos" && <DAOsTab navigate={navigate} />}
+                {tab === "tokens" && <TokensTab navigate={navigate} />}
+                {tab === "users" && <UsersTab navigate={navigate} />}
+            </div>
         </div>
     )
 }
 
-// ── DAOs Tab ─────────────────────────────────────────────────────
+// ── DAOs Tab ─────────────────────────────────────────────────
+
 function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [search, setSearch] = useState("")
-    const savedDAOs = getSavedDAOs()
+    // I2 audit fix: useDeferredValue for search — smooth typing with large datasets
+    const deferredSearch = useDeferredValue(search)
+    const [daoRefreshKey, setDaoRefreshKey] = useState(0)
+    const [metadata, setMetadata] = useState<Map<string, DAOMetadata>>(new Map())
 
-    // Merge seed + saved (deduplicate by path)
-    const allDAOs = [...SEED_DAOS]
-    for (const dao of savedDAOs) {
-        if (!allDAOs.some(d => d.path === dao.realmPath)) {
-            allDAOs.push({ name: dao.name, path: dao.realmPath })
-        }
-    }
+    // daoRefreshKey forces recalculation when user saves a DAO
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const allDAOs = useMemo(() => getDirectoryDAOs(), [daoRefreshKey])
 
-    const filtered = search
-        ? allDAOs.filter(d => d.name.toLowerCase().includes(search.toLowerCase()) || d.path.toLowerCase().includes(search.toLowerCase()))
-        : allDAOs
+    // Fetch metadata for all DAOs on mount
+    useEffect(() => {
+        const paths = allDAOs.map(d => d.path)
+        batchGetDAOMetadata(GNO_RPC_URL, paths)
+            .then(setMetadata)
+            .catch(() => { /* best-effort */ })
+    }, [allDAOs])
+
+    const filtered = useMemo(() =>
+        deferredSearch
+            ? allDAOs.filter(d =>
+                d.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                d.path.toLowerCase().includes(deferredSearch.toLowerCase()),
+            )
+            : allDAOs,
+        [allDAOs, deferredSearch])
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* I1 audit fix: pass metadata from parent to avoid duplicate RPC calls */}
+            <FeaturedDAOs metadata={metadata} />
+
             <input
-                type="text" placeholder="Search DAOs..."
-                value={search} onChange={e => setSearch(e.target.value)}
-                style={{
-                    padding: "8px 14px", borderRadius: 8, border: "1px solid #1a1a1a",
-                    background: "#0d0d0d", color: "#f0f0f0", fontSize: 12,
-                    fontFamily: "JetBrains Mono, monospace", outline: "none",
-                }}
-                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
-                onBlur={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                type="text"
+                placeholder="Search DAOs..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="dir-search"
+                data-testid="dao-search"
             />
 
             {filtered.length === 0 ? (
-                <div className="k-dashed" style={{ padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "#555", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        {search ? `No DAOs matching "${search}"` : "No DAOs found"}
-                    </p>
+                <div className="dir-empty">
+                    <p>{search ? `No DAOs matching "${search}"` : "No DAOs found"}</p>
                 </div>
             ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
-                    {filtered.map(dao => {
-                        const isSaved = savedDAOs.some(s => s.realmPath === dao.path)
-                        return (
-                            <button
-                                key={dao.path}
-                                className="k-card"
-                                onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
-                                style={{
-                                    padding: "14px 18px", cursor: "pointer", textAlign: "left", width: "100%",
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    border: "1px solid #1a1a1a", transition: "border-color 0.15s",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"}
-                                onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
-                            >
-                                <div>
-                                    <div style={{ fontSize: 13, fontWeight: 500, color: "#f0f0f0" }}>{dao.name}</div>
-                                    <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", marginTop: 2 }}>
-                                        {dao.path}
-                                    </div>
-                                </div>
-                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                                    {isSaved && (
-                                        <span style={{
-                                            fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                                            background: "rgba(0,212,170,0.08)", color: "#00d4aa",
-                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                        }}>SAVED</span>
-                                    )}
-                                    <span style={{ color: "#333", fontSize: 12 }}>→</span>
-                                </div>
-                            </button>
-                        )
-                    })}
+                <div className="dir-grid">
+                    {filtered.map(dao => (
+                        <DAOCard
+                            key={dao.path}
+                            name={dao.name}
+                            path={dao.path}
+                            isSaved={dao.isSaved}
+                            metadata={metadata.get(dao.path)}
+                            onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
+                            onSave={() => setDaoRefreshKey(k => k + 1)}
+                        />
+                    ))}
                 </div>
             )}
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={() => navigate("/dao/create")}>
+            <div className="dir-actions">
+                <button
+                    className="k-btn-primary"
+                    style={{ fontSize: 11, padding: "6px 14px" }}
+                    onClick={() => navigate("/dao/create")}
+                >
                     + Create DAO
                 </button>
             </div>
@@ -198,40 +148,22 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     )
 }
 
-// ── Tokens Tab ───────────────────────────────────────────────────
+// ── Tokens Tab ───────────────────────────────────────────────
+
 function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
-    const [tokens, setTokens] = useState<TokenEntry[]>([])
+    const [tokens, setTokens] = useState<DirectoryToken[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
 
     const load = useCallback(async () => {
-        const cached = getCached<TokenEntry[]>("tokens")
-        if (cached) { setTokens(cached); setLoading(false); return }
-
         setLoading(true); setError(null)
         try {
-            const raw = await queryRender(GNO_RPC_URL, "gno.land/r/demo/grc20reg")
-            const entries: TokenEntry[] = []
-            // Parse markdown table: | slug | name | symbol | path |
-            const lines = raw.split("\n").filter(l => l.startsWith("|") && !l.startsWith("| slug") && !l.startsWith("|---"))
-            for (const line of lines) {
-                const cols = line.split("|").map(c => c.trim()).filter(Boolean)
-                if (cols.length >= 4) {
-                    // Extract path from markdown link if present: [text](/path)
-                    const pathMatch = cols[3].match(/\[.*?\]\((.*?)\)/)
-                    entries.push({
-                        slug: cols[0],
-                        name: cols[1],
-                        symbol: cols[2],
-                        path: pathMatch ? pathMatch[1] : cols[3],
-                    })
-                }
-            }
-            setTokens(entries)
-            setCache("tokens", entries)
+            const data = await fetchTokens()
+            setTokens(data)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load tokens")
         } finally { setLoading(false) }
@@ -239,25 +171,28 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 
     useEffect(() => { load() }, [load])
 
-    const filtered = search
-        ? tokens.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.symbol.toLowerCase().includes(search.toLowerCase()))
-        : tokens
+    const filtered = useMemo(() =>
+        deferredSearch
+            ? tokens.filter(t =>
+                t.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                t.symbol.toLowerCase().includes(deferredSearch.toLowerCase()),
+            )
+            : tokens,
+        [tokens, deferredSearch])
 
-    const pageItems = filtered.slice(0, (page + 1) * PAGE_SIZE)
+    // M1 audit fix: memoize pageItems to avoid new array on every render
+    const pageItems = useMemo(() => filtered.slice(0, (page + 1) * PAGE_SIZE), [filtered, page])
     const hasMore = pageItems.length < filtered.length
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <input
-                type="text" placeholder="Search tokens by name or symbol..."
-                value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
-                style={{
-                    padding: "8px 14px", borderRadius: 8, border: "1px solid #1a1a1a",
-                    background: "#0d0d0d", color: "#f0f0f0", fontSize: 12,
-                    fontFamily: "JetBrains Mono, monospace", outline: "none",
-                }}
-                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
-                onBlur={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                type="text"
+                placeholder="Search tokens by name or symbol..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(0) }}
+                className="dir-search"
+                data-testid="token-search"
             />
 
             {loading ? (
@@ -265,60 +200,42 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                     <SkeletonCard /><SkeletonCard /><SkeletonCard />
                 </div>
             ) : error ? (
-                <div className="k-card" style={{ padding: 24, textAlign: "center" }}>
-                    <p style={{ color: "#ef4444", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>{error}</p>
+                <div className="dir-error">
+                    <p>{error}</p>
                     <button className="k-btn-secondary" onClick={load} style={{ fontSize: 11, marginTop: 8 }}>Retry</button>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="k-dashed" style={{ padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "#555", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        {search ? `No tokens matching "${search}"` : "No tokens registered"}
-                    </p>
+                <div className="dir-empty">
+                    <p>{search ? `No tokens matching "${search}"` : "No tokens registered"}</p>
                 </div>
             ) : (
                 <>
-                    <div style={{ fontSize: 10, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div className="dir-count">
                         {filtered.length} token{filtered.length !== 1 ? "s" : ""} found
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 8 }}>
+                    <div className="dir-grid">
                         {pageItems.map(t => (
                             <button
                                 key={t.path || t.slug}
-                                className="k-card"
+                                className="dir-card"
                                 onClick={() => navigate(`/tokens/${t.symbol}`)}
-                                style={{
-                                    padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%",
-                                    display: "flex", alignItems: "center", gap: 12,
-                                    border: "1px solid #1a1a1a", transition: "border-color 0.15s",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"}
-                                onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                                data-testid="token-card"
                             >
-                                <div style={{
-                                    width: 36, height: 36, borderRadius: "50%",
-                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    fontSize: 14, fontWeight: 700, color: "#00d4aa", flexShrink: 0,
-                                }}>
-                                    {t.symbol.charAt(0)}
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 500, color: "#f0f0f0" }}>
-                                        {t.name}
-                                    </div>
-                                    <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", marginTop: 1 }}>
-                                        ${t.symbol}
+                                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                                    <div className="dir-token-avatar">{t.symbol.charAt(0)}</div>
+                                    <div className="dir-card-main">
+                                        <div className="dir-card-name">{t.name}</div>
+                                        <div className="dir-token-symbol">${t.symbol}</div>
                                     </div>
                                 </div>
-                                <span style={{ color: "#333", fontSize: 12 }}>→</span>
+                                <ArrowRight size={14} className="dir-arrow" />
                             </button>
                         ))}
                     </div>
                     {hasMore && (
                         <button
-                            className="k-btn-secondary"
+                            className="k-btn-secondary dir-load-more"
                             onClick={() => setPage(p => p + 1)}
-                            style={{ fontSize: 11, padding: "8px 16px", alignSelf: "center" }}
                         >
                             Load More ({filtered.length - pageItems.length} remaining)
                         </button>
@@ -329,40 +246,23 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     )
 }
 
-// ── Users Tab ────────────────────────────────────────────────────
+// ── Users Tab ────────────────────────────────────────────────
+
 function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
-    const [users, setUsers] = useState<UserEntry[]>([])
+    const [users, setUsers] = useState<DirectoryUser[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
     const fetchedRef = useRef(false)
 
     const load = useCallback(async () => {
-        const cached = getCached<UserEntry[]>("users")
-        if (cached) { setUsers(cached); setLoading(false); return }
-
         setLoading(true); setError(null)
         try {
-            const raw = await queryRender(GNO_RPC_URL, "gno.land/r/demo/users")
-            const entries: UserEntry[] = []
-            // Parse: "* [username](link) - address" format
-            const lines = raw.split("\n")
-            for (const line of lines) {
-                const match = line.match(/\*\s*\[([^\]]+)\]\([^)]*\)\s*-?\s*(`?)([a-z0-9]+)\2/)
-                if (match) {
-                    entries.push({ name: match[1], address: match[3] })
-                } else {
-                    // Try simpler format: "* username - address"
-                    const simple = line.match(/\*\s*(\S+)\s+(\S+)/)
-                    if (simple && simple[2].startsWith("g1")) {
-                        entries.push({ name: simple[1], address: simple[2] })
-                    }
-                }
-            }
-            setUsers(entries)
-            setCache("users", entries)
+            const data = await fetchUsers()
+            setUsers(data)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load users")
         } finally { setLoading(false) }
@@ -372,25 +272,27 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
         if (!fetchedRef.current) { fetchedRef.current = true; load() }
     }, [load])
 
-    const filtered = search
-        ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.address.includes(search.toLowerCase()))
-        : users
+    const filtered = useMemo(() =>
+        deferredSearch
+            ? users.filter(u =>
+                u.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                u.address.includes(deferredSearch.toLowerCase()),
+            )
+            : users,
+        [users, deferredSearch])
 
-    const pageItems = filtered.slice(0, (page + 1) * PAGE_SIZE)
+    const pageItems = useMemo(() => filtered.slice(0, (page + 1) * PAGE_SIZE), [filtered, page])
     const hasMore = pageItems.length < filtered.length
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <input
-                type="text" placeholder="Search by name or address..."
-                value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
-                style={{
-                    padding: "8px 14px", borderRadius: 8, border: "1px solid #1a1a1a",
-                    background: "#0d0d0d", color: "#f0f0f0", fontSize: 12,
-                    fontFamily: "JetBrains Mono, monospace", outline: "none",
-                }}
-                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
-                onBlur={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                type="text"
+                placeholder="Search by name or address..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(0) }}
+                className="dir-search"
+                data-testid="user-search"
             />
 
             {loading ? (
@@ -398,65 +300,46 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                     <SkeletonCard /><SkeletonCard /><SkeletonCard />
                 </div>
             ) : error ? (
-                <div className="k-card" style={{ padding: 24, textAlign: "center" }}>
-                    <p style={{ color: "#ef4444", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>{error}</p>
+                <div className="dir-error">
+                    <p>{error}</p>
                     <button className="k-btn-secondary" onClick={load} style={{ fontSize: 11, marginTop: 8 }}>Retry</button>
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="k-dashed" style={{ padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "#555", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        {search ? `No users matching "${search}"` : "No registered users found"}
-                    </p>
+                <div className="dir-empty">
+                    <p>{search ? `No users matching "${search}"` : "No registered users found"}</p>
                 </div>
             ) : (
                 <>
-                    <div style={{ fontSize: 10, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div className="dir-count">
                         {filtered.length} user{filtered.length !== 1 ? "s" : ""} found
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="dir-user-list">
                         {pageItems.map(u => (
                             <button
                                 key={u.address}
-                                className="k-card"
+                                className="dir-card"
                                 onClick={() => navigate(`/profile/${u.address}`)}
-                                style={{
-                                    padding: "10px 14px", cursor: "pointer", textAlign: "left", width: "100%",
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    border: "1px solid #1a1a1a", transition: "border-color 0.15s",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"}
-                                onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                                data-testid="user-card"
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div style={{
-                                        width: 32, height: 32, borderRadius: "50%",
-                                        background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.15)",
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        fontSize: 14, color: "#7b61ff",
-                                    }}>
-                                        @
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 13, fontWeight: 500, color: "#f0f0f0" }}>
-                                            @{u.name}
-                                        </div>
-                                        <div style={{
-                                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#555", marginTop: 1,
-                                        }}>
-                                            {u.address.length > 20 ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}` : u.address}
+                                    <div className="dir-user-avatar">@</div>
+                                    <div className="dir-card-main">
+                                        <div className="dir-card-name">@{u.name}</div>
+                                        <div className="dir-card-path">
+                                            {u.address.length > 20
+                                                ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}`
+                                                : u.address}
                                         </div>
                                     </div>
                                 </div>
-                                <span style={{ color: "#333", fontSize: 12 }}>→</span>
+                                <ArrowRight size={14} className="dir-arrow" />
                             </button>
                         ))}
                     </div>
                     {hasMore && (
                         <button
-                            className="k-btn-secondary"
+                            className="k-btn-secondary dir-load-more"
                             onClick={() => setPage(p => p + 1)}
-                            style={{ fontSize: 11, padding: "8px 16px", alignSelf: "center" }}
                         >
                             Load More ({filtered.length - pageItems.length} remaining)
                         </button>

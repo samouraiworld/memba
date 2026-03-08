@@ -6,8 +6,8 @@
 [![Security](https://github.com/samouraiworld/memba/actions/workflows/codeql.yml/badge.svg)](https://github.com/samouraiworld/memba/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
-[![Go](https://img.shields.io/badge/Go-≥1.26-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-360%20passing-brightgreen.svg)](#testing)
+[![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
+[![Tests](https://img.shields.io/badge/Tests-636%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.0.0-alpha.1)
+## Features (v2.2a)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -40,6 +40,9 @@
 - 🗄️ Archive DAO — admin-only archival for obsolete DAOs
 - 💰 Treasury Management (asset overview, spending proposals)
 - 🔴 LIVE auto-refresh for active proposals (30s polling)
+- 📂 **Organization Directory** — discover DAOs, tokens, and users with rich metadata
+  - Featured DAOs carousel, DAO Render parsing (members, proposals, description)
+  - Save-to-Memba buttons, search/filter, premium glassmorphism UI
 - 🗳️ "Needs My Vote" filter tabs for DAO members
 - ✅ Vote status badges + auto-hide buttons after voting
 - 🔴 Unvoted proposal notification dot (pulsing red badge on DAO nav)
@@ -58,6 +61,9 @@
 - 🗳️ "My Votes" — cross-DAO vote history on user profile
 - 🏛️ DAO Memberships — saved DAO list on profile with navigation
 - 🖼️ Avatar Upload — URL + file picker (JPEG/PNG/WebP/GIF, 2MB max)
+- 🔔 **Notification Center** — bell icon, 30s ABCI polling, per-wallet isolation, grouped by date
+- ⚡ **Validator Dashboard** — network stats, voting power distribution, sortable table, pagination
+- 💧 **Faucet Card** — gasless onboarding with eligibility check and cooldown timer
 
 ### Navigation & Layout
 - 📐 **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
@@ -73,14 +79,14 @@
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test11 ↔ staging ↔ portal-loop ↔ betanet) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
-- ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory chunks)
+- ⚡ Code splitting (449KB main, 129KB gzip, lazy-loaded DAO/token/directory chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **360 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, address derivation
-- 🧪 **186 E2E tests** (Playwright) — 10 spec files: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury
+- 🧪 **636 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, DAO metadata
+- 🧪 **199 E2E tests** (Playwright) — 11 spec files: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory
 
 ## Architecture
 
@@ -118,7 +124,7 @@ Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`
 
 ### Prerequisites
 
-- Go ≥ 1.26
+- Go ≥ 1.25
 - Node.js ≥ 20
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app) browser extension

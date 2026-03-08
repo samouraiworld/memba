@@ -28,36 +28,23 @@ import {
     type Notification,
 } from "../lib/notifications"
 import { GNO_RPC_URL } from "../lib/config"
+import { parseDAORender } from "../lib/daoMetadata"
+import { queryRender } from "../lib/dao/shared"
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
 const MAX_DAOS_PER_POLL = 5      // Performance cap (matches voteScanner pattern)
 
 /**
- * ABCI query to get proposal count for a DAO.
+ * Get proposal count for a DAO using the canonical queryRender + parseDAORender.
  *
- * I1 note: This queries Render("") and tries to extract a count from the
- * markdown output. Works for DAOs that include "N proposal(s)" in their
- * Render output. Returns 0 for DAOs with different format — this is by
- * design (best-effort).
+ * C1 audit fix: was a duplicate ABCI implementation; now reuses the
+ * shared query layer (inherits domain validation, error handling, etc.).
  */
 async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number> {
     try {
-        const data = btoa(`${daoPath}\n`)
-        const res = await fetch(rpcUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0", id: 1, method: "abci_query",
-                params: { path: "vm/qrender", data },
-            }),
-        })
-        const json = await res.json()
-        const responseData = json?.result?.response?.ResponseBase?.Data
-        if (!responseData) return 0
-        const rendered = atob(responseData)
-        // Try to extract proposal count from Render output
-        const match = rendered.match(/(\d+)\s+proposal/i)
-        return match ? parseInt(match[1], 10) : 0
+        const raw = await queryRender(rpcUrl, daoPath, "")
+        const meta = parseDAORender(daoPath, raw)
+        return meta.proposalCount
     } catch {
         return 0
     }

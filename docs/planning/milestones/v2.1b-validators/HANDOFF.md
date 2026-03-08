@@ -1,8 +1,8 @@
 # v2.1b Handoff — Validators & Notifications
 
-> Branch: `feat/v2.1b-validators-notifications`
-> Status: Implementation + Audit + Phase 2 COMPLETE
-> PR: #75 → `dev/v2` (open, CI pending)
+> Branch: `feat/v2.1b-validators-notifications` (deleted)
+> Status: ✅ SHIPPED
+> PR: #75 → `dev/v2` (merged)
 
 ## What Was Done
 
