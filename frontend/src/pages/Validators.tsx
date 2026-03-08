@@ -34,6 +34,8 @@ export default function Validators() {
     const [sortKey, setSortKey] = useState<SortKey>("rank")
     const [sortAsc, setSortAsc] = useState(true)
     const [search, setSearch] = useState("")
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(50)
     const isVisible = useRef(true) // C2 fix: Page Visibility API
 
     const loadData = useCallback(async (isRefresh = false) => {
@@ -81,12 +83,22 @@ export default function Validators() {
         else { setSortKey(key); setSortAsc(key === "rank") }
     }
 
+    // Apply search + sort, then paginate
     const filtered = validators
         .filter(v => !search || v.address.toLowerCase().includes(search.toLowerCase()))
         .sort((a, b) => {
             const mul = sortAsc ? 1 : -1
             return mul * (a[sortKey] - b[sortKey])
         })
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+    const currentPage = Math.min(page, totalPages)
+    const paginatedStart = (currentPage - 1) * pageSize
+    const paginatedEnd = Math.min(paginatedStart + pageSize, filtered.length)
+    const paginated = filtered.slice(paginatedStart, paginatedEnd)
+
+    // Reset to page 1 on search change
+    useEffect(() => { setPage(1) }, [search, pageSize])
 
     if (loading) {
         return (
@@ -168,7 +180,7 @@ export default function Validators() {
                 </div>
             )}
 
-            {/* ── Search ───────────────────────────────────────── */}
+            {/* ── Search + Page Size ─────────────────────────────── */}
             <div className="val-toolbar">
                 <input
                     type="text"
@@ -178,9 +190,21 @@ export default function Validators() {
                     className="val-search"
                     data-testid="validator-search"
                 />
-                <span className="val-count">
-                    {filtered.length} validator{filtered.length !== 1 ? "s" : ""}
-                </span>
+                <div className="val-toolbar-right">
+                    <select
+                        className="val-page-size"
+                        value={pageSize}
+                        onChange={e => setPageSize(Number(e.target.value))}
+                        data-testid="validator-page-size"
+                    >
+                        <option value={25}>25 / page</option>
+                        <option value={50}>50 / page</option>
+                        <option value={100}>100 / page</option>
+                    </select>
+                    <span className="val-count">
+                        {filtered.length} validator{filtered.length !== 1 ? "s" : ""}
+                    </span>
+                </div>
             </div>
 
             {/* ── Validator Table ──────────────────────────────── */}
@@ -202,7 +226,7 @@ export default function Validators() {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map(v => (
+                        {paginated.map(v => (
                             <tr key={v.address} className="val-row" data-testid={`validator-row-${v.rank}`}>
                                 <td className="val-td val-rank">
                                     <span className={`val-rank-badge ${v.rank <= 3 ? "val-top3" : ""}`}>
@@ -234,6 +258,29 @@ export default function Validators() {
                     </tbody>
                 </table>
             </div>
+
+            {/* ── Pagination Controls ─────────────────────────── */}
+            {totalPages > 1 && (
+                <div className="val-pagination" data-testid="validator-pagination">
+                    <button
+                        className="val-page-btn"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage <= 1}
+                    >
+                        ← Prev
+                    </button>
+                    <span className="val-page-info">
+                        Showing {paginatedStart + 1}–{paginatedEnd} of {filtered.length}
+                    </span>
+                    <button
+                        className="val-page-btn"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage >= totalPages}
+                    >
+                        Next →
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

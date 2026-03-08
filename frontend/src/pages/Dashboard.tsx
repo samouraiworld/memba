@@ -33,6 +33,7 @@ import {
     QuickVoteWidget,
     DashboardFeatureCards,
     DashboardDAOList,
+    FaucetCard,
 } from "../components/dashboard"
 
 export function Dashboard() {
@@ -187,6 +188,11 @@ export function Dashboard() {
                     balance={balance}
                     onAvatarError={() => setAvatarUrl(null)}
                 />
+            )}
+
+            {/* ── Faucet Onboarding Card ────────────── */}
+            {auth.isAuthenticated && (
+                <FaucetCard address={userAddress} />
             )}
 
             {/* ── Page header ──────────────────────── */}

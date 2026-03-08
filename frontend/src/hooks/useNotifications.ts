@@ -7,6 +7,8 @@
  * - State sync: re-reads localStorage on interval to pick up cross-tab updates
  * - Cleanup: clears interval on unmount
  *
+ * v2.1b Phase 2: Multi-DAO polling — accepts array of DAO paths,
+ * iterates over saved DAOs (max 5 per cycle, matching voteScanner cap).
  * C3 fix: daoPath is now optional — when null, only cross-tab sync runs.
  * I1 fix: ABCI query documented as best-effort; returns 0 on unknown render format.
  */
@@ -23,6 +25,7 @@ import {
 import { GNO_RPC_URL } from "../lib/config"
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
+const MAX_DAOS_PER_POLL = 5      // Performance cap (matches voteScanner pattern)
 
 /**
  * ABCI query to get proposal count for a DAO.
@@ -58,13 +61,13 @@ async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number
 /**
  * useNotifications — poll for new proposals and manage notification state.
  *
- * @param daoPath - DAO realm path to poll (null = no polling, sync-only)
+ * @param daoPaths - DAO realm paths to poll (empty array = sync-only)
  * @param address - Wallet address (null = disconnected, empty state)
  */
-export function useNotifications(daoPath: string | null, address: string | null) {
+export function useNotifications(daoPaths: string[], address: string | null) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
-    const lastKnownCount = useRef<number | null>(null)
+    const lastKnownCounts = useRef<Map<string, number>>(new Map())
     const isVisible = useRef(true)
 
     // Sync state from localStorage
@@ -78,37 +81,44 @@ export function useNotifications(daoPath: string | null, address: string | null)
         setUnreadCount(getUnreadCount(address))
     }, [address])
 
-    // Poll for new proposals
+    // Poll multiple DAOs for new proposals
     const pollForChanges = useCallback(async () => {
-        // C3 fix: skip polling if no daoPath provided
-        if (!address || !daoPath || !isVisible.current) return
+        if (!address || daoPaths.length === 0 || !isVisible.current) return
 
-        try {
-            const count = await getProposalCount(GNO_RPC_URL, daoPath)
+        // Cap at MAX_DAOS_PER_POLL to avoid RPC abuse
+        const pathsToCheck = daoPaths.slice(0, MAX_DAOS_PER_POLL)
+        let hasNewNotifications = false
 
-            if (lastKnownCount.current !== null && count > lastKnownCount.current) {
-                // New proposals detected
-                const newCount = count - lastKnownCount.current
-                // I2 fix: use proposal index in the link to ensure unique navigation
-                const slug = daoPath.split("/").pop() || daoPath
-                for (let i = 0; i < Math.min(newCount, 5); i++) {
-                    const proposalNumber = count - i
-                    addNotification(address, {
-                        type: "proposal_new",
-                        title: `New Proposal #${proposalNumber}`,
-                        body: `A new proposal has been created in the DAO`,
-                        daoPath,
-                        link: `/dao/${slug}/proposal/${proposalNumber}`,
-                    })
+        for (const daoPath of pathsToCheck) {
+            try {
+                const count = await getProposalCount(GNO_RPC_URL, daoPath)
+                const lastCount = lastKnownCounts.current.get(daoPath)
+
+                if (lastCount !== undefined && count > lastCount) {
+                    // New proposals detected for this DAO
+                    const newCount = count - lastCount
+                    const slug = daoPath.split("/").pop() || daoPath
+                    for (let i = 0; i < Math.min(newCount, 5); i++) {
+                        const proposalNumber = count - i
+                        addNotification(address, {
+                            type: "proposal_new",
+                            title: `New Proposal #${proposalNumber}`,
+                            body: `A new proposal has been created in ${slug}`,
+                            daoPath,
+                            link: `/dao/${slug}/proposal/${proposalNumber}`,
+                        })
+                    }
+                    hasNewNotifications = true
                 }
-                syncState()
-            }
 
-            lastKnownCount.current = count
-        } catch {
-            // Silently fail — polling is best-effort
+                lastKnownCounts.current.set(daoPath, count)
+            } catch {
+                // Silently fail — polling is best-effort
+            }
         }
-    }, [address, daoPath, syncState])
+
+        if (hasNewNotifications) syncState()
+    }, [address, daoPaths, syncState])
 
     // Mark single notification as read
     const markRead = useCallback((id: string) => {
@@ -145,7 +155,7 @@ export function useNotifications(daoPath: string | null, address: string | null)
         }, POLL_INTERVAL_MS)
         return () => clearInterval(interval)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [address, daoPath])
+    }, [address, daoPaths.length])
 
     return { notifications, unreadCount, markRead, markAllRead }
 }

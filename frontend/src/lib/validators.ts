@@ -83,12 +83,34 @@ async function rpcCall(
 
 // ── Validators ────────────────────────────────────────────────
 
-/** Fetch all validators from the active consensus set. */
+/** Fetch all validators from the active consensus set (auto-paginated). */
 export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
+    const PER_PAGE = 100
+
+    // Page 1 — also gives us the total count
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await rpcCall(rpcUrl, "/validators", { per_page: "100" }) as any
+    const result = await rpcCall(rpcUrl, "/validators", { per_page: String(PER_PAGE), page: "1" }) as any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const validators: any[] = result?.validators || []
+    let validators: any[] = result?.validators || []
+    const total = parseInt(result?.total || "0", 10)
+
+    // Auto-paginate: fetch remaining pages in parallel if total > PER_PAGE
+    if (total > PER_PAGE) {
+        const totalPages = Math.ceil(total / PER_PAGE)
+        const pagePromises: Promise<unknown>[] = []
+        for (let p = 2; p <= totalPages; p++) {
+            pagePromises.push(
+                rpcCall(rpcUrl, "/validators", { per_page: String(PER_PAGE), page: String(p) })
+            )
+        }
+        const pages = await Promise.all(pagePromises)
+        for (const page of pages) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pageVals = (page as any)?.validators || []
+            validators = validators.concat(pageVals)
+        }
+    }
+
     const totalPower = validators.reduce((sum: number, v: { voting_power: string }) =>
         sum + parseInt(v.voting_power || "0", 10), 0)
 
