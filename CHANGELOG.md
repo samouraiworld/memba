@@ -6,6 +6,34 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### Monitoring API Integration & GovDAO Polish (2026-03-08)
+
+> Branch: `dev/v2` — Session: monitoring API deep dive + UI polish
+
+#### Added
+- **Monitoring API Integration** — validator monikers, participation rate, uptime from gnomonitoring
+  - `gnomonitoring.ts` (197 LOC) — API client with 30s session cache, 5s timeout, graceful degradation
+  - `hexToBech32()` in `realmAddress.ts` — converts Tendermint hex addresses to `g1...` bech32
+  - Enriched `Validators.tsx` with Moniker, Participation, Uptime columns + search by moniker/address
+  - CSP updated for `monitoring.gnolove.world`
+  - `.env.example` updated with `VITE_GNO_MONITORING_API_URL`
+- **MultisigHub Page** — new `/multisig` route for multisig management hub
+  - `MultisigHub.tsx` + `multisig-hub.css` — sidebar nav + Cmd+K integration
+- **GovDAO UI Polish** — realm address badge (purple → grey + CSS hover), `.k-stat-card` / `.k-stat-grid` CSS classes, shortened description
+
+#### Fixed
+- **Critical: Address matching bug** — `mergeWithMonitoringData()` tried hex vs bech32 comparison (never matched). Now derives bech32 from hex via `hexToBech32()` + direct map lookup
+- **Active Validators card showing 0** — `getNetworkStats()` made redundant RPC call instead of using `prefetchedValidators.length`
+
+#### External
+- **gnomonitoring PR [#60](https://github.com/samouraiworld/gnomonitoring/pull/60)** — multi-origin CORS support (comma-separated `allow_origin`). Blocked on merge + VPS config update by Lours.
+
+#### New Files
+- `gnomonitoring.ts` (197 LOC) — monitoring API client
+- `MultisigHub.tsx` + `multisig-hub.css` — multisig hub page
+
+---
+
 ### v2.6 Hardening & OSS Prep (2026-03-08)
 
 > Branch: `dev/v2` — 12 commits

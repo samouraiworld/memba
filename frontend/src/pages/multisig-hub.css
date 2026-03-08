@@ -1,0 +1,214 @@
+/**
+ * Multisig Hub CSS — Premium dark UI for wallet management.
+ */
+
+.msh-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+}
+
+.msh-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.msh-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #f0f0f0;
+}
+
+.msh-header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.msh-subtitle {
+    color: #666;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 28px;
+}
+
+.msh-create-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 8px 16px;
+}
+
+/* Loading */
+.msh-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 60px 24px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* Sections */
+.msh-section {
+    margin-bottom: 32px;
+}
+
+.msh-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    color: #f0f0f0;
+}
+
+.msh-section-header h2 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.msh-section-header .k-label {
+    margin-left: auto;
+}
+
+.msh-discover-hint {
+    color: #888;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 12px;
+}
+
+/* Card Grid */
+.msh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+/* Card */
+.msh-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid #1a1a1a;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.msh-card:hover {
+    border-color: rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.02);
+}
+
+.msh-card-discover {
+    border-color: rgba(245, 158, 11, 0.2);
+    cursor: default;
+}
+
+.msh-card-discover:hover {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.02);
+}
+
+.msh-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.msh-card-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #f0f0f0;
+}
+
+.msh-threshold {
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.08);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.msh-threshold-warn {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.msh-card-addr {
+    font-size: 11px;
+}
+
+.msh-card-meta {
+    display: flex;
+    gap: 12px;
+}
+
+.msh-card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.msh-join-btn {
+    align-self: flex-start;
+    font-size: 11px;
+    padding: 6px 14px;
+}
+
+/* Empty State */
+.msh-empty {
+    text-align: center;
+    padding: 48px 24px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid #1a1a1a;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.msh-empty-icon {
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.msh-empty p {
+    font-size: 14px;
+    font-weight: 500;
+    color: #888;
+    margin: 0;
+}
+
+.msh-empty span {
+    font-size: 12px;
+    color: #555;
+    max-width: 340px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .msh-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .msh-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}

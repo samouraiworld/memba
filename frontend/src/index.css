@@ -239,6 +239,77 @@ a:hover {
   color: #00d4aa;
 }
 
+/* ── DAO Stat Cards (v2.7 — extracted from inline styles) ────────── */
+.k-stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.k-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s;
+}
+
+.k-stat-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.k-stat-accent {
+  background: rgba(0, 212, 170, 0.06);
+}
+
+.k-stat-accent:hover {
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.k-stat-card__icon {
+  font-size: 13px;
+}
+
+.k-stat-card__value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0f0f0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.k-stat-accent .k-stat-card__value {
+  color: #00d4aa;
+}
+
+.k-stat-card__label {
+  font-size: 9px;
+  color: #555;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Realm Address Badge (v2.7 — discreet grey, was purple) ─────── */
+.k-realm-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #666;
+  transition: color 0.15s;
+}
+
+.k-realm-address:hover {
+  color: #999;
+}
+
 /* ── Global text overflow prevention (Senior UX: critical for mobile) ── */
 html,
 body {

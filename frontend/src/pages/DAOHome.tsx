@@ -56,15 +56,7 @@ function RealmAddressBadge({ realmPath }: { realmPath: string }) {
                     setTimeout(() => setCopied(false), 1500)
                 }
             }}
-            style={{
-                display: "inline-flex", alignItems: "center", gap: 4,
-                background: "none", border: "none",
-                padding: 0, cursor: "pointer",
-                fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#7b61ff",
-                transition: "color 0.15s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = "#9b85ff"}
-            onMouseLeave={e => e.currentTarget.style.color = "#7b61ff"}
+            className="k-realm-address"
         >
             {copied ? "✓ Copied!" : truncated}
         </button>
@@ -315,8 +307,8 @@ export function DAOHome() {
 
                 {/* Description */}
                 {(config?.description || realmPath === "gno.land/r/gov/dao") && (
-                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6, margin: "8px 0 0", maxWidth: 640 }}>
-                        {config?.description || "Top-level governance DAO for the Gno chain. Chain-wide proposals and membership are managed here."}
+                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6, margin: "8px 0 0" }}>
+                        {config?.description || "Gno chain governance — proposals and membership management."}
                     </p>
                 )}
 
@@ -366,25 +358,21 @@ export function DAOHome() {
                             size={80}
                         />
                     )}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, flex: 1, justifyContent: "flex-end" }}>
+                    <div className="k-stat-grid">
                         {[
-                            { icon: "members", value: String(config?.memberCount || members.length), label: "Members" },
+                            { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
                             { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
                             { icon: "📜", value: String(proposals.length), label: "Proposals" },
-                            { icon: "votes", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
+                            { icon: "📊", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
                             ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
                         ].map(s => (
-                            <div key={s.label} style={{
-                                display: "flex", alignItems: "center", gap: 6,
-                                padding: "5px 10px", borderRadius: 6,
-                                background: (s as { accent?: boolean }).accent ? "rgba(0,212,170,0.06)" : "rgba(255,255,255,0.02)",
-                            }}>
-                                <span style={{ fontSize: 13 }}>{s.icon}</span>
+                            <div key={s.label} className={`k-stat-card${(s as { accent?: boolean }).accent ? " k-stat-accent" : ""}`}>
+                                <span className="k-stat-card__icon">{s.icon}</span>
                                 <div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: (s as { accent?: boolean }).accent ? "#00d4aa" : "#f0f0f0", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <div className="k-stat-card__value">
                                         {s.value}
                                     </div>
-                                    <div style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <div className="k-stat-card__label">
                                         {s.label}
                                     </div>
                                 </div>

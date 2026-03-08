@@ -1,21 +1,15 @@
-/**
- * Validator data layer.
- *
- * Fetches consensus data via Tendermint/CometBFT JSON-RPC endpoints:
- * - /validators — active validator set, voting power, pub keys
- * - /status — node info, latest block height, chain sync status
- * - /block — block data for signature verification (uptime calc)
- *
- * Note: Gno does not expose a staking module on test11.
- * Commission, delegations, and slashing are NOT available until PoS support.
- * This module focuses on consensus data that IS available.
- */
+import type { MonitoringValidatorData } from "./gnomonitoring"
+import { hexToBech32 } from "./dao/realmAddress"
 
 // ── Types ─────────────────────────────────────────────────────
 
 export interface ValidatorInfo {
     /** Hex-encoded address (from consensus) */
     address: string
+    /** Bech32 gno address (derived from hex address via hexToBech32) */
+    gnoAddr: string
+    /** Human-readable name / moniker (from gnomonitoring) */
+    moniker: string
     /** Base64-encoded public key */
     pubkey: string
     /** Public key type (e.g. "tendermint/PubKeyEd25519") */
@@ -30,6 +24,10 @@ export interface ValidatorInfo {
     active: boolean
     /** Proposer priority (affects block proposal order) */
     proposerPriority: number
+    /** Participation rate % (from gnomonitoring, 0-100) */
+    participationRate: number | null
+    /** Uptime % (from gnomonitoring, 0-100) */
+    uptimePercent: number | null
 }
 
 export interface NetworkStats {
@@ -115,20 +113,63 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
         sum + parseInt(v.voting_power || "0", 10), 0)
 
     return validators
-        .map((v) => ({
-            address: v.address || "",
-            pubkey: v.pub_key?.value || "",
-            pubkeyType: v.pub_key?.type || "unknown",
-            votingPower: parseInt(v.voting_power || "0", 10),
-            powerPercent: totalPower > 0
-                ? (parseInt(v.voting_power || "0", 10) / totalPower) * 100
-                : 0,
-            rank: 0, // assigned below
-            active: true,
-            proposerPriority: parseInt(v.proposer_priority || "0", 10),
-        }))
+        .map((v) => {
+            const hexAddr = v.address || ""
+            // Derive bech32 g1... address from hex (Tendermint hex = raw 20-byte address)
+            let gnoAddr = ""
+            try {
+                if (hexAddr.length === 40) gnoAddr = hexToBech32(hexAddr)
+            } catch { /* fallback: leave empty */ }
+
+            return {
+                address: hexAddr,
+                gnoAddr,
+                moniker: "",
+                pubkey: v.pub_key?.value || "",
+                pubkeyType: v.pub_key?.type || "unknown",
+                votingPower: parseInt(v.voting_power || "0", 10),
+                powerPercent: totalPower > 0
+                    ? (parseInt(v.voting_power || "0", 10) / totalPower) * 100
+                    : 0,
+                rank: 0, // assigned below
+                active: true,
+                proposerPriority: parseInt(v.proposer_priority || "0", 10),
+                participationRate: null,
+                uptimePercent: null,
+            }
+        })
         .sort((a, b) => b.votingPower - a.votingPower)
         .map((v, i) => ({ ...v, rank: i + 1 }))
+}
+
+/**
+ * Merge Tendermint validator data with gnomonitoring data.
+ *
+ * Address matching strategy:
+ * - Tendermint RPC returns hex addresses (20 bytes, e.g. "A1B2C3...")
+ * - gnomonitoring returns bech32 addresses (e.g. "g16tfqqk6w...")
+ * - We derive the bech32 address from hex via hexToBech32() during getValidators()
+ * - Then do a direct bech32 match: validator.gnoAddr vs monitoring.addr
+ */
+export function mergeWithMonitoringData(
+    validators: ValidatorInfo[],
+    monitoringMap: Map<string, MonitoringValidatorData>,
+): ValidatorInfo[] {
+    if (monitoringMap.size === 0) return validators
+
+    return validators.map(v => {
+        // Direct match using the bech32 address we derived from hex
+        const match = v.gnoAddr ? monitoringMap.get(v.gnoAddr.toLowerCase()) : undefined
+        if (match) {
+            return {
+                ...v,
+                moniker: match.moniker,
+                participationRate: match.participationRate,
+                uptimePercent: match.uptime,
+            }
+        }
+        return v
+    })
 }
 
 // ── Network Stats ─────────────────────────────────────────────
@@ -148,10 +189,19 @@ export async function getNetworkStats(
     const catchingUp = status?.sync_info?.catching_up || false
     const chainId = status?.node_info?.network || "unknown"
 
-    // Fetch validator count
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }) as any
-    const totalValidators = parseInt(valResult?.total || "0", 10)
+    // Validator count: use prefetched data when available, skip redundant RPC
+    let totalValidators = 0
+    let totalVotingPower = 0
+    if (prefetchedValidators && prefetchedValidators.length > 0) {
+        totalValidators = prefetchedValidators.length
+        totalVotingPower = prefetchedValidators.reduce((sum, v) => sum + v.votingPower, 0)
+    } else {
+        // Fallback: fetch validator count via RPC (no prefetched data)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }) as any
+        totalValidators = parseInt(valResult?.total || "0", 10)
+        totalVotingPower = parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
+    }
 
     // Calculate avg block time from last 10 blocks
     let avgBlockTime = 0
@@ -168,11 +218,6 @@ export async function getNetworkStats(
             avgBlockTime = 0
         }
     }
-
-    // Use pre-fetched validators or fetch validator count from summary
-    const totalVotingPower = prefetchedValidators
-        ? prefetchedValidators.reduce((sum, v) => sum + v.votingPower, 0)
-        : parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
 
     return {
         blockHeight: latestHeight,

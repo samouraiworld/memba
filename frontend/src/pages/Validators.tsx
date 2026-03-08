@@ -1,14 +1,15 @@
 /**
- * Validators page — Network stats + validator table.
+ * Validators page — Network stats + enriched validator table.
  *
- * Displays consensus data from Tendermint/CometBFT JSON-RPC:
- * - Network overview cards (block height, avg time, validators, power)
- * - Sortable validator table with voting power, rank, and status
+ * Data sources:
+ * - Tendermint/CometBFT JSON-RPC: voting power, pubkey, consensus set
+ * - gnomonitoring API: monikers, participation rate, uptime
  *
- * Design: premium dark UI with smooth animations and data visualizations.
+ * Design: premium dark UI with smooth animations, validator cards.
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getValidators,
@@ -16,39 +17,74 @@ import {
     formatVotingPower,
     formatBlockTime,
     truncateValidatorAddr,
+    mergeWithMonitoringData,
     type ValidatorInfo,
     type NetworkStats,
 } from "../lib/validators"
+import { fetchAllMonitoringData } from "../lib/gnomonitoring"
 import "./validators.css"
 
-type SortKey = "rank" | "votingPower" | "powerPercent"
+type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s (C2 fix: was 5s = 48 RPCs/min)
+
+/** Tiny copy-to-clipboard button. */
+function CopyButton({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false)
+    return (
+        <button
+            className="val-copy-btn"
+            title="Copy address"
+            onClick={(e) => {
+                e.stopPropagation()
+                navigator.clipboard.writeText(text)
+                    .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })
+                    .catch(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })
+            }}
+        >
+            {copied ? <CheckCircle size={13} weight="fill" className="val-copy-ok" /> : <Copy size={13} />}
+        </button>
+    )
+}
 
 export default function Validators() {
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [loading, setLoading] = useState(true)
-    const [refreshing, setRefreshing] = useState(false) // I5 fix: subtle refresh indicator
+    const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [sortKey, setSortKey] = useState<SortKey>("rank")
     const [sortAsc, setSortAsc] = useState(true)
     const [search, setSearch] = useState("")
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(50)
-    const isVisible = useRef(true) // C2 fix: Page Visibility API
+    const isVisible = useRef(true)
+    const abortRef = useRef<AbortController | null>(null)
 
     const loadData = useCallback(async (isRefresh = false) => {
+        // Cancel any previous in-flight request
+        abortRef.current?.abort()
+        const controller = new AbortController()
+        abortRef.current = controller
+
         if (isRefresh) setRefreshing(true)
         try {
-            // I7 fix: fetch validators first, pass to getNetworkStats
-            const vals = await getValidators(GNO_RPC_URL)
+            // Fetch Tendermint RPC + gnomonitoring data in parallel
+            const [vals, monitoringMap] = await Promise.all([
+                getValidators(GNO_RPC_URL),
+                fetchAllMonitoringData(controller.signal),
+            ])
+
+            // Merge monitoring data (monikers, uptime) into validator list
+            const enriched = mergeWithMonitoringData(vals, monitoringMap)
+
             const netStats = await getNetworkStats(GNO_RPC_URL, vals)
-            setValidators(vals)
+            setValidators(enriched)
             setStats(netStats)
             setError(null)
         } catch (err) {
-            if (!isRefresh) { // Only show error on initial load
+            if (controller.signal.aborted) return // Ignore aborted requests
+            if (!isRefresh) {
                 setError(err instanceof Error ? err.message : "Failed to load validator data")
             }
         } finally {
@@ -66,15 +102,19 @@ export default function Validators() {
         return () => document.removeEventListener("visibilitychange", handleVisibility)
     }, [])
 
-    // M6 fix: page title
+    // Page title
     useEffect(() => { document.title = "Validators — Memba" }, [])
 
+    // Initial load + polling + AbortController cleanup
     useEffect(() => {
         loadData()
         const interval = setInterval(() => {
             if (isVisible.current) loadData(true)
         }, REFRESH_INTERVAL_MS)
-        return () => clearInterval(interval)
+        return () => {
+            clearInterval(interval)
+            abortRef.current?.abort()
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -83,13 +123,23 @@ export default function Validators() {
         else { setSortKey(key); setSortAsc(key === "rank") }
     }
 
-    // I3 fix: memoize filter + sort + paginate to avoid recomputation every render
+    // Memoize filter + sort + paginate
     const { filtered, paginated, totalPages, currentPage, paginatedStart, paginatedEnd } = useMemo(() => {
         const f = validators
-            .filter(v => !search || v.address.toLowerCase().includes(search.toLowerCase()))
+            .filter(v => {
+                if (!search) return true
+                const q = search.toLowerCase()
+                return (
+                    v.address.toLowerCase().includes(q) ||
+                    v.moniker.toLowerCase().includes(q) ||
+                    v.gnoAddr.toLowerCase().includes(q)
+                )
+            })
             .sort((a, b) => {
                 const mul = sortAsc ? 1 : -1
-                return mul * (a[sortKey] - b[sortKey])
+                const av = a[sortKey] ?? -1
+                const bv = b[sortKey] ?? -1
+                return mul * ((av as number) - (bv as number))
             })
 
         const tp = Math.max(1, Math.ceil(f.length / pageSize))
@@ -103,6 +153,9 @@ export default function Validators() {
 
     // Reset to page 1 on search change
     useEffect(() => { setPage(1) }, [search, pageSize])
+
+    // Has monitoring data?
+    const hasMonitoring = validators.some(v => v.moniker !== "")
 
     if (loading) {
         return (
@@ -178,7 +231,7 @@ export default function Validators() {
                                 width: `${Math.max(v.powerPercent, 1)}%`,
                                 opacity: 0.4 + (0.6 * (1 - i / Math.max(validators.length, 1))),
                             }}
-                            title={`#${v.rank} — ${truncateValidatorAddr(v.address)} (${v.powerPercent.toFixed(1)}%)`}
+                            title={`#${v.rank} — ${v.moniker || truncateValidatorAddr(v.address)} (${v.powerPercent.toFixed(1)}%)`}
                         />
                     ))}
                 </div>
@@ -190,7 +243,7 @@ export default function Validators() {
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search by address..."
+                    placeholder={hasMonitoring ? "Search by name or address..." : "Search by address..."}
                     className="val-search"
                     data-testid="validator-search"
                 />
@@ -219,13 +272,23 @@ export default function Validators() {
                             <th className="val-th" onClick={() => handleSort("rank")}>
                                 # {sortKey === "rank" && (sortAsc ? "↑" : "↓")}
                             </th>
-                            <th className="val-th">Address</th>
+                            <th className="val-th">Validator</th>
                             <th className="val-th val-th-right" onClick={() => handleSort("votingPower")}>
                                 Voting Power {sortKey === "votingPower" && (sortAsc ? "↑" : "↓")}
                             </th>
                             <th className="val-th val-th-right" onClick={() => handleSort("powerPercent")}>
                                 Share {sortKey === "powerPercent" && (sortAsc ? "↑" : "↓")}
                             </th>
+                            {hasMonitoring && (
+                                <>
+                                    <th className="val-th val-th-right" onClick={() => handleSort("participationRate")}>
+                                        Participation {sortKey === "participationRate" && (sortAsc ? "↑" : "↓")}
+                                    </th>
+                                    <th className="val-th val-th-center" onClick={() => handleSort("uptimePercent")}>
+                                        Uptime {sortKey === "uptimePercent" && (sortAsc ? "↑" : "↓")}
+                                    </th>
+                                </>
+                            )}
                             <th className="val-th val-th-center">Status</th>
                         </tr>
                     </thead>
@@ -239,8 +302,23 @@ export default function Validators() {
                                 </td>
                                 <td className="val-td val-addr">
                                     <div className="val-addr-wrap">
-                                        <span className="val-addr-full val-mono">{truncateValidatorAddr(v.address)}</span>
-                                        <span className="val-pubkey-hint">{v.pubkeyType.replace("tendermint/PubKey", "")}</span>
+                                        {v.moniker ? (
+                                            <>
+                                                <span className="val-moniker">{v.moniker}</span>
+                                                <span className="val-addr-sub">
+                                                    <span className="val-mono">{v.gnoAddr || truncateValidatorAddr(v.address)}</span>
+                                                    <CopyButton text={v.gnoAddr || v.address} />
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="val-addr-full val-mono">{v.address}</span>
+                                                <span className="val-addr-sub">
+                                                    <span className="val-pubkey-hint">{v.pubkeyType.replace("tendermint/PubKey", "")}</span>
+                                                    <CopyButton text={v.address} />
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="val-td val-td-right val-mono">
@@ -252,6 +330,20 @@ export default function Validators() {
                                         <span>{v.powerPercent.toFixed(1)}%</span>
                                     </div>
                                 </td>
+                                {hasMonitoring && (
+                                    <>
+                                        <td className="val-td val-td-right val-mono">
+                                            {v.participationRate != null ? `${v.participationRate}%` : "—"}
+                                        </td>
+                                        <td className="val-td val-td-center">
+                                            {v.uptimePercent != null ? (
+                                                <span className={`val-uptime-badge ${v.uptimePercent >= 99 ? "val-uptime-good" : v.uptimePercent >= 90 ? "val-uptime-warn" : "val-uptime-bad"}`}>
+                                                    {v.uptimePercent}%
+                                                </span>
+                                            ) : "—"}
+                                        </td>
+                                    </>
+                                )}
                                 <td className="val-td val-td-center">
                                     <span className={`val-status ${v.active ? "val-active" : "val-inactive"}`}>
                                         {v.active ? "Active" : "Inactive"}

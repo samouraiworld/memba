@@ -54,6 +54,9 @@ const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default:
 // ── Validators page (lazy) ──
 const Validators = lazy(() => import("./pages/Validators"))
 
+// ── Multisig Hub (lazy — v2.7) ──
+const MultisigHub = lazy(() => import("./pages/MultisigHub"))
+
 // ── Extensions Hub (lazy — v2.6) ──
 const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default: m.Extensions })))
 
@@ -88,8 +91,8 @@ function App() {
           {/* Dashboard (authenticated hub) */}
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* Core multisig routes */}
-          <Route path="/multisig" element={<Navigate to="/dashboard" replace />} />
+          {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
+          <Route path="/multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
           <Route path="/create" element={<CreateMultisig />} />
           <Route path="/import" element={<ImportMultisig />} />
           <Route path="/multisig/:address" element={<MultisigView />} />

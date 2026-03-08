@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-687%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-718%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.5)
+## Features (v2.7)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -46,6 +46,13 @@
 - 🗳️ "Needs My Vote" filter tabs for DAO members
 - ✅ Vote status badges + auto-hide buttons after voting
 - 🔴 Unvoted proposal notification dot (pulsing red badge on DAO nav)
+
+### Validators & Monitoring
+- 📊 **Validator Dashboard** — 20+ validators with voting power, rank, search, pagination
+- 🏷️ **Monikers** — human-readable names from gnomonitoring API (pending CORS unlock)
+- ⬆️ **Uptime & Participation** — live metrics from monitoring service
+- 🔄 **hexToBech32** — Tendermint hex → `g1...` bech32 address derivation
+- 📈 Network stats cards (Block Height, Avg Block Time, Active Validators, Total Voting Power)
 
 ### Token Launchpad
 - 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)

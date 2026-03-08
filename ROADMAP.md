@@ -120,6 +120,24 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.7 — Monitoring Integration & UI Polish 🔄 IN PROGRESS (2026-03-08)
+
+> Branch: `dev/v2` — gnomonitoring deep dive + GovDAO polish
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| Monitoring API client (`gnomonitoring.ts`) — 30s cache, 5s timeout, graceful degradation | ✅ | 1 |
+| `hexToBech32()` — Tendermint hex → bech32 address conversion | ✅ | 1 |
+| Validator enrichment (monikers, participation, uptime columns) | ✅ | 2 |
+| Active Validators card fix (was showing 0) | ✅ | 1 |
+| GovDAO UI polish (grey badge, `.k-stat-card` CSS, description) | ✅ | 2 |
+| MultisigHub page (`/multisig`) | ✅ | 2 |
+| CSP + config + `.env.example` updates | ✅ | 3 |
+| **gnomonitoring multi-origin CORS [PR #60](https://github.com/samouraiworld/gnomonitoring/pull/60)** | ⏳ Pending merge | External |
+| **Monikers display** (blocked on CORS PR + VPS config) | ⏳ Blocked | — |
+
+---
+
 ## v2.1b — Validators & Notifications ✅ SHIPPED (2026-03-08)
 
 > Branch: `feat/v2.1b-validators-notifications` — PR #75 → merged

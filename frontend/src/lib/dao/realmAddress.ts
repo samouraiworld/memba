@@ -87,8 +87,23 @@ function convertBits(data: Uint8Array, fromBits: number, toBits: number, pad: bo
 /**
  * Encode bytes as a bech32 string.
  */
-function bech32Encode(hrp: string, data: Uint8Array): string {
+export function bech32Encode(hrp: string, data: Uint8Array): string {
     const data5bit = convertBits(data, 8, 5, true)
     const checksum = bech32Checksum(hrp, data5bit)
     return hrp + "1" + data5bit.concat(checksum).map(d => BECH32_CHARSET[d]).join("")
+}
+
+/**
+ * Convert a hex address (20 bytes) to bech32.
+ * Used to convert Tendermint consensus hex addresses to g1... addresses
+ * for matching against gnomonitoring data.
+ *
+ * Example: hexToBech32("A1B2C3...", "g") → "g1..."
+ */
+export function hexToBech32(hexAddr: string, hrp = "g"): string {
+    const bytes = new Uint8Array(hexAddr.length / 2)
+    for (let i = 0; i < hexAddr.length; i += 2) {
+        bytes[i / 2] = parseInt(hexAddr.substring(i, i + 2), 16)
+    }
+    return bech32Encode(hrp, bytes)
 }

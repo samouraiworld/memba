@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.6 Hardening & OSS Prep — Phase 0-3 complete)
+> Last updated: 2026-03-08 (v2.7 Monitoring Integration session)
 
 ## Milestone Status
 
@@ -22,10 +22,11 @@
 | 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
 | 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
 | 15 | **Hardening & OSS Prep** | v2.6 | ✅ COMPLETE | `dev/v2` |
-| 16 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
-| 17 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 18 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 19 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 16 | **Monitoring Integration** | v2.7 | 🔄 IN PROGRESS | `dev/v2` |
+| 17 | **Revenue & Sustainability** | v2.3 | 📋 NEXT | — |
+| 18 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 19 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 20 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
 ## Quality Gates (as of v2.6 session end)
 
@@ -63,7 +64,7 @@
 
 | Feature | Source | Notes |
 |---------|--------|-------|
-| Validator monikers (human names) | v2.1b HANDOFF | Needs upstream support |
+| Validator monikers (human names) | v2.1b HANDOFF | ✅ Code ready — blocked on CORS PR [#60](https://github.com/samouraiworld/gnomonitoring/pull/60) + VPS config |
 | Faucet Phase 3 (treasury signing) | v2.1b HANDOFF | Backend concern |
 
 ## v2.5 — Channels & Comms (✅ SHIPPED — PR #79)

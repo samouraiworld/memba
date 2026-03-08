@@ -26,6 +26,7 @@ export const COMMANDS: Command[] = [
     { id: "create-token", label: "Create Token", icon: "💎", path: "/create-token", section: "Tokens", keywords: ["mint", "deploy", "grc20"] },
 
     // Multisig
+    { id: "multisig-hub", label: "Multisig Hub", icon: "🔐", path: "/multisig", section: "Multisig", keywords: ["wallet", "overview", "manage", "wallets"] },
     { id: "create-multisig", label: "Create Multisig", icon: "🔑", path: "/create", section: "Multisig", keywords: ["wallet", "new"] },
     { id: "import-multisig", label: "Import Multisig", icon: "📥", path: "/import", section: "Multisig", keywords: ["wallet", "join", "link"] },
 

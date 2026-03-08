@@ -127,6 +127,11 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
 
+/** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
+ *  Same service used by gnolove.world/validators. Public, no auth required.
+ *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
+export const GNO_MONITORING_API_URL = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
+
 // ── 6. GnoSwap DEX Integration ───────────────────────────────
 
 /** GnoSwap realm paths per chain. */

@@ -304,6 +304,21 @@
     gap: 2px;
 }
 
+.val-moniker {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.val-addr-sub {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
 .val-addr-full {
     font-size: 12px;
     color: #ccc;
@@ -313,6 +328,54 @@
     font-size: 9px;
     color: #555;
     font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Copy Button ──────────────────────────────────────────── */
+
+.val-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 1px;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+
+.val-copy-btn:hover {
+    color: #00d4aa;
+}
+
+.val-copy-ok {
+    color: #00d4aa;
+}
+
+/* ── Uptime Badge ─────────────────────────────────────────── */
+
+.val-uptime-badge {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.val-uptime-good {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+}
+
+.val-uptime-warn {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.08);
+}
+
+.val-uptime-bad {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
 }
 
 /* ── Power Cell ────────────────────────────────────────────── */
