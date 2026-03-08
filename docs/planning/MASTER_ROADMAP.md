@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.1b implementation session)
+> Last updated: 2026-03-08 (v2.1b SHIPPED, v2.2 started)
 
 ## Milestone Status
 
@@ -16,7 +16,8 @@
 | 7 | **UX Audit Sprint** | v2.0-η | ✅ SHIPPED | PR #70 → `dev/v2` |
 | 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
 | 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
-| 10 | **Validators & Notifications** | v2.1b | 🟡 IN PROGRESS | `feat/v2.1b-validators-notifications` → `dev/v2` |
+| 10 | **Validators & Notifications** | v2.1b | ✅ SHIPPED | PR #75 → `dev/v2` |
+| 11 | **Intelligence & Directory** | v2.2a | 🟡 IN PROGRESS | `feat/v2.2a-directory` → `dev/v2` |
 
 ## Quality Gates (as of v2.1b Phase 2)
 
