@@ -8,7 +8,7 @@
  * Design: premium dark UI with smooth animations and data visualizations.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getValidators,
@@ -83,19 +83,23 @@ export default function Validators() {
         else { setSortKey(key); setSortAsc(key === "rank") }
     }
 
-    // Apply search + sort, then paginate
-    const filtered = validators
-        .filter(v => !search || v.address.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => {
-            const mul = sortAsc ? 1 : -1
-            return mul * (a[sortKey] - b[sortKey])
-        })
+    // I3 fix: memoize filter + sort + paginate to avoid recomputation every render
+    const { filtered, paginated, totalPages, currentPage, paginatedStart, paginatedEnd } = useMemo(() => {
+        const f = validators
+            .filter(v => !search || v.address.toLowerCase().includes(search.toLowerCase()))
+            .sort((a, b) => {
+                const mul = sortAsc ? 1 : -1
+                return mul * (a[sortKey] - b[sortKey])
+            })
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-    const currentPage = Math.min(page, totalPages)
-    const paginatedStart = (currentPage - 1) * pageSize
-    const paginatedEnd = Math.min(paginatedStart + pageSize, filtered.length)
-    const paginated = filtered.slice(paginatedStart, paginatedEnd)
+        const tp = Math.max(1, Math.ceil(f.length / pageSize))
+        const cp = Math.min(page, tp)
+        const start = (cp - 1) * pageSize
+        const end = Math.min(start + pageSize, f.length)
+        const p = f.slice(start, end)
+
+        return { filtered: f, paginated: p, totalPages: tp, currentPage: cp, paginatedStart: start, paginatedEnd: end }
+    }, [validators, search, sortKey, sortAsc, page, pageSize])
 
     // Reset to page 1 on search change
     useEffect(() => { setPage(1) }, [search, pageSize])
@@ -266,16 +270,18 @@ export default function Validators() {
                         className="val-page-btn"
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={currentPage <= 1}
+                        aria-label="Previous page"
                     >
                         ← Prev
                     </button>
-                    <span className="val-page-info">
+                    <span className="val-page-info" aria-live="polite">
                         Showing {paginatedStart + 1}–{paginatedEnd} of {filtered.length}
                     </span>
                     <button
                         className="val-page-btn"
                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage >= totalPages}
+                        aria-label="Next page"
                     >
                         Next →
                     </button>

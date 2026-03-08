@@ -9,8 +9,13 @@
  *
  * v2.1b Phase 2: Multi-DAO polling — accepts array of DAO paths,
  * iterates over saved DAOs (max 5 per cycle, matching voteScanner cap).
- * C3 fix: daoPath is now optional — when null, only cross-tab sync runs.
- * I1 fix: ABCI query documented as best-effort; returns 0 on unknown render format.
+ *
+ * Audit fixes:
+ * - C2: daoPaths stored in useRef to avoid callback instability
+ * - M1: parallel polling via Promise.allSettled (was sequential for...of)
+ * - C3: daoPaths empty array = sync-only mode
+ * - I1: ABCI query documented as best-effort
+ * - I4: visibility check in interval callback itself
  */
 
 import { useState, useEffect, useCallback, useRef } from "react"
@@ -69,6 +74,9 @@ export function useNotifications(daoPaths: string[], address: string | null) {
     const [unreadCount, setUnreadCount] = useState(0)
     const lastKnownCounts = useRef<Map<string, number>>(new Map())
     const isVisible = useRef(true)
+    // C2 fix: store daoPaths in ref to avoid callback/effect instability
+    const daoPathsRef = useRef(daoPaths)
+    daoPathsRef.current = daoPaths
 
     // Sync state from localStorage
     const syncState = useCallback(() => {
@@ -81,44 +89,50 @@ export function useNotifications(daoPaths: string[], address: string | null) {
         setUnreadCount(getUnreadCount(address))
     }, [address])
 
-    // Poll multiple DAOs for new proposals
+    // M1 fix: poll multiple DAOs in parallel (was sequential for...of)
     const pollForChanges = useCallback(async () => {
-        if (!address || daoPaths.length === 0 || !isVisible.current) return
+        const paths = daoPathsRef.current
+        if (!address || paths.length === 0 || !isVisible.current) return
 
         // Cap at MAX_DAOS_PER_POLL to avoid RPC abuse
-        const pathsToCheck = daoPaths.slice(0, MAX_DAOS_PER_POLL)
+        const pathsToCheck = paths.slice(0, MAX_DAOS_PER_POLL)
         let hasNewNotifications = false
 
-        for (const daoPath of pathsToCheck) {
-            try {
+        // M1: parallel polling via Promise.allSettled
+        const results = await Promise.allSettled(
+            pathsToCheck.map(async (daoPath) => {
                 const count = await getProposalCount(GNO_RPC_URL, daoPath)
-                const lastCount = lastKnownCounts.current.get(daoPath)
+                return { daoPath, count }
+            })
+        )
 
-                if (lastCount !== undefined && count > lastCount) {
-                    // New proposals detected for this DAO
-                    const newCount = count - lastCount
-                    const slug = daoPath.split("/").pop() || daoPath
-                    for (let i = 0; i < Math.min(newCount, 5); i++) {
-                        const proposalNumber = count - i
-                        addNotification(address, {
-                            type: "proposal_new",
-                            title: `New Proposal #${proposalNumber}`,
-                            body: `A new proposal has been created in ${slug}`,
-                            daoPath,
-                            link: `/dao/${slug}/proposal/${proposalNumber}`,
-                        })
-                    }
-                    hasNewNotifications = true
+        for (const result of results) {
+            if (result.status !== "fulfilled") continue
+            const { daoPath, count } = result.value
+            const lastCount = lastKnownCounts.current.get(daoPath)
+
+            if (lastCount !== undefined && count > lastCount) {
+                // New proposals detected for this DAO
+                const newCount = count - lastCount
+                const slug = daoPath.split("/").pop() || daoPath
+                for (let i = 0; i < Math.min(newCount, 5); i++) {
+                    const proposalNumber = count - i
+                    addNotification(address, {
+                        type: "proposal_new",
+                        title: `New Proposal #${proposalNumber}`,
+                        body: `A new proposal has been created in ${slug}`,
+                        daoPath,
+                        link: `/dao/${slug}/proposal/${proposalNumber}`,
+                    })
                 }
-
-                lastKnownCounts.current.set(daoPath, count)
-            } catch {
-                // Silently fail — polling is best-effort
+                hasNewNotifications = true
             }
+
+            lastKnownCounts.current.set(daoPath, count)
         }
 
         if (hasNewNotifications) syncState()
-    }, [address, daoPaths, syncState])
+    }, [address, syncState])
 
     // Mark single notification as read
     const markRead = useCallback((id: string) => {
@@ -154,8 +168,9 @@ export function useNotifications(daoPaths: string[], address: string | null) {
             syncState()
         }, POLL_INTERVAL_MS)
         return () => clearInterval(interval)
+        // C2 fix: no daoPaths dependency — ref is used inside pollForChanges
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [address, daoPaths.length])
+    }, [address])
 
     return { notifications, unreadCount, markRead, markAllRead }
 }

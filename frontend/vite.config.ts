@@ -13,6 +13,16 @@ export default defineConfig({
   },
   build: {
     sourcemap: true, // Required for Sentry source map uploads
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Long-lived vendor chunks — cached across deploys
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@phosphor-icons/react'],
+          'vendor-sentry': ['@sentry/react'],
+        },
+      },
+    },
   },
   plugins: [
     react(),
