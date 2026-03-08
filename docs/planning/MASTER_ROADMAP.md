@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-07 (v2.1a complete)
+> Last updated: 2026-03-08 (v2.1b implementation session)
 
 ## Milestone Status
 
@@ -15,10 +15,10 @@
 | 6 | **Sidebar + Sentry** | v2.0-ζ | ✅ SHIPPED | PR #69 → `dev/v2` |
 | 7 | **UX Audit Sprint** | v2.0-η | ✅ SHIPPED | PR #70 → `dev/v2` |
 | 8 | **UX Polish** | v2.0-θ | ✅ SHIPPED | PR #71 → `dev/v2` |
-| 9 | **Community Foundation** | v2.1a | ✅ COMPLETE | `dev/v2` |
-| 10 | **Validators & Notifications** | v2.1b | ⬜ NEXT | `feat/v2.1b-*` → `dev/v2` |
+| 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
+| 10 | **Validators & Notifications** | v2.1b | 🟡 IN PROGRESS | `feat/v2.1b-validators-notifications` → `dev/v2` |
 
-## Quality Gates (as of v2.0-θ)
+## Quality Gates (as of v2.1a)
 
 | Metric | Value |
 |--------|-------|
@@ -81,6 +81,9 @@
 | [METHODOLOGY.md](METHODOLOGY.md) | Development methodology for v2.1+ |
 | [milestones/v2.1a-community/BRIEF.md](milestones/v2.1a-community/BRIEF.md) | Community Foundation scope |
 | [milestones/v2.1b-validators/BRIEF.md](milestones/v2.1b-validators/BRIEF.md) | Validators & Notifications scope |
+| [milestones/v2.1b-validators/AUDIT.md](milestones/v2.1b-validators/AUDIT.md) | v2.1b dual-round audit results |
+| [milestones/v2.1b-validators/HANDOFF.md](milestones/v2.1b-validators/HANDOFF.md) | v2.1b handoff for next agent |
+| [milestones/v2.1b-validators/SUMMARY.md](milestones/v2.1b-validators/SUMMARY.md) | v2.1b completion summary |
 
 ### Archived (v2.0)
 

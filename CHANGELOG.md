@@ -6,6 +6,37 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.1b Validators & Notifications (2026-03-08)
+
+> Branch: `feat/v2.1b-validators-notifications` — 4 commits, 56 new tests
+
+#### Added
+- **Notification Center** — bell icon in header with unread badge, dropdown panel grouped by date (Today/Yesterday/This Week/Older), 30s ABCI polling for new proposals, Page Visibility API (pauses when tab hidden), per-wallet localStorage isolation, XSS sanitization
+  - `lib/notifications.ts` — data layer (CRUD, sanitization, grouping, dedup with monotonic counter)
+  - `hooks/useNotifications.ts` — polling hook with optional daoPath (null = sync-only)
+  - `components/layout/NotificationBell.tsx` — ARIA-accessible dropdown (aria-expanded, role=menu, focus return)
+- **Validator Dashboard** — `/validators` page with premium dark UI
+  - Network stats cards (block height, avg block time, validator count, total voting power) with 30s auto-refresh
+  - Voting power distribution bar and sortable table (rank/power/share) with rank badges for top 3
+  - `lib/validators.ts` — Tendermint RPC data layer with AbortSignal support and prefetched validator optimization
+  - Page Visibility API, "Refreshing…" pulse indicator, `document.title` update
+- **Gasless Onboarding (Phase 1)** — faucet eligibility data layer
+  - 7-day cooldown with per-address localStorage keys
+  - `MsgSend` builder for treasury transfer (signing is deployment concern)
+- **Sidebar nav** — Validators link with chain icon
+
+#### Fixed (Dual-Round Audit — 15 items)
+- **C2**: Validator polling 5s→30s + Page Visibility API (was 48 RPCs/min)
+- **C3**: Notifications no longer hardcode single DAO (daoPath optional)
+- **I6**: Notification dedup race fixed with monotonic `_idCounter`
+- **I7**: Eliminated redundant `getValidators()` call in `getNetworkStats()`
+- **I8**: ARIA accessibility — `aria-expanded`, `role=menu`, focus return to bell
+- **I9**: Faucet per-address storage (prevents FIFO cooldown bypass)
+- **M10**: `useMemo` for `groupNotifications` (only when panel open)
+
+#### Tests
+- 415 unit tests (21 files), all quality gates pass (tsc 0, lint 0)
+
 ### v2.1a — Community Foundation (2026-03-07)
 
 #### Added

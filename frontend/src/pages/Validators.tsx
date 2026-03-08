@@ -101,7 +101,7 @@ export default function Validators() {
         return (
             <div className="val-error">
                 <span>⚠ {error}</span>
-                <button onClick={loadData} className="val-retry-btn">Retry</button>
+                <button onClick={() => loadData()} className="val-retry-btn">Retry</button>
             </div>
         )
     }
