@@ -1,10 +1,12 @@
-import { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useRef, useCallback, useState, useMemo } from "react"
 import { Outlet } from "react-router-dom"
 import { useAdena } from "../../hooks/useAdena"
 import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
+import { useNotifications } from "../../hooks/useNotifications"
+import { getSavedDAOs } from "../../lib/daoSlug"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
@@ -154,6 +156,15 @@ export function Layout() {
     const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
 
+    // Multi-DAO notification polling: poll all saved DAOs
+    const savedDaoPaths = useMemo(
+        () => adena.connected ? getSavedDAOs().map(d => d.realmPath) : [],
+        // Re-compute when auth state changes (user may save new DAOs)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [adena.connected, auth.isAuthenticated],
+    )
+    const notifs = useNotifications(savedDaoPaths, adena.connected ? adena.address : null)
+
     return (
         <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
             {/* Skip to content (accessibility — focus-only) */}
@@ -181,6 +192,7 @@ export function Layout() {
                     authError={authError}
                     onDisconnect={handleDisconnect}
                     onClearError={() => setAuthError(null)}
+                    notifications={notifs}
                 />
 
                 {/* ── Main ─────────────────────────────────────── */}

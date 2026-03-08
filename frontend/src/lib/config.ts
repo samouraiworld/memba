@@ -31,30 +31,34 @@ export const API_BASE_URL =
 // ── 3. Gno Networks ──────────────────────────────────────────
 
 /** Available Gno networks for the chain selector. */
-export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string }> = {
+export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string; faucetUrl: string }> = {
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
         label: "Testnet 11",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "https://faucet.gno.land",
     },
     staging: {
         chainId: "staging",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Staging",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "",
     },
     "portal-loop": {
         chainId: "portal-loop",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Portal Loop",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "",
     },
     betanet: {
         chainId: "betanet",
         rpcUrl: "https://rpc.betanet.gno.land:443",
         label: "Betanet",
         userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "",
     },
 }
 
@@ -87,6 +91,9 @@ export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
 
 /** Gno RPC endpoint for ABCI queries and broadcasting. */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
+
+/** External faucet URL for the active network (empty = no faucet). */
+export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {

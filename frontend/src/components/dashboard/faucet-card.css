@@ -1,0 +1,118 @@
+/* ── FaucetCard — Onboarding claim card ──────────────────── */
+
+.faucet-card {
+    position: relative;
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.06) 0%, rgba(0, 150, 255, 0.04) 100%);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.faucet-card:hover {
+    border-color: rgba(0, 212, 170, 0.3);
+    box-shadow: 0 0 20px rgba(0, 212, 170, 0.06);
+}
+
+.faucet-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(0, 212, 170, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 24px;
+}
+
+.faucet-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.faucet-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 4px;
+}
+
+.faucet-card-desc {
+    font-size: 12px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+    line-height: 1.4;
+}
+
+.faucet-card-cooldown {
+    font-size: 11px;
+    color: #f59e0b;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.faucet-card-actions {
+    flex-shrink: 0;
+}
+
+.faucet-claim-btn {
+    background: linear-gradient(135deg, #00d4aa, #00b894);
+    color: #0a0a0a;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+    white-space: nowrap;
+}
+
+.faucet-claim-btn:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.faucet-claim-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #333;
+    color: #888;
+}
+
+.faucet-card-claimed {
+    font-size: 12px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .faucet-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px 16px;
+        gap: 12px;
+    }
+
+    .faucet-card-actions {
+        width: 100%;
+    }
+
+    .faucet-claim-btn {
+        width: 100%;
+    }
+}
