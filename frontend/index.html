@@ -7,6 +7,15 @@
   <title>Memba — Gno Multisig & DAO Governance</title>
   <meta name="description" content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta name="theme-color" content="#000000" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https: ipfs:;
+    connect-src 'self' https://*.gno.land https://*.sentry.io https://rpc.test5.gno.land https://rpc.gno.land wss://*.gno.land https://gateway.lighthouse.storage;
+    frame-src https://meet.jit.si;
+  " />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
