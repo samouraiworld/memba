@@ -60,19 +60,22 @@ test.describe('Directory — DAOs Tab', () => {
     })
 
     test('DAO search filters results', async ({ page }) => {
-        // Wait for cards to load before searching
-        await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
+        // Wait for all seed cards to render (confirming full data load)
+        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(2, { timeout: 10_000 })
 
         const search = page.locator('[data-testid="dao-search"]')
         await search.fill('GovDAO')
 
-        // Wait for filter to apply (useDeferredValue may delay)
-        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(1, { timeout: 5_000 })
+        // Allow useDeferredValue to settle on slow CI runners
+        await page.waitForTimeout(500)
+
+        // Wait for filter to apply — only GovDAO should match
+        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(1, { timeout: 10_000 })
 
         // Clear → all cards back
         await search.clear()
-        const restored = await page.locator('[data-testid="dao-card"]').count()
-        expect(restored).toBeGreaterThanOrEqual(2)
+        await page.waitForTimeout(500)
+        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(2, { timeout: 10_000 })
     })
 
     test('non-matching search shows empty state', async ({ page }) => {
