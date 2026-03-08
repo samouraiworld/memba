@@ -24,31 +24,42 @@ export interface DirectoryDAO {
 }
 
 /**
+ * I3 fix: Word-boundary matcher to prevent false positives.
+ * e.g. "antinode" should NOT match "node", but "node-dao" should.
+ */
+function wordMatch(text: string, ...words: string[]): boolean {
+    return words.some(w => new RegExp(`\\b${w}\\b`, "i").test(text))
+}
+
+/**
  * Heuristic DAO categorization based on realm path patterns.
  * Falls back to "unknown" for unrecognized paths.
+ *
+ * I3 fix: Uses word-boundary matching to prevent false positives
+ * (e.g. "AntiNode" no longer matches infrastructure category).
  */
 export function getDAOCategory(path: string, name: string): DAOCategory {
     const p = path.toLowerCase()
     const n = name.toLowerCase()
 
     // Governance DAOs (gov, vote, council, senate)
-    if (p.includes("/gov/") || p.includes("/gov_") || n.includes("gov") || n.includes("council") || n.includes("senate")) {
+    if (p.includes("/gov/") || p.includes("/gov_") || wordMatch(n, "gov", "council", "senate")) {
         return "governance"
     }
     // Treasury / Finance
-    if (n.includes("treasury") || n.includes("finance") || n.includes("fund") || p.includes("/treasury")) {
+    if (wordMatch(n, "treasury", "finance", "fund") || p.includes("/treasury")) {
         return "treasury"
     }
     // DeFi (swap, pool, liquidity, dex)
-    if (n.includes("swap") || n.includes("pool") || n.includes("liquidity") || n.includes("dex") || p.includes("/swap")) {
+    if (wordMatch(n, "swap", "pool", "liquidity", "dex") || p.includes("/swap")) {
         return "defi"
     }
     // Infrastructure (infra, validator, node, ops)
-    if (n.includes("infra") || n.includes("validator") || n.includes("node") || n.includes("ops") || p.includes("/infra")) {
+    if (wordMatch(n, "infra", "validator", "node", "ops") || p.includes("/infra")) {
         return "infrastructure"
     }
     // Community (everything else with demo, worx, social, community)
-    if (p.includes("/demo/") || n.includes("community") || n.includes("social") || n.includes("worx") || n.includes("club")) {
+    if (p.includes("/demo/") || wordMatch(n, "community", "social", "worx", "club")) {
         return "community"
     }
 
@@ -113,13 +124,31 @@ export const SEED_DAOS: Array<{ name: string; path: string }> = [
 /**
  * Known DAO paths to probe for auto-discovery.
  * Each path is queried via ABCI Render("") — if it responds, it's a valid DAO.
+ *
+ * I2 fix: Mutable array with addDiscoveryProbe() for runtime extensibility.
+ * External integrations can register new probes without code changes.
  */
-export const DISCOVERY_PROBES: Array<{ name: string; path: string }> = [
+const _discoveryProbes: Array<{ name: string; path: string }> = [
     { name: "GovDAO", path: "gno.land/r/gov/dao" },
     { name: "Worx DAO", path: "gno.land/r/demo/worx" },
     { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2" },
     { name: "Faucet Hub", path: "gno.land/r/faucet/admin" },
 ]
+
+/** Read-only snapshot of current discovery probes. */
+export function getDiscoveryProbes(): ReadonlyArray<{ name: string; path: string }> {
+    return [..._discoveryProbes]
+}
+
+/**
+ * Register a new DAO path to probe during auto-discovery.
+ * Deduplicates by path — silently ignores duplicates.
+ */
+export function addDiscoveryProbe(name: string, path: string): void {
+    if (!_discoveryProbes.some(p => p.path === path)) {
+        _discoveryProbes.push({ name, path })
+    }
+}
 
 /**
  * Probe a list of known DAO paths via ABCI Render("").
@@ -132,8 +161,9 @@ export async function discoverDAOs(rpcUrl: string): Promise<Array<{ name: string
 
     const discovered: Array<{ name: string; path: string }> = []
 
+    const probes = getDiscoveryProbes()
     const results = await Promise.allSettled(
-        DISCOVERY_PROBES.map(async probe => {
+        probes.map(async probe => {
             const raw = await queryRender(rpcUrl, probe.path, "")
             // A valid DAO returns non-empty Render output
             if (raw && raw.length > 10) {
@@ -344,18 +374,29 @@ export function parseDAOMemberAddresses(raw: string): string[] {
  * @param users - User list from the directory
  * @param daoMemberMap - Map of daoPath → member addresses
  */
+/**
+ * I1 fix: Pre-builds a Set<string> index per DAO for O(1) membership checks.
+ * Previous O(n×m) approach iterated all members for every user×DAO pair.
+ * New approach: O(n + m) index build + O(n × d) lookups where d = DAO count.
+ */
 export function calculateContributionScores(
     users: DirectoryUser[],
     daoMemberMap: Map<string, string[]>,
 ): Map<string, ContributionScore> {
     const scores = new Map<string, ContributionScore>()
 
+    // I1: Pre-build Set index for O(1) member lookups
+    const daoMemberSets = new Map<string, Set<string>>()
+    for (const [daoPath, members] of daoMemberMap.entries()) {
+        daoMemberSets.set(daoPath, new Set(members.map(m => m.toLowerCase())))
+    }
+
     for (const user of users) {
         const addr = user.address.toLowerCase()
         let daoCount = 0
 
-        for (const members of daoMemberMap.values()) {
-            if (members.some(m => m.toLowerCase() === addr)) {
+        for (const memberSet of daoMemberSets.values()) {
+            if (memberSet.has(addr)) {
                 daoCount++
             }
         }

@@ -273,14 +273,14 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 
             // Fetch DAO member data for contribution scoring (best-effort)
             const memberMap = new Map<string, string[]>()
-            const settled = await Promise.allSettled(
+            // M3 fix: _settled naming convention for unused await result
+            const _settled = await Promise.allSettled(
                 SEED_DAOS.map(async dao => {
                     const raw = await queryRender(GNO_RPC_URL, dao.path, "")
                     if (raw) memberMap.set(dao.path, parseDAOMemberAddresses(raw))
                 }),
             )
-            // Suppress unused warning — settled used for await synchronization
-            void settled
+            void _settled // TypeScript requires reference
             if (memberMap.size > 0) {
                 setScores(calculateContributionScores(data, memberMap))
             }
@@ -351,7 +351,7 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                                                 @{u.name}
                                                 {score && score.daoCount > 0 && (
                                                     <span
-                                                        className={`dir-activity-badge dir-activity-${score.level}`}
+                                                        className={`dir-inline-badge dir-activity-badge dir-activity-${score.level}`}
                                                         title={`Member of ${score.daoCount} DAO${score.daoCount !== 1 ? "s" : ""}`}
                                                         data-testid="user-score"
                                                     >

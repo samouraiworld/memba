@@ -63,7 +63,7 @@ export function DAOCard({ name, path, isSaved, category, metadata, onClick, onSa
                     {name}
                     {cat && (
                         <span
-                            className="dir-category-badge"
+                            className="dir-inline-badge dir-category-badge"
                             style={{ backgroundColor: `${cat.color}22`, color: cat.color, borderColor: `${cat.color}44` }}
                             data-testid="dao-category"
                         >
