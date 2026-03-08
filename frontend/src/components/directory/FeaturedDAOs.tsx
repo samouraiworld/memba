@@ -3,25 +3,22 @@
  *
  * Shows rich metadata from Render parsing for seed DAOs.
  * Horizontal scroll on mobile.
+ *
+ * I1 audit fix: metadata is passed from parent (DAOsTab) instead
+ * of fetching independently, avoiding duplicate RPC calls.
  */
 
-import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { encodeSlug } from "../../lib/daoSlug"
-import { batchGetDAOMetadata, type DAOMetadata } from "../../lib/daoMetadata"
+import { type DAOMetadata } from "../../lib/daoMetadata"
 import { SEED_DAOS } from "../../lib/directory"
-import { GNO_RPC_URL } from "../../lib/config"
 
-export function FeaturedDAOs() {
+interface FeaturedDAOsProps {
+    metadata: Map<string, DAOMetadata>
+}
+
+export function FeaturedDAOs({ metadata }: FeaturedDAOsProps) {
     const navigate = useNavigate()
-    const [metadata, setMetadata] = useState<Map<string, DAOMetadata>>(new Map())
-
-    useEffect(() => {
-        const paths = SEED_DAOS.map(d => d.path)
-        batchGetDAOMetadata(GNO_RPC_URL, paths)
-            .then(setMetadata)
-            .catch(() => { /* best-effort */ })
-    }, [])
 
     if (SEED_DAOS.length === 0) return null
 
@@ -54,3 +51,4 @@ export function FeaturedDAOs() {
         </div>
     )
 }
+

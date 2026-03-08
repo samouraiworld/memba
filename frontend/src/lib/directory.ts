@@ -36,21 +36,24 @@ export interface DirectoryUser {
 
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-interface CacheEntry<T> {
-    data: T
-    ts: number
-}
-
 function getCached<T>(key: string): T | null {
     try {
         const raw = sessionStorage.getItem(`memba_dir_${key}`)
         if (!raw) return null
-        const entry: CacheEntry<T> = JSON.parse(raw)
+        const entry = JSON.parse(raw)
+        // C2 audit fix: validate schema before trusting cached data
+        if (
+            typeof entry !== "object" || entry === null ||
+            typeof entry.ts !== "number" || !("data" in entry)
+        ) {
+            sessionStorage.removeItem(`memba_dir_${key}`)
+            return null
+        }
         if (Date.now() - entry.ts > CACHE_TTL) {
             sessionStorage.removeItem(`memba_dir_${key}`)
             return null
         }
-        return entry.data
+        return entry.data as T
     } catch {
         return null
     }

@@ -8,7 +8,7 @@
  * Metadata: lib/daoMetadata.ts (DAO Render parsing)
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
 import { GNO_RPC_URL } from "../lib/config"
@@ -49,6 +49,7 @@ export function Directory() {
                 ]).map(t => (
                     <button
                         key={t.key}
+                        id={`tab-${t.key}`}
                         className="dir-tab"
                         role="tab"
                         aria-selected={tab === t.key}
@@ -60,9 +61,12 @@ export function Directory() {
                 ))}
             </div>
 
-            {tab === "daos" && <DAOsTab navigate={navigate} />}
-            {tab === "tokens" && <TokensTab navigate={navigate} />}
-            {tab === "users" && <UsersTab navigate={navigate} />}
+            {/* M2 audit fix: tabpanel role + aria-labelledby for complete ARIA pattern */}
+            <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
+                {tab === "daos" && <DAOsTab navigate={navigate} />}
+                {tab === "tokens" && <TokensTab navigate={navigate} />}
+                {tab === "users" && <UsersTab navigate={navigate} />}
+            </div>
         </div>
     )
 }
@@ -71,6 +75,8 @@ export function Directory() {
 
 function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [search, setSearch] = useState("")
+    // I2 audit fix: useDeferredValue for search — smooth typing with large datasets
+    const deferredSearch = useDeferredValue(search)
     const [daoRefreshKey, setDaoRefreshKey] = useState(0)
     const [metadata, setMetadata] = useState<Map<string, DAOMetadata>>(new Map())
 
@@ -87,18 +93,18 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     }, [allDAOs])
 
     const filtered = useMemo(() =>
-        search
+        deferredSearch
             ? allDAOs.filter(d =>
-                d.name.toLowerCase().includes(search.toLowerCase()) ||
-                d.path.toLowerCase().includes(search.toLowerCase()),
+                d.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                d.path.toLowerCase().includes(deferredSearch.toLowerCase()),
             )
             : allDAOs,
-        [allDAOs, search])
+        [allDAOs, deferredSearch])
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Featured carousel */}
-            <FeaturedDAOs />
+            {/* I1 audit fix: pass metadata from parent to avoid duplicate RPC calls */}
+            <FeaturedDAOs metadata={metadata} />
 
             <input
                 type="text"
@@ -148,6 +154,7 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [tokens, setTokens] = useState<DirectoryToken[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
@@ -165,15 +172,16 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     useEffect(() => { load() }, [load])
 
     const filtered = useMemo(() =>
-        search
+        deferredSearch
             ? tokens.filter(t =>
-                t.name.toLowerCase().includes(search.toLowerCase()) ||
-                t.symbol.toLowerCase().includes(search.toLowerCase()),
+                t.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                t.symbol.toLowerCase().includes(deferredSearch.toLowerCase()),
             )
             : tokens,
-        [tokens, search])
+        [tokens, deferredSearch])
 
-    const pageItems = filtered.slice(0, (page + 1) * PAGE_SIZE)
+    // M1 audit fix: memoize pageItems to avoid new array on every render
+    const pageItems = useMemo(() => filtered.slice(0, (page + 1) * PAGE_SIZE), [filtered, page])
     const hasMore = pageItems.length < filtered.length
 
     return (
@@ -244,6 +252,7 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [users, setUsers] = useState<DirectoryUser[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
@@ -264,15 +273,15 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     }, [load])
 
     const filtered = useMemo(() =>
-        search
+        deferredSearch
             ? users.filter(u =>
-                u.name.toLowerCase().includes(search.toLowerCase()) ||
-                u.address.includes(search.toLowerCase()),
+                u.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                u.address.includes(deferredSearch.toLowerCase()),
             )
             : users,
-        [users, search])
+        [users, deferredSearch])
 
-    const pageItems = filtered.slice(0, (page + 1) * PAGE_SIZE)
+    const pageItems = useMemo(() => filtered.slice(0, (page + 1) * PAGE_SIZE), [filtered, page])
     const hasMore = pageItems.length < filtered.length
 
     return (

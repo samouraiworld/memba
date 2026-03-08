@@ -50,12 +50,12 @@ export function parseDAORender(path: string, raw: string | null): DAOMetadata {
     )
     if (descLine) defaults.description = descLine.slice(0, 200)
 
-    // Member count: "Members: N" or "N member(s)" (specific pattern first)
-    const memberMatch = raw.match(/members?:\s*(\d+)/i) || raw.match(/(\d+)\s+member/i)
+    // Member count: "Members: N" or line-start "N member(s)" (I3 fix: anchored to reduce false matches)
+    const memberMatch = raw.match(/members?:\s*(\d+)/i) || raw.match(/^\s*(\d+)\s+members?\b/im)
     if (memberMatch) defaults.memberCount = parseInt(memberMatch[1], 10)
 
-    // Proposal count: "Proposals: N" or "N proposal(s)" (specific pattern first)
-    const proposalMatch = raw.match(/proposals?:\s*(\d+)/i) || raw.match(/(\d+)\s+proposal/i)
+    // Proposal count: "Proposals: N" or line-start "N proposal(s)" (I3 fix: anchored)
+    const proposalMatch = raw.match(/proposals?:\s*(\d+)/i) || raw.match(/^\s*(\d+)\s+proposals?\b/im)
     if (proposalMatch) {
         defaults.proposalCount = parseInt(proposalMatch[1], 10)
         defaults.isActive = defaults.proposalCount > 0

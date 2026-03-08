@@ -26,8 +26,24 @@ export function DAOCard({ name, path, isSaved, metadata, onClick, onSave }: DAOC
         onSave?.()
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onClick()
+        }
+    }
+
     return (
-        <button className="dir-card" onClick={onClick} data-testid="dao-card">
+        // I4 audit fix: div[role=button] instead of <button> to avoid
+        // invalid nested <button> with the inner save button
+        <div
+            className="dir-card"
+            onClick={onClick}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
+            data-testid="dao-card"
+        >
             <div className="dir-card-main">
                 <div className="dir-card-name">
                     <Buildings size={14} weight="duotone" style={{ marginRight: 6, verticalAlign: -2 }} />
@@ -65,6 +81,6 @@ export function DAOCard({ name, path, isSaved, metadata, onClick, onSave }: DAOC
                 )}
                 <ArrowRight size={14} className="dir-arrow" />
             </div>
-        </button>
+        </div>
     )
 }
