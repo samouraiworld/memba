@@ -8,7 +8,7 @@ All notable changes to Memba are documented here.
 
 ### v2.6 Hardening & OSS Prep (2026-03-08)
 
-> Branch: `dev/v2` — 5 commits
+> Branch: `dev/v2` — 12 commits
 
 #### Fixed
 - **Critical: Board deploy failure on test11** — `import "std"` → `import "chain/runtime"` in all 4 realm templates
@@ -17,9 +17,10 @@ All notable changes to Memba are documented here.
 - **Hardcoded gas values** — `CreateDAO.tsx`, `DeployPluginModal.tsx`, `grc20.ts` now use shared `getGasConfig()` from user settings
 
 #### Added
-- **Cmd+K Command Palette** — 12 navigation commands, fuzzy search, keyboard navigation (arrow keys + enter + esc)
+- **Cmd+K Command Palette** — 14 navigation commands, fuzzy search, keyboard navigation (arrow keys + enter + esc)
   - `CommandPalette.tsx` + `commands.ts` + `command-palette.css` (dark glassmorphism)
   - Wired into `Layout.tsx` — available on all pages
+  - Includes Extensions, Feedback, and all core pages
 - **User-Friendly Error Messages** — `errorMessages.ts` with 20+ patterns
   - Translates ABCI, Adena, and network errors into readable messages
   - `friendlyError()`, `extractMessage()`, `isUserCancellation()` exports
@@ -42,6 +43,15 @@ All notable changes to Memba are documented here.
 
 #### Tests
 - **718 unit tests** (34 files, +31), **238 E2E**, tsc 0, lint 0, build 450KB
+
+#### User Testing Fixes (same session)
+- **Faucet Card Redesign** — renamed "Get started with 3 GNOT" → "Get Free Test Tokens"
+  - Added TESTNET ONLY badge, dismiss × button (localStorage), updated copy
+- **Extensions Hub** — new `/extensions` page with 4 extension cards (2 Active, 2 Coming Soon)
+  - Replaces 4 individual plugin sidebar links → single "Extensions" link
+- **Dashboard Graceful Degradation** — suppress "Connection failed" toast when backend API is unreachable
+  - Network errors silently logged, on-chain features still work
+- **E2E Test Fix** — updated sidebar test after Plugins → Extensions rename
 
 ---
 

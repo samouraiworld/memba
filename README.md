@@ -63,7 +63,11 @@
 - 🖼️ Avatar Upload — URL + file picker (JPEG/PNG/WebP/GIF, 2MB max)
 - 🔔 **Notification Center** — bell icon, 30s ABCI polling, per-wallet isolation, grouped by date
 - ⚡ **Validator Dashboard** — network stats, voting power distribution, sortable table, pagination
-- 💧 **Faucet Card** — gasless onboarding with eligibility check and cooldown timer
+- 💧 **Faucet Card** — gasless onboarding with dismiss button, "TESTNET ONLY" badge
+
+### Extensions & Navigation
+- 🧩 **Extensions Hub** — dedicated `/extensions` page with status badges (Active/Coming Soon)
+- ⌘K **Command Palette** — 14 navigation commands, fuzzy search, keyboard shortcuts
 
 ### Channels & Communication (v2.5)
 - 💬 **Channel Pages** — standalone `/dao/:slug/channels` route with sidebar, breadcrumb nav
@@ -94,7 +98,7 @@
 
 ### Testing
 - 🧪 **718 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
-- 🧪 **119 E2E tests** (Playwright) — Chromium + Firefox: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory
+- 🧪 **238 E2E tests** (Playwright) — Chromium + Firefox: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions
 
 ## Architecture
 

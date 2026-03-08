@@ -105,15 +105,18 @@ Review findings feed into the **next version's RFC** as action items.
 |---------|--------|-------|
 | Board deploy fix (std → chain/runtime in 4 realm templates) | ✅ | — |
 | Content-Security-Policy meta tag | ✅ | — |
-| Cmd+K Command Palette (12 commands, fuzzy search, keyboard nav) | ✅ | — |
+| Cmd+K Command Palette (14 commands, fuzzy search, keyboard nav) | ✅ | — |
 | Error message translation layer (20+ patterns) | ✅ | +26 |
 | Shared gas config (getGasConfig(), user-configurable) | ✅ | +5 |
 | Tx retry (2× exponential backoff, smart skip) | ✅ | — |
 | Executable proposals (buildExecuteMsg, handleExecute, UI) | ✅ | — |
+| Extensions Hub page (4 cards, status badges) | ✅ | — |
+| Faucet card redesign (dismissible, TESTNET ONLY badge) | ✅ | — |
+| Dashboard graceful degradation (suppress backend errors) | ✅ | — |
 
 **Deferred:** BoardView decomposition, onboarding tooltips, GnoSwap (→ FUTURE)
 
-**Total: 718 tests (34 files). Zero lint/TS/build errors.**
+**Total: 718 unit tests (34 files), 238 E2E. Zero lint/TS/build errors.**
 
 ---
 
