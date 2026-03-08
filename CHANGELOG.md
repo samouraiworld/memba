@@ -6,6 +6,85 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.5c Audio/Video Channels (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Voice & Video Channel Types** — `ChannelType` extended with `"voice"` and `"video"`
+  - Channel icons: 🔊 voice, 🎥 video (shared `channelIcon()` helper)
+  - Parser recognises 🔊/🎥 type indicators from on-chain Render output
+- **Jitsi Meet Integration** — `JitsiMeet` component embeds Jitsi iframe
+  - "Join Room" gate — click to connect (no auto-join)
+  - Deterministic room names: `memba-{slug}-{channel}` (scoped, URL-safe)
+  - Voice mode: camera off by default; Video mode: camera on
+  - Sandbox + referrerPolicy hardening on iframe
+  - "Leave Room" button with red overlay
+- **BoardView Voice/Video Rendering** — voice/video channels render Jitsi instead of threads
+  - No "New Thread" button for voice/video channels
+
+#### New Files
+- `components/ui/JitsiMeet.tsx` (150 LOC) — Jitsi iframe + join gate
+- `components/ui/jitsiHelpers.ts` (18 LOC) — `jitsiRoomName()` + domain constant
+- `components/ui/JitsiMeet.test.ts` (32 LOC) — 5 unit tests
+- `docs/planning/milestones/v2.5c-audiovideo/BRIEF.md`
+
+#### Tests
+- **684 unit tests** (32 files, +7), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
+### v2.5b Real-time UX (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Channel Polling** — `useChannelPolling` hook with 10s interval for thread/reply updates
+  - Page Visibility API: pauses when tab is hidden (saves bandwidth)
+  - Typing guard: pauses when user is composing (avoids content jump)
+  - In-flight dedup: no concurrent ABCI queries
+  - New content detection: compares thread/reply counts between polls
+- **"New Messages" Toast** — `NewMessagesToast` component (teal-themed, auto-dismiss 8s)
+  - Rendered in both channel list and thread detail views
+  - Click to dismiss, slide-up animation
+- **BoardView Refactor** — replaced manual `loadChannel`/`loadThread` with polling hook
+  - `formError` state split for post validation (isolated from poll state)
+  - `refresh()` called after post/reply for immediate content update
+
+#### New Files
+- `hooks/useChannelPolling.ts` (160 LOC) — polling hook
+- `hooks/useChannelPolling.test.ts` (24 LOC) — 3 unit tests
+- `components/ui/NewMessagesToast.tsx` (80 LOC) — toast component
+
+#### Tests
+- **677 unit tests** (31 files, +3), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
+### v2.5a Channel Pages (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages`
+
+#### Added
+- **Standalone Channel Page** — `/dao/:slug/channels` route with full-page layout
+  - Left sidebar (220px) with channel list, type icons (💬/📢/🔒), active highlight, archived badges
+  - Breadcrumb navigation (DAOs › DaoName › Channels) with clickable links
+  - Deep-link support: `/dao/:slug/channels/:channel` opens specific channel
+  - Mobile responsive: sidebar collapses below 768px with toggle button
+- **BoardView Headless Mode** — 3 new optional props (`initialChannel`, `onChannelChange`, `hideChannelList`) for external control
+- **DAOHome Channels Card** — 💬 icon + "Open →" entry point, positioned before Treasury
+
+#### New Files
+- `pages/ChannelsPage.tsx` (223 LOC) — channel page with sidebar + BoardView integration
+- `pages/channelHelpers.ts` (24 LOC) — `channelIcon()` + `defaultChannel()` helpers
+- `pages/channels.css` (200 LOC) — responsive layout, empty/loading states
+- `pages/channels.test.ts` (75 LOC) — 9 unit tests for helpers
+
+#### Tests
+- **674 unit tests** (30 files, +9), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
 ### v2.2c Quick Wins (2026-03-08)
 
 > Branch: `feat/v2.2c-quick-wins` — PR #78

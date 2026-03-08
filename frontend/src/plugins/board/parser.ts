@@ -164,7 +164,7 @@ export function parseBoardHome(raw: string): BoardInfo {
     // Parse channel list items — supports both v1 and v2.1a formats
     // v2.1a: - [#name](:_channel/name) 📢 (N threads)
     // v1:    - [#name](:name) (N threads)
-    const channelPattern = /- \[#([^\]]+)\]\([^)]+\)\s*(📢|🔒)?\s*\((\d+)\s*threads?\)/gu
+    const channelPattern = /- \[#([^\]]+)\]\([^)]+\)\s*(📢|🔒|🔊|🎥)?\s*\((\d+)\s*threads?\)/gu
     const channels: BoardChannel[] = []
     let match
     while ((match = channelPattern.exec(raw)) !== null) {
@@ -172,6 +172,8 @@ export function parseBoardHome(raw: string): BoardInfo {
         let type: ChannelType = "text"
         if (typeIndicator === "📢") type = "announcements"
         else if (typeIndicator === "🔒") type = "readonly"
+        else if (typeIndicator === "🔊") type = "voice"
+        else if (typeIndicator === "🎥") type = "video"
         channels.push({
             name: match[1],
             threadCount: parseInt(match[3], 10),

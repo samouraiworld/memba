@@ -20,12 +20,16 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { PluginProps } from "../types"
-import { getBoardInfo, getBoardThreads, getBoardThread } from "./parser"
-import type { BoardInfo, BoardThread, BoardThreadDetail, BoardChannel } from "./parser"
+import { getBoardInfo } from "./parser"
+import type { BoardInfo } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
 import { buildChannelCreateThreadMsg, buildChannelReplyMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
+import { useChannelPolling } from "../../hooks/useChannelPolling"
+import { NewMessagesToast } from "../../components/ui/NewMessagesToast"
+import { JitsiMeet } from "../../components/ui/JitsiMeet"
+import { channelIcon } from "../../pages/channelHelpers"
 import "./board.css"
 
 type View = "home" | "channel" | "thread" | "new-thread"
@@ -100,27 +104,29 @@ interface ViewState {
     threadId: number | null
 }
 
-/** Channel type → icon mapping */
-function channelTypeIcon(ch: BoardChannel): string {
-    if (ch.type === "announcements") return "📢"
-    if (ch.type === "readonly") return "🔒"
-    return "💬"
-}
+// M3 fix: channelTypeIcon removed — use channelIcon from channelHelpers (shared)
 
 interface BoardViewProps extends PluginProps {
     /** Detected board/channel realm path — passed from index.tsx */
     boardPath: string
+    /** v2.5a: Pre-select a channel (skip home view). Used by ChannelsPage. */
+    initialChannel?: string
+    /** v2.5a: Callback when user navigates between channels. */
+    onChannelChange?: (channel: string) => void
+    /** v2.5a: Hide internal channel list — ChannelsPage provides its own sidebar. */
+    hideChannelList?: boolean
 }
 
-export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
+export default function BoardView({ boardPath, slug, auth, adena, initialChannel, onChannelChange, hideChannelList }: BoardViewProps) {
     const isV2 = boardPath.endsWith("_channels")
 
-    const [viewState, setViewState] = useState<ViewState>({ view: "home", channel: "general", threadId: null })
+    // v2.5a: Start in "channel" view when initialChannel is provided (headless mode)
+    const [viewState, setViewState] = useState<ViewState>(() => ({
+        view: initialChannel ? "channel" : "home",
+        channel: initialChannel || "general",
+        threadId: null,
+    }))
     const [boardInfo, setBoardInfo] = useState<BoardInfo | null>(null)
-    const [threads, setThreads] = useState<BoardThread[]>([])
-    const [threadDetail, setThreadDetail] = useState<BoardThreadDetail | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
 
     // New thread form
     const [newTitle, setNewTitle] = useState("")
@@ -128,57 +134,75 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
     const [replyBody, setReplyBody] = useState("")
     const [posting, setPosting] = useState(false)
 
+    // v2.5b: Real-time polling — replaces manual loadChannel/loadThread
+    // P4 fix: skip polling for voice/video channels (thread data not displayed)
+    const currentChannelInfo = boardInfo?.channels.find(ch => ch.name === viewState.channel)
+    const isVoiceOrVideoChannel = currentChannelInfo?.type === "voice" || currentChannelInfo?.type === "video"
+    const isPollingEnabled = viewState.view !== "home" && !isVoiceOrVideoChannel
+    const {
+        threads,
+        threadDetail,
+        hasNewContent,
+        dismissNew,
+        loading: pollingLoading,
+        error: pollingError,
+        refresh,
+    } = useChannelPolling({
+        boardPath,
+        channel: viewState.channel,
+        threadId: viewState.threadId,
+        enabled: isPollingEnabled && !posting,
+    })
+
+    // Home view: load board info (channel list, not polled)
+    const [homeLoading, setHomeLoading] = useState(viewState.view === "home")
+    const [homeError, setHomeError] = useState<string | null>(null)
+
+    // v2.5a: Sync initialChannel prop changes → switch channel view
+    useEffect(() => {
+        if (initialChannel && initialChannel !== viewState.channel) {
+            setViewState({ view: "channel", channel: initialChannel, threadId: null })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialChannel])
+
     const loadBoardHome = useCallback(async () => {
-        setLoading(true)
-        setError(null)
+        setHomeLoading(true)
+        setHomeError(null)
         try {
             const info = await getBoardInfo(GNO_RPC_URL, boardPath)
             setBoardInfo(info)
         } catch {
-            setError("Failed to load channels")
+            setHomeError("Failed to load channels")
         } finally {
-            setLoading(false)
+            setHomeLoading(false)
         }
     }, [boardPath])
 
-    const loadChannel = useCallback(async (channel: string) => {
-        setLoading(true)
-        setError(null)
-        try {
-            const t = await getBoardThreads(GNO_RPC_URL, boardPath, channel)
-            setThreads(t)
-        } catch {
-            setError("Failed to load threads")
-        } finally {
-            setLoading(false)
-        }
-    }, [boardPath])
-
-    const loadThread = useCallback(async (channel: string, threadId: number) => {
-        setLoading(true)
-        setError(null)
-        try {
-            const t = await getBoardThread(GNO_RPC_URL, boardPath, channel, threadId)
-            setThreadDetail(t)
-        } catch {
-            setError("Failed to load thread")
-        } finally {
-            setLoading(false)
-        }
-    }, [boardPath])
-
-    // Load data based on view
+    // Load home view when needed
     useEffect(() => {
         if (viewState.view === "home") loadBoardHome()
-        else if (viewState.view === "channel") loadChannel(viewState.channel)
-        else if (viewState.view === "thread" && viewState.threadId !== null) {
-            loadThread(viewState.channel, viewState.threadId)
-        }
-    }, [viewState, loadBoardHome, loadChannel, loadThread])
+    }, [viewState.view, loadBoardHome])
+
+    // Local error for form validation / post actions
+    const [formError, setFormError] = useState<string | null>(null)
+
+    // Unified loading/error — merge home and polling states
+    const loading = viewState.view === "home" ? homeLoading : pollingLoading
+    const error = formError || (viewState.view === "home" ? homeError : pollingError)
 
     const navigateTo = (view: View, channel = "general", threadId: number | null = null) => {
+        setFormError(null) // I1 fix: clear form error on navigation
         if (view === "thread" && threadId !== null) {
             markVisited(channel, threadId)
+        }
+        // v2.5a: When navigating back to home in headless mode, go to channel instead
+        if (view === "home" && hideChannelList) {
+            view = "channel"
+        }
+        // v2.5a: Notify parent of channel change
+        if (view === "channel" && onChannelChange && channel !== viewState.channel) {
+            onChannelChange(channel)
         }
         setViewState({ view, channel, threadId })
     }
@@ -187,9 +211,9 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
 
     const handleCreateThread = async () => {
         if (!auth.isAuthenticated || !adena.address) return
-        if (!newTitle.trim() || !newBody.trim()) { setError("Title and body are required"); return }
+        if (!newTitle.trim() || !newBody.trim()) { setFormError("Title and body are required"); return }
         setPosting(true)
-        setError(null)
+        setFormError(null)
         try {
             // v2.1a: use channel builder for _channels realms, board builder for _board
             const msg = isV2
@@ -199,8 +223,9 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
             setNewTitle("")
             setNewBody("")
             navigateTo("channel", viewState.channel)
+            refresh() // v2.5b: immediate refetch after post
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create thread")
+            setFormError(err instanceof Error ? err.message : "Failed to create thread")
         } finally {
             setPosting(false)
         }
@@ -208,18 +233,18 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
 
     const handleReply = async () => {
         if (!auth.isAuthenticated || !adena.address || viewState.threadId === null) return
-        if (!replyBody.trim()) { setError("Reply body is required"); return }
+        if (!replyBody.trim()) { setFormError("Reply body is required"); return }
         setPosting(true)
-        setError(null)
+        setFormError(null)
         try {
             const msg = isV2
                 ? buildChannelReplyMsg(adena.address, boardPath, viewState.channel, viewState.threadId, replyBody.trim())
                 : buildReplyToThreadMsg(adena.address, boardPath, viewState.channel, viewState.threadId, replyBody.trim())
             await doContractBroadcast([msg], "Reply to thread")
             setReplyBody("")
-            loadThread(viewState.channel, viewState.threadId)
+            refresh() // v2.5b: immediate refetch after reply
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to reply")
+            setFormError(err instanceof Error ? err.message : "Failed to reply")
         } finally {
             setPosting(false)
         }
@@ -330,7 +355,7 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ fontSize: 14 }}>{channelTypeIcon(ch)}</span>
+                                    <span style={{ fontSize: 14 }}>{channelIcon(ch)}</span>
                                     <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
                                         #{ch.name}
                                     </span>
@@ -364,18 +389,45 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
     if (viewState.view === "channel") {
         // v2.1a: Check if this is a readonly/announcements channel
         const currentChannel = boardInfo?.channels.find(ch => ch.name === viewState.channel)
-        const canWrite = currentChannel?.type !== "readonly" &&
+        const isVoiceOrVideo = currentChannel?.type === "voice" || currentChannel?.type === "video"
+        const canWrite = !isVoiceOrVideo && currentChannel?.type !== "readonly" &&
             (currentChannel?.type !== "announcements" || true) // TODO: check admin role
+
+        // v2.5c: Voice/video channels — render Jitsi instead of threads
+        if (isVoiceOrVideo) {
+            return (
+                <div id="board-channel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <button onClick={() => navigateTo("home")} style={ghostBtn} aria-label="Back to channels">
+                            ←
+                        </button>
+                        {currentChannel && (
+                            <span style={{ fontSize: 16 }}>{channelIcon(currentChannel)}</span>
+                        )}
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                            #{viewState.channel}
+                        </h3>
+                    </div>
+                    <JitsiMeet
+                        daoSlug={slug}
+                        channelName={viewState.channel}
+                        mode={currentChannel.type as "voice" | "video"}
+                    />
+                </div>
+            )
+        }
 
         return (
             <div id="board-channel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* v2.5b: New messages toast */}
+                <NewMessagesToast visible={hasNewContent} onDismiss={dismissNew} />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <button onClick={() => navigateTo("home")} style={ghostBtn} aria-label="Back to channels">
                             ←
                         </button>
                         {currentChannel && (
-                            <span style={{ fontSize: 16 }}>{channelTypeIcon(currentChannel)}</span>
+                            <span style={{ fontSize: 16 }}>{channelIcon(currentChannel)}</span>
                         )}
                         <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
                             #{viewState.channel}
@@ -509,6 +561,8 @@ export default function BoardView({ boardPath, auth, adena }: BoardViewProps) {
     if (viewState.view === "thread" && threadDetail) {
         return (
             <div id="board-thread-detail" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* v2.5b: New messages toast */}
+                <NewMessagesToast visible={hasNewContent} onDismiss={dismissNew} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <button onClick={() => navigateTo("channel", viewState.channel)} style={ghostBtn} aria-label="Back to channel">
                         ←

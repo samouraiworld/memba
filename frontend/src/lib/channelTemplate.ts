@@ -32,7 +32,7 @@ export interface ChannelACL {
 }
 
 /** Channel type controls built-in behavior. */
-export type ChannelType = "text" | "announcements" | "readonly"
+export type ChannelType = "text" | "announcements" | "readonly" | "voice" | "video"
 
 /** Configuration for a single channel within the realm. */
 export interface ChannelDef {
