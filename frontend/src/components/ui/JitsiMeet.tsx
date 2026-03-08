@@ -30,7 +30,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
     const [joined, setJoined] = useState(false)
     const roomName = jitsiRoomName(daoSlug, channelName)
 
-    // Jitsi iframe config
+    // Jitsi iframe config — disable lobby so anyone can join directly
     const configParams = [
         "config.startWithAudioMuted=false",
         `config.startWithVideoMuted=${mode === "voice" ? "true" : "false"}`,
@@ -38,10 +38,14 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
         "config.disableDeepLinking=true",
         "config.disableProfile=true",
         "config.hideConferenceSubject=true",
+        "config.lobby.autoKnock=true",
+        "config.lobby.enableChat=false",
+        "config.enableLobbyChat=false",
+        "config.hideLobbyButton=true",
         "interfaceConfig.SHOW_JITSI_WATERMARK=false",
         "interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false",
         "interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS=true",
-    ].join("&")
+    ].join("\u0026")
 
     const iframeSrc = `https://${JITSI_DOMAIN}/${roomName}#${configParams}`
 
