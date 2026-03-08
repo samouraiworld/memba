@@ -66,6 +66,37 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.2b — Directory Enrichment ✅ SHIPPED (2026-03-08)
+
+> Branch: `feat/v2.2b-enrichment` — PR #77 → merged
+
+| Feature | Status | Tests |
+|---------|--------|-------|
+| DAO Category Tags (6 heuristic categories, colored badges) | ✅ | +13 |
+| User Avatar Enhancement (gradient CSS, img support) | ✅ | — |
+| Contribution Scores (Set-indexed scoring, activity badges) | ✅ | +9 |
+| DAO Auto-Discovery (ABCI probe, configurable API, cache) | ✅ | +3 |
+| Per-DAO Notification View (filter + unread count per DAO) | ✅ | +4 |
+| Deep Review (7 findings: I1-I3 + M1-M4, all fixed) | ✅ | — |
+
+**Total: 665 tests (29 files). Zero lint/TS/build errors.**
+
+---
+
+## v2.2c — Quick Wins ✅ SHIPPED (2026-03-08)
+
+> Branch: `feat/v2.2c-quick-wins` — PR #78 → merged
+
+| Feature | Status |
+|---------|--------|
+| Sidebar Notification Badges (notifUnreadCount prop) | ✅ |
+| IPFS Avatars in Directory (gnolove batch fetch + resolveAvatarUrl) | ✅ |
+| Typed BankMsgSend (BankMsgSend interface) | ✅ |
+
+**Total: 665 tests (29 files). Zero lint/TS/build errors.**
+
+---
+
 ## v2.1b — Validators & Notifications ✅ SHIPPED (2026-03-08)
 
 > Branch: `feat/v2.1b-validators-notifications` — PR #75 → merged

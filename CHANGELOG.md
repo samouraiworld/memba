@@ -6,6 +6,21 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.2c Quick Wins (2026-03-08)
+
+> Branch: `feat/v2.2c-quick-wins` — PR #78
+
+#### Added
+- **Sidebar Notification Badges** — `notifUnreadCount` prop on Sidebar, DAOs nav badge shows combined (unvoted + unread)
+- **IPFS Avatars in Directory** — `batchFetchUserAvatars()` via gnolove API, sessionStorage cache, `resolveAvatarUrl()` rendering
+- **Typed BankMsgSend** — `BankMsgSend` interface replaces untyped `object` return on `buildFaucetMsgSend()`
+- **DirectoryUser avatarUrl** — optional `avatarUrl` field on `DirectoryUser` interface
+
+#### Tests
+- **665+ unit tests**, tsc 0, lint 0, build 449KB
+
+---
+
 ### v2.2b Directory Enrichment (2026-03-08)
 
 > Branch: `feat/v2.2b-enrichment` — 4 commits

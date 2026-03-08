@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.2b features complete, PR pending)
+> Last updated: 2026-03-08 (v2.2b + v2.2c SHIPPED, v2.5 NEXT)
 
 ## Milestone Status
 
@@ -18,13 +18,15 @@
 | 9 | **Community Foundation** | v2.1a | ✅ SHIPPED | PR #74 → `dev/v2` |
 | 10 | **Validators & Notifications** | v2.1b | ✅ SHIPPED | PR #75 → `dev/v2` |
 | 11 | **Organization Directory** | v2.2a | ✅ SHIPPED | PR #76 → `dev/v2` |
-| 12 | **Directory Enrichment** | v2.2b | � IN REVIEW | `feat/v2.2b-enrichment` |
-| 13 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
-| 14 | **Marketplace** | v3.0 | 🔮 HORIZON | — |
-| 15 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 16 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 12 | **Directory Enrichment** | v2.2b | ✅ SHIPPED | PR #77 → `dev/v2` |
+| 13 | **Quick Wins** | v2.2c | ✅ SHIPPED | PR #78 → `dev/v2` |
+| 14 | **Channels & Comms** | v2.5 | 📋 NEXT | — |
+| 15 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 16 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 17 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 18 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.2b IN REVIEW)
+## Quality Gates (as of v2.2c SHIPPED)
 
 | Metric | Value |
 |--------|-------|
@@ -35,25 +37,55 @@
 | Build size | 449KB (129KB gzip) |
 | package.json | 2.2.0-alpha.1 |
 
-## v2.2b — Directory Enrichment (SCOPED)
+## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
 > **Goal:** Complete deferred items from v2.1b + v2.2a HANDOFFs. Quick wins + medium features.
 
 | # | Feature | Source | Complexity | Status |
 |---|---------|--------|------------|--------|
-| 1 | **DAO Category Tags** — governance/community/treasury labels | v2.2a HANDOFF | Small | ☐ |
-| 2 | **User IPFS Avatars** — avatar display in directory user cards | v2.2a HANDOFF | Small | ☐ |
-| 3 | **Token Detail Navigation** — click token → `/tokens/:symbol` | v2.2a HANDOFF | Small | ☐ |
-| 4 | **Per-DAO Notification View** — DAO-specific count/filter in DAOHome | v2.1b HANDOFF | Medium | ☐ |
-| 5 | **Contribution Scores** — proposal activity metric on user cards | v2.2a HANDOFF | Medium | ☐ |
-| 6 | **DAO Auto-Discovery** — scan on-chain DAO factories | v2.2a HANDOFF | Medium-Large | ☐ |
+| 1 | **DAO Category Tags** — governance/community/treasury labels | v2.2a HANDOFF | Small | ✅ |
+| 2 | **User IPFS Avatars** — avatar display in directory user cards | v2.2a HANDOFF | Small | ✅ |
+| 3 | **Token Detail Navigation** — click token → `/tokens/:symbol` | v2.2a HANDOFF | Small | ✅ (already in v2.2a) |
+| 4 | **Per-DAO Notification View** — DAO-specific count/filter in DAOHome | v2.1b HANDOFF | Medium | ✅ |
+| 5 | **Contribution Scores** — proposal activity metric on user cards | v2.2a HANDOFF | Medium | ✅ |
+| 6 | **DAO Auto-Discovery** — scan on-chain DAO factories | v2.2a HANDOFF | Medium-Large | ✅ |
 
-### Also Deferred (Lower Priority)
+## v2.2c — Quick Wins (✅ SHIPPED — PR #78)
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | **Sidebar Notification Badges** — notifUnreadCount on DAOs nav | ✅ |
+| 2 | **IPFS Avatars in Directory** — gnolove batch fetch + resolveAvatarUrl | ✅ |
+| 3 | **Typed BankMsgSend** — BankMsgSend interface | ✅ |
+
+### Still Deferred (Lower Priority)
 
 | Feature | Source | Notes |
 |---------|--------|-------|
 | Validator monikers (human names) | v2.1b HANDOFF | Needs upstream support |
 | Faucet Phase 3 (treasury signing) | v2.1b HANDOFF | Backend concern |
+
+## v2.5 — Channels & Comms (NEXT)
+
+> **Goal:** Full channel experience with real-time messaging and audio/video rooms.
+
+| # | Sub-milestone | Key Features | Est. |
+|---|--------------|-------------|------|
+| 1 | **v2.5a Channel Pages** | Standalone `/channels/:daoSlug` route, sidebar nav, reuse BoardView | 1 session |
+| 2 | **v2.5b Real-time UX** | 10s polling, "new messages" toast, presence dots | 1 session |
+| 3 | **v2.5c Audio/Video** | Jitsi Meet iframe, voice/video channel types | 1-2 sessions |
+
+> **Builds on:** Channel Realm v2 (v2.1a — 856 LOC codegen, 72 tests, 8 MsgCall builders) + BoardView (622 LOC Discord-like UI).
+
+## v3.0 — Marketplace & AI (PLANNED)
+
+> **Goal:** Extension hub, NFT marketplace, AI governance assistant.
+
+| # | Sub-milestone | Key Features | Est. |
+|---|--------------|-------------|------|
+| 1 | **v3.0a Extension Hub** | Plugin marketplace, install/uninstall per-DAO, "Official" badges | 1-2 sessions |
+| 2 | **v3.0b NFT Integration** | GRC721 minting, IPFS gallery, transfer | 1-2 sessions |
+| 3 | **v3.0c AI Facilitator** | Proposal summarizer, voting guidance, read-only chat | 1-2 sessions |
 
 ## v2.3 — Revenue & Sustainability (PLANNED)
 
