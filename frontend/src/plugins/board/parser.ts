@@ -172,6 +172,8 @@ export function parseBoardHome(raw: string): BoardInfo {
         let type: ChannelType = "text"
         if (typeIndicator === "📢") type = "announcements"
         else if (typeIndicator === "🔒") type = "readonly"
+        else if (typeIndicator === "🔊") type = "voice"
+        else if (typeIndicator === "🎥") type = "video"
         channels.push({
             name: match[1],
             threadCount: parseInt(match[3], 10),

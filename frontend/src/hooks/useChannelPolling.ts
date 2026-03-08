@@ -70,9 +70,9 @@ export function useChannelPolling({
     const isInitialLoad = useRef(true)
     // C2 fix: store volatile props in refs to prevent stale closures in interval
     const channelRef = useRef(channel)
-    channelRef.current = channel
     const threadIdRef = useRef(threadId)
-    threadIdRef.current = threadId
+    useEffect(() => { channelRef.current = channel }, [channel])
+    useEffect(() => { threadIdRef.current = threadId }, [threadId])
 
     // ── Page Visibility API ───────────────────────────────────
     useEffect(() => {

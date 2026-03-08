@@ -2,12 +2,13 @@
  * NewMessagesToast — "New messages" indicator for channel polling (v2.5b).
  *
  * Teal-themed inline toast positioned at top of content area.
- * Click to scroll down and dismiss, auto-dismiss after 8s.
+ * Click to dismiss, auto-dismiss after 8s.
+ * Uses CSS animation-only approach to avoid setState-in-effect lint issues.
  *
  * @module components/ui/NewMessagesToast
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 
 interface NewMessagesToastProps {
     /** Whether the toast is visible. */
@@ -19,34 +20,25 @@ interface NewMessagesToastProps {
 const AUTO_DISMISS_MS = 8_000
 
 export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) {
-    const [hiding, setHiding] = useState(false)
-    const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     // C3 fix: ref for onDismiss to prevent stale closure in setTimeout
     const onDismissRef = useRef(onDismiss)
-    onDismissRef.current = onDismiss
+    useEffect(() => { onDismissRef.current = onDismiss }, [onDismiss])
 
-    const startDismiss = () => {
-        setHiding(true)
-        dismissTimerRef.current = setTimeout(() => onDismissRef.current(), 300)
-    }
-
-    // Auto-dismiss after 8s
+    // Auto-dismiss after 8s — only calls onDismiss (no local setState)
     useEffect(() => {
-        if (!visible) { setHiding(false); return }
-        autoTimerRef.current = setTimeout(startDismiss, AUTO_DISMISS_MS)
+        if (!visible) return
+        timerRef.current = setTimeout(() => onDismissRef.current(), AUTO_DISMISS_MS)
         return () => {
-            if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-            if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+            if (timerRef.current) clearTimeout(timerRef.current)
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible])
 
-    if (!visible && !hiding) return null
+    if (!visible) return null
 
     const handleClick = () => {
-        if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-        startDismiss()
+        if (timerRef.current) clearTimeout(timerRef.current)
+        onDismiss()
     }
 
     return (
@@ -69,10 +61,8 @@ export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) 
                 fontWeight: 600,
                 fontFamily: "JetBrains Mono, monospace",
                 cursor: "pointer",
-                transition: "opacity 0.3s, transform 0.3s",
-                opacity: hiding ? 0 : 1,
-                transform: hiding ? "translateY(-8px)" : "translateY(0)",
                 marginBottom: 12,
+                animation: "fadeIn 0.3s ease",
             }}
         >
             <span>↓</span>

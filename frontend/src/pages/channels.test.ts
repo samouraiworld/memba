@@ -29,6 +29,16 @@ describe("channelIcon", () => {
         const ch: BoardChannel = { name: "custom", threadCount: 0, type: "text", archived: false }
         expect(channelIcon(ch)).toBe("💬")
     })
+
+    it("returns 🔊 for voice channel (v2.5c)", () => {
+        const ch: BoardChannel = { name: "voice", threadCount: 0, type: "voice", archived: false }
+        expect(channelIcon(ch)).toBe("🔊")
+    })
+
+    it("returns 🎥 for video channel (v2.5c)", () => {
+        const ch: BoardChannel = { name: "video", threadCount: 0, type: "video", archived: false }
+        expect(channelIcon(ch)).toBe("🎥")
+    })
 })
 
 // ── defaultChannel ────────────────────────────────────────────

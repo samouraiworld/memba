@@ -6,6 +6,34 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.5c Audio/Video Channels (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Voice & Video Channel Types** — `ChannelType` extended with `"voice"` and `"video"`
+  - Channel icons: 🔊 voice, 🎥 video (shared `channelIcon()` helper)
+  - Parser recognises 🔊/🎥 type indicators from on-chain Render output
+- **Jitsi Meet Integration** — `JitsiMeet` component embeds Jitsi iframe
+  - "Join Room" gate — click to connect (no auto-join)
+  - Deterministic room names: `memba-{slug}-{channel}` (scoped, URL-safe)
+  - Voice mode: camera off by default; Video mode: camera on
+  - Sandbox + referrerPolicy hardening on iframe
+  - "Leave Room" button with red overlay
+- **BoardView Voice/Video Rendering** — voice/video channels render Jitsi instead of threads
+  - No "New Thread" button for voice/video channels
+
+#### New Files
+- `components/ui/JitsiMeet.tsx` (150 LOC) — Jitsi iframe + join gate
+- `components/ui/jitsiHelpers.ts` (18 LOC) — `jitsiRoomName()` + domain constant
+- `components/ui/JitsiMeet.test.ts` (32 LOC) — 5 unit tests
+- `docs/planning/milestones/v2.5c-audiovideo/BRIEF.md`
+
+#### Tests
+- **684 unit tests** (32 files, +7), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
 ### v2.5b Real-time UX (2026-03-08)
 
 > Branch: `feat/v2.5a/channel-pages` (continued)

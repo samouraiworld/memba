@@ -28,6 +28,7 @@ import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
 import { useChannelPolling } from "../../hooks/useChannelPolling"
 import { NewMessagesToast } from "../../components/ui/NewMessagesToast"
+import { JitsiMeet } from "../../components/ui/JitsiMeet"
 import { channelIcon } from "../../pages/channelHelpers"
 import "./board.css"
 
@@ -116,7 +117,7 @@ interface BoardViewProps extends PluginProps {
     hideChannelList?: boolean
 }
 
-export default function BoardView({ boardPath, auth, adena, initialChannel, onChannelChange, hideChannelList }: BoardViewProps) {
+export default function BoardView({ boardPath, slug, auth, adena, initialChannel, onChannelChange, hideChannelList }: BoardViewProps) {
     const isV2 = boardPath.endsWith("_channels")
 
     // v2.5a: Start in "channel" view when initialChannel is provided (headless mode)
@@ -385,8 +386,33 @@ export default function BoardView({ boardPath, auth, adena, initialChannel, onCh
     if (viewState.view === "channel") {
         // v2.1a: Check if this is a readonly/announcements channel
         const currentChannel = boardInfo?.channels.find(ch => ch.name === viewState.channel)
-        const canWrite = currentChannel?.type !== "readonly" &&
+        const isVoiceOrVideo = currentChannel?.type === "voice" || currentChannel?.type === "video"
+        const canWrite = !isVoiceOrVideo && currentChannel?.type !== "readonly" &&
             (currentChannel?.type !== "announcements" || true) // TODO: check admin role
+
+        // v2.5c: Voice/video channels — render Jitsi instead of threads
+        if (isVoiceOrVideo) {
+            return (
+                <div id="board-channel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <button onClick={() => navigateTo("home")} style={ghostBtn} aria-label="Back to channels">
+                            ←
+                        </button>
+                        {currentChannel && (
+                            <span style={{ fontSize: 16 }}>{channelIcon(currentChannel)}</span>
+                        )}
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                            #{viewState.channel}
+                        </h3>
+                    </div>
+                    <JitsiMeet
+                        daoSlug={slug}
+                        channelName={viewState.channel}
+                        mode={currentChannel.type as "voice" | "video"}
+                    />
+                </div>
+            )
+        }
 
         return (
             <div id="board-channel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>

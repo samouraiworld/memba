@@ -13,6 +13,8 @@ import type { BoardChannel } from "../plugins/board/parser"
 export function channelIcon(ch: BoardChannel): string {
     if (ch.type === "announcements") return "📢"
     if (ch.type === "readonly") return "🔒"
+    if (ch.type === "voice") return "🔊"
+    if (ch.type === "video") return "🎥"
     return "💬"
 }
 
