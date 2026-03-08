@@ -5,10 +5,12 @@ import { useBalance } from "../../hooks/useBalance"
 import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
+import { useNotifications } from "../../hooks/useNotifications"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { Envelope } from "@phosphor-icons/react"
+import { DAO_REALM_PATH } from "../../lib/config"
 
 // Must exactly match backend auth.ClientMagic constant.
 const CLIENT_MAGIC = "Login to Memba Multisig Service"
@@ -153,6 +155,7 @@ export function Layout() {
 
     const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
+    const notifs = useNotifications(DAO_REALM_PATH, adena.connected ? adena.address : null)
 
     return (
         <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
@@ -181,6 +184,7 @@ export function Layout() {
                     authError={authError}
                     onDisconnect={handleDisconnect}
                     onClearError={() => setAuthError(null)}
+                    notifications={notifs}
                 />
 
                 {/* ── Main ─────────────────────────────────────── */}

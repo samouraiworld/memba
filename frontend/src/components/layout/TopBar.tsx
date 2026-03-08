@@ -1,5 +1,7 @@
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { NETWORKS, validateActiveRpcDomain } from "../../lib/config"
+import { NotificationBell } from "./NotificationBell"
+import type { Notification } from "../../lib/notifications"
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface TopBarProps {
@@ -30,10 +32,16 @@ interface TopBarProps {
     authError: string | null
     onDisconnect: () => void
     onClearError: () => void
+    notifications: {
+        notifications: Notification[]
+        unreadCount: number
+        markRead: (id: string) => void
+        markAllRead: () => void
+    }
 }
 
 // ── TopBar Component ───────────────────────────────────────────────────
-export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError }: TopBarProps) {
+export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications }: TopBarProps) {
     return (
         <>
             <header className="k-topbar" role="banner" data-testid="topbar">
@@ -75,6 +83,16 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                             </option>
                         ))}
                     </select>
+
+                    {/* Notification bell (only when connected) */}
+                    {adena.connected && auth.isAuthenticated && (
+                        <NotificationBell
+                            notifications={notifications.notifications}
+                            unreadCount={notifications.unreadCount}
+                            onMarkRead={notifications.markRead}
+                            onMarkAllRead={notifications.markAllRead}
+                        />
+                    )}
 
                     {/* Wallet area */}
                     {adena.connected && auth.isAuthenticated ? (
