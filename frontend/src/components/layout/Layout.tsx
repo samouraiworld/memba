@@ -177,6 +177,7 @@ export function Layout() {
                 connected={adena.connected}
                 address={auth.address || adena.address}
                 unvotedCount={unvotedCount}
+                notifUnreadCount={notifs.unreadCount}
                 collapsed={sidebarCollapsed}
                 onToggleCollapse={handleToggleCollapse}
             />

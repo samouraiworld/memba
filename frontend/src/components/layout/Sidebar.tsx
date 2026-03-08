@@ -74,11 +74,12 @@ interface SidebarProps {
     connected: boolean
     address: string | null
     unvotedCount: number
+    notifUnreadCount: number
     collapsed: boolean
     onToggleCollapse: () => void
 }
 
-export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
     const plugins = getPlugins()
     const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
 
@@ -120,7 +121,7 @@ export function Sidebar({ connected, address, unvotedCount, collapsed, onToggleC
             <nav className="k-sidebar-section" aria-label="Primary navigation">
                 <SidebarLink to="/" icon={<House size={18} />} label="Home" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/dashboard" icon={<ChartBar size={18} />} label="Dashboard" auth connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount} connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount + notifUnreadCount} connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/tokens" icon={<Coins size={18} />} label="Tokens" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/directory" icon={<FolderOpen size={18} />} label="Directory" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/validators" icon={<LinkSimpleHorizontal size={18} />} label="Validators" connected={connected} collapsed={collapsed} />

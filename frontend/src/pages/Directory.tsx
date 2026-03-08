@@ -11,12 +11,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, GNOLOVE_API_URL } from "../lib/config"
 import { encodeSlug } from "../lib/daoSlug"
 import {
     getDirectoryDAOs,
     fetchTokens,
     fetchUsers,
+    batchFetchUserAvatars,
     calculateContributionScores,
     parseDAOMemberAddresses,
     SEED_DAOS,
@@ -26,6 +27,7 @@ import {
 } from "../lib/directory"
 import { batchGetDAOMetadata, type DAOMetadata } from "../lib/daoMetadata"
 import { queryRender } from "../lib/dao/shared"
+import { resolveAvatarUrl } from "../lib/ipfs"
 import { DAOCard, FeaturedDAOs } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import "./directory.css"
@@ -262,6 +264,7 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const [scores, setScores] = useState<Map<string, ContributionScore>>(new Map())
+    const [avatarMap, setAvatarMap] = useState<Map<string, string>>(new Map())
     const PAGE_SIZE = 20
     const fetchedRef = useRef(false)
 
@@ -284,6 +287,11 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
             if (memberMap.size > 0) {
                 setScores(calculateContributionScores(data, memberMap))
             }
+
+            // Fetch avatars for visible users (best-effort, capped at 10)
+            const visibleAddrs = data.slice(0, PAGE_SIZE).map(u => u.address)
+            const avatars = await batchFetchUserAvatars(visibleAddrs, GNOLOVE_API_URL)
+            if (avatars.size > 0) setAvatarMap(avatars)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load users")
         } finally { setLoading(false) }
@@ -345,7 +353,12 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                                     data-testid="user-card"
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                        <div className="dir-user-avatar">{u.name.charAt(0)}</div>
+                                        <div className="dir-user-avatar">
+                                            {avatarMap.get(u.address)
+                                                ? <img src={resolveAvatarUrl(avatarMap.get(u.address)!)} alt={u.name} />
+                                                : u.name.charAt(0)
+                                            }
+                                        </div>
                                         <div className="dir-card-main">
                                             <div className="dir-card-name">
                                                 @{u.name}

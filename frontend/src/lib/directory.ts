@@ -76,6 +76,7 @@ export interface DirectoryToken {
 export interface DirectoryUser {
     name: string
     address: string
+    avatarUrl?: string
 }
 
 // ── Cache ────────────────────────────────────────────────────
@@ -331,6 +332,55 @@ export async function fetchUsers(): Promise<DirectoryUser[]> {
     const users = parseUserRegistry(raw)
     setCache("users", users)
     return users
+}
+
+/**
+ * Batch-fetch avatar URLs for a list of user addresses.
+ * Queries gnolove API for GitHub avatars (lightweight — single GET per user).
+ * Returns Map<address, avatarUrl>. Best-effort — missing avatars silently skipped.
+ * Cached in sessionStorage for 5 minutes.
+ *
+ * @param addresses - User addresses to fetch avatars for
+ * @param gnoloveApiUrl - Gnolove API base URL
+ * @param maxConcurrent - Max parallel requests (default 10)
+ */
+export async function batchFetchUserAvatars(
+    addresses: string[],
+    gnoloveApiUrl: string,
+    maxConcurrent = 10,
+): Promise<Map<string, string>> {
+    const cacheKey = "user_avatars"
+    const cached = getCached<Record<string, string>>(cacheKey)
+    const avatarMap = new Map<string, string>(cached ? Object.entries(cached) : [])
+
+    // Only fetch addresses not already cached
+    const toFetch = addresses.filter(a => !avatarMap.has(a)).slice(0, maxConcurrent)
+    if (toFetch.length === 0) return avatarMap
+
+    const results = await Promise.allSettled(
+        toFetch.map(async addr => {
+            const res = await fetch(`${gnoloveApiUrl}/users/${addr}`, {
+                signal: AbortSignal.timeout(3000),
+            })
+            if (!res.ok) return null
+            const data = await res.json()
+            const avatar = data?.avatarURL || data?.avatar_url || ""
+            return { addr, avatar }
+        }),
+    )
+
+    for (const result of results) {
+        if (result.status === "fulfilled" && result.value?.avatar) {
+            avatarMap.set(result.value.addr, result.value.avatar)
+        }
+    }
+
+    // Persist merged cache
+    const cacheObj: Record<string, string> = {}
+    for (const [k, v] of avatarMap.entries()) cacheObj[k] = v
+    setCache(cacheKey, cacheObj)
+
+    return avatarMap
 }
 
 // ── Contribution Scoring ─────────────────────────────────────

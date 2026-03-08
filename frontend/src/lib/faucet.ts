@@ -155,12 +155,20 @@ export function formatCooldown(ms: number): string {
     return `in ${minutes}m`
 }
 
+/** Typed bank/MsgSend payload for Adena signing. */
+export interface BankMsgSend {
+    "@type": "/bank.MsgSend"
+    from_address: string
+    to_address: string
+    amount: string
+}
+
 /**
  * Build a MsgSend for the faucet transfer.
  * This produces the message payload; actual signing and broadcasting
  * is handled by the treasury multisig or admin key.
  */
-export function buildFaucetMsgSend(recipientAddress: string, fromAddress: string): object {
+export function buildFaucetMsgSend(recipientAddress: string, fromAddress: string): BankMsgSend {
     return {
         "@type": "/bank.MsgSend",
         from_address: fromAddress,
