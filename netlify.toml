@@ -11,6 +11,10 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# CSP Dual-Config (v2.9):
+# This is the PRODUCTION CSP enforced by Netlify edge headers.
+# The LOCAL/DEV CSP is in frontend/index.html <meta http-equiv="Content-Security-Policy">.
+# ⚠️ KEEP BOTH IN SYNC — any connect-src or frame-src change must be applied to BOTH files.
 [[headers]]
   for = "/*"
   [headers.values]

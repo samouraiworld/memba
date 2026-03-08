@@ -20,9 +20,13 @@ interface JitsiMeetProps {
     channelName: string
     /** "voice" or "video" — controls initial config. */
     mode: "voice" | "video"
+    /** Optional display label (defaults to "Voice Channel" / "Video Channel"). */
+    label?: string
+    /** Optional description text for the join gate. */
+    description?: string
 }
 
-export function JitsiMeet({ daoSlug, channelName, mode }: JitsiMeetProps) {
+export function JitsiMeet({ daoSlug, channelName, mode, label, description }: JitsiMeetProps) {
     const [joined, setJoined] = useState(false)
     const roomName = jitsiRoomName(daoSlug, channelName)
 
@@ -63,7 +67,7 @@ export function JitsiMeet({ daoSlug, channelName, mode }: JitsiMeetProps) {
                     fontWeight: 600,
                     color: "#f0f0f0",
                 }}>
-                    {mode === "voice" ? "Voice Channel" : "Video Channel"}
+                    {label || (mode === "voice" ? "Voice Channel" : "Video Channel")}
                 </div>
                 <div style={{
                     fontSize: 11,
@@ -73,8 +77,8 @@ export function JitsiMeet({ daoSlug, channelName, mode }: JitsiMeetProps) {
                     textAlign: "center",
                     lineHeight: 1.6,
                 }}>
-                    Join a {mode === "voice" ? "voice call" : "video meeting"} with other DAO members in #{channelName}.
-                    {mode === "voice" && " Camera is off by default."}
+                    {description || `Join a ${mode === "voice" ? "voice call" : "video meeting"} with other DAO members in #${channelName}.`}
+                    {!description && mode === "voice" && " Camera is off by default."}
                 </div>
                 <button
                     id="jitsi-join-btn"

@@ -140,4 +140,45 @@ describe("DeploymentPipeline", () => {
         fireEvent.click(screen.getByLabelText("Close"))
         expect(onClose).toHaveBeenCalledOnce()
     })
+
+    // v2.9: Modal overlay tests
+    it("renders modal overlay when active", () => {
+        render(<DeploymentPipeline {...baseProps} />)
+        expect(screen.getByTestId("deploy-overlay")).toBeInTheDocument()
+    })
+
+    it("locks body scroll when active", () => {
+        const { unmount } = render(<DeploymentPipeline {...baseProps} />)
+        expect(document.body.style.overflow).toBe("hidden")
+        unmount()
+        expect(document.body.style.overflow).toBe("")
+    })
+
+    it("calls onClose on overlay click when dismissible", () => {
+        const onClose = vi.fn()
+        const result = { entityLabel: "DAO" }
+        render(
+            <DeploymentPipeline
+                {...baseProps}
+                currentStep="complete"
+                result={result}
+                onClose={onClose}
+            />,
+        )
+        fireEvent.click(screen.getByTestId("deploy-overlay"))
+        expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it("does NOT close on overlay click during progress", () => {
+        const onClose = vi.fn()
+        render(
+            <DeploymentPipeline
+                {...baseProps}
+                currentStep="signing"
+                onClose={onClose}
+            />,
+        )
+        fireEvent.click(screen.getByTestId("deploy-overlay"))
+        expect(onClose).not.toHaveBeenCalled()
+    })
 })

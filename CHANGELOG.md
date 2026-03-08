@@ -6,6 +6,64 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.9 Consolidation & Main Merge (2026-03-08)
+
+> Branch: `dev/v2` — Session: consolidation, UX fixes, decomposition
+
+#### Phase 1: Critical UX
+- **Footer Socials Restored** — 7-icon social array (X, Instagram, YouTube, GitHub, LinkedIn, Telegram, Email)
+  - Map-based rendering with hover color transitions (`#00d4aa`)
+  - Removed unused `Envelope` import from `@phosphor-icons/react`
+- **DeploymentPipeline Modal Overlay** — converted from inline card to full-screen modal
+  - Dark backdrop (`rgba(0,0,0,0.7)`) with `backdrop-filter: blur(4px)`
+  - ESC key to close, click-outside to dismiss (only when complete/error)
+  - Body scroll lock when active, `z-index: 1000`
+  - CSS animations: `overlayFadeIn` + `modalSlideIn`
+  - 4 new unit tests (overlay, scroll lock, click-outside, non-dismissible guard)
+
+#### Phase 2b: Default Audio/Video Rooms
+- **DAORooms Component** — instant-access voice/video rooms for ALL DAOs (no channel realm required)
+  - `🔊 Public Room` — visible to everyone (guests + members), open to join
+  - `🔒 Members Room` — visible only to DAO members in the UI ("kind of private")
+  - Room names scoped per DAO via `jitsiRoomName()`: `memba-{slug}-public-room` / `memba-{slug}-members-room`
+  - Modal overlay with Jitsi embed, ESC/click-outside close, body scroll lock
+  - "Manage channels →" link appears when full Channels feature is deployed
+  - `dao-rooms.css` — glassmorphism buttons, hover glow, responsive (mobile column layout)
+- **JitsiMeet Enhanced** — added optional `label` and `description` props for custom room display
+
+#### Phase 3: Tech Debt
+- **BoardView Decomposition** — 676 LOC → 5 sub-components + orchestrator (~260 LOC)
+  - `BoardHeader.tsx` (~50 LOC) — channel navigation header
+  - `ThreadList.tsx` (~80 LOC) — thread listing with unread indicators
+  - `ThreadView.tsx` (~130 LOC) — thread detail + replies + reply form
+  - `ComposeThread.tsx` (~90 LOC) — new thread creation form
+  - `boardHelpers.tsx` (~115 LOC) — renderMarkdown, visit tracking, shared styles
+- **CSP Dual-Config Sync** — `index.html` + `netlify.toml` now have matching `connect-src` domains
+  - Added sync documentation comments in both files
+  - Aligned missing domains: `memba-backend.fly.dev`, `api.github.com`, `gnolove.world`, `*.testnets.gno.land`
+- **3 New E2E Specs** — `extensions.spec.ts`, `cmd-k.spec.ts`, `channels.spec.ts`
+
+#### Scope Notes
+- **JitsiMeet**: Already wired into BoardView (L397-418) — no work needed
+- **MultisigHub**: Already fully implemented (189 LOC) — no work needed
+- **validators.spec.ts** (131 LOC) + **directory.spec.ts** (170 LOC): Already existed
+
+#### New Files
+- `components/dao/DAORooms.tsx` (145 LOC) — default public + private rooms
+- `components/dao/dao-rooms.css` (130 LOC) — room card + modal styles
+- `components/dao/DAORooms.test.tsx` (100 LOC) — 11 unit tests
+- `plugins/board/boardHelpers.tsx` (115 LOC)
+- `plugins/board/BoardHeader.tsx` (50 LOC)
+- `plugins/board/ThreadList.tsx` (80 LOC)
+- `plugins/board/ThreadView.tsx` (130 LOC)
+- `plugins/board/ComposeThread.tsx` (90 LOC)
+- `e2e/extensions.spec.ts` (82 LOC)
+- `e2e/cmd-k.spec.ts` (82 LOC)
+- `e2e/channels.spec.ts` (72 LOC)
+
+#### Tests
+- **733 unit tests** (35 files, +15), tsc 0, lint 0, build 457KB (131KB gzip)
+
 ### Monitoring API Integration & GovDAO Polish (2026-03-08)
 
 > Branch: `dev/v2` — Session: monitoring API deep dive + UI polish

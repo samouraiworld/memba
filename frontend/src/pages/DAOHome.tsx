@@ -22,6 +22,8 @@ import { ProposalCard, MemberCard } from "../components/dao"
 import { PowerDonut } from "../components/dao/TierPieChart"
 import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
+import { DAORooms } from "../components/dao/DAORooms"
+import { detectChannelRealm } from "../plugins/board/parser"
 import type { LayoutContext } from "../types/layout"
 
 /** Tiny component that derives + displays the realm's bech32 address. */
@@ -86,6 +88,7 @@ export function DAOHome() {
     const [showHistory, setShowHistory] = useState(false)
     const usernameRef = useRef<string | null>(null)
     const [showDeployModal, setShowDeployModal] = useState(false)
+    const [hasChannels, setHasChannels] = useState(false)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
@@ -120,6 +123,14 @@ export function DAOHome() {
     }, [realmPath])
 
     useEffect(() => { loadData() }, [loadData])
+
+    // Detect if DAO has deployed a channel realm (for DAORooms "Manage channels" link)
+    useEffect(() => {
+        if (!realmPath) return
+        detectChannelRealm(GNO_RPC_URL, realmPath)
+            .then(path => setHasChannels(!!path))
+            .catch(() => setHasChannels(false))
+    }, [realmPath])
 
     // Persist last visited DAO slug for plugin sidebar routing (B2)
     useEffect(() => {
@@ -537,6 +548,14 @@ export function DAOHome() {
                     Open →
                 </button>
             </div>
+
+            {/* Voice/Video Rooms (v2.9) — always available, no channel realm required */}
+            <DAORooms
+                daoSlug={slug || ""}
+                encodedSlug={encodedSlug}
+                isMember={!!currentMember}
+                hasChannels={hasChannels}
+            />
 
             {/* Treasury */}
             <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

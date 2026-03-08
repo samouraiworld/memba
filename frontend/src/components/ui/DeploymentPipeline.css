@@ -1,4 +1,27 @@
-/* ── DeploymentPipeline — Animated deployment progress ──────── */
+/* ── DeploymentPipeline — Modal Overlay (v2.9) ─────────────── */
+
+/* Full-screen dark backdrop */
+.deploy-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: overlayFadeIn 0.2s ease-out;
+}
+
+/* Centered modal card */
+.deploy-modal {
+    width: 100%;
+    max-width: 520px;
+    margin: 16px;
+    padding: 24px 28px;
+    animation: modalSlideIn 0.3s ease-out;
+}
 
 /* Timeline connector */
 .deploy-pipeline-timeline {
@@ -135,16 +158,59 @@
 /* ── Keyframes ─────────────────────────────────────────────── */
 
 @keyframes stepPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.2); }
-    50% { box-shadow: 0 0 0 8px rgba(0, 212, 170, 0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(0, 212, 170, 0);
+    }
 }
 
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes scaleIn {
-    from { transform: scale(0); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }

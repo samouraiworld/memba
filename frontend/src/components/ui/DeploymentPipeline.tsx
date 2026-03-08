@@ -1,10 +1,14 @@
 /**
- * DeploymentPipeline — Animated multi-step deployment progress + completion modal.
+ * DeploymentPipeline — Animated multi-step deployment progress modal overlay.
  *
  * Reusable across all Create flows (DAO, Multisig, Token).
  * Shows: Preparing → Signing → Broadcasting → Complete/Error
+ *
+ * v2.9: Converted from inline card to full-screen modal overlay with
+ * dark backdrop, centered card, ESC-to-close, and body scroll lock.
  */
 
+import { useEffect, useCallback } from "react"
 import "./DeploymentPipeline.css"
 import { getExplorerBaseUrl } from "../../lib/config"
 
@@ -78,152 +82,180 @@ export function DeploymentPipeline({
     onRetry,
     onClose,
 }: DeploymentPipelineProps) {
-    if (!active || currentStep === "idle") return null
-
     const isComplete = currentStep === "complete"
     const isError = currentStep === "error"
+    const canDismiss = isComplete || isError
+
+    // v2.9: Body scroll lock when modal is active
+    useEffect(() => {
+        if (!active || currentStep === "idle") return
+        document.body.style.overflow = "hidden"
+        return () => { document.body.style.overflow = "" }
+    }, [active, currentStep])
+
+    // v2.9: ESC to close (only when dismissible)
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === "Escape" && canDismiss && onClose) onClose()
+    }, [canDismiss, onClose])
+
+    useEffect(() => {
+        if (!active || currentStep === "idle") return
+        document.addEventListener("keydown", handleKeyDown)
+        return () => document.removeEventListener("keydown", handleKeyDown)
+    }, [active, currentStep, handleKeyDown])
+
+    if (!active || currentStep === "idle") return null
+
     const explorerBase = getExplorerBaseUrl()
 
     return (
         <div
-            id="deployment-pipeline"
-            className="k-card"
-            style={{
-                padding: "24px 28px",
-                borderColor: isComplete ? "rgba(0,212,170,0.2)" : isError ? "rgba(255,59,48,0.15)" : "#1a1a1a",
+            className="deploy-overlay"
+            onClick={(e) => {
+                // v2.9: Click outside to dismiss (only when complete/error)
+                if (canDismiss && onClose && e.target === e.currentTarget) onClose()
             }}
+            data-testid="deploy-overlay"
         >
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
-                    {isComplete ? "🎉 Deployment Complete" : isError ? "⚠️ Deployment Failed" : "🚀 Deploying..."}
-                </h3>
-                {(isComplete || isError) && onClose && (
-                    <button
-                        id="deploy-pipeline-close"
-                        onClick={onClose}
-                        style={{
-                            background: "none", border: "none", color: "#555",
-                            cursor: "pointer", fontSize: 16, padding: "2px 6px",
-                        }}
-                        aria-label="Close"
-                    >
-                        ✕
-                    </button>
-                )}
-            </div>
-
-            {/* Step Timeline */}
-            <div className="deploy-pipeline-timeline">
-                {STEPS.map((step) => {
-                    const state = isError
-                        ? (STEP_ORDER.indexOf(step.key) < STEP_ORDER.indexOf(currentStep) ? "done" : step.key === currentStep ? "error" : "waiting")
-                        : getStepState(step.key, currentStep)
-                    const isDone = state === "done"
-                    const isActive = state === "active"
-
-                    return (
-                        <div
-                            key={step.key}
-                            className="deploy-step"
-                            data-done={isDone}
-                            data-active={isActive}
-                            data-testid={`deploy-step-${step.key}`}
-                        >
-                            <div className="deploy-step-icon" data-state={state}>
-                                {isDone ? "✓" : step.icon}
-                            </div>
-                            <div>
-                                <div className="deploy-step-label" data-state={state}>
-                                    {step.label}
-                                </div>
-                                <div className="deploy-step-hint">
-                                    {state === "error" ? (error || "An error occurred") : step.hint}
-                                </div>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-
-            {/* Completion Card */}
-            {isComplete && result && (
-                <div className="deploy-complete-card" data-testid="deploy-complete">
-                    <div className="deploy-complete-check">
-                        <span style={{ fontSize: 28, color: "#00d4aa" }}>✓</span>
-                    </div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "#00d4aa", marginBottom: 6 }}>
-                        {result.entityLabel || "Entity"} deployed successfully!
-                    </h2>
-                    {result.entityName && (
-                        <p style={{ fontSize: 13, color: "#ccc", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                            {result.entityName}
-                        </p>
-                    )}
-                    {result.realmPath && (
-                        <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
-                            {result.realmPath}
-                        </p>
-                    )}
-                    {result.txHash && (
-                        <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
-                            TX:{" "}
-                            <a
-                                href={`${explorerBase}/tx/${result.txHash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: "#00d4aa", textDecoration: "none" }}
-                                id="deploy-tx-link"
-                            >
-                                {result.txHash.slice(0, 16)}…
-                            </a>
-                        </p>
-                    )}
-                    {result.realmPath && (
-                        <p style={{ marginBottom: 16 }}>
-                            <a
-                                href={`${explorerBase}/r/${result.realmPath.replace("gno.land/r/", "")}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ fontSize: 11, color: "#00d4aa", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
-                                id="deploy-explorer-link"
-                            >
-                                View on Explorer →
-                            </a>
-                        </p>
-                    )}
-                    <button
-                        id="deploy-navigate-btn"
-                        className="k-btn-primary"
-                        onClick={onNavigate}
-                        style={{ padding: "10px 24px", fontSize: 13 }}
-                    >
-                        Open {result.entityLabel || "Entity"} →
-                    </button>
-                </div>
-            )}
-
-            {/* Error Card */}
-            {isError && (
-                <div className="deploy-error-card" data-testid="deploy-error">
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#ff3b30", marginBottom: 6 }}>
-                        {error || "Deployment failed"}
-                    </div>
-                    <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
-                        The transaction could not be completed. You can retry from the beginning.
-                    </p>
-                    {onRetry && (
+            <div
+                id="deployment-pipeline"
+                className="deploy-modal k-card"
+                style={{
+                    borderColor: isComplete ? "rgba(0,212,170,0.2)" : isError ? "rgba(255,59,48,0.15)" : "#1a1a1a",
+                }}
+            >
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                        {isComplete ? "🎉 Deployment Complete" : isError ? "⚠️ Deployment Failed" : "🚀 Deploying..."}
+                    </h3>
+                    {canDismiss && onClose && (
                         <button
-                            id="deploy-retry-btn"
-                            className="k-btn-secondary"
-                            onClick={onRetry}
-                            style={{ padding: "8px 18px", fontSize: 12 }}
+                            id="deploy-pipeline-close"
+                            onClick={onClose}
+                            style={{
+                                background: "none", border: "none", color: "#555",
+                                cursor: "pointer", fontSize: 16, padding: "2px 6px",
+                            }}
+                            aria-label="Close"
                         >
-                            ↻ Retry
+                            ✕
                         </button>
                     )}
                 </div>
-            )}
+
+                {/* Step Timeline */}
+                <div className="deploy-pipeline-timeline">
+                    {STEPS.map((step) => {
+                        const state = isError
+                            ? (STEP_ORDER.indexOf(step.key) < STEP_ORDER.indexOf(currentStep) ? "done" : step.key === currentStep ? "error" : "waiting")
+                            : getStepState(step.key, currentStep)
+                        const isDone = state === "done"
+                        const isActive = state === "active"
+
+                        return (
+                            <div
+                                key={step.key}
+                                className="deploy-step"
+                                data-done={isDone}
+                                data-active={isActive}
+                                data-testid={`deploy-step-${step.key}`}
+                            >
+                                <div className="deploy-step-icon" data-state={state}>
+                                    {isDone ? "✓" : step.icon}
+                                </div>
+                                <div>
+                                    <div className="deploy-step-label" data-state={state}>
+                                        {step.label}
+                                    </div>
+                                    <div className="deploy-step-hint">
+                                        {state === "error" ? (error || "An error occurred") : step.hint}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {/* Completion Card */}
+                {isComplete && result && (
+                    <div className="deploy-complete-card" data-testid="deploy-complete">
+                        <div className="deploy-complete-check">
+                            <span style={{ fontSize: 28, color: "#00d4aa" }}>✓</span>
+                        </div>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#00d4aa", marginBottom: 6 }}>
+                            {result.entityLabel || "Entity"} deployed successfully!
+                        </h2>
+                        {result.entityName && (
+                            <p style={{ fontSize: 13, color: "#ccc", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                                {result.entityName}
+                            </p>
+                        )}
+                        {result.realmPath && (
+                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
+                                {result.realmPath}
+                            </p>
+                        )}
+                        {result.txHash && (
+                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
+                                TX:{" "}
+                                <a
+                                    href={`${explorerBase}/tx/${result.txHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: "#00d4aa", textDecoration: "none" }}
+                                    id="deploy-tx-link"
+                                >
+                                    {result.txHash.slice(0, 16)}…
+                                </a>
+                            </p>
+                        )}
+                        {result.realmPath && (
+                            <p style={{ marginBottom: 16 }}>
+                                <a
+                                    href={`${explorerBase}/r/${result.realmPath.replace("gno.land/r/", "")}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontSize: 11, color: "#00d4aa", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
+                                    id="deploy-explorer-link"
+                                >
+                                    View on Explorer →
+                                </a>
+                            </p>
+                        )}
+                        <button
+                            id="deploy-navigate-btn"
+                            className="k-btn-primary"
+                            onClick={onNavigate}
+                            style={{ padding: "10px 24px", fontSize: 13 }}
+                        >
+                            Open {result.entityLabel || "Entity"} →
+                        </button>
+                    </div>
+                )}
+
+                {/* Error Card */}
+                {isError && (
+                    <div className="deploy-error-card" data-testid="deploy-error">
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#ff3b30", marginBottom: 6 }}>
+                            {error || "Deployment failed"}
+                        </div>
+                        <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
+                            The transaction could not be completed. You can retry from the beginning.
+                        </p>
+                        {onRetry && (
+                            <button
+                                id="deploy-retry-btn"
+                                className="k-btn-secondary"
+                                onClick={onRetry}
+                                style={{ padding: "8px 18px", fontSize: 12 }}
+                            >
+                                ↻ Retry
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

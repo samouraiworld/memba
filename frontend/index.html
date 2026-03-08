@@ -7,13 +7,20 @@
   <title>Memba — Gno Multisig & DAO Governance</title>
   <meta name="description" content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta name="theme-color" content="#000000" />
+  <!--
+    CSP Dual-Config (v2.9):
+    This meta tag is the PRIMARY CSP enforced during local development (vite dev).
+    The SECONDARY CSP is in netlify.toml [[headers]] for production deploys.
+    ⚠️ KEEP BOTH IN SYNC — any connect-src or frame-src change must be applied to BOTH files.
+    See: netlify.toml line 21
+  -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' 'unsafe-inline';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: https: ipfs:;
-    connect-src 'self' https://*.gno.land https://*.sentry.io https://rpc.test5.gno.land https://rpc.gno.land wss://*.gno.land https://gateway.lighthouse.storage https://monitoring.gnolove.world;
+    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land;
     frame-src https://meet.jit.si;
   " />
 
