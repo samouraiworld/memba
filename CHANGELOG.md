@@ -6,6 +6,30 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.10 Portal PiP — Persistent Jitsi Sessions (2026-03-09) — PR #84
+
+- **🎙️ Portal-based PiP** — Jitsi voice/video sessions survive route navigation
+  - `JitsiContext.tsx` — session state lifted above `<Outlet>` in Layout
+  - `JitsiPiPOverlay.tsx` — expanded modal + draggable PiP mini-player (320×180)
+  - Pointer-based drag (touch + mouse), `touch-action: none` for mobile
+  - Single active session — joining new room replaces old
+- **DAORooms rewrite** — delegates to JitsiContext, active room indicators (green dot + "In call" hint)
+- **JitsiMeet simplified** — join gate only + "In Call" status with expand/leave controls
+- **13 unit tests rewritten** for context-based API
+
+### v2.10 Audit Bug Fixes (2026-03-09) — PR #83
+
+- **BUG-02** Channels uint64 parse error — removed `initialChannel="OpenDiscussions"`, defensive guard in `BoardView`
+- **BUG-03** Feedback page 404 — created `FeedbackPage.tsx` with GitHub Issues integration + betanet preview
+- **BUG-04** Notification routing — fixed `encodeSlug()` for multi-segment realm paths + unread red-dot on DAO cards
+- **BUG-05** Modal auto-scroll — `useScrollToTop` hook applied to DAORooms, DeploymentPipeline
+- **BUG-06** Loading animation — unified `ConnectingLoader` (72→94px), `message` + `minHeight` props
+- **BUG-07** Page scroll reset — `ScrollToTop.tsx` component with hash link exception
+- **BUG-08** GRC20 amounts — verified correct on-chain (NOT A BUG)
+- **BUG-09** DAO overview — compact "Live Coordination" area with inline room join buttons
+- **BUG-10** Validator monikers — ops-only (CORS + PR merge), no code needed
+- **BUG-11** Leaderboard — wired to DAO members via `getDAOMembers()`, rank badges (🥇🥈🥉), gnolove link
+
 ### v2.9.3 Directory Expansion (2026-03-09) — PR #82
 
 - **📦 Packages Tab** — 15 well-known gno.land packages (GRC20, GRC721, AVL Tree, DAO, Ownable, ufmt…)
