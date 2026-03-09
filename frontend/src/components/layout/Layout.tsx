@@ -11,6 +11,8 @@ import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { CommandPalette } from "../ui/CommandPalette"
+import { JitsiProvider } from "../../contexts/JitsiContext"
+import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -167,92 +169,97 @@ export function Layout() {
     const notifs = useNotifications(savedDaoPaths, adena.connected ? adena.address : null)
 
     return (
-        <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
-            {/* Skip to content (accessibility — focus-only) */}
-            <a href="#main-content" className="k-skip-to-content">
-                Skip to content
-            </a>
+        <JitsiProvider>
+            <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
+                {/* Skip to content (accessibility — focus-only) */}
+                <a href="#main-content" className="k-skip-to-content">
+                    Skip to content
+                </a>
 
-            {/* ── Sidebar ──────────────────────────────────────── */}
-            <Sidebar
-                connected={adena.connected}
-                address={auth.address || adena.address}
-                unvotedCount={unvotedCount}
-                notifUnreadCount={notifs.unreadCount}
-                collapsed={sidebarCollapsed}
-                onToggleCollapse={handleToggleCollapse}
-            />
-
-            {/* ── Main column ──────────────────────────────────── */}
-            <div className="k-main-column">
-                <TopBar
-                    adena={adena}
-                    auth={auth}
-                    compactBalance={compactBalance}
-                    network={network}
-                    isLoggingIn={isLoggingIn}
-                    authError={authError}
-                    onDisconnect={handleDisconnect}
-                    onClearError={() => setAuthError(null)}
-                    notifications={notifs}
+                {/* ── Sidebar ──────────────────────────────────────── */}
+                <Sidebar
+                    connected={adena.connected}
+                    address={auth.address || adena.address}
+                    unvotedCount={unvotedCount}
+                    notifUnreadCount={notifs.unreadCount}
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={handleToggleCollapse}
                 />
 
-                {/* ── Main ─────────────────────────────────────── */}
-                <main id="main-content" className="k-main">
-                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
-                </main>
+                {/* ── Main column ──────────────────────────────────── */}
+                <div className="k-main-column">
+                    <TopBar
+                        adena={adena}
+                        auth={auth}
+                        compactBalance={compactBalance}
+                        network={network}
+                        isLoggingIn={isLoggingIn}
+                        authError={authError}
+                        onDisconnect={handleDisconnect}
+                        onClearError={() => setAuthError(null)}
+                        notifications={notifs}
+                    />
 
-                {/* ── Footer ───────────────────────────────── */}
-                <footer className="k-footer">
-                    <div className="k-footer-links">
-                        {[
-                            { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
-                            { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
-                            { href: "https://samourai.tv/", label: "YouTube", icon: "▶" },
-                            { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg> },
-                            { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
-                            { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
-                            { href: "mailto:support@samourai.coop", label: "Email", icon: "✉" },
-                        ].map(({ href, label, icon }) => (
-                            <a
-                                key={label}
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={label}
-                                style={{
-                                    color: "#444", fontSize: 13, textDecoration: "none",
-                                    transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
-                                }}
-                                onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                                onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
-                            >
-                                {icon}
-                            </a>
-                        ))}
-                    </div>
-                    <p style={{ color: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                        memba v2 • built by samourai coop
-                    </p>
-                    <p style={{ color: "#555", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
-                        ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
-                        Unaudited, under active development. Use at your own risk.{" "}
-                        <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
-                            Tips & sponsorships
-                        </a>{" "}welcome.
-                    </p>
-                </footer>
+                    {/* ── Main ─────────────────────────────────────── */}
+                    <main id="main-content" className="k-main">
+                        <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
+                    </main>
+
+                    {/* ── Footer ───────────────────────────────── */}
+                    <footer className="k-footer">
+                        <div className="k-footer-links">
+                            {[
+                                { href: "https://x.com/samouraicoop", label: "X", icon: "𝕏" },
+                                { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: "◻" },
+                                { href: "https://samourai.tv/", label: "YouTube", icon: "▶" },
+                                { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg> },
+                                { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: "in" },
+                                { href: "https://t.me/samouraicoop", label: "Telegram", icon: "✈" },
+                                { href: "mailto:support@samourai.coop", label: "Email", icon: "✉" },
+                            ].map(({ href, label, icon }) => (
+                                <a
+                                    key={label}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={label}
+                                    style={{
+                                        color: "#444", fontSize: 13, textDecoration: "none",
+                                        transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
+                                    }}
+                                    onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                                    onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
+                                >
+                                    {icon}
+                                </a>
+                            ))}
+                        </div>
+                        <p style={{ color: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                            memba v2 • built by samourai coop
+                        </p>
+                        <p style={{ color: "#555", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
+                            ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
+                            Unaudited, under active development. Use at your own risk.{" "}
+                            <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
+                                Tips & sponsorships
+                            </a>{" "}welcome.
+                        </p>
+                    </footer>
+                </div>
+
+                {/* ── Mobile Tab Bar ────────────────────────────────── */}
+                <MobileTabBar
+                    connected={adena.connected}
+                    address={auth.address || adena.address}
+                    network={network}
+                />
+
+                {/* ── Command Palette (Cmd+K) ─────────────────────── */}
+                <CommandPalette />
+
+                {/* ── Jitsi PiP Overlay (v2.11 — persists across routes) ── */}
+                <JitsiPiPOverlay />
             </div>
-
-            {/* ── Mobile Tab Bar ────────────────────────────────── */}
-            <MobileTabBar
-                connected={adena.connected}
-                address={auth.address || adena.address}
-                network={network}
-            />
-
-            {/* ── Command Palette (Cmd+K) ─────────────────────── */}
-            <CommandPalette />
-        </div>
+        </JitsiProvider>
     )
 }

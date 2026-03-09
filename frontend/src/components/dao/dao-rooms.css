@@ -31,6 +31,11 @@
     background: rgba(0, 212, 170, 0.04);
 }
 
+.dao-room-btn.dao-room-active {
+    border-color: rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.06);
+}
+
 .dao-room-btn:hover .dao-room-icon {
     transform: scale(1.1);
 }
