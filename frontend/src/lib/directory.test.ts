@@ -19,7 +19,11 @@ import {
     calculateContributionScores,
     getDiscoveryProbes,
     addDiscoveryProbe,
+    fetchPackages,
+    fetchRealms,
     SEED_DAOS,
+    SEED_PACKAGES,
+    SEED_REALMS,
 } from "./directory"
 
 // ── Token Registry Parsing ───────────────────────────────────
@@ -309,5 +313,120 @@ describe("calculateContributionScores", () => {
         const memberMap = new Map([["dao1", ["g1abcdefghij1234567890abcdefghij12345678"]]])
         const scores = calculateContributionScores(users, memberMap)
         expect(scores.get("g1nobody0000000000000000000000000000000a")!.level).toBe("observer")
+    })
+})
+
+// ── Package Discovery (B2) ─────────────────────────────────
+
+describe("fetchPackages", () => {
+    test("returns all seed packages", () => {
+        const packages = fetchPackages()
+        expect(packages.length).toBe(SEED_PACKAGES.length)
+        expect(packages.length).toBeGreaterThanOrEqual(10)
+    })
+
+    test("all packages have required fields", () => {
+        for (const pkg of fetchPackages()) {
+            expect(typeof pkg.name).toBe("string")
+            expect(typeof pkg.path).toBe("string")
+            expect(typeof pkg.description).toBe("string")
+            expect(pkg.name.length).toBeGreaterThan(0)
+            expect(pkg.path).toContain("gno.land/p/")
+        }
+    })
+
+    test("returns a copy (not a reference to the seed array)", () => {
+        const a = fetchPackages()
+        const b = fetchPackages()
+        expect(a).not.toBe(b)
+        expect(a).toEqual(b)
+    })
+
+    test("includes well-known packages", () => {
+        const packages = fetchPackages()
+        const names = packages.map(p => p.name)
+        expect(names).toContain("GRC20")
+        expect(names).toContain("AVL Tree")
+        expect(names).toContain("DAO")
+    })
+})
+
+// ── Realm Discovery (B2) ───────────────────────────────────
+
+describe("fetchRealms", () => {
+    beforeEach(() => {
+        localStorage.clear()
+    })
+
+    test("returns at least seed realms", () => {
+        const realms = fetchRealms()
+        expect(realms.length).toBeGreaterThanOrEqual(SEED_REALMS.length)
+    })
+
+    test("all realms have required fields", () => {
+        for (const realm of fetchRealms()) {
+            expect(typeof realm.name).toBe("string")
+            expect(typeof realm.path).toBe("string")
+            expect(typeof realm.description).toBe("string")
+            expect(typeof realm.category).toBe("string")
+            expect(realm.path).toContain("gno.land/r/")
+        }
+    })
+
+    test("includes well-known realms", () => {
+        const realms = fetchRealms()
+        const paths = realms.map(r => r.path)
+        expect(paths).toContain("gno.land/r/demo/grc20reg")
+        expect(paths).toContain("gno.land/r/gov/dao")
+    })
+
+    test("deduplicates DAOs already in seed realms", () => {
+        // GovDAO is both a SEED_DAO and a SEED_REALM
+        const realms = fetchRealms()
+        const govPaths = realms.filter(r => r.path === "gno.land/r/gov/dao")
+        expect(govPaths).toHaveLength(1)
+    })
+
+    test("category values are valid", () => {
+        const validCategories = ["standard", "defi", "social", "utility", "game", "unknown"]
+        for (const realm of fetchRealms()) {
+            expect(validCategories).toContain(realm.category)
+        }
+    })
+
+    test("merges saved DAOs not in seed realms", () => {
+        localStorage.setItem("memba_saved_daos", JSON.stringify([
+            { realmPath: "gno.land/r/custom/unique-realm-test", name: "Custom Realm", addedAt: Date.now() },
+        ]))
+        const realms = fetchRealms()
+        const custom = realms.find(r => r.path === "gno.land/r/custom/unique-realm-test")
+        expect(custom).toBeDefined()
+        expect(custom!.name).toBe("Custom Realm")
+    })
+})
+
+describe("SEED_PACKAGES", () => {
+    test("all paths follow gno.land/p/ convention", () => {
+        for (const pkg of SEED_PACKAGES) {
+            expect(pkg.path).toMatch(/^gno\.land\/p\//)
+        }
+    })
+
+    test("no duplicate paths", () => {
+        const paths = SEED_PACKAGES.map(p => p.path)
+        expect(new Set(paths).size).toBe(paths.length)
+    })
+})
+
+describe("SEED_REALMS", () => {
+    test("all paths follow gno.land/r/ convention", () => {
+        for (const realm of SEED_REALMS) {
+            expect(realm.path).toMatch(/^gno\.land\/r\//)
+        }
+    })
+
+    test("no duplicate paths", () => {
+        const paths = SEED_REALMS.map(r => r.path)
+        expect(new Set(paths).size).toBe(paths.length)
     })
 })

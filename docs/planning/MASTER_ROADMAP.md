@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-08 (v2.9 Consolidation plan prepared)
+> Last updated: 2026-03-09 (v2.9.2 bug fixes + v2.9.3 directory expansion shipped)
 
 ## Milestone Status
 
@@ -23,17 +23,19 @@
 | 14 | **Channels & Comms** | v2.5 | ✅ SHIPPED | PR #79 → `dev/v2` |
 | 15 | **Hardening & OSS Prep** | v2.6 | ✅ COMPLETE | `dev/v2` |
 | 16 | **Monitoring Integration** | v2.7 | ✅ COMPLETE | `dev/v2` |
-| 17 | **Consolidation & Main Merge** | v2.9 | 📋 NEXT | `dev/v2` |
+| 17 | **Consolidation & Main Merge** | v2.9 | ✅ SHIPPED | PR #80 → `main` |
+| 17a | **Production Bug Fixes** | v2.9.2 | ✅ SHIPPED | PR #81 → `main` |
+| 17b | **Directory Expansion** | v2.9.3 | ✅ SHIPPED | PR #82 → `main` |
 | 18 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
 | 19 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | 20 | **Premium** | v3.5 | 🔮 HORIZON | — |
 | 21 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.9.1 pre-merge audit)
+## Quality Gates (as of v2.9.3)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 740 (35 files) |
+| Unit tests | 754 (35 files) |
 | E2E tests | 139 (15 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |

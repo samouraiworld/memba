@@ -17,6 +17,8 @@ import {
     getDirectoryDAOs,
     fetchTokens,
     fetchUsers,
+    fetchPackages,
+    fetchRealms,
     batchFetchUserAvatars,
     calculateContributionScores,
     parseDAOMemberAddresses,
@@ -32,7 +34,7 @@ import { DAOCard, FeaturedDAOs } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import "./directory.css"
 
-type DirectoryTab = "daos" | "tokens" | "users"
+type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms"
 
 export function Directory() {
     const navigate = useNavigate()
@@ -45,13 +47,15 @@ export function Directory() {
         <div className="dir-page">
             <div className="dir-header">
                 <h1>📂 Directory</h1>
-                <p>Discover DAOs, tokens, and users on gno.land</p>
+                <p>Discover DAOs, tokens, packages, realms, and users on gno.land</p>
             </div>
 
             <div className="dir-tabs" role="tablist">
                 {([
                     { key: "daos" as const, label: "🏛️ DAOs" },
                     { key: "tokens" as const, label: "🪙 Tokens" },
+                    { key: "packages" as const, label: "📦 Packages" },
+                    { key: "realms" as const, label: "🌐 Realms" },
                     { key: "users" as const, label: "👤 Users" },
                 ]).map(t => (
                     <button
@@ -72,6 +76,8 @@ export function Directory() {
             <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
                 {tab === "daos" && <DAOsTab navigate={navigate} />}
                 {tab === "tokens" && <TokensTab navigate={navigate} />}
+                {tab === "packages" && <PackagesTab />}
+                {tab === "realms" && <RealmsTab />}
                 {tab === "users" && <UsersTab navigate={navigate} />}
             </div>
         </div>
@@ -394,6 +400,197 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
                         </button>
                     )}
                 </>
+            )}
+        </div>
+    )
+}
+
+// ── Packages Tab ─────────────────────────────────────────────
+
+function PackagesTab() {
+    const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
+
+    const packages = useMemo(() => fetchPackages(), [])
+
+    const filtered = useMemo(() =>
+        deferredSearch
+            ? packages.filter(p =>
+                p.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                p.path.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+                p.description.toLowerCase().includes(deferredSearch.toLowerCase()),
+            )
+            : packages,
+        [packages, deferredSearch])
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <input
+                type="text"
+                placeholder="Search packages by name or path..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="dir-search"
+                data-testid="package-search"
+            />
+
+            <div className="dir-count">
+                {filtered.length} package{filtered.length !== 1 ? "s" : ""} found
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="dir-empty">
+                    <p>{search ? `No packages matching "${search}"` : "No packages found"}</p>
+                </div>
+            ) : (
+                <div className="dir-grid">
+                    {filtered.map(p => (
+                        <a
+                            key={p.path}
+                            className="dir-card"
+                            href={`https://gno.land/${p.path.replace("gno.land/", "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="package-card"
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                                <div className="dir-token-avatar" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
+                                    📦
+                                </div>
+                                <div className="dir-card-main">
+                                    <div className="dir-card-name">{p.name}</div>
+                                    <div className="dir-card-path">{p.path}</div>
+                                    <div className="dir-card-desc">{p.description}</div>
+                                </div>
+                            </div>
+                            <ArrowRight size={14} className="dir-arrow" />
+                        </a>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── Realms Tab ───────────────────────────────────────────────
+
+const REALM_CATEGORY_COLORS: Record<string, string> = {
+    standard: "#00d4aa",
+    defi: "#f59e0b",
+    social: "#8b5cf6",
+    utility: "#3b82f6",
+    game: "#ef4444",
+    unknown: "#666",
+}
+
+function RealmsTab() {
+    const [search, setSearch] = useState("")
+    const deferredSearch = useDeferredValue(search)
+    const [categoryFilter, setCategoryFilter] = useState<string>("all")
+
+    const realms = useMemo(() => fetchRealms(), [])
+
+    const categories = useMemo(() => {
+        const cats = new Set(realms.map(r => r.category))
+        return ["all", ...Array.from(cats).sort()]
+    }, [realms])
+
+    const filtered = useMemo(() => {
+        let result = realms
+        if (categoryFilter !== "all") {
+            result = result.filter(r => r.category === categoryFilter)
+        }
+        if (deferredSearch) {
+            const q = deferredSearch.toLowerCase()
+            result = result.filter(r =>
+                r.name.toLowerCase().includes(q) ||
+                r.path.toLowerCase().includes(q) ||
+                r.description.toLowerCase().includes(q),
+            )
+        }
+        return result
+    }, [realms, categoryFilter, deferredSearch])
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <input
+                type="text"
+                placeholder="Search realms by name or path..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="dir-search"
+                data-testid="realm-search"
+            />
+
+            {/* Category filter pills */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {categories.map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setCategoryFilter(cat)}
+                        className="dir-category-pill"
+                        data-active={categoryFilter === cat}
+                        style={{
+                            borderColor: categoryFilter === cat
+                                ? (REALM_CATEGORY_COLORS[cat] || "#444")
+                                : undefined,
+                            color: categoryFilter === cat
+                                ? (REALM_CATEGORY_COLORS[cat] || "#888")
+                                : undefined,
+                        }}
+                    >
+                        {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                ))}
+            </div>
+
+            <div className="dir-count">
+                {filtered.length} realm{filtered.length !== 1 ? "s" : ""} found
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="dir-empty">
+                    <p>{search ? `No realms matching "${search}"` : "No realms found"}</p>
+                </div>
+            ) : (
+                <div className="dir-grid">
+                    {filtered.map(r => (
+                        <a
+                            key={r.path}
+                            className="dir-card"
+                            href={`https://gno.land/${r.path.replace("gno.land/", "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="realm-card"
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                                <div className="dir-token-avatar" style={{
+                                    background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
+                                    color: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                }}>
+                                    🌐
+                                </div>
+                                <div className="dir-card-main">
+                                    <div className="dir-card-name">
+                                        {r.name}
+                                        <span
+                                            className="dir-inline-badge"
+                                            style={{
+                                                background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
+                                                color: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                            }}
+                                        >
+                                            {r.category}
+                                        </span>
+                                    </div>
+                                    <div className="dir-card-path">{r.path}</div>
+                                    <div className="dir-card-desc">{r.description}</div>
+                                </div>
+                            </div>
+                            <ArrowRight size={14} className="dir-arrow" />
+                        </a>
+                    ))}
+                </div>
             )}
         </div>
     )

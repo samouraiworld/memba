@@ -156,6 +156,44 @@
     white-space: nowrap;
 }
 
+.dir-card-desc {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    color: #666;
+    line-height: 1.4;
+    margin-top: 2px;
+}
+
+/* Link cards (packages, realms) should not have default link styling */
+a.dir-card {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ── Category Filter Pills ─────────────────────── */
+
+.dir-category-pill {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 500;
+    border: 1px solid #222;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dir-category-pill:hover {
+    border-color: #444;
+    color: #888;
+}
+
+.dir-category-pill[data-active="true"] {
+    background: rgba(0, 212, 170, 0.06);
+}
+
 .dir-card-meta {
     display: flex;
     gap: 12px;
