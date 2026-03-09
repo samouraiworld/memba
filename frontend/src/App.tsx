@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useAdena } from "./hooks/useAdena"
 import { Layout } from "./components/layout/Layout"
 import { Dashboard } from "./pages/Dashboard"
 
@@ -28,6 +29,9 @@ const Treasury = lazy(() => import("./pages/Treasury").then(m => ({ default: m.T
 const TreasuryProposal = lazy(() => import("./pages/TreasuryProposal").then(m => ({ default: m.TreasuryProposal })))
 const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
 
+// ── Channels page (lazy — v2.5a) ──
+const ChannelsPage = lazy(() => import("./pages/ChannelsPage").then(m => ({ default: m.ChannelsPage })))
+
 // ── Profile page (lazy) ──
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
 
@@ -38,6 +42,24 @@ const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ 
 const UserRedirect = lazy(() => import("./pages/UserRedirect").then(m => ({ default: m.UserRedirect })))
 const NotFound = lazy(() => import("./pages/NotFound").then(m => ({ default: m.NotFound })))
 
+// ── Settings page (lazy) ──
+const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })))
+
+// ── Directory page (lazy) ──
+const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m.Directory })))
+
+// ── Plugin page (lazy) ──
+const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default: m.PluginPage })))
+
+// ── Validators page (lazy) ──
+const Validators = lazy(() => import("./pages/Validators"))
+
+// ── Multisig Hub (lazy — v2.7) ──
+const MultisigHub = lazy(() => import("./pages/MultisigHub"))
+
+// ── Extensions Hub (lazy — v2.6) ──
+const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default: m.Extensions })))
+
 /** Route-level loading fallback — minimal shimmer while chunk loads. */
 function PageLoader() {
   return (
@@ -47,6 +69,15 @@ function PageLoader() {
       ))}
     </div>
   )
+}
+
+/** Redirects /profile → /profile/{address} when connected, or / when not. */
+function ProfileRedirect() {
+  const adena = useAdena()
+  if (adena.connected && adena.address) {
+    return <Navigate to={`/profile/${adena.address}`} replace />
+  }
+  return <Navigate to="/" replace />
 }
 
 function App() {
@@ -60,8 +91,8 @@ function App() {
           {/* Dashboard (authenticated hub) */}
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* Core multisig routes */}
-          <Route path="/multisig" element={<Navigate to="/dashboard" replace />} />
+          {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
+          <Route path="/multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
           <Route path="/create" element={<CreateMultisig />} />
           <Route path="/import" element={<ImportMultisig />} />
           <Route path="/multisig/:address" element={<MultisigView />} />
@@ -82,10 +113,25 @@ function App() {
           <Route path="/dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
           <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
           <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
+          <Route path="/dao/:slug/channels" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
+          <Route path="/dao/:slug/channels/:channel" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
+          <Route path="/dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
 
           {/* Profile routes (lazy) */}
-          <Route path="/profile" element={<Navigate to="/" replace />} />
+          <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
+
+          {/* Settings */}
+          <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+
+          {/* Directory */}
+          <Route path="/directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
+
+          {/* Validators (v2.1b) */}
+          <Route path="/validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
+
+          {/* Extensions Hub (v2.6) */}
+          <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

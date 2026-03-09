@@ -115,17 +115,22 @@ test.describe('v1.4.0 — ProposeDAO', () => {
         // Navigate to a DAO proposal page (GovDAO)
         await page.goto('/dao/gno.land~r~gov~dao/propose')
         // The "Text / Sentiment" type button should be visible and active
-        await expect(page.locator('button', { hasText: '📝 Text / Sentiment' })).toBeVisible()
+        await expect(page.locator('button', { hasText: 'Text / Sentiment' })).toBeVisible()
     })
 
-    test('future proposal types are disabled with tooltip', async ({ page }) => {
+    test('add member proposal type is enabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const addMemberBtn = page.locator('button', { hasText: '👥 Add Member' })
+        const addMemberBtn = page.locator('button', { hasText: 'Add Member' })
         await expect(addMemberBtn).toBeVisible()
-        await expect(addMemberBtn).toBeDisabled()
-        // Check tooltip text
-        const title = await addMemberBtn.getAttribute('title')
-        expect(title).toContain('v2.x')
+        await expect(addMemberBtn).not.toBeDisabled()
+    })
+
+    test('treasury spend and code upgrade types are disabled with tooltip', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao/propose')
+        const spendBtn = page.locator('button', { hasText: 'Treasury Spend' })
+        await expect(spendBtn).toBeDisabled()
+        const upgradeBtn = page.locator('button', { hasText: 'Code Upgrade' })
+        await expect(upgradeBtn).toBeDisabled()
     })
 })
 
@@ -144,7 +149,7 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
 
     test('Dashboard nav hidden when logged out', async ({ page }) => {
         await page.goto('/')
-        const dashboardLink = page.locator('header a', { hasText: 'Dashboard' })
+        const dashboardLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Dashboard' })
         await expect(dashboardLink).not.toBeVisible()
     })
 

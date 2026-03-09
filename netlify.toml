@@ -11,11 +11,15 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# CSP Dual-Config (v2.9):
+# This is the PRODUCTION CSP enforced by Netlify edge headers.
+# The LOCAL/DEV CSP is in frontend/index.html <meta http-equiv="Content-Security-Policy">.
+# ⚠️ KEEP BOTH IN SYNC — any connect-src or frame-src change must be applied to BOTH files.
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://gnolove.world https://api.github.com; img-src 'self' data: https://avatars.githubusercontent.com https://pbs.twimg.com https://gnolove.world;"
+    Permissions-Policy = "camera=(self \"https://meet.jit.si\" \"https://8x8.vc\"), microphone=(self \"https://meet.jit.si\" \"https://8x8.vc\"), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land; img-src 'self' data: https: ipfs:; frame-src https://meet.jit.si https://8x8.vc;"

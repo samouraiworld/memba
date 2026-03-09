@@ -1,15 +1,25 @@
 /**
  * Centralized environment configuration for the Memba frontend.
+ *
+ * Sections:
+ * 1. App Identity — version, OAuth
+ * 2. Backend API — base URL
+ * 3. Gno Networks — chain configs, RPC, explorer
+ * 4. Address Constants — bech32, units
+ * 5. External Services — gnolove, DAO realm
+ * 6. GnoSwap DEX — per-chain contract paths
+ * 7. RPC Security — domain allowlist
+ *
  * All env vars read from Vite's import.meta.env with sensible defaults.
  */
 
-/** Application version — single source of truth for header/footer badges. */
-export const APP_VERSION = "1.7.1"
+// ── 1. App Identity ──────────────────────────────────────────
+export const APP_VERSION = __APP_VERSION__
 
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""
 
-// Environment-driven config with sensible defaults.
+// ── 2. Backend API ───────────────────────────────────────────
 
 /** Backend API base URL.
  * In dev: empty string → uses Vite proxy.
@@ -18,22 +28,37 @@ export const API_BASE_URL =
     import.meta.env.VITE_API_URL ||
     (import.meta.env.PROD ? "https://memba-backend.fly.dev" : "")
 
+// ── 3. Gno Networks ──────────────────────────────────────────
+
 /** Available Gno networks for the chain selector. */
-export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string }> = {
+export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string; faucetUrl: string }> = {
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
         label: "Testnet 11",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "https://faucet.gno.land",
     },
     staging: {
         chainId: "staging",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Staging",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "",
     },
     "portal-loop": {
         chainId: "portal-loop",
         rpcUrl: "https://rpc.gno.land:443",
         label: "Portal Loop",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "",
+    },
+    betanet: {
+        chainId: "betanet",
+        rpcUrl: "https://rpc.betanet.gno.land:443",
+        label: "Betanet",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "",
     },
 }
 
@@ -51,11 +76,24 @@ function getActiveNetworkKey(): string {
 
 const _activeNetwork = getActiveNetworkKey()
 
+/**
+ * Returns the user registry realm path for the active network.
+ * On existing chains this is `gno.land/r/gnoland/users/v1`.
+ * On betanet/mainnet this will be `gno.land/r/sys/users` (upstream migration).
+ */
+export function getUserRegistryPath(): string {
+    return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/gnoland/users/v1"
+}
+
+
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
 
 /** Gno RPC endpoint for ABCI queries and broadcasting. */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
+
+/** External faucet URL for the active network (empty = no faucet). */
+export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
@@ -73,11 +111,15 @@ export const GNO_BECH32_HRP = import.meta.env.VITE_GNO_BECH32_PREFIX || "g"
 /** @deprecated Use GNO_BECH32_HRP for HRP or BECH32_PREFIX for address validation. */
 export const GNO_BECH32_PREFIX = GNO_BECH32_HRP
 
+// ── 4. Address Constants ─────────────────────────────────────
+
 /** Full bech32 address prefix (HRP + separator) used for address validation. */
 export const BECH32_PREFIX = GNO_BECH32_HRP + "1"
 
 /** Conversion factor: 1 GNOT = 1,000,000 ugnot. */
 export const UGNOT_PER_GNOT = 1_000_000
+
+// ── 5. External Services ─────────────────────────────────────
 
 /** DAO realm path on-chain. Update when the DAO realm is deployed. */
 export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
@@ -85,7 +127,42 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
 
-// ── RPC Domain Security ──────────────────────────────────────
+/** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
+ *  Same service used by gnolove.world/validators. Public, no auth required.
+ *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
+export const GNO_MONITORING_API_URL = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
+
+// ── 6. GnoSwap DEX Integration ───────────────────────────────
+
+/** GnoSwap realm paths per chain. */
+export interface GnoSwapPaths {
+    pool: string
+    router: string
+    position: string
+    /** GNS token realm — has working Render() for availability checks. */
+    gns: string
+}
+
+/** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
+export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
+    test11: {
+        pool: "gno.land/r/gnoswap/pool",
+        router: "gno.land/r/gnoswap/router",
+        position: "gno.land/r/gnoswap/position",
+        gns: "gno.land/r/gnoswap/gns",
+    },
+    staging: { pool: "", router: "", position: "", gns: "" },
+    "portal-loop": { pool: "", router: "", position: "", gns: "" },
+}
+
+/** Get GnoSwap paths for the active chain. Returns null if not deployed. */
+export function getGnoSwapPaths(): GnoSwapPaths | null {
+    const paths = GNOSWAP_PATHS[_activeNetwork]
+    if (!paths || !paths.gns) return null
+    return paths
+}
+
+// ── 7. RPC Domain Security ───────────────────────────────────
 
 /**
  * Trusted RPC domain patterns. Only these domains are considered safe.
@@ -133,3 +210,46 @@ export function validateActiveRpcDomain(): string | null {
     return null
 }
 
+// ── 8. MembaDAO Token ────────────────────────────────────────
+
+/** GRC20 factory realm path (shared with grc20.ts). */
+export const GRC20_FACTORY_PATH = "gno.land/r/demo/defi/grc20factory"
+
+/** Memba token config for development (test11). */
+export const MEMBA_TOKEN_DEV = {
+    symbol: "MEMBATEST",
+    name: "Memba Governance Token (Testnet)",
+    decimals: 6,
+    totalSupply: "10000000000000", // 10M * 10^6
+    factoryPath: GRC20_FACTORY_PATH,
+} as const
+
+/** Memba token config for production (betanet/mainnet). */
+export const MEMBA_TOKEN_PROD = {
+    symbol: "MEMBA",
+    name: "Memba Governance Token",
+    decimals: 6,
+    totalSupply: "10000000000000",
+    factoryPath: GRC20_FACTORY_PATH,
+} as const
+
+/** Active token config — MEMBATEST for dev, MEMBA for production. */
+export const MEMBA_TOKEN = import.meta.env.PROD
+    ? MEMBA_TOKEN_PROD
+    : MEMBA_TOKEN_DEV
+
+/** MembaDAO realm paths and deployment params. */
+export const MEMBA_DAO = {
+    realmPath: "gno.land/r/samcrew/memba_dao",
+    channelsPath: "gno.land/r/samcrew/memba_dao_channels",
+    candidaturePath: "gno.land/r/samcrew/memba_dao_candidature",
+    deployFee: 10_000_000, // 10 GNOT in ugnot
+} as const
+
+/** Token allocation percentages (total = 100%). */
+export const MEMBA_TOKEN_ALLOCATION = {
+    community: 40,    // 40% — airdrops, candidature rewards
+    treasury: 30,     // 30% — DAO treasury
+    development: 20,  // 20% — engineering & ops
+    founders: 10,     // 10% — founding team, 12-month vesting
+} as const

@@ -74,13 +74,22 @@
 | `lib/daoSlug.ts` | DAO slug encoding, realm path validation, saved DAOs localStorage persistence |
 | `lib/daoTemplate.ts` | DAO Factory: Gno realm code generator + MsgAddPackage builder |
 | `lib/profile.ts` | User profile data: hybrid fetcher (gno.land ABCI + gnolove REST API + Memba backend GetProfile/UpdateProfile) |
+| `lib/notifications.ts` | Notification CRUD, per-wallet localStorage isolation, sanitization, dedup, grouping |
+| `lib/validators.ts` | Tendermint RPC validator data, AbortSignal support, pagination |
+| `lib/directory.ts` | Directory data layer: DAO/token/user fetch, sessionStorage cache (5-min TTL) |
+| `lib/daoMetadata.ts` | DAO Render parser: member count, proposal count, description, batch fetch |
+| `lib/faucet.ts` | Faucet eligibility, 7-day cooldown, per-address localStorage |
 | `hooks/useAdena.ts` | Adena wallet connect, sign, disconnect |
 | `hooks/useAuth.ts` | Challenge-response token flow |
 | `hooks/useBalance.ts` | GNOT balance via ABCI query (30s refresh) |
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
+| `hooks/useNotifications.ts` | 30s ABCI polling, multi-DAO, Page Visibility API |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect** |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect**, **Validators**, **Directory** |
+| `components/layout/` | **Sidebar.tsx** (3-section nav), **TopBar.tsx** (badges + wallet + NotificationBell), **MobileTabBar.tsx** (5-tab mobile), **BottomSheet.tsx** (slide-up modal), **Layout.tsx** (composer) |
+| `components/directory/` | **DAOCard.tsx** (rich card), **FeaturedDAOs.tsx** (carousel) |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
+| `lib/errorLog.ts` | Structured error logging → ring buffer + **Sentry forwarding** |
 
 ## Data Flow — Multisig Transaction
 
@@ -124,7 +133,7 @@ These features are **100% serverless** — they work without the backend:
 | DAO proposals | `vm/qrender` | `r/gov/dao:` |
 | Proposal detail | `vm/qrender` | `r/gov/dao:N` |
 | Vote breakdown | `vm/qrender` | `r/gov/dao:N/votes` |
-| Username resolution | `vm/qrender` | `r/gnoland/users/v1:g1address` |
+| Username resolution | `vm/qrender` | `getUserRegistryPath()` (network-aware) |
 | GRC20 token info | `vm/qrender` + `vm/qeval` | `r/tokens/*/grc20` |
 | GNOT balance | `bank/balances` | address query |
 | Vote / Execute | `MsgCall` via Adena | `r/gov/dao.MustVoteOnProposalSimple` |
@@ -191,7 +200,7 @@ resolveUsernames(members[])
     │
     └── Phase 2: Resolve misses in parallel
         ├── Promise.all(resolveUsername(address))
-        │   └── queryRender("r/gnoland/users/v1", address)
+        │   └── queryRender(getUserRegistryPath(), address)
         │       └── Parse "# User - `username`" → @username
         └── Write results to localStorage cache
 ```
@@ -212,6 +221,8 @@ resolveUsernames(members[])
 | Treasury | — | ✅ GNOT + GRC20 balances | — |
 | CreateDAO | — | ✅ MsgAddPackage deploy | ✅ saved DAOs |
 | **ProfilePage** | — | ✅ username (ABCI) | — |
+| **Validators** | — | ✅ Tendermint RPC (validators, status, block) | — |
+| **Directory** | — | ✅ DAO Render, token/user registries | ✅ saved DAOs, sessionStorage cache |
 
 ## Data Flow — User Profile (Hybrid)
 
@@ -226,7 +237,7 @@ resolveUsernames(members[])
 │               profile.ts (parallel)               │
 │                                                   │
 │  1. gno.land ABCI ──► @username                   │
-│     vm/qrender r/gnoland/users/v1:address         │
+│     vm/qrender getUserRegistryPath():address     │
 │                                                   │
 │  2. gnolove /users/:addr ──► GitHub profile       │
 │     avatar, bio, location, followers              │

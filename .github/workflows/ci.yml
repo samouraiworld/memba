@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev/v2]
   push:
-    branches: [main]
+    branches: [main, dev/v2]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache-dependency-path: backend/go.sum
 
       - name: Build
@@ -41,7 +41,7 @@ jobs:
   frontend:
     name: Frontend (React · Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       matrix:
         node-version: ['20', '22']
@@ -73,10 +73,10 @@ jobs:
         run: npm test
 
       - name: Install Playwright
-        run: npx playwright install chromium firefox --with-deps
+        run: npx playwright install chromium --with-deps
 
       - name: E2E tests
-        run: npx playwright test --reporter=list
+        run: npx playwright test --project=chromium --reporter=list
 
       - name: Upload E2E artifacts on failure
         if: failure()

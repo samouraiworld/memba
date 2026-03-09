@@ -15,7 +15,7 @@
 | # | Step | Expected |
 |---|------|----------|
 | 1.1 | Open Memba → click "Connect Wallet" | Adena popup appears |
-| 1.2 | Approve connection in Adena | Address + balance shown in header |
+| 1.2 | Approve connection in Adena | Address + balance shown in topbar |
 | 1.3 | Refresh page | Session persists (no reconnect needed) |
 | 1.4 | Click "Disconnect" | Returns to "Connect Wallet" state |
 
@@ -87,7 +87,7 @@
 
 | # | Step | Expected |
 |---|------|----------|
-| 9.1 | Connect wallet → click "👤 Profile" in header | ProfilePage loads for connected address |
+| 9.1 | Connect wallet → click "Profile" in sidebar | ProfilePage loads for connected address |
 | 9.2 | Verify header card | Avatar, address (CopyableAddress), badges |
 | 9.3 | Profile with registered username | Shows `@username` + gno.land link |
 | 9.4 | Profile without username (own) | Shows "Register your @username →" CTA |
@@ -131,26 +131,73 @@
 | 11.21 | GovDAO member list | Username shown first, address truncated `g1abc...xyz` |
 | 11.22 | GovDAO proposal (already voted) | Shows "✓ You voted YES" badge, buttons disabled |
 
-## 12. Dual VoteBar & Quorum (v1.7.0)
+## 12. SingleVoteBar & Participation (v2.0)
 
 | # | Step | Expected |
 |---|------|----------|
-| 12.1 | Navigate to GovDAO → open a proposal with votes | 3-color vote split bar (green YES / red NO / grey ABSTAIN) |
-| 12.2 | Check quorum progress bar below vote split | Shows participation % with 50% threshold marker |
-| 12.3 | Quorum < 50% | Bar is amber, label says "Quorum XX%" |
-| 12.4 | Quorum ≥ 50% | Bar is teal, label says "Quorum XX%" |
-| 12.5 | Open ProposalView (detail page) for same proposal | Same quorum bar visible below vote split bar |
-| 12.6 | ABSTAIN votes present | ABSTAIN % shown in vote split (grey segment) |
+| 12.1 | Navigate to GovDAO → open a proposal with votes | Single-line vote bar: filled width = participation %, green YES / red NO split |
+| 12.2 | Check participation percentage | Shows "XX% participated" with 50% threshold marker |
+| 12.3 | Participation < 50% | Bar partially filled, below threshold marker |
+| 12.4 | Participation ≥ 50% | Bar crosses threshold marker |
+| 12.5 | Open ProposalView (detail page) for same proposal | Same SingleVoteBar visible + TierPieChart SVG donut |
+| 12.6 | TierPieChart visible | Shows vote distribution by tier (T1/T2/T3 segments) |
 
 ## 13. Dashboard Guard (v1.7.1)
 
 | # | Step | Expected |
 |---|------|----------|
-| 13.1 | Load Memba without Adena connected | Dashboard nav link NOT visible in header |
+| 13.1 | Load Memba without Adena connected | Dashboard nav link NOT visible in sidebar |
 | 13.2 | Navigate directly to `/dashboard` URL | Auto-redirect to `/` (landing page) |
-| 13.3 | Connect Adena wallet | Dashboard nav link appears in header |
+| 13.3 | Connect Adena wallet | Dashboard nav link appears in sidebar |
 | 13.4 | Click Dashboard link | Dashboard page loads with identity card + feature cards |
 | 13.5 | Disconnect wallet while on Dashboard | Redirected to landing page |
+
+## 14. Sidebar Navigation (v2.0-ζ)
+
+| # | Step | Expected |
+|---|------|----------|
+| 14.1 | Desktop (≥1025px) → Load any page | Sidebar visible with 3 sections (Navigation, Plugins, User) |
+| 14.2 | Click collapse toggle (☰) | Sidebar collapses to icon-only mode |
+| 14.3 | Refresh page after collapse | Collapse state persists (localStorage) |
+| 14.4 | Click DAOs link in sidebar | Navigate to `/dao` |
+| 14.5 | Click Tokens link in sidebar | Navigate to `/tokens` |
+| 14.6 | Mobile (375px) → Load any page | Sidebar hidden, mobile tab bar visible at bottom |
+| 14.7 | Click "More" in mobile tab bar | Bottom sheet opens with Profile, Settings, Multisig, Feedback, Plugins |
+| 14.8 | Press Escape while bottom sheet is open | Bottom sheet closes |
+| 14.9 | Click outside bottom sheet overlay | Bottom sheet closes |
+| 14.10 | TopBar → Version badges visible (desktop) | Alpha badge + v2 badge visible |
+| 14.11 | TopBar → Network selector | Shows "Testnet 11" default, can switch to betanet |
+| 14.12 | Mobile → Version badges hidden | Alpha/v2 badges not visible at 375px |
+
+## 15. Validator Dashboard (v2.1b)
+
+| # | Step | Expected |
+|---|------|----------|
+| 15.1 | Click "Validators" in sidebar | `/validators` page loads with stats cards |
+| 15.2 | Verify 4 stats cards | Block height, avg block time, validator count, total voting power |
+| 15.3 | Verify table | Sortable columns: rank, validator, voting power, share % |
+| 15.4 | Click column header to sort | Table re-sorts by clicked column |
+| 15.5 | Use search to filter validators | Results narrow to matching validators |
+| 15.6 | Page size selector | 25/50/100 options, table re-renders |
+| 15.7 | Wait 30s | "Refreshing…" pulse indicator appears briefly |
+| 15.8 | Mobile (375px) | Stats stack vertically, table scrolls horizontally |
+
+## 16. Organization Directory (v2.2a)
+
+| # | Step | Expected |
+|---|------|----------|
+| 16.1 | Click "Directory" in sidebar | `/directory` page loads with 3 tabs (DAOs, Tokens, Users) |
+| 16.2 | DAOs tab — Featured carousel | Horizontal carousel with seed DAOs (GovDAO, Worx) |
+| 16.3 | DAOs tab — DAO cards | Cards show name, path, members, proposals |
+| 16.4 | DAOs tab — Save button | Click "Save" → "SAVED" badge appears |
+| 16.5 | DAOs tab — Search | Type to filter DAOs by name or path |
+| 16.6 | Tokens tab | Tab switch shows token list with avatar, name, symbol |
+| 16.7 | Tokens tab — Search | Type to filter tokens by name or symbol |
+| 16.8 | Tokens tab — Load More | Paginated: shows 20, "Load More" for rest |
+| 16.9 | Users tab | Tab switch shows user list with name and address |
+| 16.10 | Users tab — Search | Type to filter by name or address |
+| 16.11 | Create DAO button | Visible below DAO cards, navigates to `/dao/create` |
+| 16.12 | Mobile (375px) | Cards stack to 1-column, tabs scroll horizontally |
 
 ## Post-Test
 

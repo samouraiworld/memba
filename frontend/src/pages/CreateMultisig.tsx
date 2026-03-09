@@ -2,6 +2,7 @@ import { useState, useCallback } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { GNO_CHAIN_ID, GNO_RPC_URL, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
@@ -22,6 +23,8 @@ export function CreateMultisig() {
         emptyMember(), emptyMember(), emptyMember(),
     ])
     const [loading, setLoading] = useState(false)
+    const [deployStep, setDeployStep] = useState<DeployStep>("idle")
+    const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
 
     const addMember = () => setMembers([...members, emptyMember()])
@@ -107,6 +110,7 @@ export function CreateMultisig() {
         }
 
         setLoading(true)
+        setDeployStep("preparing")
         setError(null)
 
         try {
@@ -124,6 +128,8 @@ export function CreateMultisig() {
                 },
             })
 
+            setDeployStep("signing")
+
             const res = await api.createOrJoinMultisig({
                 authToken: auth.token,
                 chainId: GNO_CHAIN_ID,
@@ -132,9 +138,17 @@ export function CreateMultisig() {
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
 
-            navigate(`/multisig/${res.multisigAddress}`)
+            setDeployStep("broadcasting")
+
+            setDeployResult({
+                entityPath: `/multisig/${res.multisigAddress}`,
+                entityLabel: "Multisig",
+                entityName: name.trim(),
+            })
+            setDeployStep("complete")
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create multisig")
+            setDeployStep("error")
         } finally {
             setLoading(false)
         }
@@ -170,7 +184,7 @@ export function CreateMultisig() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. samourai-crew"
+                    placeholder="e.g. our-super-cool-dao"
                     maxLength={256}
                     style={{
                         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
@@ -305,7 +319,18 @@ export function CreateMultisig() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            {/* Deployment Pipeline */}
+            <DeploymentPipeline
+                active={deployStep !== "idle"}
+                currentStep={deployStep}
+                result={deployResult}
+                error={error ?? undefined}
+                onNavigate={() => deployResult?.entityPath && navigate(deployResult.entityPath)}
+                onRetry={() => { setDeployStep("idle"); setError(null) }}
+                onClose={() => { setDeployStep("idle"); setError(null) }}
+            />
+
+            <ErrorToast message={deployStep === "idle" ? error : null} onDismiss={() => setError(null)} />
         </div>
     )
 }

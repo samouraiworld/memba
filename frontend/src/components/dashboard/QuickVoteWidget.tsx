@@ -83,6 +83,20 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                     >
                                         {isVoting ? "..." : "✗ NO"}
                                     </button>
+                                    <button
+                                        onClick={() => onVote(p.realmPath, p.proposalId, "ABSTAIN" as "YES" | "NO")}
+                                        disabled={isVoting}
+                                        aria-label={`Abstain on proposal ${p.proposalId}`}
+                                        style={{
+                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
+                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                            background: "rgba(255,255,255,0.04)", color: "#888",
+                                            border: "1px solid rgba(255,255,255,0.08)", cursor: isVoting ? "default" : "pointer",
+                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                        }}
+                                    >
+                                        {isVoting ? "..." : "— ABSTAIN"}
+                                    </button>
                                 </div>
                             )}
                         </div>

@@ -9,7 +9,7 @@
  * - config.ts    → getDAOConfig, getMemberstoreTiers
  * - members.ts   → getDAOMembers
  * - proposals.ts → getDAOProposals, getProposalDetail, getProposalVotes
- * - builders.ts  → buildVoteMsg, buildExecuteMsg, buildProposeMsg, buildArchiveMsg
+ * - builders.ts  → buildVoteMsg, buildExecuteMsg, buildProposeMsg, buildArchiveMsg, buildAssignRoleMsg, buildRemoveRoleMsg, buildProposeAddMemberMsg, buildProposeRemoveMemberMsg, buildProposeAssignRoleMsg
  */
 
 // ── Types ─────────────────────────────────────────────────────
@@ -42,6 +42,11 @@ export {
     buildExecuteMsg,
     buildProposeMsg,
     buildArchiveMsg,
+    buildAssignRoleMsg,
+    buildRemoveRoleMsg,
+    buildProposeAddMemberMsg,
+    buildProposeRemoveMemberMsg,
+    buildProposeAssignRoleMsg,
     isGovDAO,
 } from "./builders"
 

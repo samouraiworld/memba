@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom"
+import { LinkSimple } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
@@ -172,7 +173,7 @@ export function ImportMultisig() {
                 return (
                     <div className="k-card" style={{ borderColor: "rgba(0,212,170,0.2)", display: "flex", flexDirection: "column", gap: 12 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 16 }}>🔗</span>
+                            <span style={{ fontSize: 16, display: 'flex' }}><LinkSimple size={16} /></span>
                             <span style={{ fontWeight: 600, fontSize: 14 }}>You've been invited to join a multisig</span>
                         </div>
                         <div style={{ display: "flex", gap: 16, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
@@ -280,7 +281,7 @@ export function ImportMultisig() {
                             type="text"
                             value={walletName}
                             onChange={(e) => setWalletName(e.target.value)}
-                            placeholder="e.g. samourai-crew"
+                            placeholder="e.g. our-super-cool-dao"
                             maxLength={256}
                             disabled={loading}
                             style={{

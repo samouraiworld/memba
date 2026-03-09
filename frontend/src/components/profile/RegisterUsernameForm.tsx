@@ -6,6 +6,7 @@
  */
 import { useState } from "react"
 import { doContractBroadcast } from "../../lib/grc20"
+import { getUserRegistryPath } from "../../lib/config"
 
 export function RegisterUsernameForm({ address, onRegistered }: { address: string; onRegistered: () => void }) {
     const [regInput, setRegInput] = useState("")
@@ -24,7 +25,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                 value: {
                     caller: address,
                     send: "",
-                    pkg_path: "gno.land/r/gnoland/users/v1",
+                    pkg_path: getUserRegistryPath(),
                     func: "Register",
                     args: [regInput],
                 },

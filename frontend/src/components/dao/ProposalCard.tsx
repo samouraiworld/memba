@@ -10,63 +10,62 @@
 import type { DAOProposal } from "../../lib/dao/shared"
 
 /**
- * DualVoteBar — replaces old VoteBar which only showed YES/(YES+NO).
+ * SingleVoteBar — Single-line bar showing participation and vote split.
  *
- * Top: vote split across YES/NO/ABSTAIN (all 3 types visible)
- * Bottom: participation % with optional quorum threshold marker
+ * Filled width = participation %. Within the filled portion:
+ * green = YES, red = NO. Unfilled = not yet voted (grey).
+ * Threshold marker as a thin white line.
  */
-function DualVoteBar({ yesVotes, noVotes, abstainVotes, totalMembers }: {
-    yesVotes: number; noVotes: number; abstainVotes: number; totalMembers: number
+function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
+    yesVotes: number; noVotes: number; totalMembers: number; threshold?: number
 }) {
-    const totalVoted = yesVotes + noVotes + abstainVotes
-    if (totalVoted === 0) return null
+    const totalVoted = yesVotes + noVotes
+    if (totalVoted === 0 && totalMembers === 0) return null
 
-    // Vote split percentages (of those who voted)
-    const yesPct = (yesVotes / totalVoted) * 100
-    const noPct = (noVotes / totalVoted) * 100
-    const abstainPct = (abstainVotes / totalVoted) * 100
+    // Participation as % of total members
+    const participationPct = totalMembers > 0 ? Math.min((totalVoted / totalMembers) * 100, 100) : 0
 
-    // Quorum: participation % of total members
-    const quorumPct = totalMembers > 0 ? Math.min((totalVoted / totalMembers) * 100, 100) : 0
+    // Within voted portion: YES/NO split
+    const yesFraction = totalVoted > 0 ? (yesVotes / totalVoted) * 100 : 0
+    const noFraction = totalVoted > 0 ? (noVotes / totalVoted) * 100 : 0
+
+    // Threshold position (default 50%)
+    const thresholdPct = threshold ?? 50
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Vote Split Bar */}
-            <div>
-                <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 3 }}>
-                    <span style={{ color: "#4caf50" }}>✓ {yesVotes}</span>
-                    <span style={{ color: "#f44336" }}>✗ {noVotes}</span>
-                    {abstainVotes > 0 && <span style={{ color: "#666" }}>○ {abstainVotes}</span>}
-                </div>
-                <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", display: "flex" }}>
-                    <div style={{ width: `${yesPct}%`, background: "#4caf50", transition: "width 0.3s" }} />
-                    <div style={{ width: `${noPct}%`, background: "#f44336", transition: "width 0.3s" }} />
-                    {abstainPct > 0 && (
-                        <div style={{ width: `${abstainPct}%`, background: "#555", transition: "width 0.3s" }} />
-                    )}
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* Vote counts */}
+            <div style={{ display: "flex", gap: 10, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+                <span style={{ color: "#4caf50" }}>✓ {yesVotes}</span>
+                <span style={{ color: "#f44336" }}>✗ {noVotes}</span>
             </div>
-
-            {/* Quorum Progress Bar (only if totalMembers known) */}
-            {totalMembers > 0 && (
-                <div style={{ position: "relative" }}>
-                    <div style={{ height: 3, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
-                        <div style={{
-                            width: `${quorumPct}%`,
-                            background: quorumPct >= 50 ? "rgba(0,212,170,0.5)" : "rgba(245,166,35,0.4)",
-                            transition: "width 0.3s",
-                            height: "100%",
-                        }} />
-                    </div>
-                    {/* 50% quorum threshold marker */}
+            {/* Single bar */}
+            <div
+                role="progressbar"
+                aria-valuenow={Math.round(participationPct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${Math.round(participationPct)}% voted — ${yesVotes} yes, ${noVotes} no`}
+                style={{ height: 14, background: "rgba(255,255,255,0.04)", borderRadius: 7, overflow: "hidden", position: "relative" }}
+            >
+                {/* Filled portion = participation %, split into YES (green) + NO (red) */}
+                <div style={{ width: `${participationPct}%`, height: "100%", display: "flex", transition: "width 0.4s ease" }}>
                     <div style={{
-                        position: "absolute", top: -1, left: "50%",
-                        width: 1, height: 5,
-                        background: "rgba(255,255,255,0.15)",
-                        borderRadius: 1,
+                        width: `${yesFraction}%`, height: "100%",
+                        background: "#4caf50", transition: "width 0.3s",
+                    }} />
+                    <div style={{
+                        width: `${noFraction}%`, height: "100%",
+                        background: "#f44336", transition: "width 0.3s",
                     }} />
                 </div>
-            )}
+                {/* Threshold marker */}
+                <div style={{
+                    position: "absolute", top: 0, left: `${thresholdPct}%`,
+                    width: 1, height: "100%",
+                    background: "rgba(255,255,255,0.2)",
+                }} />
+            </div>
         </div>
     )
 }
@@ -155,13 +154,12 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                 </div>
             </div>
 
-            {/* Dual Vote Bar: vote split + quorum progress */}
-            {(proposal.yesVotes > 0 || proposal.noVotes > 0 || proposal.abstainVotes > 0 || proposal.yesPercent > 0) && (
+            {/* Single Vote Bar: participation + vote split */}
+            {(proposal.yesVotes > 0 || proposal.noVotes > 0 || proposal.yesPercent > 0) && (
                 <div style={{ marginTop: 10 }}>
-                    <DualVoteBar
+                    <SingleVoteBar
                         yesVotes={proposal.yesVotes || (proposal.yesPercent > 0 ? Math.round(proposal.yesPercent) : 0)}
                         noVotes={proposal.noVotes || (proposal.noPercent > 0 ? Math.round(proposal.noPercent) : 0)}
-                        abstainVotes={proposal.abstainVotes}
                         totalMembers={totalMembers}
                     />
                 </div>

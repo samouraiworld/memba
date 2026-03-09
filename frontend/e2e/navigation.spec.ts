@@ -1,32 +1,79 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * Navigation E2E — verifies header, footer, nav links, and routing.
+ * Navigation E2E — verifies sidebar, topbar, mobile tabbar, footer, and routing.
  * No backend/wallet required — pure UI structure tests.
+ *
+ * v2.0-ζ: Migrated from header nav → sidebar + topbar + mobile tabbar.
  */
 
-test.describe('Header Navigation', () => {
+test.describe('Sidebar Navigation (Desktop ≥1025px)', () => {
+    test.beforeEach(async ({ page }) => {
+        // Ensure desktop viewport for sidebar tests
+        await page.setViewportSize({ width: 1280, height: 800 })
+    })
+
+    test('sidebar is visible', async ({ page }) => {
+        await page.goto('/')
+        const sidebar = page.getByTestId('sidebar')
+        await expect(sidebar).toBeVisible()
+    })
+
     test('logo links to home', async ({ page }) => {
         await page.goto('/dao')
-        const logo = page.locator('header a[aria-label="Memba home"]')
+        const logo = page.locator('[data-testid="sidebar"] a[aria-label="Memba home"]')
         await expect(logo).toBeVisible()
         await logo.click()
         await expect(page).toHaveURL(/\/$|\/dashboard/)
     })
 
-    test('version badge visible in header', async ({ page }) => {
+    test('Home nav link active on /', async ({ page }) => {
         await page.goto('/')
-        const alphaBadge = page.locator('.k-version-badge', { hasText: 'Alpha' })
-        const versionBadge = page.locator('.k-version-badge', { hasText: /v\d+\.\d+/ })
-        await expect(alphaBadge).toBeVisible()
-        await expect(versionBadge).toBeVisible()
-        await expect(versionBadge).toContainText(/v\d+\.\d+/)
+        const homeLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Home' })
+        await expect(homeLink).toBeVisible()
+        await expect(homeLink).toHaveClass(/active/)
+    })
+
+    test('DAOs nav link present', async ({ page }) => {
+        await page.goto('/')
+        const link = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'DAOs' })
+        await expect(link).toBeVisible()
+    })
+
+    test('Tokens nav link present', async ({ page }) => {
+        await page.goto('/')
+        const link = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Tokens' })
+        await expect(link).toBeVisible()
+    })
+
+    test('Directory nav link present', async ({ page }) => {
+        await page.goto('/')
+        const link = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Directory' })
+        await expect(link).toBeVisible()
     })
 
     test('Dashboard nav NOT visible when disconnected', async ({ page }) => {
         await page.goto('/')
-        const link = page.locator('header a', { hasText: 'Dashboard' })
+        const link = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Dashboard' })
         await expect(link).not.toBeVisible()
+    })
+
+    test('Profile nav NOT visible when disconnected', async ({ page }) => {
+        await page.goto('/')
+        const link = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Profile' })
+        await expect(link).not.toBeVisible()
+    })
+
+    test('Extensions link visible', async ({ page }) => {
+        await page.goto('/')
+        const extensionsLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Extensions' })
+        await expect(extensionsLink).toBeVisible()
+    })
+
+    test('Feedback link always visible', async ({ page }) => {
+        await page.goto('/')
+        const feedbackLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'Feedback' })
+        await expect(feedbackLink).toBeVisible()
     })
 
     test('/dashboard redirects to / when disconnected', async ({ page }) => {
@@ -34,42 +81,90 @@ test.describe('Header Navigation', () => {
         await page.waitForURL('/', { timeout: 5000 })
         await expect(page).toHaveURL('/')
     })
+})
 
-    test('DAO nav link present', async ({ page }) => {
-        await page.goto('/')
-        const link = page.locator('header a', { hasText: 'DAO' })
-        await expect(link).toBeVisible()
+test.describe('TopBar (Desktop)', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 })
     })
 
-    test('Tokens nav link present', async ({ page }) => {
-        await page.goto('/')
-        const link = page.locator('header a', { hasText: 'Tokens' })
-        await expect(link).toBeVisible()
-    })
-
-    test('Profile nav NOT visible when disconnected', async ({ page }) => {
-        await page.goto('/')
-        const link = page.locator('header a', { hasText: 'Profile' })
-        await expect(link).not.toBeVisible()
+    test('version badges visible in topbar', async ({ page }) => {
+        await page.goto('/dao')
+        const alphaBadge = page.getByTestId('alpha-badge')
+        const versionBadge = page.getByTestId('version-badge')
+        await expect(alphaBadge).toBeVisible({ timeout: 10000 })
+        await expect(versionBadge).toBeVisible({ timeout: 10000 })
+        await expect(alphaBadge).toContainText('Alpha')
+        await expect(versionBadge).toContainText(/v\d+/)
     })
 
     test('network selector shows Testnet 11', async ({ page }) => {
         await page.goto('/')
-        const selector = page.locator('header select')
+        const selector = page.locator('[data-testid="topbar"] select')
         await expect(selector).toBeVisible()
         await expect(selector).toContainText('Testnet 11')
+    })
+
+    test('connect wallet button visible when disconnected', async ({ page }) => {
+        await page.goto('/')
+        // Should show Install Adena or Connect Wallet
+        const walletArea = page.locator('[data-testid="topbar"]')
+        await expect(walletArea).toContainText(/Adena|Connect Wallet/)
+    })
+})
+
+test.describe('Mobile Tab Bar (≤768px)', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 667 })
+    })
+
+    test('sidebar hidden on mobile', async ({ page }) => {
+        await page.goto('/')
+        const sidebar = page.getByTestId('sidebar')
+        await expect(sidebar).not.toBeVisible()
+    })
+
+    test('mobile tab bar visible on mobile', async ({ page }) => {
+        await page.goto('/')
+        const tabbar = page.getByTestId('mobile-tabbar')
+        await expect(tabbar).toBeVisible()
+    })
+
+    test('tab bar has 5 tabs (Home, DAOs, Tokens, Directory, More)', async ({ page }) => {
+        await page.goto('/')
+        const tabbar = page.getByTestId('mobile-tabbar')
+        await expect(tabbar).toContainText('Home')
+        await expect(tabbar).toContainText('DAOs')
+        await expect(tabbar).toContainText('Tokens')
+        await expect(tabbar).toContainText('Directory')
+        await expect(tabbar).toContainText('More')
+    })
+
+    test('"More" opens bottom sheet', async ({ page }) => {
+        await page.goto('/')
+        const moreBtn = page.locator('[data-testid="mobile-tabbar"] button', { hasText: 'More' })
+        await moreBtn.click()
+        // The bottom sheet dialog should be open
+        const sheet = page.locator('[role="dialog"]')
+        await expect(sheet).toHaveClass(/open/)
+    })
+
+    test('version badges NOT visible on mobile', async ({ page }) => {
+        await page.goto('/')
+        const alphaBadge = page.getByTestId('alpha-badge')
+        await expect(alphaBadge).not.toBeVisible()
     })
 })
 
 test.describe('Footer', () => {
-    test('footer social links present', async ({ page }) => {
+    test('footer has branding and links', async ({ page }) => {
         await page.goto('/')
         const footer = page.locator('footer')
         await expect(footer).toContainText('memba')
         await expect(footer).toContainText('samourai coop')
-        // Check at least 3 social links exist
-        const links = footer.locator('a[target="_blank"]')
-        expect(await links.count()).toBeGreaterThanOrEqual(3)
+        // Check GitHub link and support email exist
+        const links = footer.locator('a')
+        expect(await links.count()).toBeGreaterThanOrEqual(2)
     })
 })
 
@@ -77,25 +172,5 @@ test.describe('404 Navigation', () => {
     test('404 page has back CTA', async ({ page }) => {
         await page.goto('/nonexistent-xyz')
         await expect(page.locator('body')).toContainText('404')
-    })
-})
-
-test.describe('Mobile Navigation (375px)', () => {
-    test('nav labels hidden on tiny screens', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
-        await page.goto('/')
-        // k-nav-label should be hidden via CSS at 375px
-        const navLabel = page.locator('.k-nav-label').first()
-        await expect(navLabel).not.toBeVisible()
-    })
-
-    test('version badge hidden on mobile', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
-        await page.goto('/')
-        const badges = page.locator('.k-version-badge')
-        const count = await badges.count()
-        for (let i = 0; i < count; i++) {
-            await expect(badges.nth(i)).not.toBeVisible()
-        }
     })
 })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { ArrowsClockwise } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
@@ -124,7 +125,7 @@ export function TokenView() {
                     If you just created this token, it may still be indexing. Try again in a few seconds.
                 </p>
                 <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                    <button onClick={() => fetchData()} style={{ ...backBtnStyle, color: "#00d4aa" }}>🔄 Retry</button>
+                    <button onClick={() => fetchData()} style={{ ...backBtnStyle, color: "#00d4aa" }}><ArrowsClockwise size={14} /> Retry</button>
                     <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
                 </div>
             </div>

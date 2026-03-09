@@ -2,6 +2,625 @@
 
 All notable changes to Memba are documented here.
 
+## [Unreleased — v2.0-α Foundation] — dev/v2
+
+> **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
+
+### v2.9 Consolidation & Main Merge (2026-03-08)
+
+> Branch: `dev/v2` — Session: consolidation, UX fixes, decomposition
+
+#### Phase 1: Critical UX
+- **Footer Socials Restored** — 7-icon social array (X, Instagram, YouTube, GitHub, LinkedIn, Telegram, Email)
+  - Map-based rendering with hover color transitions (`#00d4aa`)
+  - Removed unused `Envelope` import from `@phosphor-icons/react`
+- **DeploymentPipeline Modal Overlay** — converted from inline card to full-screen modal
+  - Dark backdrop (`rgba(0,0,0,0.7)`) with `backdrop-filter: blur(4px)`
+  - ESC key to close, click-outside to dismiss (only when complete/error)
+  - Body scroll lock when active, `z-index: 1000`
+  - CSS animations: `overlayFadeIn` + `modalSlideIn`
+  - 4 new unit tests (overlay, scroll lock, click-outside, non-dismissible guard)
+
+#### Phase 2b: Default Audio/Video Rooms
+- **DAORooms Component** — instant-access voice/video rooms for ALL DAOs (no channel realm required)
+  - `🔊 Public Room` — visible to everyone (guests + members), open to join
+  - `🔒 Members Room` — visible only to DAO members in the UI ("kind of private")
+  - Modal overlay with Jitsi embed, ESC/click-outside close, body scroll lock
+  - "Manage channels →" link appears when full Channels feature is deployed
+  - `dao-rooms.css` — glassmorphism buttons, hover glow, responsive (mobile column layout)
+- **JaaS Integration** — lobby-free rooms via 8x8.vc (free tier, 25 concurrent users)
+  - `VITE_JAAS_APP_ID` env var configures JaaS; fallback to `meet.jit.si` when empty
+  - CSP `frame-src` updated for both `meet.jit.si` and `8x8.vc`
+- **Deterministic Room Hash** — 5-char djb2 hash suffix appended to room names
+  - Format: `memba-{slug}-{channel}-{hash}` — unpredictable but reproducible per DAO
+  - Prevents room name guessing from slug alone
+- **JitsiMeet Enhanced** — `label`, `description` props + `jitsiIframeSrc()` URL builder
+
+#### Phase 3: Tech Debt
+- **BoardView Decomposition** — 676 LOC → 5 sub-components + orchestrator (~260 LOC)
+  - `BoardHeader.tsx` (~50 LOC) — channel navigation header
+  - `ThreadList.tsx` (~80 LOC) — thread listing with unread indicators
+  - `ThreadView.tsx` (~130 LOC) — thread detail + replies + reply form
+  - `ComposeThread.tsx` (~90 LOC) — new thread creation form
+  - `boardHelpers.tsx` (~115 LOC) — renderMarkdown, visit tracking, shared styles
+- **CSP Dual-Config Sync** — `index.html` + `netlify.toml` now have matching `connect-src` domains
+  - Added sync documentation comments in both files
+  - Aligned missing domains: `memba-backend.fly.dev`, `api.github.com`, `gnolove.world`, `*.testnets.gno.land`
+- **3 New E2E Specs** — `extensions.spec.ts`, `cmd-k.spec.ts`, `channels.spec.ts`
+
+#### Scope Notes
+- **JitsiMeet**: Already wired into BoardView (L397-418) — no work needed
+- **MultisigHub**: Already fully implemented (189 LOC) — no work needed
+- **validators.spec.ts** (131 LOC) + **directory.spec.ts** (170 LOC): Already existed
+
+#### New Files
+- `components/dao/DAORooms.tsx` (145 LOC) — default public + private rooms
+- `components/dao/dao-rooms.css` (130 LOC) — room card + modal styles
+- `components/dao/DAORooms.test.tsx` (100 LOC) — 11 unit tests
+- `plugins/board/boardHelpers.tsx` (115 LOC)
+- `plugins/board/BoardHeader.tsx` (50 LOC)
+- `plugins/board/ThreadList.tsx` (80 LOC)
+- `plugins/board/ThreadView.tsx` (130 LOC)
+- `plugins/board/ComposeThread.tsx` (90 LOC)
+- `e2e/extensions.spec.ts` (82 LOC)
+- `e2e/cmd-k.spec.ts` (82 LOC)
+- `e2e/channels.spec.ts` (72 LOC)
+
+#### Tests
+- **738 unit tests** (35 files, +20), tsc 0, lint 0, build 457KB (131KB gzip)
+
+### Monitoring API Integration & GovDAO Polish (2026-03-08)
+
+> Branch: `dev/v2` — Session: monitoring API deep dive + UI polish
+
+#### Added
+- **Monitoring API Integration** — validator monikers, participation rate, uptime from gnomonitoring
+  - `gnomonitoring.ts` (197 LOC) — API client with 30s session cache, 5s timeout, graceful degradation
+  - `hexToBech32()` in `realmAddress.ts` — converts Tendermint hex addresses to `g1...` bech32
+  - Enriched `Validators.tsx` with Moniker, Participation, Uptime columns + search by moniker/address
+  - CSP updated for `monitoring.gnolove.world`
+  - `.env.example` updated with `VITE_GNO_MONITORING_API_URL`
+- **MultisigHub Page** — new `/multisig` route for multisig management hub
+  - `MultisigHub.tsx` + `multisig-hub.css` — sidebar nav + Cmd+K integration
+- **GovDAO UI Polish** — realm address badge (purple → grey + CSS hover), `.k-stat-card` / `.k-stat-grid` CSS classes, shortened description
+
+#### Fixed
+- **Critical: Address matching bug** — `mergeWithMonitoringData()` tried hex vs bech32 comparison (never matched). Now derives bech32 from hex via `hexToBech32()` + direct map lookup
+- **Active Validators card showing 0** — `getNetworkStats()` made redundant RPC call instead of using `prefetchedValidators.length`
+
+#### External
+- **gnomonitoring PR [#60](https://github.com/samouraiworld/gnomonitoring/pull/60)** — multi-origin CORS support (comma-separated `allow_origin`). Blocked on merge + VPS config update by Lours.
+
+#### New Files
+- `gnomonitoring.ts` (197 LOC) — monitoring API client
+- `MultisigHub.tsx` + `multisig-hub.css` — multisig hub page
+
+---
+
+### v2.6 Hardening & OSS Prep (2026-03-08)
+
+> Branch: `dev/v2` — 12 commits
+
+#### Fixed
+- **Critical: Board deploy failure on test11** — `import "std"` → `import "chain/runtime"` in all 4 realm templates
+  - `boardTemplate.ts`, `channelTemplate.ts`, `candidatureTemplate.ts`: `std.Address` → `address`, `std.GetOrigCaller()` → `runtime.PreviousRealm().Address()`
+  - `daoTemplate.ts`: `gnomod.toml` field from `module` → `pkgpath`
+- **Hardcoded gas values** — `CreateDAO.tsx`, `DeployPluginModal.tsx`, `grc20.ts` now use shared `getGasConfig()` from user settings
+
+#### Added
+- **Cmd+K Command Palette** — 14 navigation commands, fuzzy search, keyboard navigation (arrow keys + enter + esc)
+  - `CommandPalette.tsx` + `commands.ts` + `command-palette.css` (dark glassmorphism)
+  - Wired into `Layout.tsx` — available on all pages
+  - Includes Extensions, Feedback, and all core pages
+- **User-Friendly Error Messages** — `errorMessages.ts` with 20+ patterns
+  - Translates ABCI, Adena, and network errors into readable messages
+  - `friendlyError()`, `extractMessage()`, `isUserCancellation()` exports
+- **Shared Gas Configuration** — `gasConfig.ts` reads user settings from localStorage
+  - `getGasConfig()` returns `{ fee, wanted, deployWanted }` with safe defaults
+  - Deploy multiplier: 5× regular gas for realm deployment transactions
+- **Transaction Retry** — `doContractBroadcast()` retries transient failures up to 2×
+  - Exponential backoff (1s, 2s)
+  - Smart skip: never retries user cancellations or deterministic chain errors
+
+#### Security
+- **Content-Security-Policy** meta tag in `index.html`
+  - Restricts script, style, connect, and frame origins
+
+#### New Files
+- `errorMessages.ts` (168 LOC) + `errorMessages.test.ts` (120 LOC) — 26 tests
+- `CommandPalette.tsx` (130 LOC) + `commands.ts` (43 LOC) + `command-palette.css` (140 LOC)
+- `gasConfig.ts` (52 LOC) + `gasConfig.test.ts` (60 LOC) — 5 tests
+- `v2.6-hardening/BRIEF.md` + `v2.6-hardening/IMPLEMENTATION.md`
+
+#### Tests
+- **718 unit tests** (34 files, +31), **238 E2E**, tsc 0, lint 0, build 450KB
+
+#### User Testing Fixes (same session)
+- **Faucet Card Redesign** — renamed "Get started with 3 GNOT" → "Get Free Test Tokens"
+  - Added TESTNET ONLY badge, dismiss × button (localStorage), updated copy
+- **Extensions Hub** — new `/extensions` page with 4 extension cards (2 Active, 2 Coming Soon)
+  - Replaces 4 individual plugin sidebar links → single "Extensions" link
+- **Dashboard Graceful Degradation** — suppress "Connection failed" toast when backend API is unreachable
+  - Network errors silently logged, on-chain features still work
+- **E2E Test Fix** — updated sidebar test after Plugins → Extensions rename
+
+---
+
+### v2.5c Audio/Video Channels (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Voice & Video Channel Types** — `ChannelType` extended with `"voice"` and `"video"`
+  - Channel icons: 🔊 voice, 🎥 video (shared `channelIcon()` helper)
+  - Parser recognises 🔊/🎥 type indicators from on-chain Render output
+- **Jitsi Meet Integration** — `JitsiMeet` component embeds Jitsi iframe
+  - "Join Room" gate — click to connect (no auto-join)
+  - Deterministic room names: `memba-{slug}-{channel}` (scoped, URL-safe)
+  - Voice mode: camera off by default; Video mode: camera on
+  - Sandbox + referrerPolicy hardening on iframe
+  - "Leave Room" button with red overlay
+- **BoardView Voice/Video Rendering** — voice/video channels render Jitsi instead of threads
+  - No "New Thread" button for voice/video channels
+
+#### New Files
+- `components/ui/JitsiMeet.tsx` (150 LOC) — Jitsi iframe + join gate
+- `components/ui/jitsiHelpers.ts` (18 LOC) — `jitsiRoomName()` + domain constant
+- `components/ui/JitsiMeet.test.ts` (32 LOC) — 5 unit tests
+- `docs/planning/milestones/v2.5c-audiovideo/BRIEF.md`
+
+#### Tests
+- **684 unit tests** (32 files, +7), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
+### v2.5b Real-time UX (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages` (continued)
+
+#### Added
+- **Channel Polling** — `useChannelPolling` hook with 10s interval for thread/reply updates
+  - Page Visibility API: pauses when tab is hidden (saves bandwidth)
+  - Typing guard: pauses when user is composing (avoids content jump)
+  - In-flight dedup: no concurrent ABCI queries
+  - New content detection: compares thread/reply counts between polls
+- **"New Messages" Toast** — `NewMessagesToast` component (teal-themed, auto-dismiss 8s)
+  - Rendered in both channel list and thread detail views
+  - Click to dismiss, slide-up animation
+- **BoardView Refactor** — replaced manual `loadChannel`/`loadThread` with polling hook
+  - `formError` state split for post validation (isolated from poll state)
+  - `refresh()` called after post/reply for immediate content update
+
+#### New Files
+- `hooks/useChannelPolling.ts` (160 LOC) — polling hook
+- `hooks/useChannelPolling.test.ts` (24 LOC) — 3 unit tests
+- `components/ui/NewMessagesToast.tsx` (80 LOC) — toast component
+
+#### Tests
+- **677 unit tests** (31 files, +3), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
+### v2.5a Channel Pages (2026-03-08)
+
+> Branch: `feat/v2.5a/channel-pages`
+
+#### Added
+- **Standalone Channel Page** — `/dao/:slug/channels` route with full-page layout
+  - Left sidebar (220px) with channel list, type icons (💬/📢/🔒), active highlight, archived badges
+  - Breadcrumb navigation (DAOs › DaoName › Channels) with clickable links
+  - Deep-link support: `/dao/:slug/channels/:channel` opens specific channel
+  - Mobile responsive: sidebar collapses below 768px with toggle button
+- **BoardView Headless Mode** — 3 new optional props (`initialChannel`, `onChannelChange`, `hideChannelList`) for external control
+- **DAOHome Channels Card** — 💬 icon + "Open →" entry point, positioned before Treasury
+
+#### New Files
+- `pages/ChannelsPage.tsx` (223 LOC) — channel page with sidebar + BoardView integration
+- `pages/channelHelpers.ts` (24 LOC) — `channelIcon()` + `defaultChannel()` helpers
+- `pages/channels.css` (200 LOC) — responsive layout, empty/loading states
+- `pages/channels.test.ts` (75 LOC) — 9 unit tests for helpers
+
+#### Tests
+- **674 unit tests** (30 files, +9), 119 E2E, tsc 0, lint 0, build 450KB
+
+---
+
+### v2.2c Quick Wins (2026-03-08)
+
+> Branch: `feat/v2.2c-quick-wins` — PR #78
+
+#### Added
+- **Sidebar Notification Badges** — `notifUnreadCount` prop on Sidebar, DAOs nav badge shows combined (unvoted + unread)
+- **IPFS Avatars in Directory** — `batchFetchUserAvatars()` via gnolove API, sessionStorage cache, `resolveAvatarUrl()` rendering
+- **Typed BankMsgSend** — `BankMsgSend` interface replaces untyped `object` return on `buildFaucetMsgSend()`
+- **DirectoryUser avatarUrl** — optional `avatarUrl` field on `DirectoryUser` interface
+
+#### Tests
+- **665+ unit tests**, tsc 0, lint 0, build 449KB
+
+---
+
+### v2.2b Directory Enrichment (2026-03-08)
+
+> Branch: `feat/v2.2b-enrichment` — 4 commits
+
+#### Added
+- **DAO Category Tags** — `getDAOCategory()` heuristic (6 categories: governance, community, treasury, defi, infrastructure, unknown), colored badges with `dir-inline-badge` shared CSS
+- **User Avatar Enhancement** — gradient CSS avatars with first-letter placeholder, `img` support for future IPFS
+- **Contribution Scores** — `calculateContributionScores()` cross-references DAO membership, activity badges (⭐ active / 🔹 moderate / 🔸 newcomer)
+- **DAO Auto-Discovery** — `discoverDAOs()` ABCI probe, `addDiscoveryProbe()` extensible API, sessionStorage cache
+- **Per-DAO Notification View** — `getNotificationsForDAO()`, `getUnreadCountForDAO()`, `getDAOUnreadCount` hook callback
+
+#### Fixed (Deep Review)
+- I1: O(n×m) → Set-indexed O(1) scoring lookup
+- I2: Hardcoded discovery probes → `addDiscoveryProbe()` + `getDiscoveryProbes()` API
+- I3: Category false positives → word-boundary regex (`wordMatch()` helper)
+- M1-M4: CSS dedup, hook cache, naming, E2E assertions
+
+#### Tests
+- 29 new tests (unit + E2E category badge assertions)
+- **665+ unit tests**, tsc 0, lint 0, build 449KB
+
+---
+
+### v2.2a Intelligence & Directory — Phase 1 (2026-03-08)
+
+> Branch: `feat/v2.2a-directory` — PR #76
+
+#### Added
+- **Organization Directory** — transformed basic list into premium Organization Hub
+  - `lib/directory.ts` — centralized data layer with sessionStorage cache (5-min TTL)
+  - `lib/daoMetadata.ts` — DAO Render parser (member count, proposal count, description) with `Promise.allSettled` batch fetch (max 10 concurrent)
+  - `components/directory/DAOCard.tsx` — rich card with metadata, save-to-Memba button, status badges
+  - `components/directory/FeaturedDAOs.tsx` — curated carousel with Render metadata
+  - `pages/directory.css` — premium glassmorphism (330 LOC), responsive grid
+  - Refactored `Directory.tsx` — all inline styles → CSS classes, data layer, `useMemo` filtering, ARIA tabs (`role=tab`, `aria-selected`)
+
+#### Tests
+- 24 new unit tests (`daoMetadata.test.ts`, `directory.test.ts`)
+- 13 E2E tests (`e2e/directory.spec.ts` — tabs, search, cards, mobile)
+- **636+ unit tests**, tsc 0, lint 0, build clean
+
+---
+
+### v2.1b Validators & Notifications (2026-03-08)
+
+> Branch: `feat/v2.1b-validators-notifications` — 8 commits, 84+ new tests
+
+#### Phase 2 Audit Hardening (7 findings)
+- **C1**: Stale eligibility memo → `claimVersion` counter forces `useMemo` recalculation
+- **C2**: `daoPaths` callback instability → `useRef` for stable references
+- **I1**: Hardcoded faucet URL → `faucetUrl` in `NETWORKS` config (multi-chain)
+- **I2**: Duplicated cooldown reason → separated description and timer text
+- **I3**: Filter/sort recomputed every render → `useMemo` with proper deps
+- **I4**: Pagination not keyboard-accessible → `aria-label` + `aria-live` region
+- **M1**: Sequential DAO polling → `Promise.allSettled` parallel (max 5/cycle)
+- **Bundle**: `manualChunks` — vendor-react (41KB), vendor-ui (99KB), vendor-sentry (18KB)
+  - index.js: 568KB → 449KB (**-21%**)
+- **E2E**: `e2e/validators.spec.ts` (10 tests)
+
+
+#### Added
+- **Notification Center** — bell icon in header with unread badge, dropdown panel grouped by date (Today/Yesterday/This Week/Older), 30s ABCI polling for new proposals, Page Visibility API (pauses when tab hidden), per-wallet localStorage isolation, XSS sanitization
+  - `lib/notifications.ts` — data layer (CRUD, sanitization, grouping, dedup with monotonic counter)
+  - `hooks/useNotifications.ts` — polling hook with optional daoPath (null = sync-only)
+  - `components/layout/NotificationBell.tsx` — ARIA-accessible dropdown (aria-expanded, role=menu, focus return)
+- **Validator Dashboard** — `/validators` page with premium dark UI
+  - Network stats cards (block height, avg block time, validator count, total voting power) with 30s auto-refresh
+  - Voting power distribution bar and sortable table (rank/power/share) with rank badges for top 3
+  - `lib/validators.ts` — Tendermint RPC data layer with AbortSignal support and prefetched validator optimization
+  - Page Visibility API, "Refreshing…" pulse indicator, `document.title` update
+- **Gasless Onboarding (Phase 1)** — faucet eligibility data layer
+  - 7-day cooldown with per-address localStorage keys
+  - `MsgSend` builder for treasury transfer (signing is deployment concern)
+- **Sidebar nav** — Validators link with chain icon
+- **Faucet Claim UI** — Dashboard card with eligibility check, cooldown timer, external faucet link (Phase 2)
+  - `FaucetCard.tsx` — premium glassmorphism card, mobile responsive
+  - Shown when wallet connected + eligible (hides after claim or during cooldown)
+- **Multi-DAO Notification Polling** — refactored `useNotifications` from `daoPath: string | null` to `daoPaths: string[]`
+  - Layout polls all saved DAOs (max 5/cycle), per-DAO tracking via `lastKnownCounts` Map
+  - Bell icon aggregates notifications from all saved DAOs
+- **Validator Pagination** — auto-paginate `getValidators()` for >100 validators (parallel page fetch)
+  - Client-side page controls: page size selector (25/50/100), prev/next buttons, "Showing X-Y of Z"
+
+#### Fixed (Dual-Round Audit — 15 items)
+- **C2**: Validator polling 5s→30s + Page Visibility API (was 48 RPCs/min)
+- **C3**: Notifications no longer hardcode single DAO (daoPath optional)
+- **I6**: Notification dedup race fixed with monotonic `_idCounter`
+- **I7**: Eliminated redundant `getValidators()` call in `getNetworkStats()`
+- **I8**: ARIA accessibility — `aria-expanded`, `role=menu`, focus return to bell
+- **I9**: Faucet per-address storage (prevents FIFO cooldown bypass)
+- **M10**: `useMemo` for `groupNotifications` (only when panel open)
+
+#### Tests
+- 415 unit tests (21 files), all quality gates pass (tsc 0, lint 0)
+
+### v2.1a — Community Foundation (2026-03-07)
+
+#### Added
+- **Channel Realm v2** (`channelTemplate.ts`) — Discord-like DAO channels with role-based ACL, token-gated writes, threads/replies, rate limiting, admin actions (create/archive/reorder channels, edit/delete messages), @mention support
+  - Backward compatible: `detectChannelRealm()` supports both `_channels` (v2) and `_board` (v1) suffixes
+  - `BoardView.tsx` upgraded with inline Markdown renderer, channel sidebar, type indicators (📢/🔒/💬)
+- **$MEMBA GRC20 Token** (`config.ts`, `grc20.ts`) — `$MEMBATEST` (dev) / `$MEMBA` (prod) token with 10M supply, 40/30/20/10% allocation
+  - Platform fee reduced from 5% → 2.5%
+  - `buildCreateMembaTokenMsgs()`, `getMembaBalance()`, `formatTokenAmount()` helpers
+- **MembaDAO Candidature Flow** (`candidatureTemplate.ts`) — Gno realm for membership applications
+  - Public submission (name, philosophy, skills), two-member approval, admin rejection
+  - Increasing re-candidature cost: 10 GNOT × past rejections (anti-spam)
+  - Self-approval guard: applicants cannot approve their own candidature
+  - Render path filtering: `Render("pending")`, `Render("approved")`, `Render("rejected")`
+  - `getCandidatureSendAmount()`, `RECANDIDATURE_COST_UGNOT` helpers
+- **IPFS Avatars** (`ipfs.ts`, `AvatarUploader.tsx`) — Lighthouse REST API upload with preprocessing
+  - Auto-resize to 256×256 WebP (≤512KB), MIME validation, CID validation
+  - Saves canonical `ipfs://` URI (gateway-agnostic) via `resolveAvatarUrl()`
+- **MembaDAO Bootstrap** (`membaDAO.ts`) — DAO config, deployment orchestrator, status checker
+  - ABCI-based deployment verification (DAO, channels, candidature, token realms)
+  - `isMembaDAOMember()`, `getDeploymentSteps()`, `buildAddMemberMsg()`
+
+#### Changed
+- **`FEE_RECIPIENT`** corrected to Samouraï Coop multisig (`g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v`)
+- **`GRC20_FACTORY_PATH`** re-export in `grc20.ts` marked `@deprecated` (import from `config.ts`)
+- **`MEMBA_CHANNELS`** renamed to `MEMBA_CHANNEL_DEFS` in `channelTemplate.ts` (resolves naming collision with `membaDAO.ts`)
+- **`toAdenaMessages()`** now validates msg type, throws on non-MsgCall messages
+
+#### Security
+- Skills length validation added to generated Gno candidature code (on-chain enforcement)
+- Self-approval guard prevents applicants from being their own approvers
+- Re-candidature cost deters spam re-applications after rejection
+- `toAdenaMessages()` type guard prevents silent MsgAddPackage corruption
+
+#### Tests
+- 529 unit tests (22 files, +169 from 360 baseline), all quality gates pass (tsc 0, lint 0, build clean)
+- 5-round deep audit: 23 findings total, 15 fixed, 5 deferred (low priority), 3 notes
+
+### v2.0-θ UX Polish & Layout Fixes (2026-03-07)
+
+#### Fixed
+- **Sidebar scroll** — switched from `position: sticky` to `position: fixed`; sidebar is now viewport-locked and never scrolls with page content
+- **Logo alignment** — added `margin: 0 8px` to sidebar header to match nav link offset (was 8px misaligned); logo increased from 24px to 30px
+- **Footer visibility** — bottom padding increased from 32px to 80px to prevent Netlify deploy preview toolbar from obscuring content
+- **ConnectingLoader** — removed dashed border container and green background; logo increased from 32px to 72px for clean brand presence
+
+#### Changed
+- **Phosphor icon migration** — migrated 30+ remaining emojis to `@phosphor-icons/react` SVGs across 10 page files (Dashboard, DAOList, DAOHome, ProposalView, ProposeDAO, CreateDAO, TokenView, ImportMultisig, TransactionView, UserRedirect)
+- **Layout architecture** — app layout changed from CSS Grid to Flexbox with `margin-left` compensation for fixed sidebar
+- **MobileTabBar** — `TABS` array refactored to data-only `TAB_DEFS` with Icon component references
+- **LayoutContext** — added `syncTimedOut` boolean to context + Outlet
+- **Disabled plugins** — BottomSheet closes on tap + shows inline "Select a DAO" hint
+- **JSDoc** — added to `WizardStepPreset` component
+
+#### Tests
+- 360 unit tests (18 files), 93 E2E tests, all quality gates pass (tsc 0, lint 0, build clean)
+- E2E: updated 8 emoji-based selectors in `dao.spec.ts` and `smoke.spec.ts`
+
+### v2.0-η UX Audit Sprint (2026-03-07)
+
+#### Fixed
+- **P0: ConnectingLoader gate** — `Layout.tsx` no longer blocks all page content during wallet sync; `<Outlet>` always renders
+  - `isLoggingIn` passed via `LayoutContext` → page-level guards in `Dashboard.tsx` + `ProfilePage.tsx`
+  - 10s syncing timeout with "Sync timeout — Retry" recovery UI in `TopBar.tsx`
+- **Plugin sidebar routes** — links now route to `/dao/{lastVisitedDAO}/plugin/{id}` instead of dead `/plugins/{id}`
+  - Disabled state with "Select a DAO first" tooltip when no DAO visited
+  - `memba_last_dao_slug` persisted to localStorage on DAO visit
+- **Footer bugs** — text contrast `#333`→`#666` / `#444`→`#555`, `&amp;` entity → `&`, `z-index: 1` prevents overlay bleed
+
+#### Changed
+- **Phosphor Icons** — all navigation emoji icons replaced with `@phosphor-icons/react` SVGs
+  - `Sidebar.tsx` — House, ChartBar, Buildings, Coins, FolderOpen, Briefcase, User, Gear, Megaphone, PuzzlePiece
+  - `MobileTabBar.tsx` — matching Phosphor icons + DotsThree for "More" tab
+  - `Settings.tsx` — Globe, FolderOpen, GasPump, User, Wrench, Gear section icons
+  - `Layout.tsx` footer — Envelope icon
+  - `WizardStepPreset.tsx` — House, UsersThree, Vault, Buildings for DAO presets
+- **`<main>` inline styles** moved to `.k-main` CSS class (`index.css`)
+
+#### Accessibility
+- `ConnectingLoader` — added `role="status"` + `aria-live="polite"` for screen reader announcements
+- DAO tier badge — added `title` tooltip with role and voting power context
+- Disabled sidebar links — `aria-disabled="true"` + `cursor: not-allowed`
+
+#### Tests
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build clean)
+
+### v2.0-ζ Sidebar Navigation + Sentry (2026-03-07)
+
+#### Added
+- **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
+  - `Sidebar.tsx` — Home/Dashboard/DAOs/Tokens/Directory/Multisig links, plugin list, Profile/Settings/Feedback pinned at bottom
+  - `TopBar.tsx` — Alpha/v2 badges, network selector, wallet status, security banners (auth error, chain mismatch, untrusted RPC)
+  - `MobileTabBar.tsx` — 5-tab bottom navigation (Home, DAOs, Tokens, Directory, More)
+  - `BottomSheet.tsx` — Slide-up modal with focus trap, Escape to close, body scroll lock
+  - Skip-to-content accessibility link (focus-only)
+  - Sidebar collapse toggle with localStorage persistence
+- **Sentry Integration** — Error monitoring for self-hosted Sentry (`sentry.samourai.pro`)
+  - `Sentry.init` in `main.tsx` with PII scrubbing (wallet addresses redacted via `beforeSend`)
+  - Browser tracing (20% sample rate in production, 100% in dev)
+  - Error forwarding from `errorLog.ts` → `Sentry.captureException` (critical/error only)
+  - Vite plugin for source map upload (`sentryVitePlugin` in `vite.config.ts`)
+  - Source maps deleted from `dist/` after upload
+- **Betanet Network Config** — `betanet` added to `NETWORKS` with `gno.land/r/sys/users` registry
+- **`getUserRegistryPath()`** — Abstracted user registry path (H1 audit fix for upstream migration)
+
+#### Changed
+- **Layout.tsx** — Refactored from 419 → 205 LOC, now composes Sidebar + TopBar + MobileTabBar
+- **Footer** — Stripped to GitHub SVG + support email + disclaimer (social links moved to sidebar/future dedicated page)
+- **index.css** — +400 LOC for layout tokens, sidebar, topbar, mobile tabbar, bottom sheet, skip-to-content, responsive breakpoints (1024px/768px/375px)
+
+#### Tests
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build 496KB)
+- **E2E navigation.spec.ts** — Rewritten header→sidebar selectors (104→180 LOC, 9→17 test cases)
+  - Covers: sidebar desktop, topbar badges, mobile tabbar, bottom sheet More, footer
+- **E2E smoke.spec.ts** — Updated header→sidebar selector
+
+#### Security
+- PII scrubbing: Gno bech32 addresses (`g1...`) redacted in Sentry events
+- Source maps not shipped to production (deleted after Sentry upload)
+
+### v2.0-ε UX & Consistency
+
+#### Added
+- **Dashboard Redesign** — `DashboardDAOList` shows all saved DAOs with name, realm path, MEMBER badge
+  - My DAOs + My Multisigs always visible, even when empty
+  - Layout: Identity → Actions → Quick Vote → My DAOs → My Multisigs → Feature Cards → TXs
+- **Wallet Connect Loader** — `ConnectingLoader` with Memba logo pulse + progress bar
+  - Eliminates black screen during wallet authentication flow
+- **Proposal Vote Bar Consistency** — ProposalView now uses SingleVoteBar (same as ProposalCard)
+  - Single-line: filled width = participation %, green YES / red NO split
+  - TierPieChart SVG donut wired into ProposalView for tier vote distribution
+  - ARIA `role="progressbar"` + `aria-valuenow` for accessibility
+- **Deploy Plugin Modal** — `DeployPluginModal` wired into DAOHome Extensions section
+  - ⚡ Deploy Board button on Board plugin card for existing DAOs
+  - Channel configuration + Adena DoContract deployment flow
+- **Version Sync** — `APP_VERSION` now reads from `package.json` via Vite `define`
+  - No more manual sync between `config.ts` and `package.json`
+  - `vite-env.d.ts` TypeScript declaration for `__APP_VERSION__` global
+- **DAOHome V3 Redesign** — single-card layout with merged identity + stats
+  - Ghost "Members" text fix (parser filter for `## Members` residuals)
+  - Source `</>` symbol restored with hover effect
+  - DAO address right-aligned with click-to-copy
+  - Full stat labels: Members, Active, Proposals, Turnout, Power (9px)
+  - Description section with GovDAO fallback
+  - `TierPieChart` prefix-sum refactor (react-hooks/immutability fix)
+
+#### Changed
+- **Multisig Placeholder** — Default name changed from "samourai-crew" → "our-super-cool-dao"
+- **CSP Tightened** — `connect-src` narrowed from `*.netlify.app` to `memba-multisig.netlify.app`
+- **Go 1.25 → 1.26** in CI workflow (fixes govulncheck stdlib vulnerabilities)
+
+#### Tests
+- 360 unit tests (18 files), all quality gates pass (tsc 0, lint 0, build 478KB)
+- **10 E2E spec files** (Playwright) — +4 new: multisig, settings, create-dao, treasury
+  - 168 E2E tests across Chrome, Firefox, Webkit + mobile 375px
+  - Covers: navigation, smoke, plugins, dao, profile, token, multisig, settings, create-dao, treasury
+  - Mobile overflow tests at 375px for all major pages
+
+#### Fixed
+- `Dashboard.tsx` — eliminated brittle type assertion `(auth as {}).address` → `auth.address`
+- **E2E CI Fix** — 3 specs rewritten for cross-browser robustness:
+  - `settings.spec.ts` — accordion expand before asserting collapsed content
+  - `plugins.spec.ts` — tilde-encoded slug (`~`) instead of double-hyphens (`--`)
+  - `create-dao.spec.ts` — text-based assertions instead of CSS attribute selectors
+- **6 lint errors** — unused imports (`StatCard`, `TierBar`, `VoteStat`), unused vars, immutability violation
+- **E2E regression** — breadcrumb `Back to DAOs` → `DAOs` (V3 compact breadcrumb)
+- **UX regression** — removed `textTransform: uppercase` from stat pill labels
+
+#### Security
+- **Dependabot: `minimatch` ReDoS** — bumped via `npm audit fix` (dev dependency, 0 runtime impact)
+- Backend: `govulncheck` — 0 vulnerabilities
+- CodeQL: 0 alerts (JS/TS + Go)
+
+#### Documentation
+- `docs/planning/SENTRY_INTEGRATION.md` — frontend observability implementation guide
+- `docs/planning/GNOSWAP_SLIPPAGE.md` — slippage tolerance implementation guide
+
+### v2.0.0-alpha.1 — Sprint A+B+C (2026-03-06)
+
+#### Added
+- **Branding overhaul** — Open Graph / Twitter Card meta tags, `apple-touch-icon.png`, `og-image.png`, `<img>` logo replaces CSS-generated `M`
+- **GnoSwap Option C** — Token metadata discovery via `gns` realm (pool realm lacks `Render()`)
+- **Dashboard accordion** — Collapsible proposal summary (active/passed/rejected counts + quick links) per DAO card
+- **TierPieChart upgrade** — 48px default, center label with total votes, optional inline legend, exported `TierVote` interface
+- **Realm address derivation** — `derivePkgBech32Addr` via Web Crypto API (`SHA256("pkgPath:" + path)` → bech32)
+- **RealmAddressBadge** — Copyable truncated bech32 address on DAOHome
+- **Settings nav link** — ⚙️ Settings in header navigation
+- **Proposal Explorer** — Full proposal management plugin (replaces 45-line stub):
+  - Search by title or ID, status filter tabs (All/Active/Passed/Rejected with counts)
+  - Sort selector (Newest/Oldest/Most Votes), pagination (10/page)
+  - Status badges with color coding, inline vote counts, stats footer
+- **Profile DAO Memberships** — `DAOMembershipsCard` showing saved DAOs with MEMBER badge
+- **Directory Page** — `/directory` route with 3 tabs:
+  - DAOs: seed list + saved DAOs, search, "Create DAO" CTA
+  - Tokens: On-chain `grc20reg` registry query with pagination + 5-min cache
+  - Users: On-chain `demo/users` registry query with pagination + 5-min cache
+- **Avatar Upload** — Dual-mode `AvatarUploader` (🔗 URL / 📁 File), 2MB limit, type validation, live preview
+- **`.nvmrc`** — Node.js 22 LTS enforced locally
+
+#### Changed
+- **GnoSwap paths** — Corrected testnet11 paths (removed `/v1/`), added `gns` field
+- **Proposals plugin** — `name: "Proposals"` → `"Proposal Explorer"`, version 1.0.0 → 2.0.0
+- **ProfilePage** — Avatar URL text field replaced with `AvatarUploader` component
+- **Version** — `package.json` bumped to `2.0.0-alpha.1`
+
+#### Tests
+- **360 unit tests** (18 files, +7 from v2.0-ε), all quality gates pass (tsc 0, build 477KB / 138KB gzip)
+- npm audit: **0 vulnerabilities**
+
+### v2.0-δ Polish
+
+#### Added
+- **Extensions Step in CreateDAO Wizard** — Step 4: toggle Board on/off, configure channels
+  - 5-step wizard flow: Name → Members → Governance → Extensions → Review
+  - Chained board realm deploy: DAO + companion board in one flow
+  - Draft persistence for extension choices
+- **Plugin Route** — `/dao/:slug/plugin/:pluginId` with lazy PluginPage
+  - PluginLoader renders each plugin or "not found" fallback
+  - Back-to-DAO navigation from all plugin pages
+- **Leaderboard Plugin** — 4th plugin: gnolove-powered member ranking
+  - `calculateScore()`: packages×10 + proposals×5 + votes×2 + contributions×1
+  - Sortable table with click-to-sort column headers
+- **Settings Page** — `/settings` route (lazy-loaded)
+  - Network selector, gas defaults, profile link, dev mode, clear cache
+- **Feedback Feed** — `FeedbackFeed` component using board parser for `r/samcrew/memba_feedback`
+
+#### Tests
+- 334 unit tests (16 files, +10 from v2.0-γ), all quality gates pass
+
+### v2.0-γ Swap
+
+#### Added
+- **GnoSwap Config** — `GNOSWAP_PATHS` per-chain realm paths (pool, router, position) in `config.ts`
+- **GnoSwap ABCI Queries** — `plugins/gnoswap/queries.ts`: pool list/detail parser
+- **MsgCall Builders** — `SwapRoute` + `AddLiquidity (Mint)` with slippage validation
+  - Default 0.5%, warn >2%, block >5%, BigInt-safe `calculateMinOutput`
+- **Swap UI** — `SwapView.tsx`: pool list + swap form with slippage presets
+- **GnoSwap Plugin** — registered as 3rd built-in plugin in registry (lazy-loaded)
+
+#### Tests
+- 324 unit tests (15 files, +25 from v2.0-β), all quality gates pass
+
+### v2.0-β Board
+
+#### Added
+- **Board Realm Template** — `boardTemplate.ts`: Gno code generator for `{daoname}_board` realms
+  - Channels (`#general` auto-created), threads (title + Markdown body), replies
+  - Rate limiting (`MIN_POST_INTERVAL` blocks between posts per member)
+  - Public read via `Render()` with path routing (home/channel/thread)
+  - Token-gated writes with `crossing` syntax (`runtime.PreviousRealm().Address()`)
+- **Board ABCI Parser** — `plugins/board/parser.ts`: typed parser for board `Render()` output
+  - `getBoardInfo`, `getBoardThreads`, `getBoardThread`, `boardExists`
+- **Board UI** — `plugins/board/BoardView.tsx`: 4-view discussion forum
+  - Channel list, thread list, thread detail with replies, new thread form
+  - Authenticated write actions via `doContractBroadcast`
+- **Board Plugin** — registered as 2nd built-in plugin in `registry.ts` (lazy-loaded)
+- **MsgCall builders**: `buildCreateThreadMsg`, `buildReplyToThreadMsg`, `buildCreateChannelMsg`, `buildDeployBoardMsg`
+
+#### Tests
+- 299 unit tests (14 files, +38 from v2.0-α), all quality gates pass
+
+### v2.0-α Foundation
+
+### Added
+- **Plugin Architecture Skeleton** — `PluginManifest` type, frozen registry with validation, `PluginLoader` lazy component with error boundary, DAOHome extensions section
+- **Deployment Pipeline** — `<DeploymentPipeline>` reusable 4-step animated timeline (Building → Signing → Broadcasting → Deployed), integrated into CreateDAO, CreateMultisig, CreateToken
+- **Member Proposals** — enabled "👥 Add Member" proposal type in ProposeDAO with target address + roles + auto-generated title/description
+- **Admin Role Management** — DAOMembers page: admin detection, assign/remove role per member row (inline `×` button on role badges + expandable `+` panel for unassigned roles)
+- **Executable Member Proposals** — `daoTemplate.ts` generated Gno code now supports:
+  - `ProposeAddMember(addr, power, roles)` — governance proposal that adds member when voted + executed
+  - `ProposeRemoveMember(addr)` — governance proposal to remove member
+  - `ProposeAssignRole(addr, role)` — governance proposal to assign role
+  - `ExecuteProposal` action dispatch (add_member, remove_member, assign_role)
+  - Safety checks: duplicate member prevention, last admin protection
+- **MsgCall builders**: `buildProposeAddMemberMsg`, `buildProposeRemoveMemberMsg`, `buildProposeAssignRoleMsg`, `buildAssignRoleMsg`, `buildRemoveRoleMsg`
+- **CI on dev/v2** — full pipeline (backend, frontend tsc/lint/build/unit/E2E, proto, docker) triggers on dev/v2 push/PR
+
+### Changed
+- `Proposal` struct gains `ActionType` + `ActionData` fields for embedded action dispatch
+- ProposeDAO member type now calls on-chain `ProposeAddMember` instead of generic `Propose`
+- `ci.yml` triggers include `dev/v2` alongside `main`
+
+### Tests
+- 261 unit tests (12 files, +31 from v1.7.1), E2E updated for v2 behavior
+- All quality gates pass: tsc, lint, build (470KB), backend
+
 ## [1.7.1] — 2026-03-05 — UX Polish 🎨
 
 ### Changed
@@ -42,7 +661,6 @@ All notable changes to Memba are documented here.
 
 ### Infrastructure
 - Repository cleaned: 3 stale local + 7 stale remote tracking refs pruned (all squash-merged via PRs)
-- Tailwind v4 confirmed as active (base reset + `@theme` tokens + animation utilities)
 
 ### Tests
 - 284 total tests (230 unit + 54 E2E), up from 251 (230 + 21)

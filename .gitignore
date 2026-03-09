@@ -42,3 +42,6 @@ coverage/
 
 # Agent
 .agents/
+
+# Local Netlify folder
+.netlify

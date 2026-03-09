@@ -1,14 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { NotePencil } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { WizardStepPreset } from "../components/dao/WizardStepPreset"
 import { WizardStepMembers } from "../components/dao/WizardStepMembers"
 import { WizardStepConfig } from "../components/dao/WizardStepConfig"
 import { WizardStepReview } from "../components/dao/WizardStepReview"
+import { WizardStepExtensions } from "../components/dao/WizardStepExtensions"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
-import { addSavedDAO } from "../lib/daoSlug"
+import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig } from "../lib/boardTemplate"
+import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
+import { getGasConfig } from "../lib/gasConfig"
 import type { LayoutContext } from "../types/layout"
 
 // ── Draft Persistence ─────────────────────────────────────
@@ -17,8 +22,14 @@ const DRAFT_KEY = "memba_dao_draft"
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 interface DraftData {
-    name: string; description: string; realmPath: string
-    members: MemberInput[]; threshold: number; quorum: number
+    name: string
+    description: string
+    realmPath: string
+    members: MemberInput[]
+    threshold: number
+    quorum: number
+    enableBoard: boolean
+    boardChannels: string[]
     availableRoles: string[]; proposalCategories: string[]
     selectedPreset: string | null; step: Step
     savedAt: number
@@ -67,7 +78,11 @@ export function CreateDAO() {
     const [availableRoles, setAvailableRoles] = useState<string[]>(["admin", "member"])
     const [proposalCategories, setProposalCategories] = useState<string[]>(["governance"])
     const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+    const [enableBoard, setEnableBoard] = useState(false)
+    const [boardChannels, setBoardChannels] = useState<string[]>(["general"])
     const [deploying, setDeploying] = useState(false)
+    const [deployStep, setDeployStep] = useState<DeployStep>("idle")
+    const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
     const [generatedCode, setGeneratedCode] = useState("")
     const [showDraftBanner, setShowDraftBanner] = useState(false)
@@ -91,6 +106,8 @@ export function CreateDAO() {
         setQuorum(draft.quorum)
         setAvailableRoles(draft.availableRoles)
         setProposalCategories(draft.proposalCategories)
+        if (draft.enableBoard !== undefined) setEnableBoard(draft.enableBoard)
+        if (draft.boardChannels) setBoardChannels(draft.boardChannels)
         setSelectedPreset(draft.selectedPreset)
         setStep(draft.step)
         setShowDraftBanner(false)
@@ -110,12 +127,12 @@ export function CreateDAO() {
                 saveDraft({
                     name, description, realmPath, members,
                     threshold, quorum, availableRoles, proposalCategories,
-                    selectedPreset, step,
+                    selectedPreset, step, enableBoard, boardChannels,
                 })
             }
         }, 500)
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step])
+    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableBoard, boardChannels])
 
     // ── Preset ────────────────────────────────────────────
 
@@ -137,7 +154,7 @@ export function CreateDAO() {
 
     const goToStep = (s: Step) => {
         setError(null)
-        if (s === 4) {
+        if (s === 5) {
             const config: DAOCreationConfig = {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
@@ -195,6 +212,7 @@ export function CreateDAO() {
     const deployDAO = async () => {
         if (!adena.address) { setError("Connect your wallet first"); return }
         setDeploying(true)
+        setDeployStep("preparing")
         setError(null)
         try {
             const config: DAOCreationConfig = {
@@ -209,6 +227,10 @@ export function CreateDAO() {
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
+            const gas = getGasConfig()
+
+            setDeployStep("signing")
+
             // TODO: Re-add 2 GNOT dev fee when test11 lifts bank transfer restrictions
             // (currently blocked by std.RestrictedTransferError)
             const res = await adenaWallet.DoContract({
@@ -216,21 +238,56 @@ export function CreateDAO() {
                     type: "/vm.m_addpkg",
                     value: msg.value,
                 }],
-                gasFee: 10000000,
-                gasWanted: 50000000,
+                gasFee: gas.fee,
+                gasWanted: gas.deployWanted,
                 memo: `Deploy DAO: ${name}`,
             })
+
+            setDeployStep("broadcasting")
 
             if (res.status === "failure") {
                 throw new Error(res.message || res.data?.message || "Deployment failed")
             }
 
             addSavedDAO(realmPath)
-            clearDraft() // ← Clear draft on successful deploy
-            const slug = realmPath.replace("gno.land/r/", "").replace(/\//g, "~")
-            navigate(`/dao/${slug}`)
+
+            // ── Deploy Board companion realm if enabled ──
+            if (enableBoard) {
+                setDeployStep("preparing")
+                try {
+                    const boardConfig = defaultBoardConfig(realmPath, name)
+                    boardConfig.channels = boardChannels
+                    const boardCode = generateBoardCode(boardConfig)
+                    const boardMsg = buildDeployBoardMsg(adena.address, boardConfig.boardRealmPath, boardCode, "10000000ugnot")
+                    const boardRes = await adenaWallet.DoContract({
+                        messages: [{ type: "/vm.m_addpkg", value: boardMsg.value }],
+                        gasFee: gas.fee,
+                        gasWanted: gas.deployWanted,
+                        memo: `Deploy Board for ${name}`,
+                    })
+                    if (boardRes.status === "failure") {
+                        console.warn("[Memba] Board deploy failed:", boardRes.message)
+                        // Non-fatal: DAO is deployed, board can be deployed later
+                    }
+                } catch (boardErr) {
+                    console.warn("[Memba] Board deploy error:", boardErr)
+                    // Non-fatal: DAO was deployed successfully
+                }
+            }
+
+            clearDraft()
+            const slug = encodeSlug(realmPath)
+            setDeployResult({
+                realmPath,
+                entityPath: `/dao/${slug}`,
+                entityLabel: "DAO",
+                entityName: name,
+                txHash: res.data?.hash,
+            })
+            setDeployStep("complete")
         } catch (err) {
             setError(err instanceof Error ? err.message : "Deployment failed")
+            setDeployStep("error")
         } finally {
             setDeploying(false)
         }
@@ -264,7 +321,7 @@ export function CreateDAO() {
                     background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.15)",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>📝</span>
+                        <span style={{ fontSize: 16, display: 'flex' }}><NotePencil size={16} /></span>
                         <span style={{ fontSize: 12, color: "#ccc", fontFamily: "JetBrains Mono, monospace" }}>
                             You have an unsaved draft
                         </span>
@@ -292,7 +349,7 @@ export function CreateDAO() {
 
             {/* Step indicator */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {[1, 2, 3, 4].map((s) => (
+                {[1, 2, 3, 4, 5].map((s) => (
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div
                             style={{
@@ -308,14 +365,15 @@ export function CreateDAO() {
                         >
                             {s < step ? "✓" : s}
                         </div>
-                        {s < 4 && <div style={{ width: 24, height: 2, background: s < step ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.05)" }} />}
+                        {s < 5 && <div style={{ width: 24, height: 2, background: s < step ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.05)" }} />}
                     </div>
                 ))}
                 <span style={{ fontSize: 11, color: "#666", marginLeft: 8, fontFamily: "JetBrains Mono, monospace" }}>
                     {step === 1 && "Name, Path & Preset"}
                     {step === 2 && "Members & Roles"}
                     {step === 3 && "Governance Settings"}
-                    {step === 4 && "Review & Deploy"}
+                    {step === 4 && "Extensions"}
+                    {step === 5 && "Review & Deploy"}
                 </span>
             </div>
 
@@ -351,8 +409,17 @@ export function CreateDAO() {
                 />
             )}
 
-            {/* Step 4: Review & Deploy */}
+            {/* Step 4: Extensions */}
             {step === 4 && (
+                <WizardStepExtensions
+                    enableBoard={enableBoard} boardChannels={boardChannels}
+                    onEnableBoardChange={setEnableBoard} onBoardChannelsChange={setBoardChannels}
+                    onGoToStep={goToStep} onNext={nextStep}
+                />
+            )}
+
+            {/* Step 5: Review & Deploy */}
+            {step === 5 && (
                 <WizardStepReview
                     name={name} description={description} realmPath={realmPath}
                     selectedPreset={selectedPreset} threshold={threshold} quorum={quorum}
@@ -363,7 +430,18 @@ export function CreateDAO() {
                 />
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            {/* Deployment Pipeline */}
+            <DeploymentPipeline
+                active={deployStep !== "idle"}
+                currentStep={deployStep}
+                result={deployResult}
+                error={error ?? undefined}
+                onNavigate={() => deployResult?.entityPath && navigate(deployResult.entityPath)}
+                onRetry={() => { setDeployStep("idle"); setError(null) }}
+                onClose={() => { setDeployStep("idle"); setError(null) }}
+            />
+
+            <ErrorToast message={deployStep === "idle" ? error : null} onDismiss={() => setError(null)} />
         </div>
     )
 }

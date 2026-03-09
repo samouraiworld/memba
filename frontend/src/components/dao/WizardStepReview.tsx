@@ -140,7 +140,7 @@ export function WizardStepReview({
 
             {/* Actions */}
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <button className="k-btn-secondary" onClick={() => onGoToStep(3)} style={{ fontSize: 13, padding: "10px 20px" }}>
+                <button className="k-btn-secondary" onClick={() => onGoToStep(4)} style={{ fontSize: 13, padding: "10px 20px" }}>
                     ← Back
                 </button>
                 {!walletAddress ? (

@@ -5,15 +5,51 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Memba — Gno Multisig & DAO Governance</title>
-  <meta name="description"
-    content="Memba is a standalone Gno-native multisig wallet and DAO governance application for the samourai-crew." />
+  <meta name="description" content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta name="theme-color" content="#000000" />
+  <!--
+    CSP Dual-Config (v2.9):
+    This meta tag is the PRIMARY CSP enforced during local development (vite dev).
+    The SECONDARY CSP is in netlify.toml [[headers]] for production deploys.
+    ⚠️ KEEP BOTH IN SYNC — any connect-src or frame-src change must be applied to BOTH files.
+    See: netlify.toml line 21
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https: ipfs:;
+    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land;
+    frame-src https://meet.jit.si https://8x8.vc;
+  " />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Memba — Gno Multisig & DAO Governance" />
+  <meta property="og:description"
+    content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:url" content="https://memba.samourai.app" />
+  <meta property="og:site_name" content="Memba" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Memba — Gno Multisig & DAO Governance" />
+  <meta name="twitter:description"
+    content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
+  <meta name="twitter:image" content="/og-image.png" />
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/memba-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 </head>
 
 <body>

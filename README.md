@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-285%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-740%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v1.7.1)
+## Features (v2.9)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -35,14 +35,24 @@
 - 🎭 Roles — admin, dev, finance, ops, member + role management
 - 📊 Quorum — configurable minimum participation %
 - 📁 Proposal Categories — governance, treasury, membership, operations
-- 📊 **Dual VoteBar** — 3-color vote split (YES/NO/ABSTAIN) + quorum progress bar
+- 📊 **SingleVoteBar** — participation % (green YES / red NO split) + tier pie chart
 - 📊 **Quorum threshold** — 50% marker with amber/teal participation indicator
 - 🗄️ Archive DAO — admin-only archival for obsolete DAOs
 - 💰 Treasury Management (asset overview, spending proposals)
 - 🔴 LIVE auto-refresh for active proposals (30s polling)
+- 📂 **Organization Directory** — discover DAOs, tokens, and users with rich metadata
+  - Featured DAOs carousel, DAO Render parsing (members, proposals, description)
+  - Save-to-Memba buttons, search/filter, premium glassmorphism UI
 - 🗳️ "Needs My Vote" filter tabs for DAO members
 - ✅ Vote status badges + auto-hide buttons after voting
 - 🔴 Unvoted proposal notification dot (pulsing red badge on DAO nav)
+
+### Validators & Monitoring
+- 📊 **Validator Dashboard** — 20+ validators with voting power, rank, search, pagination
+- 🏷️ **Monikers** — human-readable names from gnomonitoring API (pending CORS unlock)
+- ⬆️ **Uptime & Participation** — live metrics from monitoring service
+- 🔄 **hexToBech32** — Tendermint hex → `g1...` bech32 address derivation
+- 📈 Network stats cards (Block Height, Avg Block Time, Active Validators, Total Voting Power)
 
 ### Token Launchpad
 - 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)
@@ -51,26 +61,51 @@
 
 ### User Profiles
 - 👤 User profiles (bio, social links, contributions, deployed packages)
-- 📛 Username registration via `gno.land/r/gnoland/users/v1`
+- 📛 Username registration via network-aware user registry (`getUserRegistryPath()`)
 - 🔗 GitHub OAuth identity verification
 - 📊 Gnolove contribution stats (commits, PRs, issues, reviews)
 - 🔀 User redirect (`/u/username` → `/profile/address`)
 - 🗳️ "My Votes" — cross-DAO vote history on user profile
+- 🏛️ DAO Memberships — saved DAO list on profile with navigation
+- 🖼️ Avatar Upload — URL + file picker (JPEG/PNG/WebP/GIF, 2MB max)
+- 🔔 **Notification Center** — bell icon, 30s ABCI polling, per-wallet isolation, grouped by date
+- ⚡ **Validator Dashboard** — network stats, voting power distribution, sortable table, pagination
+- 💧 **Faucet Card** — gasless onboarding with dismiss button, "TESTNET ONLY" badge
+
+### Extensions & Navigation
+- 🧩 **Extensions Hub** — dedicated `/extensions` page with status badges (Active/Coming Soon)
+- ⌘K **Command Palette** — 14 navigation commands, fuzzy search, keyboard shortcuts
+
+### Channels & Communication
+- 💬 **Channel Pages** — standalone `/dao/:slug/channels` route with sidebar, breadcrumb nav
+- 🔄 **Real-time UX** — 10s polling, Page Visibility API pause, "New messages" toast
+- 🔊 **Voice Channels** — Jitsi Meet iframe embed, "Join Room" gate
+- 🎥 **Video Channels** — Jitsi Meet with camera, deterministic room names
+- 🧵 **Thread Types** — text (💬), announcements (📢), readonly (🔒), voice (🔊), video (🎥)
+
+### Navigation & Layout
+- 📐 **Sidebar Navigation** — Vercel-inspired 3-section sidebar (Navigation, Plugins, User)
+- 📱 **Mobile Tab Bar** — 5-tab bottom navigation (Home, DAOs, Tokens, Directory, More)
+- 📋 **Bottom Sheet** — Slide-up modal for mobile overflow menu
+- 🔒 **TopBar** — Alpha/v2 badges, network selector, wallet status, security banners
+- ♿ **Skip-to-content** — Accessibility link (focus-only)
 
 ### Security & Infrastructure
 - 🔐 Challenge-response auth (ed25519, ADR-036)
 - 🛡️ RPC domain validation — blocks writes through untrusted RPCs
+- 🔒 **Content Security Policy** — CSP meta tag restricting script/style/connect/frame origins
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
-- 🌐 Network selector (test11 ↔ staging ↔ portal-loop) with chain mismatch detection
-- 📱 Mobile responsive (375px+) with progressive header collapse
-- ⚡ Code splitting (424KB main, lazy-loaded DAO/token chunks)
+- 🌐 Network selector (test11 ↔ staging ↔ portal-loop ↔ betanet) with chain mismatch detection
+- 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
+- ⚡ Code splitting (450KB main, 129KB gzip, lazy-loaded DAO/token/directory/channel chunks)
+- 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **230 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard
-- 🧪 **55 E2E tests** (Playwright, Chromium + Firefox) — navigation, profiles, tokens, DAOs, smoke tests
+- 🧪 **740+ unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
+- 🧪 **139 E2E tests** (Playwright, Chromium) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
 
 ## Architecture
 
@@ -83,6 +118,26 @@ docs/       → Architecture, API, deployment docs
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
+
+### Plugin Architecture (v2.0)
+
+Memba uses a modular plugin system for extensible DAO features:
+
+```
+src/plugins/
+├── registry.ts        # Plugin registry (frozen after init)
+├── types.ts           # PluginProps interface
+├── styles.ts          # Shared plugin styles
+├── PluginLoader.tsx   # Lazy-loading error boundary
+├── board/             # 💬 Discussion board (ABCI parser)
+├── gnoswap/           # 🔄 GnoSwap DEX integration
+├── leaderboard/       # 🏆 Member ranking
+└── proposals/         # 📋 Proposal Explorer (search, filter, sort, paginate)
+```
+
+Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`builders.ts` (logic).
+
+**Extensions in CreateDAO:** The wizard's Step 4 lets users enable plugins during DAO creation. When Board is enabled, a companion board realm is deployed alongside the DAO in a chained transaction.
 
 ## Quick Start
 

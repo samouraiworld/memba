@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee } from "../lib/parseMsgs"
 import { StatusBadge } from "../components/ui/StatusBadge"
@@ -98,7 +99,7 @@ export function TransactionView() {
                     ← Back
                 </button>
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <span style={{ fontSize: 32, marginBottom: 12, display: "block" }}>🔍</span>
+                    <span style={{ fontSize: 32, marginBottom: 12, display: "flex", justifyContent: "center" }}><MagnifyingGlass size={32} /></span>
                     <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Transaction not found</h3>
                     <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         {auth.isAuthenticated ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}

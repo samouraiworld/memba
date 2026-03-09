@@ -1,5 +1,21 @@
+/**
+ * WizardStepPreset — Step 1 of the DAO creation wizard.
+ *
+ * Lets the user choose a DAO preset (Community, Team, Treasury, Enterprise),
+ * set name/description, and auto-generate a realm path.
+ */
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
 import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS } from "./wizardShared"
+import { House, UsersThree, Vault, Buildings } from "@phosphor-icons/react"
+import type { ReactNode } from "react"
+
+/** Map emoji icon strings from DAO_PRESETS to Phosphor components */
+const PRESET_ICONS: Record<string, ReactNode> = {
+    "🏠": <House size={22} />,
+    "👥": <UsersThree size={22} />,
+    "💰": <Vault size={22} />,
+    "🏢": <Buildings size={22} />,
+}
 
 interface Props {
     name: string
@@ -36,7 +52,7 @@ export function WizardStepPreset({
                                 textAlign: "left", transition: "all 0.2s",
                             }}
                         >
-                            <div style={{ fontSize: 20, marginBottom: 6 }}>{preset.icon}</div>
+                            <div style={{ fontSize: 20, marginBottom: 6 }}>{PRESET_ICONS[preset.icon] || preset.icon}</div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: selectedPreset === preset.id ? "#00d4aa" : "#f0f0f0", marginBottom: 4 }}>
                                 {preset.name}
                             </div>

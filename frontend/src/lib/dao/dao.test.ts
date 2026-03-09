@@ -10,6 +10,11 @@ import {
     buildExecuteMsg,
     buildProposeMsg,
     buildArchiveMsg,
+    buildAssignRoleMsg,
+    buildRemoveRoleMsg,
+    buildProposeAddMemberMsg,
+    buildProposeRemoveMemberMsg,
+    buildProposeAssignRoleMsg,
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
     _parseProposalList,
@@ -320,6 +325,41 @@ describe('buildArchiveMsg', () => {
     })
 })
 
+// ── Member Management Builders ──────────────────────────────────
+
+describe('buildAssignRoleMsg', () => {
+    it('builds AssignRole MsgCall with target and role', () => {
+        const msg = buildAssignRoleMsg('g1admin', 'gno.land/r/samcrew/dao', 'g1target', 'dev')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('AssignRole')
+        expect(msg.value.args).toEqual(['g1target', 'dev'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/samcrew/dao')
+        expect(msg.value.caller).toBe('g1admin')
+    })
+
+    it('includes correct caller for admin role assignment', () => {
+        const msg = buildAssignRoleMsg('g1specificadmin', 'gno.land/r/user/mydao', 'g1member', 'admin')
+        expect(msg.value.caller).toBe('g1specificadmin')
+        expect(msg.value.args).toEqual(['g1member', 'admin'])
+    })
+})
+
+describe('buildRemoveRoleMsg', () => {
+    it('builds RemoveRole MsgCall with target and role', () => {
+        const msg = buildRemoveRoleMsg('g1admin', 'gno.land/r/samcrew/dao', 'g1target', 'finance')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('RemoveRole')
+        expect(msg.value.args).toEqual(['g1target', 'finance'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/samcrew/dao')
+    })
+
+    it('includes correct caller for role removal', () => {
+        const msg = buildRemoveRoleMsg('g1myadmin', 'gno.land/r/user/dao', 'g1member', 'member')
+        expect(msg.value.caller).toBe('g1myadmin')
+        expect(msg.value.args[0]).toBe('g1member')
+    })
+})
+
 // ── isGovDAO detection ──────────────────────────────────────────
 
 describe('GovDAO detection (via buildVoteMsg)', () => {
@@ -336,6 +376,53 @@ describe('GovDAO detection (via buildVoteMsg)', () => {
     it('does NOT detect user DAOs as GovDAO', () => {
         const msg = buildVoteMsg('g1x', 'gno.land/r/samcrew/samourai_dao', 1, 'YES')
         expect(msg.value.func).toBe('VoteOnProposal')
+    })
+})
+
+// ── Member Proposal Builders (governance-gated) ───────────────────
+
+describe('buildProposeAddMemberMsg', () => {
+    it('builds ProposeAddMember MsgCall with address, power, roles', () => {
+        const msg = buildProposeAddMemberMsg('g1admin', 'gno.land/r/user/dao', 'g1newmember', 5, 'dev,member')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('ProposeAddMember')
+        expect(msg.value.args).toEqual(['g1newmember', '5', 'dev,member'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/user/dao')
+        expect(msg.value.caller).toBe('g1admin')
+    })
+
+    it('converts power to string for MsgCall args', () => {
+        const msg = buildProposeAddMemberMsg('g1x', 'gno.land/r/test/dao', 'g1target', 10, 'admin')
+        expect(msg.value.args[1]).toBe('10')
+    })
+})
+
+describe('buildProposeRemoveMemberMsg', () => {
+    it('builds ProposeRemoveMember MsgCall with target address', () => {
+        const msg = buildProposeRemoveMemberMsg('g1admin', 'gno.land/r/user/dao', 'g1target')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('ProposeRemoveMember')
+        expect(msg.value.args).toEqual(['g1target'])
+        expect(msg.value.pkg_path).toBe('gno.land/r/user/dao')
+    })
+
+    it('includes correct caller', () => {
+        const msg = buildProposeRemoveMemberMsg('g1myadmin', 'gno.land/r/test/dao', 'g1member')
+        expect(msg.value.caller).toBe('g1myadmin')
+    })
+})
+
+describe('buildProposeAssignRoleMsg', () => {
+    it('builds ProposeAssignRole MsgCall with target and role', () => {
+        const msg = buildProposeAssignRoleMsg('g1admin', 'gno.land/r/user/dao', 'g1member', 'finance')
+        expect(msg.type).toBe('vm/MsgCall')
+        expect(msg.value.func).toBe('ProposeAssignRole')
+        expect(msg.value.args).toEqual(['g1member', 'finance'])
+    })
+
+    it('preserves role string exactly', () => {
+        const msg = buildProposeAssignRoleMsg('g1x', 'gno.land/r/dao', 'g1y', 'ops')
+        expect(msg.value.args[1]).toBe('ops')
     })
 })
 

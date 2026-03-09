@@ -21,6 +21,12 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
+  /* Layout tokens */
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 56px;
+  --topbar-height: 56px;
+  --mobile-tabbar-height: 56px;
+
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-slide-up: slide-up 0.35s ease-out both;
   --animate-glow: glow 2.5s ease-in-out infinite;
@@ -233,6 +239,77 @@ a:hover {
   color: #00d4aa;
 }
 
+/* ── DAO Stat Cards (v2.7 — extracted from inline styles) ────────── */
+.k-stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.k-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s;
+}
+
+.k-stat-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.k-stat-accent {
+  background: rgba(0, 212, 170, 0.06);
+}
+
+.k-stat-accent:hover {
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.k-stat-card__icon {
+  font-size: 13px;
+}
+
+.k-stat-card__value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0f0f0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.k-stat-accent .k-stat-card__value {
+  color: #00d4aa;
+}
+
+.k-stat-card__label {
+  font-size: 9px;
+  color: #555;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Realm Address Badge (v2.7 — discreet grey, was purple) ─────── */
+.k-realm-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #666;
+  transition: color 0.15s;
+}
+
+.k-realm-address:hover {
+  color: #999;
+}
+
 /* ── Global text overflow prevention (Senior UX: critical for mobile) ── */
 html,
 body {
@@ -302,10 +379,447 @@ body {
   padding: 12px 24px;
 }
 
+/* ── Skip to content (accessibility) ───────────────────────────── */
+.k-skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--color-k-accent);
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.k-skip-to-content:focus {
+  left: 16px;
+}
+
+/* ── App Layout (sidebar + main column) ────────────────────────── */
+.k-app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.k-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  background: #0c0c0c;
+  border-right: 1px solid var(--color-k-edge);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transition: width 0.2s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.k-sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+.k-sidebar-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  margin: 0 8px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.k-sidebar-header a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.k-sidebar-header img {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.k-sidebar-header .k-sidebar-logo-text {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.k-sidebar-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--color-k-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.k-sidebar-toggle:hover {
+  color: var(--color-k-text);
+  background: var(--color-k-panel);
+}
+
+.k-sidebar-section {
+  padding: 8px 0;
+}
+
+.k-sidebar-section+.k-sidebar-section {
+  border-top: 1px solid var(--color-k-edge);
+}
+
+.k-sidebar-section-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-k-muted);
+  padding: 4px 24px 6px;
+}
+
+.k-sidebar-link {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 6px;
+  margin: 1px 8px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--color-k-dim);
+  text-decoration: none;
+  transition: all 0.15s;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.k-sidebar-link:hover {
+  background: var(--color-k-panel);
+  color: var(--color-k-text);
+}
+
+.k-sidebar-link.active {
+  background: var(--color-k-panel-hover);
+  color: var(--color-k-accent);
+  border-left: 2px solid var(--color-k-accent);
+}
+
+.k-sidebar-link .k-sidebar-icon {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.k-sidebar-link .k-sidebar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.k-sidebar-link .k-sidebar-badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--color-k-accent);
+  flex-shrink: 0;
+}
+
+.k-sidebar-link .k-sidebar-badge.inactive {
+  background: rgba(85, 85, 85, 0.1);
+  color: var(--color-k-muted);
+}
+
+/* Sidebar collapsed: hide labels and badges */
+.k-sidebar.collapsed .k-sidebar-label,
+.k-sidebar.collapsed .k-sidebar-badge,
+.k-sidebar.collapsed .k-sidebar-logo-text,
+.k-sidebar.collapsed .k-sidebar-section-label {
+  display: none;
+}
+
+.k-sidebar.collapsed .k-sidebar-link {
+  justify-content: center;
+  padding: 0;
+  margin: 1px 4px;
+}
+
+.k-sidebar.collapsed .k-sidebar-header {
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.k-sidebar-user {
+  margin-top: auto;
+  padding-bottom: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────────── */
+.k-topbar {
+  position: sticky;
+  top: 0;
+  height: var(--topbar-height);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--color-k-edge);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  gap: 10px;
+}
+
+.k-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Main Column (beside sidebar) ──────────────────────────────── */
+.k-main-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  transition: margin-left 0.2s ease;
+}
+
+.k-sidebar-collapsed .k-main-column {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+.k-main {
+  flex: 1;
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+
+.k-footer {
+  border-top: 1px solid #111;
+  padding: 24px 24px 80px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.k-footer-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.k-footer-links a {
+  color: #444;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.k-footer-links a:hover {
+  color: var(--color-k-accent);
+}
+
+/* Disabled sidebar link (e.g. plugin with no DAO selected) */
+.k-sidebar-link.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+/* ── Mobile Tab Bar ────────────────────────────────────────────── */
+.k-mobile-tabbar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--mobile-tabbar-height);
+  background: #0c0c0c;
+  border-top: 1px solid var(--color-k-edge);
+  z-index: 50;
+  align-items: stretch;
+}
+
+.k-mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--color-k-dim);
+  text-decoration: none;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.k-mobile-tab:hover,
+.k-mobile-tab.active {
+  color: var(--color-k-accent);
+}
+
+.k-mobile-tab .k-mobile-tab-icon {
+  font-size: 20px;
+}
+
+/* ── Bottom Sheet ──────────────────────────────────────────────── */
+.k-bottom-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.k-bottom-sheet.open {
+  pointer-events: auto;
+}
+
+.k-bottom-sheet-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.k-bottom-sheet.open .k-bottom-sheet-overlay {
+  opacity: 1;
+}
+
+.k-bottom-sheet-content {
+  position: absolute;
+  bottom: var(--mobile-tabbar-height);
+  left: 0;
+  right: 0;
+  background: #0c0c0c;
+  border-top: 1px solid var(--color-k-edge);
+  border-radius: 16px 16px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.k-bottom-sheet.open .k-bottom-sheet-content {
+  transform: translateY(0);
+}
+
+.k-bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-k-edge-hover);
+  margin: 0 auto 12px;
+}
+
 /* ── Responsive ────────────────────────────────────────────────── */
 
-/* Tablet */
+/* Large tablet: collapse sidebar */
+@media (max-width: 1024px) {
+  .k-sidebar {
+    width: var(--sidebar-collapsed-width);
+  }
+
+  .k-main-column {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+
+  .k-sidebar .k-sidebar-label,
+  .k-sidebar .k-sidebar-badge,
+  .k-sidebar .k-sidebar-logo-text,
+  .k-sidebar .k-sidebar-section-label {
+    display: none;
+  }
+
+  .k-sidebar .k-sidebar-link {
+    justify-content: center;
+    padding: 0;
+    margin: 1px 4px;
+  }
+
+  .k-sidebar .k-sidebar-header {
+    justify-content: center;
+    padding: 0 8px;
+    margin: 0;
+  }
+
+  .k-sidebar .k-sidebar-toggle {
+    display: none;
+  }
+}
+
+/* Tablet: hide sidebar, show mobile tab bar */
 @media (max-width: 768px) {
+  .k-sidebar {
+    display: none;
+  }
+
+  .k-main-column {
+    margin-left: 0;
+  }
+
+  .k-mobile-tabbar {
+    display: flex;
+  }
+
+  .k-main-column {
+    padding-bottom: var(--mobile-tabbar-height);
+  }
+
+  .k-topbar {
+    padding: 0 16px;
+  }
+
+  /* Hide version badges on mobile */
+  .k-topbar-left {
+    display: none;
+  }
+
   .k-header-content {
     padding: 0 16px !important;
   }

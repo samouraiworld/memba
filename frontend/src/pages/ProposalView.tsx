@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -19,7 +20,8 @@ import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { decodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
-import { VoteStat, TierVoteBlock } from "../components/proposal"
+import { TierVoteBlock } from "../components/proposal"
+import { VotingInsights } from "../components/dao/TierPieChart"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposalView() {
@@ -39,6 +41,7 @@ export function ProposalView() {
     const [isArchived, setIsArchived] = useState(false)
     const [myUsername, setMyUsername] = useState<string | null>(null)
     const [memberCount, setMemberCount] = useState(0)
+    const [thresholdPct, setThresholdPct] = useState(60)
 
 
     const proposalId = parseInt(id || "", 10)
@@ -92,6 +95,9 @@ export function ProposalView() {
             .then((cfg) => {
                 setIsArchived(cfg?.isArchived || false)
                 setMemberCount(cfg?.memberCount || 0)
+                // Parse threshold: "60%" → 60
+                const thr = parseInt(cfg?.threshold || "60", 10)
+                if (!isNaN(thr) && thr > 0) setThresholdPct(thr)
                 return getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
             })
             .then((members) => {
@@ -225,8 +231,6 @@ export function ProposalView() {
     const sc = statusColors[proposal.status] || statusColors.open
     const isLive = proposal.status === "open"
 
-    const totalYesVoters = voteRecords.reduce((sum, r) => sum + r.yesVoters.length, 0)
-    const totalNoVoters = voteRecords.reduce((sum, r) => sum + r.noVoters.length, 0)
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -245,7 +249,7 @@ export function ProposalView() {
                     id="proposal-back-btn"
                     style={{ color: "#00d4aa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
                 >
-                    {realmPath.split("/").pop() || "DAO"}
+                    {(() => { const name = realmPath.split("/").pop() || "DAO"; return name.charAt(0).toUpperCase() + name.slice(1) })()}
                 </button>
                 <span style={{ color: "#333" }}>›</span>
                 <span style={{ color: "#f0f0f0" }}>Proposal #{proposal?.id ?? proposalId}</span>
@@ -357,82 +361,15 @@ export function ProposalView() {
                 </div>
             )}
 
-            {/* Vote Summary */}
-            <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                    Voting Results
-                </h3>
-
-                {/* Vote summary bar — always show if we have any vote data */}
-                {(() => {
-                    // Use proposal parsed data first, fall back to voter counts from voteRecords
-                    const totalVotes = proposal.yesVotes + proposal.noVotes + proposal.abstainVotes
-                    const totalVoterCount = totalYesVoters + totalNoVoters
-                    const yesPct = proposal.yesPercent
-                        || (totalVotes > 0 ? Math.round((proposal.yesVotes / totalVotes) * 100) : 0)
-                        || (totalVoterCount > 0 ? Math.round((totalYesVoters / totalVoterCount) * 100) : 0)
-                    const noPct = proposal.noPercent
-                        || (totalVotes > 0 ? Math.round((proposal.noVotes / totalVotes) * 100) : 0)
-                        || (totalVoterCount > 0 ? Math.round((totalNoVoters / totalVoterCount) * 100) : 0)
-                    const abstainPct = totalVotes > 0 ? Math.round((proposal.abstainVotes / totalVotes) * 100) : 0
-                    if (yesPct === 0 && noPct === 0 && totalVotes === 0 && totalVoterCount === 0) return null
-                    return (
-                        <div style={{ marginBottom: 16 }}>
-                            {/* Percentage labels */}
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
-                                <div style={{ display: "flex", gap: 14 }}>
-                                    <span style={{ color: "#4caf50", fontWeight: 600 }}>✓ {yesPct}% Yes</span>
-                                    <span style={{ color: "#f44336", fontWeight: 600 }}>✗ {noPct}% No</span>
-                                    {abstainPct > 0 && <span style={{ color: "#888" }}>○ {abstainPct}% Abstain</span>}
-                                </div>
-                                <span style={{ color: "#555" }}>
-                                    {totalYesVoters + totalNoVoters}{memberCount > 0 ? ` of ${memberCount}` : ""} voted{memberCount > 0 ? ` (${Math.round(((totalYesVoters + totalNoVoters) / memberCount) * 100)}%)` : ""}
-                                </span>
-                            </div>
-                            {/* Vote split bar */}
-                            <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", display: "flex" }}>
-                                <div style={{ width: `${yesPct}%`, background: "linear-gradient(90deg, #4caf50, #4caf5088)", transition: "width 0.4s" }} />
-                                <div style={{ width: `${noPct}%`, background: "linear-gradient(90deg, #f44336, #f4433688)", transition: "width 0.4s" }} />
-                                {abstainPct > 0 && <div style={{ width: `${abstainPct}%`, background: "linear-gradient(90deg, #888, #88888888)", transition: "width 0.4s" }} />}
-                            </div>
-                            {/* Quorum progress bar */}
-                            {memberCount > 0 && (() => {
-                                const totalVoterCount2 = totalYesVoters + totalNoVoters
-                                const quorumPct = Math.min(100, Math.round((totalVoterCount2 / memberCount) * 100))
-                                const quorumColor = quorumPct >= 50 ? "#00d4aa" : "#f59e0b"
-                                return (
-                                    <div style={{ marginTop: 6 }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "JetBrains Mono, monospace", marginBottom: 3 }}>
-                                            <span style={{ color: quorumColor }}>Quorum {quorumPct}%</span>
-                                            <span style={{ color: "#444" }}>50% threshold</span>
-                                        </div>
-                                        <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", position: "relative" }}>
-                                            <div style={{ width: `${quorumPct}%`, height: "100%", background: quorumColor, borderRadius: 2, transition: "width 0.4s" }} />
-                                            <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "#555", borderRight: "1px dashed #333" }} />
-                                        </div>
-                                    </div>
-                                )
-                            })()}
-                        </div>
-                    )
-                })()}
-
-                {/* Detailed vote counts */}
-                {(proposal.yesVotes > 0 || proposal.noVotes > 0) && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
-                        <VoteStat label="Yes" count={proposal.yesVotes} color="#4caf50" icon="✓" />
-                        <VoteStat label="No" count={proposal.noVotes} color="#f44336" icon="✗" />
-                        <VoteStat label="Abstain" count={proposal.abstainVotes} color="#888" icon="○" />
-                    </div>
-                )}
-
-                {/* Voter count summary */}
-                {(totalYesVoters > 0 || totalNoVoters > 0) && (
-                    <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
-                        {totalYesVoters + totalNoVoters} total voters ({totalYesVoters} yes, {totalNoVoters} no)
-                    </div>
-                )}
-            </div>
+            {/* Voting Insights — 3-layer card (Participation / Vote Split / Tier Breakdown) */}
+            <VotingInsights
+                yesVotes={proposal.yesVotes || voteRecords.reduce((s, r) => s + r.yesVoters.length, 0)}
+                noVotes={proposal.noVotes || voteRecords.reduce((s, r) => s + r.noVoters.length, 0)}
+                abstainVotes={proposal.abstainVotes || 0}
+                totalMembers={memberCount}
+                threshold={thresholdPct}
+                voteRecords={voteRecords}
+            />
 
             {/* Tier-Grouped Vote Breakdown */}
             {voteRecords.length > 0 && (
@@ -524,7 +461,7 @@ export function ProposalView() {
                     border: "1px solid rgba(245,166,35,0.15)",
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
-                    <span style={{ fontSize: 16 }}>📦</span>
+                    <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
                     <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
                         This DAO is archived — voting and execution are disabled
                     </div>

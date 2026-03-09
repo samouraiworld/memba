@@ -3,19 +3,26 @@
  *
  * - ABCI query helpers (list tokens, get info, balance)
  * - MsgCall builder for factory functions
- * - Platform fee constants (5% to Samouraï Coop)
+ * - Platform fee constants (2.5% to Samouraï Coop)
+ * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
+
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN } from "./config"
+import { getGasConfig } from "./gasConfig"
 
 // ── Platform Fee ──────────────────────────────────────────────
 
-/** 5% platform fee on every mint. */
-export const PLATFORM_FEE_RATE = 0.05
+/** 2.5% platform fee on every mint (v2.1a: reduced from 5%). */
+export const PLATFORM_FEE_RATE = 0.025
 
 /** Samouraï Coop multisig — fee recipient on all networks. */
-export const FEE_RECIPIENT = "g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh"
+export const FEE_RECIPIENT = "g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v"
 
-/** grc20factory realm path. */
-export const GRC20_FACTORY_PATH = "gno.land/r/demo/defi/grc20factory"
+/**
+ * grc20factory realm path.
+ * @deprecated Import from `config.ts` instead: `import { GRC20_FACTORY_PATH } from "./config"`
+ */
+export const GRC20_FACTORY_PATH = _FACTORY_PATH
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -36,20 +43,29 @@ export interface AminoMsg {
 
 /**
  * Convert Amino MsgCall array to Adena's /vm.m_call format.
+ *
+ * ⚠️ Only handles vm/MsgCall messages. MsgAddPackage (/vm.m_addpkg)
+ * must be converted separately (see channelTemplate.buildDeployChannelMsg).
+ *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
  *       so all DAO calls must use MsgCall with crossing() functions.
  */
 export function toAdenaMessages(msgs: AminoMsg[]) {
-    return msgs.map((m) => ({
-        type: "/vm.m_call",
-        value: {
-            caller: m.value.caller as string,
-            send: (m.value.send as string) || "",
-            pkg_path: m.value.pkg_path as string,
-            func: m.value.func as string,
-            args: m.value.args as string[],
-        },
-    }))
+    return msgs.map((m) => {
+        if (m.type !== "vm/MsgCall") {
+            throw new Error(`toAdenaMessages only supports vm/MsgCall, got: ${m.type}`)
+        }
+        return {
+            type: "/vm.m_call",
+            value: {
+                caller: m.value.caller as string,
+                send: (m.value.send as string) || "",
+                pkg_path: m.value.pkg_path as string,
+                func: m.value.func as string,
+                args: m.value.args as string[],
+            },
+        }
+    })
 }
 
 // ── Wallet RPC Security Guard ─────────────────────────────────
@@ -78,6 +94,9 @@ export function getWalletRpcContext(): { url: string | null; trusted: boolean } 
  *
  * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
  * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
+ *
+ * RESILIENCE: Retries transient network failures (timeout, fetch) up to 2 times
+ * with exponential backoff. User-initiated cancellations are never retried.
  */
 export async function doContractBroadcast(
     msgs: AminoMsg[],
@@ -100,19 +119,49 @@ export async function doContractBroadcast(
         throw new Error("Adena wallet not available — please install or refresh the page")
     }
 
-    const res = await adena.DoContract({
-        messages: toAdenaMessages(msgs),
-        gasFee: 1,
-        gasWanted: 10000000,
-        memo,
-    })
+    const gas = getGasConfig()
+    const maxRetries = 2
+    let lastError: Error | null = null
 
-    if (res.status === "failure") {
-        const errMsg = res.message || res.data?.message || "Transaction failed"
-        throw new Error(errMsg)
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const res = await adena.DoContract({
+                messages: toAdenaMessages(msgs),
+                gasFee: gas.fee,
+                gasWanted: gas.wanted,
+                memo,
+            })
+
+            if (res.status === "failure") {
+                const errMsg = res.message || res.data?.message || "Transaction failed"
+                // Don't retry user cancellations or wallet rejections
+                if (/user (rejected|denied)|cancelled/i.test(errMsg)) {
+                    throw new Error(errMsg)
+                }
+                // Don't retry deterministic chain errors
+                if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(errMsg)) {
+                    throw new Error(errMsg)
+                }
+                lastError = new Error(errMsg)
+            } else {
+                return { hash: res.data?.hash || "" }
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            // Don't retry user cancellations
+            if (/user (rejected|denied)|cancelled/i.test(msg)) throw err
+            // Don't retry deterministic errors
+            if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(msg)) throw err
+            lastError = err instanceof Error ? err : new Error(msg)
+        }
+
+        // Exponential backoff: 1s, 2s
+        if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        }
     }
 
-    return { hash: res.data?.hash || "" }
+    throw lastError || new Error("Transaction failed after retries")
 }
 
 // ── ABCI Queries ──────────────────────────────────────────────
@@ -267,7 +316,7 @@ export function buildCreateTokenWithAdminMsgs(
 
 /**
  * Build MsgCall for grc20factory.Mint() — mints tokens (admin only).
- * Returns TWO messages: mint + 5% fee transfer.
+ * Returns TWO messages: mint + 2.5% fee transfer.
  */
 export function buildMintMsgs(
     callerAddress: string,
@@ -312,15 +361,57 @@ export function buildFaucetMsg(caller: string, symbol: string): AminoMsg {
 
 // ── Fee Calculation ───────────────────────────────────────────
 
-/** Calculate 5% platform fee. Rounds down. */
+/** Calculate 2.5% platform fee. Rounds down. */
 export function calculateFee(amount: bigint): bigint {
-    return amount * 5n / 100n
+    return amount * 25n / 1000n
 }
 
 /** Format fee disclosure text. */
 export function feeDisclosure(amount: bigint, symbol: string): string {
     const fee = calculateFee(amount)
-    return `A 5% platform fee (${fee} ${symbol}) supports Samouraï Coop development & maintenance.`
+    return `A 2.5% platform fee (${fee} ${symbol}) supports Samouraï Coop development & maintenance.`
+}
+
+// ── v2.1a: $MEMBA Token Helpers ───────────────────────────────
+
+/**
+ * Build MsgCalls to create the $MEMBA/$MEMBATEST token.
+ * Uses config-driven symbol/name/decimals.
+ */
+export function buildCreateMembaTokenMsgs(
+    callerAddress: string,
+    initialMint: bigint = BigInt(MEMBA_TOKEN.totalSupply),
+): AminoMsg[] {
+    return buildCreateTokenMsgs(
+        callerAddress,
+        MEMBA_TOKEN.name,
+        MEMBA_TOKEN.symbol,
+        MEMBA_TOKEN.decimals,
+        initialMint,
+        0n, // no faucet
+    )
+}
+
+/**
+ * Convenience: get $MEMBA/$MEMBATEST balance for an address.
+ */
+export async function getMembaBalance(rpcUrl: string, address: string): Promise<bigint> {
+    return getTokenBalance(rpcUrl, MEMBA_TOKEN.symbol, address)
+}
+
+/**
+ * Format a token amount with decimals for display.
+ * Trailing zeros are stripped for readability.
+ * Example: formatTokenAmount(1000000n, 6) → "1"
+ * Example: formatTokenAmount(1500000n, 6) → "1.5"
+ */
+export function formatTokenAmount(amount: bigint, decimals: number = MEMBA_TOKEN.decimals): string {
+    const divisor = 10n ** BigInt(decimals)
+    const whole = amount / divisor
+    const frac = amount % divisor
+    if (frac === 0n) return whole.toString()
+    const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "")
+    return `${whole}.${fracStr}`
 }
 
 // ── Internal Helpers ──────────────────────────────────────────

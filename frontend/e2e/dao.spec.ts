@@ -36,7 +36,7 @@ test.describe('GovDAO Page', () => {
         await page.goto('/dao/gno.land~r~gov~dao')
         const backBtn = page.locator('#dao-back-btn')
         await expect(backBtn).toBeVisible()
-        await expect(backBtn).toContainText('Back to DAOs')
+        await expect(backBtn).toContainText('DAOs')
     })
 
     test('power distribution section visible', async ({ page }) => {
@@ -59,8 +59,8 @@ test.describe('GovDAO Page', () => {
 test.describe('DAO Members Page', () => {
     test('members page loads', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/members')
-        // Should show member-related content or DAO name
-        await expect(page.locator('body')).toContainText(/Member|GovDAO|T1|Back/)
+        // Members heading appears after ABCI data loads — allow extra time for CI
+        await expect(page.locator('body')).toContainText(/Member|GovDAO|T1|Back/, { timeout: 15000 })
     })
 })
 
@@ -74,26 +74,26 @@ test.describe('Create DAO Wizard', () => {
 test.describe('Proposal Types (ProposeDAO)', () => {
     test('text proposal type is active', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const textBtn = page.locator('button', { hasText: '📝 Text / Sentiment' })
+        const textBtn = page.locator('button', { hasText: 'Text / Sentiment' })
         await expect(textBtn).toBeVisible()
         await expect(textBtn).not.toBeDisabled()
     })
 
-    test('add member type is disabled', async ({ page }) => {
+    test('add member type is enabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '👥 Add Member' })
-        await expect(btn).toBeDisabled()
+        const btn = page.locator('button', { hasText: 'Add Member' })
+        await expect(btn).not.toBeDisabled()
     })
 
     test('treasury spend type is disabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '💰 Treasury Spend' })
+        const btn = page.locator('button', { hasText: 'Treasury Spend' })
         await expect(btn).toBeDisabled()
     })
 
     test('code upgrade type is disabled', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: '⚙️ Code Upgrade' })
+        const btn = page.locator('button', { hasText: 'Code Upgrade' })
         await expect(btn).toBeDisabled()
     })
 })

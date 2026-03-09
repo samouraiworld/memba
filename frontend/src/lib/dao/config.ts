@@ -46,7 +46,8 @@ export async function getDAOConfig(
     if (descMatch) {
         // Filter out memberstore link lines and empty lines
         const descLines = descMatch[1].split("\n")
-            .filter((l) => !l.includes("Memberstore") && !l.includes("memberstore") && l.trim() !== "")
+            .filter((l) => !l.includes("Memberstore") && !l.includes("memberstore")
+                && !l.match(/^#{0,4}\s*Members/i) && l.trim() !== "")
         description = descLines.join("\n").trim()
         // R1: Strip any residual markdown heading markers from description
         description = description.replace(/^#+\s+/gm, '').trim()

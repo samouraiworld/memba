@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { Bank, Archive, UsersThree, Vault } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { derivePkgBech32Addr } from "../lib/dao/realmAddress"
 
 import {
     getDAOConfig,
@@ -16,8 +18,52 @@ import {
 } from "../lib/dao"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
-import { StatCard, TierBar, ProposalCard, MemberCard } from "../components/dao"
+import { ProposalCard, MemberCard } from "../components/dao"
+import { PowerDonut } from "../components/dao/TierPieChart"
+import { getPlugins } from "../plugins"
+import { DeployPluginModal } from "../components/dao/DeployPluginModal"
+import { DAORooms } from "../components/dao/DAORooms"
+import { detectChannelRealm } from "../plugins/board/parser"
 import type { LayoutContext } from "../types/layout"
+
+/** Tiny component that derives + displays the realm's bech32 address. */
+function RealmAddressBadge({ realmPath }: { realmPath: string }) {
+    const [addr, setAddr] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
+
+    useEffect(() => {
+        derivePkgBech32Addr(realmPath).then(setAddr).catch(() => setAddr(null))
+    }, [realmPath])
+
+    if (!addr) return null
+
+    const truncated = `${addr.slice(0, 8)}…${addr.slice(-6)}`
+
+    return (
+        <button
+            title={`Realm address: ${addr}\nClick to copy`}
+            onClick={(e) => {
+                e.stopPropagation()
+                try {
+                    navigator.clipboard.writeText(addr).then(() => {
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 1500)
+                    }).catch(() => {
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 1500)
+                    })
+                } catch {
+                    // Clipboard API not available (HTTP context)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                }
+            }}
+            className="k-realm-address"
+        >
+            {copied ? "✓ Copied!" : truncated}
+        </button>
+    )
+}
 
 export function DAOHome() {
     const navigate = useNavigate()
@@ -41,6 +87,8 @@ export function DAOHome() {
     const [voteFilter, setVoteFilter] = useState<"all" | "needs" | "voted">("all")
     const [showHistory, setShowHistory] = useState(false)
     const usernameRef = useRef<string | null>(null)
+    const [showDeployModal, setShowDeployModal] = useState(false)
+    const [hasChannels, setHasChannels] = useState(false)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
@@ -75,6 +123,22 @@ export function DAOHome() {
     }, [realmPath])
 
     useEffect(() => { loadData() }, [loadData])
+
+    // Detect if DAO has deployed a channel realm (for DAORooms "Manage channels" link)
+    useEffect(() => {
+        if (!realmPath) return
+        detectChannelRealm(GNO_RPC_URL, realmPath)
+            .then(path => setHasChannels(!!path))
+            .catch(() => setHasChannels(false))
+    }, [realmPath])
+
+    // Persist last visited DAO slug for plugin sidebar routing (B2)
+    useEffect(() => {
+        if (encodedSlug) {
+            localStorage.setItem("memba_last_dao_slug", encodedSlug)
+            window.dispatchEvent(new Event("memba:daoVisited"))
+        }
+    }, [encodedSlug])
 
     // Phase 3: Vote enrichment — always loads vote data (public), checks user vote when wallet connected
     useEffect(() => {
@@ -174,158 +238,160 @@ export function DAOHome() {
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-            {/* Back nav */}
-            <button
-                id="dao-back-btn"
-                aria-label="Back to DAO list"
-                onClick={() => navigate("/dao")}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
-            >
-                ← Back to DAOs
-            </button>
+        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* ─── DAO Overview Card (single card: identity + stats) ─── */}
+            <div className="k-card" style={{ padding: "16px 20px" }}>
+                {/* Breadcrumb */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <button
+                        id="dao-back-btn"
+                        aria-label="Back to DAO list"
+                        onClick={() => navigate("/dao")}
+                        style={{ color: "#555", fontSize: 11, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", padding: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
+                        onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                    >
+                        DAOs
+                    </button>
+                    <span style={{ color: "#333", fontSize: 10 }}>›</span>
+                    <span style={{ color: "#888", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        {config?.name || "DAO"}
+                    </span>
+                </div>
 
-            {/* Header */}
-            <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                        🏛️ {config?.name || "DAO Governance"}
+                {/* Title + membership pill */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <Bank size={20} style={{ color: '#888' }} /> {config?.name || "DAO Governance"}
+                        {config?.isArchived && (
+                            <span style={{
+                                padding: "2px 8px", borderRadius: 4, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(245,166,35,0.1)", color: "#f5a623",
+                            }}>
+                                <Archive size={12} /> ARCHIVED
+                            </span>
+                        )}
                     </h2>
-                    {config?.isArchived && (
-                        <span style={{
-                            padding: "3px 10px", borderRadius: 6, fontSize: 10,
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                            background: "rgba(245,166,35,0.1)", color: "#f5a623",
-                        }}>
-                            📦 ARCHIVED
-                        </span>
+                    {auth.isAuthenticated && currentMember && (
+                        <div
+                            title={`Your role: ${currentMember.tier || "Member"} — Voting power: ${currentMember.votingPower || "1"}`}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "4px 10px", borderRadius: 6,
+                                background: "rgba(0,212,170,0.06)",
+                                flexShrink: 0,
+                            }}>
+                            <span style={{ color: "#00d4aa", fontSize: 11 }}>✓</span>
+                            <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
+                                {currentMember.tier || ""}
+                                {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
+                            </span>
+                        </div>
+                    )}
+                    {auth.isAuthenticated && !currentMember && (
+                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555", padding: "4px 8px" }}>Guest</span>
                     )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <p style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                        {realmPath}
-                    </p>
-                    <a
-                        href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="View source on gno.land"
-                        style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#444", textDecoration: "none", transition: "color 0.15s",
-                            padding: "1px 5px", borderRadius: 3,
-                            border: "1px solid #222",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        &lt;/&gt;
-                    </a>
+
+                {/* Realm path · </> (left)    address (right) */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5, flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ color: "#444", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                            {realmPath}
+                        </span>
+                        <a
+                            href={`${getExplorerBaseUrl()}/r/${realmPath.replace("gno.land/r/", "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View source on gno.land"
+                            style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#444", textDecoration: "none", transition: "color 0.15s", padding: "0 3px" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            &lt;/&gt;
+                        </a>
+                    </div>
+                    <RealmAddressBadge realmPath={realmPath} />
                 </div>
-                {config?.description && (
-                    <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
-                        {config.description}
+
+                {/* Description */}
+                {(config?.description || realmPath === "gno.land/r/gov/dao") && (
+                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6, margin: "8px 0 0" }}>
+                        {config?.description || "Gno chain governance — proposals and membership management."}
                     </p>
                 )}
-            </div>
 
-            {/* Archive warning */}
-            {config?.isArchived && (
-                <div style={{
-                    padding: "12px 18px", borderRadius: 10,
-                    background: "rgba(245,166,35,0.05)",
-                    border: "1px solid rgba(245,166,35,0.15)",
-                    display: "flex", alignItems: "center", gap: 10,
-                }}>
-                    <span style={{ fontSize: 16 }}>⚠️</span>
-                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
-                        This DAO has been archived. No new proposals or votes are allowed.
+                {/* Archive warning */}
+                {config?.isArchived && (
+                    <div style={{
+                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                        background: "rgba(245,166,35,0.05)",
+                        fontSize: 10, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
+                    }}>
+                        ⚠️ Archived — no new proposals or votes.
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Your Status Banner */}
-            {auth.isAuthenticated && (
-                <div style={{
-                    padding: "14px 18px", borderRadius: 10,
-                    background: currentMember ? "rgba(0,212,170,0.05)" : "rgba(245,166,35,0.05)",
-                    border: `1px solid ${currentMember ? "rgba(0,212,170,0.12)" : "rgba(245,166,35,0.12)"}`,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>{currentMember ? "✓" : "⚠"}</span>
-                        <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: currentMember ? "#00d4aa" : "#f5a623" }}>
-                                {currentMember ? "You are a DAO member" : "You are not a member"}
-                            </div>
-                            {currentMember?.tier && (
-                                <div style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", marginTop: 2 }}>
-                                    Tier {currentMember.tier} • Voting Power {currentMember.votingPower || "—"}
+                {/* Username CTA */}
+                {auth.isAuthenticated && currentMember && !currentMember.username && (
+                    <div style={{
+                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                        background: "rgba(0,212,170,0.03)", border: "1px dashed rgba(0,212,170,0.08)",
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                        flexWrap: "wrap",
+                    }}>
+                        <span style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                            🏷️ Register @username to be recognized across DAOs
+                        </span>
+                        <a
+                            href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="k-btn-primary"
+                            style={{ fontSize: 9, padding: "3px 8px", textDecoration: "none", flexShrink: 0 }}
+                        >
+                            Register →
+                        </a>
+                    </div>
+                )}
+
+                {/* ── Divider ── */}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0 10px" }} />
+
+                {/* Stats row: donut + pills */}
+                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                    {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
+                        <PowerDonut
+                            tiers={config.tierDistribution}
+                            totalPower={totalPower}
+                            size={80}
+                        />
+                    )}
+                    <div className="k-stat-grid">
+                        {[
+                            { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
+                            { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
+                            { icon: "📜", value: String(proposals.length), label: "Proposals" },
+                            { icon: "📊", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
+                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
+                        ].map(s => (
+                            <div key={s.label} className={`k-stat-card${(s as { accent?: boolean }).accent ? " k-stat-accent" : ""}`}>
+                                <span className="k-stat-card__icon">{s.icon}</span>
+                                <div>
+                                    <div className="k-stat-card__value">
+                                        {s.value}
+                                    </div>
+                                    <div className="k-stat-card__label">
+                                        {s.label}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Username CTA — shown when member has no @username */}
-            {auth.isAuthenticated && currentMember && !currentMember.username && (
-                <div style={{
-                    padding: "12px 18px", borderRadius: 10,
-                    background: "rgba(0,212,170,0.03)",
-                    border: "1px dashed rgba(0,212,170,0.15)",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>🏷️</span>
-                        <div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "#00d4aa" }}>
-                                Register your @username
                             </div>
-                            <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 1 }}>
-                                Get a username to be recognized across DAOs
-                            </div>
-                        </div>
-                    </div>
-                    <a
-                        href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="k-btn-primary"
-                        style={{ fontSize: 11, padding: "6px 14px", textDecoration: "none" }}
-                    >
-                        Register →
-                    </a>
-                </div>
-            )}
-            {/* Stats Grid */}
-            <div className="k-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-                <StatCard label="Members" value={String(config?.memberCount || members.length)} icon="👥" />
-                <StatCard label="Active" value={String(activeProposals.length)} icon="📋" accent />
-                <StatCard label="Total Proposals" value={String(proposals.length)} icon="📜" />
-                <StatCard label="Avg Turnout" value={avgTurnout > 0 ? `${avgTurnout}%` : "—"} icon="🗳️" />
-                {totalPower > 0 && (
-                    <StatCard label="Voting Power" value={String(totalPower)} icon="⚡" />
-                )}
-            </div>
-
-            {/* Tier Distribution */}
-            {config?.tierDistribution && config.tierDistribution.length > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
-                        Power Distribution
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {config.tierDistribution.map((t) => (
-                            <TierBar key={t.tier} tier={t} totalPower={totalPower} />
                         ))}
                     </div>
-                    <div style={{ marginTop: 14, fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
-                        {config.tierDistribution.reduce((sum, t) => sum + t.memberCount, 0)} total members across {config.tierDistribution.length} tiers
-                    </div>
                 </div>
-            )}
+            </div>
 
             {/* Active Proposals */}
             <div>
@@ -436,8 +502,8 @@ export function DAOHome() {
             {/* Members Preview */}
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>
-                        Members ({config?.memberCount || members.length})
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                        <UsersThree size={16} style={{ display: 'inline' }} /> ({config?.memberCount || members.length})
                     </h3>
                     <button
                         onClick={() => navigate(`/dao/${encodedSlug}/members`)}
@@ -465,10 +531,37 @@ export function DAOHome() {
                 )}
             </div>
 
+            {/* Channels (v2.5a) */}
+            <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 22 }}>💬</span>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>Channels</div>
+                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>Discussion channels and announcements</div>
+                    </div>
+                </div>
+                <button
+                    id="dao-channels-btn"
+                    onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
+                    style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
+                >
+                    Open →
+                </button>
+            </div>
+
+            {/* Voice/Video Rooms (v2.9) — always available, no channel realm required */}
+            <DAORooms
+                daoSlug={slug || ""}
+                encodedSlug={encodedSlug}
+                isMember={!!currentMember}
+                hasChannels={hasChannels}
+                isConnected={!!adena.address}
+            />
+
             {/* Treasury */}
             <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 22 }}>💰</span>
+                    <span style={{ fontSize: 22, display: 'flex' }}><Vault size={22} /></span>
                     <div>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>Treasury</div>
                         <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>View DAO assets and balances</div>
@@ -481,6 +574,66 @@ export function DAOHome() {
                     Open →
                 </button>
             </div>
+
+            {/* Plugins */}
+            {getPlugins().length > 0 && (
+                <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                        🧩 Extensions
+                    </h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+                        {getPlugins().map(plugin => (
+                            <div key={plugin.id} style={{ display: "flex", flexDirection: "column" }}>
+                                <button
+                                    id={`plugin-card-${plugin.id}`}
+                                    onClick={() => navigate(`/dao/${encodedSlug}/plugin/${plugin.id}`)}
+                                    className="k-card"
+                                    style={{
+                                        padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14,
+                                        cursor: "pointer", border: "1px solid #1a1a1a", textAlign: "left",
+                                        width: "100%", height: "100%", minHeight: 80,
+                                        transition: "border-color 0.15s, background 0.15s",
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"; e.currentTarget.style.background = "rgba(0,212,170,0.02)" }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.background = "" }}
+                                >
+                                    <span style={{ fontSize: 22, marginTop: 2 }}>{plugin.icon}</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{plugin.name}</span>
+                                            <span style={{
+                                                fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                                                background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                            }}>
+                                                v{plugin.version}
+                                            </span>
+                                        </div>
+                                        <div style={{
+                                            fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3,
+                                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+                                        }}>
+                                            {plugin.description}
+                                        </div>
+                                    </div>
+                                    <span style={{ color: "#444", fontSize: 12, marginTop: 2 }}>→</span>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Deploy Plugin Modal */}
+            {showDeployModal && (
+                <DeployPluginModal
+                    daoRealmPath={realmPath}
+                    daoName={config?.name || realmPath.split("/").pop() || "DAO"}
+                    callerAddress={adena.address || ""}
+                    onClose={() => setShowDeployModal(false)}
+                    onDeployed={() => { setShowDeployModal(false); loadData() }}
+                />
+            )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>

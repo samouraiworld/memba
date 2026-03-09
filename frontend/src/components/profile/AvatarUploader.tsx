@@ -1,0 +1,250 @@
+/**
+ * AvatarUploader — File picker + URL input for profile avatars.
+ *
+ * v2.1a Phase 2: IPFS upload via Lighthouse.
+ * - Upload mode: Select image → preview → pin to IPFS → save CID as avatarUrl
+ * - URL mode: Direct URL input (fallback for non-IPFS avatars)
+ * - Shows IPFS CID after successful pin
+ *
+ * Constraints:
+ * - Max 2MB input image file
+ * - Preprocessed to max 256×256 WebP (≤512KB) before upload
+ * - Accepts: JPEG, PNG, WebP, GIF
+ * - Shows preview before uploading
+ */
+
+import { useState, useRef, useCallback } from "react"
+import { uploadAvatar, resolveAvatarUrl, isValidImageMime } from "../../lib/ipfs"
+
+const MAX_INPUT_SIZE = 2 * 1024 * 1024 // 2MB input limit
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+
+interface Props {
+    /** Current avatar URL (from profile). */
+    currentUrl: string
+    /** Called when user confirms a new avatar URL. */
+    onUrlChange: (url: string) => void
+}
+
+export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [urlInput, setUrlInput] = useState(currentUrl)
+    const [error, setError] = useState<string | null>(null)
+    const [uploading, setUploading] = useState(false)
+    const [uploadedCid, setUploadedCid] = useState<string | null>(null)
+    const [mode, setMode] = useState<"url" | "file">("file")
+    const fileRef = useRef<HTMLInputElement>(null)
+
+    const lighthouseKey = import.meta.env.VITE_LIGHTHOUSE_API_KEY || ""
+
+    const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setError(null)
+        setUploadedCid(null)
+
+        if (!isValidImageMime(file.type)) {
+            setError("Only JPEG, PNG, WebP, and GIF images are supported")
+            return
+        }
+        if (file.size > MAX_INPUT_SIZE) {
+            setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max: 2 MB`)
+            return
+        }
+
+        setSelectedFile(file)
+        const reader = new FileReader()
+        reader.onload = () => setPreviewUrl(reader.result as string)
+        reader.onerror = () => setError("Failed to read file")
+        reader.readAsDataURL(file)
+    }, [])
+
+    const handleUpload = async () => {
+        if (!selectedFile) return
+
+        if (!lighthouseKey) {
+            // Fallback: use DataURL if no API key configured (dev mode)
+            if (previewUrl) {
+                onUrlChange(previewUrl)
+                setPreviewUrl(null)
+                setSelectedFile(null)
+            }
+            return
+        }
+
+        setUploading(true)
+        setError(null)
+        try {
+            const result = await uploadAvatar(selectedFile, lighthouseKey)
+            setUploadedCid(result.cid)
+            onUrlChange(`ipfs://${result.cid}`)
+            setPreviewUrl(null)
+            setSelectedFile(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Upload failed")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    const applyUrl = () => {
+        if (urlInput.trim()) {
+            onUrlChange(urlInput.trim())
+            setPreviewUrl(null)
+            setError(null)
+        }
+    }
+
+    const resolvedCurrent = resolveAvatarUrl(currentUrl)
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "#ccc" }}>Avatar</span>
+                <div style={{ display: "flex", gap: 2 }}>
+                    {(["file", "url"] as const).map(m => (
+                        <button
+                            key={m}
+                            onClick={() => { setMode(m); setError(null) }}
+                            data-testid={`avatar-mode-${m}`}
+                            style={{
+                                padding: "3px 10px", fontSize: 10, borderRadius: 4,
+                                fontFamily: "JetBrains Mono, monospace",
+                                background: mode === m ? "rgba(0,212,170,0.08)" : "transparent",
+                                border: "1px solid",
+                                borderColor: mode === m ? "rgba(0,212,170,0.2)" : "#222",
+                                color: mode === m ? "#00d4aa" : "#666",
+                                cursor: "pointer", transition: "all 0.15s",
+                            }}
+                        >
+                            {m === "file" ? "📁 Upload to IPFS" : "🔗 URL"}
+                        </button>
+                    ))}
+                </div>
+                {lighthouseKey && (
+                    <span style={{ fontSize: 9, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                        ✓ Lighthouse
+                    </span>
+                )}
+            </div>
+
+            {mode === "url" ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                        type="text"
+                        value={urlInput}
+                        onChange={e => setUrlInput(e.target.value)}
+                        placeholder="https://example.com/avatar.png or ipfs://bafybei..."
+                        data-testid="avatar-url-input"
+                        style={{
+                            flex: 1, padding: "8px 12px", borderRadius: 6,
+                            border: "1px solid #1a1a1a", background: "#0d0d0d",
+                            color: "#f0f0f0", fontSize: 11,
+                            fontFamily: "JetBrains Mono, monospace", outline: "none",
+                        }}
+                    />
+                    <button
+                        onClick={applyUrl}
+                        disabled={!urlInput.trim()}
+                        className="k-btn-primary"
+                        data-testid="avatar-apply-url"
+                        style={{ fontSize: 10, padding: "6px 12px", opacity: urlInput.trim() ? 1 : 0.4 }}
+                    >
+                        Apply
+                    </button>
+                </div>
+            ) : (
+                <div>
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(",")}
+                        onChange={handleFile}
+                        style={{ display: "none" }}
+                    />
+                    <button
+                        onClick={() => fileRef.current?.click()}
+                        className="k-btn-secondary"
+                        data-testid="avatar-choose-file"
+                        style={{
+                            fontSize: 11, padding: "10px 18px", width: "100%",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        }}
+                    >
+                        📁 Choose Image (max 2 MB → resized to 256px)
+                    </button>
+
+                    {/* Preview + Upload */}
+                    {previewUrl && (
+                        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                            <img
+                                src={previewUrl}
+                                alt="Preview"
+                                style={{
+                                    width: 56, height: 56, borderRadius: "50%",
+                                    objectFit: "cover", border: "2px solid rgba(0,212,170,0.2)",
+                                }}
+                            />
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                                    {lighthouseKey ? "Ready to pin on IPFS" : "Preview ready (no IPFS key)"}
+                                </span>
+                                <button
+                                    onClick={handleUpload}
+                                    disabled={uploading}
+                                    className="k-btn-primary"
+                                    data-testid="avatar-upload-btn"
+                                    style={{ fontSize: 10, padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
+                                >
+                                    {uploading ? "⏳ Pinning to IPFS..." : lighthouseKey ? "📌 Pin & Use" : "✓ Use This Photo"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Upload success: show CID */}
+                    {uploadedCid && (
+                        <div style={{
+                            marginTop: 8, padding: "6px 10px", borderRadius: 4,
+                            background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.12)",
+                            fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace",
+                            wordBreak: "break-all",
+                        }}>
+                            ✓ Pinned: {uploadedCid.slice(0, 20)}...
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {error && (
+                <div style={{
+                    fontSize: 10, color: "#ef4444", fontFamily: "JetBrains Mono, monospace",
+                    padding: "6px 10px", borderRadius: 4,
+                    background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
+                }}>
+                    ⚠️ {error}
+                </div>
+            )}
+
+            {/* Current avatar display */}
+            {resolvedCurrent && !previewUrl && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <img
+                        src={resolvedCurrent}
+                        alt="Current avatar"
+                        style={{
+                            width: 32, height: 32, borderRadius: "50%",
+                            objectFit: "cover", border: "1px solid #222",
+                        }}
+                        onError={e => e.currentTarget.style.display = "none"}
+                    />
+                    <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                        Current avatar
+                        {currentUrl.includes("lighthouse") || currentUrl.includes("ipfs") ? " (IPFS)" : ""}
+                    </span>
+                </div>
+            )}
+        </div>
+    )
+}
