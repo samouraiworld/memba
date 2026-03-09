@@ -6,9 +6,25 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
-### v2.9 Consolidation & Main Merge (2026-03-08)
+### v2.9.3 Directory Expansion (2026-03-09) — PR #82
 
-> Branch: `dev/v2` — Session: consolidation, UX fixes, decomposition
+- **📦 Packages Tab** — 15 well-known gno.land packages (GRC20, GRC721, AVL Tree, DAO, Ownable, ufmt…)
+  - Search by name/path/description, responsive grid, external gno.land links
+- **🌐 Realms Tab** — 11 well-known deployed realms + user's saved DAOs (deduplicated)
+  - Category filter pills (standard / defi / social / utility), colored badges
+- **Data Layer** — `DirectoryPackage`, `DirectoryRealm` types, `fetchPackages()`, `fetchRealms()`
+- **14 new unit tests** — field types, deduplication, paths, data integrity
+- **Total tests: 754** (was 740)
+
+### v2.9.2 Production Bug Fixes (2026-03-09) — PR #81
+
+- **B6 🔴 DAO Creation** — `gnomod.toml` uses `module` instead of `pkgpath` (3 template files)
+- **B7 🔴 Username Registration** — added `200000ugnot` fee, fixed regex to `^[a-z][a-z0-9_]{5,16}$`, updated placeholder/hint
+- **B1 🔴 Hidden Account Overlay** — wrapped `MobileTabBar` in `k-mobile-only` container (hidden on desktop)
+- **B5 🟡 Home/Dashboard Dedup** — `/` redirects to `/dashboard` when connected, Home link hidden in sidebar
+- **B3 🟡 Awaiting Execution** — new "⚡ Awaiting Execution" section in DAOHome for `status === "passed"` proposals
+- **B4 🟡 Jitsi PiP + Fullscreen** — minimize to floating 320×180 window, native fullscreen API, 3-button toolbar
+- **CI Fix** — Go version `stable`, ESLint react-hooks/rules-of-hooks fix
 
 #### Phase 1: Critical UX
 - **Footer Socials Restored** — 7-icon social array (X, Instagram, YouTube, GitHub, LinkedIn, Telegram, Email)

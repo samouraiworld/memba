@@ -460,3 +460,87 @@ export function calculateContributionScores(
 
     return scores
 }
+
+// ── Package Discovery ────────────────────────────────────────
+
+export interface DirectoryPackage {
+    name: string
+    path: string
+    description: string
+}
+
+/** Well-known standard library and community packages on gno.land. */
+export const SEED_PACKAGES: DirectoryPackage[] = [
+    { name: "GRC20", path: "gno.land/p/demo/grc/grc20", description: "Fungible token standard (ERC-20 equivalent)" },
+    { name: "GRC721", path: "gno.land/p/demo/grc/grc721", description: "Non-fungible token standard (ERC-721 equivalent)" },
+    { name: "GRC1155", path: "gno.land/p/demo/grc/grc1155", description: "Multi-token standard" },
+    { name: "AVL Tree", path: "gno.land/p/demo/avl", description: "Self-balancing binary search tree" },
+    { name: "DAO", path: "gno.land/p/demo/dao", description: "Core DAO primitives (proposals, votes)" },
+    { name: "Ownable", path: "gno.land/p/demo/ownable", description: "Ownership management pattern" },
+    { name: "Pausable", path: "gno.land/p/demo/pausable", description: "Contract pause/unpause pattern" },
+    { name: "Seqid", path: "gno.land/p/demo/seqid", description: "Sequential ID generator" },
+    { name: "uassert", path: "gno.land/p/demo/uassert", description: "Assertion helpers for testing" },
+    { name: "ufmt", path: "gno.land/p/demo/ufmt", description: "String formatting utilities" },
+    { name: "json", path: "gno.land/p/demo/json", description: "JSON parser and builder" },
+    { name: "Membstore", path: "gno.land/p/demo/membstore", description: "DAO member storage" },
+    { name: "Simpledao", path: "gno.land/p/demo/simpledao", description: "Simple DAO implementation" },
+    { name: "Entropy", path: "gno.land/p/demo/entropy", description: "Pseudo-random number generation" },
+    { name: "Boards", path: "gno.land/p/demo/boards2", description: "Discussion board framework" },
+]
+
+/**
+ * Fetch packages — returns the static seed list.
+ * Future: could probe ABCI for package availability.
+ */
+export function fetchPackages(): DirectoryPackage[] {
+    return [...SEED_PACKAGES]
+}
+
+// ── Realm Discovery ──────────────────────────────────────────
+
+export interface DirectoryRealm {
+    name: string
+    path: string
+    description: string
+    category: "standard" | "defi" | "social" | "utility" | "game" | "unknown"
+}
+
+/** Well-known realms deployed on gno.land. */
+export const SEED_REALMS: DirectoryRealm[] = [
+    { name: "GRC20 Registry", path: "gno.land/r/demo/grc20reg", description: "Token registry — lists all GRC20 tokens", category: "standard" },
+    { name: "Users v1", path: "gno.land/r/gnoland/users/v1", description: "On-chain username registry", category: "standard" },
+    { name: "GnoSwap", path: "gno.land/r/gnoswap/v1/router", description: "Decentralized token exchange", category: "defi" },
+    { name: "GRC20 Factory", path: "gno.land/r/demo/defi/grc20factory", description: "Deploy new GRC20 tokens", category: "defi" },
+    { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },
+    { name: "Blog", path: "gno.land/r/gnoland/blog", description: "Official gno.land blog", category: "social" },
+    { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Testnet faucet for ugnot", category: "utility" },
+    { name: "GovDAO", path: "gno.land/r/gov/dao", description: "Chain governance DAO", category: "standard" },
+    { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2", description: "Governance DAO v2", category: "standard" },
+    { name: "Worx", path: "gno.land/r/demo/worx", description: "Community workspace DAO", category: "social" },
+    { name: "Faucet Admin", path: "gno.land/r/faucet/admin", description: "Faucet administration realm", category: "utility" },
+]
+
+/**
+ * Fetch realms: seed + user's saved DAOs (deduplicated).
+ * Merges DAOs from the DAO list as "standard" category realms.
+ */
+export function fetchRealms(): DirectoryRealm[] {
+    const result = [...SEED_REALMS]
+    const existingPaths = new Set(result.map(r => r.path))
+
+    // Merge saved DAOs as realms
+    const savedDAOs = getDirectoryDAOs()
+    for (const dao of savedDAOs) {
+        if (!existingPaths.has(dao.path)) {
+            result.push({
+                name: dao.name,
+                path: dao.path,
+                description: "DAO governance realm",
+                category: "standard",
+            })
+            existingPaths.add(dao.path)
+        }
+    }
+
+    return result
+}
