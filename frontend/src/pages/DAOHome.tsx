@@ -555,6 +555,7 @@ export function DAOHome() {
                 encodedSlug={encodedSlug}
                 isMember={!!currentMember}
                 hasChannels={hasChannels}
+                isConnected={!!adena.address}
             />
 
             {/* Treasury */}

@@ -116,10 +116,10 @@ export function ChannelsPage() {
         )
     }
 
-    // ── No channels deployed ──────────────────────────────────
+    // ── No channels deployed — show demo board ─────────────────
     if (boardPath === null) {
         return (
-            <div className="animate-fade-in">
+            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div className="channels-header">
                     <div className="breadcrumb">
                         <button onClick={() => navigate("/dao")}>DAOs</button>
@@ -131,12 +131,38 @@ export function ChannelsPage() {
                         <span className="current">Channels</span>
                     </div>
                 </div>
-                <div className="channels-empty">
-                    <span className="icon">💬</span>
-                    <div className="title">No Channels Deployed</div>
-                    <div className="desc">
-                        This DAO doesn&apos;t have discussion channels yet.
-                        Channels can be deployed alongside a DAO from the Create DAO wizard.
+
+                {/* Demo banner */}
+                <div style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 16px", borderRadius: 8,
+                    background: "rgba(0, 212, 170, 0.04)",
+                    border: "1px solid rgba(0, 212, 170, 0.12)",
+                    fontSize: 11, color: "#888",
+                    fontFamily: "JetBrains Mono, monospace",
+                }}>
+                    <span style={{
+                        fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                        background: "rgba(0, 212, 170, 0.1)", color: "#00d4aa",
+                        fontWeight: 700, letterSpacing: "0.05em",
+                    }}>DEMO</span>
+                    <span>
+                        Live preview from <strong style={{ color: "#aaa" }}>gno.land/r/gnoland/boards2/v1</strong> — deploy your own channels from the Create DAO wizard.
+                    </span>
+                </div>
+
+                {/* Demo BoardView */}
+                <div className="channels-layout">
+                    <div className="channels-content" style={{ flex: 1 }}>
+                        <BoardView
+                            boardPath="gno.land/r/gnoland/boards2/v1"
+                            realmPath={realmPath}
+                            slug={encodedSlug}
+                            auth={auth}
+                            adena={adena}
+                            initialChannel="OpenDiscussions"
+                            hideChannelList={false}
+                        />
                     </div>
                 </div>
             </div>

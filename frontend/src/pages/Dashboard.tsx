@@ -34,6 +34,7 @@ import {
     DashboardFeatureCards,
     DashboardDAOList,
     FaucetCard,
+    DashboardAssets,
 } from "../components/dashboard"
 
 export function Dashboard() {
@@ -195,6 +196,14 @@ export function Dashboard() {
                     avatarUrl={avatarUrl}
                     balance={balance}
                     onAvatarError={() => setAvatarUrl(null)}
+                />
+            )}
+
+            {/* ── Assets Overview ────────────────────── */}
+            {auth.isAuthenticated && (
+                <DashboardAssets
+                    address={(auth as { address?: string }).address || ""}
+                    gnotBalance={balance}
                 />
             )}
 

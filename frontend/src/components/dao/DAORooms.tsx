@@ -2,7 +2,7 @@
  * DAORooms — Default voice/video rooms available to every DAO.
  *
  * Provides two instant-access rooms without requiring channel realm deployment:
- * - 🔊 Public Room — visible to everyone (guests + members)
+ * - 🔊 Public Room — visible only to connected wallets (anti-squatting)
  * - 🔒 Members Room — visible only to DAO members in the UI
  *
  * Room names are deterministic via jitsiRoomName(), scoped to the DAO slug.
@@ -27,11 +27,13 @@ interface DAORoomsProps {
     isMember: boolean
     /** Whether this DAO has deployed the full Channels feature. */
     hasChannels: boolean
+    /** Whether the user has a connected wallet (Adena). */
+    isConnected: boolean
 }
 
 type ActiveRoom = "public" | "members" | null
 
-export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels }: DAORoomsProps) {
+export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnected }: DAORoomsProps) {
     const navigate = useNavigate()
     const [activeRoom, setActiveRoom] = useState<ActiveRoom>(null)
 
@@ -52,6 +54,13 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels }: DAORoo
             document.body.style.overflow = ""
         }
     }, [activeRoom, handleKeyDown])
+
+    // Scroll viewport to top when modal opens (ensures fixed overlay is centered)
+    useEffect(() => {
+        if (activeRoom) {
+            window.scrollTo({ top: 0, behavior: "smooth" })
+        }
+    }, [activeRoom])
 
     return (
         <>
@@ -79,18 +88,28 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels }: DAORoo
                 </div>
 
                 <div className="dao-rooms">
-                    {/* Public Room — always visible */}
-                    <button
-                        id="dao-room-public"
-                        className="dao-room-btn"
-                        onClick={() => setActiveRoom("public")}
-                    >
-                        <span className="dao-room-icon">🔊</span>
-                        <div>
-                            <div className="dao-room-label">Public Room</div>
-                            <div className="dao-room-hint">Open to all • No account required</div>
+                    {/* Public Room — visible only when wallet is connected */}
+                    {isConnected ? (
+                        <button
+                            id="dao-room-public"
+                            className="dao-room-btn"
+                            onClick={() => setActiveRoom("public")}
+                        >
+                            <span className="dao-room-icon">🔊</span>
+                            <div>
+                                <div className="dao-room-label">Public Room</div>
+                                <div className="dao-room-hint">Open to all connected wallets</div>
+                            </div>
+                        </button>
+                    ) : (
+                        <div className="dao-room-btn dao-room-disabled">
+                            <span className="dao-room-icon" style={{ opacity: 0.4 }}>🔊</span>
+                            <div>
+                                <div className="dao-room-label" style={{ opacity: 0.4 }}>Public Room</div>
+                                <div className="dao-room-hint">Connect wallet to join rooms</div>
+                            </div>
                         </div>
-                    </button>
+                    )}
 
                     {/* Members Room — visible only to members */}
                     {isMember && (
@@ -145,7 +164,7 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels }: DAORoo
                                 label={activeRoom === "public" ? "Public Room" : "Members Room"}
                                 description={
                                     activeRoom === "public"
-                                        ? "Open voice room — anyone can join, no account needed."
+                                        ? "Open voice room — anyone with a connected wallet can join."
                                         : "Private voice room for DAO members."
                                 }
                             />

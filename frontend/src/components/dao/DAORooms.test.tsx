@@ -26,6 +26,7 @@ describe("DAORooms", () => {
         encodedSlug: "test-dao",
         isMember: false,
         hasChannels: false,
+        isConnected: true,
     }
 
     it("renders the Rooms header", () => {
@@ -33,10 +34,21 @@ describe("DAORooms", () => {
         expect(screen.getByText("Rooms")).toBeTruthy()
     })
 
-    it("always shows the Public Room button", () => {
-        render(<DAORooms {...defaultProps} />)
+    it("shows Public Room when wallet is connected", () => {
+        render(<DAORooms {...defaultProps} isConnected={true} />)
         expect(screen.getByText("Public Room")).toBeTruthy()
-        expect(screen.getByText("Open to all • No account required")).toBeTruthy()
+        expect(screen.getByText("Open to all connected wallets")).toBeTruthy()
+    })
+
+    it("hides Public Room button when wallet is not connected", () => {
+        render(<DAORooms {...defaultProps} isConnected={false} />)
+        // Public Room text still visible (in disabled state), but not clickable
+        expect(screen.getByText("Connect wallet to join rooms")).toBeTruthy()
+    })
+
+    it("shows connect hint when not connected", () => {
+        render(<DAORooms {...defaultProps} isConnected={false} />)
+        expect(screen.getByText("Connect wallet to join rooms")).toBeTruthy()
     })
 
     it("hides Members Room when not a member", () => {
@@ -51,7 +63,7 @@ describe("DAORooms", () => {
     })
 
     it("opens modal when Public Room is clicked", () => {
-        render(<DAORooms {...defaultProps} />)
+        render(<DAORooms {...defaultProps} isConnected={true} />)
         fireEvent.click(screen.getByText("Public Room"))
         expect(screen.getByLabelText("Close room")).toBeTruthy()
         expect(screen.getByText("OPEN")).toBeTruthy()
@@ -65,7 +77,7 @@ describe("DAORooms", () => {
     })
 
     it("closes modal on close button click", () => {
-        render(<DAORooms {...defaultProps} />)
+        render(<DAORooms {...defaultProps} isConnected={true} />)
         fireEvent.click(screen.getByText("Public Room"))
         expect(screen.getByLabelText("Close room")).toBeTruthy()
         fireEvent.click(screen.getByLabelText("Close room"))
@@ -73,13 +85,13 @@ describe("DAORooms", () => {
     })
 
     it("locks body scroll when modal is open", () => {
-        render(<DAORooms {...defaultProps} />)
+        render(<DAORooms {...defaultProps} isConnected={true} />)
         fireEvent.click(screen.getByText("Public Room"))
         expect(document.body.style.overflow).toBe("hidden")
     })
 
     it("restores body scroll when modal closes", () => {
-        render(<DAORooms {...defaultProps} />)
+        render(<DAORooms {...defaultProps} isConnected={true} />)
         fireEvent.click(screen.getByText("Public Room"))
         fireEvent.click(screen.getByLabelText("Close room"))
         expect(document.body.style.overflow).toBe("")

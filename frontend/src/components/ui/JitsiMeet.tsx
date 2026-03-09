@@ -129,9 +129,8 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
             <iframe
                 src={iframeSrc}
                 title={`${mode === "voice" ? "Voice" : "Video"} call — #${channelName}`}
-                allow="camera;microphone;display-capture;autoplay;clipboard-write"
+                allow="camera *; microphone *; display-capture *; autoplay; clipboard-write"
                 referrerPolicy="no-referrer"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                 style={{
                     width: "100%",
                     height: "100%",
