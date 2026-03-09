@@ -54,9 +54,9 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith("/plugins")
 
     return (
-        <>
+        <div className="k-mobile-only">
             <nav className="k-mobile-tabbar" data-testid="mobile-tabbar" aria-label="Mobile navigation">
-                {TAB_DEFS.map(tab => (
+                {TAB_DEFS.filter(t => !(connected && t.to === "/")).map(tab => (
                     <Link
                         key={tab.to}
                         to={tab.to}
@@ -162,6 +162,6 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     </div>
                 </div>
             </BottomSheet>
-        </>
+        </div>
     )
 }

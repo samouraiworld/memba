@@ -173,7 +173,7 @@ describe("buildDeployBoardMsg", () => {
     it("includes gnomod.toml with correct module path", () => {
         const msg = buildDeployBoardMsg("g1x", "gno.land/r/test/myboard", "code")
         const toml = msg.value.package.files.find((f: { name: string }) => f.name === "gnomod.toml")
-        expect(toml?.body).toContain('pkgpath = "gno.land/r/test/myboard"')
+        expect(toml?.body).toContain('module = "gno.land/r/test/myboard"')
         expect(toml?.body).toContain('gno = "0.9"')
     })
 })

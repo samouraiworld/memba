@@ -13,7 +13,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
     const [regLoading, setRegLoading] = useState(false)
     const [regError, setRegError] = useState<string | null>(null)
     const [regSuccess, setRegSuccess] = useState(false)
-    const isValid = /^[a-z]{3,}[a-z_]*[0-9]{3,}$/.test(regInput) && regInput.length <= 20
+    const isValid = /^[a-z][a-z0-9_]{5,16}$/.test(regInput)
 
     const handleRegister = async () => {
         if (!isValid) return
@@ -24,7 +24,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                 type: "vm/MsgCall",
                 value: {
                     caller: address,
-                    send: "",
+                    send: "200000ugnot",
                     pkg_path: getUserRegistryPath(),
                     func: "Register",
                     args: [regInput],
@@ -66,7 +66,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             type="text"
                             value={regInput}
                             onChange={(e) => { setRegInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setRegError(null) }}
-                            placeholder="anonymous-user"
+                            placeholder="myname123"
                             maxLength={20}
                             style={{
                                 width: 130, padding: "5px 8px", fontSize: 12,
@@ -112,7 +112,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                     )}
                     {regInput && !isValid && (
                         <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                            ≥3 letters + ≥3 digits (e.g. myname123)
+                            6-17 chars: letters, digits, underscores (e.g. zooma_dev)
                         </span>
                     )}
                     {!regInput && !regError && (

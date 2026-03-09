@@ -292,7 +292,7 @@ describe('buildDeployDAOMsg', () => {
         const msg = buildDeployDAOMsg('g1caller', 'gno.land/r/test/dao', 'pkg')
         const pkg = msg.value.package as { files: { name: string; body: string }[] }
         const gnomod = pkg.files.find((f) => f.name === 'gnomod.toml')
-        expect(gnomod?.body).toContain('pkgpath = "gno.land/r/test/dao"')
+        expect(gnomod?.body).toContain('module = "gno.land/r/test/dao"')
         expect(gnomod?.body).toContain('gno = "0.9"')
     })
 

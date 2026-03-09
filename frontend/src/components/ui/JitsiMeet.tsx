@@ -10,7 +10,7 @@
  * @module components/ui/JitsiMeet
  */
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { jitsiRoomName, jitsiIframeSrc } from "./jitsiHelpers"
 
 interface JitsiMeetProps {
@@ -28,6 +28,8 @@ interface JitsiMeetProps {
 
 export function JitsiMeet({ daoSlug, channelName, mode, label, description }: JitsiMeetProps) {
     const [joined, setJoined] = useState(false)
+    const [minimized, setMinimized] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
     const roomName = jitsiRoomName(daoSlug, channelName)
 
     // Jitsi iframe config
@@ -44,6 +46,15 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
     ].join("&")
 
     const iframeSrc = jitsiIframeSrc(roomName, configParams)
+
+    // Must be declared before conditional returns (React hooks rules)
+    const toggleFullscreen = useCallback(() => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen()
+        } else {
+            containerRef.current?.requestFullscreen()
+        }
+    }, [])
 
     if (!joined) {
         return (
@@ -113,9 +124,55 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
         )
     }
 
+
+    // ── Minimized PiP mode ──────────────────────────────────
+    if (joined && minimized) {
+        return (
+            <div
+                className="jitsi-pip"
+                id="jitsi-pip"
+            >
+                <iframe
+                    src={iframeSrc}
+                    title={`${mode === "voice" ? "Voice" : "Video"} call — #${channelName}`}
+                    allow="camera *; microphone *; display-capture *; autoplay; clipboard-write"
+                    referrerPolicy="no-referrer"
+                    style={{ width: "100%", height: "100%", border: "none", borderRadius: 12 }}
+                />
+                <div className="jitsi-pip-controls">
+                    <button
+                        onClick={() => setMinimized(false)}
+                        title="Expand"
+                        style={{
+                            padding: "4px 10px", borderRadius: 4, fontSize: 10,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.3)",
+                            color: "#00d4aa", cursor: "pointer",
+                        }}
+                    >
+                        ↗ Expand
+                    </button>
+                    <button
+                        onClick={() => { setJoined(false); setMinimized(false) }}
+                        title="Leave"
+                        style={{
+                            padding: "4px 10px", borderRadius: 4, fontSize: 10,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
+                            color: "#ff4757", cursor: "pointer",
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div
             id="jitsi-room"
+            ref={containerRef}
             style={{
                 position: "relative",
                 width: "100%",
@@ -139,28 +196,52 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                     borderRadius: 12,
                 }}
             />
-            <button
-                id="jitsi-leave-btn"
-                onClick={() => setJoined(false)}
-                style={{
-                    position: "absolute",
-                    top: 12,
-                    right: 12,
-                    padding: "6px 14px",
-                    borderRadius: 6,
-                    border: "1px solid rgba(255, 71, 87, 0.3)",
-                    background: "rgba(255, 71, 87, 0.15)",
-                    color: "#ff4757",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    fontFamily: "JetBrains Mono, monospace",
-                    cursor: "pointer",
-                    zIndex: 10,
-                    backdropFilter: "blur(4px)",
-                }}
-            >
-                Leave Room
-            </button>
+            {/* Floating toolbar: Minimize | Fullscreen | Leave */}
+            <div style={{
+                position: "absolute", top: 12, right: 12,
+                display: "flex", gap: 6, zIndex: 10,
+            }}>
+                <button
+                    id="jitsi-minimize-btn"
+                    onClick={() => setMinimized(true)}
+                    title="Minimize — continue browsing while in call"
+                    style={{
+                        padding: "6px 12px", borderRadius: 6, fontSize: 11,
+                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)",
+                        color: "#ccc", cursor: "pointer", backdropFilter: "blur(4px)",
+                    }}
+                >
+                    ↙ Minimize
+                </button>
+                <button
+                    id="jitsi-fullscreen-btn"
+                    onClick={toggleFullscreen}
+                    title="Toggle fullscreen"
+                    style={{
+                        padding: "6px 12px", borderRadius: 6, fontSize: 11,
+                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)",
+                        color: "#ccc", cursor: "pointer", backdropFilter: "blur(4px)",
+                    }}
+                >
+                    ⛶ Fullscreen
+                </button>
+                <button
+                    id="jitsi-leave-btn"
+                    onClick={() => setJoined(false)}
+                    style={{
+                        padding: "6px 14px", borderRadius: 6,
+                        border: "1px solid rgba(255, 71, 87, 0.3)",
+                        background: "rgba(255, 71, 87, 0.15)",
+                        color: "#ff4757", fontSize: 11, fontWeight: 600,
+                        fontFamily: "JetBrains Mono, monospace",
+                        cursor: "pointer", backdropFilter: "blur(4px)",
+                    }}
+                >
+                    Leave Room
+                </button>
+            </div>
         </div>
     )
 }

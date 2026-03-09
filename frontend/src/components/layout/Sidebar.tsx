@@ -103,7 +103,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
 
             {/* ── Section 1: Navigation ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
-                <SidebarLink to="/" icon={<House size={18} />} label="Home" connected={connected} collapsed={collapsed} />
+                {!connected && <SidebarLink to="/" icon={<House size={18} />} label="Home" connected={connected} collapsed={collapsed} />}
                 <SidebarLink to="/dashboard" icon={<ChartBar size={18} />} label="Dashboard" auth connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount + notifUnreadCount} connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/tokens" icon={<Coins size={18} />} label="Tokens" connected={connected} collapsed={collapsed} />
