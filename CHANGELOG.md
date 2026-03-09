@@ -6,6 +6,27 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.11 Live ABCI Stats (2026-03-09)
+
+- **📊 Live Network Stats** — real-time on-chain data on landing page for non-connected visitors
+  - Block height, avg block time, active validators, chain ID
+  - 30s polling with Page Visibility API (pauses when tab hidden)
+  - Graceful fallback — hides section if RPC unreachable
+  - Reuses existing `getNetworkStats()` from `validators.ts`
+
+### v2.10.1 Creative Landing (2026-03-09) — PR #86
+
+- **🎬 Remotion Feature Previews** — 6 animated compositions on landing page
+  - `TokenFactory` — CreateToken form + DeploymentPipeline 4-step flow
+  - `DAOGovernance` — ProposalCard + SingleVoteBar with real vote split
+  - `MultisigFlow` — signer list, SIGNED badges, threshold + broadcast
+  - `CommandPalette` — Cmd+K with real command section grouping
+  - `ValidatorDash` — stat grid + power bar + validator table
+  - `VoiceChannel` — DAORooms channel sidebar + Jitsi participant grid
+- **Hero styling** — white title on two lines, gno.land hyperlink
+- **Dedicated `landing.css`** — extracted from inline, uses Kodera tokens
+- **Dependencies** — `remotion`, `@remotion/player`, `@remotion/cli`
+
 ### v2.10 Portal PiP — Persistent Jitsi Sessions (2026-03-09) — PR #84
 
 - **🎙️ Portal-based PiP** — Jitsi voice/video sessions survive route navigation
