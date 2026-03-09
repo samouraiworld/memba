@@ -680,10 +680,18 @@ body {
   background: #000;
   resize: both;
   transition: box-shadow 0.2s;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .jitsi-pip:hover {
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
+}
+
+.jitsi-pip.dragging {
+  cursor: grabbing;
+  transition: none;
 }
 
 .jitsi-pip-controls {
