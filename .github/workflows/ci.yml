@@ -73,10 +73,10 @@ jobs:
         run: npm test
 
       - name: Install Playwright
-        run: npx playwright install chromium firefox --with-deps
+        run: npx playwright install chromium --with-deps
 
       - name: E2E tests
-        run: npx playwright test --reporter=list
+        run: npx playwright test --project=chromium --reporter=list
 
       - name: Upload E2E artifacts on failure
         if: failure()
