@@ -80,13 +80,22 @@ function ProfileRedirect() {
   return <Navigate to="/" replace />
 }
 
+/** Redirects / → /dashboard when connected (Home = Dashboard when logged in). */
+function HomeRedirect() {
+  const adena = useAdena()
+  if (adena.connected) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <Suspense fallback={<PageLoader />}><Landing /></Suspense>
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          {/* Landing page (public) */}
-          <Route path="/" element={<Suspense fallback={<PageLoader />}><Landing /></Suspense>} />
+          {/* Landing page (public) — redirects to /dashboard when connected */}
+          <Route path="/" element={<HomeRedirect />} />
 
           {/* Dashboard (authenticated hub) */}
           <Route path="/dashboard" element={<Dashboard />} />

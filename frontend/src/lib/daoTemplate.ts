@@ -700,7 +700,7 @@ export function buildDeployDAOMsg(
         },
         {
             name: "gnomod.toml",
-            body: `pkgpath = "${realmPath}"\ngno = "0.9"\n`,
+            body: `module = "${realmPath}"\ngno = "0.9"\n`,
         },
     ].sort((a, b) => a.name.localeCompare(b.name))
     return {

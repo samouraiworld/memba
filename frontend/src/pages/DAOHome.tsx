@@ -203,7 +203,8 @@ export function DAOHome() {
     }, [proposalsLoading, proposals.length, adena.address, realmPath])
 
     const activeProposals = proposals.filter((p) => p.status === "open")
-    const completedProposals = proposals.filter((p) => p.status !== "open")
+    const awaitingExecution = proposals.filter((p) => p.status === "passed")
+    const completedProposals = proposals.filter((p) => p.status !== "open" && p.status !== "passed")
 
     // Voter Turnout: avg % of members who voted across completed proposals with data
     const turnoutData = completedProposals.filter(p => p.totalVoters > 0)
@@ -373,6 +374,7 @@ export function DAOHome() {
                         {[
                             { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
                             { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
+                            { icon: "⚡", value: String(awaitingExecution.length), label: "Execute", accent: awaitingExecution.length > 0 },
                             { icon: "📜", value: String(proposals.length), label: "Proposals" },
                             { icon: "📊", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
                             ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
@@ -470,6 +472,28 @@ export function DAOHome() {
                     </div>
                 )}
             </div>
+
+            {/* Awaiting Execution — proposals that passed but haven't been executed yet */}
+            {!proposalsLoading && awaitingExecution.length > 0 && (
+                <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f5a623", marginBottom: 12 }}>
+                        ⚡ Awaiting Execution ({awaitingExecution.length})
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {awaitingExecution.map((p) => (
+                            <ProposalCard
+                                key={p.id}
+                                proposal={p}
+                                hasVoted={votedIds.has(p.id)}
+                                isMember={!!currentMember}
+                                enriched={true}
+                                totalMembers={config?.memberCount || members.length}
+                                onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Proposal History (collapsible) */}
             {!proposalsLoading && completedProposals.length > 0 && (
