@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-09 (v2.10 audit fixes + PiP portal shipped)
+> Last updated: 2026-03-09 (v2.11 live ABCI stats + creative landing)
 
 ## Milestone Status
 
@@ -28,12 +28,14 @@
 | 17b | **Directory Expansion** | v2.9.3 | ✅ SHIPPED | PR #82 → `main` |
 | 18 | **v2.10 Audit Bug Fixes** | v2.10 | ✅ SHIPPED | PR #83 → `main` |
 | 19 | **Portal PiP** | v2.10 | ✅ SHIPPED | PR #84 → `main` |
-| 20 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
-| 21 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 22 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 23 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 20 | **Creative Landing** | v2.10.1 | ✅ SHIPPED | PR #86 → `main` |
+| 21 | **Live ABCI Stats** | v2.11 | 🚧 IN PROGRESS | `feat/v2.11-abci-stats` |
+| 22 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 23 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 24 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 25 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.10)
+## Quality Gates (as of v2.11)
 
 | Metric | Value |
 |--------|-------|
@@ -41,8 +43,8 @@
 | E2E tests | 139 (15 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | 462KB (132KB gzip) |
-| package.json | 2.10.0 |
+| Build size | 468KB (134KB gzip) |
+| package.json | 2.11.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 

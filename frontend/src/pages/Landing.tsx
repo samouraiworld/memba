@@ -10,6 +10,7 @@ import { useNavigate, useOutletContext, Navigate } from "react-router-dom"
 import { useEffect, useRef, useCallback, useState } from "react"
 import { Player } from "@remotion/player"
 import type { LayoutContext } from "../types/layout"
+import { NetworkStatsLive } from "../components/landing/NetworkStatsLive"
 import "./landing.css"
 
 // ── Composition imports (tree-shaken, code-split via lazy page) ────────
@@ -235,8 +236,17 @@ export function Landing() {
                 </div>
             </section>
 
+            {/* ── Live Network Stats ──────────────────────────────── */}
+            <section ref={setRef(1)} className="landing-fade-section">
+                <div className="landing-section-header">
+                    <h2 className="landing-section-header__title">Live Network</h2>
+                    <p className="landing-section-header__subtitle">Real-time on-chain data from gno.land</p>
+                </div>
+                <NetworkStatsLive />
+            </section>
+
             {/* ── Tech + Open Source ────────────────────────────── */}
-            <section ref={setRef(1)} className="landing-fade-section landing-tech">
+            <section ref={setRef(2)} className="landing-fade-section landing-tech">
                 <div className="landing-section-header">
                     <h2 className="landing-section-header__title">Built for the Gno Ecosystem</h2>
                     <p className="landing-section-header__subtitle">Open-source, MIT licensed, production-grade</p>
@@ -282,7 +292,7 @@ export function Landing() {
             </section>
 
             {/* ── Final CTA ────────────────────────────────────── */}
-            <section ref={setRef(2)} className="landing-fade-section landing-final-cta">
+            <section ref={setRef(3)} className="landing-fade-section landing-final-cta">
                 <h2 className="landing-section-header__title">
                     Ready to explore?
                 </h2>
