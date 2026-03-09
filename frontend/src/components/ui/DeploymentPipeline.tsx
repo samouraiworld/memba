@@ -11,6 +11,7 @@
 import { useEffect, useCallback } from "react"
 import "./DeploymentPipeline.css"
 import { getExplorerBaseUrl } from "../../lib/config"
+import { useScrollToTop } from "../../hooks/useScrollToTop"
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -85,6 +86,9 @@ export function DeploymentPipeline({
     const isComplete = currentStep === "complete"
     const isError = currentStep === "error"
     const canDismiss = isComplete || isError
+
+    // v2.10: Scroll to top when deployment modal activates
+    useScrollToTop(active && currentStep !== "idle")
 
     // v2.9: Body scroll lock when modal is active
     useEffect(() => {

@@ -94,8 +94,14 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
     const [homeError, setHomeError] = useState<string | null>(null)
 
     // v2.5a: Sync initialChannel prop changes → switch channel view
+    // v2.10: Defensive guard — if channel is not found in board info, fall back to home
     useEffect(() => {
         if (initialChannel && initialChannel !== viewState.channel) {
+            // If we have board info and the channel doesn't exist, fall back
+            if (boardInfo && !boardInfo.channels.some(ch => ch.name === initialChannel)) {
+                setViewState({ view: "home", channel: "general", threadId: null })
+                return
+            }
             setViewState({ view: "channel", channel: initialChannel, threadId: null })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

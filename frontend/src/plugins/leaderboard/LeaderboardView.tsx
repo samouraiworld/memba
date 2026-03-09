@@ -1,37 +1,55 @@
 /**
- * LeaderboardView — Sortable member ranking table.
+ * LeaderboardView — Global Gno contributor ranking table.
  *
- * Displays DAO member stats (packages, proposals, votes, score)
- * with clickable column headers for sorting.
+ * v2.10: Fetches DAO members via getDAOMembers(), queries gnolove
+ * for stats per address. Falls back gracefully when gnolove API
+ * returns SSR HTML or is unreachable.
  *
- * MVP: All time only (no timeframe filter).
+ * Rank badges: 🥇 🥈 🥉 for top 3.
  *
  * @module plugins/leaderboard/LeaderboardView
  */
 
 import { useState, useEffect, useCallback } from "react"
 import type { PluginProps } from "../types"
+import { getDAOMembers } from "../../lib/dao"
+import { GNO_RPC_URL, GNOLOVE_API_URL } from "../../lib/config"
 import { getLeaderboardData, sortEntries } from "./queries"
 import type { LeaderboardEntry, SortField, SortDir } from "./queries"
+
+const RANK_BADGES: Record<number, string> = { 0: "🥇", 1: "🥈", 2: "🥉" }
 
 export default function LeaderboardView({ realmPath }: PluginProps) {
     const [entries, setEntries] = useState<LeaderboardEntry[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [sortField, setSortField] = useState<SortField>("score")
     const [sortDir, setSortDir] = useState<SortDir>("desc")
 
     const loadData = useCallback(async () => {
         setLoading(true)
+        setError(null)
         try {
-            // We'll use a placeholder — in production this queries the DAO members endpoint
-            const data = await getLeaderboardData([])
+            // v2.10: Fetch actual DAO members for the leaderboard
+            const members = await getDAOMembers(GNO_RPC_URL, realmPath)
+            if (members.length === 0) {
+                setEntries([])
+                return
+            }
+
+            const memberInput = members.map(m => ({
+                address: m.address,
+                username: m.username || m.address.slice(0, 10) + "...",
+            }))
+
+            const data = await getLeaderboardData(memberInput)
             setEntries(data)
         } catch {
-            // Silently fail — empty leaderboard
+            setError("Could not load leaderboard data")
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [realmPath])
 
     useEffect(() => { loadData() }, [loadData])
 
@@ -93,11 +111,35 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                 }}>
                     All Time
                 </span>
+                <a
+                    href={GNOLOVE_API_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        marginLeft: "auto", fontSize: 10, color: "#555",
+                        textDecoration: "none", fontFamily: "JetBrains Mono, monospace",
+                        transition: "color 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                >
+                    gnolove.world →
+                </a>
             </div>
 
             <div style={{ fontSize: 11, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
                 Realm: <code style={{ color: "#666" }}>{realmPath}</code>
             </div>
+
+            {error && (
+                <div style={{
+                    padding: "10px 14px", borderRadius: 8,
+                    background: "rgba(255,59,48,0.03)", border: "1px solid rgba(255,59,48,0.1)",
+                    fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace",
+                }}>
+                    ⚠ {error}
+                </div>
+            )}
 
             {sorted.length === 0 ? (
                 <div style={{
@@ -124,7 +166,9 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                         <tbody>
                             {sorted.map((entry, i) => (
                                 <tr key={entry.address}>
-                                    <td style={{ ...tdStyle, color: "#555" }}>{i + 1}</td>
+                                    <td style={{ ...tdStyle, color: "#555", fontSize: 14 }}>
+                                        {RANK_BADGES[i] || i + 1}
+                                    </td>
                                     <td style={{ ...tdStyle, color: "#f0f0f0", fontWeight: 600 }}>
                                         {entry.username}
                                     </td>

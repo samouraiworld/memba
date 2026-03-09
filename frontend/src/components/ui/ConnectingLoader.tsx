@@ -1,29 +1,39 @@
 /**
- * ConnectingLoader — Elegant loading state shown during wallet connect → auth flow.
+ * ConnectingLoader — Unified Memba loading state.
  *
- * Replaces the black screen gap between "Connect Wallet" click and Dashboard render.
- * Shows Memba branding with indeterminate progress bar.
+ * Used for:
+ * - Wallet connect → auth flow gap (Dashboard, ProfilePage)
+ * - Route-level lazy loading fallback (App.tsx PageLoader replacement)
+ *
+ * v2.10: Logo increased 72px → 94px (+30%), added `message` and `minHeight` props.
  */
 
-export function ConnectingLoader() {
+interface ConnectingLoaderProps {
+    /** Status text below the progress bar. */
+    message?: string
+    /** Minimum viewport height for centering. Default: "60vh". Use "30vh" for route fallbacks. */
+    minHeight?: string
+}
+
+export function ConnectingLoader({ message = "Connecting to Memba...", minHeight = "60vh" }: ConnectingLoaderProps) {
     return (
         <div
             role="status"
             aria-live="polite"
             style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
-                justifyContent: "center", minHeight: "60vh", gap: 24, animation: "fadeIn 0.3s ease-out",
+                justifyContent: "center", minHeight, gap: 24, animation: "fadeIn 0.3s ease-out",
             }}
         >
-            {/* Memba logo with pulse */}
+            {/* Memba logo with pulse — v2.10: 72px → 94px (+30%) */}
             <div
                 className="animate-glow"
                 style={{
-                    width: 80, height: 80, borderRadius: 16,
+                    width: 104, height: 104, borderRadius: 20,
                     display: "flex", alignItems: "center", justifyContent: "center",
                 }}
             >
-                <img src="/memba-icon.png" alt="Memba" style={{ width: 72, height: 72, borderRadius: 12 }} />
+                <img src="/memba-icon.png" alt="Memba" style={{ width: 94, height: 94, borderRadius: 16 }} />
             </div>
 
             {/* Indeterminate progress bar */}
@@ -42,7 +52,7 @@ export function ConnectingLoader() {
                 fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                 color: "#555", letterSpacing: "0.03em",
             }}>
-                Connecting to Memba...
+                {message}
             </span>
 
             {/* Inline keyframes for the progress bar animation */}

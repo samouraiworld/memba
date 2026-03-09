@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { useAdena } from "./hooks/useAdena"
 import { Layout } from "./components/layout/Layout"
+import { ScrollToTop } from "./components/layout/ScrollToTop"
+import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { Dashboard } from "./pages/Dashboard"
 
 // ── Landing page (lazy — only for unauthenticated visitors) ──
@@ -60,15 +62,12 @@ const MultisigHub = lazy(() => import("./pages/MultisigHub"))
 // ── Extensions Hub (lazy — v2.6) ──
 const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default: m.Extensions })))
 
-/** Route-level loading fallback — minimal shimmer while chunk loads. */
+// ── Feedback page (lazy — v2.10) ──
+const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
+
+/** Route-level loading fallback — unified Memba logo loader (v2.10). */
 function PageLoader() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "32px 0" }}>
-      {[1, 2, 3].map(i => (
-        <div key={i} className="k-shimmer" style={{ height: 80, borderRadius: 8, background: "#111" }} />
-      ))}
-    </div>
-  )
+  return <ConnectingLoader message="Loading..." minHeight="30vh" />
 }
 
 /** Redirects /profile → /profile/{address} when connected, or / when not. */
@@ -92,6 +91,7 @@ function HomeRedirect() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route element={<Layout />}>
           {/* Landing page (public) — redirects to /dashboard when connected */}
@@ -141,6 +141,9 @@ function App() {
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
+
+          {/* Feedback (v2.10) */}
+          <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

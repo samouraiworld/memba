@@ -30,6 +30,7 @@ import {
 import { GNO_RPC_URL } from "../lib/config"
 import { parseDAORender } from "../lib/daoMetadata"
 import { queryRender } from "../lib/dao/shared"
+import { encodeSlug } from "../lib/daoSlug"
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
 const MAX_DAOS_PER_POLL = 5      // Performance cap (matches voteScanner pattern)
@@ -101,13 +102,13 @@ export function useNotifications(daoPaths: string[], address: string | null) {
             if (lastCount !== undefined && count > lastCount) {
                 // New proposals detected for this DAO
                 const newCount = count - lastCount
-                const slug = daoPath.split("/").pop() || daoPath
+                const slug = encodeSlug(daoPath)
                 for (let i = 0; i < Math.min(newCount, 5); i++) {
                     const proposalNumber = count - i
                     addNotification(address, {
                         type: "proposal_new",
                         title: `New Proposal #${proposalNumber}`,
-                        body: `A new proposal has been created in ${slug}`,
+                        body: `A new proposal has been created in ${daoPath.split("/").pop() || daoPath}`,
                         daoPath,
                         link: `/dao/${slug}/proposal/${proposalNumber}`,
                     })

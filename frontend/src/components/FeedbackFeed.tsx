@@ -49,7 +49,7 @@ export function FeedbackFeed() {
                 color: "#888",
                 fontFamily: "JetBrains Mono, monospace",
             }}>
-                📝 Feedback board not deployed yet. Coming soon!
+                📝 On-chain feedback board will be deployed on betanet. In the meantime, submit feedback via GitHub Issues above.
             </div>
         )
     }
