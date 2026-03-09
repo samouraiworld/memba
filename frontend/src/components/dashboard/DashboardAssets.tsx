@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react"
-import { listFactoryTokens, getTokenBalance, getTokenInfo } from "../../lib/grc20"
+import { listFactoryTokens, getTokenBalance, getTokenInfo, formatTokenAmount } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
 
 interface DashboardAssetsProps {
@@ -63,12 +63,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                             ])
                             if (bal > 0n) {
                                 const decimals = info?.decimals || 0
-                                const formatted = decimals > 0
-                                    ? (Number(bal) / Math.pow(10, decimals)).toLocaleString("en-US", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: decimals,
-                                    })
-                                    : Number(bal).toLocaleString("en-US")
+                                const formatted = formatTokenAmount(bal, decimals)
                                 return {
                                     symbol: token.symbol,
                                     name: info?.name || token.name,
@@ -95,10 +90,11 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
 
     useEffect(() => { fetchTokenBalances() }, [fetchTokenBalances])
 
-    // Format GNOT display
-    const gnotDisplay = gnotBalance
-        ? Number(gnotBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 })
-        : "0.00"
+    // Format GNOT display — balance arrives as "19.3 GNOT" or "— GNOT"
+    const gnotNum = gnotBalance ? parseFloat(gnotBalance) : NaN
+    const gnotDisplay = !isNaN(gnotNum)
+        ? gnotNum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+        : "—"
 
     const totalAssets = tokens.length + (gnotBalance ? 1 : 0)
 
