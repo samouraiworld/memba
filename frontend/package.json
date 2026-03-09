@@ -16,15 +16,18 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@phosphor-icons/react": "^2.1.10",
+    "@remotion/player": "4.0.287",
     "@sentry/react": "^10.42.0",
     "@sentry/vite-plugin": "^5.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.1",
+    "remotion": "4.0.287"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
+    "@remotion/cli": "4.0.287",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
