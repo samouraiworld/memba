@@ -278,7 +278,7 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
         const currentChannel = boardInfo?.channels.find(ch => ch.name === viewState.channel)
         const isVoiceOrVideo = currentChannel?.type === "voice" || currentChannel?.type === "video"
         const canWrite = !isVoiceOrVideo && currentChannel?.type !== "readonly" &&
-            (currentChannel?.type !== "announcements" || true) // TODO: check admin role
+            currentChannel?.type !== "announcements" // NOTE: admin-only posting — blocked until Gno cross-realm role check
 
         // v2.5c: Voice/video channels — render Jitsi instead of threads
         if (isVoiceOrVideo) {

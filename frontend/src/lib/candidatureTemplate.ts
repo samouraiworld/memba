@@ -321,7 +321,7 @@ func ApproveCandidature(cur realm, applicant string) {
 			candidatures[i].ApprovedBy = append(c.ApprovedBy, caller)
 			if len(candidatures[i].ApprovedBy) >= requiredApprovals {
 				candidatures[i].Status = "approved"
-				// TODO: cross-realm airdrop of ${config.airdropAmount} ${config.tokenSymbol}
+				// NOTE: Blocked on Gno cross-realm airdrop — ${config.airdropAmount} ${config.tokenSymbol} deferred
 			}
 			return
 		}

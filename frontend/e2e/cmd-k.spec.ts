@@ -11,22 +11,22 @@ test.describe('Command Palette', () => {
     })
 
     test('opens on Cmd+K / Ctrl+K', async ({ page }) => {
-        // Press Cmd+K (macOS) / Ctrl+K (other)
-        await page.keyboard.press('Meta+k')
-        const palette = page.locator('[data-testid="command-palette"]')
+        // ControlOrMeta = Cmd on macOS, Ctrl on Linux/Windows
+        await page.keyboard.press('ControlOrMeta+k')
+        const palette = page.locator('.cmd-palette')
         await expect(palette).toBeVisible({ timeout: 3_000 })
     })
 
     test('search input is focused when opened', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const input = page.locator('[data-testid="command-palette-input"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const input = page.locator('#command-palette-input')
         await expect(input).toBeVisible({ timeout: 3_000 })
         await expect(input).toBeFocused()
     })
 
     test('shows commands list when opened', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const items = page.locator('[data-testid="command-item"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const items = page.locator('.cmd-palette-item')
         await items.first().waitFor({ state: 'visible', timeout: 3_000 })
         const count = await items.count()
         // Should have multiple navigation commands
@@ -34,12 +34,12 @@ test.describe('Command Palette', () => {
     })
 
     test('search filters commands', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const input = page.locator('[data-testid="command-palette-input"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const input = page.locator('#command-palette-input')
         await input.fill('Validator')
 
         // Should filter to validator-related commands
-        const items = page.locator('[data-testid="command-item"]')
+        const items = page.locator('.cmd-palette-item')
         const count = await items.count()
         expect(count).toBeGreaterThanOrEqual(1)
 
@@ -49,19 +49,19 @@ test.describe('Command Palette', () => {
     })
 
     test('non-matching search shows empty state', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const input = page.locator('[data-testid="command-palette-input"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const input = page.locator('#command-palette-input')
         await input.fill('ZZZZNONEXISTENT')
 
         // Should show no results or empty state
-        const items = page.locator('[data-testid="command-item"]')
+        const items = page.locator('.cmd-palette-item')
         const count = await items.count()
         expect(count).toBe(0)
     })
 
     test('ESC closes the palette', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const palette = page.locator('[data-testid="command-palette"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const palette = page.locator('.cmd-palette')
         await expect(palette).toBeVisible({ timeout: 3_000 })
 
         await page.keyboard.press('Escape')
@@ -69,8 +69,8 @@ test.describe('Command Palette', () => {
     })
 
     test('clicking overlay closes the palette', async ({ page }) => {
-        await page.keyboard.press('Meta+k')
-        const overlay = page.locator('[data-testid="command-palette-overlay"]')
+        await page.keyboard.press('ControlOrMeta+k')
+        const overlay = page.locator('.cmd-palette-backdrop')
         await expect(overlay).toBeVisible({ timeout: 3_000 })
 
         await overlay.click({ position: { x: 10, y: 10 } })
