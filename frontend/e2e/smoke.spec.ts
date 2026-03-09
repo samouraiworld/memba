@@ -48,12 +48,9 @@ test.describe('v1.4.0 — Landing Page', () => {
         await expect(page.locator('body')).toContainText('Token Factory')
     })
 
-    test('"Built on gno.land" tag visible (single, not 3x)', async ({ page }) => {
+    test('"gno.land" reference visible', async ({ page }) => {
         await page.goto('/')
-        await expect(page.locator('body')).toContainText('Built on gno.land')
-        // Should appear exactly once (not 3 times)
-        const count = await page.locator('text=Built on gno.land').count()
-        expect(count).toBe(1)
+        await expect(page.locator('body')).toContainText('gno.land')
     })
 
     test('stat cards NOT visible when logged out', async ({ page }) => {
@@ -135,9 +132,9 @@ test.describe('v1.4.0 — ProposeDAO', () => {
 })
 
 test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
-    test('hero text includes Memba メンバー', async ({ page }) => {
+    test('hero text includes DAO Operating System + メンバー', async ({ page }) => {
         await page.goto('/')
-        await expect(page.locator('body')).toContainText('Welcome to Memba')
+        await expect(page.locator('body')).toContainText('The DAO Operating System')
         await expect(page.locator('body')).toContainText('メンバー')
     })
 

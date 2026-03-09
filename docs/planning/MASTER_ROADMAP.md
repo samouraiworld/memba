@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-09 (v2.9.2 bug fixes + v2.9.3 directory expansion shipped)
+> Last updated: 2026-03-09 (v2.10 audit fixes + PiP portal shipped)
 
 ## Milestone Status
 
@@ -26,12 +26,14 @@
 | 17 | **Consolidation & Main Merge** | v2.9 | ✅ SHIPPED | PR #80 → `main` |
 | 17a | **Production Bug Fixes** | v2.9.2 | ✅ SHIPPED | PR #81 → `main` |
 | 17b | **Directory Expansion** | v2.9.3 | ✅ SHIPPED | PR #82 → `main` |
-| 18 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
-| 19 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 20 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 21 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 18 | **v2.10 Audit Bug Fixes** | v2.10 | ✅ SHIPPED | PR #83 → `main` |
+| 19 | **Portal PiP** | v2.10 | ✅ SHIPPED | PR #84 → `main` |
+| 20 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| 21 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| 22 | **Premium** | v3.5 | 🔮 HORIZON | — |
+| 23 | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.9.3)
+## Quality Gates (as of v2.10)
 
 | Metric | Value |
 |--------|-------|
@@ -40,7 +42,7 @@
 | TypeScript errors | 0 |
 | Lint errors | 0 |
 | Build size | 462KB (132KB gzip) |
-| package.json | 2.9.1 |
+| package.json | 2.10.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
