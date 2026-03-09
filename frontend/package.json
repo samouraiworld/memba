@@ -22,7 +22,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
-    "remotion": "4.0.287"
+    "remotion": "4.0.434"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
