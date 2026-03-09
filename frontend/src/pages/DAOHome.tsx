@@ -392,6 +392,72 @@ export function DAOHome() {
                             </div>
                         ))}
                     </div>
+
+                    {/* v2.10: Compact Live Coordination — inline room join + channel links */}
+                    {adena.address && (
+                        <div style={{
+                            marginTop: 10, padding: "8px 12px", borderRadius: 8,
+                            background: "rgba(255,255,255,0.015)",
+                            border: "1px solid rgba(255,255,255,0.04)",
+                            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                        }}>
+                            <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
+                                🎙️ Rooms
+                            </span>
+                            <button
+                                onClick={() => {
+                                    // Scroll to DAORooms section and trigger public room
+                                    const roomsEl = document.querySelector('[data-testid="dao-rooms"]')
+                                    if (roomsEl) roomsEl.scrollIntoView({ behavior: "smooth", block: "center" })
+                                }}
+                                style={{
+                                    fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
+                                    color: "#00d4aa", cursor: "pointer",
+                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                    transition: "background 0.15s",
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,170,0.1)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,170,0.06)"}
+                            >
+                                🔊 Public
+                            </button>
+                            {currentMember && (
+                                <button
+                                    onClick={() => {
+                                        const roomsEl = document.querySelector('[data-testid="dao-rooms"]')
+                                        if (roomsEl) roomsEl.scrollIntoView({ behavior: "smooth", block: "center" })
+                                    }}
+                                    style={{
+                                        fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                        background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.12)",
+                                        color: "#7c3aed", cursor: "pointer",
+                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                        transition: "background 0.15s",
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(124,58,237,0.1)"}
+                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(124,58,237,0.06)"}
+                                >
+                                    🔒 Members
+                                </button>
+                            )}
+                            <button
+                                onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
+                                style={{
+                                    fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
+                                    color: "#888", cursor: "pointer",
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    transition: "color 0.15s",
+                                    marginLeft: "auto",
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
+                                onMouseLeave={e => e.currentTarget.style.color = "#888"}
+                            >
+                                💬 Channels →
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

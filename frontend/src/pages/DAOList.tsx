@@ -14,6 +14,7 @@ import {
     validateRealmPath,
 } from "../lib/daoSlug"
 import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
+import { useNotifications } from "../hooks/useNotifications"
 import type { LayoutContext } from "../types/layout"
 
 interface DAOEntry {
@@ -39,6 +40,10 @@ export function DAOList() {
     // Action Required: unvoted proposals
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
     const { proposals: unvotedProposals } = useUnvotedProposals(userAddress)
+
+    // v2.10: Notification unread count per DAO
+    const daoPaths = useMemo(() => daoEntries.map(d => d.realmPath), [daoEntries])
+    const { getDAOUnreadCount } = useNotifications(daoPaths, userAddress)
 
     // Per-DAO unvoted count for red dot on cards
     const unvotedByDao = useMemo(() => {
@@ -235,6 +240,7 @@ export function DAOList() {
                             key={dao.realmPath}
                             dao={dao}
                             unvotedCount={unvotedByDao.get(dao.realmPath) || 0}
+                            notifCount={getDAOUnreadCount(dao.realmPath)}
                             onOpen={() => {
                                 addSavedDAO(dao.realmPath, dao.name)
                                 navigate(`/dao/${encodeSlug(dao.realmPath)}`)
@@ -318,11 +324,13 @@ export function DAOList() {
 function DAOCard({
     dao,
     unvotedCount,
+    notifCount,
     onOpen,
     onRemove,
 }: {
     dao: DAOEntry
     unvotedCount: number
+    notifCount: number
     onOpen: () => void
     onRemove?: () => void
 }) {
@@ -399,6 +407,25 @@ function DAOCard({
                     }} />
                     <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", fontWeight: 600 }}>
                         {unvotedCount} vote{unvotedCount > 1 ? "s" : ""} needed
+                    </span>
+                </div>
+            )}
+
+            {/* v2.10: Notification unread indicator */}
+            {notifCount > 0 && unvotedCount === 0 && (
+                <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "4px 10px", borderRadius: 6,
+                    background: "rgba(0,212,170,0.04)",
+                    border: "1px solid rgba(0,212,170,0.1)",
+                }}>
+                    <span style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        background: "#00d4aa",
+                        display: "inline-block", flexShrink: 0,
+                    }} />
+                    <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
+                        {notifCount} new notification{notifCount > 1 ? "s" : ""}
                     </span>
                 </div>
             )}

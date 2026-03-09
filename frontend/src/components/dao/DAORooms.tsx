@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { JitsiMeet } from "../ui/JitsiMeet"
+import { useScrollToTop } from "../../hooks/useScrollToTop"
 import "./dao-rooms.css"
 
 interface DAORoomsProps {
@@ -37,6 +38,9 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
     const navigate = useNavigate()
     const [activeRoom, setActiveRoom] = useState<ActiveRoom>(null)
 
+    // v2.10: Scroll viewport to top when modal opens (refactored to shared hook)
+    useScrollToTop(!!activeRoom)
+
     // ESC key handler
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === "Escape" && activeRoom) {
@@ -55,17 +59,10 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
         }
     }, [activeRoom, handleKeyDown])
 
-    // Scroll viewport to top when modal opens (ensures fixed overlay is centered)
-    useEffect(() => {
-        if (activeRoom) {
-            window.scrollTo({ top: 0, behavior: "smooth" })
-        }
-    }, [activeRoom])
-
     return (
         <>
             {/* Room Buttons */}
-            <div className="k-card" style={{ padding: "16px 20px" }}>
+            <div className="k-card" data-testid="dao-rooms" style={{ padding: "16px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 16 }}>🎙️</span>

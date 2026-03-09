@@ -160,7 +160,6 @@ export function ChannelsPage() {
                             slug={encodedSlug}
                             auth={auth}
                             adena={adena}
-                            initialChannel="OpenDiscussions"
                             hideChannelList={false}
                         />
                     </div>
