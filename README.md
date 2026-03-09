@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-718%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-738%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.7)
+## Features (v2.9)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -104,8 +104,8 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **718 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
-- 🧪 **238 E2E tests** (Playwright) — Chromium + Firefox: navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions
+- 🧪 **738 unit tests** (Vitest) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
+- 🧪 **139 E2E tests** (Playwright, Chromium) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
 
 ## Architecture
 

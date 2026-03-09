@@ -118,7 +118,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   splitOrigins(corsOrigins),
 		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   []string{"*"},
+		AllowedHeaders:   connectcors.AllowedHeaders(),
 		ExposedHeaders:   connectcors.ExposedHeaders(),
 		AllowCredentials: false,
 		MaxAge:           7200,

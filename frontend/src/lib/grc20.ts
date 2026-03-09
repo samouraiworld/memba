@@ -316,7 +316,7 @@ export function buildCreateTokenWithAdminMsgs(
 
 /**
  * Build MsgCall for grc20factory.Mint() — mints tokens (admin only).
- * Returns TWO messages: mint + 5% fee transfer.
+ * Returns TWO messages: mint + 2.5% fee transfer.
  */
 export function buildMintMsgs(
     callerAddress: string,
