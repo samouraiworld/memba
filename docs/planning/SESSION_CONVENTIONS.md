@@ -13,7 +13,7 @@ Every new session must begin with these steps, in order:
 [ ] 1. Read this file (SESSION_CONVENTIONS.md)
 [ ] 2. Read docs/planning/MASTER_ROADMAP.md for current milestone status
 [ ] 3. Read the HANDOFF.md of the current milestone (docs/planning/milestones/v2.0-<phase>/)
-[ ] 4. git pull origin dev/v2 && git status
+[ ] 4. git pull origin main && git status
 [ ] 5. cd frontend && npm test (verify baseline)
 [ ] 6. cd frontend && npx tsc --noEmit (verify types)
 [ ] 7. cd frontend && npm run build (verify build)
@@ -28,33 +28,24 @@ Only proceed with development after ALL 8 checks pass.
 
 ### Branch structure
 ```
-main (v1.7.x — production, never commit directly)
-  └── dev/v2 (integration branch — holds all v2.0 work)
-       ├── feat/v2.0-alpha/plugin-architecture
-       ├── feat/v2.0-alpha/deployment-pipeline
-       ├── feat/v2.0-alpha/member-proposals
-       ├── feat/v2.0-beta/board-realm-template
-       ├── feat/v2.0-beta/board-ui
-       └── ...
+main (production — all v2.x work merged via PRs)
+  ├── feat/v2.13-betanet-config
+  ├── fix/v2.13-parser-regression
+  ├── chore/v2.13-docs-sync
+  └── ...
 ```
 
 ### Rules
-- ❌ NEVER commit to `main`
-- ❌ NEVER commit to `dev/v2` directly
-- ✅ Always create a feature branch from `dev/v2`
-- ✅ Branch naming: `feat/v2.0-<phase>/<feature-name>`
-- ✅ When feature is complete: merge into `dev/v2` (squash merge)
-- ✅ When milestone is complete: create PR from `dev/v2` → `main`
+- ❌ NEVER commit to `main` directly
+- ✅ Always create a feature branch from `main`
+- ✅ Branch naming: `feat/<description>`, `fix/<description>`, `chore/<description>`
+- ✅ When feature is complete: open PR → squash merge to `main`
 - ✅ Read `/git-policy` workflow before any git operations
 
-> [!CAUTION]
-> **MERGE FREEZE**: `dev/v2` must **NEVER** be merged to `main` until the **entire v2 roadmap** is finished and explicitly approved by the project owner. No exceptions.
-
-### Hotfix path (for production v1.7.x bugs)
+### Hotfix path
 ```
-main → hotfix/v1.7.x-<issue> → merge to main → tag v1.7.x
+main → hotfix/<issue> → PR → squash merge to main
 ```
-Hotfixes go directly to `main`. v2 development is unaffected.
 
 ---
 

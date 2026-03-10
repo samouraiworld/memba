@@ -11,7 +11,7 @@ import {
 
 describe('config constants', () => {
     it('APP_VERSION matches package.json', () => {
-        expect(APP_VERSION).toBe('2.12.0')
+        expect(APP_VERSION).toBe('2.13.0')
     })
 
     it('UGNOT_PER_GNOT is 1 million', () => {

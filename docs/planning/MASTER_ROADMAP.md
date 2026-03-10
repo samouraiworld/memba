@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-10 (v2.12 DAO rooms, proposals, health score)
+> Last updated: 2026-03-10 (v2.13 deep audit, docs sync)
 
 ## Milestone Status
 
@@ -31,21 +31,26 @@
 | 20 | **Creative Landing** | v2.10.1 | ✅ SHIPPED | PR #86 → `main` |
 | 21 | **Live ABCI Stats** | v2.11 | ✅ SHIPPED | PR #93 → `main` |
 | 22 | **DAO Rooms & Health Score** | v2.12 | ✅ SHIPPED | PR #94 → `main` |
-| 23 | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
-| 24 | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
-| 25 | **Premium** | v3.5 | 🔮 HORIZON | — |
-| 26 | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| 23 | **v2.12 Hardening** | v2.12 | ✅ SHIPPED | PR #96 → `main` |
+| 24 | **Slug + Proposals Fix** | v2.12 | ✅ SHIPPED | PR #98 → `main` |
+| 25 | **Tier 1 Security Audit** | v2.12 | ✅ SHIPPED | PR #99 → `main` |
+| 26 | **v2.13 Deep Audit** | v2.13 | ✅ SHIPPED | PR #100 → `main` |
+| 27 | **v2.13 Betanet Plan** | v2.13 | ✅ SHIPPED | PR #97 → `main` |
+| — | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
+| — | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
+| — | **Premium** | v3.5 | 🔮 HORIZON | — |
+| — | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.12)
+## Quality Gates (as of v2.13)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 754 (35 files) |
-| E2E tests | 139 (15 spec files) |
+| Unit tests | 756 (35 files) |
+| E2E tests | 143 (16 spec files) |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | 469KB (134KB gzip) |
-| package.json | 2.12.0 |
+| Build size | ~470KB (~135KB gzip) |
+| package.json | 2.13.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
@@ -150,7 +155,7 @@
 | Chain | Status | Memba target |
 |-------|--------|-------------|
 | test11 | ✅ Active | All dev + testing |
-| Betanet | 🟡 ~March 12 | v2.0 deployed |
+| Betanet | 🟡 Pending upstream ([gno#5250](https://github.com/gnolang/gno/pull/5250)) | v2.13 deployed |
 | Mainnet | 🟡 ~April 2026 | v2.0-γ (GnoSwap) live |
 
 ## ⚠️ Upstream Tracking
