@@ -8,6 +8,11 @@
  * v2.11: Room join now delegates to JitsiContext (portal-based PiP).
  * The modal overlay is handled by JitsiPiPOverlay in Layout.
  *
+ * @deprecated Since v2.12, room buttons are rendered directly in DAOHome
+ * sidebar. This component is retained for potential Channel page re-use
+ * but should not be re-enabled without reviewing slug canonicalization
+ * (all operations must use `encodedSlug`, not decoded `daoSlug`).
+ *
  * @module components/dao/DAORooms
  */
 

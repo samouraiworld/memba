@@ -213,6 +213,15 @@ export function normalizeStatus(s: string): DAOProposal["status"] {
     if (lower.includes("accept") || lower.includes("pass")) return "passed"
     if (lower.includes("reject") || lower.includes("fail")) return "rejected"
     if (lower.includes("exec") || lower.includes("complete")) return "executed"
-    if (lower.includes("active") || lower.includes("open")) return "open"
+    if (lower.includes("active") || lower.includes("open") || lower === "") return "open"
+    console.warn(`[normalizeStatus] Unknown proposal status: "${s}" — defaulting to "open"`)
     return "open"
+}
+
+/** Status badge colors and labels — single source of truth for ProposalCard + ProposalView. */
+export const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+    open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
+    passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
+    rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
+    executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
 }

@@ -13,6 +13,7 @@
 
 import { useEffect, useCallback, useRef, useState } from "react"
 import { useJitsiContext } from "../../contexts/JitsiContext"
+import "../dao/dao-rooms.css"
 
 export function JitsiPiPOverlay() {
     const { session, displayMode, minimize, expand, leaveRoom } = useJitsiContext()
