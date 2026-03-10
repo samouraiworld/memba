@@ -120,7 +120,7 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v2.7 — Monitoring Integration & UI Polish 🔄 IN PROGRESS (2026-03-08)
+## v2.7 — Monitoring Integration & UI Polish ✅ COMPLETE (2026-03-08)
 
 > Branch: `dev/v2` — gnomonitoring deep dive + GovDAO polish
 
@@ -134,7 +134,7 @@ Review findings feed into the **next version's RFC** as action items.
 | MultisigHub page (`/multisig`) | ✅ | 2 |
 | CSP + config + `.env.example` updates | ✅ | 3 |
 | **gnomonitoring multi-origin CORS [PR #60](https://github.com/samouraiworld/gnomonitoring/pull/60)** | ⏳ Pending merge | External |
-| **Monikers display** (blocked on CORS PR + VPS config) | ⏳ Blocked | — |
+| **Monikers display** | ✅ COMPLETE | v2.13 — via ABCI `valopers` Render (bypasses CORS) |
 
 ---
 
@@ -1183,15 +1183,17 @@ Patch release: 12 audit findings resolved (2 P0, 3 P1, 4 P2, 3 P3).
 
 ---
 
-### v2.1 — Intelligence ⬜ PLANNED
+### v2.1 — Intelligence ✅ SUPERSEDED
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| 🔄 GnoSwap Phase 2 | LP positions, portfolio view, on-chain position NFT display | 🟢 High |
-| 💬 Board Phase 2 | Multi-channel, `#proposal-N` auto-channels, @mentions | 🟢 High |
-| 💰 Payroll plugin | Payment configs, batch MsgSend, payment history, CSV export | 🟡 Medium |
-| 🔔 Webhook notifications | Optional Discord/Slack/Telegram relay (off-chain, opt-in) | 🟡 Medium |
-| 🌍 i18n | FR/EN with `react-intl` | 🟡 Medium |
+> v2.1a (Community Foundation) and v2.1b (Validators & Notifications) shipped. Remaining items moved to v3.0+.
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| 🔄 GnoSwap Phase 2 | LP positions, portfolio view, on-chain position NFT display | 🔮 DEFERRED |
+| 💬 Board Phase 2 | Multi-channel, `#proposal-N` auto-channels, @mentions | ✅ DONE (v2.5) |
+| 💰 Payroll plugin | Payment configs, batch MsgSend, payment history, CSV export | 📋 PLANNED |
+| 🔔 Webhook notifications | Optional Discord/Slack/Telegram relay (off-chain, opt-in) | 📋 PLANNED |
+| 🌍 i18n | FR/EN with `react-intl` | 📋 PLANNED |
 
 ---
 

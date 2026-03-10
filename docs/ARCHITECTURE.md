@@ -90,6 +90,18 @@
 | `components/directory/` | **DAOCard.tsx** (rich card), **FeaturedDAOs.tsx** (carousel) |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
 | `lib/errorLog.ts` | Structured error logging → ring buffer + **Sentry forwarding** |
+| `lib/dao/config.ts` | DAO config parser (name, description, tiers, memberstorePath) |
+| `lib/dao/members.ts` | DAO member parsing (pipe table → address + tier + power) |
+| `lib/dao/proposals.ts` | DAO proposal parsing (regex → title, author, status, votes) |
+| `lib/dao/builders.ts` | MsgCall builders (Vote, Execute, Propose) |
+| `lib/dao/voteScanner.ts` | Cross-DAO unvoted proposal scanner (5×5 cap, cache, rate limit) |
+| `lib/dao/shared.ts` | Shared DAO utilities (isGovDAO, encodedSlug, config constants) |
+| `lib/gnomonitoring.ts` | gnomonitoring API client (uptime, participation metrics) |
+| `lib/errorMessages.ts` | Human-friendly error translation layer (chain errors → user messages) |
+| `lib/gasConfig.ts` | Centralized gas configuration (gasFee, gasWanted per operation type) |
+| `components/ui/JitsiPiPOverlay.tsx` | PiP portal overlay (draggable, insertBefore DOM, expand/close) |
+| `components/dao/DAORooms.tsx` | Default voice/video rooms (Public Room, Members Room) |
+| `hooks/useChannelPolling.ts` | Real-time channel updates (10s polling + Page Visibility API) |
 
 ## Data Flow — Multisig Transaction
 
@@ -223,6 +235,11 @@ resolveUsernames(members[])
 | **ProfilePage** | — | ✅ username (ABCI) | — |
 | **Validators** | — | ✅ Tendermint RPC (validators, status, block) | — |
 | **Directory** | — | ✅ DAO Render, token/user registries | ✅ saved DAOs, sessionStorage cache |
+| **ChannelsPage** | — | ✅ boards2 Render (threads, messages) | — |
+| **Landing** | — | ✅ ABCI stats (block height, validators) | — |
+| **SettingsPage** | — | — | ✅ appearance, network prefs |
+| **FeedbackPage** | — | ✅ memba_feedback board realm | — |
+| **MultisigHub** | ✅ multisig list | ✅ balances | — |
 
 ## Data Flow — User Profile (Hybrid)
 

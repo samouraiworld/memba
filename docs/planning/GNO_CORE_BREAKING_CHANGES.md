@@ -1,6 +1,6 @@
 # Gno Core PRs — Breaking Change Impact Assessment
 
-> **Date:** 2026-03-09 · **Memba:** v2.9.1 · **Status:** Deferred — monitor and act when PRs merge
+> **Date:** 2026-03-10 · **Memba:** v2.13.0 · **Status:** All tracked PRs still open — monitor and act when merged
 
 ## Priority Matrix
 

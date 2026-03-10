@@ -199,6 +199,62 @@
 | 16.11 | Create DAO button | Visible below DAO cards, navigates to `/dao/create` |
 | 16.12 | Mobile (375px) | Cards stack to 1-column, tabs scroll horizontally |
 
+## 17. Channels & Communication (v2.5)
+
+| # | Step | Expected |
+|---|------|----------|
+| 17.1 | Navigate to `/dao/:slug/channels` | Channels page loads with sidebar + breadcrumb |
+| 17.2 | Click a text channel (#general) | Thread list loads, message input visible |
+| 17.3 | Post a message | Message appears in feed, timestamp shown |
+| 17.4 | Wait 10s | "New messages" toast if others posted |
+| 17.5 | Click voice channel icon | "Join Room" gate appears |
+| 17.6 | Click "Join Room" | Jitsi iframe loads in full modal |
+| 17.7 | Click video channel | Jitsi with camera active |
+| 17.8 | Minimize browser tab, wait 10s | Polling pauses (Page Visibility API) |
+
+## 18. PiP Portal (v2.10)
+
+| # | Step | Expected |
+|---|------|----------|
+| 18.1 | Join a voice/video room | Jitsi modal opens |
+| 18.2 | Navigate to another page (e.g., Dashboard) | PiP mini-player appears (draggable) |
+| 18.3 | Drag PiP overlay | Follows cursor, stays within viewport |
+| 18.4 | Click "Expand" on PiP | Full modal reopens, PiP hides |
+| 18.5 | Navigate back and forth | Jitsi session persists (no black screen) |
+| 18.6 | Click "✕" on PiP | Session ends, overlay removed |
+
+## 19. DAO Health Score (v2.12)
+
+| # | Step | Expected |
+|---|------|----------|
+| 19.1 | Navigate to a DAO with proposals | Health score badge visible (A/B/C/D) |
+| 19.2 | DAO with high participation + low backlog | Grade A or B |
+| 19.3 | DAO with no proposals | Grade D or "No data" |
+| 19.4 | Hover health badge | Tooltip shows breakdown (participation, backlog, activity) |
+
+## 20. Proposal Action Metadata (v2.13)
+
+| # | Step | Expected |
+|---|------|----------|
+| 20.1 | Open a proposal with action data | "Action Metadata" card visible |
+| 20.2 | Verify action type | Shows `AddMember`, `RemoveMember`, etc. |
+| 20.3 | Verify action body | Shows target address and roles |
+| 20.4 | Verify executor realm | Shows realm path |
+| 20.5 | Open a GovDAO proposal | GovDAO v3 format parsed correctly |
+| 20.6 | Proposal without action data | Card not shown (graceful fallback) |
+| 20.7 | Category badge in header | Displayed next to proposal title (governance, treasury, etc.) |
+
+## 21. Command Palette (v2.6)
+
+| # | Step | Expected |
+|---|------|----------|
+| 21.1 | Press `⌘K` (Mac) or `Ctrl+K` (Windows) | Command palette modal opens |
+| 21.2 | Type "dao" | Filtered results show DAO-related commands |
+| 21.3 | Arrow keys + Enter | Navigate + select a command |
+| 21.4 | Press Escape | Palette closes |
+| 21.5 | Click outside palette | Palette closes |
+| 21.6 | Mobile — three-dot menu → "Search" | Same palette opens |
+
 ## Post-Test
 
 - [ ] Screenshot key states for documentation

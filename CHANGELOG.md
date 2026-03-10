@@ -2,9 +2,32 @@
 
 All notable changes to Memba are documented here.
 
-## [Unreleased — v2.0-α Foundation] — dev/v2
+## v2.13.0 (2026-03-10)
 
-> **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
+### v2.13 Deep Audit (2026-03-10) — PR #100
+
+- **🎙️ Jitsi PiP** — single-iframe architecture, fixes black screen on navigate
+  - `JitsiPiPOverlay.tsx` rewritten: `appendTo` → `insertBefore` for correct DOM position
+  - Fixed drag handle scope to header only (was capturing entire overlay)
+  - Expand button now replaces PiP with full modal (previously opened duplicate)
+- **⚡ Inline EXECUTE Badges** — replaced standalone "Awaiting Execution" section with inline `⚡ EXECUTE` badge on passed ProposalCards
+- **🔔 Notification Events** — `proposal_passed` and `proposal_failed` status tracking in `useNotifications`
+  - RPC throttle guard (`MIN_POLL_MS = 5000ms`) prevents excessive ABCI queries
+- **🏷️ Validator Monikers** — on-chain `valopers` Render parsing replaces blocked gnomonitoring CORS
+  - `getValidatorMonikers()` via ABCI `vm/qrender` on `r/gnoland/valopers`
+- **🔗 Directory URLs** — fixed testnet URLs (was pointing to non-existent paths)
+- **🎨 ConnectingLoader** — consistent usage across Validators and DAOHome
+- **📦 Proposal Action Metadata** — new card on ProposalView showing `actionType`, `actionBody`, `executorRealm`
+  - Parses both GovDAO v3 and basedao on-chain formats
+- **🏷️ Category Badge** — proposal category displayed in header (was parsed but not rendered)
+- **🧪 E2E Fix** — updated `dao.spec.ts` for inline EXECUTE badge + Playwright strict mode `.first()`
+- **12 files changed, 396 insertions, 143 deletions**
+
+### v2.12 Hardening (2026-03-10) — PRs #96, #98, #99
+
+- **🧪 E2E Expansion** — 142 E2E tests, proposal export plugin, RPC session cache — PR #96
+- **🔗 Slug Canonicalization** — `encodedSlug` consistency in Room components + proposal status mapping verification — PR #98
+- **🔒 Tier 1 Security Audit** — quality, maintenance fixes + critical Jitsi modal CSS regression fix — PR #99
 
 ### v2.12 DAO Rooms, Proposals & Health Score (2026-03-10) — PR #94
 
