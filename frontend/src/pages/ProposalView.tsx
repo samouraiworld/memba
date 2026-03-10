@@ -12,6 +12,7 @@ import {
     getDAOConfig,
     buildVoteMsg,
     buildExecuteMsg,
+    PROPOSAL_STATUS_COLORS,
     type DAOProposal,
     type VoteRecord,
 } from "../lib/dao"
@@ -224,13 +225,7 @@ export function ProposalView() {
         )
     }
 
-    const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-        open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
-        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
-        rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
-        executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
-    }
-    const sc = statusColors[proposal.status] || statusColors.open
+    const sc = PROPOSAL_STATUS_COLORS[proposal.status] || PROPOSAL_STATUS_COLORS.open
     const isLive = proposal.status === "open"
 
 

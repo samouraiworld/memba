@@ -7,7 +7,7 @@
  *
  * Extracted in v1.5.0 from DAOHome.tsx. Redesigned in v1.7.0.
  */
-import type { DAOProposal } from "../../lib/dao/shared"
+import { type DAOProposal, PROPOSAL_STATUS_COLORS } from "../../lib/dao/shared"
 
 /**
  * SingleVoteBar — Single-line bar showing participation and vote split.
@@ -73,13 +73,7 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
 export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMembers, onClick }: {
     proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; totalMembers: number; onClick: () => void
 }) {
-    const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-        open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
-        passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
-        rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
-        executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
-    }
-    const sc = statusColors[proposal.status] || statusColors.open
+    const sc = PROPOSAL_STATUS_COLORS[proposal.status] || PROPOSAL_STATUS_COLORS.open
 
     return (
         <div

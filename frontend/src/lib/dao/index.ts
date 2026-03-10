@@ -22,6 +22,9 @@ export type {
     VoterEntry,
 } from "./shared"
 
+// ── Constants ─────────────────────────────────────────────────
+export { PROPOSAL_STATUS_COLORS } from "./shared"
+
 // ── Config ────────────────────────────────────────────────────
 export { getDAOConfig, getMemberstoreTiers, parseMemberstoreTiers } from "./config"
 
