@@ -260,6 +260,24 @@ export async function getProposalDetail(
         // Category
         const categoryMatch = data.match(/Category:\s*(\w+)/i)
 
+        // v2.13: Action metadata — GovDAO v3 format
+        // "This proposal contains the following metadata:\n\n...content...\n\nExecutor created in: realm/path"
+        const executorMatch = data.match(/This proposal contains the following metadata:\s*\n\n([\s\S]+?)(?:\n\nExecutor created in:\s*(\S+))?\s*\n\n---/m)
+
+        // v2.13: Action metadata — basedao format
+        // "## Resource - actionType 📦\n\n  - **Name:** ...\n---\naction body\n---"
+        const resourceMatch = data.match(/##\s+Resource\s*-\s*(.+?)\s*📦\s*\n/m)
+        // Action body: specifically after Resource section's "---" separator (basedao only)
+        // Uses lookbehind for Condition line to anchor after the resource block
+        const actionBodyMatch = resourceMatch
+            ? data.match(/\*\*Condition:\*\*[^\n]*\n\n---\s*\n\n([\s\S]+?)\n\n---/m)
+            : null
+
+        // Determine action type and body from either format
+        const actionType = resourceMatch?.[1]?.trim() || undefined
+        const actionBody = executorMatch?.[1]?.trim() || actionBodyMatch?.[1]?.trim() || undefined
+        const executorRealm = executorMatch?.[2]?.trim() || undefined
+
         return {
             id,
             title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
@@ -278,6 +296,9 @@ export async function getProposalDetail(
             abstainVotes: abstainMatch ? parseInt(abstainMatch[1], 10) : 0,
             totalVoters: 0,
             proposer: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
+            actionType,
+            actionBody,
+            executorRealm,
         }
     } catch (err) {
         console.warn(`[getProposalDetail] Failed to parse proposal #${id} from ${realmPath}:`, err)

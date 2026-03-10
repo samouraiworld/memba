@@ -310,6 +310,17 @@ export function ProposalView() {
                             ))}
                         </div>
                     )}
+                    {/* v2.13: Category badge */}
+                    {proposal.category && (
+                        <span style={{
+                            padding: "2px 6px", borderRadius: 3, fontSize: 9,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                            background: "rgba(33,150,243,0.06)", color: "#5ba3d9",
+                            textTransform: "uppercase",
+                        }}>
+                            {proposal.category}
+                        </span>
+                    )}
                 </div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
                     {proposal.title}
@@ -355,6 +366,49 @@ export function ProposalView() {
                     <p style={{ color: "#ccc", fontSize: 14, lineHeight: 1.7, fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "anywhere" }}>
                         {proposal.description}
                     </p>
+                </div>
+            )}
+
+            {/* v2.13: Proposal Action Metadata */}
+            {(proposal.actionType || proposal.actionBody || proposal.executorRealm) && (
+                <div className="k-card" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                        📦 Proposal Action
+                        {proposal.actionType && (
+                            <span style={{
+                                padding: "3px 8px", borderRadius: 4, fontSize: 9,
+                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                background: "rgba(33,150,243,0.08)", color: "#2196f3",
+                            }}>
+                                {proposal.actionType}
+                            </span>
+                        )}
+                    </h3>
+                    {proposal.executorRealm && (
+                        <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#888", marginBottom: 10 }}>
+                            Executor realm:{" "}
+                            <a
+                                href={`${getExplorerBaseUrl()}/r/${proposal.executorRealm.replace("gno.land/r/", "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "#00d4aa", textDecoration: "none" }}
+                            >
+                                {proposal.executorRealm}
+                            </a>
+                        </div>
+                    )}
+                    {proposal.actionBody && (
+                        <pre style={{
+                            padding: "12px 14px", borderRadius: 8,
+                            background: "rgba(0,0,0,0.4)", border: "1px solid #1a1a1a",
+                            fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                            color: "#aaa", lineHeight: 1.6,
+                            whiteSpace: "pre-wrap", wordBreak: "break-word",
+                            overflowX: "auto", maxHeight: 300,
+                        }}>
+                            {proposal.actionBody}
+                        </pre>
+                    )}
                 </div>
             )}
 

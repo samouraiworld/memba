@@ -36,6 +36,10 @@ export interface DAOProposal {
     abstainVotes: number
     totalVoters: number
     proposer: string
+    // v2.13: On-chain action metadata (parsed from Render("proposal/{id}"))
+    actionType?: string        // basedao Action.Type(), GovDAO executor type
+    actionBody?: string        // basedao Action.String(), GovDAO ExecutorString()
+    executorRealm?: string     // GovDAO ExecutorCreationRealm()
 }
 
 export interface DAOConfig {
