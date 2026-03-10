@@ -7,6 +7,27 @@
 import { queryRender, queryEval, normalizeStatus, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
 
+// ── Proposal Cache ────────────────────────────────────────────
+// In-memory cache with 30s TTL to avoid redundant ABCI round-trips
+// when navigating back and forth between pages.
+
+interface CacheEntry {
+    proposals: DAOProposal[]
+    ts: number
+}
+
+const PROPOSAL_CACHE_TTL = 30_000 // 30 seconds
+const proposalCache = new Map<string, CacheEntry>()
+
+/** Clear cached proposals for a realm (call after submitting proposals). */
+export function invalidateProposalCache(realmPath: string): void {
+    for (const key of proposalCache.keys()) {
+        if (key.endsWith(`:${realmPath}`)) {
+            proposalCache.delete(key)
+        }
+    }
+}
+
 /**
  * Parse proposal list from GovDAO v3 Render("") output.
  * Format:
@@ -107,6 +128,13 @@ export async function getDAOProposals(
     rpcUrl: string,
     realmPath: string,
 ): Promise<DAOProposal[]> {
+    // Check cache first
+    const cacheKey = `${rpcUrl}:${realmPath}`
+    const cached = proposalCache.get(cacheKey)
+    if (cached && (Date.now() - cached.ts) < PROPOSAL_CACHE_TTL) {
+        return cached.proposals
+    }
+
     // Try JSON endpoint first (basedao)
     const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`)
     if (json) {
@@ -115,7 +143,7 @@ export async function getDAOProposals(
             if (match) {
                 const parsed = JSON.parse(match[1].replace(/\\"/g, '"'))
                 if (Array.isArray(parsed)) {
-                    return parsed.map((p: Record<string, unknown>) => ({
+                    const result = parsed.map((p: Record<string, unknown>) => ({
                         id: Number(p.id || p.ID || 0),
                         title: String(p.title || p.Title || ""),
                         description: String(p.description || p.Description || ""),
@@ -132,6 +160,8 @@ export async function getDAOProposals(
                         totalVoters: Number(p.total_voters || p.TotalVoters || 0),
                         proposer: String(p.proposer || p.Proposer || ""),
                     }))
+                    proposalCache.set(cacheKey, { proposals: result, ts: Date.now() })
+                    return result
                 }
             }
         } catch { /* fall through */ }
@@ -168,6 +198,9 @@ export async function getDAOProposals(
 
     // Sort by id descending (newest first)
     unique.sort((a, b) => b.id - a.id)
+
+    // Store in cache
+    proposalCache.set(cacheKey, { proposals: unique, ts: Date.now() })
 
     return unique
 }

@@ -54,6 +54,36 @@ test.describe('GovDAO Page', () => {
         await page.goto('/dao/gno.land~r~gov~dao')
         await expect(page.locator('body')).toContainText('View All')
     })
+
+    test('v2.12 — DAO Health Score badge visible', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao')
+        // Health Score stat card appears after proposals load (composite A/B/C/D grade)
+        const healthCard = page.locator('.k-stat-card__label', { hasText: 'Health' })
+        await expect(healthCard).toBeVisible({ timeout: 15000 })
+    })
+
+    test('v2.12 — more than 5 proposals render (pagination proof)', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao')
+        // Wait for proposals to actually load (stat starts at 0, updates when ABCI completes)
+        // Use a polling assertion: wait until the Proposals stat card shows a value > 0
+        const proposalsStat = page.locator('.k-stat-card', { hasText: 'Proposals' })
+        await expect(proposalsStat).toBeVisible({ timeout: 15000 })
+        // Poll until value is non-zero (proposals have loaded)
+        await expect(async () => {
+            const countText = await proposalsStat.locator('.k-stat-card__value').textContent()
+            const count = parseInt(countText || '0', 10)
+            expect(count).toBeGreaterThan(5)
+        }).toPass({ timeout: 20000 })
+    })
+
+    test('v2.12 — channel sidebar visible in 2-column layout', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao')
+        // Discord-style channels sidebar lives in the overview card
+        const sidebar = page.locator('.dao-channels-sidebar')
+        await expect(sidebar).toBeVisible({ timeout: 15000 })
+        await expect(sidebar).toContainText('general')
+        await expect(sidebar).toContainText('Public Room')
+    })
 })
 
 test.describe('DAO Members Page', () => {

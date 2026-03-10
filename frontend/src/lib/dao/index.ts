@@ -34,6 +34,7 @@ export {
     getProposalDetail,
     getProposalVotes,
     parseProposalList,
+    invalidateProposalCache,
 } from "./proposals"
 
 // ── Builders ──────────────────────────────────────────────────
