@@ -5,7 +5,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
-import { decodeSlug } from "../lib/daoSlug"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposeDAO() {
@@ -14,6 +14,7 @@ export function ProposeDAO() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
@@ -93,7 +94,7 @@ export function ProposeDAO() {
             }
             await doContractBroadcast([msg], `Propose: ${finalTitle}`)
             setSuccess("Proposal created!")
-            setTimeout(() => navigate(`/dao/${slug}`), 2000)
+            setTimeout(() => navigate(`/dao/${encodedSlug}`), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create proposal")
         } finally {
@@ -107,7 +108,7 @@ export function ProposeDAO() {
             <button
                 id="propose-back-btn"
                 aria-label="Back to DAO"
-                onClick={() => navigate(`/dao/${slug}`)}
+                onClick={() => navigate(`/dao/${encodedSlug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -338,7 +339,7 @@ export function ProposeDAO() {
                 >
                     {loading ? "Proposing..." : "Submit Proposal"}
                 </button>
-                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${slug}`)}>
+                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${encodedSlug}`)}>
                     Cancel
                 </button>
             </div>

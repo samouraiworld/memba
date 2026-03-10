@@ -3,7 +3,7 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { decodeSlug } from "../lib/daoSlug"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function TreasuryProposal() {
@@ -12,6 +12,7 @@ export function TreasuryProposal() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [recipient, setRecipient] = useState("")
     const [amount, setAmount] = useState("")
@@ -51,7 +52,7 @@ export function TreasuryProposal() {
             const msg = buildProposeMsg(adena.address, realmPath, title, description)
             await doContractBroadcast([msg], `Propose treasury spend: ${trimAmount} ${trimSymbol || "GNOT"}`)
             setSuccess("Treasury proposal created! Requires DAO vote to execute.")
-            setTimeout(() => navigate(`/dao/${slug}`), 2000)
+            setTimeout(() => navigate(`/dao/${encodedSlug}`), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create proposal")
         } finally {
@@ -65,7 +66,7 @@ export function TreasuryProposal() {
             <button
                 id="treasury-propose-back-btn"
                 aria-label="Back to Treasury"
-                onClick={() => navigate(`/dao/${slug}/treasury`)}
+                onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to Treasury
@@ -158,7 +159,7 @@ export function TreasuryProposal() {
                 >
                     {loading ? "Proposing..." : "Submit Treasury Proposal"}
                 </button>
-                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${slug}/treasury`)}>
+                <button className="k-btn-secondary" onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}>
                     Cancel
                 </button>
             </div>

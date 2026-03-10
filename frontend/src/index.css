@@ -255,11 +255,25 @@ a:hover {
   padding: 5px 10px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.02);
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s;
+  border: none;
+  font-family: inherit;
 }
 
 .k-stat-card:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+.k-stat-card--clickable {
+  cursor: pointer;
+}
+
+.k-stat-card--clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.k-stat-card--clickable:active {
+  transform: scale(0.96);
 }
 
 .k-stat-accent {
@@ -289,6 +303,176 @@ a:hover {
   font-size: 9px;
   color: #555;
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── DAO Card 2-Column Layout (v2.12) ──────────────────────────── */
+.dao-card-columns {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.dao-card-columns__left {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.k-stat-grid--compact {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 6px;
+  justify-content: start;
+}
+
+/* ── Discord-Style Channel Sidebar ─────────────────────────────── */
+.dao-channels-sidebar {
+  flex-shrink: 0;
+  width: 180px;
+  padding: 8px 0 8px 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dao-channels-sidebar__header {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0 6px 6px;
+  margin-bottom: 2px;
+}
+
+.dao-channels-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s, color 0.12s;
+}
+
+.dao-channels-sidebar__item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ccc;
+}
+
+.dao-channels-sidebar__item:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.dao-channels-sidebar__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dao-channels-sidebar__item--voice {
+  color: #00d4aa;
+}
+
+.dao-channels-sidebar__item--voice:hover:not(:disabled) {
+  background: rgba(0, 212, 170, 0.06);
+  color: #00d4aa;
+}
+
+.dao-channels-sidebar__item--voice.active {
+  background: rgba(0, 212, 170, 0.1);
+  color: #00d4aa;
+}
+
+.dao-channels-sidebar__item--private {
+  color: #7c3aed;
+}
+
+.dao-channels-sidebar__item--private:hover:not(:disabled) {
+  background: rgba(124, 58, 237, 0.06);
+  color: #7c3aed;
+}
+
+.dao-channels-sidebar__item--private.active {
+  background: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+}
+
+.dao-channels-sidebar__icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.dao-channels-sidebar__divider {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #444;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 6px 6px 3px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dao-channels-sidebar__live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00d4aa;
+  display: inline-block;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.dao-channels-sidebar__hint {
+  font-size: 9px;
+  color: #444;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 4px 6px;
+}
+
+/* Mobile: stack columns */
+@media (max-width: 640px) {
+  .dao-card-columns {
+    flex-direction: column;
+  }
+
+  .dao-channels-sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 8px 0 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .dao-channels-sidebar__header {
+    width: 100%;
+  }
+
+  .dao-channels-sidebar__divider {
+    width: 100%;
+  }
+
+  .dao-channels-sidebar__item {
+    flex: 0 0 auto;
+  }
 }
 
 /* ── Realm Address Badge (v2.7 — discreet grey, was purple) ─────── */

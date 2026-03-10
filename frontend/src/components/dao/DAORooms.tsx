@@ -12,6 +12,7 @@
  */
 
 import { useNavigate } from "react-router-dom"
+import { memo } from "react"
 import { useJitsiContext } from "../../contexts/JitsiContext"
 import "./dao-rooms.css"
 
@@ -28,7 +29,7 @@ interface DAORoomsProps {
     isConnected: boolean
 }
 
-export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnected }: DAORoomsProps) {
+export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnected }: DAORoomsProps) {
     const navigate = useNavigate()
     const { session, joinRoom } = useJitsiContext()
 
@@ -41,10 +42,20 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 16 }}>🎙️</span>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#f0f0f0" }}>Rooms</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: "#f0f0f0" }}>Live Rooms</span>
+                    {(isInPublicRoom || isInMembersRoom) && (
+                        <span aria-live="polite" style={{
+                            fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                            background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        }}>
+                            IN CALL
+                        </span>
+                    )}
                 </div>
                 {hasChannels && (
                     <button
+                        aria-label="Manage channels"
                         onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
                         style={{
                             color: "#555", fontSize: 10, background: "none", border: "none",
@@ -64,6 +75,7 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
                 {isConnected ? (
                     <button
                         id="dao-room-public"
+                        aria-label={isInPublicRoom ? "Expand Public Room call" : "Join Public Room"}
                         className={`dao-room-btn${isInPublicRoom ? " dao-room-active" : ""}`}
                         onClick={() => joinRoom({
                             daoSlug,
@@ -104,6 +116,7 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
                 {isMember && (
                     <button
                         id="dao-room-members"
+                        aria-label={isInMembersRoom ? "Expand Members Room call" : "Join Members Room"}
                         className={`dao-room-btn dao-room-private${isInMembersRoom ? " dao-room-active" : ""}`}
                         onClick={() => joinRoom({
                             daoSlug,
@@ -134,4 +147,4 @@ export function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnec
             </div>
         </div>
     )
-}
+})

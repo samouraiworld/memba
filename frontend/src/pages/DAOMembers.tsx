@@ -6,7 +6,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { decodeSlug } from "../lib/daoSlug"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function DAOMembers() {
@@ -15,6 +15,7 @@ export function DAOMembers() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
@@ -104,7 +105,7 @@ export function DAOMembers() {
             <button
                 id="members-back-btn"
                 aria-label="Back to DAO"
-                onClick={() => navigate(`/dao/${slug}`)}
+                onClick={() => navigate(`/dao/${encodedSlug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO

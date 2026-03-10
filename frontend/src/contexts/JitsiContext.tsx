@@ -10,7 +10,7 @@
  * @module contexts/JitsiContext
  */
 
-import { createContext, useContext, useState, useMemo, useCallback } from "react"
+import { createContext, useContext, useState, useMemo, useCallback, useRef } from "react"
 import { jitsiRoomName, jitsiIframeSrc } from "../components/ui/jitsiHelpers"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -77,8 +77,14 @@ const CONFIG_PARAMS = [
 export function JitsiProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<JitsiSession | null>(null)
     const [displayMode, setDisplayMode] = useState<JitsiDisplayMode | null>(null)
+    const lastJoinRef = useRef(0)
 
     const joinRoom = useCallback((params: JoinRoomParams) => {
+        // 1s cooldown to prevent rapid iframe reloads
+        const now = Date.now()
+        if (now - lastJoinRef.current < 1000) return
+        lastJoinRef.current = now
+
         const roomName = jitsiRoomName(params.daoSlug, params.channelName)
         const videoConfig = params.mode === "voice"
             ? `config.startWithVideoMuted=true&${CONFIG_PARAMS}`

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { Bank, Archive, UsersThree, Vault } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -22,8 +22,7 @@ import { ProposalCard, MemberCard } from "../components/dao"
 import { PowerDonut } from "../components/dao/TierPieChart"
 import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
-import { DAORooms } from "../components/dao/DAORooms"
-import { detectChannelRealm } from "../plugins/board/parser"
+import { useJitsiContext } from "../contexts/JitsiContext"
 import type { LayoutContext } from "../types/layout"
 
 /** Tiny component that derives + displays the realm's bech32 address. */
@@ -49,18 +48,15 @@ function RealmAddressBadge({ realmPath }: { realmPath: string }) {
                         setCopied(true)
                         setTimeout(() => setCopied(false), 1500)
                     }).catch(() => {
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 1500)
+                        // Clipboard API failed — do not show copied
                     })
                 } catch {
                     // Clipboard API not available (HTTP context)
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 1500)
                 }
             }}
             className="k-realm-address"
         >
-            {copied ? "✓ Copied!" : truncated}
+            {copied ? "✓ Copied!" : <>{truncated} <span style={{ opacity: 0.5, fontSize: 9 }}>📋</span></>}
         </button>
     )
 }
@@ -69,9 +65,11 @@ export function DAOHome() {
     const navigate = useNavigate()
     const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
+    const { session, joinRoom } = useJitsiContext()
 
     const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = slug || encodeSlug(realmPath)
+    // Always re-encode to tilde format — fixes 404 when user enters via %2F URL
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
@@ -88,7 +86,6 @@ export function DAOHome() {
     const [showHistory, setShowHistory] = useState(false)
     const usernameRef = useRef<string | null>(null)
     const [showDeployModal, setShowDeployModal] = useState(false)
-    const [hasChannels, setHasChannels] = useState(false)
 
     const loadData = useCallback(async () => {
         if (!realmPath) return
@@ -124,13 +121,6 @@ export function DAOHome() {
 
     useEffect(() => { loadData() }, [loadData])
 
-    // Detect if DAO has deployed a channel realm (for DAORooms "Manage channels" link)
-    useEffect(() => {
-        if (!realmPath) return
-        detectChannelRealm(GNO_RPC_URL, realmPath)
-            .then(path => setHasChannels(!!path))
-            .catch(() => setHasChannels(false))
-    }, [realmPath])
 
     // Persist last visited DAO slug for plugin sidebar routing (B2)
     useEffect(() => {
@@ -149,9 +139,10 @@ export function DAOHome() {
                 .then(u => { usernameRef.current = u || null })
                 .catch(() => { })
         }
-        const active = proposals.filter(p => p.status === "open")
+        // Enrich active + passed proposals with vote data
+        const enrichable = proposals.filter(p => p.status === "open" || p.status === "passed")
         // Limit to 10 concurrent fetches
-        active.slice(0, 10).forEach(p => {
+        enrichable.slice(0, 10).forEach(p => {
             if (enrichedIds.has(p.id)) return
             setEnrichedIds(prev => new Set([...prev, p.id]))
             // Fetch vote details + voter lists in parallel
@@ -205,16 +196,37 @@ export function DAOHome() {
     const activeProposals = proposals.filter((p) => p.status === "open")
     const awaitingExecution = proposals.filter((p) => p.status === "passed")
     const completedProposals = proposals.filter((p) => p.status !== "open" && p.status !== "passed")
-
-    // Voter Turnout: avg % of members who voted across completed proposals with data
-    const turnoutData = completedProposals.filter(p => p.totalVoters > 0)
-    const avgTurnout = turnoutData.length > 0 && (config?.memberCount || members.length) > 0
-        ? Math.round(turnoutData.reduce((sum, p) => sum + (p.totalVoters / (config?.memberCount || members.length)) * 100, 0) / turnoutData.length)
+    // Non-voters: % of members who never voted — uses ALL proposals with actual vote data
+    const proposalsWithVotes = proposals.filter(p => (p.yesVotes + p.noVotes + p.abstainVotes) > 0)
+    const memberCount = config?.memberCount || members.length
+    // Use the max participation across any single proposal (high-water mark)
+    const maxVoterParticipation = proposalsWithVotes.length > 0
+        ? Math.max(...proposalsWithVotes.map(p => p.yesVotes + p.noVotes + p.abstainVotes))
         : 0
+    const nonVoterCount = memberCount > 0 ? Math.max(0, memberCount - maxVoterParticipation) : 0
+    const nonVoterPercent = memberCount > 0 ? Math.round((nonVoterCount / memberCount) * 100) : 0
 
     // Check if current user is a member
     const currentMember = members.find((m) => m.address === adena.address)
     const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || 0
+
+    // ── DAO Health Score ──────────────────────────────────────────
+    const healthScore = useMemo(() => {
+        if (!config || proposals.length === 0) return null
+        // Factor 1: Voter participation (0-40 pts) — higher is better
+        const participationPts = proposalsWithVotes.length > 0
+            ? Math.round((1 - nonVoterPercent / 100) * 40)
+            : 0
+        // Factor 2: Execution backlog (0-30 pts) — fewer pending = better
+        const execBacklog = awaitingExecution.length
+        const execPts = execBacklog === 0 ? 30 : execBacklog <= 2 ? 20 : execBacklog <= 5 ? 10 : 0
+        // Factor 3: Activity (0-30 pts) — more proposals = more active
+        const activityPts = proposals.length >= 10 ? 30 : proposals.length >= 5 ? 20 : proposals.length >= 2 ? 10 : 5
+        const total = participationPts + execPts + activityPts
+        const grade = total >= 80 ? "A" : total >= 60 ? "B" : total >= 40 ? "C" : "D"
+        const color = grade === "A" ? "#00d4aa" : grade === "B" ? "#4dc9f6" : grade === "C" ? "#f7b731" : "#e74c3c"
+        return { grade, total, color, participationPts, execPts, activityPts }
+    }, [proposals.length, proposalsWithVotes.length, nonVoterPercent, awaitingExecution.length, config])
 
     useEffect(() => {
         if (!realmPath) navigate("/dao")
@@ -361,108 +373,151 @@ export function DAOHome() {
                 {/* ── Divider ── */}
                 <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0 10px" }} />
 
-                {/* Stats row: donut + pills */}
-                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-                    {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
-                        <PowerDonut
-                            tiers={config.tierDistribution}
-                            totalPower={totalPower}
-                            size={80}
-                        />
-                    )}
-                    <div className="k-stat-grid">
-                        {[
-                            { icon: "👥", value: String(config?.memberCount || members.length), label: "Members" },
-                            { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true },
-                            { icon: "⚡", value: String(awaitingExecution.length), label: "Execute", accent: awaitingExecution.length > 0 },
-                            { icon: "📜", value: String(proposals.length), label: "Proposals" },
-                            { icon: "📊", value: avgTurnout > 0 ? `${avgTurnout}%` : "—", label: "Turnout" },
-                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power" }] : []),
-                        ].map(s => (
-                            <div key={s.label} className={`k-stat-card${(s as { accent?: boolean }).accent ? " k-stat-accent" : ""}`}>
-                                <span className="k-stat-card__icon">{s.icon}</span>
-                                <div>
-                                    <div className="k-stat-card__value">
-                                        {s.value}
+                {/* v2.12: 2-column layout — stats left, channel sidebar right */}
+                <div className="dao-card-columns">
+                    {/* Left: Donut + Stats (2-row grid) */}
+                    <div className="dao-card-columns__left">
+                        {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
+                            <PowerDonut
+                                tiers={config.tierDistribution}
+                                totalPower={totalPower}
+                                size={80}
+                            />
+                        )}
+                        <div className="k-stat-grid k-stat-grid--compact">
+                            {[
+                                { icon: "👥", value: String(memberCount), label: "Members", tip: `${memberCount} members across ${config?.tierDistribution?.length || 1} tier(s). Click to scroll to members list.`, action: "members" },
+                                { icon: "📋", value: String(activeProposals.length), label: "Active", accent: true, tip: `${activeProposals.length} open proposal(s) currently awaiting votes from DAO members. Click to scroll.`, action: "proposals" },
+                                { icon: "⚡", value: String(awaitingExecution.length), label: "Execute", accent: awaitingExecution.length > 0, tip: `${awaitingExecution.length} proposal(s) have passed voting and are ready to be executed on-chain. Click to scroll.`, action: "execute" },
+                                { icon: "📜", value: String(proposals.length), label: "Proposals", tip: `${proposals.length} total proposals submitted to this DAO (${activeProposals.length} active, ${awaitingExecution.length} passed, ${completedProposals.length} completed). Click to scroll.`, action: "proposals" },
+                                { icon: "🫥", value: nonVoterPercent > 0 ? `${nonVoterPercent}%` : "—", label: "Non-Voters", tip: `~${nonVoterCount} of ${memberCount} members have never voted. Based on best turnout (${maxVoterParticipation} voters) across ${proposalsWithVotes.length} proposal(s) with votes.` },
+                                ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power", tip: `Combined voting power across all ${config?.tierDistribution?.length || 1} tier(s). Voting power determines each member's influence when casting votes on proposals.` }] : []),
+                                ...(healthScore ? [{ icon: healthScore.grade, value: `${healthScore.total}`, label: "Health", healthColor: healthScore.color, tip: `DAO Health Score: ${healthScore.grade} (${healthScore.total}/100)\n• Participation: ${healthScore.participationPts}/40 pts\n• Execution backlog: ${healthScore.execPts}/30 pts\n• Activity: ${healthScore.activityPts}/30 pts` }] : []),
+                            ].map(s => (
+                                <button
+                                    key={s.label}
+                                    title={(s as { tip?: string }).tip}
+                                    className={`k-stat-card k-stat-card--clickable${(s as { accent?: boolean }).accent ? " k-stat-accent" : ""}`}
+                                    onClick={() => {
+                                        const action = (s as { action?: string }).action
+                                        if (action === "members") {
+                                            document.getElementById("dao-members-section")?.scrollIntoView({ behavior: "smooth" })
+                                        } else if (action === "proposals" || action === "execute") {
+                                            document.getElementById("dao-proposals-section")?.scrollIntoView({ behavior: "smooth" })
+                                        }
+                                    }}
+                                >
+                                    <span className="k-stat-card__icon" style={(s as { healthColor?: string }).healthColor ? { color: (s as { healthColor?: string }).healthColor } : undefined}>{s.icon}</span>
+                                    <div>
+                                        <div className="k-stat-card__value">{s.value}</div>
+                                        <div className="k-stat-card__label">{s.label}</div>
                                     </div>
-                                    <div className="k-stat-card__label">
-                                        {s.label}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* v2.10: Compact Live Coordination — inline room join + channel links */}
-                    {adena.address && (
-                        <div style={{
-                            marginTop: 10, padding: "8px 12px", borderRadius: 8,
-                            background: "rgba(255,255,255,0.015)",
-                            border: "1px solid rgba(255,255,255,0.04)",
-                            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-                        }}>
-                            <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace", flexShrink: 0 }}>
-                                🎙️ Rooms
-                            </span>
-                            <button
-                                onClick={() => {
-                                    // Scroll to DAORooms section and trigger public room
-                                    const roomsEl = document.querySelector('[data-testid="dao-rooms"]')
-                                    if (roomsEl) roomsEl.scrollIntoView({ behavior: "smooth", block: "center" })
-                                }}
-                                style={{
-                                    fontSize: 10, padding: "3px 10px", borderRadius: 4,
-                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
-                                    color: "#00d4aa", cursor: "pointer",
-                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                    transition: "background 0.15s",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,170,0.1)"}
-                                onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,170,0.06)"}
-                            >
-                                🔊 Public
-                            </button>
-                            {currentMember && (
-                                <button
-                                    onClick={() => {
-                                        const roomsEl = document.querySelector('[data-testid="dao-rooms"]')
-                                        if (roomsEl) roomsEl.scrollIntoView({ behavior: "smooth", block: "center" })
-                                    }}
-                                    style={{
-                                        fontSize: 10, padding: "3px 10px", borderRadius: 4,
-                                        background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.12)",
-                                        color: "#7c3aed", cursor: "pointer",
-                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                        transition: "background 0.15s",
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(124,58,237,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(124,58,237,0.06)"}
-                                >
-                                    🔒 Members
-                                </button>
-                            )}
-                            <button
-                                onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
-                                style={{
-                                    fontSize: 10, padding: "3px 10px", borderRadius: 4,
-                                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
-                                    color: "#888", cursor: "pointer",
-                                    fontFamily: "JetBrains Mono, monospace",
-                                    transition: "color 0.15s",
-                                    marginLeft: "auto",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
-                                onMouseLeave={e => e.currentTarget.style.color = "#888"}
-                            >
-                                💬 Channels →
-                            </button>
+                    {/* Right: Discord-style channel sidebar */}
+                    <div className="dao-channels-sidebar">
+                        <div className="dao-channels-sidebar__header">
+                            {config?.name || "DAO"} Channels
                         </div>
-                    )}
+
+                        {/* Text channels */}
+                        <button
+                            aria-label="Open Discussion Channels"
+                            className="dao-channels-sidebar__item"
+                            onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
+                        >
+                            <span className="dao-channels-sidebar__icon">#</span>
+                            <span>general</span>
+                        </button>
+                        <button
+                            aria-label="Open Announcements"
+                            className="dao-channels-sidebar__item"
+                            onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
+                        >
+                            <span className="dao-channels-sidebar__icon">#</span>
+                            <span>announcements</span>
+                        </button>
+
+                        {/* Voice/Video rooms divider */}
+                        <div className="dao-channels-sidebar__divider">
+                            <span>🎙️ Voice Rooms</span>
+                            {session && session.daoSlug === slug && (
+                                <span className="dao-channels-sidebar__live-dot" />
+                            )}
+                        </div>
+
+                        {/* Public Room — always visible */}
+                        <button
+                            aria-label="Join Public Room"
+                            className={`dao-channels-sidebar__item dao-channels-sidebar__item--voice${session?.daoSlug === encodedSlug && session?.channelName === "public-room" ? " active" : ""}`}
+                            onClick={() => adena.address ? joinRoom({
+                                daoSlug: encodedSlug || "",
+                                channelName: "public-room",
+                                mode: "voice",
+                                label: "Public Room",
+                                description: "Open voice room — anyone with a connected wallet can join.",
+                            }) : undefined}
+                            disabled={!adena.address}
+                        >
+                            <span className="dao-channels-sidebar__icon">🔊</span>
+                            <span>Public Room</span>
+                        </button>
+
+                        {/* Members Room — private, shown to members */}
+                        {currentMember && (
+                            <button
+                                aria-label="Join Members Room"
+                                className={`dao-channels-sidebar__item dao-channels-sidebar__item--voice dao-channels-sidebar__item--private${session?.daoSlug === encodedSlug && session?.channelName === "members-room" ? " active" : ""}`}
+                                onClick={() => joinRoom({
+                                    daoSlug: encodedSlug || "",
+                                    channelName: "members-room",
+                                    mode: "voice",
+                                    label: "Members Room",
+                                    description: "Private voice room for DAO members.",
+                                })}
+                            >
+                                <span className="dao-channels-sidebar__icon">🔒</span>
+                                <span>Members Room</span>
+                            </button>
+                        )}
+
+                        {/* Hint for non-connected */}
+                        {!adena.address && (
+                            <div className="dao-channels-sidebar__hint">
+                                Connect wallet to join
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
+            {/* Awaiting Execution — priority: moved above active (v2.12) */}
+            {!proposalsLoading && awaitingExecution.length > 0 && (
+                <div id="dao-proposals-section">
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f5a623", marginBottom: 12 }}>
+                        ⚡ Awaiting Execution ({awaitingExecution.length})
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {awaitingExecution.map((p) => (
+                            <ProposalCard
+                                key={p.id}
+                                proposal={p}
+                                hasVoted={votedIds.has(p.id)}
+                                isMember={!!currentMember}
+                                enriched={true}
+                                totalMembers={memberCount}
+                                onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Active Proposals */}
-            <div>
+            <div {...(awaitingExecution.length === 0 ? { id: "dao-proposals-section" } : {})}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>Active Proposals</h3>
                     {auth.isAuthenticated && !config?.isArchived && (
@@ -531,7 +586,7 @@ export function DAOHome() {
                                     hasVoted={votedIds.has(p.id)}
                                     isMember={!!currentMember}
                                     enriched={enrichedIds.has(p.id)}
-                                    totalMembers={config?.memberCount || members.length}
+                                    totalMembers={memberCount}
                                     onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
                                 />
                             ))}
@@ -539,27 +594,7 @@ export function DAOHome() {
                 )}
             </div>
 
-            {/* Awaiting Execution — proposals that passed but haven't been executed yet */}
-            {!proposalsLoading && awaitingExecution.length > 0 && (
-                <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f5a623", marginBottom: 12 }}>
-                        ⚡ Awaiting Execution ({awaitingExecution.length})
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {awaitingExecution.map((p) => (
-                            <ProposalCard
-                                key={p.id}
-                                proposal={p}
-                                hasVoted={votedIds.has(p.id)}
-                                isMember={!!currentMember}
-                                enriched={true}
-                                totalMembers={config?.memberCount || members.length}
-                                onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
+            {/* (Awaiting Execution moved above Active Proposals — v2.12) */}
 
             {/* Proposal History (collapsible) */}
             {!proposalsLoading && completedProposals.length > 0 && (
@@ -577,7 +612,7 @@ export function DAOHome() {
                         onMouseLeave={(e) => (e.currentTarget.style.color = "#888")}
                     >
                         <span style={{ fontSize: 10, transition: "transform 0.2s", display: "inline-block", transform: showHistory ? "rotate(90deg)" : "none" }}>▶</span>
-                        Proposal History ({completedProposals.length})
+                        Past Proposals ({completedProposals.length})
                     </button>
                     {showHistory && (
                         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
@@ -590,7 +625,7 @@ export function DAOHome() {
             )}
 
             {/* Members Preview */}
-            <div>
+            <div id="dao-members-section">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
                         <UsersThree size={16} style={{ display: 'inline' }} /> ({config?.memberCount || members.length})
@@ -621,32 +656,7 @@ export function DAOHome() {
                 )}
             </div>
 
-            {/* Channels (v2.5a) */}
-            <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 22 }}>💬</span>
-                    <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>Channels</div>
-                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>Discussion channels and announcements</div>
-                    </div>
-                </div>
-                <button
-                    id="dao-channels-btn"
-                    onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
-                    style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
-                >
-                    Open →
-                </button>
-            </div>
-
-            {/* Voice/Video Rooms (v2.9) — always available, no channel realm required */}
-            <DAORooms
-                daoSlug={slug || ""}
-                encodedSlug={encodedSlug}
-                isMember={!!currentMember}
-                hasChannels={hasChannels}
-                isConnected={!!adena.address}
-            />
+            {/* Channels card removed — consolidated into overview quickbar + DAORooms (v2.12) */}
 
             {/* Treasury */}
             <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
