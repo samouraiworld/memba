@@ -193,7 +193,8 @@ export function DAOHome() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [proposalsLoading, proposals.length, adena.address, realmPath])
 
-    const activeProposals = proposals.filter((p) => p.status === "open")
+    // v2.13: Merge passed proposals into active list — "⚡ EXECUTE" badge shown inline by ProposalCard
+    const activeProposals = proposals.filter((p) => p.status === "open" || p.status === "passed")
     const awaitingExecution = proposals.filter((p) => p.status === "passed")
     const completedProposals = proposals.filter((p) => p.status !== "open" && p.status !== "passed")
     // Non-voters: % of members who never voted — uses ALL proposals with actual vote data
@@ -494,30 +495,11 @@ export function DAOHome() {
                 </div>
             </div>
 
-            {/* Awaiting Execution — priority: moved above active (v2.12) */}
-            {!proposalsLoading && awaitingExecution.length > 0 && (
-                <div id="dao-proposals-section">
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f5a623", marginBottom: 12 }}>
-                        ⚡ Awaiting Execution ({awaitingExecution.length})
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {awaitingExecution.map((p) => (
-                            <ProposalCard
-                                key={p.id}
-                                proposal={p}
-                                hasVoted={votedIds.has(p.id)}
-                                isMember={!!currentMember}
-                                enriched={true}
-                                totalMembers={memberCount}
-                                onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
+            {/* v2.13: Awaiting Execution section removed — passed proposals shown inline
+               in Active Proposals with ⚡ EXECUTE badge on ProposalCard */}
 
-            {/* Active Proposals */}
-            <div {...(awaitingExecution.length === 0 ? { id: "dao-proposals-section" } : {})}>
+            {/* Active Proposals (now includes "passed" proposals with inline ⚡ EXECUTE badge) */}
+            <div id="dao-proposals-section">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>Active Proposals</h3>
                     {auth.isAuthenticated && !config?.isArchived && (
@@ -536,7 +518,8 @@ export function DAOHome() {
                     <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                         {(["all", "needs", "voted"] as const).map(f => {
                             const count = f === "all" ? activeProposals.length
-                                : f === "needs" ? activeProposals.filter(p => !votedIds.has(p.id)).length
+                                // v2.13 fix: "needs" should only count OPEN proposals (passed can't be voted on)
+                                : f === "needs" ? activeProposals.filter(p => p.status === "open" && !votedIds.has(p.id)).length
                                     : activeProposals.filter(p => votedIds.has(p.id)).length
                             const labels = { all: "All", needs: "Needs My Vote", voted: "Voted" }
                             return (
@@ -575,7 +558,8 @@ export function DAOHome() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {activeProposals
                             .filter(p => {
-                                if (voteFilter === "needs") return !votedIds.has(p.id)
+                                // v2.13 fix: "needs" only includes OPEN proposals (passed can't be voted on)
+                                if (voteFilter === "needs") return p.status === "open" && !votedIds.has(p.id)
                                 if (voteFilter === "voted") return votedIds.has(p.id)
                                 return true
                             })
@@ -594,7 +578,6 @@ export function DAOHome() {
                 )}
             </div>
 
-            {/* (Awaiting Execution moved above Active Proposals — v2.12) */}
 
             {/* Proposal History (collapsible) */}
             {!proposalsLoading && completedProposals.length > 0 && (

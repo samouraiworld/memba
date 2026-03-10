@@ -1,5 +1,6 @@
 import type { MonitoringValidatorData } from "./gnomonitoring"
 import { hexToBech32 } from "./dao/realmAddress"
+import { queryRender } from "./dao/shared"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -167,6 +168,59 @@ export function mergeWithMonitoringData(
                 participationRate: match.participationRate,
                 uptimePercent: match.uptime,
             }
+        }
+        return v
+    })
+}
+
+// ── Valopers On-Chain Monikers (v2.13) ────────────────────────
+
+/**
+ * Fetch validator monikers from the on-chain valopers realm.
+ *
+ * Queries `gno.land/r/gnops/valopers` Render("") via ABCI — no CORS issues.
+ * Output format (markdown):
+ *   ` * [Moniker](/r/gnops/valopers:g1addr) - [profile](/r/demo/profile:u/g1addr)`
+ *
+ * Returns Map<bech32_address, moniker>.
+ */
+export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, string>> {
+    const monikerMap = new Map<string, string>()
+    try {
+        const raw = await queryRender(rpcUrl, "gno.land/r/gnops/valopers", "")
+        if (!raw) return monikerMap
+
+        // Parse markdown lines: ` * [Moniker](/r/gnops/valopers:g1addr) - [profile](...)`
+        const lineRegex = /\*\s+\[([^\]]+)\]\(\/r\/gnops\/valopers:(g1[a-z0-9]+)\)/g
+        let match: RegExpExecArray | null
+        while ((match = lineRegex.exec(raw)) !== null) {
+            const moniker = match[1].trim()
+            const addr = match[2].trim()
+            if (moniker && addr) {
+                monikerMap.set(addr.toLowerCase(), moniker)
+            }
+        }
+    } catch {
+        // Best-effort: valopers query may fail on some chains
+    }
+    return monikerMap
+}
+
+/**
+ * Merge on-chain valopers monikers into validator list.
+ * This is the PRIMARY moniker source — gnomonitoring is secondary.
+ * Only sets moniker if the validator doesn't already have one.
+ */
+export function mergeValoperMonikers(
+    validators: ValidatorInfo[],
+    monikerMap: Map<string, string>,
+): ValidatorInfo[] {
+    if (monikerMap.size === 0) return validators
+
+    return validators.map(v => {
+        const moniker = v.gnoAddr ? monikerMap.get(v.gnoAddr.toLowerCase()) : undefined
+        if (moniker && !v.moniker) {
+            return { ...v, moniker }
         }
         return v
     })

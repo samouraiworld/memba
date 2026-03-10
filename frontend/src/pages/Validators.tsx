@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
@@ -18,6 +19,8 @@ import {
     formatBlockTime,
     truncateValidatorAddr,
     mergeWithMonitoringData,
+    fetchValoperMonikers,
+    mergeValoperMonikers,
     type ValidatorInfo,
     type NetworkStats,
 } from "../lib/validators"
@@ -69,14 +72,17 @@ export default function Validators() {
 
         if (isRefresh) setRefreshing(true)
         try {
-            // Fetch Tendermint RPC + gnomonitoring data in parallel
-            const [vals, monitoringMap] = await Promise.all([
+            // Fetch Tendermint RPC + gnomonitoring + valopers in parallel
+            const [vals, monitoringMap, valoperMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
+                fetchValoperMonikers(GNO_RPC_URL),
             ])
 
-            // Merge monitoring data (monikers, uptime) into validator list
-            const enriched = mergeWithMonitoringData(vals, monitoringMap)
+            // v2.13: Apply valopers monikers first (primary on-chain source)
+            const withMonikers = mergeValoperMonikers(vals, valoperMap)
+            // Then enrich with gnomonitoring data (participation, uptime, fallback moniker)
+            const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
 
             const netStats = await getNetworkStats(GNO_RPC_URL, vals)
             setValidators(enriched)
@@ -158,12 +164,7 @@ export default function Validators() {
     const hasMonitoring = validators.some(v => v.moniker !== "")
 
     if (loading) {
-        return (
-            <div className="val-loading">
-                <div className="val-spinner" />
-                <span>Loading validator data...</span>
-            </div>
-        )
+        return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />
     }
 
     if (error) {

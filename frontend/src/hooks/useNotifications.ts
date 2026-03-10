@@ -10,6 +10,9 @@
  * v2.1b Phase 2: Multi-DAO polling — accepts array of DAO paths,
  * iterates over saved DAOs (max 5 per cycle, matching voteScanner cap).
  *
+ * v2.13: Expanded to detect proposal STATUS changes (not just new proposals).
+ * Tracks: proposal_new, proposal_passed, proposal_failed transitions.
+ *
  * Audit fixes:
  * - C2: daoPaths stored in useRef to avoid callback instability
  * - M1: parallel polling via Promise.allSettled (was sequential for...of)
@@ -31,6 +34,7 @@ import { GNO_RPC_URL } from "../lib/config"
 import { parseDAORender } from "../lib/daoMetadata"
 import { queryRender } from "../lib/dao/shared"
 import { encodeSlug } from "../lib/daoSlug"
+import { getDAOProposals, type DAOProposal } from "../lib/dao"
 
 const POLL_INTERVAL_MS = 30_000 // 30 seconds
 const MAX_DAOS_PER_POLL = 5      // Performance cap (matches voteScanner pattern)
@@ -54,6 +58,8 @@ async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number
 /**
  * useNotifications — poll for new proposals and manage notification state.
  *
+ * v2.13: Now also detects proposal status transitions (passed/failed).
+ *
  * @param daoPaths - DAO realm paths to poll (empty array = sync-only)
  * @param address - Wallet address (null = disconnected, empty state)
  */
@@ -61,6 +67,10 @@ export function useNotifications(daoPaths: string[], address: string | null) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const lastKnownCounts = useRef<Map<string, number>>(new Map())
+    // v2.13: Track proposal statuses for change detection
+    const lastKnownStatuses = useRef<Map<string, string>>(new Map())
+    // v2.13: Throttle status polling — full proposal fetch every 3rd cycle (90s)
+    const pollCycleRef = useRef(0)
     const isVisible = useRef(true)
     // C2 fix: store daoPaths in ref to avoid callback/effect instability
     const daoPathsRef = useRef(daoPaths)
@@ -78,6 +88,7 @@ export function useNotifications(daoPaths: string[], address: string | null) {
     }, [address])
 
     // M1 fix: poll multiple DAOs in parallel (was sequential for...of)
+    // v2.13: expanded to detect proposal status transitions
     const pollForChanges = useCallback(async () => {
         const paths = daoPathsRef.current
         if (!address || paths.length === 0 || !isVisible.current) return
@@ -85,38 +96,80 @@ export function useNotifications(daoPaths: string[], address: string | null) {
         // Cap at MAX_DAOS_PER_POLL to avoid RPC abuse
         const pathsToCheck = paths.slice(0, MAX_DAOS_PER_POLL)
         let hasNewNotifications = false
+        // v2.13: Only fetch full proposals every 3rd cycle (90s) to limit RPC load
+        const shouldFetchProposals = pollCycleRef.current % 3 === 0
+        pollCycleRef.current++
 
         // M1: parallel polling via Promise.allSettled
         const results = await Promise.allSettled(
             pathsToCheck.map(async (daoPath) => {
                 const count = await getProposalCount(GNO_RPC_URL, daoPath)
-                return { daoPath, count }
+                // v2.13: Fetch proposals to detect status changes (throttled)
+                let proposals: DAOProposal[] = []
+                if (shouldFetchProposals) {
+                    try {
+                        proposals = await getDAOProposals(GNO_RPC_URL, daoPath)
+                    } catch { /* best-effort */ }
+                }
+                return { daoPath, count, proposals }
             })
         )
 
         for (const result of results) {
             if (result.status !== "fulfilled") continue
-            const { daoPath, count } = result.value
+            const { daoPath, count, proposals } = result.value
             const lastCount = lastKnownCounts.current.get(daoPath)
+            const slug = encodeSlug(daoPath)
+            const daoName = daoPath.split("/").pop() || daoPath
 
+            // ── New proposals ──────────────────────────────
             if (lastCount !== undefined && count > lastCount) {
-                // New proposals detected for this DAO
                 const newCount = count - lastCount
-                const slug = encodeSlug(daoPath)
                 for (let i = 0; i < Math.min(newCount, 5); i++) {
                     const proposalNumber = count - i
                     addNotification(address, {
                         type: "proposal_new",
                         title: `New Proposal #${proposalNumber}`,
-                        body: `A new proposal has been created in ${daoPath.split("/").pop() || daoPath}`,
+                        body: `A new proposal has been created in ${daoName}`,
                         daoPath,
                         link: `/dao/${slug}/proposal/${proposalNumber}`,
                     })
                 }
                 hasNewNotifications = true
             }
-
             lastKnownCounts.current.set(daoPath, count)
+
+            // ── v2.13: Status transitions ──────────────────
+            for (const p of proposals) {
+                const statusKey = `${daoPath}:${p.id}`
+                const lastStatus = lastKnownStatuses.current.get(statusKey)
+
+                if (lastStatus && lastStatus !== p.status) {
+                    // Proposal passed (open → passed)
+                    if (lastStatus === "open" && p.status === "passed") {
+                        addNotification(address, {
+                            type: "proposal_passed",
+                            title: `Proposal #${p.id} Passed`,
+                            body: `"${p.title}" has been approved in ${daoName}`,
+                            daoPath,
+                            link: `/dao/${slug}/proposal/${p.id}`,
+                        })
+                        hasNewNotifications = true
+                    }
+                    // Proposal failed/rejected
+                    else if (lastStatus === "open" && p.status === "rejected") {
+                        addNotification(address, {
+                            type: "proposal_failed",
+                            title: `Proposal #${p.id} Rejected`,
+                            body: `"${p.title}" was not approved in ${daoName}`,
+                            daoPath,
+                            link: `/dao/${slug}/proposal/${p.id}`,
+                        })
+                        hasNewNotifications = true
+                    }
+                }
+                lastKnownStatuses.current.set(statusKey, p.status)
+            }
         }
 
         if (hasNewNotifications) syncState()
