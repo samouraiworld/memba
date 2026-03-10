@@ -87,6 +87,57 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
         rejected: proposals.filter(p => p.status === "rejected" || p.status !== "open" && p.status !== "passed").length,
     }
 
+    /** Export filtered proposals as downloadable file. */
+    const exportData = useCallback((format: "csv" | "json") => {
+        if (filtered.length === 0) return
+        const timestamp = new Date().toISOString().slice(0, 10)
+        const filename = `proposals-${realmPath.split("/").pop()}-${timestamp}.${format}`
+
+        let content: string
+        let mime: string
+
+        if (format === "json") {
+            const exportRows = filtered.map(p => ({
+                id: p.id,
+                title: p.title,
+                status: p.status,
+                author: p.author || "",
+                yesVotes: p.yesVotes,
+                noVotes: p.noVotes,
+                abstainVotes: p.abstainVotes,
+                yesPercent: p.yesPercent,
+                noPercent: p.noPercent,
+            }))
+            content = JSON.stringify(exportRows, null, 2)
+            mime = "application/json"
+        } else {
+            const headers = ["ID", "Title", "Status", "Author", "Yes Votes", "No Votes", "Abstain", "Yes %", "No %"]
+            const rows = filtered.map(p => [
+                p.id,
+                `"${p.title.replace(/"/g, '""')}"`,
+                p.status,
+                p.author || "",
+                p.yesVotes,
+                p.noVotes,
+                p.abstainVotes,
+                p.yesPercent,
+                p.noPercent,
+            ].join(","))
+            content = [headers.join(","), ...rows].join("\n")
+            mime = "text/csv"
+        }
+
+        const blob = new Blob([content], { type: mime })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    }, [filtered, realmPath])
+
     const encodedSlug = slug || encodeSlug(realmPath)
 
     return (
@@ -106,13 +157,33 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                         v2.0.0
                     </span>
                 </div>
-                <button
-                    className="k-btn-primary"
-                    style={{ fontSize: 11, padding: "6px 14px" }}
-                    onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
-                >
-                    + New Proposal
-                </button>
+                <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                        className="k-btn-secondary"
+                        style={{ fontSize: 10, padding: "5px 10px" }}
+                        onClick={() => exportData("csv")}
+                        disabled={filtered.length === 0}
+                        title="Export filtered proposals as CSV"
+                    >
+                        ↓ CSV
+                    </button>
+                    <button
+                        className="k-btn-secondary"
+                        style={{ fontSize: 10, padding: "5px 10px" }}
+                        onClick={() => exportData("json")}
+                        disabled={filtered.length === 0}
+                        title="Export filtered proposals as JSON"
+                    >
+                        ↓ JSON
+                    </button>
+                    <button
+                        className="k-btn-primary"
+                        style={{ fontSize: 11, padding: "6px 14px" }}
+                        onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
+                    >
+                        + New Proposal
+                    </button>
+                </div>
             </div>
 
             {/* Search + Sort */}
