@@ -6,6 +6,27 @@ All notable changes to Memba are documented here.
 
 > **MERGE FREEZE**: This milestone lives on `dev/v2` until the entire v2 roadmap is complete.
 
+### v2.12 DAO Rooms, Proposals & Health Score (2026-03-10) — PR #94
+
+- **🔊 DAO Rooms Visibility** — restored Audio/Video rooms in DAO header card
+  - Two-column layout: stats + donut (left), Discord-style channel sidebar (right)
+  - Direct-access voice/text channels with live session indicator
+- **📜 Proposal Pagination** — GovDAO `Render("")` is paginated (5/page); now fetches ALL pages
+  - `detectMaxPage()` parses footer links, parallel fetch, dedup, sort
+  - GovDAO: 5 → 13 proposals now visible
+- **🏥 DAO Health Score** — composite grade (A/B/C/D) based on:
+  - Voter participation (0–40 pts), execution backlog (0–30 pts), activity (0–30 pts)
+  - Colored badge in stat grid with detailed tooltip
+- **🔗 Slug Encoding Hardening** — fixed raw `slug` in `navigate()` across 6 DAO pages
+  - Prevents 404 when user enters via `%2F`-encoded URLs
+  - Affected: DAOHome, ProposalView, DAOMembers, Treasury, TreasuryProposal, ProposeDAO
+- **🪄 Other Fixes:**
+  - Vote enrichment broadened to `open` + `passed` proposals
+  - Clipboard catch no longer shows false "Copied!" on failure
+  - Voice room session comparison uses `encodedSlug` consistently
+  - Non-voters metric corrected (was 100%, now 24% for GovDAO)
+  - Proposals tooltip includes passed count
+
 ### v2.11 Live ABCI Stats (2026-03-09)
 
 - **📊 Live Network Stats** — real-time on-chain data on landing page for non-connected visitors
