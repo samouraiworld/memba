@@ -118,6 +118,17 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                 </div>
 
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    {/* v2.13: Awaiting Execution badge — passed proposals ready for on-chain execution */}
+                    {proposal.status === "passed" && (
+                        <span style={{
+                            padding: "4px 8px", borderRadius: 6, fontSize: 9,
+                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            background: "rgba(245,166,35,0.1)", color: "#f5a623",
+                            animation: "pulse-dot 2s ease-in-out infinite",
+                        }}>
+                            ⚡ EXECUTE
+                        </span>
+                    )}
                     {/* Voted / Needs Vote badge */}
                     {proposal.status === "open" && isMember && enriched && (
                         hasVoted ? (

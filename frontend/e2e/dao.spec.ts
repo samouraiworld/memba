@@ -85,7 +85,7 @@ test.describe('GovDAO Page', () => {
         await expect(sidebar).toContainText('Public Room')
     })
 
-    test('v2.13 — GovDAO shows "Awaiting Execution" for ACCEPTED proposals', async ({ page }) => {
+    test('v2.13 — GovDAO shows inline EXECUTE badge for passed proposals', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
         // Wait for proposals to load (stat card shows non-zero count)
         const proposalsStat = page.locator('.k-stat-card', { hasText: 'Proposals' })
@@ -95,8 +95,11 @@ test.describe('GovDAO Page', () => {
             const count = parseInt(countText || '0', 10)
             expect(count).toBeGreaterThan(0)
         }).toPass({ timeout: 20000 })
-        // GovDAO ACCEPTED proposals should show in "Awaiting Execution" section
-        await expect(page.locator('text=Awaiting Execution')).toBeVisible()
+        // v2.13: Passed proposals show inline ⚡ EXECUTE badge on ProposalCard
+        // (standalone "Awaiting Execution" section was removed in favor of inline badges)
+        // Use .first() since multiple passed proposals each have their own badge
+        const executeBadges = page.locator('text=⚡ EXECUTE')
+        await expect(executeBadges.first()).toBeVisible()
     })
 })
 

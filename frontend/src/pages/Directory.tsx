@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNOLOVE_API_URL } from "../lib/config"
+import { GNO_RPC_URL, GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
 import { encodeSlug } from "../lib/daoSlug"
 import {
     getDirectoryDAOs,
@@ -448,7 +448,7 @@ function PackagesTab() {
                         <a
                             key={p.path}
                             className="dir-card"
-                            href={`https://gno.land/${p.path.replace("gno.land/", "")}`}
+                            href={`${getExplorerBaseUrl()}/${p.path.replace("gno.land/", "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             data-testid="package-card"
@@ -558,7 +558,7 @@ function RealmsTab() {
                         <a
                             key={r.path}
                             className="dir-card"
-                            href={`https://gno.land/${r.path.replace("gno.land/", "")}`}
+                            href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             data-testid="realm-card"
