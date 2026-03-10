@@ -84,8 +84,24 @@ export function parseProposalList(data: string): DAOProposal[] {
 }
 
 /**
+ * Detect max page number from GovDAO pagination footer.
+ * Format: **1** | [2](?page=2) | [3](?page=3)
+ */
+function detectMaxPage(data: string): number {
+    const pageLinks = data.match(/\[(\d+)\]\(\?page=\d+\)/g)
+    if (!pageLinks || pageLinks.length === 0) return 1
+    let max = 1
+    for (const link of pageLinks) {
+        const m = link.match(/\[(\d+)\]/)
+        if (m) max = Math.max(max, parseInt(m[1], 10))
+    }
+    return max
+}
+
+/**
  * Fetch DAO proposals via Render("") markdown parsing.
  * Supports GovDAO v3 format with author, tiers, and basedao format.
+ * Automatically handles pagination — fetches all pages to get complete proposal history.
  */
 export async function getDAOProposals(
     rpcUrl: string,
@@ -121,11 +137,39 @@ export async function getDAOProposals(
         } catch { /* fall through */ }
     }
 
-    // GovDAO v3 / basedao: parse Render("") markdown
-    const data = await queryRender(rpcUrl, realmPath, "")
-    if (!data) return []
+    // GovDAO v3 / basedao: parse Render("") markdown — with pagination
+    const page1 = await queryRender(rpcUrl, realmPath, "")
+    if (!page1) return []
 
-    return parseProposalList(data)
+    const proposals = parseProposalList(page1)
+    const maxPage = detectMaxPage(page1)
+
+    // Fetch remaining pages in parallel (cap at 10 to prevent runaway loops)
+    if (maxPage > 1) {
+        const pagePromises: Promise<string | null>[] = []
+        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+            pagePromises.push(queryRender(rpcUrl, realmPath, `?page=${p}`))
+        }
+        const pages = await Promise.all(pagePromises)
+        for (const pageData of pages) {
+            if (pageData) {
+                proposals.push(...parseProposalList(pageData))
+            }
+        }
+    }
+
+    // Deduplicate by id (in case of overlap between pages)
+    const seen = new Set<number>()
+    const unique = proposals.filter(p => {
+        if (seen.has(p.id)) return false
+        seen.add(p.id)
+        return true
+    })
+
+    // Sort by id descending (newest first)
+    unique.sort((a, b) => b.id - a.id)
+
+    return unique
 }
 
 /**

@@ -33,7 +33,7 @@ describe("DAORooms", () => {
 
     it("renders the Rooms header", () => {
         renderDAORooms()
-        expect(screen.getByText("Rooms")).toBeTruthy()
+        expect(screen.getByText("Live Rooms")).toBeTruthy()
     })
 
     it("shows Public Room when wallet is connected", () => {

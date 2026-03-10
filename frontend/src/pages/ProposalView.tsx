@@ -18,7 +18,7 @@ import {
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
-import { decodeSlug } from "../lib/daoSlug"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { resolveOnChainUsername } from "../lib/profile"
 import { TierVoteBlock } from "../components/proposal"
 import { VotingInsights } from "../components/dao/TierPieChart"
@@ -30,6 +30,8 @@ export function ProposalView() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
+    // Always re-encode to tilde format — fixes broken back-navigation when entered via %2F URL
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)
     const [voteRecords, setVoteRecords] = useState<VoteRecord[]>([])
@@ -211,7 +213,7 @@ export function ProposalView() {
                     Proposal #{proposalId} not found
                 </p>
                 <button
-                    onClick={() => navigate(`/dao/${slug}`)}
+                    onClick={() => navigate(`/dao/${encodedSlug}`)}
                     aria-label="Back to DAO"
                     id="proposal-notfound-back-btn"
                     style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginTop: 16, fontFamily: "JetBrains Mono, monospace" }}
@@ -244,7 +246,7 @@ export function ProposalView() {
                 </button>
                 <span style={{ color: "#333" }}>›</span>
                 <button
-                    onClick={() => navigate(`/dao/${slug}`)}
+                    onClick={() => navigate(`/dao/${encodedSlug}`)}
                     aria-label="Back to DAO"
                     id="proposal-back-btn"
                     style={{ color: "#00d4aa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}

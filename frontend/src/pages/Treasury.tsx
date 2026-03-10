@@ -5,7 +5,7 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember } from "../lib/dao"
 import { getTokenBalance, listFactoryTokens, type TokenInfo } from "../lib/grc20"
-import { decodeSlug } from "../lib/daoSlug"
+import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 interface TreasuryAsset {
@@ -22,6 +22,7 @@ export function Treasury() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""
+    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
@@ -121,7 +122,7 @@ export function Treasury() {
             <button
                 id="treasury-back-btn"
                 aria-label="Back to DAO"
-                onClick={() => navigate(`/dao/${slug}`)}
+                onClick={() => navigate(`/dao/${encodedSlug}`)}
                 style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
@@ -151,7 +152,7 @@ export function Treasury() {
                     {auth.isAuthenticated && isCurrentUserMember && (
                         <button
                             className="k-btn-primary"
-                            onClick={() => navigate(`/dao/${slug}/treasury/propose`)}
+                            onClick={() => navigate(`/dao/${encodedSlug}/treasury/propose`)}
                             style={{ fontSize: 12, padding: "8px 16px" }}
                         >
                             + Propose Spend
