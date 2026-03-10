@@ -84,6 +84,20 @@ test.describe('GovDAO Page', () => {
         await expect(sidebar).toContainText('general')
         await expect(sidebar).toContainText('Public Room')
     })
+
+    test('v2.13 — GovDAO shows "Awaiting Execution" for ACCEPTED proposals', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao')
+        // Wait for proposals to load (stat card shows non-zero count)
+        const proposalsStat = page.locator('.k-stat-card', { hasText: 'Proposals' })
+        await expect(proposalsStat).toBeVisible({ timeout: 15000 })
+        await expect(async () => {
+            const countText = await proposalsStat.locator('.k-stat-card__value').textContent()
+            const count = parseInt(countText || '0', 10)
+            expect(count).toBeGreaterThan(0)
+        }).toPass({ timeout: 20000 })
+        // GovDAO ACCEPTED proposals should show in "Awaiting Execution" section
+        await expect(page.locator('text=Awaiting Execution')).toBeVisible()
+    })
 })
 
 test.describe('DAO Members Page', () => {

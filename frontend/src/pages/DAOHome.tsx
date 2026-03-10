@@ -444,7 +444,7 @@ export function DAOHome() {
                         {/* Voice/Video rooms divider */}
                         <div className="dao-channels-sidebar__divider">
                             <span>🎙️ Voice Rooms</span>
-                            {session && session.daoSlug === slug && (
+                            {session && session.daoSlug === encodedSlug && (
                                 <span className="dao-channels-sidebar__live-dot" />
                             )}
                         </div>

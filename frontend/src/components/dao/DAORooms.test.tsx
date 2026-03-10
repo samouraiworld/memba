@@ -12,8 +12,8 @@ vi.mock("react-router-dom", () => ({
 /** Helper: wraps DAORooms in JitsiProvider (required since v2.11). */
 function renderDAORooms(overrides: Partial<Parameters<typeof DAORooms>[0]> = {}) {
     const props = {
-        daoSlug: "test-dao",
-        encodedSlug: "test-dao",
+        daoSlug: "gno.land/r/gov/dao",
+        encodedSlug: "gno.land~r~gov~dao",
         isMember: false,
         hasChannels: false,
         isConnected: true,
@@ -89,7 +89,7 @@ describe("DAORooms", () => {
     it("navigate to channels when Manage channels is clicked", () => {
         renderDAORooms({ hasChannels: true })
         fireEvent.click(screen.getByText("Manage channels →"))
-        expect(mockNavigate).toHaveBeenCalledWith("/dao/test-dao/channels")
+        expect(mockNavigate).toHaveBeenCalledWith("/dao/gno.land~r~gov~dao/channels")
     })
 
     it("has data-testid for scroll targeting", () => {

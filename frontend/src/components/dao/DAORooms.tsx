@@ -29,13 +29,14 @@ interface DAORoomsProps {
     isConnected: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnected }: DAORoomsProps) {
     const navigate = useNavigate()
     const { session, joinRoom } = useJitsiContext()
 
     // Check if user is already in a room for this DAO
-    const isInPublicRoom = session?.daoSlug === daoSlug && session?.channelName === "public-room"
-    const isInMembersRoom = session?.daoSlug === daoSlug && session?.channelName === "members-room"
+    const isInPublicRoom = session?.daoSlug === encodedSlug && session?.channelName === "public-room"
+    const isInMembersRoom = session?.daoSlug === encodedSlug && session?.channelName === "members-room"
 
     return (
         <div className="k-card" data-testid="dao-rooms" style={{ padding: "16px 20px" }}>
@@ -78,7 +79,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                         aria-label={isInPublicRoom ? "Expand Public Room call" : "Join Public Room"}
                         className={`dao-room-btn${isInPublicRoom ? " dao-room-active" : ""}`}
                         onClick={() => joinRoom({
-                            daoSlug,
+                            daoSlug: encodedSlug,
                             channelName: "public-room",
                             mode: "voice",
                             label: "Public Room",
@@ -119,7 +120,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                         aria-label={isInMembersRoom ? "Expand Members Room call" : "Join Members Room"}
                         className={`dao-room-btn dao-room-private${isInMembersRoom ? " dao-room-active" : ""}`}
                         onClick={() => joinRoom({
-                            daoSlug,
+                            daoSlug: encodedSlug,
                             channelName: "members-room",
                             mode: "voice",
                             label: "Members Room",

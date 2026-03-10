@@ -456,3 +456,37 @@ describe('DAO config heading strip', () => {
         expect(stripNameHeading('GovDAO')).toBe('GovDAO')
     })
 })
+
+// ── ACCEPTED → passed mapping (v2.13 verification) ─────────────
+
+describe('ACCEPTED proposal status mapping', () => {
+    const GOVDAO_DATA = `# GovDAO
+
+## Proposals
+
+### [Prop #9 - Add new validator](link)
+Author: [@zooma](https://gno.land/u/zooma)
+Status: ACCEPTED
+Tiers eligible to vote: T1, T2, T3
+
+---
+
+### [Prop #10 - Budget proposal](link)
+Author: [@samcrew](https://gno.land/u/samcrew)
+Status: ACTIVE
+Tiers eligible to vote: T1
+`
+
+    it('ACCEPTED proposals map to "passed" (Awaiting Execution)', () => {
+        const proposals = _parseProposalList(GOVDAO_DATA)
+        expect(proposals[0].status).toBe('passed')  // ACCEPTED → passed
+        expect(proposals[1].status).toBe('open')     // ACTIVE → open
+    })
+
+    it('ACTIVE proposals map to "open"', () => {
+        const proposals = _parseProposalList(GOVDAO_DATA)
+        const active = proposals.filter(p => p.status === 'open')
+        expect(active.length).toBe(1)
+        expect(active[0].id).toBe(10)
+    })
+})
