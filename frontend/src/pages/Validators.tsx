@@ -21,6 +21,8 @@ import {
     mergeWithMonitoringData,
     fetchValoperMonikers,
     mergeValoperMonikers,
+    fetchLastBlockSignatures,
+    formatRelativeTime,
     type ValidatorInfo,
     type NetworkStats,
 } from "../lib/validators"
@@ -72,11 +74,12 @@ export default function Validators() {
 
         if (isRefresh) setRefreshing(true)
         try {
-            // Fetch Tendermint RPC + gnomonitoring + valopers in parallel
-            const [vals, monitoringMap, valoperMap] = await Promise.all([
+            // Fetch Tendermint RPC + gnomonitoring + valopers + block sigs in parallel
+            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
+                fetchLastBlockSignatures(GNO_RPC_URL, 20),
             ])
 
             // v2.13: Apply valopers monikers first (primary on-chain source)
@@ -84,8 +87,14 @@ export default function Validators() {
             // Then enrich with gnomonitoring data (participation, uptime, fallback moniker)
             const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
 
+            // v2.14: Merge block signatures into validator data
+            const withSigs = enriched.map(v => ({
+                ...v,
+                lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
+            }))
+
             const netStats = await getNetworkStats(GNO_RPC_URL, vals)
-            setValidators(enriched)
+            setValidators(withSigs)
             setStats(netStats)
             setError(null)
         } catch (err) {
@@ -280,6 +289,8 @@ export default function Validators() {
                             <th className="val-th val-th-right" onClick={() => handleSort("powerPercent")}>
                                 Share {sortKey === "powerPercent" && (sortAsc ? "↑" : "↓")}
                             </th>
+                            <th className="val-th val-th-center">Start Time</th>
+                            <th className="val-th val-th-center">Profile</th>
                             {hasMonitoring && (
                                 <>
                                     <th className="val-th val-th-right" onClick={() => handleSort("participationRate")}>
@@ -291,6 +302,7 @@ export default function Validators() {
                                 </>
                             )}
                             <th className="val-th val-th-center">Status</th>
+                            <th className="val-th val-th-center">Last 20 blocks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -331,6 +343,16 @@ export default function Validators() {
                                         <span>{v.powerPercent.toFixed(1)}%</span>
                                     </div>
                                 </td>
+                                <td className="val-td val-td-center">
+                                    <span className="val-start-time">{formatRelativeTime(v.startTime)}</span>
+                                </td>
+                                <td className="val-td val-td-center">
+                                    {v.profileUrl ? (
+                                        <a href={v.profileUrl} target="_blank" rel="noopener noreferrer" className="val-profile-link">
+                                            Gnoweb ↗
+                                        </a>
+                                    ) : "—"}
+                                </td>
                                 {hasMonitoring && (
                                     <>
                                         <td className="val-td val-td-right val-mono">
@@ -346,9 +368,18 @@ export default function Validators() {
                                     </>
                                 )}
                                 <td className="val-td val-td-center">
-                                    <span className={`val-status ${v.active ? "val-active" : "val-inactive"}`}>
-                                        {v.active ? "Active" : "Inactive"}
+                                    <span className={`val-status ${v.votingPower === 0 ? "val-pending" : v.active ? "val-active" : "val-inactive"}`}>
+                                        {v.votingPower === 0 ? "Pending" : v.active ? "Active" : "Inactive"}
                                     </span>
+                                </td>
+                                <td className="val-td val-td-center">
+                                    {v.lastBlockSignatures.length > 0 ? (
+                                        <div className="val-block-strip" title={`${v.lastBlockSignatures.filter(Boolean).length}/${v.lastBlockSignatures.length} blocks signed`}>
+                                            {v.lastBlockSignatures.map((signed, i) => (
+                                                <div key={i} className={`val-block-tick ${signed ? "val-tick-ok" : "val-tick-miss"}`} />
+                                            ))}
+                                        </div>
+                                    ) : "—"}
                                 </td>
                             </tr>
                         ))}
