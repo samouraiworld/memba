@@ -29,6 +29,12 @@ export interface ValidatorInfo {
     participationRate: number | null
     /** Uptime % (from gnomonitoring, 0-100) */
     uptimePercent: number | null
+    /** Gnoweb profile URL (derived from gnoAddr) */
+    profileUrl: string
+    /** Last N block signatures (true = signed, false = missed). Most recent first. */
+    lastBlockSignatures: boolean[]
+    /** Validator start time (ISO string, from valopers registration) */
+    startTime: string
 }
 
 export interface NetworkStats {
@@ -115,15 +121,23 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
 
     return validators
         .map((v) => {
-            const hexAddr = v.address || ""
-            // Derive bech32 g1... address from hex (Tendermint hex = raw 20-byte address)
+            const rawAddr = v.address || ""
+            // Gno's Tendermint RPC returns bech32 addresses (g1…) directly,
+            // unlike standard Tendermint which returns 40-char hex.
+            // Handle both cases for portability.
             let gnoAddr = ""
             try {
-                if (hexAddr.length === 40) gnoAddr = hexToBech32(hexAddr)
+                if (rawAddr.startsWith("g1")) {
+                    // Already bech32 — use directly
+                    gnoAddr = rawAddr
+                } else if (rawAddr.length === 40) {
+                    // Standard hex → convert to bech32
+                    gnoAddr = hexToBech32(rawAddr)
+                }
             } catch { /* fallback: leave empty */ }
 
             return {
-                address: hexAddr,
+                address: rawAddr,
                 gnoAddr,
                 moniker: "",
                 pubkey: v.pub_key?.value || "",
@@ -137,6 +151,9 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
                 proposerPriority: parseInt(v.proposer_priority || "0", 10),
                 participationRate: null,
                 uptimePercent: null,
+                profileUrl: gnoAddr ? `https://test11.testnets.gno.land/r/demo/profile:u/${gnoAddr}` : "",
+                lastBlockSignatures: [],
+                startTime: "",
             }
         })
         .sort((a, b) => b.votingPower - a.votingPower)
@@ -326,6 +343,69 @@ export async function getValidatorUptime(
     return { signed, total: checked, percent }
 }
 
+// ── Last Block Signatures (batch) ─────────────────────────────
+
+/**
+ * Batch-fetch last N block commit signatures for all validators.
+ *
+ * Gno's Tendermint RPC uses `last_commit.precommits` (not `signatures`)
+ * and `validator_address` is in bech32 format (g1…), not hex.
+ *
+ * Returns Map<bech32Addr (lowercase), boolean[]> where true = signed.
+ * Array order: most recent block first.
+ * Graceful degradation: returns empty map on failure.
+ */
+export async function fetchLastBlockSignatures(
+    rpcUrl: string,
+    blockCount: number = 20,
+): Promise<Map<string, boolean[]>> {
+    const result = new Map<string, boolean[]>()
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const status = await rpcCall(rpcUrl, "/status") as any
+        const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
+        if (latestHeight < 2) return result
+
+        const startHeight = Math.max(2, latestHeight - blockCount + 1)
+        const heights: number[] = []
+        for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
+
+        // Fetch blocks in parallel
+        const blocks = await Promise.all(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            heights.map(h => rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as Promise<any>)
+        )
+
+        // Collect all unique validator addresses from precommits
+        // Gno uses `precommits` field (not `signatures`), with bech32 addresses
+        const allAddrs = new Set<string>()
+        for (const block of blocks) {
+            const precommits = block?.block?.last_commit?.precommits || []
+            for (const pc of precommits) {
+                if (pc?.validator_address) allAddrs.add(pc.validator_address.toLowerCase())
+            }
+        }
+
+        // Initialize arrays
+        for (const addr of allAddrs) result.set(addr, [])
+
+        // Fill signatures (most recent block first = index 0)
+        for (const block of blocks) {
+            const precommits = block?.block?.last_commit?.precommits || []
+            const sigAddrs = new Set(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                precommits.map((pc: any) => pc?.validator_address?.toLowerCase()).filter(Boolean)
+            )
+            for (const addr of allAddrs) {
+                result.get(addr)!.push(sigAddrs.has(addr))
+            }
+        }
+    } catch {
+        // Graceful degradation — return empty map
+    }
+    return result
+}
+
 // ── Formatting ────────────────────────────────────────────────
 
 /** Format voting power with K/M suffix for compact display. */
@@ -345,4 +425,15 @@ export function formatBlockTime(seconds: number): string {
 export function truncateValidatorAddr(address: string): string {
     if (address.length <= 12) return address
     return `${address.slice(0, 6)}…${address.slice(-6)}`
+}
+
+/** Format an ISO date string as relative time ("27 days ago", "Today"). */
+export function formatRelativeTime(isoStr: string): string {
+    if (!isoStr) return "—"
+    const diffMs = Date.now() - new Date(isoStr).getTime()
+    if (diffMs < 0 || isNaN(diffMs)) return "—"
+    const days = Math.floor(diffMs / 86_400_000)
+    if (days < 1) return "Today"
+    if (days === 1) return "1 day ago"
+    return `${days} days ago`
 }
