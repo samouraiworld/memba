@@ -12,6 +12,7 @@ import {
     getDAOConfig,
     buildVoteMsg,
     buildExecuteMsg,
+    isGovDAO,
     PROPOSAL_STATUS_COLORS,
     type DAOProposal,
     type VoteRecord,
@@ -33,6 +34,7 @@ export function ProposalView() {
     const realmPath = slug ? decodeSlug(slug) : ""
     // Always re-encode to tilde format — fixes broken back-navigation when entered via %2F URL
     const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
+    const govDAO = isGovDAO(realmPath)
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)
     const [voteRecords, setVoteRecords] = useState<VoteRecord[]>([])
@@ -478,9 +480,11 @@ export function ProposalView() {
                                     <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
-                                    <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
-                                        {actionLoading ? "..." : "○ Abstain"}
-                                    </button>
+                                    {!govDAO && (
+                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                            {actionLoading ? "..." : "○ Abstain"}
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </>
