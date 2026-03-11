@@ -29,12 +29,20 @@ export interface MonitoringUptime {
     uptime: number
 }
 
+/** Validator first-seen data from gnomonitoring `/first_seen` endpoint. */
+export interface MonitoringFirstSeen {
+    addr: string
+    moniker: string
+    firstSeen: string
+}
+
 /** Combined monitoring data for a single validator. */
 export interface MonitoringValidatorData {
     addr: string
     moniker: string
     participationRate: number
     uptime: number | null
+    firstSeen: string | null
 }
 
 // ── Session Cache ────────────────────────────────────────────
@@ -156,6 +164,29 @@ export async function fetchMonitoringUptime(
 }
 
 /**
+ * Fetch validator first-seen data (earliest participation date).
+ * Returns null on failure — caller should show "—" for start time.
+ */
+export async function fetchMonitoringFirstSeen(
+    signal?: AbortSignal,
+): Promise<MonitoringFirstSeen[] | null> {
+    const cacheKey = "first_seen"
+    const cached = getCached<MonitoringFirstSeen[]>(cacheKey)
+    if (cached) return cached
+
+    const data = await monitoringFetch<(MonitoringFirstSeen | null)[]>(
+        "/first_seen",
+        undefined,
+        signal,
+    )
+    if (!data) return null
+
+    const filtered = data.filter((v): v is MonitoringFirstSeen => v !== null)
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+/**
  * Fetch all monitoring data (participation + uptime) in parallel.
  * Merges by address. Returns a Map for O(1) lookup.
  * Returns empty Map on failure — graceful degradation.
@@ -165,9 +196,10 @@ export async function fetchAllMonitoringData(
 ): Promise<Map<string, MonitoringValidatorData>> {
     const result = new Map<string, MonitoringValidatorData>()
 
-    const [participation, uptime] = await Promise.all([
+    const [participation, uptime, firstSeen] = await Promise.all([
         fetchMonitoringParticipation(signal),
         fetchMonitoringUptime(signal),
+        fetchMonitoringFirstSeen(signal),
     ])
 
     if (!participation) return result
@@ -179,6 +211,7 @@ export async function fetchAllMonitoringData(
             moniker: p.moniker,
             participationRate: p.participationRate,
             uptime: null,
+            firstSeen: null,
         })
     }
 
@@ -188,6 +221,25 @@ export async function fetchAllMonitoringData(
             const existing = result.get(u.addr.toLowerCase())
             if (existing) {
                 existing.uptime = u.uptime
+            }
+        }
+    }
+
+    // Merge first-seen data
+    if (firstSeen) {
+        for (const fs of firstSeen) {
+            const existing = result.get(fs.addr.toLowerCase())
+            if (existing) {
+                existing.firstSeen = fs.firstSeen
+            } else {
+                // Validator may not be in participation but has first-seen data
+                result.set(fs.addr.toLowerCase(), {
+                    addr: fs.addr,
+                    moniker: fs.moniker,
+                    participationRate: 0,
+                    uptime: null,
+                    firstSeen: fs.firstSeen,
+                })
             }
         }
     }

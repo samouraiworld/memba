@@ -184,6 +184,7 @@ export function mergeWithMonitoringData(
                 moniker: match.moniker,
                 participationRate: match.participationRate,
                 uptimePercent: match.uptime,
+                startTime: match.firstSeen ?? v.startTime,
             }
         }
         return v
