@@ -3,7 +3,7 @@ import { useNavigate, useParams, useOutletContext, Link } from "react-router-dom
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
 import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
@@ -335,7 +335,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRol
                     )}
                     {isCurrentUser && !member.username && (
                         <a
-                            href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                            href={`${getExplorerBaseUrl()}/${getUserRegistryPath().replace("gno.land/", "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ fontSize: 9, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", opacity: 0.7 }}

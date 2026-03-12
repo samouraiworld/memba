@@ -101,6 +101,7 @@ export function getExplorerBaseUrl(): string {
     switch (chain) {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
+        case "betanet": return "https://betanet.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
 }

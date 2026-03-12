@@ -159,8 +159,7 @@ export function Dashboard() {
         try {
             const isGov = checkIsGovDAO(realmPath)
             const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
-            const fn = isGov ? "MustVoteOnProposalSimple" : "VoteOnProposal"
-            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId} (${fn})`)
+            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
             setVotedIds(prev => new Set(prev).add(key))
             clearVoteCache()
         } catch (err) {
