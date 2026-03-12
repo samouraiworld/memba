@@ -1,6 +1,7 @@
 import type { MonitoringValidatorData } from "./gnomonitoring"
 import { hexToBech32 } from "./dao/realmAddress"
 import { queryRender } from "./dao/shared"
+import { getExplorerBaseUrl } from "./config"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -151,7 +152,7 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
                 proposerPriority: parseInt(v.proposer_priority || "0", 10),
                 participationRate: null,
                 uptimePercent: null,
-                profileUrl: gnoAddr ? `https://test11.testnets.gno.land/r/demo/profile:u/${gnoAddr}` : "",
+                profileUrl: gnoAddr ? `${getExplorerBaseUrl()}/r/demo/profile:u/${gnoAddr}` : "",
                 lastBlockSignatures: [],
                 startTime: "",
             }

@@ -513,7 +513,7 @@ export const SEED_REALMS: DirectoryRealm[] = [
     { name: "GRC20 Factory", path: "gno.land/r/demo/defi/grc20factory", description: "Deploy new GRC20 tokens", category: "defi" },
     { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },
     { name: "Blog", path: "gno.land/r/gnoland/blog", description: "Official gno.land blog", category: "social" },
-    { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Testnet faucet for ugnot", category: "utility" },
+    { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Faucet for ugnot", category: "utility" },
     { name: "GovDAO", path: "gno.land/r/gov/dao", description: "Chain governance DAO", category: "standard" },
     { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2", description: "Governance DAO v2", category: "standard" },
     { name: "Worx", path: "gno.land/r/demo/worx", description: "Community workspace DAO", category: "social" },

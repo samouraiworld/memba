@@ -3,7 +3,7 @@ import { useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { Bank, Archive, UsersThree, Vault } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
 import { derivePkgBech32Addr } from "../lib/dao/realmAddress"
 
 import {
@@ -360,7 +360,7 @@ export function DAOHome() {
                             🏷️ Register @username to be recognized across DAOs
                         </span>
                         <a
-                            href={`${getExplorerBaseUrl()}/r/gnoland/users/v1`}
+                            href={`${getExplorerBaseUrl()}/${getUserRegistryPath().replace("gno.land/", "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="k-btn-primary"

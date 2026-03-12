@@ -20,7 +20,7 @@ import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExpo
 import { queryRender } from "../lib/dao/shared"
 import { fetchBackendProfile } from "../lib/profile"
 import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
-import { buildVoteMsg, isGovDAO as checkIsGovDAO } from "../lib/dao"
+import { buildVoteMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
@@ -157,10 +157,8 @@ export function Dashboard() {
         setVotingId(key)
         setError(null)
         try {
-            const isGov = checkIsGovDAO(realmPath)
             const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
-            const fn = isGov ? "MustVoteOnProposalSimple" : "VoteOnProposal"
-            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId} (${fn})`)
+            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
             setVotedIds(prev => new Set(prev).add(key))
             clearVoteCache()
         } catch (err) {
