@@ -13,7 +13,8 @@ export function TokenDashboard() {
     const [balances, setBalances] = useState<Record<string, bigint>>({})
     const [loading, setLoading] = useState(true)
 
-    const fetchTokens = useCallback(async () => {
+    // Fetch token list (public data — independent of wallet connection)
+    const fetchTokenList = useCallback(async () => {
         setLoading(true)
         try {
             // List all factory tokens
@@ -27,27 +28,29 @@ export function TokenDashboard() {
                 })
             )
             setTokens(enriched)
-
-            // Fetch user balances in parallel if connected
-            if (adena.connected && adena.address) {
-                const entries = await Promise.all(
-                    enriched.map(async (t) => {
-                        const bal = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
-                        return [t.symbol, bal] as const
-                    })
-                )
-                setBalances(Object.fromEntries(entries))
-            }
         } catch (err) {
             console.error("Failed to fetch tokens:", err)
         } finally {
             setLoading(false)
         }
-    }, [adena.connected, adena.address])
+    }, [])
 
     useEffect(() => {
-        fetchTokens()
-    }, [fetchTokens])
+        fetchTokenList()
+    }, [fetchTokenList])
+
+    // Fetch user balances (wallet-specific — runs when wallet connects or token list loads)
+    useEffect(() => {
+        if (!adena.connected || !adena.address || tokens.length === 0) return
+        Promise.all(
+            tokens.map(async (t) => {
+                const bal = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
+                return [t.symbol, bal] as const
+            })
+        )
+            .then(entries => setBalances(Object.fromEntries(entries)))
+            .catch(() => { /* non-blocking */ })
+    }, [tokens, adena.connected, adena.address])
 
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -169,7 +172,7 @@ export function TokenDashboard() {
             {/* Refresh */}
             <div style={{ textAlign: "center" }}>
                 <button
-                    onClick={fetchTokens}
+                    onClick={fetchTokenList}
                     disabled={loading}
                     style={{ ...backStyle, fontSize: 11, opacity: loading ? 0.5 : 1 }}
                 >
