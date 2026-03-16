@@ -31,7 +31,8 @@ export function TokenView() {
     const [toAddress, setToAddress] = useState("")
     const [amount, setAmount] = useState("")
 
-    const fetchData = useCallback(async () => {
+    // Fetch token metadata (public data — independent of wallet connection)
+    const fetchTokenInfo = useCallback(async () => {
         if (!symbol) return
         setLoading(true)
         try {
@@ -43,20 +44,24 @@ export function TokenView() {
                 if (attempt < 3) await new Promise(r => setTimeout(r, 2000))
             }
             setToken(info)
-            if (info && adena.connected && adena.address) {
-                const bal = await getTokenBalance(GNO_RPC_URL, symbol, adena.address)
-                setBalance(bal)
-            }
         } catch (err) {
             console.error("Failed to fetch token:", err)
         } finally {
             setLoading(false)
         }
-    }, [symbol, adena.connected, adena.address])
+    }, [symbol])
 
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        fetchTokenInfo()
+    }, [fetchTokenInfo])
+
+    // Fetch user balance (wallet-specific — runs when wallet connects or token loads)
+    useEffect(() => {
+        if (!symbol || !adena.connected || !adena.address || !token) return
+        getTokenBalance(GNO_RPC_URL, symbol, adena.address)
+            .then(setBalance)
+            .catch(() => { /* non-blocking */ })
+    }, [symbol, adena.connected, adena.address, token])
 
     const isAdmin = auth.isAuthenticated && token?.admin === adena.address
 
@@ -101,7 +106,7 @@ export function TokenView() {
             setSuccess(`${actionTab} successful!`)
             setToAddress("")
             setAmount("")
-            fetchData()
+            fetchTokenInfo()
         } catch (err) {
             setError(err instanceof Error ? err.message : "Transaction failed")
         } finally {
@@ -125,7 +130,7 @@ export function TokenView() {
                     If you just created this token, it may still be indexing. Try again in a few seconds.
                 </p>
                 <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                    <button onClick={() => fetchData()} style={{ ...backBtnStyle, color: "#00d4aa" }}><ArrowsClockwise size={14} /> Retry</button>
+                    <button onClick={() => fetchTokenInfo()} style={{ ...backBtnStyle, color: "#00d4aa" }}><ArrowsClockwise size={14} /> Retry</button>
                     <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
                 </div>
             </div>
