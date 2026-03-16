@@ -60,6 +60,20 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
     },
+    gnoland1: {
+        chainId: "gnoland1",
+        rpcUrl: "https://rpc.gnoland1.gno.land:443",
+        label: "Gnoland1 (Experimental)",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "",
+    },
+    test12: {
+        chainId: "test12",
+        rpcUrl: "https://rpc.test12.testnets.gno.land:443",
+        label: "Testnet 12",
+        userRegistryPath: "gno.land/r/gnoland/users/v1",
+        faucetUrl: "https://faucet.gno.land",
+    },
 }
 
 /** Default network key. */
@@ -102,6 +116,7 @@ export function getExplorerBaseUrl(): string {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
         case "betanet": return "https://betanet.gno.land"
+        case "gnoland1": return "https://gnoland1.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
 }
@@ -154,6 +169,9 @@ export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     },
     staging: { pool: "", router: "", position: "", gns: "" },
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
+    betanet: { pool: "", router: "", position: "", gns: "" },
+    gnoland1: { pool: "", router: "", position: "", gns: "" },
+    test12: { pool: "", router: "", position: "", gns: "" },
 }
 
 /** Get GnoSwap paths for the active chain. Returns null if not deployed. */
@@ -175,6 +193,9 @@ export const TRUSTED_RPC_DOMAINS = [
     "testnets.gno.land",
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
+    "rpc.test12.testnets.gno.land",
+    "rpc.betanet.gno.land",
+    "rpc.gnoland1.gno.land",
 ]
 
 /**

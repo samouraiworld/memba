@@ -18,10 +18,13 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has all 3 chain options', () => {
+    it('NETWORKS has all chain options', () => {
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
+        expect(Object.keys(NETWORKS)).toContain('betanet')
+        expect(Object.keys(NETWORKS)).toContain('gnoland1')
+        expect(Object.keys(NETWORKS)).toContain('test12')
     })
 
     it('each network has required fields', () => {
@@ -45,8 +48,11 @@ describe('config constants', () => {
 describe('isTrustedRpcDomain', () => {
     it('trusts official gno.land RPC URLs', () => {
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.test12.testnets.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.betanet.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.gnoland1.gno.land:443')).toBe(true)
     })
 
     it('trusts subdomains of gno.land', () => {
