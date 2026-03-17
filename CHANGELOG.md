@@ -2,6 +2,42 @@
 
 All notable changes to Memba are documented here.
 
+## v2.13.1 (2026-03-17)
+
+### Bug Fixes & Performance
+
+- **fix(frontend): correct vote participation metrics for non-connected users** — PR [#119](https://github.com/samouraiworld/memba/pull/119)
+  - Extracted `getDAOConfig()` into wallet-independent `useEffect` in `ProposalView.tsx`
+  - Fixed "13 of 0 voted / 0%" bug for non-connected users
+- **perf(frontend): prevent token refetch on wallet connect** — PR [#120](https://github.com/samouraiworld/memba/pull/120)
+  - Split `fetchData` → `fetchTokenInfo` + balance effect in `TokenView.tsx`
+  - Split `fetchTokens` → `fetchTokenList` + balance effect in `TokenDashboard.tsx`
+  - Eliminates O(N) redundant ABCI queries and loading flashes on wallet connect
+
+### Chain Compatibility
+
+- **feat(frontend): add gnoland1 and testnet12 chain support** — PR [#121](https://github.com/samouraiworld/memba/pull/121) (open, deferred)
+  - Added `gnoland1` (experimental pre-betanet) and `test12` to `NETWORKS`, `TRUSTED_RPC_DOMAINS`, `getExplorerBaseUrl()`, `GNOSWAP_PATHS`
+  - Updated config tests for 6 networks
+
+### Dependency Updates
+
+- `golang.org/x/net` 0.51.0 → 0.52.0 (security) — PR [#107](https://github.com/samouraiworld/memba/pull/107)
+- `modernc.org/sqlite` 1.46.1 → 1.46.2 (patch) — PR [#122](https://github.com/samouraiworld/memba/pull/122)
+- `typescript-eslint` 8.57.0 → 8.57.1 (patch) — PR [#118](https://github.com/samouraiworld/memba/pull/118)
+- `@types/node` 25.4.0 → 25.5.0 (types) — PR [#109](https://github.com/samouraiworld/memba/pull/109)
+- `vitest` 4.0.18 → 4.1.0 (minor) — PR [#117](https://github.com/samouraiworld/memba/pull/117)
+- `@sentry/react` 10.42.0 → 10.43.0 (minor) — PR [#116](https://github.com/samouraiworld/memba/pull/116)
+
+### Maintenance
+
+- Closed 6 Dependabot PRs (Vite 8 major, jsdom 29 major, plugin-react 6 major, 3× Remotion split PRs)
+- Pruned 6 stale local branches + 15 stale remote tracking refs
+- Updated README chain table (6 networks), network selector description
+- Wallet-gated data pattern audit: 12 pages reviewed, 2 bugs found and fixed, 14-perspective deep audits (3x)
+
+---
+
 ## v2.13.0 (2026-03-10)
 
 ### v2.13 Deep Audit (2026-03-10) — PR #100
