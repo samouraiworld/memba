@@ -160,54 +160,6 @@
 .hk-unavail__hint { font-size: 0.62rem; color: rgba(255, 255, 255, 0.2); }
 
 /* ──────────────────────────────────────────────────────────────
-   HackerModeToggle
-   ────────────────────────────────────────────────────────────── */
-
-.hacker-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: transparent;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-}
-
-.hacker-toggle:hover {
-    border-color: rgba(0, 255, 170, 0.4);
-    color: rgba(0, 255, 170, 0.8);
-}
-
-.hacker-toggle--active {
-    border-color: rgba(0, 255, 170, 0.5);
-    background: rgba(0, 255, 170, 0.07);
-    color: rgba(0, 255, 170, 1);
-    box-shadow: 0 0 8px rgba(0, 255, 170, 0.15);
-}
-
-.hacker-toggle__icon { font-size: 0.85rem; }
-.hacker-toggle__label { text-transform: uppercase; }
-
-.hacker-toggle__dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-    margin-left: 2px;
-}
-
-.hacker-toggle--active .hacker-toggle__dot {
-    animation: hk-pulse-anim 1.4s ease-in-out infinite;
-}
-
-/* ──────────────────────────────────────────────────────────────
    ConsensusWidget — H/R/S Grid
    ────────────────────────────────────────────────────────────── */
 
