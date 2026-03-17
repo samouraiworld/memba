@@ -4,14 +4,21 @@
  * Data sources:
  * - Tendermint/CometBFT JSON-RPC: voting power, pubkey, consensus set
  * - gnomonitoring API: monikers, participation rate, uptime
+ * - /dump_consensus_state: H/R/S live consensus (Hacker Mode)
+ * - /net_info: connected peers (Hacker Mode)
+ *
+ * Modes:
+ * - Standard: validator table with sorting, search, pagination.
+ * - Hacker: live consensus telemetry, 100-block heatmap, peer table.
  *
  * Design: premium dark UI with smooth animations, validator cards.
+ * Hacker Mode: matrix CLI aesthetic, monospace, neon green.
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrl } from "../lib/config"
 import {
     getValidators,
     getNetworkStats,
@@ -23,15 +30,29 @@ import {
     mergeValoperMonikers,
     fetchLastBlockSignatures,
     formatRelativeTime,
+    getConsensusState,
+    getNetPeers,
+    fetchBlockHeatmap,
     type ValidatorInfo,
     type NetworkStats,
+    type HackerConsensusState,
+    type NetInfo,
+    type BlockSample,
 } from "../lib/validators"
 import { fetchAllMonitoringData } from "../lib/gnomonitoring"
+import { HackerModeToggle } from "../components/validators/HackerModeToggle"
+import { ConsensusWidget } from "../components/validators/ConsensusWidget"
+import { PeerTable } from "../components/validators/PeerTable"
+import { NetworkStateGrid } from "../components/validators/NetworkStateGrid"
+import { BlockHeatmap } from "../components/validators/BlockHeatmap"
 import "./validators.css"
 
 type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent"
 
-const REFRESH_INTERVAL_MS = 30_000 // 30s (C2 fix: was 5s = 48 RPCs/min)
+const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
+const HACKER_CONSENSUS_INTERVAL_MS = 2_000   // 2s for live consensus H/R/S
+const HACKER_PEERS_INTERVAL_MS = 15_000      // 15s for peer telemetry
+const HACKER_HEATMAP_INTERVAL_MS = 30_000    // 30s for block heatmap
 
 /** Tiny copy-to-clipboard button. */
 function CopyButton({ text }: { text: string }) {
@@ -65,6 +86,49 @@ export default function Validators() {
     const [pageSize, setPageSize] = useState(50)
     const isVisible = useRef(true)
     const abortRef = useRef<AbortController | null>(null)
+
+    // ── Hacker Mode state ────────────────────────────────────────
+    const [isHackerMode, setIsHackerMode] = useState<boolean>(() => {
+        try { return localStorage.getItem("memba_hacker_mode") === "1" } catch { return false }
+    })
+    const [consensusState, setConsensusState] = useState<HackerConsensusState | null>(null)
+    const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
+    const [blockHeatmap, setBlockHeatmap] = useState<BlockSample[]>([])
+    const [hackerLoading, setHackerLoading] = useState(false)
+    const hackerAbortRef = useRef<AbortController | null>(null)
+
+    const handleHackerToggle = useCallback((enabled: boolean) => {
+        setIsHackerMode(enabled)
+        try { localStorage.setItem("memba_hacker_mode", enabled ? "1" : "0") } catch { /* ok */ }
+    }, [])
+
+    // Fetch all hacker mode telemetry (consensus + peers + heatmap)
+    const loadHackerData = useCallback(async () => {
+        hackerAbortRef.current?.abort()
+        const controller = new AbortController()
+        hackerAbortRef.current = controller
+        setHackerLoading(true)
+        try {
+            const rpcUrl = getTelemetryRpcUrl()
+            const latestHeight = stats?.blockHeight ?? 0
+            const [cs, ni, heatmap] = await Promise.all([
+                getConsensusState(rpcUrl, controller.signal),
+                getNetPeers(rpcUrl, controller.signal),
+                latestHeight > 0
+                    ? fetchBlockHeatmap(rpcUrl, latestHeight, 100, controller.signal)
+                    : Promise.resolve([] as BlockSample[]),
+            ])
+            if (!controller.signal.aborted) {
+                setConsensusState(cs)
+                setNetInfo(ni)
+                setBlockHeatmap(heatmap)
+            }
+        } catch {
+            // Fully resilient — UI shows partial data or fallbacks
+        } finally {
+            if (!hackerAbortRef.current?.signal.aborted) setHackerLoading(false)
+        }
+    }, [stats?.blockHeight])
 
     const loadData = useCallback(async (isRefresh = false) => {
         // Cancel any previous in-flight request
@@ -133,6 +197,54 @@ export default function Validators() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // ── Hacker Mode polling ──────────────────────────────────────
+    // Consensus polls at 2s (live H/R/S), peers at 15s, heatmap at 30s.
+    // All intervals run only when Hacker Mode is active and tab is visible.
+    // Peers + heatmap share loadHackerData(); consensus is polled separately.
+    useEffect(() => {
+        if (!isHackerMode) {
+            hackerAbortRef.current?.abort()
+            return
+        }
+        loadHackerData()
+
+        const rpcUrl = getTelemetryRpcUrl()
+        const abortCs = new AbortController()
+
+        // High-frequency consensus polling (2s)
+        const consensusInterval = setInterval(() => {
+            if (!isVisible.current) return
+            getConsensusState(rpcUrl, abortCs.signal)
+                .then(cs => { if (cs) setConsensusState(cs) })
+                .catch(() => { /* resilient */ })
+        }, HACKER_CONSENSUS_INTERVAL_MS)
+
+        // Peer refresh (15s)
+        const peersInterval = setInterval(() => {
+            if (!isVisible.current) return
+            getNetPeers(rpcUrl, abortCs.signal)
+                .then(ni => { if (ni) setNetInfo(ni) })
+                .catch(() => { /* resilient */ })
+        }, HACKER_PEERS_INTERVAL_MS)
+
+        // Heatmap refresh (30s) — aligns with standard data refresh
+        const heatmapInterval = setInterval(() => {
+            if (!isVisible.current || !stats?.blockHeight) return
+            fetchBlockHeatmap(rpcUrl, stats.blockHeight, 100, abortCs.signal)
+                .then(h => setBlockHeatmap(h))
+                .catch(() => { /* resilient */ })
+        }, HACKER_HEATMAP_INTERVAL_MS)
+
+        return () => {
+            clearInterval(consensusInterval)
+            clearInterval(peersInterval)
+            clearInterval(heatmapInterval)
+            abortCs.abort()
+            hackerAbortRef.current?.abort()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isHackerMode])
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortAsc(!sortAsc)
         else { setSortKey(key); setSortAsc(key === "rank") }
@@ -191,6 +303,7 @@ export default function Validators() {
                 <h1>⛓️ Validators</h1>
                 <span className="val-chain-badge">{GNO_CHAIN_ID}</span>
                 {refreshing && <span className="val-refreshing" aria-live="polite">Refreshing…</span>}
+                <HackerModeToggle isHackerMode={isHackerMode} onChange={handleHackerToggle} />
             </div>
 
             {/* ── Network Overview Cards ───────────────────────── */}
@@ -244,6 +357,20 @@ export default function Validators() {
                             title={`#${v.rank} — ${v.moniker || truncateValidatorAddr(v.address)} (${v.powerPercent.toFixed(1)}%)`}
                         />
                     ))}
+                </div>
+            )}
+
+            {/* ── 🕵️ Hacker Mode Layout ──────────────────────────── */}
+            {isHackerMode && (
+                <div className="hk-layout" data-testid="hacker-mode-layout">
+                    <NetworkStateGrid stats={stats} cs={consensusState} />
+                    <ConsensusWidget cs={consensusState} loading={hackerLoading} />
+                    <BlockHeatmap
+                        blocks={blockHeatmap}
+                        loading={hackerLoading}
+                        totalValidators={stats?.totalValidators}
+                    />
+                    <PeerTable netInfo={netInfo} loading={hackerLoading} />
                 </div>
             )}
 

@@ -89,8 +89,26 @@ export function getUserRegistryPath(): string {
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
 
-/** Gno RPC endpoint for ABCI queries and broadcasting. */
+/**
+ * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
+ * Defaults to the active network's RPC URL.
+ */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
+
+/**
+ * Samourai Sentry RPC URL (Dual-RPC Strategy).
+ * Used optionally by Hacker Mode for direct, high-frequency, uncached consensus telemetry
+ * (e.g. /net_info, /dump_consensus_state) when available on gnoland1/testnet12.
+ */
+export const SAMOURAI_SENTRY_RPC_URL = import.meta.env.VITE_SAMOURAI_SENTRY_RPC_URL || ""
+
+/**
+ * Retrieves the optimal RPC URL for Hacker Mode telemetry.
+ * Prioritizes the Samourai Sentry if configured, otherwise falls back elegantly to the standard public RPC.
+ */
+export function getTelemetryRpcUrl(): string {
+    return SAMOURAI_SENTRY_RPC_URL || GNO_RPC_URL
+}
 
 /** External faucet URL for the active network (empty = no faucet). */
 export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""

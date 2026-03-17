@@ -2,6 +2,53 @@
 
 All notable changes to Memba are documented here.
 
+## v2.14.0-alpha (2026-03-17) — Validators Hacker Mode 🕵️‍♂️
+
+> Branch: `feat/validators-hacker-mode` — in progress, targeting testnet12
+
+### Added
+
+- **🕵️ Hacker Mode** — high-density real-time network telemetry toggle on `/validators`
+  - `HackerModeToggle.tsx` — matrix-aesthetic toggle in page header, persisted to `memba_hacker_mode` localStorage key
+  - `ConsensusWidget.tsx` — live **H/R/S (Height/Round/Step)** tracker with Pre-vote/Pre-commit progress bars and BFT threshold marker
+  - `NetworkStateGrid.tsx` — Gnockpit-inspired two-column dense chain metadata (AppHash, genesis time/age, valset, fault tolerance margin)
+  - `PeerTable.tsx` — connected peer list from `/net_info` (moniker, IP, direction IN/OUT, network, node ID truncated)
+  - `BlockHeatmap.tsx` — 100-cell health grid (perfect/healthy/warn/critical per block), hover tooltips, chronological fill
+  - `hacker-mode.css` — full matrix terminal design system: monospace fonts, neon `rgba(0,255,170)` palette, H/R/S grid, PV/PC bars, 20×5 heatmap grid, responsive at 768/480px
+
+- **⚙️ Dual-RPC Strategy** — Samourai sentry node support for Hacker Mode telemetry
+  - `config.ts`: `SAMOURAI_SENTRY_RPC_URL` + `getTelemetryRpcUrl()` — gracefully prefers Samourai node, falls back to public RPC
+  - `.env.example`: `VITE_SAMOURAI_SENTRY_RPC_URL` documented for `samourai-dev-sentry` and future testnet12 node configuration
+
+- **📡 New RPC Telemetry Fetchers** (added to `validators.ts`)
+  - `getConsensusState()` — parses `/dump_consensus_state` + `/status` in parallel; returns fully typed `HackerConsensusState | null`
+  - `getNetPeers()` — parses `/net_info`, returns `NetInfo` with typed `PeerInfo[]` array
+  - `fetchBlockHeatmap()` — parallel `/block` batch fetch (hard-capped at `MAX_HACKER_BLOCKS = 100`), returns `BlockSample[]` sorted oldest→newest
+
+- **🔄 Independent Polling Loops** (only active when Hacker Mode is enabled and tab is visible)
+  - Consensus: **2s** interval on `/dump_consensus_state` for live H/R/S
+  - Peers: **15s** interval on `/net_info`
+  - Heatmap: **30s** interval aligned with the standard validator table refresh
+  - All loops use `AbortController` and Page Visibility API — pauses when tab is hidden
+
+### Architecture
+- All hacker-mode CSS classes prefixed with `hk-`/`hm-` — zero style collision with standard `val-` classes
+- `null` returns from all telemetry fetchers trigger elegant UI fallbacks ("Endpoint unavailable") — no crashes on restricted nodes
+- Standard validator table remains fully functional and unaffected in both modes
+
+### New Files
+- `frontend/src/components/validators/HackerModeToggle.tsx`
+- `frontend/src/components/validators/ConsensusWidget.tsx`
+- `frontend/src/components/validators/PeerTable.tsx`
+- `frontend/src/components/validators/NetworkStateGrid.tsx`
+- `frontend/src/components/validators/BlockHeatmap.tsx`
+- `frontend/src/components/validators/hacker-mode.css`
+
+### Tests
+- **756 unit tests** (35 files, ±0 regressions), tsc 0 errors, lint 0
+
+---
+
 ## v2.13.1 (2026-03-17)
 
 ### Bug Fixes & Performance
