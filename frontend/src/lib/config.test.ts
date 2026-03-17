@@ -57,15 +57,19 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://staging.testnets.gno.land')).toBe(true)
     })
 
-    it('trusts Samourai Coop sentry domains (v2.14 addition)', () => {
-        expect(isTrustedRpcDomain('https://sentry.samourai.coop:26657')).toBe(true)
-        expect(isTrustedRpcDomain('https://sentry.samourai.world:26657')).toBe(true)
-        expect(isTrustedRpcDomain('https://rpc.samourai.world')).toBe(true)
+    it('trusts Samourai Coop RPC domains — convention: rpc.{chain}.samourai.live', () => {
+        // gnoland1 (live)
+        expect(isTrustedRpcDomain('https://rpc.gnoland1.samourai.live')).toBe(true)
+        // testnet12 (coming soon)
+        expect(isTrustedRpcDomain('https://rpc.testnet12.samourai.live')).toBe(true)
+        // any subdomain of samourai.live
+        expect(isTrustedRpcDomain('https://rpc.anychain.samourai.live:26657')).toBe(true)
     })
 
-    it('trusts p2p.team domain (gnoland1 validator infra)', () => {
-        expect(isTrustedRpcDomain('https://gnockpit.gnoland1.moul.p2p.team')).toBe(true)
-        expect(isTrustedRpcDomain('https://rpc.p2p.team:26657')).toBe(true)
+    it('rejects samourai.live lookalikes', () => {
+        expect(isTrustedRpcDomain('https://evil.samourai.live.attacker.com')).toBe(false)
+        expect(isTrustedRpcDomain('https://fakepsamourai.live')).toBe(false)
+        expect(isTrustedRpcDomain('https://samourai.live.evil.com')).toBe(false)
     })
 
     it('trusts localhost for local devnet', () => {

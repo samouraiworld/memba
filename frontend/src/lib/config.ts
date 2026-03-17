@@ -211,9 +211,11 @@ export const TRUSTED_RPC_DOMAINS = [
     "testnets.gno.land",
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
-    // Samourai Coop sentry nodes — trusted for Hacker View dual-RPC strategy
-    "samourai.coop",
-    "samourai.world",
+    // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
+    // Convention: https://rpc.{chain}.samourai.live
+    //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)
+    //   - testnet12: https://rpc.testnet12.samourai.live (coming soon)
+    "samourai.live",
     "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
     "gnoland1.io",    // gnoland1 betanet official
     "localhost",      // local devnet
