@@ -7,6 +7,8 @@ import {
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
     TRUSTED_RPC_DOMAINS,
+    getTelemetryRpcUrl,
+    GNO_RPC_URL,
 } from './config'
 
 describe('config constants', () => {
@@ -18,10 +20,11 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has all 3 chain options', () => {
+    it('NETWORKS has all 4 chain options (test11, staging, portal-loop, betanet)', () => {
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
+        expect(Object.keys(NETWORKS)).toContain('betanet')
     })
 
     it('each network has required fields', () => {
@@ -54,6 +57,26 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://staging.testnets.gno.land')).toBe(true)
     })
 
+    it('trusts Samourai Coop RPC domains — convention: rpc.{chain}.samourai.live', () => {
+        // gnoland1 (live)
+        expect(isTrustedRpcDomain('https://rpc.gnoland1.samourai.live')).toBe(true)
+        // testnet12 (coming soon)
+        expect(isTrustedRpcDomain('https://rpc.testnet12.samourai.live')).toBe(true)
+        // any subdomain of samourai.live
+        expect(isTrustedRpcDomain('https://rpc.anychain.samourai.live:26657')).toBe(true)
+    })
+
+    it('rejects samourai.live lookalikes', () => {
+        expect(isTrustedRpcDomain('https://evil.samourai.live.attacker.com')).toBe(false)
+        expect(isTrustedRpcDomain('https://fakepsamourai.live')).toBe(false)
+        expect(isTrustedRpcDomain('https://samourai.live.evil.com')).toBe(false)
+    })
+
+    it('trusts localhost for local devnet', () => {
+        expect(isTrustedRpcDomain('http://localhost:26657')).toBe(true)
+        expect(isTrustedRpcDomain('http://localhost')).toBe(true)
+    })
+
     it('rejects malicious domains with matching chain keywords', () => {
         expect(isTrustedRpcDomain('https://test11.malicious.land:443')).toBe(false)
         expect(isTrustedRpcDomain('https://rpc.evil-gno.land:443')).toBe(false)
@@ -64,6 +87,11 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://fakegno.land:443')).toBe(false)
         expect(isTrustedRpcDomain('https://notgno.land')).toBe(false)
         expect(isTrustedRpcDomain('https://xgno.land')).toBe(false)
+    })
+
+    it('rejects samourai.coop lookalikes', () => {
+        expect(isTrustedRpcDomain('https://evil.samourai.coop.attacker.com')).toBe(false)
+        expect(isTrustedRpcDomain('https://fakepsamourai.coop')).toBe(false)
     })
 
     it('rejects invalid URLs', () => {
@@ -91,6 +119,20 @@ describe('isTrustedRpcDomain', () => {
     it('rejects tester-reported malicious URLs', () => {
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.malicious.land')).toBe(false)
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.malicious.land:443')).toBe(false)
+    })
+})
+
+describe('getTelemetryRpcUrl', () => {
+    it('falls back to GNO_RPC_URL when no sentry is configured', () => {
+        // In test environment, VITE_SAMOURAI_SENTRY_RPC_URL is not set
+        // so getTelemetryRpcUrl() must equal GNO_RPC_URL
+        const url = getTelemetryRpcUrl()
+        expect(url).toBe(GNO_RPC_URL)
+        expect(url).toBeTruthy()
+    })
+
+    it('GNO_RPC_URL is always a trusted domain', () => {
+        expect(isTrustedRpcDomain(GNO_RPC_URL)).toBe(true)
     })
 })
 

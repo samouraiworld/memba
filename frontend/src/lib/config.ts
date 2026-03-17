@@ -89,8 +89,41 @@ export function getUserRegistryPath(): string {
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
 
-/** Gno RPC endpoint for ABCI queries and broadcasting. */
+/**
+ * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
+ * Defaults to the active network's RPC URL.
+ */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
+
+/**
+ * Samourai Sentry RPC URL (Dual-RPC Strategy).
+ * Used optionally by Hacker Mode for direct, high-frequency, uncached consensus telemetry
+ * (e.g. /net_info, /dump_consensus_state) when available on gnoland1/testnet12.
+ */
+export const SAMOURAI_SENTRY_RPC_URL = import.meta.env.VITE_SAMOURAI_SENTRY_RPC_URL || ""
+
+/**
+ * Retrieves the optimal RPC URL for Hacker Mode telemetry.
+ *
+ * Security: validates the sentry URL against TRUSTED_RPC_DOMAINS before use.
+ * If the sentry URL is not trusted (misconfigured env var), logs a warning
+ * and falls back to the standard public RPC.
+ *
+ * Priority: SAMOURAI_SENTRY_RPC_URL (trusted) → GNO_RPC_URL
+ */
+export function getTelemetryRpcUrl(): string {
+    if (SAMOURAI_SENTRY_RPC_URL) {
+        if (isTrustedRpcDomain(SAMOURAI_SENTRY_RPC_URL)) {
+            return SAMOURAI_SENTRY_RPC_URL
+        }
+        // Untrusted sentry URL — warn and fall back (security hardening S4)
+        console.warn(
+            `[Memba] VITE_SAMOURAI_SENTRY_RPC_URL is not a trusted domain: ${SAMOURAI_SENTRY_RPC_URL}. ` +
+            "Falling back to GNO_RPC_URL. Add the domain to TRUSTED_RPC_DOMAINS in config.ts if intentional."
+        )
+    }
+    return GNO_RPC_URL
+}
 
 /** External faucet URL for the active network (empty = no faucet). */
 export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
@@ -169,12 +202,23 @@ export function getGnoSwapPaths(): GnoSwapPaths | null {
  * Trusted RPC domain patterns. Only these domains are considered safe.
  * A malicious RPC with a valid chain ID (e.g. https://test11.evil.com)
  * would pass chain ID checks but could intercept/manipulate queries.
+ *
+ * Samourai Coop sentry nodes are included as trusted for Hacker View telemetry.
+ * Add testnet12 sentry domain here once specs are confirmed.
  */
 export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land",
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
+    // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
+    // Convention: https://rpc.{chain}.samourai.live
+    //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)
+    //   - testnet12: https://rpc.testnet12.samourai.live (coming soon)
+    "samourai.live",
+    "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
+    "gnoland1.io",    // gnoland1 betanet official
+    "localhost",      // local devnet
 ]
 
 /**

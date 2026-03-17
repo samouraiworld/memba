@@ -4,11 +4,19 @@
  * Data sources:
  * - Tendermint/CometBFT JSON-RPC: voting power, pubkey, consensus set
  * - gnomonitoring API: monikers, participation rate, uptime
+ * - /dump_consensus_state: H/R/S live consensus (Hacker Mode)
+ * - /net_info: connected peers (Hacker Mode)
+ *
+ * Modes:
+ * - Standard: validator table with sorting, search, pagination.
+ * - Hacker: live consensus telemetry, 100-block heatmap, peer table.
  *
  * Design: premium dark UI with smooth animations, validator cards.
+ * Hacker Mode: matrix CLI aesthetic, monospace, neon green.
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useNavigate, Link } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
@@ -31,7 +39,7 @@ import "./validators.css"
 
 type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent"
 
-const REFRESH_INTERVAL_MS = 30_000 // 30s (C2 fix: was 5s = 48 RPCs/min)
+const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
 /** Tiny copy-to-clipboard button. */
 function CopyButton({ text }: { text: string }) {
@@ -53,6 +61,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function Validators() {
+    const navigate = useNavigate()
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [loading, setLoading] = useState(true)
@@ -133,6 +142,8 @@ export default function Validators() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // ── Hacker Mode polling — REMOVED (moved to /validators/hacker dedicated page) ──
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortAsc(!sortAsc)
         else { setSortKey(key); setSortAsc(key === "rank") }
@@ -191,6 +202,9 @@ export default function Validators() {
                 <h1>⛓️ Validators</h1>
                 <span className="val-chain-badge">{GNO_CHAIN_ID}</span>
                 {refreshing && <span className="val-refreshing" aria-live="polite">Refreshing…</span>}
+                <Link to="/validators/hacker" className="val-hacker-btn" title="Open live consensus telemetry dashboard">
+                    🕵️ Hacker view
+                </Link>
             </div>
 
             {/* ── Network Overview Cards ───────────────────────── */}
@@ -246,6 +260,8 @@ export default function Validators() {
                     ))}
                 </div>
             )}
+
+            {/* ── 🕵️ Hacker Mode moved to /validators/hacker ─────── */}
 
             {/* ── Search + Page Size ─────────────────────────────── */}
             <div className="val-toolbar">
@@ -307,7 +323,23 @@ export default function Validators() {
                     </thead>
                     <tbody>
                         {paginated.map(v => (
-                            <tr key={v.address} className="val-row" data-testid={`validator-row-${v.rank}`}>
+                            <tr
+                                key={v.address}
+                                className="val-row"
+                                data-testid={`validator-row-${v.rank}`}
+                                onClick={() => navigate(`/validators/${v.gnoAddr || v.address}`)}
+                                onKeyDown={e => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault()
+                                        navigate(`/validators/${v.gnoAddr || v.address}`)
+                                    }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`View ${v.moniker || truncateValidatorAddr(v.address)} validator details`}
+                                style={{ cursor: "pointer" }}
+                                title={`View ${v.moniker || truncateValidatorAddr(v.address)} details`}
+                            >
                                 <td className="val-td val-rank">
                                     <span className={`val-rank-badge ${v.rank <= 3 ? "val-top3" : ""}`}>
                                         {v.rank}

@@ -75,7 +75,7 @@
 | `lib/daoTemplate.ts` | DAO Factory: Gno realm code generator + MsgAddPackage builder |
 | `lib/profile.ts` | User profile data: hybrid fetcher (gno.land ABCI + gnolove REST API + Memba backend GetProfile/UpdateProfile) |
 | `lib/notifications.ts` | Notification CRUD, per-wallet localStorage isolation, sanitization, dedup, grouping |
-| `lib/validators.ts` | Tendermint RPC validator data, AbortSignal support, pagination |
+| `lib/validators.ts` | Tendermint RPC validator data: `getValidators`, `getNetworkStats` (signal-threaded), `getNodeStatus`, `getConsensusState`, `getNetPeers`, `fetchBlockHeatmap`, `fetchLastBlockSignatures`, `hexToBech32`; all fetchers return `null` on failure; `AbortSignal` support throughout |
 | `lib/directory.ts` | Directory data layer: DAO/token/user fetch, sessionStorage cache (5-min TTL) |
 | `lib/daoMetadata.ts` | DAO Render parser: member count, proposal count, description, batch fetch |
 | `lib/faucet.ts` | Faucet eligibility, 7-day cooldown, per-address localStorage |
@@ -85,7 +85,7 @@
 | `hooks/useMultisig.ts` | Multisig CRUD wrappers |
 | `hooks/useNotifications.ts` | 30s ABCI polling, multi-DAO, Page Visibility API |
 | `lib/parseMsgs.ts` | Human-readable TX content parser (MsgSend, MsgCall, MsgAddPackage) |
-| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect**, **Validators**, **Directory** |
+| `pages/` | Dashboard, CreateMultisig, ImportMultisig, MultisigView, ProposeTransaction, TransactionView, CreateToken, TokenDashboard, TokenView, DAOList, DAOHome, ProposalView, DAOMembers, ProposeDAO, CreateDAO (DAO Factory wizard), Treasury, TreasuryProposal, **ProfilePage**, **GithubCallback**, **UserRedirect**, **Validators** (standard, 30s refresh), **ValidatorsHacker** (`/validators/hacker`: 4 independent polling loops), **ValidatorDetail** (`/validators/:address`: live proposer badge, heatmap, perf metrics), **Directory** |
 | `components/layout/` | **Sidebar.tsx** (3-section nav), **TopBar.tsx** (badges + wallet + NotificationBell), **MobileTabBar.tsx** (5-tab mobile), **BottomSheet.tsx** (slide-up modal), **Layout.tsx** (composer) |
 | `components/directory/` | **DAOCard.tsx** (rich card), **FeaturedDAOs.tsx** (carousel) |
 | `components/multisig/ProgressBar.tsx` | K-of-N threshold visualization |
@@ -129,6 +129,67 @@
 - `signatures` — per-user signature on a transaction
 - `profiles` — user profile data (bio, company, title, avatar_url, social links)
 - `_migrations` — schema version tracking
+
+## Validators Telemetry Layer (v2.14+)
+
+The `/validators` suite consists of three fully independent routes:
+
+| Route | Page | Polling | Data Source |
+|-------|------|---------|-------------|
+| `/validators` | `Validators.tsx` | 30s | `/validators` + gnomonitoring |
+| `/validators/hacker` | `ValidatorsHacker.tsx` | 2s/15s/30s/60s | Tendermint RPC 8 endpoints |
+| `/validators/:address` | `ValidatorDetail.tsx` | 2s (proposer), one-shot | `/validators` + `/block` batch |
+
+### Dual-RPC Strategy
+
+```
+getTelemetryRpcUrl()
+  ├── VITE_SAMOURAI_SENTRY_RPC_URL (if set → preferred for Hacker View)
+  └── VITE_GNO_RPC_URL (public fallback)
+```
+
+Samourai Coop operates `samourai-crew-1`, `samourai-crew-2` (validators) and `samourai-dev-sentry` on gnoland1. The sentry node exposes unrestricted `/dump_consensus_state` and `/net_info` — endpoints that public RPCs often block.
+
+### Polling Architecture
+
+```
+ValidatorsHacker (lifecycle owner)
+├── mainAbort: AbortController (initial load + cleanup)
+├── latestHeightRef: number (shared height without setState)
+├── consensusInterval (2s)  → getConsensusState() → updates latestHeightRef
+├── peersInterval    (15s)  → getNetPeers()
+├── heatmapInterval  (30s)  → fetchBlockHeatmap(latestHeightRef.current)
+└── nodeStatusInterval (60s)→ getNodeStatus()
+
+All intervals: skipped when Page Visibility API reports tab hidden.
+All intervals: AbortController signal shared — cleaned on unmount.
+```
+
+### Routing Constraint
+
+```tsx
+// App.tsx — ORDER IS CRITICAL:
+<Route path="/validators/hacker" ... />   // BEFORE
+<Route path="/validators/:address" ... /> // AFTER
+```
+React Router matches top-to-bottom. If `/validators/:address` is declared first, the literal string `"hacker"` would be captured as an address param.
+
+### CSS Namespace Map
+
+| Prefix | Scope |
+|--------|-------|
+| `val-` | Standard validator table |
+| `hk-` | Hacker View cards/layout |
+| `hm-` | Block heatmap grid |
+| `vd-` | Validator Detail page |
+| `cs-` | ConnectSection rows |
+| `nsg-` | NodeStatePanel rows |
+
+### Graceful Fallbacks
+
+All telemetry fetchers (`getConsensusState`, `getNetPeers`, `getNodeStatus`) return `null` on any network error. Components display `"Endpoint unavailable"` placeholders — never crash or show empty layouts.
+
+---
 
 ## Hybrid Architecture — RPC vs Backend
 

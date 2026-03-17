@@ -250,13 +250,18 @@ export function mergeValoperMonikers(
 /**
  * Fetch network overview stats (block height, avg time, validator count).
  * Pass pre-fetched validators to avoid redundant RPC call (I7 fix).
+ *
+ * @param rpcUrl      - Tendermint RPC base URL
+ * @param prefetchedValidators - Optional pre-fetched validators to avoid extra /validators call
+ * @param signal      - Optional AbortSignal for request cancellation
  */
 export async function getNetworkStats(
     rpcUrl: string,
     prefetchedValidators?: ValidatorInfo[],
+    signal?: AbortSignal,
 ): Promise<NetworkStats> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const status = await rpcCall(rpcUrl, "/status") as any
+    const status = await rpcCall(rpcUrl, "/status", {}, signal) as any
     const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
     const latestBlockTime = status?.sync_info?.latest_block_time || ""
     const catchingUp = status?.sync_info?.catching_up || false
@@ -271,7 +276,7 @@ export async function getNetworkStats(
     } else {
         // Fallback: fetch validator count via RPC (no prefetched data)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }) as any
+        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }, signal) as any
         totalValidators = parseInt(valResult?.total || "0", 10)
         totalVotingPower = parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
     }
@@ -281,7 +286,7 @@ export async function getNetworkStats(
     if (latestHeight > 10) {
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const recentBlock = await rpcCall(rpcUrl, "/block", { height: String(latestHeight - 10) }) as any
+            const recentBlock = await rpcCall(rpcUrl, "/block", { height: String(latestHeight - 10) }, signal) as any
             const oldTime = new Date(recentBlock?.block?.header?.time || 0).getTime()
             const newTime = new Date(latestBlockTime).getTime()
             if (oldTime > 0 && newTime > oldTime) {
@@ -406,6 +411,436 @@ export async function fetchLastBlockSignatures(
         // Graceful degradation — return empty map
     }
     return result
+}
+
+// ── Hacker Mode Types ─────────────────────────────────────────
+
+/** Hard cap for block heatmap fetches. Prevents accidental heavy RPC load. */
+export const MAX_HACKER_BLOCKS = 100
+
+/**
+ * Node identity and status from Tendermint `/status`.
+ * Used by ConnectSection and NodeStatePanel in Hacker View.
+ */
+export interface NodeStatus {
+    /** Node moniker */
+    moniker: string
+    /** Software version */
+    version: string
+    /** Node ID (hex) */
+    nodeId: string
+    /** P2P listen address */
+    listenAddr: string
+    /** RPC address */
+    rpcAddr: string
+    /** Validator bech32 address (if this is a validator node) */
+    validatorAddr: string
+    /** Validator pubkey (base64) */
+    pubkey: string
+    /** Whether the node is catching up */
+    catchingUp: boolean
+    /** Genesis file SHA256 hash (from sync_info where available) */
+    genesisHash: string
+    /** Chain ID / network */
+    chainId: string
+    /** Latest block time ISO string */
+    nodeTime: string
+    /** Number of peers from node_info */
+    peerCount: number
+}
+
+/**
+ * Fetch node identity from `/status`.
+ * Resilient: returns null on any error.
+ */
+export async function getNodeStatus(
+    rpcUrl: string,
+    signal?: AbortSignal,
+): Promise<NodeStatus | null> {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const st = await rpcCall(rpcUrl, "/status", {}, signal) as any
+        if (!st) return null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ni: any = st.node_info || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vi: any = st.validator_info || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const si: any = st.sync_info || {}
+
+        // Convert validator hex address to bech32 if present
+        let validatorAddr = ""
+        try {
+            if (vi.address) validatorAddr = hexToBech32(vi.address)
+        } catch { /* ignore */ }
+
+        return {
+            moniker: ni.moniker || "",
+            version: ni.version || "",
+            nodeId: ni.id || "",
+            listenAddr: ni.listen_addr || "",
+            rpcAddr: ni.other?.rpc_address || "",
+            validatorAddr,
+            pubkey: vi.pub_key?.value || "",
+            catchingUp: si.catching_up === true,
+            genesisHash: si.latest_app_hash || "", // sha256 not in /status, use app_hash as proxy
+            chainId: ni.network || "",
+            nodeTime: si.latest_block_time || "",
+            peerCount: 0, // will be overridden by /net_info peerCount
+        }
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Parsed live consensus state from Tendermint `/dump_consensus_state`.
+ * Available on all Gno networks exposing the standard Tendermint RPC.
+ * May be `null` on chains/nodes that restrict the endpoint.
+ */
+export interface HackerConsensusState {
+    /** Chain ID */
+    chainId: string
+    /** Current consensus Height */
+    height: number
+    /** Current consensus Round (0-based) */
+    round: number
+    /** Current consensus Step (1=Propose, 2=Prevote, 3=Precommit) */
+    step: number
+    /** Human-readable step label */
+    stepLabel: "Propose" | "Prevote" | "Precommit" | "Commit" | "Unknown"
+    /** Current block proposer address (bech32 or moniker if resolved) */
+    proposer: string
+    /** Total validators in the valset */
+    valsetSize: number
+    /** Minimum validators required for BFT consensus (ceil(2/3 * valsetSize)) */
+    minBft: number
+    /** How many validators can fail before consensus breaks (valsetSize - minBft) */
+    faultTolerance: number
+    /** Whether this round can still add new validators */
+    canAddValidator: boolean
+    /** Count of received Pre-votes for this round */
+    prevoteCount: number
+    /** Count of received Pre-commits for this round */
+    precommitCount: number
+    /** Timestamp when current round started (ISO string) */
+    roundStartTime: string
+    /**
+     * Seconds elapsed since current round started.
+     * Used by DoctorPanel to detect stuck consensus (> 30s in same round).
+     * null when roundStartTime is unavailable.
+     */
+    roundAge: number | null
+    /** AppHash of the last committed block */
+    appHash: string
+    /** Genesis time (ISO string) */
+    genesisTime: string
+    /** Node's own uptime since process start (seconds) */
+    nodeUptime: number | null
+    /** Latest block time (ISO string) */
+    latestBlockTime: string
+}
+
+/**
+ * A single peer as returned by `/net_info`.
+ * IP address is exposed as-is — public RPC nodes expose this publicly.
+ */
+export interface PeerInfo {
+    /** Peer node ID (hex) */
+    nodeId: string
+    /** Peer IP address */
+    ip: string
+    /** P2P address string (full `nodeId@ip:port`) */
+    p2pAddr: string
+    /** Peer's reported moniker */
+    moniker: string
+    /** Peer's reported network/chain ID */
+    network: string
+    /** Whether this is a persistent peer */
+    isOutbound: boolean
+    /** Peer's current block height (if reported by its RPC) */
+    remoteHeight: number | null
+    /** RPC address (may be empty if not exposed) */
+    rpcAddr: string
+}
+
+/** Network peer topology from `/net_info`. */
+export interface NetInfo {
+    /** Whether the node is currently listening for connections */
+    listening: boolean
+    /** Full list of connected peers */
+    peers: PeerInfo[]
+    /** Total peer count */
+    peerCount: number
+}
+
+/**
+ * A single block's health data for the heatmap.
+ * Values are derived from `last_commit.precommits`.
+ */
+export interface BlockSample {
+    /** Block height */
+    height: number
+    /** Number of validators that signed this block */
+    signerCount: number
+    /** Total validators in the active set at time of commit */
+    valsetSize: number
+    /** True if all validators signed (perfect block) */
+    perfect: boolean
+    /** Health ratio: signerCount / valsetSize (0.0–1.0) */
+    healthRatio: number
+    /** Block timestamp (ISO string) */
+    time: string
+}
+
+// ── Hacker Mode Telemetry Fetchers ────────────────────────────
+
+/**
+ * Fetch and parse live consensus state from `/dump_consensus_state`.
+ *
+ * Resilient: returns `null` on any error (CORS, timeout, restricted endpoint)
+ * so the UI can gracefully fall back without crashing.
+ *
+ * @param rpcUrl  The RPC endpoint to query (use `getTelemetryRpcUrl()` for Hacker Mode).
+ * @param signal  AbortSignal for cancellation.
+ */
+export async function getConsensusState(
+    rpcUrl: string,
+    signal?: AbortSignal,
+): Promise<HackerConsensusState | null> {
+    try {
+        // RPC responses are untyped JSON — suppress no-explicit-any for the parse block.
+        // Every field is immediately destructured and type-narrowed below.
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const [cs, st] = await Promise.all([
+            rpcCall(rpcUrl, "/dump_consensus_state", {}, signal) as Promise<any>,
+            rpcCall(rpcUrl, "/status", {}, signal) as Promise<any>,
+        ])
+        /* eslint-enable @typescript-eslint/no-explicit-any */
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rs: any = cs?.round_state || {}
+
+        // Parse H/R/S — format: "HEIGHT/ROUND/STEP"
+        const hrsRaw: string = rs["height/round/step"] || "0/0/0"
+        const [hStr, rStr, sStr] = hrsRaw.split("/")
+        const height = parseInt(hStr || "0", 10)
+        const round = parseInt(rStr || "0", 10)
+        const step = parseInt(sStr || "0", 10)
+
+        const stepLabels: HackerConsensusState["stepLabel"][] = [
+            "Unknown", "Propose", "Prevote", "Precommit", "Commit",
+        ]
+        const stepLabel = stepLabels[step] ?? "Unknown"
+
+        // Parse proposer address
+        const proposer: string = rs.proposer?.address || rs.proposal?.proposer_address || ""
+
+        // Parse valset size and compute BFT thresholds
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const validators: any[] = rs.validators?.validators || []
+        const valsetSize = validators.length || 0
+        const minBft = valsetSize > 0 ? Math.ceil((valsetSize * 2) / 3) : 0
+        const faultTolerance = valsetSize - minBft
+
+        // Count prevotes and precommits bitmask
+        // Gnockpit uses the `votes` array that maps bit positions to validators
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const prevotesBitmask: string = (rs.votes || []).find((v: any) =>
+            v?.round === round && v?.vote_type?.toLowerCase() === "prevote"
+        )?.prevotes_bit_array || ""
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const precommitsBitmask: string = (rs.votes || []).find((v: any) =>
+            v?.round === round && v?.vote_type?.toLowerCase() === "precommit"
+        )?.precommits_bit_array || ""
+
+        // Count '1' bits: "BA{9:xxxxxxx_xx}" format
+        const countBits = (bitmask: string): number => (bitmask.match(/1/g) || []).length
+        const prevoteCount = countBits(prevotesBitmask)
+        const precommitCount = countBits(precommitsBitmask)
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const syncInfo: any = st?.sync_info || {}
+        const latestBlockTime: string = syncInfo.latest_block_time || ""
+        const appHash: string = syncInfo.latest_app_hash || ""
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nodeInfo: any = st?.node_info || {}
+        const chainId: string = nodeInfo.network || ""
+
+        // genesis_time not directly in /status in all Gno versions, but parse if available
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const genesisTime: string = (cs as any)?.genesis?.genesis_time || ""
+
+        const roundStartTimeStr: string = rs.start_time || ""
+
+        // Compute roundAge — seconds elapsed since this round started.
+        // Used by DoctorPanel to detect stuck consensus.
+        let roundAge: number | null = null
+        if (roundStartTimeStr) {
+            const elapsed = (Date.now() - new Date(roundStartTimeStr).getTime()) / 1000
+            if (!isNaN(elapsed) && elapsed >= 0) roundAge = Math.floor(elapsed)
+        }
+
+        return {
+            chainId,
+            height,
+            round,
+            step,
+            stepLabel,
+            proposer,
+            valsetSize,
+            minBft,
+            faultTolerance,
+            canAddValidator: true, // conservative default — actual enforcement is on-chain
+            prevoteCount,
+            precommitCount,
+            roundStartTime: roundStartTimeStr,
+            roundAge,
+            appHash,
+            genesisTime,
+            nodeUptime: null, // only available from node sidecar — N/A in pure RPC mode
+            latestBlockTime,
+        }
+    } catch {
+        // Endpoint unavailable, CORS blocked, or chain does not expose consensus state
+        return null
+    }
+}
+
+/**
+ * Fetch live peer information from `/net_info`.
+ *
+ * Resilient: returns `null` if the endpoint is unavailable or restricted.
+ * Note: peer IPs are intentionally exposed — they are public P2P addresses.
+ *
+ * @param rpcUrl  The RPC endpoint to query.
+ * @param signal  AbortSignal for cancellation.
+ */
+export async function getNetPeers(
+    rpcUrl: string,
+    signal?: AbortSignal,
+): Promise<NetInfo | null> {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await rpcCall(rpcUrl, "/net_info", {}, signal) as any
+        if (!result) return null
+
+        const listening: boolean = result.listening === true
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawPeers: any[] = result.peers || []
+
+        const peers: PeerInfo[] = rawPeers.map((p) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ni: any = p.node_info || {}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const conn: any = p.remote_ip || ""
+            const nodeId: string = ni.id || ""
+            const ip: string = conn || ""
+            const listenAddr: string = ni.listen_addr || ""
+            const rpcAddr: string = ni.other?.rpc_address || ""
+
+            // Extract port from listen_addr for reconstruction if needed
+            const p2pAddr = nodeId && ip ? `${nodeId}@${ip}` : ""
+
+            return {
+                nodeId,
+                ip,
+                p2pAddr,
+                moniker: ni.moniker || "",
+                network: ni.network || "",
+                isOutbound: p.is_outbound === true,
+                remoteHeight: null, // not provided by /net_info directly
+                rpcAddr: rpcAddr === "tcp://0.0.0.0:26657" ? "" : rpcAddr, // filter generic defaults
+                listenAddr,
+            }
+        })
+
+        return { listening, peers, peerCount: peers.length }
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Batch-fetch up to `blockCount` recent blocks and compute per-block health data
+ * for the 100-block heatmap visualization.
+ *
+ * **Chunked concurrency (default: 10 per round-trip)**
+ * Instead of firing all N requests simultaneously (which public RPCs may rate-limit),
+ * blocks are fetched in sequential chunks of `chunkSize` concurrent requests.
+ * With 100 blocks and chunkSize=10 → 10 round-trips of 10 parallel requests each.
+ *
+ * Failed blocks are silently skipped — heatmap shows gaps rather than crashing.
+ *
+ * @param rpcUrl        RPC endpoint to query.
+ * @param latestHeight  Tip height to start from.
+ * @param blockCount    Number of blocks to fetch (capped at MAX_HACKER_BLOCKS=100).
+ * @param signal        AbortSignal for cancellation.
+ * @param chunkSize     Concurrent requests per batch (default 10). Tune per RPC limits.
+ */
+export async function fetchBlockHeatmap(
+    rpcUrl: string,
+    latestHeight: number,
+    blockCount: number = 100,
+    signal?: AbortSignal,
+    chunkSize: number = 10,
+): Promise<BlockSample[]> {
+    const n = Math.min(blockCount, MAX_HACKER_BLOCKS)
+    if (latestHeight < 2 || n < 1) return []
+
+    const startHeight = Math.max(2, latestHeight - n + 1)
+    const heights: number[] = []
+    for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
+
+    // ── Chunked fetch ──
+    // Split heights into groups of chunkSize, process each group sequentially
+    // but requests within each group fire concurrently.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allBlocks: (any | null)[] = []
+    for (let i = 0; i < heights.length; i += chunkSize) {
+        if (signal?.aborted) break
+        const chunk = heights.slice(i, i + chunkSize)
+        const chunkResults = await Promise.all(
+            chunk.map(h =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                rpcCall(rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as Promise<any>
+            )
+        )
+        allBlocks.push(...chunkResults)
+    }
+
+    const samples: BlockSample[] = []
+    for (const block of allBlocks) {
+        if (!block) continue
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const header: any = block?.block?.header || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const precommits: any[] = block?.block?.last_commit?.precommits || []
+        const signerCount = precommits.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (pc: any) => pc?.validator_address && pc?.type !== 0
+        ).length
+        const height = parseInt(header.height || "0", 10)
+        const time: string = header.time || ""
+
+        // Total precommit slots = valset size at this block (proxy — exact valset
+        // size would require a separate /validators?height= call per block)
+        const valsetSize = precommits.length || 0
+        const healthRatio = valsetSize > 0 ? signerCount / valsetSize : 0
+
+        samples.push({
+            height,
+            signerCount,
+            valsetSize,
+            perfect: signerCount === valsetSize && valsetSize > 0,
+            healthRatio,
+            time,
+        })
+    }
+
+    // Return chronologically ascending (oldest → newest) for heatmap left→right rendering
+    return samples.sort((a, b) => a.height - b.height)
 }
 
 // ── Formatting ────────────────────────────────────────────────

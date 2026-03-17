@@ -2,6 +2,91 @@
 
 All notable changes to Memba are documented here.
 
+## v2.14.0-alpha (2026-03-17) — Hacker View & Validator Detail Pages 🕵️‍♂️
+
+> Branch: `feat/validators-hacker-mode` — in progress, targeting testnet12
+
+### Added
+
+- **🕵️ Dedicated Hacker View** — new route `/validators/hacker`, fully decoupled from the standard validators page
+  - `HackerStatusBar.tsx` — persistent status bar: block height, sync status, peer count, last updated time
+  - `ConnectSection.tsx` — Gnockpit-style CONNECT card with click-to-copy seed address and app hash
+  - `NodeStatePanel.tsx` — full node identity from `/status` (moniker, version, node-id, validator addr, pubkey, app hash, catching-up, node time)
+  - `DoctorPanel.tsx` — diagnostic alerts derived from existing data: low peer count (<4 peers), unknown/closed peer RPCs, stuck consensus (round>1)
+  - `ValidatorsHacker.tsx` — orchestrator page with 4 independent polling loops (consensus 2s, peers 15s, heatmap 30s, node status 60s), all via AbortController
+  - `validators-hacker.css` — Hacker View page layout and overrides
+  - "🕵️ Hacker view" link button added to standard `/validators` header (replaces old localStorage toggle)
+
+- **🔍 Validator Detail Page** — new route `/validators/:address` (bech32 format)
+  - Header card: rank badge (top-3 highlighted), moniker, `Active`/`Inactive`/`⚡ Proposer` badges
+  - `⚡ Proposer` badge: live 2s consensus poll — pulses when validator is current block proposer
+  - Stats grid: Voting Power, Network Share (with power bar), Proposer Priority, Start Time
+  - Identity panel: bech32 address (copy), pubkey, pubkey type, Gnoweb profile link
+  - Performance section: Signed/Missed/Uptime from per-validator block signatures (last 20 blocks)
+  - 100-block network signing heatmap (25-column Gnockpit-style)
+  - Graceful 404 card when address not in active validator set
+  - External links: Gnoweb valopers → Hacker View → All Validators
+  - `ValidatorDetail.tsx` + `validator-detail.css`
+
+- **BlockHeatmap** refactored to Gnockpit style:
+  - 25-column grid layout (was 20×5)
+  - Signer count displayed inside each cell
+  - Compact cell sizing
+
+- **⚙️ validators.ts additions**
+  - `NodeStatus` interface + `getNodeStatus()` fetcher — full node identity from `/status`
+  - `getNetworkStats()` — added optional `signal?: AbortSignal` third parameter (all internal rpcCalls now threaded with signal)
+  - `MAX_HACKER_BLOCKS = 100` constant
+
+### Changed
+
+- `Validators.tsx` (standard page): removed `HackerModeToggle` and all hacker-mode state/polling; replaced with `<Link className="val-hacker-btn">🕵️ Hacker view</Link>`
+- Validator rows now clickable → navigate to `/validators/:address` with keyboard support (`tabIndex`, `role="button"`, `onKeyDown` Enter/Space)
+- `validators.css` — added `.val-hacker-btn` and `.val-row` hover styles
+- `App.tsx` — routes added: `/validators/hacker` (before `/:address` — order critical!)
+
+### Architecture
+
+- Two dedicated lazy-loaded pages (`ValidatorsHacker`, `ValidatorDetail`) — complete lifecycle isolation
+- CSS namespaces: `hk-` (hacker cards), `hm-` (heatmap), `vd-` (validator detail), `val-` (standard) — zero collision
+- All telemetry fetchers return `null` on failure — no crashes on restricted public RPCs
+- `latestHeightRef` pattern used in heatmap interval (avoids nested-setState anti-pattern)
+- Dual-RPC strategy: `getTelemetryRpcUrl()` prefers `VITE_SAMOURAI_SENTRY_RPC_URL`, falls back to `VITE_GNO_RPC_URL`
+- Node identity panel correctly labels `/status` fields: `app hash` (not genesis sha256), `unknown` fallback for empty fields
+
+### New Files
+
+- `frontend/src/components/validators/ConnectSection.tsx`
+- `frontend/src/components/validators/DoctorPanel.tsx`
+- `frontend/src/components/validators/HackerStatusBar.tsx`
+- `frontend/src/components/validators/NodeStatePanel.tsx`
+- `frontend/src/pages/ValidatorsHacker.tsx`
+- `frontend/src/pages/ValidatorDetail.tsx`
+- `frontend/src/pages/validators-hacker.css`
+- `frontend/src/pages/validator-detail.css`
+
+### Security & Hardening
+
+- `fetchBlockHeatmap` refactored to **chunked batching** (10 concurrent per round-trip) — prevents public RPC rate limiting
+- `getTelemetryRpcUrl()` validates sentry URL against `TRUSTED_RPC_DOMAINS` before use — untrusted URLs fall back with `console.warn`
+- `TRUSTED_RPC_DOMAINS` expanded: `samourai.live` (convention: `rpc.{chain}.samourai.live`), `p2p.team`, `gnoland1.io`, `localhost`
+- CSP `connect-src` updated: `https://*.samourai.live` added to both `index.html` and `netlify.toml`
+- `roundAge` computed from `rs.start_time` — enables DoctorPanel stuck-consensus detection (>30s)
+- Dead code removed: `HackerModeToggle.tsx` + 48 lines orphaned CSS
+- `.env.example` (root + frontend): `VITE_SAMOURAI_SENTRY_RPC_URL` documented with samourai.live convention
+- `docker-compose.yml`: `VITE_SAMOURAI_SENTRY_RPC_URL` forwarded as frontend build arg
+
+### Deleted Files
+
+- `frontend/src/components/validators/HackerModeToggle.tsx` (replaced by Link button)
+
+### Tests
+
+- **771 unit tests** (35 files, +15 new: formatRelativeTime, BlockSample, samourai.live domain trust, getTelemetryRpcUrl fallback)
+- `tsc --noEmit` 0 errors
+
+---
+
 ## v2.13.1 (2026-03-17)
 
 ### Bug Fixes & Performance

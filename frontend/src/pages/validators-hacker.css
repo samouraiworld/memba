@@ -1,0 +1,237 @@
+/**
+ * validators-hacker.css
+ * Page-level shell styles for /validators/hacker.
+ * Inherits the hacker-mode.css design tokens.
+ * Standard validators.css is NOT imported here — zero coupling.
+ */
+
+/* ── Page shell ─────────────────────────────────────────── */
+
+.vh-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 80vh;
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+}
+
+/* ── Breadcrumb nav ─────────────────────────────────────── */
+
+.vh-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0 0.6rem;
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.vh-back {
+    color: rgba(0, 255, 170, 0.7);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s;
+}
+
+.vh-back:hover {
+    color: rgba(0, 255, 170, 1);
+}
+
+.vh-nav__sep {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.vh-nav__current {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+}
+
+.vh-nav__chain {
+    margin-left: auto;
+    font-size: 0.62rem;
+    background: rgba(0, 255, 170, 0.1);
+    color: rgba(0, 255, 170, 0.7);
+    border: 1px solid rgba(0, 255, 170, 0.2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+/* ── Status bar ─────────────────────────────────────────── */
+
+.hk-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.8rem;
+    background: rgba(0, 255, 170, 0.04);
+    border: 1px solid rgba(0, 255, 170, 0.12);
+    border-radius: 5px;
+    font-size: 0.7rem;
+    margin-bottom: 0.5rem;
+}
+
+.hk-status-bar strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.hk-status-bar__block { color: rgba(255, 255, 255, 0.5); }
+
+.hk-status-bar__sync--ok   { color: rgba(0, 255, 170, 0.9); font-weight: 700; }
+.hk-status-bar__sync--warn { color: rgba(255, 196, 0, 0.9); font-weight: 700; }
+
+.hk-status-bar__sep { color: rgba(255, 255, 255, 0.15); }
+
+.hk-status-bar__peers { color: rgba(255, 255, 255, 0.5); }
+
+.hk-status-bar__conn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: rgba(0, 255, 170, 0.7);
+}
+
+.hk-status-bar__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(0, 255, 170, 0.9);
+    animation: hk-pulse-anim 1.4s ease-in-out infinite;
+}
+
+.hk-status-bar__updated {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.65rem;
+}
+
+.hk-status-bar__ago { color: rgba(255, 255, 255, 0.25); }
+
+/* ── Connect section ────────────────────────────────────── */
+
+.hk-connect { grid-column: 1 / -1; }
+
+.cs-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.1s;
+    user-select: none;
+}
+
+.cs-row:hover { background: rgba(0, 255, 170, 0.04); }
+
+.cs-row__label {
+    color: rgba(255, 255, 255, 0.35);
+    min-width: 8rem;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+}
+
+.cs-row__value {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.68rem;
+    word-break: break-all;
+    flex: 1;
+}
+
+.cs-row__copy {
+    color: rgba(0, 255, 170, 0.5);
+    font-size: 0.6rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.cs-row:hover .cs-row__copy { opacity: 1; }
+
+/* ── Doctor panel ─────────────────────────────────────── */
+
+.hk-doctor__ok {
+    color: rgba(0, 255, 170, 0.6);
+    font-size: 0.7rem;
+    padding: 0.3rem 0;
+}
+
+.hk-doctor__alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.hk-doctor__alert {
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    border-left: 3px solid;
+}
+
+.hk-doctor__alert--warn  { background: rgba(255, 196, 0, 0.07); border-color: rgba(255, 196, 0, 0.5); }
+.hk-doctor__alert--error { background: rgba(255, 80, 80, 0.07); border-color: rgba(255, 80, 80, 0.5); }
+
+.hk-doctor__alert-msg { color: rgba(255, 255, 255, 0.8); font-weight: 600; }
+.hk-doctor__alert-detail { color: rgba(255, 255, 255, 0.45); margin-top: 0.15rem; font-size: 0.65rem; }
+
+/* ── Node state link ────────────────────────────────────── */
+
+.hk-link {
+    color: rgba(100, 200, 255, 0.8);
+    text-decoration: none;
+}
+.hk-link:hover { text-decoration: underline; color: rgba(100, 200, 255, 1); }
+
+/* ── Heatmap grid update for 25-col layout ──────────────── */
+
+.hm-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 2px;
+    cursor: default;
+    transition: opacity 0.15s, transform 0.1s;
+    min-width: 0;
+}
+
+.hm-cell:hover { opacity: 0.8; transform: scale(1.3); z-index: 2; }
+
+.hm-cell__count {
+    font-size: 0.42rem;
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.6);
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+.hm-grid {
+    display: grid;
+    grid-template-columns: repeat(25, 1fr);
+    gap: 2px;
+    margin-bottom: 0.5rem;
+    max-width: 100%;
+}
+
+/* ── Responsive overrides ────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .hk-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .hm-grid {
+        grid-template-columns: repeat(20, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .hm-grid {
+        grid-template-columns: repeat(10, 1fr);
+    }
+}
