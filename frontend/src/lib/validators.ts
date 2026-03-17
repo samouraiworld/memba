@@ -609,12 +609,14 @@ export async function getConsensusState(
     signal?: AbortSignal,
 ): Promise<HackerConsensusState | null> {
     try {
-        // Fetch consensus state and status in parallel for efficiency
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // RPC responses are untyped JSON — suppress no-explicit-any for the parse block.
+        // Every field is immediately destructured and type-narrowed below.
+        /* eslint-disable @typescript-eslint/no-explicit-any */
         const [cs, st] = await Promise.all([
             rpcCall(rpcUrl, "/dump_consensus_state", {}, signal) as Promise<any>,
             rpcCall(rpcUrl, "/status", {}, signal) as Promise<any>,
         ])
+        /* eslint-enable @typescript-eslint/no-explicit-any */
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rs: any = cs?.round_state || {}
