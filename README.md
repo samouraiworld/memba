@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-20%20%7C%2022-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-899%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-914%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.13)
+## Features (v2.14)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -114,7 +114,7 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **756+ unit tests** (Vitest, 35 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
+- 🧪 **771+ unit tests** (Vitest, 35 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages
 - 🧪 **143 E2E tests** (Playwright, Chromium + Firefox, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
 
 ## Architecture
@@ -189,11 +189,9 @@ cd backend && go test -race -count=1 -cover ./...
 | Network | RPC | Chain ID |
 |---------|-----|----------|
 | test11 | `https://rpc.test11.testnets.gno.land:443` | `test11` |
-| test12 | `https://rpc.test12.testnets.gno.land:443` | `test12` |
 | portal-loop | `https://rpc.gno.land:443` | `portal-loop` |
 | staging | `https://rpc.gno.land:443` | `staging` |
 | betanet | `https://rpc.betanet.gno.land:443` | `betanet` |
-| gnoland1 | `https://rpc.gnoland1.gno.land:443` | `gnoland1` |
 
 ## Target Multisig
 
