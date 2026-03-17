@@ -525,6 +525,12 @@ export interface HackerConsensusState {
     precommitCount: number
     /** Timestamp when current round started (ISO string) */
     roundStartTime: string
+    /**
+     * Seconds elapsed since current round started.
+     * Used by DoctorPanel to detect stuck consensus (> 30s in same round).
+     * null when roundStartTime is unavailable.
+     */
+    roundAge: number | null
     /** AppHash of the last committed block */
     appHash: string
     /** Genesis time (ISO string) */
@@ -664,6 +670,16 @@ export async function getConsensusState(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const genesisTime: string = (cs as any)?.genesis?.genesis_time || ""
 
+        const roundStartTimeStr: string = rs.start_time || ""
+
+        // Compute roundAge — seconds elapsed since this round started.
+        // Used by DoctorPanel to detect stuck consensus.
+        let roundAge: number | null = null
+        if (roundStartTimeStr) {
+            const elapsed = (Date.now() - new Date(roundStartTimeStr).getTime()) / 1000
+            if (!isNaN(elapsed) && elapsed >= 0) roundAge = Math.floor(elapsed)
+        }
+
         return {
             chainId,
             height,
@@ -677,7 +693,8 @@ export async function getConsensusState(
             canAddValidator: true, // conservative default — actual enforcement is on-chain
             prevoteCount,
             precommitCount,
-            roundStartTime: rs.start_time || "",
+            roundStartTime: roundStartTimeStr,
+            roundAge,
             appHash,
             genesisTime,
             nodeUptime: null, // only available from node sidecar — N/A in pure RPC mode

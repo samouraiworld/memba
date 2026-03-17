@@ -4,8 +4,7 @@
  * Receives props from parent (no own polling — parent drives data).
  */
 
-import type { NetworkStats } from "../../lib/validators"
-import type { HackerConsensusState, NetInfo } from "../../lib/validators"
+import type { NetworkStats, NetInfo, HackerConsensusState } from "../../lib/validators"
 
 interface HackerStatusBarProps {
     stats: NetworkStats | null
@@ -20,15 +19,16 @@ function secondsAgo(ts: number | null): string {
     return `${diff}s`
 }
 
-export function HackerStatusBar({ stats, netInfo, lastUpdated }: HackerStatusBarProps) {
+export function HackerStatusBar({ stats, cs, netInfo, lastUpdated }: HackerStatusBarProps) {
+    // Prefer consensus-derived height (more frequent), fall back to networkStats
+    const blockHeight = cs?.height ?? stats?.blockHeight
     const synced = stats ? !stats.catchingUp : null
-    const peerCount = netInfo?.peers?.length ?? stats?.blockHeight ? "—" : "—"
     const peers = netInfo?.peers?.length ?? "—"
 
     return (
         <div className="hk-status-bar" role="banner" aria-label="Network live status">
             <span className="hk-status-bar__block">
-                Block <strong>{stats?.blockHeight?.toLocaleString() ?? "—"}</strong>
+                Block <strong>{blockHeight?.toLocaleString() ?? "—"}</strong>
             </span>
 
             <span className={`hk-status-bar__sync ${synced === null ? "" : synced ? "hk-status-bar__sync--ok" : "hk-status-bar__sync--warn"}`}>
