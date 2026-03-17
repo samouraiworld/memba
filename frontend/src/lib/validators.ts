@@ -250,13 +250,18 @@ export function mergeValoperMonikers(
 /**
  * Fetch network overview stats (block height, avg time, validator count).
  * Pass pre-fetched validators to avoid redundant RPC call (I7 fix).
+ *
+ * @param rpcUrl      - Tendermint RPC base URL
+ * @param prefetchedValidators - Optional pre-fetched validators to avoid extra /validators call
+ * @param signal      - Optional AbortSignal for request cancellation
  */
 export async function getNetworkStats(
     rpcUrl: string,
     prefetchedValidators?: ValidatorInfo[],
+    signal?: AbortSignal,
 ): Promise<NetworkStats> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const status = await rpcCall(rpcUrl, "/status") as any
+    const status = await rpcCall(rpcUrl, "/status", {}, signal) as any
     const latestHeight = parseInt(status?.sync_info?.latest_block_height || "0", 10)
     const latestBlockTime = status?.sync_info?.latest_block_time || ""
     const catchingUp = status?.sync_info?.catching_up || false
@@ -271,7 +276,7 @@ export async function getNetworkStats(
     } else {
         // Fallback: fetch validator count via RPC (no prefetched data)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }) as any
+        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }, signal) as any
         totalValidators = parseInt(valResult?.total || "0", 10)
         totalVotingPower = parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
     }
@@ -281,7 +286,7 @@ export async function getNetworkStats(
     if (latestHeight > 10) {
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const recentBlock = await rpcCall(rpcUrl, "/block", { height: String(latestHeight - 10) }) as any
+            const recentBlock = await rpcCall(rpcUrl, "/block", { height: String(latestHeight - 10) }, signal) as any
             const oldTime = new Date(recentBlock?.block?.header?.time || 0).getTime()
             const newTime = new Date(latestBlockTime).getTime()
             if (oldTime > 0 && newTime > oldTime) {
@@ -412,6 +417,81 @@ export async function fetchLastBlockSignatures(
 
 /** Hard cap for block heatmap fetches. Prevents accidental heavy RPC load. */
 export const MAX_HACKER_BLOCKS = 100
+
+/**
+ * Node identity and status from Tendermint `/status`.
+ * Used by ConnectSection and NodeStatePanel in Hacker View.
+ */
+export interface NodeStatus {
+    /** Node moniker */
+    moniker: string
+    /** Software version */
+    version: string
+    /** Node ID (hex) */
+    nodeId: string
+    /** P2P listen address */
+    listenAddr: string
+    /** RPC address */
+    rpcAddr: string
+    /** Validator bech32 address (if this is a validator node) */
+    validatorAddr: string
+    /** Validator pubkey (base64) */
+    pubkey: string
+    /** Whether the node is catching up */
+    catchingUp: boolean
+    /** Genesis file SHA256 hash (from sync_info where available) */
+    genesisHash: string
+    /** Chain ID / network */
+    chainId: string
+    /** Latest block time ISO string */
+    nodeTime: string
+    /** Number of peers from node_info */
+    peerCount: number
+}
+
+/**
+ * Fetch node identity from `/status`.
+ * Resilient: returns null on any error.
+ */
+export async function getNodeStatus(
+    rpcUrl: string,
+    signal?: AbortSignal,
+): Promise<NodeStatus | null> {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const st = await rpcCall(rpcUrl, "/status", {}, signal) as any
+        if (!st) return null
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ni: any = st.node_info || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vi: any = st.validator_info || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const si: any = st.sync_info || {}
+
+        // Convert validator hex address to bech32 if present
+        let validatorAddr = ""
+        try {
+            if (vi.address) validatorAddr = hexToBech32(vi.address)
+        } catch { /* ignore */ }
+
+        return {
+            moniker: ni.moniker || "",
+            version: ni.version || "",
+            nodeId: ni.id || "",
+            listenAddr: ni.listen_addr || "",
+            rpcAddr: ni.other?.rpc_address || "",
+            validatorAddr,
+            pubkey: vi.pub_key?.value || "",
+            catchingUp: si.catching_up === true,
+            genesisHash: si.latest_app_hash || "", // sha256 not in /status, use app_hash as proxy
+            chainId: ni.network || "",
+            nodeTime: si.latest_block_time || "",
+            peerCount: 0, // will be overridden by /net_info peerCount
+        }
+    } catch {
+        return null
+    }
+}
 
 /**
  * Parsed live consensus state from Tendermint `/dump_consensus_state`.
@@ -667,19 +747,25 @@ export async function getNetPeers(
  * Batch-fetch up to `blockCount` recent blocks and compute per-block health data
  * for the 100-block heatmap visualization.
  *
- * Uses concurrent fetching with graceful per-block error handling (failed blocks
- * are silently skipped — heatmap will have gaps rather than crashing).
+ * **Chunked concurrency (default: 10 per round-trip)**
+ * Instead of firing all N requests simultaneously (which public RPCs may rate-limit),
+ * blocks are fetched in sequential chunks of `chunkSize` concurrent requests.
+ * With 100 blocks and chunkSize=10 → 10 round-trips of 10 parallel requests each.
  *
- * @param rpcUrl     The RPC endpoint to query.
- * @param latestHeight  The tip height to start from.
- * @param blockCount    Number of blocks to fetch (capped at MAX_HACKER_BLOCKS).
+ * Failed blocks are silently skipped — heatmap shows gaps rather than crashing.
+ *
+ * @param rpcUrl        RPC endpoint to query.
+ * @param latestHeight  Tip height to start from.
+ * @param blockCount    Number of blocks to fetch (capped at MAX_HACKER_BLOCKS=100).
  * @param signal        AbortSignal for cancellation.
+ * @param chunkSize     Concurrent requests per batch (default 10). Tune per RPC limits.
  */
 export async function fetchBlockHeatmap(
     rpcUrl: string,
     latestHeight: number,
     blockCount: number = 100,
     signal?: AbortSignal,
+    chunkSize: number = 10,
 ): Promise<BlockSample[]> {
     const n = Math.min(blockCount, MAX_HACKER_BLOCKS)
     if (latestHeight < 2 || n < 1) return []
@@ -688,17 +774,25 @@ export async function fetchBlockHeatmap(
     const heights: number[] = []
     for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
 
-    // Fetch all blocks in parallel, failing silently per-block
+    // ── Chunked fetch ──
+    // Split heights into groups of chunkSize, process each group sequentially
+    // but requests within each group fire concurrently.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const blocks = await Promise.all(
-        heights.map(h =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            rpcCall(rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as Promise<any>
+    const allBlocks: (any | null)[] = []
+    for (let i = 0; i < heights.length; i += chunkSize) {
+        if (signal?.aborted) break
+        const chunk = heights.slice(i, i + chunkSize)
+        const chunkResults = await Promise.all(
+            chunk.map(h =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                rpcCall(rpcUrl, "/block", { height: String(h) }, signal).catch(() => null) as Promise<any>
+            )
         )
-    )
+        allBlocks.push(...chunkResults)
+    }
 
     const samples: BlockSample[] = []
-    for (const block of blocks) {
+    for (const block of allBlocks) {
         if (!block) continue
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const header: any = block?.block?.header || {}
@@ -711,8 +805,8 @@ export async function fetchBlockHeatmap(
         const height = parseInt(header.height || "0", 10)
         const time: string = header.time || ""
 
-        // We don't know the exact valset size per block from /block alone,
-        // so we use total precommit slots as a proxy
+        // Total precommit slots = valset size at this block (proxy — exact valset
+        // size would require a separate /validators?height= call per block)
         const valsetSize = precommits.length || 0
         const healthRatio = valsetSize > 0 ? signerCount / valsetSize : 0
 
@@ -726,7 +820,7 @@ export async function fetchBlockHeatmap(
         })
     }
 
-    // Return chronologically ascending order (oldest → newest) for the heatmap
+    // Return chronologically ascending (oldest → newest) for heatmap left→right rendering
     return samples.sort((a, b) => a.height - b.height)
 }
 

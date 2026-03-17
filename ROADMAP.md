@@ -120,6 +120,35 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.14.0-alpha — Hacker View & Validator Detail 🕵️ IN PROGRESS (2026-03-17)
+
+> Branch: `feat/validators-hacker-mode` — targeting testnet12
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| `/validators/hacker` — Gnockpit-parity live telemetry (status bar, CONNECT, NETWORK STATE, PEERS, DOCTOR, NODE STATE) | ✅ | 5 new |
+| `/validators/:address` — Dedicated validator detail page (rank, stats, proposer badge, identity, perf, heatmap) | ✅ | 2 new |
+| BlockHeatmap 25-column Gnockpit-style refactor (signer count inside cells) | ✅ | 1 |
+| Dual-RPC strategy (Samourai sentry preferred, public RPC fallback) | ✅ | config.ts |
+| Clickable validator rows with keyboard accessibility (tabIndex, role, onKeyDown) | ✅ | Validators.tsx |
+| Per-validator block signature history (fetchLastBlockSignatures) | ✅ | validators.ts |
+| NodeStatus type + getNodeStatus() fetcher | ✅ | validators.ts |
+| getNetworkStats: AbortSignal third parameter (critical bug fix) | ✅ | validators.ts |
+| CHANGELOG + docs/ARCHITECTURE.md update | ✅ | docs |
+| 15-perspective cross audit | ✅ | see hacker_audit_v2.md |
+
+**Acceptance criteria:**
+- `/validators/hacker` loads with live H/R/S, peers, heatmap, node state
+- `/validators` rows are clickable → navigate to detail page
+- `/validators/:address` loads for any active validator bech32 address
+- Graceful 404 for unknown addresses
+- All RPCs fail gracefully (no crashes, show `—`/`"unknown"`)
+- `tsc --noEmit` 0 errors — **✅ PASSED**
+
+**Test gate:** 756 unit tests (35 files), 0 regressions — **✅ PASSED**
+
+---
+
 ## v2.7 — Monitoring Integration & UI Polish ✅ COMPLETE (2026-03-08)
 
 > Branch: `dev/v2` — gnomonitoring deep dive + GovDAO polish

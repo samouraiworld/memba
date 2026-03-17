@@ -2,50 +2,72 @@
 
 All notable changes to Memba are documented here.
 
-## v2.14.0-alpha (2026-03-17) — Validators Hacker Mode 🕵️‍♂️
+## v2.14.0-alpha (2026-03-17) — Hacker View & Validator Detail Pages 🕵️‍♂️
 
 > Branch: `feat/validators-hacker-mode` — in progress, targeting testnet12
 
 ### Added
 
-- **🕵️ Hacker Mode** — high-density real-time network telemetry toggle on `/validators`
-  - `HackerModeToggle.tsx` — matrix-aesthetic toggle in page header, persisted to `memba_hacker_mode` localStorage key
-  - `ConsensusWidget.tsx` — live **H/R/S (Height/Round/Step)** tracker with Pre-vote/Pre-commit progress bars and BFT threshold marker
-  - `NetworkStateGrid.tsx` — Gnockpit-inspired two-column dense chain metadata (AppHash, genesis time/age, valset, fault tolerance margin)
-  - `PeerTable.tsx` — connected peer list from `/net_info` (moniker, IP, direction IN/OUT, network, node ID truncated)
-  - `BlockHeatmap.tsx` — 100-cell health grid (perfect/healthy/warn/critical per block), hover tooltips, chronological fill
-  - `hacker-mode.css` — full matrix terminal design system: monospace fonts, neon `rgba(0,255,170)` palette, H/R/S grid, PV/PC bars, 20×5 heatmap grid, responsive at 768/480px
+- **🕵️ Dedicated Hacker View** — new route `/validators/hacker`, fully decoupled from the standard validators page
+  - `HackerStatusBar.tsx` — persistent status bar: block height, sync status, peer count, last updated time
+  - `ConnectSection.tsx` — Gnockpit-style CONNECT card with click-to-copy seed address and app hash
+  - `NodeStatePanel.tsx` — full node identity from `/status` (moniker, version, node-id, validator addr, pubkey, app hash, catching-up, node time)
+  - `DoctorPanel.tsx` — diagnostic alerts derived from existing data: low peer count (<4 peers), unknown/closed peer RPCs, stuck consensus (round>1)
+  - `ValidatorsHacker.tsx` — orchestrator page with 4 independent polling loops (consensus 2s, peers 15s, heatmap 30s, node status 60s), all via AbortController
+  - `validators-hacker.css` — Hacker View page layout and overrides
+  - "🕵️ Hacker view" link button added to standard `/validators` header (replaces old localStorage toggle)
 
-- **⚙️ Dual-RPC Strategy** — Samourai sentry node support for Hacker Mode telemetry
-  - `config.ts`: `SAMOURAI_SENTRY_RPC_URL` + `getTelemetryRpcUrl()` — gracefully prefers Samourai node, falls back to public RPC
-  - `.env.example`: `VITE_SAMOURAI_SENTRY_RPC_URL` documented for `samourai-dev-sentry` and future testnet12 node configuration
+- **🔍 Validator Detail Page** — new route `/validators/:address` (bech32 format)
+  - Header card: rank badge (top-3 highlighted), moniker, `Active`/`Inactive`/`⚡ Proposer` badges
+  - `⚡ Proposer` badge: live 2s consensus poll — pulses when validator is current block proposer
+  - Stats grid: Voting Power, Network Share (with power bar), Proposer Priority, Start Time
+  - Identity panel: bech32 address (copy), pubkey, pubkey type, Gnoweb profile link
+  - Performance section: Signed/Missed/Uptime from per-validator block signatures (last 20 blocks)
+  - 100-block network signing heatmap (25-column Gnockpit-style)
+  - Graceful 404 card when address not in active validator set
+  - External links: Gnoweb valopers → Hacker View → All Validators
+  - `ValidatorDetail.tsx` + `validator-detail.css`
 
-- **📡 New RPC Telemetry Fetchers** (added to `validators.ts`)
-  - `getConsensusState()` — parses `/dump_consensus_state` + `/status` in parallel; returns fully typed `HackerConsensusState | null`
-  - `getNetPeers()` — parses `/net_info`, returns `NetInfo` with typed `PeerInfo[]` array
-  - `fetchBlockHeatmap()` — parallel `/block` batch fetch (hard-capped at `MAX_HACKER_BLOCKS = 100`), returns `BlockSample[]` sorted oldest→newest
+- **BlockHeatmap** refactored to Gnockpit style:
+  - 25-column grid layout (was 20×5)
+  - Signer count displayed inside each cell
+  - Compact cell sizing
 
-- **🔄 Independent Polling Loops** (only active when Hacker Mode is enabled and tab is visible)
-  - Consensus: **2s** interval on `/dump_consensus_state` for live H/R/S
-  - Peers: **15s** interval on `/net_info`
-  - Heatmap: **30s** interval aligned with the standard validator table refresh
-  - All loops use `AbortController` and Page Visibility API — pauses when tab is hidden
+- **⚙️ validators.ts additions**
+  - `NodeStatus` interface + `getNodeStatus()` fetcher — full node identity from `/status`
+  - `getNetworkStats()` — added optional `signal?: AbortSignal` third parameter (all internal rpcCalls now threaded with signal)
+  - `MAX_HACKER_BLOCKS = 100` constant
+
+### Changed
+
+- `Validators.tsx` (standard page): removed `HackerModeToggle` and all hacker-mode state/polling; replaced with `<Link className="val-hacker-btn">🕵️ Hacker view</Link>`
+- Validator rows now clickable → navigate to `/validators/:address` with keyboard support (`tabIndex`, `role="button"`, `onKeyDown` Enter/Space)
+- `validators.css` — added `.val-hacker-btn` and `.val-row` hover styles
+- `App.tsx` — routes added: `/validators/hacker` (before `/:address` — order critical!)
 
 ### Architecture
-- All hacker-mode CSS classes prefixed with `hk-`/`hm-` — zero style collision with standard `val-` classes
-- `null` returns from all telemetry fetchers trigger elegant UI fallbacks ("Endpoint unavailable") — no crashes on restricted nodes
-- Standard validator table remains fully functional and unaffected in both modes
+
+- Two dedicated lazy-loaded pages (`ValidatorsHacker`, `ValidatorDetail`) — complete lifecycle isolation
+- CSS namespaces: `hk-` (hacker cards), `hm-` (heatmap), `vd-` (validator detail), `val-` (standard) — zero collision
+- All telemetry fetchers return `null` on failure — no crashes on restricted public RPCs
+- `latestHeightRef` pattern used in heatmap interval (avoids nested-setState anti-pattern)
+- Dual-RPC strategy: `getTelemetryRpcUrl()` prefers `VITE_SAMOURAI_SENTRY_RPC_URL`, falls back to `VITE_GNO_RPC_URL`
+- Node identity panel correctly labels `/status` fields: `app hash` (not genesis sha256), `unknown` fallback for empty fields
 
 ### New Files
-- `frontend/src/components/validators/HackerModeToggle.tsx`
-- `frontend/src/components/validators/ConsensusWidget.tsx`
-- `frontend/src/components/validators/PeerTable.tsx`
-- `frontend/src/components/validators/NetworkStateGrid.tsx`
-- `frontend/src/components/validators/BlockHeatmap.tsx`
-- `frontend/src/components/validators/hacker-mode.css`
+
+- `frontend/src/components/validators/ConnectSection.tsx`
+- `frontend/src/components/validators/DoctorPanel.tsx`
+- `frontend/src/components/validators/HackerStatusBar.tsx`
+- `frontend/src/components/validators/NodeStatePanel.tsx`
+- `frontend/src/pages/ValidatorsHacker.tsx`
+- `frontend/src/pages/ValidatorDetail.tsx`
+- `frontend/src/pages/validators-hacker.css`
+- `frontend/src/pages/validator-detail.css`
 
 ### Tests
-- **756 unit tests** (35 files, ±0 regressions), tsc 0 errors, lint 0
+
+- **756 unit tests** (35 files, ±0 regressions), `tsc --noEmit` 0 errors
 
 ---
 

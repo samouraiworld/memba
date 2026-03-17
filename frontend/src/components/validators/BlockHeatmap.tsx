@@ -1,15 +1,7 @@
 /**
  * BlockHeatmap — dense 100-block signing health visualization.
- *
- * Displays a 10-column grid of colored squares where:
- * - Green (solid)  = all validators signed (perfect block)
- * - Teal (partial) = 2/3+ signed but not all (healthy consensus)
- * - Yellow         = below 2/3 threshold (warning — rounds required)
- * - Red            = very low signing rate (critical)
- * - Gray           = data not yet loaded / block skipped
- *
- * Each cell is clickable (shows block height tooltip).
- * Newest blocks appear at the start of the row (top-left = most recent).
+ * Gnockpit-style: shows signer count inside each cell.
+ * 25-column grid (4 rows of 25), compact cells (16px).
  */
 
 import type { BlockSample } from "../../lib/validators"
@@ -17,7 +9,6 @@ import type { BlockSample } from "../../lib/validators"
 interface BlockHeatmapProps {
     blocks: BlockSample[]
     loading: boolean
-    /** Total current validators — used to normalize healthRatio if provided */
     totalValidators?: number
 }
 
@@ -38,29 +29,20 @@ function BlockCell({ sample }: { sample: BlockSample }) {
             title={label}
             aria-label={label}
             role="img"
-        />
+        >
+            <span className="hm-cell__count">{sample.signerCount}</span>
+        </div>
     )
 }
 
-function EmptyCell({ index }: { index: number }) {
-    return (
-        <div
-            className="hm-cell hm-cell--empty"
-            aria-label={`Block slot ${index} loading`}
-            role="img"
-        />
-    )
+function EmptyCell() {
+    return <div className="hm-cell hm-cell--empty" role="img" aria-label="loading" />
 }
 
 export function BlockHeatmap({ blocks, loading, totalValidators }: BlockHeatmapProps) {
-    // Reverse so newest block = top-left in grid
     const sorted = [...blocks].reverse()
-
-    // Target 100 cells — pad with empties when data is loading or incomplete
     const TARGET = 100
     const cells = sorted.length >= TARGET ? sorted.slice(0, TARGET) : sorted
-
-    // Label for the legend
     const coveredBlocks = cells.filter(b => b.signerCount > 0).length
     const perfectBlocks = cells.filter(b => b.perfect).length
 
@@ -75,21 +57,13 @@ export function BlockHeatmap({ blocks, loading, totalValidators }: BlockHeatmapP
                 {loading && <span className="hk-pulse" aria-label="Updating…" />}
             </div>
 
-            <div
-                className="hm-grid"
-                aria-label="Block health heatmap"
-                role="grid"
-            >
-                {cells.map((b) => (
-                    <BlockCell key={b.height} sample={b} />
-                ))}
-                {/* Pad the remainder of the grid with empty cells while loading */}
+            <div className="hm-grid" aria-label="Block health heatmap" role="grid">
+                {cells.map((b) => <BlockCell key={b.height} sample={b} />)}
                 {loading && cells.length < TARGET && Array.from({ length: TARGET - cells.length }).map((_, i) => (
-                    <EmptyCell key={`empty-${i}`} index={i} />
+                    <EmptyCell key={`empty-${i}`} />
                 ))}
             </div>
 
-            {/* Legend */}
             <div className="hm-legend">
                 <span className="hm-legend__item hm-legend__item--perfect">● Perfect</span>
                 <span className="hm-legend__item hm-legend__item--healthy">● ≥2/3</span>

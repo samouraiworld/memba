@@ -43,6 +43,40 @@
     animation: val-pulse 1.2s ease infinite;
 }
 
+/* Hacker view link button in header */
+.val-hacker-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: auto;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    color: rgba(0, 255, 170, 0.85);
+    background: rgba(0, 255, 170, 0.07);
+    border: 1px solid rgba(0, 255, 170, 0.25);
+    border-radius: 5px;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.val-hacker-btn:hover {
+    background: rgba(0, 255, 170, 0.14);
+    color: rgba(0, 255, 170, 1);
+    border-color: rgba(0, 255, 170, 0.5);
+}
+
+/* Clickable validator rows */
+.val-row {
+    transition: background 0.1s;
+}
+
+.val-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
 @keyframes val-pulse {
 
     0%,

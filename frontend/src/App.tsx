@@ -53,8 +53,12 @@ const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m
 // ── Plugin page (lazy) ──
 const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default: m.PluginPage })))
 
-// ── Validators page (lazy) ──
+// ── Validators pages (lazy) — ORDER MATTERS: /hacker before /:address ──
+// CRITICAL: /validators/hacker must be declared before /validators/:address,
+// otherwise React Router will match the literal string "hacker" as an :address param.
 const Validators = lazy(() => import("./pages/Validators"))
+const ValidatorsHacker = lazy(() => import("./pages/ValidatorsHacker"))
+const ValidatorDetail = lazy(() => import("./pages/ValidatorDetail"))
 
 // ── Multisig Hub (lazy — v2.7) ──
 const MultisigHub = lazy(() => import("./pages/MultisigHub"))
@@ -136,8 +140,11 @@ function App() {
           {/* Directory */}
           <Route path="/directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
 
-          {/* Validators (v2.1b) */}
+          {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
           <Route path="/validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
+          {/* CRITICAL: /validators/hacker must come BEFORE /validators/:address */}
+          <Route path="/validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
+          <Route path="/validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
