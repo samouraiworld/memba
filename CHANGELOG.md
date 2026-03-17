@@ -65,9 +65,25 @@ All notable changes to Memba are documented here.
 - `frontend/src/pages/validators-hacker.css`
 - `frontend/src/pages/validator-detail.css`
 
+### Security & Hardening
+
+- `fetchBlockHeatmap` refactored to **chunked batching** (10 concurrent per round-trip) — prevents public RPC rate limiting
+- `getTelemetryRpcUrl()` validates sentry URL against `TRUSTED_RPC_DOMAINS` before use — untrusted URLs fall back with `console.warn`
+- `TRUSTED_RPC_DOMAINS` expanded: `samourai.live` (convention: `rpc.{chain}.samourai.live`), `p2p.team`, `gnoland1.io`, `localhost`
+- CSP `connect-src` updated: `https://*.samourai.live` added to both `index.html` and `netlify.toml`
+- `roundAge` computed from `rs.start_time` — enables DoctorPanel stuck-consensus detection (>30s)
+- Dead code removed: `HackerModeToggle.tsx` + 48 lines orphaned CSS
+- `.env.example` (root + frontend): `VITE_SAMOURAI_SENTRY_RPC_URL` documented with samourai.live convention
+- `docker-compose.yml`: `VITE_SAMOURAI_SENTRY_RPC_URL` forwarded as frontend build arg
+
+### Deleted Files
+
+- `frontend/src/components/validators/HackerModeToggle.tsx` (replaced by Link button)
+
 ### Tests
 
-- **756 unit tests** (35 files, ±0 regressions), `tsc --noEmit` 0 errors
+- **771 unit tests** (35 files, +15 new: formatRelativeTime, BlockSample, samourai.live domain trust, getTelemetryRpcUrl fallback)
+- `tsc --noEmit` 0 errors
 
 ---
 

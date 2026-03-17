@@ -134,8 +134,11 @@ Review findings feed into the **next version's RFC** as action items.
 | Per-validator block signature history (fetchLastBlockSignatures) | ✅ | validators.ts |
 | NodeStatus type + getNodeStatus() fetcher | ✅ | validators.ts |
 | getNetworkStats: AbortSignal third parameter (critical bug fix) | ✅ | validators.ts |
-| CHANGELOG + docs/ARCHITECTURE.md update | ✅ | docs |
-| 15-perspective cross audit | ✅ | see hacker_audit_v2.md |
+| `fetchBlockHeatmap` chunked batching (10/batch, prevent rate limiting) | ✅ | validators.ts |
+| CSP `connect-src` + TRUSTED_RPC_DOMAINS: `*.samourai.live` | ✅ | index.html, netlify.toml, config.ts |
+| Dead code removal (`HackerModeToggle.tsx` + orphaned CSS) | ✅ | 2 files |
+| 22-perspective deep audit (all findings fixed) | ✅ | see final_audit.md |
+| README + .env.example + docker-compose updates | ✅ | docs |
 
 **Acceptance criteria:**
 - `/validators/hacker` loads with live H/R/S, peers, heatmap, node state
@@ -145,7 +148,7 @@ Review findings feed into the **next version's RFC** as action items.
 - All RPCs fail gracefully (no crashes, show `—`/`"unknown"`)
 - `tsc --noEmit` 0 errors — **✅ PASSED**
 
-**Test gate:** 756 unit tests (35 files), 0 regressions — **✅ PASSED**
+**Test gate:** 771 unit tests (35 files), +15 new — **✅ PASSED**
 
 ---
 
