@@ -47,6 +47,7 @@ export function ProposalView() {
     const [myUsername, setMyUsername] = useState<string | null>(null)
     const [memberCount, setMemberCount] = useState(0)
     const [thresholdPct, setThresholdPct] = useState(60)
+    const [memberstorePath, setMemberstorePath] = useState("")
 
 
     const proposalId = parseInt(id || "", 10)
@@ -62,12 +63,6 @@ export function ProposalView() {
             ])
             setProposal(p)
             setVoteRecords(votes)
-
-            // Check archive status (nonblocking)
-            getDAOConfig(GNO_RPC_URL, realmPath).then((cfg) => {
-                if (cfg?.isArchived) setIsArchived(true)
-            }).catch(() => { /* ignore */ })
-
         } catch (err) {
             if (!silent) {
                 setError(err instanceof Error ? err.message : "Failed to load proposal")
@@ -92,26 +87,35 @@ export function ProposalView() {
         return () => { if (pollRef.current) clearInterval(pollRef.current) }
     }, [proposal?.status, loadProposal])
 
+    // Load DAO config (memberCount, threshold, archive) independently of wallet connection.
+    // This ensures Voting Insights always has correct totalMembers — even for non-connected users.
+    useEffect(() => {
+        if (!realmPath) return
+        getDAOConfig(GNO_RPC_URL, realmPath)
+            .then((cfg) => {
+                if (!cfg) return
+                setIsArchived(cfg.isArchived)
+                setMemberCount(cfg.memberCount)
+                setMemberstorePath(cfg.memberstorePath || "")
+                // Parse threshold: "60%" → 60
+                const thr = parseInt(cfg.threshold || "60", 10)
+                if (!isNaN(thr) && thr > 0) setThresholdPct(thr)
+            })
+            .catch(() => { /* non-blocking */ })
+    }, [realmPath])
+
     // Check if connected wallet is a DAO member
     // Must pass memberstorePath for tier-based DAOs like GovDAO (fix: #v5.6.0)
     useEffect(() => {
         if (!adena.address || !realmPath) { setIsMember(null); return }
-        getDAOConfig(GNO_RPC_URL, realmPath)
-            .then((cfg) => {
-                setIsArchived(cfg?.isArchived || false)
-                setMemberCount(cfg?.memberCount || 0)
-                // Parse threshold: "60%" → 60
-                const thr = parseInt(cfg?.threshold || "60", 10)
-                if (!isNaN(thr) && thr > 0) setThresholdPct(thr)
-                return getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
-            })
+        getDAOMembers(GNO_RPC_URL, realmPath, memberstorePath || undefined)
             .then((members) => {
                 const found = members.some((m) => m.address === adena.address)
                 setIsMember(found)
                 if (members.length > 0 && memberCount === 0) setMemberCount(members.length)
             })
             .catch(() => setIsMember(null)) // on error, don't block — let user try
-    }, [adena.address, realmPath, memberCount])
+    }, [adena.address, realmPath, memberstorePath, memberCount])
 
     // Resolve user's @username for hasVoted matching
     useEffect(() => {
