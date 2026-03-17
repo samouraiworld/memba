@@ -212,7 +212,6 @@ export default function ValidatorsHacker() {
                 <PeerTable
                     netInfo={netInfo}
                     loading={loading}
-                    validators={cs ? { valsetSize: cs.valsetSize } : undefined}
                 />
 
                 {/* Row 4: Doctor (full width) */}
