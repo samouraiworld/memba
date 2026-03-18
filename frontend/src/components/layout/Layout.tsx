@@ -13,10 +13,7 @@ import { MobileTabBar } from "./MobileTabBar"
 import { CommandPalette } from "../ui/CommandPalette"
 import { JitsiProvider } from "../../contexts/JitsiContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
-import { WhatsNewToast, initWhatsNewKey } from "../ui/WhatsNewToast"
-
-// Seed the "what's new" key for first-time visitors (so toast only shows on version bumps)
-initWhatsNewKey()
+import { WhatsNewToast } from "../ui/WhatsNewToast"
 
 
 // Must exactly match backend auth.ClientMagic constant.

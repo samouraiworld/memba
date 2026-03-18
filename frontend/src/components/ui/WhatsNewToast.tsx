@@ -34,14 +34,18 @@ function dismiss(): void {
     } catch { /* quota */ }
 }
 
-/** Initialize the storage key for first-time visitors (called from Layout on mount). */
-export function initWhatsNewKey(): void {
+/** Initialize the storage key for first-time visitors so the toast only shows on version bumps.
+ *  This runs at module load time — safe because Layout imports this module eagerly. */
+function initWhatsNewKey(): void {
     try {
         if (localStorage.getItem(STORAGE_KEY) === null) {
             localStorage.setItem(STORAGE_KEY, APP_VERSION)
         }
     } catch { /* SSR */ }
 }
+
+// Seed on module load
+initWhatsNewKey()
 
 export function WhatsNewToast() {
     const navigate = useNavigate()
