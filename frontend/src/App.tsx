@@ -69,6 +69,9 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 // ── Feedback page (lazy — v2.10) ──
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 
+// ── Changelogs page (lazy — v2.14) ──
+const Changelogs = lazy(() => import("./pages/Changelogs"))
+
 /** Route-level loading fallback — unified Memba logo loader (v2.10). */
 function PageLoader() {
   return <ConnectingLoader message="Loading..." minHeight="30vh" />
@@ -151,6 +154,9 @@ function App() {
 
           {/* Feedback (v2.10) */}
           <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
+
+          {/* Changelogs (v2.14) */}
+          <Route path="/changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

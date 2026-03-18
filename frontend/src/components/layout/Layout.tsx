@@ -13,6 +13,10 @@ import { MobileTabBar } from "./MobileTabBar"
 import { CommandPalette } from "../ui/CommandPalette"
 import { JitsiProvider } from "../../contexts/JitsiContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
+import { WhatsNewToast, initWhatsNewKey } from "../ui/WhatsNewToast"
+
+// Seed the "what's new" key for first-time visitors (so toast only shows on version bumps)
+initWhatsNewKey()
 
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -259,6 +263,9 @@ export function Layout() {
 
                 {/* ── Jitsi PiP Overlay (v2.11 — persists across routes) ── */}
                 <JitsiPiPOverlay />
+
+                {/* ── What's New Toast (v2.14 — shown once per version to returning users) ── */}
+                <WhatsNewToast />
             </div>
         </JitsiProvider>
     )
