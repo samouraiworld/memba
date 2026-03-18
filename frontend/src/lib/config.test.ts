@@ -3,12 +3,14 @@ import {
     APP_VERSION,
     UGNOT_PER_GNOT,
     NETWORKS,
+    DEFAULT_NETWORK,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
     TRUSTED_RPC_DOMAINS,
     getTelemetryRpcUrl,
     GNO_RPC_URL,
+    getUserRegistryPath,
 } from './config'
 
 describe('config constants', () => {
@@ -20,11 +22,34 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has all 4 chain options (test11, staging, portal-loop, betanet)', () => {
+    it('NETWORKS has all 5 chain options', () => {
+        expect(Object.keys(NETWORKS)).toContain('test12')
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
         expect(Object.keys(NETWORKS)).toContain('betanet')
+    })
+
+    it('test12 has correct chain config', () => {
+        const t12 = NETWORKS.test12
+        expect(t12.chainId).toBe('test12')
+        expect(t12.rpcUrl).toBe('https://rpc.test12.gno.land:443')
+        expect(t12.userRegistryPath).toBe('gno.land/r/sys/users')
+        expect(t12.faucetUrl).toBe('https://faucet.gno.land')
+    })
+
+    it('test12 and betanet use r/sys/users registry', () => {
+        expect(NETWORKS.test12.userRegistryPath).toBe('gno.land/r/sys/users')
+        expect(NETWORKS.betanet.userRegistryPath).toBe('gno.land/r/sys/users')
+    })
+
+    it('DEFAULT_NETWORK is test12', () => {
+        expect(DEFAULT_NETWORK).toBe('test12')
+    })
+
+    it('getUserRegistryPath returns r/sys/users for test12', () => {
+        // Default active network is test12, so getUserRegistryPath should return r/sys/users
+        expect(getUserRegistryPath()).toBe('gno.land/r/sys/users')
     })
 
     it('each network has required fields', () => {
@@ -48,6 +73,7 @@ describe('config constants', () => {
 describe('isTrustedRpcDomain', () => {
     it('trusts official gno.land RPC URLs', () => {
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.test12.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land')).toBe(true)
     })

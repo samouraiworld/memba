@@ -32,10 +32,17 @@ export const API_BASE_URL =
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string; faucetUrl: string }> = {
+    test12: {
+        chainId: "test12",
+        rpcUrl: "https://rpc.test12.gno.land:443",
+        label: "Testnet 12",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "https://faucet.gno.land",
+    },
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
-        label: "Testnet 11",
+        label: "Testnet 11 (Legacy)",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "https://faucet.gno.land",
     },
@@ -63,12 +70,20 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
 }
 
 /** Default network key. */
-export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test11"
+export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test12"
 
-/** Resolve active network from localStorage or env. */
+/** Resolve active network from localStorage or env.
+ *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
+ *  useNetwork.ts MUST call window.location.reload() on network switch to re-initialize.
+ */
 function getActiveNetworkKey(): string {
     try {
         const stored = localStorage.getItem("memba_network")
+        // Auto-migrate: test11 is being shut down → redirect to test12
+        if (stored === "test11") {
+            localStorage.setItem("memba_network", "test12")
+            return "test12"
+        }
         if (stored && NETWORKS[stored]) return stored
     } catch { /* SSR or missing localStorage */ }
     return DEFAULT_NETWORK
@@ -78,22 +93,22 @@ const _activeNetwork = getActiveNetworkKey()
 
 /**
  * Returns the user registry realm path for the active network.
- * On existing chains this is `gno.land/r/gnoland/users/v1`.
- * On betanet/mainnet this will be `gno.land/r/sys/users` (upstream migration).
+ * On legacy chains (test11) this is `gno.land/r/gnoland/users/v1`.
+ * On test12+/betanet this is `gno.land/r/sys/users` (upstream migration).
  */
 export function getUserRegistryPath(): string {
-    return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/gnoland/users/v1"
+    return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/sys/users"
 }
 
 
 /** Gno chain ID for all RPC calls. */
-export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test11"
+export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
 
 /**
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test11.testnets.gno.land:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test12.gno.land:443"
 
 /**
  * Samourai Sentry RPC URL (Dual-RPC Strategy).
@@ -130,11 +145,12 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
-    const chain = NETWORKS[_activeNetwork]?.chainId || "test11"
+    const chain = NETWORKS[_activeNetwork]?.chainId || "test12"
     switch (chain) {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
         case "betanet": return "https://betanet.gno.land"
+        case "test12": return "https://test12.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
 }
@@ -187,6 +203,8 @@ export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     },
     staging: { pool: "", router: "", position: "", gns: "" },
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
+    test12: { pool: "", router: "", position: "", gns: "" },
+    betanet: { pool: "", router: "", position: "", gns: "" },
 }
 
 /** Get GnoSwap paths for the active chain. Returns null if not deployed. */
@@ -200,21 +218,21 @@ export function getGnoSwapPaths(): GnoSwapPaths | null {
 
 /**
  * Trusted RPC domain patterns. Only these domains are considered safe.
- * A malicious RPC with a valid chain ID (e.g. https://test11.evil.com)
+ * A malicious RPC with a valid chain ID (e.g. https://test12.evil.com)
  * would pass chain ID checks but could intercept/manipulate queries.
  *
  * Samourai Coop sentry nodes are included as trusted for Hacker View telemetry.
- * Add testnet12 sentry domain here once specs are confirmed.
  */
 export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land",
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
+    "rpc.test12.gno.land",
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live
     //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)
-    //   - testnet12: https://rpc.testnet12.samourai.live (coming soon)
+    //   - testnet12: https://rpc.testnet12.samourai.live (live)
     "samourai.live",
     "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
     "gnoland1.io",    // gnoland1 betanet official
@@ -260,7 +278,7 @@ export function validateActiveRpcDomain(): string | null {
 /** GRC20 factory realm path (shared with grc20.ts). */
 export const GRC20_FACTORY_PATH = "gno.land/r/demo/defi/grc20factory"
 
-/** Memba token config for development (test11). */
+/** Memba token config for development (test12). */
 export const MEMBA_TOKEN_DEV = {
     symbol: "MEMBATEST",
     name: "Memba Governance Token (Testnet)",

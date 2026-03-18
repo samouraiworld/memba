@@ -10,7 +10,7 @@
 
 import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
-import { GNO_RPC_URL } from "./config"
+import { GNO_RPC_URL, getUserRegistryPath } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -508,7 +508,7 @@ export interface DirectoryRealm {
 /** Well-known realms deployed on gno.land. */
 export const SEED_REALMS: DirectoryRealm[] = [
     { name: "GRC20 Registry", path: "gno.land/r/demo/grc20reg", description: "Token registry — lists all GRC20 tokens", category: "standard" },
-    { name: "Users v1", path: "gno.land/r/gnoland/users/v1", description: "On-chain username registry", category: "standard" },
+    { name: "User Registry", path: getUserRegistryPath(), description: "On-chain username registry", category: "standard" },
     { name: "GnoSwap", path: "gno.land/r/gnoswap/v1/router", description: "Decentralized token exchange", category: "defi" },
     { name: "GRC20 Factory", path: "gno.land/r/demo/defi/grc20factory", description: "Deploy new GRC20 tokens", category: "defi" },
     { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },

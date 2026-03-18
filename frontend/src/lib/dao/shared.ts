@@ -166,8 +166,11 @@ async function resolveUsername(rpcUrl: string, address: string): Promise<string>
     try {
         const data = await queryRender(rpcUrl, USER_REGISTRY, address)
         if (!data) return ""
-        // Parse: "# User - `username`"
+        // Primary format (r/gnoland/users/v1): "# User - `username`"
+        // Secondary format (r/sys/users): may differ — try fallback patterns
         const m = data.match(/# User - `([^`]+)`/)
+            || data.match(/\*\s+\[([^\]]+)\]\(/)           // " * [username](link)" list format
+            || data.match(/username:\s*([a-zA-Z0-9_]+)/)   // structured fallback
         return m ? `@${m[1]}` : ""
     } catch {
         return ""

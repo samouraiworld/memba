@@ -188,7 +188,11 @@ export async function resolveOnChainUsername(address: string): Promise<string> {
         const binaryStr = atob(value)
         const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
         const data = new TextDecoder().decode(bytes)
+        // Primary format (r/gnoland/users/v1): "# User - `username`"
+        // Secondary format (r/sys/users): may differ — try fallback patterns
         const m = data.match(/# User - `([^`]+)`/)
+            || data.match(/\*\s+\[([^\]]+)\]\(/)           // " * [username](link)" list format
+            || data.match(/username:\s*([a-zA-Z0-9_]+)/)   // structured fallback
         return m ? `@${m[1]}` : ""
     } catch {
         return ""
