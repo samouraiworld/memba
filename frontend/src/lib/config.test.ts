@@ -33,7 +33,7 @@ describe('config constants', () => {
     it('test12 has correct chain config', () => {
         const t12 = NETWORKS.test12
         expect(t12.chainId).toBe('test12')
-        expect(t12.rpcUrl).toBe('https://rpc.test12.gno.land:443')
+        expect(t12.rpcUrl).toBe('https://rpc.testnet12.samourai.live:443')
         expect(t12.userRegistryPath).toBe('gno.land/r/sys/users')
         expect(t12.faucetUrl).toBe('https://faucet.gno.land')
     })

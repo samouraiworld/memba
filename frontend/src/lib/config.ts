@@ -34,7 +34,7 @@ export const API_BASE_URL =
 export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string; faucetUrl: string }> = {
     test12: {
         chainId: "test12",
-        rpcUrl: "https://rpc.test12.gno.land:443",
+        rpcUrl: "https://rpc.testnet12.samourai.live:443",
         label: "Testnet 12",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
@@ -108,7 +108,7 @@ export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test12.gno.land:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.testnet12.samourai.live:443"
 
 /**
  * Samourai Sentry RPC URL (Dual-RPC Strategy).
