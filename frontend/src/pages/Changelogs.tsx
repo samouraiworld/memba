@@ -26,6 +26,19 @@ interface ChangelogEntry {
 
 const ENTRIES: ChangelogEntry[] = [
     {
+        date: "2026-03-19",
+        version: "v2.15.0",
+        title: "Gnoland1 + Smooth Network Switching",
+        tags: ["memba"],
+        items: [
+            "Gnoland1 (Betanet) network now available in the dropdown — `rpc.gnoland1.samourai.live`",
+            "Adena AddNetwork + SwitchNetwork integration: one-click wallet network switching",
+            "Chain mismatch banner now offers 'Add & Switch Wallet' button",
+            "Success toast on network switch",
+            "What's New toast updated with gnoland1 info",
+        ],
+    },
+    {
         date: "2026-03-18",
         version: "v2.14.0",
         title: "Testnet 12 Compatibility",

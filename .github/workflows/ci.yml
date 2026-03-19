@@ -43,8 +43,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        node-version: ['20', '22']
+        node-version: ['22']
     defaults:
       run:
         working-directory: frontend

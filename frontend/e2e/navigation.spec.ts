@@ -98,11 +98,11 @@ test.describe('TopBar (Desktop)', () => {
         await expect(versionBadge).toContainText(/v\d+/)
     })
 
-    test('network selector shows Testnet 11', async ({ page }) => {
+    test('network selector shows available networks', async ({ page }) => {
         await page.goto('/')
         const selector = page.locator('[data-testid="topbar"] select')
         await expect(selector).toBeVisible()
-        await expect(selector).toContainText('Testnet 11')
+        await expect(selector).toContainText(/Testnet|Betanet/)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {

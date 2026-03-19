@@ -106,7 +106,7 @@
 - 🔒 **Content Security Policy** — CSP meta tag restricting script/style/connect/frame origins
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
-- 🌐 Network selector (test11 ↔ test12 ↔ staging ↔ portal-loop ↔ betanet ↔ gnoland1) with chain mismatch detection
+- 🌐 Network selector (test12 ↔ test11 ↔ staging ↔ portal-loop ↔ gnoland1) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
 - ⚡ Code splitting (450KB main, 129KB gzip, lazy-loaded DAO/token/directory/channel chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
@@ -188,10 +188,11 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| test11 | `https://rpc.test11.testnets.gno.land:443` | `test11` |
+| test12 ⭐ | `https://rpc.testnet12.samourai.live:443` | `test12` |
+| test11 (legacy) | `https://rpc.test11.testnets.gno.land:443` | `test11` |
 | portal-loop | `https://rpc.gno.land:443` | `portal-loop` |
 | staging | `https://rpc.gno.land:443` | `staging` |
-| betanet | `https://rpc.betanet.gno.land:443` | `betanet` |
+| gnoland1 (Betanet) | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
 
 ## Target Multisig
 

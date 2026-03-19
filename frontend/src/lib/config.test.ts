@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import pkg from '../../package.json'
 import {
     APP_VERSION,
     UGNOT_PER_GNOT,
@@ -15,7 +16,7 @@ import {
 
 describe('config constants', () => {
     it('APP_VERSION matches package.json', () => {
-        expect(APP_VERSION).toBe('2.13.0')
+        expect(APP_VERSION).toBe(pkg.version)
     })
 
     it('UGNOT_PER_GNOT is 1 million', () => {
@@ -27,7 +28,7 @@ describe('config constants', () => {
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
-        expect(Object.keys(NETWORKS)).toContain('betanet')
+        expect(Object.keys(NETWORKS)).toContain('gnoland1')
     })
 
     it('test12 has correct chain config', () => {
@@ -38,9 +39,17 @@ describe('config constants', () => {
         expect(t12.faucetUrl).toBe('https://faucet.gno.land')
     })
 
-    it('test12 and betanet use r/sys/users registry', () => {
+    it('test12 and gnoland1 use r/sys/users registry', () => {
         expect(NETWORKS.test12.userRegistryPath).toBe('gno.land/r/sys/users')
-        expect(NETWORKS.betanet.userRegistryPath).toBe('gno.land/r/sys/users')
+        expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
+    })
+
+    it('gnoland1 has correct chain config', () => {
+        const g1 = NETWORKS.gnoland1
+        expect(g1.chainId).toBe('gnoland1')
+        expect(g1.rpcUrl).toBe('https://rpc.gnoland1.samourai.live:443')
+        expect(g1.label).toBe('Betanet (gnoland1)')
+        expect(g1.faucetUrl).toBe('')
     })
 
     it('DEFAULT_NETWORK is test12', () => {

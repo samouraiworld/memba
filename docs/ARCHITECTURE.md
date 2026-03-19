@@ -37,7 +37,7 @@
 │                     Blockchain Layer              │              │
 │                                                   ▼              │
 │   ┌──────────────────────────────────────────────────────────┐   │
-│   │                Gno Chain (test11)                        │   │
+│   │                Gno Chain (multi-network)                    │   │
 │   │   ABCI queries • TX broadcast • Bank balances            │   │
 │   └──────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────┘
@@ -51,7 +51,7 @@
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
-| **Chain** | Gno test11 | Account state, tx broadcast, balance queries |
+| **Chain** | Gno (test12 / betanet / gnoland1) | Account state, tx broadcast, balance queries |
 
 ## Backend Packages
 
@@ -242,7 +242,7 @@ These features **require** the Go backend for off-chain coordination:
 ```
 ┌─────────────┐     JSON-RPC POST      ┌──────────────────────┐
 │   Frontend   │ ──────────────────────► │  gno.land RPC        │
-│   lib/dao.ts │                         │  (test11 / mainnet)  │
+│   lib/dao.ts │                         │  (test12 / gnoland1) │
 │              │ ◄────────────────────── │                      │
 │  queryRender │     base64 response     │  vm/qrender          │
 │  queryEval   │                         │  vm/qeval             │

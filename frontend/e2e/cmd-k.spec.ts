@@ -81,7 +81,7 @@ test.describe('Command Palette', () => {
         await expect(palette).toBeVisible({ timeout: 5_000 })
 
         await page.keyboard.press('Escape')
-        await expect(palette).not.toBeVisible()
+        await expect(palette).not.toBeVisible({ timeout: 3_000 })
     })
 
     test('clicking overlay closes the palette', async ({ page }) => {

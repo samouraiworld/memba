@@ -139,8 +139,8 @@ export function WhatsNewToast() {
                     />
                     <NetworkItem
                         color="#8b5cf6"
-                        title="Betanet — Stable & persistent"
-                        desc="Production-grade DAOs. Deploy with care."
+                        title="Betanet (gnoland1) — Now available"
+                        desc="First persistent chain. Select it in the network dropdown."
                     />
                     <NetworkItem
                         color="#555"
