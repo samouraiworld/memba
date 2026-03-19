@@ -2,6 +2,27 @@
 
 All notable changes to Memba are documented here.
 
+## v2.16.0 (2026-03-19) — Test11 Re-activation & gRPC Security Update 🔐
+
+> PR [#128](https://github.com/samouraiworld/memba/pull/128)
+
+### Security
+
+- **gRPC dependency update** — `google.golang.org/grpc` v1.75.0 → v1.79.3 (4 minor releases of security + stability patches)
+- **OpenTelemetry update** — otel v1.37 → v1.39, SDK + metrics + trace aligned
+
+### Changed
+
+- **Backend chain switch** — `fly.toml` now targets test12 (`rpc.testnet12.samourai.live`) instead of test11
+- **Test11 re-activated in frontend** — restored in NETWORKS config after 40-validator relaunch
+- **Forward-compatible monitoring** — `?chain=` param on all monitoring API calls (prepares for multi-chain gnomonitoring)
+
+### Tests
+
+- All 776 tests passing (35 files)
+
+---
+
 ## v2.15.0 (2026-03-19) — Gnoland1 Support & Smooth Network Switching 🌐
 
 > Branch: `feat/gnoland1-smooth-switching`
