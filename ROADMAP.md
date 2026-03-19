@@ -29,6 +29,24 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v2.15.0 — Gnoland1 Support & Smooth Network Switching ✅ SHIPPED (2026-03-19)
+
+> Branch: `feat/gnoland1-smooth-switching`
+
+| Feature | Status | Files | Tests |
+|---------|--------|-------|-------|
+| Gnoland1 network in NETWORKS + explorer + GnoSwap | ✅ | 1 | +4 |
+| Adena AddNetwork + SwitchNetwork integration | ✅ | 1 | — |
+| ChainMismatchBanner with "Add & Switch" button | ✅ | 1 | — |
+| Layout success toast + wiring | ✅ | 1 | — |
+| WhatsNewToast gnoland1 update | ✅ | 1 | — |
+| Changelogs.tsx v2.15.0 entry | ✅ | 1 | — |
+| ARCHITECTURE.md + README.md + .env.example | ✅ | 3 | — |
+
+**Total: 776+ tests (35 files). Zero lint/TS/build errors.**
+
+---
+
 ## v2.1a — Community Foundation ✅ COMPLETE (2026-03-07)
 
 > Discord-like channels, $MEMBA token, candidature flow, IPFS avatars, MembaDAO bootstrap.

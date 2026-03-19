@@ -305,6 +305,58 @@ export function useAdena() {
         [state.connected]
     );
 
+    /** Add a network to Adena wallet. Opens a confirmation popup.
+     *  Params match Adena's AddNetworkParams: { chainId, chainName, rpcUrl }.
+     *  Returns true on success (including "already added"), false on rejection/error. */
+    const addNetwork = useCallback(
+        async (params: { chainId: string; chainName: string; rpcUrl: string }): Promise<boolean> => {
+            const adena = getAdena();
+            if (!adena || typeof adena.AddNetwork !== "function") {
+                console.warn("[Memba] Adena.AddNetwork not available");
+                return false;
+            }
+            try {
+                const res = await adena.AddNetwork(params);
+                // Adena returns status:"success" or status:"failure"
+                return res.status !== "failure";
+            } catch (err) {
+                console.error("[Memba] AddNetwork error:", err);
+                return false;
+            }
+        },
+        [],
+    );
+
+    /** Switch Adena wallet to a specific chain.
+     *  Handles REDUNDANT_CHANGE_REQUEST (already on chain) as success.
+     *  Handles UNADDED_NETWORK by calling addNetwork() first, then retrying.
+     *  Returns true on success, false on failure. */
+    const switchWalletNetwork = useCallback(
+        async (chainId: string, chainName?: string, rpcUrl?: string): Promise<boolean> => {
+            const adena = getAdena();
+            if (!adena || typeof adena.SwitchNetwork !== "function") {
+                console.warn("[Memba] Adena.SwitchNetwork not available");
+                return false;
+            }
+            try {
+                const res = await adena.SwitchNetwork(chainId);
+                if (res.status !== "failure") return true;
+                // UNADDED_NETWORK: try adding the network first, then switch again
+                if (res.type === "UNADDED_NETWORK" && chainName && rpcUrl) {
+                    const added = await addNetwork({ chainId, chainName, rpcUrl });
+                    if (!added) return false;
+                    const retry = await adena.SwitchNetwork(chainId);
+                    return retry.status !== "failure";
+                }
+                return false;
+            } catch (err) {
+                console.error("[Memba] SwitchNetwork error:", err);
+                return false;
+            }
+        },
+        [addNetwork],
+    );
+
     const disconnect = useCallback(() => {
         clearConnected();
         setWalletRpcContext(null, false);
@@ -363,5 +415,7 @@ export function useAdena() {
         connect,
         disconnect,
         signArbitrary,
+        addNetwork,
+        switchWalletNetwork,
     };
 }

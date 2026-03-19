@@ -2,6 +2,43 @@
 
 All notable changes to Memba are documented here.
 
+## v2.15.0 (2026-03-19) — Gnoland1 Support & Smooth Network Switching 🌐
+
+> Branch: `feat/gnoland1-smooth-switching`
+
+### Added
+
+- **🌐 Gnoland1 (Betanet) Network** — added to NETWORKS config with Samourai sentry RPC (`rpc.gnoland1.samourai.live`)
+  - Explorer URL: `https://betanet.gno.land`
+  - User registry: `gno.land/r/sys/users`
+  - GnoSwap paths: empty (not deployed on gnoland1)
+  - Added to `getExplorerBaseUrl()`, `GNOSWAP_PATHS`, and trusted domain tests
+
+- **🔄 Adena Smooth Network Switching** — `useAdena.ts` now exposes `addNetwork()` and `switchWalletNetwork()`
+  - `addNetwork({ chainId, chainName, rpcUrl })` — programmatically adds a chain to Adena (opens confirmation popup)
+  - `switchWalletNetwork(chainId, chainName?, rpcUrl?)` — switches wallet to target chain, auto-adds if `UNADDED_NETWORK`
+  - `ChainMismatchBanner` component extracted from TopBar — smart resolution:
+    - Known chain → "Switch Memba to {chain}" button
+    - Unknown chain + Adena available → "Add & Switch Wallet to {chain}" button (with spinner + disabled state)
+    - Fallback → manual instructions
+
+- **🔔 Network Switch Success Toast** — teal toast in Layout for successful wallet switches (3s auto-dismiss)
+- **📣 WhatsNewToast updated** — Betanet entry now reads "Betanet (gnoland1) — Now available"
+
+### Changed
+
+- `ARCHITECTURE.md` — replaced test11 references with multi-network
+- `README.md` — chain table updated to 6 networks (test12 default, gnoland1 added)
+- `.env.example` — added gnoland1 sentry RPC example
+- `Changelogs.tsx` — added v2.15.0 entry
+
+### Tests
+
+- `config.test.ts` — 4 new assertions: gnoland1 in NETWORKS, correct config, trusted domain, r/sys/users registry
+- All 776+ tests passing (35 files)
+
+---
+
 ## v2.14.0-alpha (2026-03-17) — Hacker View & Validator Detail Pages 🕵️‍♂️
 
 > Branch: `feat/validators-hacker-mode` — in progress, targeting testnet12

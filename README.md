@@ -188,10 +188,12 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| test11 | `https://rpc.test11.testnets.gno.land:443` | `test11` |
+| test12 ⭐ | `https://rpc.testnet12.samourai.live:443` | `test12` |
+| test11 (legacy) | `https://rpc.test11.testnets.gno.land:443` | `test11` |
 | portal-loop | `https://rpc.gno.land:443` | `portal-loop` |
 | staging | `https://rpc.gno.land:443` | `staging` |
 | betanet | `https://rpc.betanet.gno.land:443` | `betanet` |
+| gnoland1 | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
 
 ## Target Multisig
 

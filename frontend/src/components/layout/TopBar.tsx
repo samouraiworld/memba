@@ -1,5 +1,5 @@
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { NETWORKS, validateActiveRpcDomain } from "../../lib/config"
+import { validateActiveRpcDomain } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
 
@@ -25,7 +25,7 @@ interface TopBarProps {
     network: {
         networkKey: string
         chainId: string
-        networks: Record<string, { label: string }>
+        networks: Record<string, { label: string; chainId: string; rpcUrl: string }>
         switchNetwork: (key: string) => void
     }
     isLoggingIn: boolean
@@ -38,10 +38,14 @@ interface TopBarProps {
         markRead: (id: string) => void
         markAllRead: () => void
     }
+    /** Programmatically add + switch Adena wallet to a network. */
+    addAndSwitchWalletNetwork?: (chainId: string, chainName: string, rpcUrl: string) => Promise<boolean>
+    /** Callback when wallet network switch succeeds. */
+    onWalletSwitchSuccess?: (chainName: string) => void
 }
 
 // ── TopBar Component ───────────────────────────────────────────────────
-export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications }: TopBarProps) {
+export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess }: TopBarProps) {
     return (
         <>
             <header className="k-topbar" role="banner" data-testid="topbar">
@@ -171,30 +175,14 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
 
             {/* ── Chain mismatch warning ─────────────────────────── */}
             {adena.connected && adena.chainId && network.chainId !== adena.chainId && (
-                <div style={{
-                    background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
-                    padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
-                }}>
-                    <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        ⚠ Network mismatch — wallet is on <strong>{adena.chainId}</strong>, Memba is on <strong>{network.chainId}</strong>
-                    </span>
-                    {NETWORKS[adena.chainId] ? (
-                        <button
-                            onClick={() => network.switchNetwork(adena.chainId)}
-                            style={{
-                                background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
-                                color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                            }}
-                        >
-                            Switch Memba to {adena.chainId}
-                        </button>
-                    ) : (
-                        <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
-                            Switch your wallet to {network.chainId} in Adena
-                        </span>
-                    )}
-                </div>
+                <ChainMismatchBanner
+                    walletChainId={adena.chainId}
+                    membaChainId={network.chainId}
+                    networks={network.networks}
+                    switchMembaNetwork={network.switchNetwork}
+                    addAndSwitchWallet={addAndSwitchWalletNetwork}
+                    onSwitchSuccess={onWalletSwitchSuccess}
+                />
             )}
 
             {/* ── Untrusted wallet RPC warning ──────────────────── */}
@@ -245,5 +233,84 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 )
             })()}
         </>
+    )
+}
+
+// ── Chain Mismatch Banner ─────────────────────────────────────────────
+import { useState } from "react"
+
+function ChainMismatchBanner({
+    walletChainId,
+    membaChainId,
+    networks,
+    switchMembaNetwork,
+    addAndSwitchWallet,
+    onSwitchSuccess,
+}: {
+    walletChainId: string
+    membaChainId: string
+    networks: Record<string, { label: string; chainId: string; rpcUrl: string }>
+    switchMembaNetwork: (key: string) => void
+    addAndSwitchWallet?: (chainId: string, chainName: string, rpcUrl: string) => Promise<boolean>
+    onSwitchSuccess?: (chainName: string) => void
+}) {
+    const [switching, setSwitching] = useState(false)
+
+    const walletInMemba = !!networks[walletChainId]
+    const membaNet = networks[Object.keys(networks).find(k => networks[k].chainId === membaChainId) || ""]
+
+    const handleAddAndSwitch = async () => {
+        if (!addAndSwitchWallet || !membaNet || switching) return
+        setSwitching(true)
+        try {
+            const ok = await addAndSwitchWallet(membaNet.chainId, membaNet.label, membaNet.rpcUrl)
+            if (ok) onSwitchSuccess?.(membaNet.label)
+        } finally {
+            setSwitching(false)
+        }
+    }
+
+    return (
+        <div style={{
+            background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
+            padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
+        }}>
+            <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                ⚠ Network mismatch — wallet is on <strong>{walletChainId}</strong>, Memba is on <strong>{membaChainId}</strong>
+            </span>
+            {walletInMemba ? (
+                <button
+                    onClick={() => switchMembaNetwork(walletChainId)}
+                    style={{
+                        background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
+                        color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                        padding: "3px 10px", borderRadius: 4, cursor: "pointer",
+                    }}
+                >
+                    Switch Memba to {walletChainId}
+                </button>
+            ) : addAndSwitchWallet && membaNet ? (
+                <button
+                    onClick={handleAddAndSwitch}
+                    disabled={switching}
+                    aria-busy={switching}
+                    style={{
+                        background: switching ? "rgba(245,166,35,0.06)" : "rgba(0,212,170,0.12)",
+                        border: `1px solid ${switching ? "rgba(245,166,35,0.2)" : "rgba(0,212,170,0.3)"}`,
+                        color: switching ? "#f5a623" : "#00d4aa",
+                        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                        padding: "3px 10px", borderRadius: 4,
+                        cursor: switching ? "wait" : "pointer",
+                        opacity: switching ? 0.7 : 1,
+                    }}
+                >
+                    {switching ? "Switching…" : `Add & Switch Wallet to ${membaChainId}`}
+                </button>
+            ) : (
+                <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                    Switch your wallet to {membaChainId} in Adena
+                </span>
+            )}
+        </div>
     )
 }

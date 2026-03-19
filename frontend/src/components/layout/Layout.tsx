@@ -35,6 +35,7 @@ export function Layout() {
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
+    const [walletSwitchMsg, setWalletSwitchMsg] = useState<string | null>(null)
     const loginAttemptedRef = useRef(false)
 
     // ── Sidebar collapse state (persisted to localStorage) ──
@@ -199,6 +200,13 @@ export function Layout() {
                         onDisconnect={handleDisconnect}
                         onClearError={() => setAuthError(null)}
                         notifications={notifs}
+                        addAndSwitchWalletNetwork={async (chainId, chainName, rpcUrl) => {
+                            return adena.switchWalletNetwork(chainId, chainName, rpcUrl)
+                        }}
+                        onWalletSwitchSuccess={(chainName) => {
+                            setWalletSwitchMsg(`✅ Wallet switched to ${chainName}`)
+                            setTimeout(() => setWalletSwitchMsg(null), 3000)
+                        }}
                     />
 
                     {/* ── Main ─────────────────────────────────────── */}
@@ -263,6 +271,28 @@ export function Layout() {
 
                 {/* ── What's New Toast (v2.14 — shown once per version to returning users) ── */}
                 <WhatsNewToast />
+
+                {/* ── Network switch success toast ── */}
+                {walletSwitchMsg && (
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        style={{
+                            position: "fixed",
+                            top: 80, right: 24, zIndex: 1000,
+                            padding: "10px 18px", borderRadius: 10,
+                            background: "rgba(0,212,170,0.12)",
+                            border: "1px solid rgba(0,212,170,0.25)",
+                            color: "#00d4aa", fontSize: 12,
+                            fontFamily: "JetBrains Mono, monospace",
+                            fontWeight: 600,
+                            backdropFilter: "blur(4px)",
+                            animation: "membaToastIn 300ms ease-out",
+                        }}
+                    >
+                        {walletSwitchMsg}
+                    </div>
+                )}
             </div>
         </JitsiProvider>
     )

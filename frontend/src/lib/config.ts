@@ -67,6 +67,14 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
     },
+    gnoland1: {
+        chainId: "gnoland1",
+        rpcUrl: "https://rpc.gnoland1.samourai.live:443",
+        label: "Betanet (gnoland1)",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "",
+        // Official RPC (currently down): https://rpc.betanet.testnets.gno.land:443
+    },
 }
 
 /** Default network key. */
@@ -150,6 +158,7 @@ export function getExplorerBaseUrl(): string {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
         case "betanet": return "https://betanet.gno.land"
+        case "gnoland1": return "https://betanet.gno.land"
         case "test12": return "https://test12.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
@@ -205,6 +214,7 @@ export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
     test12: { pool: "", router: "", position: "", gns: "" },
     betanet: { pool: "", router: "", position: "", gns: "" },
+    gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
 /** Get GnoSwap paths for the active chain. Returns null if not deployed. */
