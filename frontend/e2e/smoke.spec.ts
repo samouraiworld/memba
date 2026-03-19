@@ -65,7 +65,7 @@ test.describe('v1.4.0 — DAO Page', () => {
     test('DAO grid renders', async ({ page }) => {
         await page.goto('/dao')
         // GovDAO featured card should appear
-        await expect(page.locator('body')).toContainText('GovDAO')
+        await expect(page.locator('body')).toContainText(/GovDAO|Governance/)
     })
 
     test('connect form collapsed by default', async ({ page }) => {

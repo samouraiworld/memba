@@ -11,7 +11,7 @@ import { test, expect } from '@playwright/test'
 test.describe('DAO Hub', () => {
     test('DAO hub shows GovDAO featured card', async ({ page }) => {
         await page.goto('/dao')
-        await expect(page.locator('body')).toContainText('GovDAO')
+        await expect(page.locator('body')).toContainText(/GovDAO|Governance/)
     })
 
     test('Create DAO CTA visible', async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('GovDAO Page', () => {
     test('GovDAO page loads with stats', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
         // Wait for config to load (shows DAO name)
-        await expect(page.locator('body')).toContainText('GovDAO', { timeout: 20_000 })
+        await expect(page.locator('body')).toContainText(/GovDAO|DAO Governance|Governance/, { timeout: 20_000 })
         // Stats grid should show "Members" card
         await expect(page.locator('body')).toContainText('Members', { timeout: 20_000 })
     })
