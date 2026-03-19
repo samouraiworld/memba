@@ -42,7 +42,7 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
-        label: "Testnet 11 (Legacy)",
+        label: "Testnet 11",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "https://faucet.gno.land",
     },
@@ -80,11 +80,6 @@ export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test12"
 function getActiveNetworkKey(): string {
     try {
         const stored = localStorage.getItem("memba_network")
-        // Auto-migrate: test11 is being shut down → redirect to test12
-        if (stored === "test11") {
-            localStorage.setItem("memba_network", "test12")
-            return "test12"
-        }
         if (stored && NETWORKS[stored]) return stored
     } catch { /* SSR or missing localStorage */ }
     return DEFAULT_NETWORK

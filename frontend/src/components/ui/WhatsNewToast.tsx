@@ -143,9 +143,9 @@ export function WhatsNewToast() {
                         desc="First persistent chain. Select it in the network dropdown."
                     />
                     <NetworkItem
-                        color="#555"
-                        title="Test11 — Shutting down"
-                        desc="Your settings were auto-migrated."
+                        color="#2dd4bf"
+                        title="Test11 — Active (40 validators)"
+                        desc="Community-maintained testnet, fully supported."
                     />
                 </div>
 

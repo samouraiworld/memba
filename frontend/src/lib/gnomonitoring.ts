@@ -11,7 +11,7 @@
  *   4. Graceful degradation: if monitoring API unavailable, fall back to hex addresses
  */
 
-import { GNO_MONITORING_API_URL } from "./config"
+import { GNO_CHAIN_ID, GNO_MONITORING_API_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ export async function fetchMonitoringParticipation(
 
     const data = await monitoringFetch<(MonitoringParticipation | null)[]>(
         "/Participation",
-        { period: "current_month" },
+        { period: "current_month", chain: GNO_CHAIN_ID },
         signal,
     )
     if (!data) return null
@@ -153,7 +153,7 @@ export async function fetchMonitoringUptime(
 
     const data = await monitoringFetch<(MonitoringUptime | null)[]>(
         "/uptime",
-        undefined,
+        { chain: GNO_CHAIN_ID },
         signal,
     )
     if (!data) return null
@@ -176,7 +176,7 @@ export async function fetchMonitoringFirstSeen(
 
     const data = await monitoringFetch<(MonitoringFirstSeen | null)[]>(
         "/first_seen",
-        undefined,
+        { chain: GNO_CHAIN_ID },
         signal,
     )
     if (!data) return null
