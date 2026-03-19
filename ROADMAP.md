@@ -138,7 +138,7 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
-## v2.14.0-alpha — Hacker View & Validator Detail 🕵️ IN PROGRESS (2026-03-17)
+## v2.14.0-alpha — Hacker View & Validator Detail 🕵️ ✅ SHIPPED (2026-03-17)
 
 > Branch: `feat/validators-hacker-mode` — targeting testnet12
 
