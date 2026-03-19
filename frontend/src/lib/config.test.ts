@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import pkg from '../../package.json'
 import {
     APP_VERSION,
     UGNOT_PER_GNOT,
@@ -15,7 +16,7 @@ import {
 
 describe('config constants', () => {
     it('APP_VERSION matches package.json', () => {
-        expect(APP_VERSION).toBe('2.13.0')
+        expect(APP_VERSION).toBe(pkg.version)
     })
 
     it('UGNOT_PER_GNOT is 1 million', () => {
