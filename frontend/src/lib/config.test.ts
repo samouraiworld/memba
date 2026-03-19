@@ -22,12 +22,11 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has all 6 chain options', () => {
+    it('NETWORKS has all 5 chain options', () => {
         expect(Object.keys(NETWORKS)).toContain('test12')
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
-        expect(Object.keys(NETWORKS)).toContain('betanet')
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
     })
 
@@ -39,9 +38,8 @@ describe('config constants', () => {
         expect(t12.faucetUrl).toBe('https://faucet.gno.land')
     })
 
-    it('test12 and betanet and gnoland1 use r/sys/users registry', () => {
+    it('test12 and gnoland1 use r/sys/users registry', () => {
         expect(NETWORKS.test12.userRegistryPath).toBe('gno.land/r/sys/users')
-        expect(NETWORKS.betanet.userRegistryPath).toBe('gno.land/r/sys/users')
         expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 

@@ -60,13 +60,6 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "",
     },
-    betanet: {
-        chainId: "betanet",
-        rpcUrl: "https://rpc.betanet.gno.land:443",
-        label: "Betanet",
-        userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "",
-    },
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -157,7 +150,6 @@ export function getExplorerBaseUrl(): string {
     switch (chain) {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
-        case "betanet": return "https://betanet.gno.land"
         case "gnoland1": return "https://betanet.gno.land"
         case "test12": return "https://test12.gno.land"
         default: return `https://${chain}.testnets.gno.land`
@@ -213,7 +205,6 @@ export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     staging: { pool: "", router: "", position: "", gns: "" },
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
     test12: { pool: "", router: "", position: "", gns: "" },
-    betanet: { pool: "", router: "", position: "", gns: "" },
     gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
