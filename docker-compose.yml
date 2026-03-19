@@ -31,8 +31,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: http://backend:8080
-        VITE_GNO_CHAIN_ID: ${GNO_CHAIN_ID:-test11}
-        VITE_GNO_RPC_URL: ${GNO_RPC_URL:-https://rpc.test11.testnets.gno.land:443}
+        VITE_GNO_CHAIN_ID: ${GNO_CHAIN_ID:-test12}
+        VITE_GNO_RPC_URL: ${GNO_RPC_URL:-https://rpc.testnet12.samourai.live:443}
         VITE_GNO_BECH32_PREFIX: ${GNO_BECH32_PREFIX:-g}
         VITE_SAMOURAI_SENTRY_RPC_URL: ${SAMOURAI_SENTRY_RPC_URL:-}
     container_name: memba-frontend

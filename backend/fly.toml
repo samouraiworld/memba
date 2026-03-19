@@ -13,8 +13,8 @@ primary_region = 'cdg'
   BACKUP_INTERVAL = '24h'
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173,https://*--memba-multisig.netlify.app'
   DB_PATH = '/data/memba.db'
-  GNO_CHAIN_ID = 'test11'
-  GNO_RPC_URL = 'https://rpc.test11.testnets.gno.land:443'
+  GNO_CHAIN_ID = 'test12'
+  GNO_RPC_URL = 'https://rpc.testnet12.samourai.live:443'
   PORT = '8080'
 
 [[mounts]]
