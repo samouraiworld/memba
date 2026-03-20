@@ -2,6 +2,19 @@
 
 All notable changes to Memba are documented here.
 
+## Unreleased
+
+### Fixed
+
+- **CSP**: Add missing `media-src 'self' data: blob:` directive — fixes ~1,000 console errors + 4 Chrome long-task violation warnings caused by Remotion Player retrying blocked `data:audio/mp3` base64 URIs on the landing page
+
+### Security
+
+- **CSP Hardening**: Add `object-src 'none'` (explicit plugin block) and `base-uri 'self'` (prevents base tag injection) for defense-in-depth
+- Both `netlify.toml` (production) and `index.html` (dev) updated in sync
+
+---
+
 ## v2.16.0 (2026-03-19) — Test11 Re-activation & gRPC Security Update 🔐
 
 > PR [#128](https://github.com/samouraiworld/memba/pull/128)
