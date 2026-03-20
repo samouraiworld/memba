@@ -20,6 +20,9 @@
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: https: ipfs:;
+    media-src 'self' data: blob:;
+    object-src 'none';
+    base-uri 'self';
     connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land;
     frame-src https://meet.jit.si https://8x8.vc;
   " />
