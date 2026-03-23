@@ -21,7 +21,7 @@
     "@sentry/vite-plugin": "^5.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1",
+    "react-router-dom": "^7.13.2",
     "remotion": "4.0.287"
   },
   "devDependencies": {
