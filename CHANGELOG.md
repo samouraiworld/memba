@@ -2,7 +2,7 @@
 
 All notable changes to Memba are documented here.
 
-## Unreleased
+## v2.16.1 (2026-03-24) — CSP Media-Source Fix & Hardening 🛡️
 
 ### Fixed
 
