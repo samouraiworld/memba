@@ -47,7 +47,7 @@ export interface MonitoringValidatorData {
 
 // ── Session Cache ────────────────────────────────────────────
 
-const CACHE_KEY = "memba_monitoring_cache"
+const CACHE_KEY = `memba_monitoring_cache:${GNO_CHAIN_ID}`
 const CACHE_TTL_MS = 30_000 // 30s
 
 interface CacheEntry<T> {
