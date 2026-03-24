@@ -2,6 +2,29 @@
 
 All notable changes to Memba are documented here.
 
+## Unreleased
+
+### Changed
+
+- **Dependencies (Batch 1)**: `vitest` 4.1.0→4.1.1, `react-router-dom` 7.13.1→7.13.2, `@sentry/react` 10.43.0→10.45.0, `modernc.org/sqlite` 1.46.2→1.47.0
+- **Dependencies (Batch 2)**: Remotion triple 4.0.287→4.0.438 (`remotion`, `@remotion/player`, `@remotion/cli`)
+- **CSS**: Remove `@tailwindcss/vite` plugin — convert Tailwind v4 `@theme {}` to standard CSS `:root {}` (Memba uses Vanilla CSS)
+
+### Fixed
+
+- **Monitoring**: Chain-scope sessionStorage cache key (`memba_monitoring_cache:${chainId}`) to prevent cross-network stale data
+
+### Added
+
+- **Tests**: `gnomonitoring.test.ts` — 10 tests covering cache isolation, null filtering, data merge, graceful degradation
+
+### Documentation
+
+- **README**: Features v2.14→v2.16, test badge 776→786+, 36 test files
+- **ROADMAP**: Add Current Status summary at top with chain naming note
+- **CHANGELOG**: Assign v2.16.1 to previously-Unreleased CSP fix
+- **.env.example**: Add gnomonitoring chain ID clarification (gnoland1 = betanet)
+
 ## v2.16.1 (2026-03-24) — CSP Media-Source Fix & Hardening 🛡️
 
 ### Fixed
