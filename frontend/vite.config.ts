@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync } from 'node:fs'
 
@@ -26,7 +25,6 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    tailwindcss(),
     // Sentry source map upload — only in production builds with auth token
     ...(process.env.SENTRY_AUTH_TOKEN
       ? [

@@ -114,9 +114,7 @@ describe("gnomonitoring", () => {
         const mod = await import("./gnomonitoring")
 
         // Mock 3 parallel requests (participation, uptime, firstSeen)
-        let callCount = 0
         vi.mocked(fetch).mockImplementation(async (url) => {
-            callCount++
             const urlStr = typeof url === "string" ? url : (url as Request).url
             if (urlStr.includes("/Participation")) {
                 return { ok: true, json: () => Promise.resolve(mockParticipation) } as Response
