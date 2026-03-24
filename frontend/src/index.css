@@ -1,8 +1,6 @@
-@import "tailwindcss";
-
 /* ── Kodera Design System ────────────────────────────────────────── */
-@theme {
-  /* Use "k-" prefix to avoid Tailwind internal name conflicts */
+:root {
+  /* Use "k-" prefix for design system namespace */
   --color-k-bg: #000000;
   --color-k-elevated: #0c0c0c;
   --color-k-panel: #141414;
@@ -121,7 +119,7 @@ a:hover {
   color: #00d4aa;
 }
 
-/* ── Explicit component styles (fallback if Tailwind utils don't resolve) ── */
+/* ── Component styles ─────────────────────────────────────────────── */
 .k-card {
   background: #141414;
   border: 1px solid #222;

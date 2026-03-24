@@ -1,7 +1,7 @@
 {
   "name": "memba",
   "private": true,
-  "version": "2.16.0",
+  "version": "2.16.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,19 +16,18 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@remotion/player": "4.0.287",
-    "@sentry/react": "^10.43.0",
+    "@remotion/player": "^4.0.438",
+    "@sentry/react": "^10.45.0",
     "@sentry/vite-plugin": "^5.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1",
-    "remotion": "4.0.287"
+    "react-router-dom": "^7.13.2",
+    "remotion": "^4.0.438"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
-    "@remotion/cli": "4.0.287",
-    "@tailwindcss/vite": "^4.2.1",
+    "@remotion/cli": "^4.0.438",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
@@ -40,10 +39,9 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^28.1.0",
-    "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.1",
     "vite": "^7.3.1",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   }
 }
