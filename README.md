@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-786%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-805%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.16)
+## Features (v2.17)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -57,6 +57,13 @@
 - ⬆️ **Uptime & Participation** — live metrics from monitoring service
 - 🔄 **hexToBech32** — Tendermint hex → `g1...` bech32 address derivation
 - 📈 Network stats cards (Block Height, Avg Block Time, Active Validators, Total Voting Power)
+- 🕵️ **Hacker View** — gnockpit-parity+ telemetry dashboard with:
+  - Per-validator health grid (health badge, participation %, uptime %, missed blocks, TX contribution)
+  - Live consensus round age counter (green/yellow/red severity)
+  - RPC status badges + "only validators" peer filter
+  - Network Health Banner (✅🟡🔴⚪ counts)
+  - Incident polling (30s) + monitoring refresh (60s)
+  - Session age, DoctorPanel diagnostics, NodeStatePanel identity
 
 ### Token Launchpad
 - 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)
@@ -114,8 +121,8 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **786+ unit tests** (Vitest, 36 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring
-- 🧪 **143 E2E tests** (Playwright, Chromium + Firefox, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
+- 🧪 **805+ unit tests** (Vitest, 37 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine
+- 🧪 **143 E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
 
 ## Architecture
 

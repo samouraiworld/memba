@@ -471,3 +471,106 @@
         grid-template-columns: repeat(5, 1fr);
     }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Danger class (red, for stuck consensus)
+   ────────────────────────────────────────────────────────────── */
+
+.hk-danger { color: rgba(255, 80, 80, 0.95); }
+
+/* ──────────────────────────────────────────────────────────────
+   Badge: dim (neutral/unknown)
+   ────────────────────────────────────────────────────────────── */
+
+.hk-badge--dim { background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.3); }
+
+/* ──────────────────────────────────────────────────────────────
+   PeerTable — "only validators" toggle
+   ────────────────────────────────────────────────────────────── */
+
+.hk-peers__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.62rem;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    user-select: none;
+}
+
+.hk-peers__toggle input {
+    accent-color: rgba(0, 255, 170, 0.8);
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ValidatorHealthGrid
+   ────────────────────────────────────────────────────────────── */
+
+/* Network Health Banner */
+.vh-banner {
+    display: flex;
+    gap: 1rem;
+    padding: 0.35rem 0.5rem;
+    margin-bottom: 0.5rem;
+    background: rgba(0, 255, 170, 0.04);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 170, 0.08);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.vh-banner__item { display: flex; align-items: center; gap: 0.2rem; }
+.vh-banner__item--healthy { color: rgba(0, 255, 170, 0.9); }
+.vh-banner__item--degraded { color: rgba(255, 196, 0, 0.9); }
+.vh-banner__item--down { color: rgba(255, 80, 80, 0.9); }
+.vh-banner__item--unknown { color: rgba(255, 255, 255, 0.4); }
+
+/* Health badges */
+.vh-badge {
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.vh-badge--healthy { background: rgba(0, 255, 170, 0.12); color: rgba(0, 255, 170, 0.95); }
+.vh-badge--degraded { background: rgba(255, 196, 0, 0.12); color: rgba(255, 196, 0, 0.95); }
+.vh-badge--down { background: rgba(255, 80, 80, 0.12); color: rgba(255, 80, 80, 0.95); }
+.vh-badge--unknown { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.4); }
+
+/* Missed blocks severity */
+.vh-missed--low { color: rgba(255, 196, 0, 0.7); }
+.vh-missed--med { color: rgba(255, 150, 50, 0.9); }
+.vh-missed--high { color: rgba(255, 80, 80, 0.95); font-weight: 700; }
+
+/* Row highlights */
+.vh-row--down td { background: rgba(255, 80, 80, 0.04) !important; }
+.vh-row--degraded td { background: rgba(255, 196, 0, 0.03) !important; }
+
+/* Table uses same styling as PeerTable */
+.vh-table { max-height: 24rem; }
+
+/* ──────────────────────────────────────────────────────────────
+   RPC badge link styling
+   ────────────────────────────────────────────────────────────── */
+
+a.hk-badge { text-decoration: none; }
+a.hk-badge:hover { opacity: 0.8; }
+
+/* ──────────────────────────────────────────────────────────────
+   Link style for NodeStatePanel
+   ────────────────────────────────────────────────────────────── */
+
+.hk-link {
+    color: rgba(100, 200, 255, 0.8);
+    text-decoration: none;
+}
+
+.hk-link:hover {
+    color: rgba(100, 200, 255, 1);
+    text-decoration: underline;
+}

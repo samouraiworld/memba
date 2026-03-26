@@ -35,9 +35,17 @@ import {
     type NetworkStats,
 } from "../lib/validators"
 import { fetchAllMonitoringData } from "../lib/gnomonitoring"
+import {
+    computeHealthStatus,
+    computeNetworkHealth,
+    healthCssClass,
+    healthLabel,
+    healthIcon,
+    type NetworkHealthSummary,
+} from "../lib/validatorHealth"
 import "./validators.css"
 
-type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent"
+type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
@@ -64,6 +72,7 @@ export default function Validators() {
     const navigate = useNavigate()
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
+    const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -88,23 +97,32 @@ export default function Validators() {
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
-                fetchLastBlockSignatures(GNO_RPC_URL, 20),
+                fetchLastBlockSignatures(GNO_RPC_URL, 100),
             ])
 
             // v2.13: Apply valopers monikers first (primary on-chain source)
             const withMonikers = mergeValoperMonikers(vals, valoperMap)
-            // Then enrich with gnomonitoring data (participation, uptime, fallback moniker)
+            // Then enrich with gnomonitoring data (participation, uptime, incidents, missed blocks)
             const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
 
-            // v2.14: Merge block signatures into validator data
-            const withSigs = enriched.map(v => ({
-                ...v,
-                lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
-            }))
+            // v2.14: Merge block signatures + v2.17: compute health status
+            const withHealth = enriched.map(v => {
+                const withSigs = {
+                    ...v,
+                    lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
+                }
+                const healthMeta = computeHealthStatus(withSigs)
+                return {
+                    ...withSigs,
+                    healthStatus: healthMeta.status,
+                    healthMeta,
+                }
+            })
 
             const netStats = await getNetworkStats(GNO_RPC_URL, vals)
-            setValidators(withSigs)
+            setValidators(withHealth)
             setStats(netStats)
+            setNetworkHealth(computeNetworkHealth(withHealth))
             setError(null)
         } catch (err) {
             if (controller.signal.aborted) return // Ignore aborted requests
@@ -244,6 +262,51 @@ export default function Validators() {
                 </div>
             )}
 
+            {/* ── Network Health Banner (v2.17.0) ──────────────── */}
+            {networkHealth && (
+                <div className="val-health-banner" data-testid="network-health-banner">
+                    <div className="val-health-banner__title">🩺 Network Health</div>
+                    <div className="val-health-banner__grid">
+                        <div className="val-health-banner__stat">
+                            <span className="val-health-dot val-health-dot--healthy" />
+                            <span className="val-health-banner__count">{networkHealth.healthy}</span>
+                            <span className="val-health-banner__label">Healthy</span>
+                        </div>
+                        <div className="val-health-banner__stat">
+                            <span className="val-health-dot val-health-dot--degraded" />
+                            <span className="val-health-banner__count">{networkHealth.degraded}</span>
+                            <span className="val-health-banner__label">Degraded</span>
+                        </div>
+                        <div className="val-health-banner__stat">
+                            <span className="val-health-dot val-health-dot--down" />
+                            <span className="val-health-banner__count">{networkHealth.down}</span>
+                            <span className="val-health-banner__label">Down</span>
+                        </div>
+                        <div className="val-health-banner__stat">
+                            <span className="val-health-dot val-health-dot--unknown" />
+                            <span className="val-health-banner__count">{networkHealth.unknown}</span>
+                            <span className="val-health-banner__label">Unknown</span>
+                        </div>
+                        {networkHealth.avgUptime != null && (
+                            <div className="val-health-banner__stat">
+                                <span className="val-health-banner__count">{networkHealth.avgUptime}%</span>
+                                <span className="val-health-banner__label">Avg Uptime</span>
+                            </div>
+                        )}
+                    </div>
+                    {networkHealth.latestIncident && (
+                        <div className="val-health-banner__incident">
+                            <span className={`val-incident-badge val-incident-badge--${networkHealth.latestIncident.severity.toLowerCase()}`}>
+                                {networkHealth.latestIncident.severity}
+                            </span>
+                            <span className="val-health-banner__incident-text">
+                                <strong>{networkHealth.latestIncident.moniker}</strong>: {networkHealth.latestIncident.details}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Voting Power Distribution ────────────────────── */}
             {validators.length > 0 && (
                 <div className="val-power-bar" data-testid="power-distribution">
@@ -315,10 +378,13 @@ export default function Validators() {
                                     <th className="val-th val-th-center" onClick={() => handleSort("uptimePercent")}>
                                         Uptime {sortKey === "uptimePercent" && (sortAsc ? "↑" : "↓")}
                                     </th>
+                                    <th className="val-th val-th-center" onClick={() => handleSort("missedBlocks")}>
+                                        Missed {sortKey === "missedBlocks" && (sortAsc ? "↑" : "↓")}
+                                    </th>
                                 </>
                             )}
-                            <th className="val-th val-th-center">Status</th>
-                            <th className="val-th val-th-center">Last 20 blocks</th>
+                            <th className="val-th val-th-center">Health</th>
+                            <th className="val-th val-th-center">Last {validators[0]?.lastBlockSignatures?.length || 100} blocks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -397,11 +463,22 @@ export default function Validators() {
                                                 </span>
                                             ) : "—"}
                                         </td>
+                                        <td className="val-td val-td-center">
+                                            {v.missedBlocks != null ? (
+                                                <span className={`val-missed-badge ${v.missedBlocks >= 30 ? "val-missed-critical" : v.missedBlocks >= 5 ? "val-missed-warn" : "val-missed-ok"}`}>
+                                                    {v.missedBlocks}
+                                                </span>
+                                            ) : "—"}
+                                        </td>
                                     </>
                                 )}
                                 <td className="val-td val-td-center">
-                                    <span className={`val-status ${v.votingPower === 0 ? "val-pending" : v.active ? "val-active" : "val-inactive"}`}>
-                                        {v.votingPower === 0 ? "Pending" : v.active ? "Active" : "Inactive"}
+                                    <span
+                                        className={`val-health-badge ${healthCssClass(v.healthStatus)}`}
+                                        title={v.healthMeta?.reason || ""}
+                                    >
+                                        <span className="val-health-badge__icon">{healthIcon(v.healthStatus)}</span>
+                                        <span className="val-health-badge__label">{healthLabel(v.healthStatus)}</span>
                                     </span>
                                 </td>
                                 <td className="val-td val-td-center">

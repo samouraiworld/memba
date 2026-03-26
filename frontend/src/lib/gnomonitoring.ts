@@ -36,6 +36,42 @@ export interface MonitoringFirstSeen {
     firstSeen: string
 }
 
+/** Incident/alert data from gnomonitoring `/latest_incidents` endpoint. */
+export interface MonitoringIncident {
+    addr: string
+    moniker: string
+    /** CRITICAL | WARNING | RESOLVED | INFO */
+    severity: string
+    /** ISO timestamp of the incident */
+    timestamp: string
+    /** Human-readable incident description */
+    details: string
+}
+
+/** Missing block data from gnomonitoring `/missing_block` endpoint. */
+export interface MonitoringMissingBlock {
+    addr: string
+    moniker: string
+    /** Total missed blocks in the period */
+    missedBlocks: number
+}
+
+/** Operation time data from gnomonitoring `/operation_time` endpoint. */
+export interface MonitoringOperationTime {
+    addr: string
+    moniker: string
+    /** Operation time / uptime duration string */
+    operationTime: string
+}
+
+/** TX contribution data from gnomonitoring `/tx_contribution` endpoint. */
+export interface MonitoringTxContrib {
+    addr: string
+    moniker: string
+    /** Transaction contribution rate (0-100) */
+    txContrib: number
+}
+
 /** Combined monitoring data for a single validator. */
 export interface MonitoringValidatorData {
     addr: string
@@ -43,6 +79,14 @@ export interface MonitoringValidatorData {
     participationRate: number
     uptime: number | null
     firstSeen: string | null
+    /** Total missed blocks this period (from /missing_block) */
+    missedBlocks: number | null
+    /** Recent incidents (from /latest_incidents) */
+    incidents: MonitoringIncident[]
+    /** Operation time duration (from /operation_time) */
+    operationTime: string | null
+    /** TX contribution rate (from /tx_contribution) */
+    txContrib: number | null
 }
 
 // ── Session Cache ────────────────────────────────────────────
@@ -186,8 +230,148 @@ export async function fetchMonitoringFirstSeen(
     return filtered
 }
 
+// ── New Endpoints (v2.17.0) ──────────────────────────────────
+
 /**
- * Fetch all monitoring data (participation + uptime) in parallel.
+ * Fetch latest validator incidents (crash/warning/resolved alerts).
+ * Returns null on failure — caller should show "—" for incidents.
+ */
+export async function fetchMonitoringIncidents(
+    signal?: AbortSignal,
+    period: string = "current_month",
+): Promise<MonitoringIncident[] | null> {
+    const cacheKey = `incidents_${period}`
+    const cached = getCached<MonitoringIncident[]>(cacheKey)
+    if (cached) return cached
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await monitoringFetch<any[]>(
+        "/latest_incidents",
+        { period, chain: GNO_CHAIN_ID },
+        signal,
+    )
+    if (!data) return null
+
+    const filtered: MonitoringIncident[] = data
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map(v => ({
+            addr: v.addr || v.address || "",
+            moniker: v.moniker || "",
+            // Backend AlertSummary uses `level`, not `severity`
+            severity: v.severity || v.level || v.type || "INFO",
+            // Backend AlertSummary uses `sentAt`, not `timestamp`
+            timestamp: v.timestamp || v.sentAt || v.sent_at || v.created_at || v.date || "",
+            // Backend AlertSummary uses `msg`, not `details`
+            details: v.details || v.msg || v.message || v.description || "",
+        }))
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+/**
+ * Fetch per-validator missing block counts.
+ * Returns null on failure — caller should show "—" for missed blocks.
+ */
+export async function fetchMonitoringMissingBlocks(
+    signal?: AbortSignal,
+    period: string = "current_month",
+): Promise<MonitoringMissingBlock[] | null> {
+    const cacheKey = `missing_blocks_${period}`
+    const cached = getCached<MonitoringMissingBlock[]>(cacheKey)
+    if (cached) return cached
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await monitoringFetch<any[]>(
+        "/missing_block",
+        { period, chain: GNO_CHAIN_ID },
+        signal,
+    )
+    if (!data) return null
+
+    const filtered: MonitoringMissingBlock[] = data
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map(v => ({
+            addr: v.addr || v.address || "",
+            moniker: v.moniker || "",
+            // Backend MissingBlockMetrics uses `missingBlock` (singular, no underscore)
+            missedBlocks: typeof v.missedBlocks === "number" ? v.missedBlocks
+                : typeof v.missingBlock === "number" ? v.missingBlock
+                : typeof v.missed_blocks === "number" ? v.missed_blocks
+                : typeof v.missing_block === "number" ? v.missing_block
+                : parseInt(v.missedBlocks || v.missingBlock || v.missed_blocks || v.missing_block || "0", 10),
+        }))
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+/**
+ * Fetch per-validator operation time / uptime duration.
+ * Returns null on failure — caller should show "—" for operation time.
+ */
+export async function fetchMonitoringOperationTime(
+    signal?: AbortSignal,
+): Promise<MonitoringOperationTime[] | null> {
+    const cacheKey = "operation_time"
+    const cached = getCached<MonitoringOperationTime[]>(cacheKey)
+    if (cached) return cached
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await monitoringFetch<any[]>(
+        "/operation_time",
+        { chain: GNO_CHAIN_ID },
+        signal,
+    )
+    if (!data) return null
+
+    const filtered: MonitoringOperationTime[] = data
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map(v => ({
+            addr: v.addr || v.address || "",
+            moniker: v.moniker || "",
+            // Backend OperationTimeMetrics uses `operationTime` (float64 daysDiff mapped to this)
+            operationTime: v.operationTime || v.operation_time || v.uptime_duration || "",
+        }))
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+// ── Combined Fetch ───────────────────────────────────────────
+
+/**
+ * Fetch validator TX contribution rate.
+ * Returns null on failure — caller should show "—" for txContrib.
+ */
+export async function fetchMonitoringTxContribution(
+    signal?: AbortSignal,
+): Promise<MonitoringTxContrib[] | null> {
+    const cacheKey = "tx_contribution"
+    const cached = getCached<MonitoringTxContrib[]>(cacheKey)
+    if (cached) return cached
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await monitoringFetch<any[]>(
+        "/tx_contribution",
+        { period: "current_month", chain: GNO_CHAIN_ID },
+        signal,
+    )
+    if (!data) return null
+
+    const filtered: MonitoringTxContrib[] = data
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map(v => ({
+            addr: v.addr || v.address || "",
+            moniker: v.moniker || "",
+            // Backend TxContribMetrics uses `txContrib`
+            txContrib: typeof v.txContrib === "number" ? v.txContrib
+                : typeof v.tx_contrib === "number" ? v.tx_contrib
+                : parseFloat(v.txContrib || v.tx_contrib || "0"),
+        }))
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+/**
+ * Fetch all monitoring data (7 endpoints) in parallel.
  * Merges by address. Returns a Map for O(1) lookup.
  * Returns empty Map on failure — graceful degradation.
  */
@@ -196,10 +380,14 @@ export async function fetchAllMonitoringData(
 ): Promise<Map<string, MonitoringValidatorData>> {
     const result = new Map<string, MonitoringValidatorData>()
 
-    const [participation, uptime, firstSeen] = await Promise.all([
+    const [participation, uptime, firstSeen, incidents, missingBlocks, operationTime, txContrib] = await Promise.all([
         fetchMonitoringParticipation(signal),
         fetchMonitoringUptime(signal),
         fetchMonitoringFirstSeen(signal),
+        fetchMonitoringIncidents(signal),
+        fetchMonitoringMissingBlocks(signal),
+        fetchMonitoringOperationTime(signal),
+        fetchMonitoringTxContribution(signal),
     ])
 
     if (!participation) return result
@@ -212,6 +400,10 @@ export async function fetchAllMonitoringData(
             participationRate: p.participationRate,
             uptime: null,
             firstSeen: null,
+            missedBlocks: null,
+            incidents: [],
+            operationTime: null,
+            txContrib: null,
         })
     }
 
@@ -232,14 +424,58 @@ export async function fetchAllMonitoringData(
             if (existing) {
                 existing.firstSeen = fs.firstSeen
             } else {
-                // Validator may not be in participation but has first-seen data
                 result.set(fs.addr.toLowerCase(), {
                     addr: fs.addr,
                     moniker: fs.moniker,
                     participationRate: 0,
                     uptime: null,
                     firstSeen: fs.firstSeen,
+                    missedBlocks: null,
+                    incidents: [],
+                    operationTime: null,
+                    txContrib: null,
                 })
+            }
+        }
+    }
+
+    // Merge incidents
+    if (incidents) {
+        for (const inc of incidents) {
+            const key = inc.addr.toLowerCase()
+            const existing = result.get(key)
+            if (existing) {
+                existing.incidents.push(inc)
+            }
+        }
+    }
+
+    // Merge missing blocks
+    if (missingBlocks) {
+        for (const mb of missingBlocks) {
+            const existing = result.get(mb.addr.toLowerCase())
+            if (existing) {
+                existing.missedBlocks = mb.missedBlocks
+            }
+        }
+    }
+
+    // Merge operation time
+    if (operationTime) {
+        for (const ot of operationTime) {
+            const existing = result.get(ot.addr.toLowerCase())
+            if (existing) {
+                existing.operationTime = ot.operationTime
+            }
+        }
+    }
+
+    // Merge TX contribution
+    if (txContrib) {
+        for (const tc of txContrib) {
+            const existing = result.get(tc.addr.toLowerCase())
+            if (existing) {
+                existing.txContrib = tc.txContrib
             }
         }
     }

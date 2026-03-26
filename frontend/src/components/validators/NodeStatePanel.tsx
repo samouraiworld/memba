@@ -9,6 +9,8 @@ import type { NodeStatus } from "../../lib/validators"
 interface NodeStatePanelProps {
     nodeStatus: NodeStatus | null
     loading: boolean
+    /** Pre-computed session age string (e.g. "5m 30s") */
+    sessionAge?: string
 }
 
 function NsRow({ label, value, link, mono = true }: { label: string; value: string; link?: string; mono?: boolean }) {
@@ -27,13 +29,11 @@ function NsRow({ label, value, link, mono = true }: { label: string; value: stri
 }
 
 const NA = "N/A (node-local only)"
-
-/** Returns value if non-empty, otherwise the fallback string */
 function val(v: string | undefined, fallback = "unknown"): string {
     return v || fallback
 }
 
-export function NodeStatePanel({ nodeStatus, loading }: NodeStatePanelProps) {
+export function NodeStatePanel({ nodeStatus, loading, sessionAge }: NodeStatePanelProps) {
     const title = nodeStatus?.moniker ? `NODE STATE · ${nodeStatus.moniker.toUpperCase()}` : "NODE STATE"
 
     if (!nodeStatus && !loading) {
@@ -84,6 +84,7 @@ export function NodeStatePanel({ nodeStatus, loading }: NodeStatePanelProps) {
                     {/* Note: /status returns latest_app_hash, not the genesis file sha256 */}
                     <NsRow label="app hash" value={val(nodeStatus?.genesisHash)} />
                     <NsRow label="catching up" value={nodeStatus ? (nodeStatus.catchingUp ? "yes" : "no") : "unknown"} mono={false} />
+                    <NsRow label="session age" value={sessionAge ?? "—"} mono={false} />
                     <NsRow label="node time (UTC)" value={nodeStatus?.nodeTime ? new Date(nodeStatus.nodeTime).toISOString() : "unknown"} />
                     <NsRow label="timeouts" value={NA} mono={false} />
                     <NsRow label="chain data" value={NA} mono={false} />

@@ -15,6 +15,8 @@ interface NetworkStateGridProps {
     cs: HackerConsensusState | null
     /** Chain's seed address (optional, set via SAMOURAI_SENTRY or config) */
     seedAddr?: string
+    /** Peer count from NetInfo (optional) */
+    peerCount?: number
 }
 
 function Row({ label, value, accent, mono }: {
@@ -45,7 +47,17 @@ function genesisAge(isoStr: string): string {
     return `up ${m}m`
 }
 
-export function NetworkStateGrid({ stats, cs, seedAddr }: NetworkStateGridProps) {
+function blockTimeAgo(isoStr: string): string {
+    if (!isoStr) return "—"
+    const ms = Date.now() - new Date(isoStr).getTime()
+    if (ms < 0 || isNaN(ms)) return "—"
+    const s = Math.floor(ms / 1000)
+    if (s < 60) return `${s}s ago`
+    const m = Math.floor(s / 60)
+    return `${m}m ago`
+}
+
+export function NetworkStateGrid({ stats, cs, seedAddr, peerCount }: NetworkStateGridProps) {
     const chainId = cs?.chainId || stats?.chainId || "—"
     const appHash = cs?.appHash || "—"
     const genesisTime = cs?.genesisTime || "—"
@@ -54,6 +66,7 @@ export function NetworkStateGrid({ stats, cs, seedAddr }: NetworkStateGridProps)
     const minBft = cs?.minBft ?? null
     const margin = cs?.faultTolerance ?? null
     const canAdd = cs?.canAddValidator ?? null
+    const totalVotingPower = stats?.totalVotingPower ?? null
 
     return (
         <div className="hk-card hk-nsg" id="hk-network-state">
@@ -71,7 +84,7 @@ export function NetworkStateGrid({ stats, cs, seedAddr }: NetworkStateGridProps)
                     <Row label="block height" value={<strong>{stats?.blockHeight?.toLocaleString() ?? "—"}</strong>} />
                     <Row label="block time"
                         value={stats?.latestBlockTime
-                            ? new Date(stats.latestBlockTime).toISOString().replace("T", " ").slice(0, 19) + " UTC"
+                            ? `${new Date(stats.latestBlockTime).toISOString().replace("T", " ").slice(0, 19)} UTC (${blockTimeAgo(stats.latestBlockTime)})`
                             : "—"}
                         mono />
                     <Row label="chain" value={chainId} accent />
@@ -82,6 +95,9 @@ export function NetworkStateGrid({ stats, cs, seedAddr }: NetworkStateGridProps)
                     )}
                     {seedAddr && (
                         <Row label="seed" value={seedAddr} mono />
+                    )}
+                    {peerCount != null && (
+                        <Row label="peers" value={peerCount} accent />
                     )}
                 </div>
 
@@ -103,6 +119,9 @@ export function NetworkStateGrid({ stats, cs, seedAddr }: NetworkStateGridProps)
                     )}
                     {canAdd != null && (
                         <Row label="can add validator" value={canAdd ? "yes" : "no"} />
+                    )}
+                    {totalVotingPower != null && totalVotingPower > 0 && (
+                        <Row label="total voting power" value={totalVotingPower.toLocaleString()} accent />
                     )}
                 </div>
             </div>
