@@ -4,6 +4,31 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.17.2 (2026-03-26) — Validator Performance Hardening ⚡
+
+### Added
+
+- **Monitoring API Health Dot**: HackerStatusBar shows green/red indicator for gnomonitoring API reachability
+- **Valoper Moniker Cache**: 5-minute in-memory cache for on-chain valopers monikers — reduces ABCI load from every 30s poll to every 5 minutes
+- **Tests**: `validatorHealthGrid.test.ts` — 17 tests covering healthBadge, missedBlocksColor, formatPct helpers
+
+### Changed
+
+- **Version**: `2.16.1` → `2.17.2`
+- **Hacker View Parallel Loading**: ALL 8 data sources (consensus, peers, node, stats, validators, valopers, incidents, monitoring) now load in a single `Promise.all` burst — was sequential waterfall (3× RTT improvement)
+- **Hacker View Monikers**: Added `fetchValoperMonikers()` + `mergeValoperMonikers()` — previously missing, causing monikers to not display
+- **Monitoring Polling**: 60s interval now includes valopers moniker fetch — monikers update alongside health data
+- **Validators.tsx**: `getNetworkStats()` moved into parallel block — was sequential after initial load
+- **Monitoring Timeout**: Increased from 5s to 8s — prevents silent failures on slow networks
+- **Helper Extraction**: `healthBadge`, `missedBlocksColor`, `formatPct` moved to `validatorHealthHelpers.ts` for testability
+
+### Fixed
+
+- **Root Cause: Missing monikers in Hacker View** — `fetchValoperMonikers()` was never called
+- **Root Cause: Slow data display** — sequential waterfall (heatmap → incidents → monitoring) added 3× network RTT delay
+
+---
+
 ## v2.17.1 (2026-03-26) — Hacker View: Gnockpit Parity+ 🕵️
 
 ### Added

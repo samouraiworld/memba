@@ -92,12 +92,13 @@ export default function Validators() {
 
         if (isRefresh) setRefreshing(true)
         try {
-            // Fetch Tendermint RPC + gnomonitoring + valopers + block sigs in parallel
-            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
+            // v2.17.2: ALL data sources in single parallel burst (was sequential for stats)
+            const [vals, monitoringMap, valoperMap, sigMap, netStats] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
+                getNetworkStats(GNO_RPC_URL),
             ])
 
             // v2.13: Apply valopers monikers first (primary on-chain source)
@@ -119,7 +120,6 @@ export default function Validators() {
                 }
             })
 
-            const netStats = await getNetworkStats(GNO_RPC_URL, vals)
             setValidators(withHealth)
             setStats(netStats)
             setNetworkHealth(computeNetworkHealth(withHealth))

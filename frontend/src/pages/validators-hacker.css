@@ -100,6 +100,10 @@
     animation: hk-pulse-anim 1.4s ease-in-out infinite;
 }
 
+/* v2.17.2: Monitoring API health dot variants */
+.hk-status-bar__dot--green { background: rgba(0, 255, 170, 0.9); }
+.hk-status-bar__dot--red   { background: rgba(255, 80, 80, 0.9); }
+
 .hk-status-bar__updated {
     margin-left: auto;
     color: rgba(255, 255, 255, 0.3);
