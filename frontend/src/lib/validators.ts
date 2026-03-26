@@ -46,8 +46,8 @@ export interface ValidatorInfo {
     missedBlocks: number | null
     /** Recent incidents from gnomonitoring (v2.17.0) */
     incidents: MonitoringIncident[]
-    /** Operation time duration from gnomonitoring (v2.17.0) */
-    operationTime: string | null
+    /** Days since last downtime from gnomonitoring (v2.17.0) */
+    operationTime: number | null
     /** TX contribution rate from gnomonitoring (v2.17.1) */
     txContrib: number | null
     /** ISO timestamp of most recent non-RESOLVED incident (v2.17.3) */
@@ -213,7 +213,7 @@ export function mergeWithMonitoringData(
                 incidents: match.incidents ?? [],
                 operationTime: match.operationTime,
                 txContrib: match.txContrib,
-                lastIncidentDate: (() => {
+                lastIncidentDate: match.lastDownDate ?? (() => {
                     const nonResolved = (match.incidents ?? [])
                         .filter(i => i.severity !== "RESOLVED" && i.timestamp)
                         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
