@@ -64,6 +64,14 @@ export interface MonitoringOperationTime {
     operationTime: string
 }
 
+/** TX contribution data from gnomonitoring `/tx_contribution` endpoint. */
+export interface MonitoringTxContrib {
+    addr: string
+    moniker: string
+    /** Transaction contribution rate (0-100) */
+    txContrib: number
+}
+
 /** Combined monitoring data for a single validator. */
 export interface MonitoringValidatorData {
     addr: string
@@ -77,6 +85,8 @@ export interface MonitoringValidatorData {
     incidents: MonitoringIncident[]
     /** Operation time duration (from /operation_time) */
     operationTime: string | null
+    /** TX contribution rate (from /tx_contribution) */
+    txContrib: number | null
 }
 
 // ── Session Cache ────────────────────────────────────────────
@@ -328,7 +338,40 @@ export async function fetchMonitoringOperationTime(
 // ── Combined Fetch ───────────────────────────────────────────
 
 /**
- * Fetch all monitoring data (6 endpoints) in parallel.
+ * Fetch validator TX contribution rate.
+ * Returns null on failure — caller should show "—" for txContrib.
+ */
+export async function fetchMonitoringTxContribution(
+    signal?: AbortSignal,
+): Promise<MonitoringTxContrib[] | null> {
+    const cacheKey = "tx_contribution"
+    const cached = getCached<MonitoringTxContrib[]>(cacheKey)
+    if (cached) return cached
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await monitoringFetch<any[]>(
+        "/tx_contribution",
+        { period: "current_month", chain: GNO_CHAIN_ID },
+        signal,
+    )
+    if (!data) return null
+
+    const filtered: MonitoringTxContrib[] = data
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        .map(v => ({
+            addr: v.addr || v.address || "",
+            moniker: v.moniker || "",
+            // Backend TxContribMetrics uses `txContrib`
+            txContrib: typeof v.txContrib === "number" ? v.txContrib
+                : typeof v.tx_contrib === "number" ? v.tx_contrib
+                : parseFloat(v.txContrib || v.tx_contrib || "0"),
+        }))
+    setCache(cacheKey, filtered)
+    return filtered
+}
+
+/**
+ * Fetch all monitoring data (7 endpoints) in parallel.
  * Merges by address. Returns a Map for O(1) lookup.
  * Returns empty Map on failure — graceful degradation.
  */
@@ -337,13 +380,14 @@ export async function fetchAllMonitoringData(
 ): Promise<Map<string, MonitoringValidatorData>> {
     const result = new Map<string, MonitoringValidatorData>()
 
-    const [participation, uptime, firstSeen, incidents, missingBlocks, operationTime] = await Promise.all([
+    const [participation, uptime, firstSeen, incidents, missingBlocks, operationTime, txContrib] = await Promise.all([
         fetchMonitoringParticipation(signal),
         fetchMonitoringUptime(signal),
         fetchMonitoringFirstSeen(signal),
         fetchMonitoringIncidents(signal),
         fetchMonitoringMissingBlocks(signal),
         fetchMonitoringOperationTime(signal),
+        fetchMonitoringTxContribution(signal),
     ])
 
     if (!participation) return result
@@ -359,6 +403,7 @@ export async function fetchAllMonitoringData(
             missedBlocks: null,
             incidents: [],
             operationTime: null,
+            txContrib: null,
         })
     }
 
@@ -388,6 +433,7 @@ export async function fetchAllMonitoringData(
                     missedBlocks: null,
                     incidents: [],
                     operationTime: null,
+                    txContrib: null,
                 })
             }
         }
@@ -420,6 +466,16 @@ export async function fetchAllMonitoringData(
             const existing = result.get(ot.addr.toLowerCase())
             if (existing) {
                 existing.operationTime = ot.operationTime
+            }
+        }
+    }
+
+    // Merge TX contribution
+    if (txContrib) {
+        for (const tc of txContrib) {
+            const existing = result.get(tc.addr.toLowerCase())
+            if (existing) {
+                existing.txContrib = tc.txContrib
             }
         }
     }

@@ -4,6 +4,34 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.17.1 (2026-03-26) — Hacker View: Gnockpit Parity+ 🕵️
+
+### Added
+
+- **ValidatorHealthGrid**: New full-width per-validator health summary table — rank, moniker, health badge, participation %, uptime %, missed blocks, TX contribution, power %
+- **Network Health Banner**: Real-time ✅/🟡/🔴/⚪ validator health counts at top of health grid
+- **Round Age Counter**: Live consensus round age display in ConsensusWidget with severity coloring (green ≤5s / yellow 5-30s / red >30s)
+- **RPC Status Badges**: PeerTable shows `OK rpc ↗` (clickable) or `rpc-closed` badge per peer + dim placeholder for non-RPC peers
+- **Validators Toggle**: "Only validators" checkbox in PeerTable to filter noise
+- **TX Contribution**: `/tx_contribution` endpoint integrated — shows per-validator transaction contribution %
+- **Session Age**: NodeStatePanel displays session uptime (equivalent to gnockpit "gnockpit uptime")
+- **Incident Polling**: DoctorPanel incidents now refresh every 30s (was one-shot on load)
+- **Monitoring Polling**: Per-validator health data refreshes every 60s via `fetchAllMonitoringData()`
+
+### Changed
+
+- **gnomonitoring Integration**: Now consumes 7 API endpoints (was 6): added `/tx_contribution`
+- **NetworkStateGrid**: Added peer count, total voting power, relative block time ("Xs ago")
+- **ConnectSection**: Full P2P address display (`nodeId@ip:port`), corrected label to "latest app hash"
+- **ValidatorsHacker Layout**: New 6-row grid (was 5) — health grid inserted between heatmap and peers
+
+### Fixed
+
+- **computeHealthStatus**: Fixed return type spreading — `ValidatorHealthMeta` correctly merged back into `ValidatorInfo`
+- **ESLint Purity**: Moved `Date.now()` computation to parent to avoid react-hooks/purity violation in NodeStatePanel
+
+---
+
 ## v2.17.0 (2026-03-26) — Validator Health Engine & Grafana-Inspired Monitoring 🩺
 
 ### Added

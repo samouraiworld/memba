@@ -1,14 +1,16 @@
 /**
  * ValidatorsHacker — dedicated "/validators/hacker" page.
  *
- * Gnockpit-parity live telemetry dashboard with:
+ * Gnockpit-parity+ live telemetry dashboard with:
  * - Persistent top status bar (block height, sync status, peer count, last updated)
  * - CONNECT section (seed address + genesis hash, click-to-copy)
- * - NETWORK STATE grid (all chain metadata + live consensus fields)
+ * - NETWORK STATE grid (chain metadata + live consensus + voting power + peers)
+ * - CONSENSUS STATE widget (H/R/S, proposer, vote bars, round age)
  * - RECENT BLOCKS heatmap (100-block signing health)
- * - PEERS table (topology with Consensus, Peer H/R/S, Votes, RPC, Health)
- * - DOCTOR panel (derived diagnostic alerts — no extra RPC calls)
- * - NODE STATE panel (all fields from /status)
+ * - VALIDATOR HEALTH summary (per-validator: health, participation, uptime, missed, txContrib)
+ * - PEERS table (topology with RPC status badges, validator-only filter)
+ * - DOCTOR panel (derived diagnostics + monitoring incidents)
+ * - NODE STATE panel (all fields from /status + session age)
  *
  * Independent from /validators — has its own polling lifecycle.
  * All intervals are cleaned up on unmount via AbortController.
@@ -29,16 +31,21 @@ import {
     fetchBlockHeatmap,
     getNodeStatus,
     getNetworkStats,
+    getValidators,
+    mergeWithMonitoringData,
     type HackerConsensusState,
     type NetInfo,
     type BlockSample,
     type NodeStatus,
     type NetworkStats,
+    type ValidatorInfo,
 } from "../lib/validators"
 import {
     fetchMonitoringIncidents,
+    fetchAllMonitoringData,
     type MonitoringIncident,
 } from "../lib/gnomonitoring"
+import { computeHealthStatus } from "../lib/validatorHealth"
 
 import { HackerStatusBar } from "../components/validators/HackerStatusBar"
 import { ConnectSection } from "../components/validators/ConnectSection"
@@ -48,15 +55,18 @@ import { BlockHeatmap } from "../components/validators/BlockHeatmap"
 import { PeerTable } from "../components/validators/PeerTable"
 import { DoctorPanel } from "../components/validators/DoctorPanel"
 import { NodeStatePanel } from "../components/validators/NodeStatePanel"
+import { ValidatorHealthGrid } from "../components/validators/ValidatorHealthGrid"
 
 import "../components/validators/hacker-mode.css"
 import "./validators-hacker.css"
 
-// ── Polling intervals ──────────────────────────────────────────
-const CONSENSUS_MS = 2_000   // 2s: live H/R/S consensus state
-const PEERS_MS = 15_000      // 15s: peer topology
-const HEATMAP_MS = 30_000    // 30s: block heatmap (aligns with standard page)
-const NODESTATUS_MS = 60_000 // 60s: node identity (rarely changes)
+// ── Polling intervals ──────────────────────────────────────────────────
+const CONSENSUS_MS = 2_000       // 2s: live H/R/S consensus state
+const PEERS_MS = 15_000          // 15s: peer topology
+const HEATMAP_MS = 30_000        // 30s: block heatmap (aligns with standard page)
+const INCIDENTS_MS = 30_000      // 30s: monitoring incidents refresh
+const MONITORING_MS = 60_000     // 60s: per-validator monitoring data
+const NODESTATUS_MS = 60_000     // 60s: node identity (rarely changes)
 
 export default function ValidatorsHacker() {
     const rpcUrl = getTelemetryRpcUrl()
@@ -71,8 +81,22 @@ export default function ValidatorsHacker() {
     const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null)
     const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
     const [incidents, setIncidents] = useState<MonitoringIncident[]>([])
+    const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
+    const [monitoringLoading, setMonitoringLoading] = useState(true)
+    const [sessionStart] = useState(Date.now())
+
+    // Compute session age string for NodeStatePanel (stable across re-renders via state)
+    const sessionAgeMs = (lastUpdated ?? Date.now()) - sessionStart
+    const sessionAgeStr = (() => {
+        const s = Math.floor(sessionAgeMs / 1000)
+        const m = Math.floor(s / 60) % 60
+        const h = Math.floor(s / 3600)
+        if (h > 0) return `${h}h ${m}m`
+        if (m > 0) return `${m}m ${s % 60}s`
+        return `${s}s`
+    })()
 
     // ── Page Visibility API ────────────────────────────────────
     useEffect(() => {
@@ -89,18 +113,19 @@ export default function ValidatorsHacker() {
         return () => { document.title = "Memba" }
     }, [])
 
-    // ── Initial full data load ─────────────────────────────────
+    // ── Initial full data load ─────────────────────────────────────
     const loadAll = useCallback(async () => {
         mainAbort.current?.abort()
         const ctrl = new AbortController()
         mainAbort.current = ctrl
 
         try {
-            const [csData, niData, nsData, statsData] = await Promise.all([
+            const [csData, niData, nsData, statsData, valData] = await Promise.all([
                 getConsensusState(rpcUrl, ctrl.signal),
                 getNetPeers(rpcUrl, ctrl.signal),
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
+                getValidators(rpcUrl),
             ])
 
             if (ctrl.signal.aborted) return
@@ -124,6 +149,18 @@ export default function ValidatorsHacker() {
             // v2.17.0: Fetch monitoring incidents for DoctorPanel
             const incidentsData = await fetchMonitoringIncidents(ctrl.signal)
             if (!ctrl.signal.aborted && incidentsData) setIncidents(incidentsData)
+
+            // v2.17.1: Fetch all monitoring data + compute health for ValidatorHealthGrid
+            const monitoringData = await fetchAllMonitoringData(ctrl.signal)
+            if (!ctrl.signal.aborted && valData) {
+                let merged = mergeWithMonitoringData(valData, monitoringData)
+                merged = merged.map(v => {
+                    const healthMeta = computeHealthStatus(v)
+                    return { ...v, healthStatus: healthMeta.status, healthMeta }
+                })
+                setValidators(merged)
+                setMonitoringLoading(false)
+            }
         } catch {
             // Resilient — show partial data
         } finally {
@@ -166,6 +203,33 @@ export default function ValidatorsHacker() {
             }
         }, HEATMAP_MS)
 
+        // Incidents: 30s (v2.17.1 — was one-shot)
+        const incidentsInterval = setInterval(async () => {
+            if (!isVisible.current) return
+            const data = await fetchMonitoringIncidents(abortCs.signal)
+            if (data && !abortCs.signal.aborted) setIncidents(data)
+        }, INCIDENTS_MS)
+
+        // Monitoring data + health: 60s (v2.17.1)
+        const monitoringInterval = setInterval(async () => {
+            if (!isVisible.current) return
+            try {
+                const [valData, monData] = await Promise.all([
+                    getValidators(rpcUrl),
+                    fetchAllMonitoringData(abortCs.signal),
+                ])
+                if (abortCs.signal.aborted) return
+                if (valData) {
+                    let merged = mergeWithMonitoringData(valData, monData)
+                    merged = merged.map(v => {
+                    const healthMeta = computeHealthStatus(v)
+                    return { ...v, healthStatus: healthMeta.status, healthMeta }
+                })
+                    setValidators(merged)
+                }
+            } catch { /* resilient */ }
+        }, MONITORING_MS)
+
         // Node status: 60s
         const nodeInterval = setInterval(async () => {
             if (!isVisible.current) return
@@ -177,12 +241,14 @@ export default function ValidatorsHacker() {
             clearInterval(consensusInterval)
             clearInterval(peersInterval)
             clearInterval(heatmapInterval)
+            clearInterval(incidentsInterval)
+            clearInterval(monitoringInterval)
             clearInterval(nodeInterval)
             abortCs.abort()
             mainAbort.current?.abort()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [rpcUrl])
 
     return (
         <div className="vh-page" data-testid="validators-hacker-page">
@@ -202,12 +268,12 @@ export default function ValidatorsHacker() {
                 lastUpdated={lastUpdated}
             />
 
-            {/* ── Main Hacker Layout ────────────────────────── */}
+            {/* ── Main Hacker Layout ──────────────────────── */}
             <div className="hk-layout">
 
                 {/* Row 1: Connect + Network State + Consensus */}
                 <ConnectSection nodeStatus={nodeStatus} />
-                <NetworkStateGrid stats={networkStats} cs={cs} />
+                <NetworkStateGrid stats={networkStats} cs={cs} peerCount={netInfo?.peerCount} />
                 <ConsensusWidget cs={cs} loading={loading} />
 
                 {/* Row 2: Recent Blocks (full width) */}
@@ -217,13 +283,19 @@ export default function ValidatorsHacker() {
                     totalValidators={cs?.valsetSize}
                 />
 
-                {/* Row 3: Peers (full width) */}
+                {/* Row 3: Validator Health Summary (full width, v2.17.1) */}
+                <ValidatorHealthGrid
+                    validators={validators}
+                    loading={monitoringLoading}
+                />
+
+                {/* Row 4: Peers (full width) */}
                 <PeerTable
                     netInfo={netInfo}
                     loading={loading}
                 />
 
-                {/* Row 4: Doctor (full width) */}
+                {/* Row 5: Doctor (full width) */}
                 <DoctorPanel
                     netInfo={netInfo}
                     cs={cs}
@@ -231,8 +303,8 @@ export default function ValidatorsHacker() {
                     incidents={incidents}
                 />
 
-                {/* Row 5: Node State (full width) */}
-                <NodeStatePanel nodeStatus={nodeStatus} loading={loading} />
+                {/* Row 6: Node State (full width) */}
+                <NodeStatePanel nodeStatus={nodeStatus} loading={loading} sessionAge={sessionAgeStr} />
             </div>
         </div>
     )

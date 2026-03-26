@@ -48,6 +48,8 @@ export interface ValidatorInfo {
     incidents: MonitoringIncident[]
     /** Operation time duration from gnomonitoring (v2.17.0) */
     operationTime: string | null
+    /** TX contribution rate from gnomonitoring (v2.17.1) */
+    txContrib: number | null
 }
 
 export interface NetworkStats {
@@ -172,6 +174,7 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
                 missedBlocks: null,
                 incidents: [],
                 operationTime: null,
+                txContrib: null,
             }
         })
         .sort((a, b) => b.votingPower - a.votingPower)
@@ -206,6 +209,7 @@ export function mergeWithMonitoringData(
                 missedBlocks: match.missedBlocks,
                 incidents: match.incidents ?? [],
                 operationTime: match.operationTime,
+                txContrib: match.txContrib,
             }
         }
         return v

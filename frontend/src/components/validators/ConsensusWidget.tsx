@@ -96,6 +96,18 @@ export function ConsensusWidget({ cs, loading }: ConsensusWidgetProps) {
                         </span>
                     </div>
 
+                    {/* Round age */}
+                    {cs.roundAge != null && (
+                        <div className="hk-meta-row">
+                            <span className="hk-meta-key">round age</span>
+                            <span className={`hk-meta-val hk-mono ${
+                                cs.roundAge > 30 ? "hk-danger" : cs.roundAge > 5 ? "hk-warn" : "hk-ok"
+                            }`}>
+                                {cs.roundAge}s
+                            </span>
+                        </div>
+                    )}
+
                     {/* AppHash */}
                     {cs.appHash && (
                         <div className="hk-meta-row">

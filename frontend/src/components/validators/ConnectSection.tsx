@@ -46,16 +46,22 @@ export function ConnectSection({ nodeStatus }: ConnectSectionProps) {
         )
     }
 
+    // Build full P2P address: nodeId@ip:port (gnockpit shows this format)
+    const listenAddr = nodeStatus.listenAddr || ""
+    const fullP2p = nodeStatus.nodeId && listenAddr
+        ? `${nodeStatus.nodeId}@${listenAddr.replace(/^tcp:\/\//, "")}`
+        : listenAddr || nodeStatus.nodeId || ""
+
     return (
         <div className="hk-card hk-connect">
             <div className="hk-card__title">
                 <span className="hk-card__icon">🔗</span>
                 CONNECT
             </div>
-            <CopyRow label="seed" value={nodeStatus.listenAddr || "unknown"} />
+            <CopyRow label="seed" value={fullP2p || "unknown"} />
             {/* Note: /status exposes latest_app_hash, not genesis file sha256.
                 Genesis hash requires fetching /genesis which is expensive. */}
-            <CopyRow label="app hash" value={nodeStatus.genesisHash || "unknown"} />
+            <CopyRow label="latest app hash" value={nodeStatus.genesisHash || "unknown"} />
         </div>
     )
 }
