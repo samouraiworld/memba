@@ -659,19 +659,30 @@ export async function getConsensusState(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rs: any = cs?.round_state || {}
 
-        // Parse H/R/S — format: "HEIGHT/ROUND/STEP"
-        const hrsRaw: string = rs["height/round/step"] || "0/0/0"
-        const [hStr, rStr, sStr] = hrsRaw.split("/")
-        const height = parseInt(hStr || "0", 10)
-        const round = parseInt(rStr || "0", 10)
-        const step = parseInt(sStr || "0", 10)
+        // v2.17.2: Parse H/R/S — support both formats:
+        // - Gno nodes: separate `height`, `round`, `step` integer keys
+        // - Tendermint: combined `height/round/step` string "H/R/S"
+        let height: number, round: number, step: number
+        if (rs.height != null && rs.round != null && rs.step != null) {
+            // Gno format: separate integer keys
+            height = typeof rs.height === "string" ? parseInt(rs.height, 10) : Number(rs.height) || 0
+            round = typeof rs.round === "string" ? parseInt(rs.round, 10) : Number(rs.round) || 0
+            step = typeof rs.step === "string" ? parseInt(rs.step, 10) : Number(rs.step) || 0
+        } else {
+            // Tendermint format: combined string
+            const hrsRaw: string = rs["height/round/step"] || "0/0/0"
+            const [hStr, rStr, sStr] = hrsRaw.split("/")
+            height = parseInt(hStr || "0", 10)
+            round = parseInt(rStr || "0", 10)
+            step = parseInt(sStr || "0", 10)
+        }
 
         const stepLabels: HackerConsensusState["stepLabel"][] = [
             "Unknown", "Propose", "Prevote", "Precommit", "Commit",
         ]
         const stepLabel = stepLabels[step] ?? "Unknown"
 
-        // Parse proposer address
+        // Parse proposer address — Gno uses proposal.proposer_address
         const proposer: string = rs.proposer?.address || rs.proposal?.proposer_address || ""
 
         // Parse valset size and compute BFT thresholds
@@ -681,21 +692,33 @@ export async function getConsensusState(
         const minBft = valsetSize > 0 ? Math.ceil((valsetSize * 2) / 3) : 0
         const faultTolerance = valsetSize - minBft
 
-        // Count prevotes and precommits bitmask
-        // Gnockpit uses the `votes` array that maps bit positions to validators
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const prevotesBitmask: string = (rs.votes || []).find((v: any) =>
-            v?.round === round && v?.vote_type?.toLowerCase() === "prevote"
-        )?.prevotes_bit_array || ""
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const precommitsBitmask: string = (rs.votes || []).find((v: any) =>
-            v?.round === round && v?.vote_type?.toLowerCase() === "precommit"
-        )?.precommits_bit_array || ""
-
-        // Count '1' bits: "BA{9:xxxxxxx_xx}" format
+        // Count prevotes and precommits
+        // v2.17.2: Handle both formats:
+        // - Tendermint: `votes` array with {round, vote_type, prevotes_bit_array}
+        // - Gno: `votes` may be empty dict or absent — fall back to validator count
+        let prevoteCount = 0
+        let precommitCount = 0
         const countBits = (bitmask: string): number => (bitmask.match(/1/g) || []).length
-        const prevoteCount = countBits(prevotesBitmask)
-        const precommitCount = countBits(precommitsBitmask)
+
+        if (Array.isArray(rs.votes) && rs.votes.length > 0) {
+            // Tendermint format: array with bitmask strings
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const prevotesBitmask: string = rs.votes.find((v: any) =>
+                v?.round === round && v?.vote_type?.toLowerCase() === "prevote"
+            )?.prevotes_bit_array || ""
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const precommitsBitmask: string = rs.votes.find((v: any) =>
+                v?.round === round && v?.vote_type?.toLowerCase() === "precommit"
+            )?.precommits_bit_array || ""
+            prevoteCount = countBits(prevotesBitmask)
+            precommitCount = countBits(precommitsBitmask)
+        } else if (step >= 3) {
+            // Gno format: votes may be empty — infer from step progression
+            // Step 3 = Precommit means prevotes reached quorum
+            // Step 4 = Commit means precommits reached quorum
+            prevoteCount = step >= 2 ? valsetSize : 0
+            precommitCount = step >= 4 ? valsetSize : 0
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const syncInfo: any = st?.sync_info || {}

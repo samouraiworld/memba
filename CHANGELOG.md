@@ -4,6 +4,11 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- **getConsensusState**: Support both Gno format (separate `height`, `round`, `step` keys) and Tendermint format (combined `height/round/step` string) — fixes CONSENSUS STATE section not rendering on Gno chains
+- **Vote parsing**: Handle Gno's empty `votes` dict — infer prevote/precommit counts from consensus step progression
+
 ## v2.17.2 (2026-03-26) — Validator Performance Hardening ⚡
 
 ### Added
