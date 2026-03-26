@@ -60,8 +60,12 @@ export interface MonitoringMissingBlock {
 export interface MonitoringOperationTime {
     addr: string
     moniker: string
-    /** Operation time / uptime duration string */
-    operationTime: string
+    /** Days since last downtime event (number from API) */
+    operationTime: number
+    /** ISO date of last down event (from same endpoint) */
+    lastDownDate: string | null
+    /** ISO date of last up event (from same endpoint) */
+    lastUpDate: string | null
 }
 
 /** TX contribution data from gnomonitoring `/tx_contribution` endpoint. */
@@ -83,9 +87,11 @@ export interface MonitoringValidatorData {
     missedBlocks: number | null
     /** Recent incidents (from /latest_incidents) */
     incidents: MonitoringIncident[]
-    /** Operation time duration (from /operation_time) */
-    operationTime: string | null
-    /** TX contribution rate (from /tx_contribution) */
+    /** Days since last downtime (from /operation_time) */
+    operationTime: number | null
+    /** ISO date of last down event (from /operation_time) */
+    lastDownDate: string | null
+    /** TX contribution rate (from /tx_contrib) */
     txContrib: number | null
 }
 
@@ -328,8 +334,13 @@ export async function fetchMonitoringOperationTime(
         .map(v => ({
             addr: v.addr || v.address || "",
             moniker: v.moniker || "",
-            // Backend OperationTimeMetrics uses `operationTime` (float64 daysDiff mapped to this)
-            operationTime: v.operationTime || v.operation_time || v.uptime_duration || "",
+            // Backend OperationTimeMetrics returns operationTime as number (days since last down)
+            operationTime: typeof v.operationTime === "number" ? v.operationTime
+                : typeof v.operation_time === "number" ? v.operation_time
+                : 0,
+            // Backend also returns lastDownDate and lastUpDate from same endpoint
+            lastDownDate: v.lastDownDate || v.last_down_date || null,
+            lastUpDate: v.lastUpDate || v.last_up_date || null,
         }))
     setCache(cacheKey, filtered)
     return filtered
@@ -350,7 +361,7 @@ export async function fetchMonitoringTxContribution(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
-        "/tx_contribution",
+        "/tx_contrib",
         { period: "current_month", chain: GNO_CHAIN_ID },
         signal,
     )
@@ -403,6 +414,7 @@ export async function fetchAllMonitoringData(
             missedBlocks: null,
             incidents: [],
             operationTime: null,
+            lastDownDate: null,
             txContrib: null,
         })
     }
@@ -433,6 +445,7 @@ export async function fetchAllMonitoringData(
                     missedBlocks: null,
                     incidents: [],
                     operationTime: null,
+                    lastDownDate: null, // Added lastDownDate
                     txContrib: null,
                 })
             }
@@ -466,6 +479,7 @@ export async function fetchAllMonitoringData(
             const existing = result.get(ot.addr.toLowerCase())
             if (existing) {
                 existing.operationTime = ot.operationTime
+                existing.lastDownDate = ot.lastDownDate
             }
         }
     }

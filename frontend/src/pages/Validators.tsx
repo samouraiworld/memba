@@ -447,7 +447,7 @@ export default function Validators() {
                                 </td>
                                 <td className="val-td val-td-center">
                                     <span className="val-start-time">
-                                        {v.operationTime ? v.operationTime : formatRelativeTime(v.startTime)}
+                                        {v.operationTime != null ? `${v.operationTime}d` : formatRelativeTime(v.startTime)}
                                     </span>
                                 </td>
                                 <td className="val-td val-td-center">
