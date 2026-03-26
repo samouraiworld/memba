@@ -26,11 +26,19 @@ import {
     formatVotingPower,
     formatRelativeTime,
     truncateValidatorAddr,
+    mergeWithMonitoringData,
     type ValidatorInfo,
     type NetworkStats,
     type HackerConsensusState,
     type BlockSample,
 } from "../lib/validators"
+import { fetchAllMonitoringData } from "../lib/gnomonitoring"
+import {
+    computeHealthStatus,
+    healthCssClass,
+    healthLabel,
+    healthIcon,
+} from "../lib/validatorHealth"
 import { BlockHeatmap } from "../components/validators/BlockHeatmap"
 import "../components/validators/hacker-mode.css"
 import "./validator-detail.css"
@@ -116,26 +124,34 @@ export default function ValidatorDetail() {
         abortRef.current = ctrl
 
         try {
-            const [allValidators, networkStats, csData, sigMap] = await Promise.all([
+            const [allValidators, networkStats, csData, sigMap, monitoringMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 getNetworkStats(GNO_RPC_URL),
                 getConsensusState(rpcUrl, ctrl.signal),
-                fetchLastBlockSignatures(GNO_RPC_URL, 20),
+                fetchLastBlockSignatures(GNO_RPC_URL, 100),
+                fetchAllMonitoringData(ctrl.signal),
             ])
 
             if (ctrl.signal.aborted) return
 
-            const found = allValidators.find(
+            // Merge monitoring data into validators
+            const enriched = mergeWithMonitoringData(allValidators, monitoringMap)
+
+            if (ctrl.signal.aborted) return
+
+            const found = enriched.find(
                 v => v.gnoAddr?.toLowerCase() === address.toLowerCase() ||
                      v.address?.toLowerCase() === address.toLowerCase()
             )
 
             if (!found) { setNotFound(true); setLoading(false); return }
 
-            // Attach per-validator block signatures
+            // Attach per-validator block signatures + compute health
             const sigKey = found.gnoAddr?.toLowerCase() || found.address?.toLowerCase() || ""
             const sigs = sigMap.get(sigKey) ?? []
-            setValidator({ ...found, lastBlockSignatures: sigs })
+            const withSigs = { ...found, lastBlockSignatures: sigs }
+            const healthMeta = computeHealthStatus(withSigs)
+            setValidator({ ...withSigs, healthStatus: healthMeta.status, healthMeta })
             setStats(networkStats)
             setCs(csData)
 
@@ -254,8 +270,9 @@ export default function ValidatorDetail() {
                     {isProposer && (
                         <span className="vd-badge vd-badge--proposer">⚡ Proposer</span>
                     )}
-                    <span className={`vd-badge ${validator.active ? "vd-badge--active" : "vd-badge--inactive"}`}>
-                        {validator.active ? "Active" : "Inactive"}
+                    <span className={`vd-badge vd-badge--health ${healthCssClass(validator.healthStatus)}`}
+                          title={validator.healthMeta?.reason || ""}>
+                        {healthIcon(validator.healthStatus)} {healthLabel(validator.healthStatus)}
                     </span>
                 </div>
             </div>
@@ -282,6 +299,15 @@ export default function ValidatorDetail() {
                     <span className="vd-stat-value">{formatRelativeTime(validator.startTime)}</span>
                     <span className="vd-stat-hint">{validator.startTime ? new Date(validator.startTime).toLocaleDateString() : "—"}</span>
                 </div>
+                {validator.missedBlocks != null && (
+                    <div className="vd-stat-card">
+                        <span className="vd-stat-label">Missed Blocks</span>
+                        <span className={`vd-stat-value vd-mono ${validator.missedBlocks >= 30 ? "vd-val-critical" : validator.missedBlocks >= 5 ? "vd-val-warn" : "vd-val-ok"}`}>
+                            {validator.missedBlocks}
+                        </span>
+                        <span className="vd-stat-hint">this period</span>
+                    </div>
+                )}
             </div>
 
             {/* ── Identity panel ───────────────────── */}
@@ -334,6 +360,29 @@ export default function ValidatorDetail() {
                                 <span className="vd-perf-value">{validator.participationRate}%</span>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Incident History (v2.17.0) ───────────────── */}
+            {validator.incidents && validator.incidents.length > 0 && (
+                <div className="vd-card">
+                    <div className="vd-card__title">🚨 Incident History ({validator.incidents.length})</div>
+                    <div className="vd-incident-timeline">
+                        {[...validator.incidents]
+                            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                            .slice(0, 10)
+                            .map((inc, i) => (
+                                <div key={i} className="vd-incident-row">
+                                    <span className={`val-incident-badge val-incident-badge--${inc.severity.toLowerCase()}`}>
+                                        {inc.severity}
+                                    </span>
+                                    <span className="vd-incident-time">
+                                        {inc.timestamp ? new Date(inc.timestamp).toLocaleString() : "—"}
+                                    </span>
+                                    <span className="vd-incident-details">{inc.details}</span>
+                                </div>
+                            ))}
                     </div>
                 </div>
             )}

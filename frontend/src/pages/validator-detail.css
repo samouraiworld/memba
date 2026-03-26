@@ -373,3 +373,55 @@ h1.vd-moniker {
     .vd-row { flex-direction: column; gap: 0.2rem; }
     .vd-row__label { min-width: unset; }
 }
+
+/* ── v2.17.0: Incident Timeline ────────────────────────── */
+
+.vd-incident-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.vd-incident-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.015);
+    transition: background 0.12s;
+}
+
+.vd-incident-row:hover {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.vd-incident-time {
+    font-size: 0.62rem;
+    color: rgba(255, 255, 255, 0.35);
+    font-family: "JetBrains Mono", monospace;
+    white-space: nowrap;
+    min-width: 10rem;
+}
+
+.vd-incident-details {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── v2.17.0: Health-colored stat values ───────────────── */
+
+.vd-val-ok       { color: #34d399; }
+.vd-val-warn     { color: #facc15; }
+.vd-val-critical { color: #f87171; }
+
+/* ── v2.17.0: Health badge on header card ──────────────── */
+
+.vd-badge--health {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}

@@ -626,3 +626,212 @@
     font-family: "JetBrains Mono", monospace;
     white-space: nowrap;
 }
+
+/* ── v2.17.0: Network Health Banner ────────────────────── */
+
+.val-health-banner {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid #1a1a1a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.val-health-banner__title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 12px;
+}
+
+.val-health-banner__grid {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.val-health-banner__stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.val-health-banner__count {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f0f0f0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.val-health-banner__label {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.val-health-banner__incident {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #1a1a1a;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.val-health-banner__incident-text {
+    font-size: 11px;
+    color: #999;
+    font-family: "JetBrains Mono", monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── v2.17.0: Health Dots ──────────────────────────────── */
+
+.val-health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.val-health-dot--healthy {
+    background: #34d399;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
+}
+
+.val-health-dot--degraded {
+    background: #facc15;
+    box-shadow: 0 0 6px rgba(250, 204, 21, 0.4);
+}
+
+.val-health-dot--down {
+    background: #f87171;
+    box-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+    animation: val-health-pulse 1.5s ease infinite;
+}
+
+.val-health-dot--unknown {
+    background: #666;
+}
+
+@keyframes val-health-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ── v2.17.0: Health Badge (Table) ─────────────────────── */
+
+.val-health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.val-health-badge__icon {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.val-health-badge__label {
+    font-size: 10px;
+}
+
+.val-health-healthy {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+}
+
+.val-health-degraded {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.08);
+}
+
+.val-health-down {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    animation: val-health-pulse 1.5s ease infinite;
+}
+
+.val-health-unknown {
+    color: #888;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── v2.17.0: Missed Blocks Badge ──────────────────────── */
+
+.val-missed-badge {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.val-missed-ok {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+}
+
+.val-missed-warn {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.08);
+}
+
+.val-missed-critical {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+    animation: val-health-pulse 2s ease infinite;
+}
+
+/* ── v2.17.0: Incident Severity Badge ──────────────────── */
+
+.val-incident-badge {
+    font-size: 9px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.val-incident-badge--critical {
+    color: #fff;
+    background: #dc2626;
+}
+
+.val-incident-badge--warning {
+    color: #1a1a1a;
+    background: #facc15;
+}
+
+.val-incident-badge--resolved {
+    color: #fff;
+    background: #059669;
+}
+
+.val-incident-badge--info {
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── v2.17.0: Block strip sizing for 100 blocks ────────── */
+
+.val-block-strip .val-block-tick {
+    width: 2px;
+}

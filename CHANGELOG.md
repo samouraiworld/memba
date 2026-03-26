@@ -4,6 +4,32 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.17.0 (2026-03-26) — Validator Health Engine & Grafana-Inspired Monitoring 🩺
+
+### Added
+
+- **Health Status Engine**: New composite 4-state scoring (✅ Healthy / 🟡 Degraded / 🔴 Down / ⚪ Unknown) — replaces binary Active/Inactive
+- **Network Health Banner**: Grafana-inspired dashboard showing real-time health dot counts + latest incident across all validators
+- **Incident History Timeline**: Per-validator incident panel on detail page (sorted by time, severity-colored badges)
+- **Missed Blocks Column**: New table column with 3-tier severity coloring (0-4 green, 5-29 yellow, 30+ red pulsing)
+- **DoctorPanel Incidents**: Hacker View Doctor now surfaces CRITICAL/WARNING monitoring incidents
+- **Tests**: `validatorHealth.test.ts` — 19 tests covering all health states, priority logic, edge cases, network summary
+
+### Changed
+
+- **Block Signatures**: Increased window from 20 → 100 blocks for better visibility
+- **gnomonitoring Integration**: Now consumes 6 API endpoints (was 3): `/participation`, `/uptime`, `/first_seen`, `/latest_incidents`, `/missing_block`, `/operation_time`
+- **ValidatorDetail**: 5 parallel data fetches (incl. monitoring data), health-tinted header badge
+- **ValidatorsHacker**: Fetches monitoring incidents for DoctorPanel integration
+
+### Fixed
+
+- **Critical**: JSON field name mapping aligned with gnomonitoring Go backend (`level`→`severity`, `msg`→`details`, `sentAt`→`timestamp`, `missingBlock` singular)
+- **Root Cause**: Crashed validators no longer silently show green "Active" — health engine detects via incidents + block signatures
+
+---
+
+
 ### Changed
 
 - **Dependencies (Batch 1)**: `vitest` 4.1.0→4.1.1, `react-router-dom` 7.13.1→7.13.2, `@sentry/react` 10.43.0→10.45.0, `modernc.org/sqlite` 1.46.2→1.47.0

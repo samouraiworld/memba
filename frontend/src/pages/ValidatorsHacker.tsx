@@ -35,6 +35,10 @@ import {
     type NodeStatus,
     type NetworkStats,
 } from "../lib/validators"
+import {
+    fetchMonitoringIncidents,
+    type MonitoringIncident,
+} from "../lib/gnomonitoring"
 
 import { HackerStatusBar } from "../components/validators/HackerStatusBar"
 import { ConnectSection } from "../components/validators/ConnectSection"
@@ -66,6 +70,7 @@ export default function ValidatorsHacker() {
     const [blockHeatmap, setBlockHeatmap] = useState<BlockSample[]>([])
     const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null)
     const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
+    const [incidents, setIncidents] = useState<MonitoringIncident[]>([])
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
 
@@ -115,6 +120,10 @@ export default function ValidatorsHacker() {
                 const heatmap = await fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
                 if (!ctrl.signal.aborted) setBlockHeatmap(heatmap)
             }
+
+            // v2.17.0: Fetch monitoring incidents for DoctorPanel
+            const incidentsData = await fetchMonitoringIncidents(ctrl.signal)
+            if (!ctrl.signal.aborted && incidentsData) setIncidents(incidentsData)
         } catch {
             // Resilient — show partial data
         } finally {
@@ -219,6 +228,7 @@ export default function ValidatorsHacker() {
                     netInfo={netInfo}
                     cs={cs}
                     localHeight={cs?.height ?? 0}
+                    incidents={incidents}
                 />
 
                 {/* Row 5: Node State (full width) */}

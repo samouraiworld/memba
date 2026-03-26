@@ -1,4 +1,6 @@
-import type { MonitoringValidatorData } from "./gnomonitoring"
+import type { MonitoringValidatorData, MonitoringIncident } from "./gnomonitoring"
+import { ValidatorHealthStatus } from "./validatorHealth"
+import type { ValidatorHealthMeta } from "./validatorHealth"
 import { hexToBech32 } from "./dao/realmAddress"
 import { queryRender } from "./dao/shared"
 import { getExplorerBaseUrl } from "./config"
@@ -36,6 +38,16 @@ export interface ValidatorInfo {
     lastBlockSignatures: boolean[]
     /** Validator start time (ISO string, from valopers registration) */
     startTime: string
+    /** Computed health status (v2.17.0) */
+    healthStatus: ValidatorHealthStatus
+    /** Health metadata — reason, latest incident info (v2.17.0) */
+    healthMeta: ValidatorHealthMeta | null
+    /** Total missed blocks this period from gnomonitoring (v2.17.0) */
+    missedBlocks: number | null
+    /** Recent incidents from gnomonitoring (v2.17.0) */
+    incidents: MonitoringIncident[]
+    /** Operation time duration from gnomonitoring (v2.17.0) */
+    operationTime: string | null
 }
 
 export interface NetworkStats {
@@ -155,6 +167,11 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
                 profileUrl: gnoAddr ? `${getExplorerBaseUrl()}/r/demo/profile:u/${gnoAddr}` : "",
                 lastBlockSignatures: [],
                 startTime: "",
+                healthStatus: ValidatorHealthStatus.Unknown,
+                healthMeta: null,
+                missedBlocks: null,
+                incidents: [],
+                operationTime: null,
             }
         })
         .sort((a, b) => b.votingPower - a.votingPower)
@@ -186,6 +203,9 @@ export function mergeWithMonitoringData(
                 participationRate: match.participationRate,
                 uptimePercent: match.uptime,
                 startTime: match.firstSeen ?? v.startTime,
+                missedBlocks: match.missedBlocks,
+                incidents: match.incidents ?? [],
+                operationTime: match.operationTime,
             }
         }
         return v

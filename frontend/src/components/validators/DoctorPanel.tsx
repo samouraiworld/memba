@@ -10,6 +10,7 @@
  */
 
 import type { NetInfo, HackerConsensusState } from "../../lib/validators"
+import type { MonitoringIncident } from "../../lib/gnomonitoring"
 
 interface Diagnostic {
     type: "warn" | "error"
@@ -21,6 +22,8 @@ interface DoctorPanelProps {
     netInfo: NetInfo | null
     cs: HackerConsensusState | null
     localHeight: number
+    /** v2.17.0: monitoring incidents from gnomonitoring */
+    incidents?: MonitoringIncident[]
 }
 
 function deriveDiagnostics(netInfo: NetInfo | null, cs: HackerConsensusState | null, localHeight: number): Diagnostic[] {
@@ -76,8 +79,25 @@ function deriveDiagnostics(netInfo: NetInfo | null, cs: HackerConsensusState | n
     return diags
 }
 
-export function DoctorPanel({ netInfo, cs, localHeight }: DoctorPanelProps) {
-    const diags = deriveDiagnostics(netInfo, cs, localHeight)
+/** Derive alert-level diagnostics from monitoring incidents (v2.17.0). */
+function deriveIncidentDiagnostics(incidents: MonitoringIncident[]): Diagnostic[] {
+    if (!incidents || incidents.length === 0) return []
+
+    return incidents
+        .filter(inc => inc.severity?.toUpperCase() === "CRITICAL" || inc.severity?.toUpperCase() === "WARNING")
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5)
+        .map(inc => ({
+            type: inc.severity?.toUpperCase() === "CRITICAL" ? "error" as const : "warn" as const,
+            message: `${inc.severity?.toUpperCase()}: ${inc.moniker || inc.addr} — ${inc.details || "incident detected"}`,
+            detail: inc.timestamp ? `at ${new Date(inc.timestamp).toLocaleString()}` : undefined,
+        }))
+}
+
+export function DoctorPanel({ netInfo, cs, localHeight, incidents = [] }: DoctorPanelProps) {
+    const networkDiags = deriveDiagnostics(netInfo, cs, localHeight)
+    const incidentDiags = deriveIncidentDiagnostics(incidents)
+    const diags = [...incidentDiags, ...networkDiags] // incidents first (higher priority)
 
     return (
         <div className="hk-card hk-doctor" style={{ gridColumn: "1 / -1" }}>
