@@ -50,6 +50,8 @@ export interface ValidatorInfo {
     operationTime: string | null
     /** TX contribution rate from gnomonitoring (v2.17.1) */
     txContrib: number | null
+    /** ISO timestamp of most recent non-RESOLVED incident (v2.17.3) */
+    lastIncidentDate: string | null
 }
 
 export interface NetworkStats {
@@ -175,6 +177,7 @@ export async function getValidators(rpcUrl: string): Promise<ValidatorInfo[]> {
                 incidents: [],
                 operationTime: null,
                 txContrib: null,
+                lastIncidentDate: null,
             }
         })
         .sort((a, b) => b.votingPower - a.votingPower)
@@ -210,6 +213,12 @@ export function mergeWithMonitoringData(
                 incidents: match.incidents ?? [],
                 operationTime: match.operationTime,
                 txContrib: match.txContrib,
+                lastIncidentDate: (() => {
+                    const nonResolved = (match.incidents ?? [])
+                        .filter(i => i.severity !== "RESOLVED" && i.timestamp)
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    return nonResolved.length > 0 ? nonResolved[0].timestamp : null
+                })(),
             }
         }
         return v

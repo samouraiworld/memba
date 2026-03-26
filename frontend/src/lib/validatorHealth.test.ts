@@ -44,6 +44,7 @@ function makeValidator(overrides: Partial<ValidatorInfo> = {}): ValidatorInfo {
         missedBlocks: null,
         incidents: [],
         operationTime: null,
+        lastIncidentDate: null,
         ...overrides,
     }
 }

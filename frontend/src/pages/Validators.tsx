@@ -45,7 +45,7 @@ import {
 } from "../lib/validatorHealth"
 import "./validators.css"
 
-type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks"
+type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks" | "txContrib"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
@@ -199,7 +199,7 @@ export default function Validators() {
     useEffect(() => { setPage(1) }, [search, pageSize])
 
     // Has monitoring data?
-    const hasMonitoring = validators.some(v => v.moniker !== "")
+    const hasMonitoring = validators.some(v => v.participationRate != null || v.uptimePercent != null)
 
     if (loading) {
         return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />
@@ -368,7 +368,7 @@ export default function Validators() {
                             <th className="val-th val-th-right" onClick={() => handleSort("powerPercent")}>
                                 Share {sortKey === "powerPercent" && (sortAsc ? "↑" : "↓")}
                             </th>
-                            <th className="val-th val-th-center">Start Time</th>
+                            <th className="val-th val-th-center">Active Since</th>
                             <th className="val-th val-th-center">Profile</th>
                             {hasMonitoring && (
                                 <>
@@ -381,6 +381,10 @@ export default function Validators() {
                                     <th className="val-th val-th-center" onClick={() => handleSort("missedBlocks")}>
                                         Missed {sortKey === "missedBlocks" && (sortAsc ? "↑" : "↓")}
                                     </th>
+                                    <th className="val-th val-th-right" onClick={() => handleSort("txContrib")}>
+                                        TX Contrib {sortKey === "txContrib" && (sortAsc ? "↑" : "↓")}
+                                    </th>
+                                    <th className="val-th val-th-center">Last Down</th>
                                 </>
                             )}
                             <th className="val-th val-th-center">Health</th>
@@ -442,7 +446,9 @@ export default function Validators() {
                                     </div>
                                 </td>
                                 <td className="val-td val-td-center">
-                                    <span className="val-start-time">{formatRelativeTime(v.startTime)}</span>
+                                    <span className="val-start-time">
+                                        {v.operationTime ? v.operationTime : formatRelativeTime(v.startTime)}
+                                    </span>
                                 </td>
                                 <td className="val-td val-td-center">
                                     {v.profileUrl ? (
@@ -469,6 +475,14 @@ export default function Validators() {
                                                     {v.missedBlocks}
                                                 </span>
                                             ) : "—"}
+                                        </td>
+                                        <td className="val-td val-td-right val-mono">
+                                            {v.txContrib != null ? `${v.txContrib.toFixed(1)}%` : "—"}
+                                        </td>
+                                        <td className="val-td val-td-center">
+                                            <span className="val-start-time">
+                                                {v.lastIncidentDate ? formatRelativeTime(v.lastIncidentDate) : "—"}
+                                            </span>
                                         </td>
                                     </>
                                 )}
