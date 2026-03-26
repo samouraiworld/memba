@@ -33,6 +33,8 @@ import {
     getNetworkStats,
     getValidators,
     mergeWithMonitoringData,
+    fetchValoperMonikers,
+    mergeValoperMonikers,
     type HackerConsensusState,
     type NetInfo,
     type BlockSample,
@@ -85,6 +87,7 @@ export default function ValidatorsHacker() {
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
     const [monitoringLoading, setMonitoringLoading] = useState(true)
+    const [monitoringReachable, setMonitoringReachable] = useState<boolean | null>(null)
     const [sessionStart] = useState(Date.now())
 
     // Compute session age string for NodeStatePanel (stable across re-renders via state)
@@ -114,18 +117,23 @@ export default function ValidatorsHacker() {
     }, [])
 
     // ── Initial full data load ─────────────────────────────────────
+    // v2.17.2: Single parallel burst — eliminates sequential waterfall
     const loadAll = useCallback(async () => {
         mainAbort.current?.abort()
         const ctrl = new AbortController()
         mainAbort.current = ctrl
 
         try {
-            const [csData, niData, nsData, statsData, valData] = await Promise.all([
+            // Phase 1: ALL data sources in single parallel burst (was sequential)
+            const [csData, niData, nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
                 getConsensusState(rpcUrl, ctrl.signal),
                 getNetPeers(rpcUrl, ctrl.signal),
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
                 getValidators(rpcUrl),
+                fetchValoperMonikers(rpcUrl),            // v2.17.2: was missing in hacker view
+                fetchMonitoringIncidents(ctrl.signal),   // v2.17.2: was sequential
+                fetchAllMonitoringData(ctrl.signal),     // v2.17.2: was sequential
             ])
 
             if (ctrl.signal.aborted) return
@@ -134,32 +142,33 @@ export default function ValidatorsHacker() {
             setNetInfo(niData)
             setNodeStatus(nsData)
             setNetworkStats(statsData)
+            if (incidentsData) setIncidents(incidentsData)
             setLastUpdated(Date.now())
 
-            // Track latest height via ref for heatmap interval (avoids nested setState)
+            // Track latest height via ref for heatmap interval
             const height = csData?.height ?? statsData?.blockHeight ?? 0
             latestHeightRef.current = height
 
-            // Heatmap: use consensus height first, fall back to stats height
+            // Heatmap: fire-and-forget after initial render (needs height)
             if (height > 1) {
-                const heatmap = await fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
-                if (!ctrl.signal.aborted) setBlockHeatmap(heatmap)
+                fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
+                    .then(h => { if (!ctrl.signal.aborted) setBlockHeatmap(h) })
+                    .catch(() => { /* resilient */ })
             }
 
-            // v2.17.0: Fetch monitoring incidents for DoctorPanel
-            const incidentsData = await fetchMonitoringIncidents(ctrl.signal)
-            if (!ctrl.signal.aborted && incidentsData) setIncidents(incidentsData)
-
-            // v2.17.1: Fetch all monitoring data + compute health for ValidatorHealthGrid
-            const monitoringData = await fetchAllMonitoringData(ctrl.signal)
-            if (!ctrl.signal.aborted && valData) {
-                let merged = mergeWithMonitoringData(valData, monitoringData)
+            // v2.17.2: Apply valopers monikers (primary) + monitoring data + health
+            if (valData) {
+                const withMonikers = mergeValoperMonikers(valData, valoperMap)
+                let merged = mergeWithMonitoringData(withMonikers, monitoringData)
                 merged = merged.map(v => {
                     const healthMeta = computeHealthStatus(v)
                     return { ...v, healthStatus: healthMeta.status, healthMeta }
                 })
                 setValidators(merged)
                 setMonitoringLoading(false)
+                // v2.17.2: Track monitoring API reachability for HackerStatusBar
+                const hasMonData = merged.some(v => v.participationRate != null || v.uptimePercent != null)
+                setMonitoringReachable(hasMonData)
             }
         } catch {
             // Resilient — show partial data
@@ -210,21 +219,23 @@ export default function ValidatorsHacker() {
             if (data && !abortCs.signal.aborted) setIncidents(data)
         }, INCIDENTS_MS)
 
-        // Monitoring data + health: 60s (v2.17.1)
+        // Monitoring data + health + monikers: 60s (v2.17.2: added valopers)
         const monitoringInterval = setInterval(async () => {
             if (!isVisible.current) return
             try {
-                const [valData, monData] = await Promise.all([
+                const [valData, valoperMap, monData] = await Promise.all([
                     getValidators(rpcUrl),
+                    fetchValoperMonikers(rpcUrl),
                     fetchAllMonitoringData(abortCs.signal),
                 ])
                 if (abortCs.signal.aborted) return
                 if (valData) {
-                    let merged = mergeWithMonitoringData(valData, monData)
+                    const withMonikers = mergeValoperMonikers(valData, valoperMap)
+                    let merged = mergeWithMonitoringData(withMonikers, monData)
                     merged = merged.map(v => {
-                    const healthMeta = computeHealthStatus(v)
-                    return { ...v, healthStatus: healthMeta.status, healthMeta }
-                })
+                        const healthMeta = computeHealthStatus(v)
+                        return { ...v, healthStatus: healthMeta.status, healthMeta }
+                    })
                     setValidators(merged)
                 }
             } catch { /* resilient */ }
@@ -266,6 +277,7 @@ export default function ValidatorsHacker() {
                 cs={cs}
                 netInfo={netInfo}
                 lastUpdated={lastUpdated}
+                monitoringReachable={monitoringReachable}
             />
 
             {/* ── Main Hacker Layout ──────────────────────── */}

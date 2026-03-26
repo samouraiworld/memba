@@ -226,8 +226,19 @@ export function mergeWithMonitoringData(
  *   ` * [Moniker](/r/gnops/valopers:g1addr) - [profile](/r/demo/profile:u/g1addr)`
  *
  * Returns Map<bech32_address, moniker>.
+ * Results are cached in-memory for 5 minutes to reduce ABCI load (v2.17.2).
  */
+
+// v2.17.2: In-memory cache — valopers monikers change very rarely
+let _valoperCache: { data: Map<string, string>; ts: number } | null = null
+const VALOPER_CACHE_TTL_MS = 5 * 60_000 // 5 minutes
+
 export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, string>> {
+    // Return cached data if still fresh
+    if (_valoperCache && Date.now() - _valoperCache.ts < VALOPER_CACHE_TTL_MS) {
+        return _valoperCache.data
+    }
+
     const monikerMap = new Map<string, string>()
     try {
         const raw = await queryRender(rpcUrl, "gno.land/r/gnops/valopers", "")
@@ -243,6 +254,9 @@ export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, 
                 monikerMap.set(addr.toLowerCase(), moniker)
             }
         }
+
+        // Cache successful result
+        _valoperCache = { data: monikerMap, ts: Date.now() }
     } catch {
         // Best-effort: valopers query may fail on some chains
     }

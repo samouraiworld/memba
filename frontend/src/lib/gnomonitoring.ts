@@ -123,7 +123,7 @@ function setCache<T>(key: string, data: T): void {
 
 // ── API Fetch Helpers ────────────────────────────────────────
 
-const FETCH_TIMEOUT_MS = 5_000
+const FETCH_TIMEOUT_MS = 8_000
 
 async function monitoringFetch<T>(
     path: string,

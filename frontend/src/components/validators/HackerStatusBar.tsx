@@ -1,6 +1,6 @@
 /**
  * HackerStatusBar — Gnockpit-style persistent top status strip.
- * Shows: Block height | synced/catching-up | Peers | connected dot | Updated Xs ago.
+ * Shows: Block height | synced/catching-up | Peers | connected dot | Monitoring API | Updated Xs ago.
  * Receives props from parent (no own polling — parent drives data).
  */
 
@@ -11,6 +11,8 @@ interface HackerStatusBarProps {
     cs: HackerConsensusState | null
     netInfo: NetInfo | null
     lastUpdated: number | null // timestamp of last successful fetch
+    /** Whether the gnomonitoring API is reachable (v2.17.2) */
+    monitoringReachable?: boolean | null
 }
 
 function secondsAgo(ts: number | null): string {
@@ -19,7 +21,7 @@ function secondsAgo(ts: number | null): string {
     return `${diff}s`
 }
 
-export function HackerStatusBar({ stats, cs, netInfo, lastUpdated }: HackerStatusBarProps) {
+export function HackerStatusBar({ stats, cs, netInfo, lastUpdated, monitoringReachable }: HackerStatusBarProps) {
     // Prefer consensus-derived height (more frequent), fall back to networkStats
     const blockHeight = cs?.height ?? stats?.blockHeight
     const synced = stats ? !stats.catchingUp : null
@@ -46,6 +48,18 @@ export function HackerStatusBar({ stats, cs, netInfo, lastUpdated }: HackerStatu
             <span className="hk-status-bar__conn">
                 <span className="hk-status-bar__dot" />
                 connected
+            </span>
+
+            <span className="hk-status-bar__sep">·</span>
+
+            {/* v2.17.2: Monitoring API health indicator */}
+            <span className="hk-status-bar__conn" title="gnomonitoring API status">
+                <span className={`hk-status-bar__dot ${
+                    monitoringReachable === true ? "hk-status-bar__dot--green"
+                    : monitoringReachable === false ? "hk-status-bar__dot--red"
+                    : ""
+                }`} />
+                monitoring
             </span>
 
             <span className="hk-status-bar__sep" style={{ marginLeft: "auto" }} />
