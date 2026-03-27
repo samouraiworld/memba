@@ -285,7 +285,7 @@ function AlertsContent() {
                             Configure GovDAO & validator monitoring alerts.
                             Receive notifications on Discord, Slack, or Telegram.
                         </p>
-                        <SignInButton mode="redirect" forceRedirectUrl="/alerts">
+                        <SignInButton mode="modal">
                             <button style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                                 height: 40, padding: "0 24px", borderRadius: 8,

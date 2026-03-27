@@ -72,6 +72,12 @@ const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 // ── Alerts page (lazy — v2.18.0) ──
 const AlertsPage = lazy(() => import("./pages/AlertsPage"))
 
+// ── Gnolove section (lazy — v2.19.0) ──
+const GnoloveLayout = lazy(() => import("./layouts/GnoloveLayout"))
+const GnoloveHome = lazy(() => import("./pages/gnolove/GnoloveHome"))
+const GnoloveReport = lazy(() => import("./pages/gnolove/GnoloveReport"))
+const GnoloveAnalytics = lazy(() => import("./pages/gnolove/GnoloveAnalytics"))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -157,6 +163,13 @@ function App() {
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
+
+          {/* Gnolove — Contributor scoreboard & analytics (v2.19.0) */}
+          <Route path="/gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
+            <Route index element={<GnoloveHome />} />
+            <Route path="report" element={<GnoloveReport />} />
+            <Route path="analytics" element={<GnoloveAnalytics />} />
+          </Route>
 
           {/* Feedback (v2.10) */}
           <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />

@@ -4,6 +4,52 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.19.0 (2026-03-27) — Gnolove Consolidation 💚
+
+### Added
+
+- **Gnolove Section** — new `/gnolove` routes consolidating gnolove.world into Memba
+  - **Scoreboard** — contributor leaderboard with time filters, core team exclusion, and sortable columns (score, commits, PRs, issues, reviews)
+  - **Team Cards** — CSS Grid team breakdown with ranked scores (replaces masonic masonry library)
+  - **Weekly Report** — PR status report with week navigation and 5 status tabs (merged, in progress, waiting for review, reviewed, blocked)
+  - **Analytics** — Recharts-powered visualizations: team contribution bar chart, contribution type pie chart, PRs by team, and 9 summary stat cards
+  - **Sub-navigation** — section tab navigation (Scoreboard / Report / Analytics)
+  - **Help Wanted Issues** — display of bounty/help-wanted issues from the Gno ecosystem
+  - **Freshly Merged PRs** — latest merged pull requests feed
+  - **Tracked Repositories** — repository overview with branch info
+- **Gnolove Data Layer** — client-side fetch wrappers with Zod runtime validation
+  - `gnoloveSchemas.ts` — 25+ Zod schemas with Go backend PascalCase/camelCase field normalization
+  - `gnoloveApi.ts` — 13 API functions with 8s timeout, AbortSignal, graceful null returns
+  - `gnoloveConstants.ts` — teams, time filters, milestone, CSS color map (replaces Radix UI `BadgeProps['color']`)
+- **React Query Integration** — section-scoped QueryClientProvider with isolated cache
+  - 13 custom hooks in `hooks/gnolove/index.ts`
+  - Automatic cleanup on section unmount
+- **Navigation** — Heart icon sidebar link (under Multisig)
+- **New Dependencies** — `@tanstack/react-query@^5.64`, `recharts@^2.15`, `date-fns@^4.1`, `zod@^3.23`
+- **46 New Tests** — 20 API tests, 16 schema tests, 14 constants tests
+
+### Changed
+
+- **Clerk Auth Unified** — removed satellite mode from `ClerkProvider.tsx` (18 lines deleted)
+  - Primary domain changed to `memba.samourai.app` (no satellite/signInUrl/signUpUrl)
+  - `SignInButton` changed from `mode="redirect"` to `mode="modal"` in AlertsPage
+- **CSP Synchronized** — replaced stale Clerk satellite domains in both `netlify.toml` and `index.html`
+  - `clerk.gnolove.world` + `clerk.memba.samourai.app` → `clerk.samourai.app`
+  - `accounts.memba.samourai.app` → `accounts.samourai.app`
+
+### Architecture
+
+- **Lazy-loaded SPA Section** — entire `/gnolove` routes are lazy-loaded chunks with zero main bundle impact (+1KB main, gnolove chunks separate)
+- **Dual Backend** — Memba core + Gnolove Go API (`GNOLOVE_API_URL`)
+- **Bundle Isolation** — GnoloveLayout (12KB), Report (23KB), Analytics (407KB w/ recharts) — all separate chunks
+- **CSS Namespace** — all Gnolove styles use `gl-` prefix (vs `k-` for Memba core)
+
+### Tests
+
+- Total: 868 tests in 41 files (was 822 in 38 files)
+- TypeScript: 0 errors
+- ESLint: 0 errors
+
 ## v2.18.0 (2026-03-27) — Professional Alerting System 🔔
 
 ### Added

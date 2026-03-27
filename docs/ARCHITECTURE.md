@@ -102,6 +102,12 @@
 | `components/ui/JitsiPiPOverlay.tsx` | PiP portal overlay (draggable, insertBefore DOM, expand/close) |
 | `components/dao/DAORooms.tsx` | Default voice/video rooms (Public Room, Members Room) |
 | `hooks/useChannelPolling.ts` | Real-time channel updates (10s polling + Page Visibility API) |
+| `lib/gnoloveSchemas.ts` | Zod schemas for Gnolove Go API (25+ schemas with PascalCase normalization preprocessors) |
+| `lib/gnoloveApi.ts` | Gnolove Go backend client-side fetch wrappers (13 endpoints, 8s timeout, AbortSignal, Zod validation) |
+| `lib/gnoloveConstants.ts` | Teams, TimeFilter, milestone, CSS color map (vanilla, no Radix UI) |
+| `hooks/gnolove/index.ts` | 13 React Query hooks scoped to GnoloveLayout QueryClientProvider |
+| `layouts/GnoloveLayout.tsx` | Section-scoped layout with isolated React Query cache + sub-nav |
+| `pages/gnolove/` | GnoloveHome (scoreboard), GnoloveReport (weekly PRs), GnoloveAnalytics (charts) |
 
 ## Data Flow — Multisig Transaction
 
@@ -184,6 +190,7 @@ React Router matches top-to-bottom. If `/validators/:address` is declared first,
 | `vd-` | Validator Detail page |
 | `cs-` | ConnectSection rows |
 | `nsg-` | NodeStatePanel rows |
+| `gl-` | Gnolove section (scoreboard, reports, analytics) |
 
 ### Graceful Fallbacks
 
@@ -301,6 +308,9 @@ resolveUsernames(members[])
 | **SettingsPage** | — | — | ✅ appearance, network prefs |
 | **FeedbackPage** | — | ✅ memba_feedback board realm | — |
 | **MultisigHub** | ✅ multisig list | ✅ balances | — |
+| **Gnolove** | — | — | — |
+
+> **Note**: Gnolove section uses a **dual-backend** pattern: data from `GNOLOVE_API_URL` (default `https://gnolove.world`) is fetched client-side through `gnoloveApi.ts`. React Query cache is scoped to `/gnolove` routes via a section-level `QueryClientProvider` in `GnoloveLayout.tsx` — fully isolated from Memba core data.
 
 ## Data Flow — User Profile (Hybrid)
 

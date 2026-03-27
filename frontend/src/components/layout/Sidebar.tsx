@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
-    LinkSimpleHorizontal, Bell,
+    LinkSimpleHorizontal, Bell, Heart,
 } from "@phosphor-icons/react"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
@@ -111,6 +111,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 <SidebarLink to="/validators" icon={<LinkSimpleHorizontal size={18} />} label="Validators" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/alerts" icon={<Bell size={18} />} label="Alerts" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/multisig" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/gnolove" icon={<Heart size={18} />} label="Gnolove" connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 2: Extensions ─────────────────────────── */}
