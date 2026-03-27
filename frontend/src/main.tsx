@@ -26,6 +26,8 @@ if (SENTRY_DSN) {
     beforeSend(event) {
       if (event.message) {
         event.message = event.message.replace(/g1[a-z0-9]{38}/gi, "[REDACTED_ADDRESS]")
+        // F10: Scrub Clerk JWT tokens from error messages
+        event.message = event.message.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[REDACTED_JWT]")
       }
       if (event.exception?.values) {
         for (const ex of event.exception.values) {
