@@ -4,7 +4,7 @@ import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
 import {
     House, Buildings, Coins, FolderOpen,
-    DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece,
+    DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
 } from "@phosphor-icons/react"
 
 interface MobileTabBarProps {
@@ -52,6 +52,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith("/create")
         || location.pathname.startsWith("/feedback")
         || location.pathname.startsWith("/plugins")
+        || location.pathname.startsWith("/alerts")
 
     return (
         <div className="k-mobile-only">
@@ -101,6 +102,10 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                 <span className="k-sidebar-label">Multisig</span>
                             </Link>
                         )}
+                        <Link to="/alerts" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <span className="k-sidebar-icon"><Bell size={18} /></span>
+                            <span className="k-sidebar-label">Alerts</span>
+                        </Link>
                         <Link to="/feedback" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><Megaphone size={18} /></span>
                             <span className="k-sidebar-label">Feedback</span>

@@ -69,6 +69,7 @@ jobs:
           VITE_GNO_RPC_URL: https://rpc.test11.testnets.gno.land:443
           VITE_DAO_REALM_PATH: gno.land/r/samcrew/samourai_dao
           VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

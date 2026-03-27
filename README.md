@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-805%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-822%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.17)
+## Features (v2.18)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -64,6 +64,15 @@
   - Network Health Banner (✅🟡🔴⚪ counts)
   - Incident polling (30s) + monitoring refresh (60s)
   - Session age, DoctorPanel diagnostics, NodeStatePanel identity
+
+### Professional Alerting (v2.18)
+- 🔔 **Alerts Page** — `/alerts` route with 3-section accordion (Webhooks, Contacts & Schedule, Telegram)
+- 🔑 **Clerk Auth** — secondary auth layer scoped to alerting (independent from Adena wallet)
+- 🪝 **Webhook CRUD** — Discord & Slack webhooks for GovDAO and Validator monitoring
+- 👤 **Alert Contacts** — link validator monikers to Discord/Slack mention tags
+- 📋 **Daily Reports** — configurable hour/minute/timezone with auto-detect
+- ✈️ **Telegram Bots** — onboarding cards for `@govdao_activities_bot` & `@gno_validators_bot`
+- 🛡️ **Bundle Isolation** — Clerk SDK (~45KB) lazy-loaded, zero impact on non-alerts pages
 
 ### Token Launchpad
 - 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)
@@ -121,7 +130,7 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **805+ unit tests** (Vitest, 37 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine
+- 🧪 **822+ unit tests** (Vitest, 38 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine
 - 🧪 **143 E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels
 
 ## Architecture

@@ -4,6 +4,72 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.18.0 (2026-03-27) — Professional Alerting System 🔔
+
+### Added
+
+- **Professional Alerting Page** — new `/alerts` route for GovDAO & Validator monitoring configuration
+  - 3-section accordion layout: Webhooks, Contacts & Daily Report, Telegram Bots
+  - Auth gate with Clerk sign-in (independent from Adena wallet auth)
+  - Webhook CRUD for Discord & Slack, with chain selector (multi-chain ready)
+  - Alert contacts management — link validator moniker to Discord/Slack mention tags
+  - Daily report scheduling with hour/minute/timezone (auto-detect via `Intl.DateTimeFormat`)
+  - Telegram bot onboarding cards with deep links (`@govdao_activities_bot`, `@gno_validators_bot`)
+  - Skeleton shimmer loading states (F6)
+- **Clerk Auth Integration** — secondary auth layer scoped exclusively to alerting
+  - `ClerkProvider.tsx` — lazy-loaded via `React.lazy()`, ~45KB bundle isolated from main chunk (F1)
+  - `useClerkAuth.ts` — per-request JWT via `getToken()`, auto-provisioning with 409 handling (F5, F16)
+  - `AlertErrorBoundary.tsx` — dedicated crash isolation for Clerk/network failures (F4)
+- **Authenticated API Client** — `monitoringAuth.ts` for gnomonitoring protected endpoints
+  - Full CRUD: webhooks (GovDAO + Validator), alert contacts, report scheduling
+  - 8s timeout, AbortSignal, graceful null returns, no caching (mutable data)
+- **Navigation** — Bell icon in Sidebar (between Validators and Multisig), Alerts link in MobileTabBar BottomSheet
+
+### Security
+
+- **JWT Scrubbing** — Sentry `beforeSend` now redacts `eyJ...` JWT tokens from error reports (F10)
+- **Bundle Isolation** — Clerk SDK in separate Vite chunk, never in main bundle (F1, F13)
+- **Per-request Auth** — JWT never cached client-side, `getToken()` called fresh per API request (F16)
+
+### Architecture
+
+- **Same Clerk app instance as gnolove** — seamless account sharing, zero migration when gnolove consolidates into Memba
+- **17 audit findings resolved** — CTO ×2 + Fullstack Engineers ×5 cross-perspective review
+
+### New Files
+
+- `src/components/auth/ClerkProvider.tsx` — lazy Clerk wrapper
+- `src/hooks/useClerkAuth.ts` — Clerk auth hook
+- `src/lib/monitoringAuth.ts` — authenticated API client (~250 LOC)
+- `src/pages/AlertsPage.tsx` — main alerts page (~420 LOC)
+- `src/pages/alerts.css` — page-level CSS (grid, skeleton, auth gate)
+- `src/components/alerts/WebhookCard.tsx` — webhook display card
+- `src/components/alerts/WebhookForm.tsx` — webhook create/edit form
+- `src/components/alerts/AlertContactForm.tsx` — contacts list + form
+- `src/components/alerts/ReportScheduleForm.tsx` — daily report scheduler
+- `src/components/alerts/AlertErrorBoundary.tsx` — crash isolation
+- `src/components/alerts/TelegramBotCards.tsx` — Telegram bot onboarding
+
+### Changed
+
+- `config.ts` — added `CLERK_PUBLISHABLE_KEY`
+- `main.tsx` — JWT scrubbing in Sentry `beforeSend`
+- `Sidebar.tsx` — Bell icon + `/alerts` link
+- `MobileTabBar.tsx` — Alerts in BottomSheet Account section
+- `App.tsx` — lazy `/alerts` route
+- `deploy-frontend.yml` — `VITE_CLERK_PUBLISHABLE_KEY` in CI env
+
+### Dependencies
+
+- `@clerk/clerk-react` ^5.x (React 19 compatible, lazy-loaded)
+
+### Tests
+
+- **822 unit tests** (38 files) — zero regressions
+- `tsc --noEmit` 0 errors, `eslint` 0 errors
+
+---
+
 ## v2.17.2 (2026-03-26) — Validator Performance Hardening ⚡
 
 ### Added

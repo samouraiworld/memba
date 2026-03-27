@@ -69,6 +69,9 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 // ── Feedback page (lazy — v2.10) ──
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 
+// ── Alerts page (lazy — v2.18.0) ──
+const AlertsPage = lazy(() => import("./pages/AlertsPage"))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -151,6 +154,9 @@ function App() {
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
+
+          {/* Alerts — Professional alerting (v2.18.0) */}
+          <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
 
           {/* Feedback (v2.10) */}
           <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />

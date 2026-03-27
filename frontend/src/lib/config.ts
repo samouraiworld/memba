@@ -178,6 +178,11 @@ export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://
  *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
 export const GNO_MONITORING_API_URL = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
 
+/** Clerk publishable key for alerting feature auth.
+ *  Shared with gnolove.world — same Clerk app instance.
+ *  Only loaded by the /alerts route (lazy). No impact on other pages. */
+export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
+
 // ── 6. GnoSwap DEX Integration ───────────────────────────────
 
 /** GnoSwap realm paths per chain. */

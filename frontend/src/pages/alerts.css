@@ -1,0 +1,85 @@
+/**
+ * alerts.css — Page-level layout for the Alerts page.
+ *
+ * Minimal CSS — form components use inline React.CSSProperties
+ * to match Settings.tsx pattern (F9). This file handles only:
+ * - Webhook card grid (responsive 1→2 columns)
+ * - Auth gate card
+ * - Skeleton shimmer animation
+ * - Section accordion spacing
+ */
+
+/* ── Page container ────────────────────────────────────── */
+.alerts-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 800px;
+}
+
+/* ── Auth gate (not signed in) ─────────────────────────── */
+.alerts-auth-gate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 40vh;
+    gap: 20px;
+    text-align: center;
+}
+
+.alerts-auth-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 40px 32px;
+    max-width: 420px;
+    width: 100%;
+}
+
+/* ── Webhook card grid ─────────────────────────────────── */
+.alerts-webhook-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+@media (min-width: 640px) {
+    .alerts-webhook-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ── Skeleton shimmer ──────────────────────────────────── */
+.alerts-skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.02) 25%,
+        rgba(255, 255, 255, 0.06) 50%,
+        rgba(255, 255, 255, 0.02) 75%
+    );
+    background-size: 200% 100%;
+    animation: alerts-shimmer 1.5s infinite ease-in-out;
+    border-radius: 8px;
+    height: 80px;
+}
+
+@keyframes alerts-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Telegram bot cards ────────────────────────────────── */
+.alerts-telegram-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+@media (min-width: 640px) {
+    .alerts-telegram-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
