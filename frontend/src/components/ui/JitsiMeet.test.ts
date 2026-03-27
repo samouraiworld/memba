@@ -4,7 +4,7 @@
  * Tests jitsiRoomName (with hash suffix), shortHash, and jitsiIframeSrc.
  */
 import { describe, it, expect } from "vitest"
-import { jitsiRoomName, shortHash, jitsiIframeSrc } from "./jitsiHelpers"
+import { jitsiRoomName, shortHash, jitsiIframeSrc, JAAS_APP_ID } from "./jitsiHelpers"
 
 describe("shortHash", () => {
     it("produces a 5-char hex string", () => {
@@ -52,10 +52,17 @@ describe("jitsiRoomName", () => {
 })
 
 describe("jitsiIframeSrc", () => {
-    it("builds a meet.jit.si URL by default (no JaaS)", () => {
+    it("builds a valid Jitsi URL with the correct domain", () => {
         const src = jitsiIframeSrc("test-room", "config=1")
-        // Without VITE_JAAS_APP_ID, should use meet.jit.si
-        expect(src).toContain("meet.jit.si/test-room")
+        if (JAAS_APP_ID) {
+            // JaaS mode: 8x8.vc with app ID prefix
+            expect(src).toContain("8x8.vc")
+            expect(src).toContain(JAAS_APP_ID)
+            expect(src).toContain("test-room")
+        } else {
+            // Fallback: meet.jit.si
+            expect(src).toContain("meet.jit.si/test-room")
+        }
         expect(src).toContain("#config=1")
     })
 })

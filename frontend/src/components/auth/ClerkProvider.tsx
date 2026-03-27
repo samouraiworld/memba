@@ -41,16 +41,25 @@ export default function ClerkProvider({ children }: Props) {
     // Satellite mode: pk_live_ keys are locked to gnolove.world,
     // so memba.samourai.app must run as a satellite domain.
     // pk_test_ keys work on any domain — no satellite needed for local dev.
-    const isProduction = CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")
+    if (CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")) {
+        return (
+            <ClerkReactProvider
+                publishableKey={CLERK_PUBLISHABLE_KEY}
+                appearance={{ baseTheme: dark }}
+                isSatellite
+                domain="memba.samourai.app"
+                signInUrl="https://gnolove.world/sign-in"
+                signUpUrl="https://gnolove.world/sign-up"
+            >
+                {children}
+            </ClerkReactProvider>
+        )
+    }
 
     return (
         <ClerkReactProvider
             publishableKey={CLERK_PUBLISHABLE_KEY}
             appearance={{ baseTheme: dark }}
-            {...(isProduction ? {
-                isSatellite: true,
-                domain: "memba.samourai.app",
-            } : {})}
         >
             {children}
         </ClerkReactProvider>
