@@ -27,5 +27,12 @@ This document tracks items to be addressed before the mainnet release.
 | **boards2 safe functions** | Monitor ([gno#5037](https://github.com/gnolang/gno/pull/5037)) | May change Render format |
 | **govdao T1 multisig** | Monitor ([gno#5222](https://github.com/gnolang/gno/pull/5222)) | May rename voting functions |
 
+## ✅ Completed
+
+| Item | Version | Notes |
+|------|---------|-------|
+| Frontend Observability (Sentry) | v2.0-ζ | Self-hosted at `sentry.samourai.pro` with PII scrubbing |
+| Gnolove Consolidation | v2.19.0 | gnolove.world data available at `/gnolove` |
+
 ---
-*Updated 2026-03-10 during v2.13 docs sync.*
+*Updated 2026-03-28 during v2.20 docs sweep.*

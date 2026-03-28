@@ -40,7 +40,7 @@ npm run dev
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
-| `VITE_GNO_RPC_URL` | `https://rpc.test11.testnets.gno.land:443` | Gno chain RPC |
+| `VITE_GNO_RPC_URL` | `https://rpc.testnet12.samourai.live:443` | Gno chain RPC |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/samourai_dao` | DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
 
@@ -68,16 +68,19 @@ buf generate
 **Netlify environment variables:**
 ```
 VITE_API_URL = https://memba-backend.fly.dev
-VITE_GNO_CHAIN_ID = test11
-VITE_GNO_RPC_URL = https://rpc.test11.testnets.gno.land:443
+VITE_GNO_CHAIN_ID = test12
+VITE_GNO_RPC_URL = https://rpc.testnet12.samourai.live:443
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/samourai_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 VITE_GNOLOVE_API_URL = https://backend.gnolove.world
+VITE_GNO_MONITORING_API_URL = https://monitoring.gnolove.world
+VITE_CLERK_PUBLISHABLE_KEY = <Clerk publishable key (pk_live_)>
 ```
 
-> **Note (v2.19)**: `VITE_GNOLOVE_API_URL` must point to the Go API server (`backend.gnolove.world`),
+> **Note (v2.20)**: `VITE_GNOLOVE_API_URL` must point to the Go API server (`backend.gnolove.world`),
 > not the Next.js frontend (`gnolove.world`). The Gnolove Go backend CORS is configured to allow
 > `memba.samourai.app` by default — no `CORS_ALLOWED_ORIGINS` env var change needed on the VPS.
+> `VITE_CLERK_PUBLISHABLE_KEY` is shared with the gnolove Clerk app instance.
 
 ### Backend — Fly.io
 
