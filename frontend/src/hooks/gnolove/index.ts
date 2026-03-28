@@ -111,6 +111,33 @@ export function useGnoloveContributor(login: string) {
     })
 }
 
+// ── Heatmap (aggregate daily contributions) ─────────────────
+
+export function useGnoloveHeatmapData(topLogins: string[]) {
+    return useQuery({
+        queryKey: ["gnolove", "heatmap", topLogins],
+        queryFn: async ({ signal }) => {
+            if (topLogins.length === 0) return []
+            const profiles = await Promise.all(
+                topLogins.slice(0, 20).map(login => api.getContributor(login, signal))
+            )
+            // Aggregate contributionsPerDay across all fetched contributors
+            const dayMap = new Map<string, number>()
+            for (const profile of profiles) {
+                if (!profile?.contributionsPerDay) continue
+                for (const { period, count } of profile.contributionsPerDay) {
+                    dayMap.set(period, (dayMap.get(period) ?? 0) + count)
+                }
+            }
+            return Array.from(dayMap.entries())
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => a.date.localeCompare(b.date))
+        },
+        enabled: topLogins.length > 0,
+        staleTime: STALE_ONCHAIN, // 5 min — aggregated data, not real-time
+    })
+}
+
 // ── On-Chain Data ────────────────────────────────────────────
 
 export function useGnolovePackages() {

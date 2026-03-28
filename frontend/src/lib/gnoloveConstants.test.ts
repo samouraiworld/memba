@@ -35,6 +35,12 @@ describe("TEAMS", () => {
         expect(sam).toBeDefined()
         expect(sam!.color).toBe("red")
     })
+
+    it("Samourai.world includes davd-gzl", () => {
+        const sam = TEAMS.find(t => t.name === "Samourai.world")
+        expect(sam!.members).toContain("davd-gzl")
+        expect(sam!.members).not.toContain("Davphla")
+    })
 })
 
 describe("TEAM_CSS_COLORS", () => {

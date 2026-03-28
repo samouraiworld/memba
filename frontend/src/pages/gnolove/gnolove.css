@@ -233,12 +233,18 @@
     gap: 12px;
 }
 
+.gl-team-grid--expanded {
+    margin-top: 12px;
+}
+
 .gl-team-card {
+    position: relative;
     padding: 16px;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 3px solid;
     border-radius: 10px;
+    cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -754,7 +760,12 @@
 
     .gl-team-card,
     .gl-stat-card,
-    .gl-milestone-fill {
+    .gl-milestone-fill,
+    .gl-section-toggle,
+    .gl-activity-item,
+    .gl-chevron,
+    .gl-heatmap-cell,
+    .gl-export-btn {
         transition: none;
     }
 
@@ -765,6 +776,363 @@
 }
 
 /* ── Responsive ──────────────────────────────── */
+
+/* ── Activity Feed (Compact Top Section) ───────── */
+
+.gl-activity-feed {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.gl-activity-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-activity-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 4px 0;
+}
+
+.gl-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gl-activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.gl-activity-item:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-activity-item:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-activity-item-title {
+    font-size: 11px;
+    color: #f0f0f0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-activity-item-meta {
+    font-size: 10px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+    flex-shrink: 0;
+}
+
+.gl-activity-item-labels {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.gl-label--sm {
+    font-size: 9px;
+    padding: 1px 5px;
+}
+
+/* ── Section Toggle (Collapsible) ──────────────── */
+
+.gl-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    transition: background 0.2s;
+}
+
+.gl-section-toggle:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.gl-section-toggle:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-section-summary {
+    font-size: 11px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+    margin-left: auto;
+}
+
+.gl-chevron {
+    font-size: 14px;
+    color: #555;
+    transition: transform 0.2s;
+}
+
+.gl-chevron[data-expanded="true"] {
+    transform: rotate(90deg);
+}
+
+/* ── Team Popover ──────────────────────────────── */
+
+.gl-team-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin-top: 4px;
+    padding: 10px;
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.gl-team-popover-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-team-popover-member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.gl-team-popover-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.gl-team-popover-name {
+    color: #f0f0f0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-team-popover-login {
+    font-size: 9px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-team-popover-score {
+    font-size: 10px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+    flex-shrink: 0;
+}
+
+/* ── Repo Filter Dropdown ──────────────────────── */
+
+.gl-repo-filter {
+    position: relative;
+}
+
+.gl-repo-filter-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    margin-top: 4px;
+    padding: 8px;
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    min-width: 280px;
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gl-repo-filter-actions {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 4px;
+}
+
+.gl-repo-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #ccc;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+}
+
+.gl-repo-filter-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gl-repo-filter-item input[type="checkbox"] {
+    accent-color: #00d4aa;
+}
+
+.gl-filter-btn--sm {
+    font-size: 10px;
+    padding: 3px 8px;
+}
+
+/* ── Report Filters & Export ───────────────────── */
+
+.gl-report-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.gl-filter-select {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    color: #ccc;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    appearance: auto;
+}
+
+.gl-filter-select:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-report-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.gl-export-btn {
+    padding: 5px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    background: transparent;
+    color: #888;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gl-export-btn:hover:not(:disabled) {
+    color: #00d4aa;
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-export-btn:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-export-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ── Heatmap ───────────────────────────────────── */
+
+.gl-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gl-heatmap-range {
+    display: flex;
+    gap: 4px;
+}
+
+.gl-heatmap-wrap {
+    overflow-x: auto;
+    padding: 8px 0;
+}
+
+.gl-heatmap-svg {
+    display: block;
+}
+
+.gl-heatmap-cell {
+    transition: opacity 0.15s;
+}
+
+.gl-heatmap-cell:hover {
+    opacity: 0.8;
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 1;
+}
+
+.gl-heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 8px;
+    justify-content: flex-end;
+}
+
+.gl-heatmap-legend-label {
+    font-size: 9px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    margin: 0 2px;
+}
+
+.gl-heatmap-legend-cell {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
 
 @media (max-width: 768px) {
     .gl-team-grid {
@@ -799,5 +1167,23 @@
 
     .gl-repo-grid {
         grid-template-columns: 1fr;
+    }
+
+    .gl-activity-feed {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-section-toggle {
+        flex-wrap: wrap;
+    }
+
+    .gl-section-summary {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .gl-report-filters {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
