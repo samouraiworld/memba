@@ -171,7 +171,7 @@ export const UGNOT_PER_GNOT = 1_000_000
 export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
 
 /** Gnolove API base URL for profile enrichment and contribution data. */
-export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://gnolove.world"
+export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://backend.gnolove.world"
 
 /** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
  *  Same service used by gnolove.world/validators. Public, no auth required.

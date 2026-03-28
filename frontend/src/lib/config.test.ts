@@ -74,8 +74,8 @@ describe('config constants', () => {
         expect(GNO_BECH32_PREFIX).toBe('g')
     })
 
-    it('GNOLOVE_API_URL defaults to gnolove.world', () => {
-        expect(GNOLOVE_API_URL).toBe('https://gnolove.world')
+    it('GNOLOVE_API_URL defaults to backend.gnolove.world', () => {
+        expect(GNOLOVE_API_URL).toBe('https://backend.gnolove.world')
     })
 })
 
