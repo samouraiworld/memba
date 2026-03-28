@@ -1,0 +1,803 @@
+/* ══════════════════════════════════════════════
+   GNOLOVE SECTION (v2.19.0)
+   Scoreboard, Reports, Analytics
+   
+   All classes prefixed gl- to avoid collision
+   with k- (Memba core)
+   ══════════════════════════════════════════════ */
+
+/* ── Layout ──────────────────────────────────── */
+
+.gl-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 50vh;
+}
+
+.gl-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Sub Navigation ──────────────────────────── */
+
+.gl-subnav {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-subnav-link {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-subnav-link:hover {
+    color: #f0f0f0;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gl-subnav-link:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.gl-subnav-link--active {
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.08);
+    font-weight: 600;
+}
+
+/* ── Header ──────────────────────────────────── */
+
+.gl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gl-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.gl-sync-time {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Milestone Bar ───────────────────────────── */
+
+.gl-milestone {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+.gl-milestone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.gl-milestone-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.gl-milestone-count {
+    font-size: 11px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-milestone-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.gl-milestone-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00d4aa, #00b894);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
+/* ── Filters ─────────────────────────────────── */
+
+.gl-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.gl-filter-group {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-filter-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
+    color: #888;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gl-filter-btn:hover {
+    color: #f0f0f0;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gl-filter-btn:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-filter-btn--active {
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.08);
+    font-weight: 600;
+}
+
+.gl-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #888;
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-checkbox input[type="checkbox"] {
+    accent-color: #00d4aa;
+}
+
+/* ── Score Factors ───────────────────────────── */
+
+.gl-score-factors {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+}
+
+.gl-score-label {
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-score-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #aaa;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+}
+
+/* ── Sections ────────────────────────────────── */
+
+.gl-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.gl-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+/* ── Team Cards (CSS Grid — no masonic) ──────── */
+
+.gl-team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.gl-team-card {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 3px solid;
+    border-radius: 10px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gl-team-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gl-team-rank {
+    font-size: 11px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 4px;
+}
+
+.gl-team-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.gl-team-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Table ────────────────────────────────────── */
+
+.gl-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.gl-table thead {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.gl-table th {
+    padding: 10px 12px;
+    text-align: left;
+    color: #888;
+    font-weight: 600;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: #ccc;
+}
+
+.gl-sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.gl-sortable:hover {
+    color: #00d4aa;
+}
+
+.gl-sortable:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 2px;
+}
+
+.gl-contributor-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.gl-rank {
+    font-weight: 700;
+    color: #f0f0f0;
+    text-align: center;
+    width: 40px;
+}
+
+.gl-contributor-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gl-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gl-contributor-name {
+    color: #f0f0f0;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12px;
+    transition: color 0.2s;
+}
+
+.gl-contributor-name:hover {
+    color: #00d4aa;
+}
+
+.gl-contributor-login {
+    display: block;
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-team-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+}
+
+.gl-stat-cell {
+    font-family: "JetBrains Mono", monospace;
+    text-align: right;
+    color: #aaa;
+}
+
+.gl-stat-highlight {
+    color: #00d4aa;
+    font-weight: 700;
+}
+
+/* ── Issue List ──────────────────────────────── */
+
+.gl-issue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-issue-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.gl-issue-row:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-issue-title {
+    font-size: 12px;
+    color: #f0f0f0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-issue-labels {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.gl-label {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── PR List ─────────────────────────────────── */
+
+.gl-pr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-pr-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.gl-pr-row:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-pr-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.gl-pr-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gl-pr-title {
+    font-size: 12px;
+    color: #f0f0f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-pr-meta {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-pr-state {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    flex-shrink: 0;
+}
+
+.gl-pr-state--merged {
+    background: rgba(168, 85, 247, 0.12);
+    color: #a855f7;
+}
+
+.gl-pr-state--open {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+}
+
+.gl-pr-state--closed {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+.gl-pr-state--blocked {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+.gl-pr-state--waiting {
+    background: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+}
+
+/* ── Repo Grid ───────────────────────────────── */
+
+.gl-repo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px;
+}
+
+.gl-repo-card {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    text-decoration: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.2s;
+}
+
+.gl-repo-card:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-repo-name {
+    font-size: 12px;
+    color: #f0f0f0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-repo-branch {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Week Navigator ──────────────────────────── */
+
+.gl-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.gl-week-btn {
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    color: #aaa;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gl-week-btn:hover:not(:disabled) {
+    color: #00d4aa;
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-week-btn:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 2px;
+}
+
+.gl-week-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.gl-week-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    min-width: 200px;
+    text-align: center;
+}
+
+/* ── Tabs ─────────────────────────────────────── */
+
+.gl-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-tab {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
+    color: #888;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.gl-tab:hover {
+    color: #f0f0f0;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gl-tab:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-tab--active {
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.08);
+    font-weight: 600;
+}
+
+.gl-tab-count {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    font-weight: 700;
+}
+
+/* ── Stats Grid ──────────────────────────────── */
+
+.gl-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.gl-stat-card {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.gl-stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.gl-stat-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.gl-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-stat-label {
+    font-size: 10px;
+    color: #888;
+    margin-top: 4px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Charts ──────────────────────────────────── */
+
+.gl-chart-container {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+/* ── Loading & Empty States ──────────────────── */
+
+.gl-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-skeleton {
+    height: 48px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: gl-shimmer 1.5s infinite;
+    border-radius: 8px;
+}
+
+@keyframes gl-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.gl-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #555;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+/* ── Screen Reader Only ─────────────────────── */
+
+.gl-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── Accessibility ───────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-skeleton {
+        animation: none;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .gl-team-card,
+    .gl-stat-card,
+    .gl-milestone-fill {
+        transition: none;
+    }
+
+    .gl-team-card:hover,
+    .gl-stat-card:hover {
+        transform: none;
+    }
+}
+
+/* ── Responsive ──────────────────────────────── */
+
+@media (max-width: 768px) {
+    .gl-team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gl-subnav {
+        flex-wrap: wrap;
+    }
+
+    .gl-week-nav {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .gl-table-wrap {
+        font-size: 11px;
+    }
+
+    .gl-filters {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .gl-tabs {
+        flex-wrap: wrap;
+    }
+
+    .gl-repo-grid {
+        grid-template-columns: 1fr;
+    }
+}

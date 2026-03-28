@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-822%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-868%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.18)
+## Features (v2.19)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -73,6 +73,18 @@
 - 📋 **Daily Reports** — configurable hour/minute/timezone with auto-detect
 - ✈️ **Telegram Bots** — onboarding cards for `@govdao_activities_bot` & `@gno_validators_bot`
 - 🛡️ **Bundle Isolation** — Clerk SDK (~45KB) lazy-loaded, zero impact on non-alerts pages
+
+### Gnolove — Contributor Analytics (v2.19)
+- 💚 **Scoreboard** — contributor leaderboard with time filters, core team exclusion, sortable columns
+- 🏆 **Team Cards** — CSS Grid team breakdown with ranked scores
+- 📋 **Weekly Report** — PR status report with week navigation and 5 status tabs
+- 📈 **Analytics** — Recharts visualizations: team bar charts, contribution pie chart, 9 stat cards
+- 🗺️ **Sub-Navigation** — Scoreboard / Report / Analytics tab navigation
+- ❓ **Help Wanted Issues** — bounty/help-wanted issues from the Gno ecosystem
+- 🔀 **Freshly Merged PRs** — latest merged pull requests feed
+- 📦 **Tracked Repositories** — repository overview with branch info
+- 🛡️ **Bundle Isolation** — entire section lazy-loaded, zero main bundle impact (+1KB)
+- 🔒 **Zod Validation** — 25+ runtime schemas at the API boundary
 
 ### Token Launchpad
 - 🪙 GRC20 Token Launchpad (create, mint, burn, transfer, faucet)

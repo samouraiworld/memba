@@ -1,8 +1,10 @@
 /**
- * ClerkProvider — Lazy-loaded Clerk auth wrapper for the alerting feature.
+ * ClerkProvider — Lazy-loaded Clerk auth wrapper for alerting & gnolove features.
  *
  * This component is ONLY dynamically imported by AlertsPage.tsx via React.lazy().
  * The ~45KB @clerk/clerk-react bundle is tree-shaken from the main chunk.
+ *
+ * Primary domain: memba.samourai.app (v2.19.0 — unified, no satellite mode).
  *
  * Security: Clerk publishable key is public by design. JWTs are validated
  * server-side by gnomonitoring's clerk-sdk-go middleware.
@@ -35,24 +37,6 @@ export default function ClerkProvider({ children }: Props) {
                     Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> to enable alerting features.
                 </p>
             </div>
-        )
-    }
-
-    // Satellite mode: pk_live_ keys are locked to gnolove.world,
-    // so memba.samourai.app must run as a satellite domain.
-    // pk_test_ keys work on any domain — no satellite needed for local dev.
-    if (CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")) {
-        return (
-            <ClerkReactProvider
-                publishableKey={CLERK_PUBLISHABLE_KEY}
-                appearance={{ baseTheme: dark }}
-                isSatellite
-                domain="memba.samourai.app"
-                signInUrl="https://gnolove.world/sign-in"
-                signUpUrl="https://gnolove.world/sign-up"
-            >
-                {children}
-            </ClerkReactProvider>
         )
     }
 
