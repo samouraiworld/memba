@@ -35,7 +35,7 @@ export const TEAMS: Team[] = [
     {
         name: "Onbloc",
         color: "purple",
-        members: ["notJoon", "r3v4s", "adr-sk", "jinoosss"],
+        members: ["notJoon", "r3v4s", "adr-sk", "jinoosss", "dongonw8247"],
     },
     {
         name: "VarMeta",
@@ -49,6 +49,7 @@ export const TEAMS: Team[] = [
             "n0izn0iz", "omarsy", "villaquiranm", "hthieu1110",
             "MikaelVallenet", "WaDadidou", "dtczelo", "naim-ea",
             "louis14448", "pr0m3th3usEx", "davd-gzl", "moonia",
+            "zxxma", "clegirar", "omniwired",
         ],
     },
     {

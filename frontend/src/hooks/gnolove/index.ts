@@ -9,7 +9,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import * as api from "../../lib/gnoloveApi"
-import { TimeFilter, MILESTONE_NUMBER, TEAMS } from "../../lib/gnoloveConstants"
+import { TimeFilter, MILESTONE_NUMBER } from "../../lib/gnoloveConstants"
 
 const STALE_DEFAULT = 30_000 // 30s — matches gnolove's REVALIDATE_SECONDS.DEFAULT
 const STALE_ONCHAIN = 300_000 // 5m — on-chain data changes slowly
@@ -18,14 +18,13 @@ const STALE_ONCHAIN = 300_000 // 5m — on-chain data changes slowly
 
 export function useGnoloveContributors(
     timeFilter: TimeFilter = TimeFilter.ALL_TIME,
-    excludeCoreTeam: boolean = false,
+    excludeLogins?: string[],
     repositories?: string[],
 ) {
-    const coreTeam = TEAMS.find(t => t.name === "Core Team")
     return useQuery({
-        queryKey: ["gnolove", "contributors", timeFilter, excludeCoreTeam, repositories],
+        queryKey: ["gnolove", "contributors", timeFilter, excludeLogins, repositories],
         queryFn: ({ signal }) =>
-            api.getContributors(timeFilter, excludeCoreTeam, repositories, coreTeam?.members, signal),
+            api.getContributors(timeFilter, excludeLogins, repositories, signal),
         staleTime: STALE_DEFAULT,
     })
 }
@@ -111,30 +110,27 @@ export function useGnoloveContributor(login: string) {
     })
 }
 
-// ── Heatmap (aggregate daily contributions) ─────────────────
+// ── Repo Activity (aggregated from report) ───────────────────
 
-export function useGnoloveHeatmapData(topLogins: string[]) {
+export function useGnoloveRepoActivity() {
     return useQuery({
-        queryKey: ["gnolove", "heatmap", topLogins],
+        queryKey: ["gnolove", "repoActivity"],
         queryFn: async ({ signal }) => {
-            if (topLogins.length === 0) return []
-            const profiles = await Promise.all(
-                topLogins.slice(0, 20).map(login => api.getContributor(login, signal))
-            )
-            // Aggregate contributionsPerDay across all fetched contributors
-            const dayMap = new Map<string, number>()
-            for (const profile of profiles) {
-                if (!profile?.contributionsPerDay) continue
-                for (const { period, count } of profile.contributionsPerDay) {
-                    dayMap.set(period, (dayMap.get(period) ?? 0) + count)
-                }
+            const yearAgo = new Date()
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1)
+            const report = await api.getPullRequestsReport(yearAgo, new Date(), signal)
+            if (!report?.merged) return []
+            const repoMap = new Map<string, number>()
+            for (const pr of report.merged) {
+                const repo = api.extractRepoFromUrl(pr.url)
+                if (repo) repoMap.set(repo, (repoMap.get(repo) ?? 0) + 1)
             }
-            return Array.from(dayMap.entries())
-                .map(([date, count]) => ({ date, count }))
-                .sort((a, b) => a.date.localeCompare(b.date))
+            return Array.from(repoMap.entries())
+                .map(([name, prs]) => ({ name, prs }))
+                .sort((a, b) => b.prs - a.prs)
+                .slice(0, 15)
         },
-        enabled: topLogins.length > 0,
-        staleTime: STALE_ONCHAIN, // 5 min — aggregated data, not real-time
+        staleTime: STALE_ONCHAIN,
     })
 }
 
