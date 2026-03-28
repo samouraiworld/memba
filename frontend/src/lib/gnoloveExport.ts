@@ -14,7 +14,7 @@ function sanitizeCSVCell(value: string): string {
 
 /** Escape characters that break Markdown link/table syntax. */
 function sanitizeMDText(value: string): string {
-    return value.replace(/[|\[\]]/g, c => `\\${c}`)
+    return value.replace(/[|[\]]/g, c => `\\${c}`)
 }
 
 export function generateCSV(prs: TPullRequest[]): string {

@@ -195,7 +195,7 @@ function ContributionHeatmap({ data, range }: {
         const cells: Array<{ x: number; y: number; date: string; count: number }> = []
         const monthLabels: Array<{ x: number; label: string }> = []
         let maxCount = 0
-        let currentDate = new Date(startDate)
+        const currentDate = new Date(startDate)
         let week = 0
         let lastMonth = -1
 
