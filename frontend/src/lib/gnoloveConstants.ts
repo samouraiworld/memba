@@ -48,7 +48,7 @@ export const TEAMS: Team[] = [
         members: [
             "n0izn0iz", "omarsy", "villaquiranm", "hthieu1110",
             "MikaelVallenet", "WaDadidou", "dtczelo", "naim-ea",
-            "louis14448", "pr0m3th3usEx", "Davphla", "moonia",
+            "louis14448", "pr0m3th3usEx", "davd-gzl", "moonia",
         ],
     },
     {
