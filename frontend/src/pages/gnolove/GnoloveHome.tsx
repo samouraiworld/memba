@@ -8,6 +8,9 @@
  */
 
 import { useState, useMemo } from "react"
+
+// Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
+const safeHex = (c: string) => /^[0-9a-fA-F]{3,8}$/.test(c) ? c : "888"
 import {
     useGnoloveContributors,
     useGnoloveIssues,
@@ -200,7 +203,7 @@ export default function GnoloveHome() {
                                 <span className="gl-issue-title">{issue.title}</span>
                                 <div className="gl-issue-labels">
                                     {issue.labels.map(l => (
-                                        <span key={l.id} className="gl-label" style={{ background: `#${l.color}22`, color: `#${l.color}` }}>
+                                        <span key={l.id} className="gl-label" style={{ background: `#${safeHex(l.color)}22`, color: `#${safeHex(l.color)}` }}>
                                             {l.name}
                                         </span>
                                     ))}
