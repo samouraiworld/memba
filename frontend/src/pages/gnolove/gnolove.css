@@ -1078,6 +1078,130 @@
     cursor: not-allowed;
 }
 
+/* ── Section Summary Link ──────────────────────── */
+
+.gl-section-summary-link {
+    color: #00d4aa;
+    text-decoration: none;
+    font-size: 11px;
+}
+
+.gl-section-summary-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Teams Page ────────────────────────────────── */
+
+.gl-teams-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gl-teams-panel {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 3px solid;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.gl-teams-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gl-teams-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gl-teams-panel-rank {
+    font-size: 13px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-teams-panel-stats {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-teams-members {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-teams-member {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.gl-teams-member:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.gl-teams-member-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.gl-teams-member-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.gl-teams-member-name {
+    font-size: 13px;
+    color: #f0f0f0;
+    font-weight: 500;
+}
+
+.gl-teams-member-login {
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-teams-member-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.gl-teams-member-score {
+    font-size: 13px;
+    color: #00d4aa;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-teams-member-detail {
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
 /* ── Dashboard Stat Cards (with sparklines) ──── */
 
 .gl-dash-stats {

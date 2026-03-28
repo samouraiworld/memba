@@ -1,9 +1,6 @@
 /**
  * GnoloveHome — Contributors overview, team cards, issues, and freshly merged PRs.
  *
- * Ported from gnolove scoreboard-page.tsx → vanilla CSS + React Query.
- * YouTube carousel removed, masonic → CSS Grid, Radix → vanilla.
- *
  * @module pages/gnolove/GnoloveHome
  */
 
@@ -21,7 +18,7 @@ import {
     useGnoloveScoreFactors,
 } from "../../hooks/gnolove"
 import { TimeFilter, TIME_FILTER_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
-import type { Team, TeamColor } from "../../lib/gnoloveConstants"
+import type { Team } from "../../lib/gnoloveConstants"
 import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 
 type SortKey = "score" | "TotalCommits" | "TotalPrs" | "TotalIssues" | "TotalReviewedPullRequests"
@@ -34,6 +31,7 @@ export default function GnoloveHome() {
     const [selectedRepos, setSelectedRepos] = useState<string[]>([])
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
     const [teamsExpanded, setTeamsExpanded] = useState(false)
+    const [activityExpanded, setActivityExpanded] = useState(false)
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
 
@@ -121,6 +119,8 @@ export default function GnoloveHome() {
         })
     }
 
+    const activityCount = (freshlyMerged?.length ?? 0) + (issues?.length ?? 0)
+
     return (
         <div className="gl-page">
             <div className="gl-header">
@@ -147,47 +147,64 @@ export default function GnoloveHome() {
                 </div>
             )}
 
-            {/* Activity Feed — Compact top section */}
-            <div className="gl-activity-feed">
-                {freshlyMerged && freshlyMerged.length > 0 && (
-                    <div className="gl-activity-column">
-                        <h3 className="gl-activity-title">🔀 Freshly Merged</h3>
-                        <div className="gl-activity-list">
-                            {freshlyMerged.slice(0, 5).map(pr => (
-                                <a key={pr.id} href={pr.url} target="_blank" rel="noopener noreferrer"
-                                   className="gl-activity-item">
-                                    <span className="gl-activity-item-title">{pr.title}</span>
-                                    <span className="gl-activity-item-meta">
-                                        #{pr.number} by {pr.authorLogin ?? "unknown"}
-                                    </span>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {issues && issues.length > 0 && (
-                    <div className="gl-activity-column">
-                        <h3 className="gl-activity-title">🆘 Help Wanted</h3>
-                        <div className="gl-activity-list">
-                            {issues.slice(0, 5).map(issue => (
-                                <a key={issue.id} href={issue.url} target="_blank" rel="noopener noreferrer"
-                                   className="gl-activity-item">
-                                    <span className="gl-activity-item-title">{issue.title}</span>
-                                    <div className="gl-activity-item-labels">
-                                        {issue.labels.slice(0, 2).map(l => (
-                                            <span key={l.id} className="gl-label gl-label--sm"
-                                                  style={{ background: `#${safeHex(l.color)}22`, color: `#${safeHex(l.color)}` }}>
-                                                {l.name}
-                                            </span>
+            {/* Activity Feed — Collapsible, retracted by default */}
+            {activityCount > 0 && (
+                <div className="gl-section">
+                    <button
+                        className="gl-section-toggle"
+                        onClick={() => setActivityExpanded(e => !e)}
+                        aria-expanded={activityExpanded}
+                    >
+                        <h2 className="gl-section-title" style={{ margin: 0 }}>🔀 Activity Feed</h2>
+                        <span className="gl-section-summary">
+                            {freshlyMerged?.length ?? 0} merged, {issues?.length ?? 0} help wanted
+                        </span>
+                        <span className="gl-chevron" data-expanded={activityExpanded}>▸</span>
+                    </button>
+                    {activityExpanded && (
+                        <div className="gl-activity-feed" style={{ marginTop: 12 }}>
+                            {freshlyMerged && freshlyMerged.length > 0 && (
+                                <div className="gl-activity-column">
+                                    <h3 className="gl-activity-title">🔀 Freshly Merged</h3>
+                                    <div className="gl-activity-list">
+                                        {freshlyMerged.slice(0, 5).map(pr => (
+                                            <a key={pr.id} href={pr.url} target="_blank" rel="noopener noreferrer"
+                                               className="gl-activity-item">
+                                                <span className="gl-activity-item-title">{pr.title}</span>
+                                                <span className="gl-activity-item-meta">
+                                                    #{pr.number} by {pr.authorLogin ?? "unknown"}
+                                                </span>
+                                            </a>
                                         ))}
                                     </div>
-                                </a>
-                            ))}
+                                </div>
+                            )}
+
+                            {issues && issues.length > 0 && (
+                                <div className="gl-activity-column">
+                                    <h3 className="gl-activity-title">🆘 Help Wanted</h3>
+                                    <div className="gl-activity-list">
+                                        {issues.slice(0, 5).map(issue => (
+                                            <a key={issue.id} href={issue.url} target="_blank" rel="noopener noreferrer"
+                                               className="gl-activity-item">
+                                                <span className="gl-activity-item-title">{issue.title}</span>
+                                                <div className="gl-activity-item-labels">
+                                                    {issue.labels.slice(0, 2).map(l => (
+                                                        <span key={l.id} className="gl-label gl-label--sm"
+                                                              style={{ background: `#${safeHex(l.color)}22`, color: `#${safeHex(l.color)}` }}>
+                                                            {l.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {/* Filters */}
             <div className="gl-filters">
@@ -202,25 +219,17 @@ export default function GnoloveHome() {
                         </button>
                     ))}
                 </div>
-                <div className="gl-team-chips">
-                    <span className="gl-team-chips-label">Filter teams:</span>
+                <div className="gl-filter-group">
                     {TEAMS.map(team => {
                         const excluded = excludedTeams.has(team.name)
-                        const color = TEAM_CSS_COLORS[team.color]
                         return (
                             <button
                                 key={team.name}
-                                className={`gl-team-chip ${excluded ? "gl-team-chip--excluded" : ""}`}
-                                style={{
-                                    borderColor: color,
-                                    background: excluded ? "transparent" : `${color}18`,
-                                    color: excluded ? "#888" : color,
-                                    textDecoration: excluded ? "line-through" : "none",
-                                    opacity: excluded ? 0.5 : 1,
-                                }}
+                                className={`gl-filter-btn ${excluded ? "" : "gl-filter-btn--active"}`}
                                 onClick={() => toggleTeamExclusion(team.name)}
                                 aria-pressed={!excluded}
-                                title={excluded ? `Show ${team.name} contributors` : `Hide ${team.name} contributors`}
+                                title={excluded ? `Show ${team.name}` : `Exclude ${team.name}`}
+                                style={{ opacity: excluded ? 0.4 : 1 }}
                             >
                                 {team.name}
                             </button>
@@ -326,7 +335,7 @@ export default function GnoloveHome() {
                 )}
             </div>
 
-            {/* Best Performing Teams — Collapsible */}
+            {/* Best Performing Teams — Collapsible, links to /gnolove/teams */}
             {teamStats.length > 0 && (
                 <div className="gl-section">
                     <button
@@ -337,18 +346,30 @@ export default function GnoloveHome() {
                         <h2 className="gl-section-title" style={{ margin: 0 }}>🏆 Best Performing Teams</h2>
                         <span className="gl-section-summary">
                             {teamStats.length} teams — Top: {teamStats[0]?.name} ({teamStats[0]?.totalScore} pts)
+                            {" · "}<Link to="/gnolove/teams" className="gl-section-summary-link" onClick={e => e.stopPropagation()}>View all</Link>
                         </span>
                         <span className="gl-chevron" data-expanded={teamsExpanded}>▸</span>
                     </button>
                     {teamsExpanded && (
                         <div className="gl-team-grid gl-team-grid--expanded">
                             {teamStats.map((team, i) => (
-                                <TeamCard
+                                <Link
                                     key={team.name}
-                                    team={team}
-                                    rank={i + 1}
-                                    contributors={contributors?.users}
-                                />
+                                    to="/gnolove/teams"
+                                    className="gl-team-card"
+                                    style={{ borderColor: TEAM_CSS_COLORS[team.color], textDecoration: "none" }}
+                                >
+                                    <div className="gl-team-rank">#{i + 1}</div>
+                                    <div className="gl-team-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
+                                        {team.name}
+                                    </div>
+                                    <div className="gl-team-stats">
+                                        <span>⭐ {team.totalScore}</span>
+                                        <span>🔀 {team.totalPrs} PRs</span>
+                                        <span>📝 {team.totalCommits} commits</span>
+                                        <span>👥 {team.memberCount} members</span>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -434,75 +455,5 @@ function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithSt
             <td className="gl-stat-cell">{user.TotalIssues}</td>
             <td className="gl-stat-cell">{user.TotalReviewedPullRequests}</td>
         </tr>
-    )
-}
-
-function TeamCard({ team, rank, contributors }: {
-    team: { name: string; color: TeamColor; totalScore: number; totalPrs: number; totalCommits: number; memberCount: number }
-    rank: number
-    contributors: TEnhancedUserWithStats[] | undefined
-}) {
-    const [showMembers, setShowMembers] = useState(false)
-
-    const memberDetails = useMemo(() => {
-        if (!contributors) return []
-        const teamDef = TEAMS.find(t => t.name === team.name)
-        if (!teamDef) return []
-        return teamDef.members.map(login => {
-            const user = contributors.find(u => u.login === login)
-            return { login, avatarUrl: user?.avatarUrl, name: user?.name, score: user?.score ?? 0 }
-        }).sort((a, b) => b.score - a.score)
-    }, [contributors, team.name])
-
-    return (
-        <div
-            className="gl-team-card"
-            style={{ borderColor: TEAM_CSS_COLORS[team.color] }}
-            onMouseEnter={() => setShowMembers(true)}
-            onMouseLeave={() => setShowMembers(false)}
-            onClick={() => setShowMembers(s => !s)}
-            tabIndex={0}
-            onFocus={() => setShowMembers(true)}
-            onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setShowMembers(false)
-                }
-            }}
-            role="button"
-            aria-expanded={showMembers}
-            onKeyDown={e => {
-                if (e.key === "Escape") setShowMembers(false)
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault(); setShowMembers(s => !s)
-                }
-            }}
-        >
-            <div className="gl-team-rank">#{rank}</div>
-            <div className="gl-team-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
-                {team.name}
-            </div>
-            <div className="gl-team-stats">
-                <span>⭐ {team.totalScore}</span>
-                <span>🔀 {team.totalPrs} PRs</span>
-                <span>📝 {team.totalCommits} commits</span>
-                <span>👥 {team.memberCount} members</span>
-            </div>
-
-            {showMembers && memberDetails.length > 0 && (
-                <div className="gl-team-popover">
-                    <div className="gl-team-popover-title">Team Members</div>
-                    {memberDetails.map(m => (
-                        <div key={m.login} className="gl-team-popover-member">
-                            {m.avatarUrl && (
-                                <img src={m.avatarUrl} alt="" className="gl-team-popover-avatar" loading="lazy" />
-                            )}
-                            <span className="gl-team-popover-name">{m.name || m.login}</span>
-                            <span className="gl-team-popover-login">@{m.login}</span>
-                            <span className="gl-team-popover-score">{m.score} pts</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
     )
 }
