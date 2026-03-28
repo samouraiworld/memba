@@ -1078,6 +1078,121 @@
     cursor: not-allowed;
 }
 
+/* ── Dashboard Stat Cards (with sparklines) ──── */
+
+.gl-dash-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.gl-dash-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+}
+
+.gl-dash-card-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gl-dash-card-icon {
+    font-size: 14px;
+}
+
+.gl-dash-card-label {
+    font-size: 10px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gl-dash-card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    line-height: 1;
+}
+
+.gl-sparkline {
+    margin-top: 4px;
+}
+
+/* ── Dashboard Panels (Grafana-style) ──────────── */
+
+.gl-panel {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.gl-panel-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.gl-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.gl-panel-subtitle {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* ── On-Chain Metrics Grid ─────────────────────── */
+
+.gl-onchain-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.gl-onchain-metric {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+}
+
+.gl-onchain-metric-icon {
+    font-size: 20px;
+}
+
+.gl-onchain-metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f0f0f0;
+}
+
+.gl-onchain-metric-label {
+    font-size: 10px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+}
+
 /* ── Heatmap ───────────────────────────────────── */
 
 .gl-heatmap-wrap {
@@ -1520,5 +1635,13 @@
     .gl-report-filters {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .gl-panel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-dash-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
