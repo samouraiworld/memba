@@ -8,6 +8,7 @@ import { NavLink } from "react-router-dom"
 
 const NAV_ITEMS = [
     { to: "/gnolove", label: "Overview", end: true },
+    { to: "/gnolove/teams", label: "Teams", end: false },
     { to: "/gnolove/report", label: "Report", end: false },
     { to: "/gnolove/analytics", label: "Analytics", end: false },
 ]
