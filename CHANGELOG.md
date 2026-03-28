@@ -4,6 +4,17 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.19.1 (2026-03-28) — Gnolove CSP & Polish
+
+### Fixed
+
+- **CSP** — added `https://backend.gnolove.world` to `connect-src` in both `netlify.toml` and
+  `index.html`; without this the browser blocked all gnolove API calls despite CORS being configured
+- **GnoloveHome** — guard API-supplied GitHub label colors with hex regex before injecting into
+  inline styles (`safeHex` — defensive against malformed backend responses)
+- **DEPLOYMENT.md** — corrected `VITE_GNOLOVE_API_URL` from `gnolove.world` (Next.js frontend)
+  to `backend.gnolove.world` (Go API server); added clarifying note about Gnolove CORS
+
 ## v2.19.0 (2026-03-27) — Gnolove Consolidation 💚
 
 ### Added
