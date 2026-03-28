@@ -92,6 +92,12 @@ function apiUrl(path: string): string {
     return `${GNOLOVE_API_URL}${path}`
 }
 
+/** Extract owner/repo from a GitHub URL. */
+export function extractRepoFromUrl(url: string): string {
+    const match = url.match(/github\.com\/([^/]+\/[^/]+)/)
+    return match ? match[1] : ""
+}
+
 // ── Public API ───────────────────────────────────────────────
 
 /**
@@ -99,16 +105,15 @@ function apiUrl(path: string): string {
  */
 export async function getContributors(
     timeFilter: TimeFilter = TimeFilter.ALL_TIME,
-    exclude: boolean = false,
+    excludeLogins?: string[],
     repositories?: string[],
-    coreTeamMembers?: string[],
     signal?: AbortSignal,
 ): Promise<TContributorsResponse | null> {
     try {
         const url = new URL("/stats", GNOLOVE_API_URL)
         if (timeFilter !== TimeFilter.ALL_TIME) url.searchParams.set("time", timeFilter)
-        if (exclude && coreTeamMembers) {
-            for (const login of coreTeamMembers) url.searchParams.append("exclude", login)
+        if (excludeLogins?.length) {
+            for (const login of excludeLogins) url.searchParams.append("exclude", login)
         }
         if (repositories?.length) url.searchParams.set("repositories", repositories.join(","))
         const data = await fetchJson(url.toString(), signal)

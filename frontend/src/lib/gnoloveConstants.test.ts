@@ -41,6 +41,18 @@ describe("TEAMS", () => {
         expect(sam!.members).toContain("davd-gzl")
         expect(sam!.members).not.toContain("Davphla")
     })
+
+    it("Samourai.world includes zxxma, clegirar, omniwired", () => {
+        const sam = TEAMS.find(t => t.name === "Samourai.world")
+        expect(sam!.members).toContain("zxxma")
+        expect(sam!.members).toContain("clegirar")
+        expect(sam!.members).toContain("omniwired")
+    })
+
+    it("Onbloc includes dongonw8247", () => {
+        const onbloc = TEAMS.find(t => t.name === "Onbloc")
+        expect(onbloc!.members).toContain("dongonw8247")
+    })
 })
 
 describe("TEAM_CSS_COLORS", () => {

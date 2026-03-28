@@ -1080,19 +1080,6 @@
 
 /* ── Heatmap ───────────────────────────────────── */
 
-.gl-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.gl-heatmap-range {
-    display: flex;
-    gap: 4px;
-}
-
 .gl-heatmap-wrap {
     overflow-x: auto;
     padding: 8px 0;
@@ -1134,7 +1121,355 @@
     border-radius: 2px;
 }
 
+/* ── Team Chips Filter ──────────────────────────── */
+
+.gl-team-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.gl-team-filters-label {
+    font-size: 11px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+    margin-right: 2px;
+}
+
+.gl-team-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: 16px;
+    background: transparent;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gl-team-chip:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gl-team-chip:focus-visible {
+    outline: 2px solid #00d4aa;
+    outline-offset: 1px;
+}
+
+.gl-team-chip--excluded {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+.gl-team-chip-x {
+    font-size: 9px;
+    font-weight: 700;
+}
+
+/* ── Period Tabs ───────────────────────────────── */
+
+.gl-period-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Section Description ───────────────────────── */
+
+.gl-section-desc {
+    font-size: 12px;
+    color: #666;
+    margin: -12px 0 8px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── GitHub Icon Link ──────────────────────────── */
+
+.gl-github-link {
+    display: inline-flex;
+    align-items: center;
+    color: #555;
+    margin-left: 4px;
+    vertical-align: middle;
+    transition: color 0.2s;
+}
+
+.gl-github-link:hover {
+    color: #f0f0f0;
+}
+
+/* ── Contributor Profile Page ──────────────────── */
+
+.gl-profile-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #777;
+    text-decoration: none;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+}
+
+.gl-profile-back:hover {
+    color: #00d4aa;
+}
+
+.gl-profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.gl-profile-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+.gl-profile-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+}
+
+.gl-profile-main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.gl-profile-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.gl-profile-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.gl-profile-login {
+    font-size: 13px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-profile-team-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid;
+    margin-top: 4px;
+}
+
+.gl-profile-bio {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.5;
+}
+
+.gl-profile-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-profile-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gl-profile-links {
+    display: flex;
+    gap: 8px;
+}
+
+.gl-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: #888;
+    text-decoration: none;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    transition: all 0.2s;
+}
+
+.gl-profile-link:hover {
+    color: #00d4aa;
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-profile-onchain {
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-profile-onchain-label {
+    color: #555;
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.gl-profile-onchain-value {
+    color: #00d4aa;
+    word-break: break-all;
+}
+
+.gl-profile-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.gl-profile-copy-btn {
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    background: transparent;
+    color: #888;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gl-profile-copy-btn:hover {
+    color: #00d4aa;
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-activity-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.gl-activity-row:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-activity-row-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.gl-activity-row-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.gl-activity-row-title {
+    font-size: 12px;
+    color: #f0f0f0;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-activity-row-meta {
+    font-size: 10px;
+    color: #777;
+    font-family: "JetBrains Mono", monospace;
+    display: block;
+    margin-top: 2px;
+}
+
+.gl-repo-card-profile {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.gl-repo-card-profile:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.gl-repo-card-profile-name {
+    font-size: 13px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-repo-card-profile-desc {
+    font-size: 11px;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-repo-card-profile-footer {
+    display: flex;
+    gap: 12px;
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-profile-repos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
 @media (max-width: 768px) {
+    .gl-profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-profile-sidebar {
+        position: static;
+    }
+
+    .gl-profile-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
     .gl-team-grid {
         grid-template-columns: 1fr;
     }

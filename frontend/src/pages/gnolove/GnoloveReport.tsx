@@ -1,40 +1,65 @@
 /**
- * GnoloveReport — Weekly PR status report with team/repo filters and export.
+ * GnoloveReport — PR status report with team/repo filters and export.
  *
- * Week navigation (forward/backward) with PR status tabs.
+ * Period navigation (weekly/monthly/yearly/all-time) with PR status tabs.
  * Ported from gnolove report-client-page.tsx — MVP approach per F4.
  *
  * @module pages/gnolove/GnoloveReport
  */
 
 import { useState, useMemo } from "react"
-import { startOfWeek, endOfWeek, addWeeks, format, isFuture } from "date-fns"
+import {
+    startOfWeek, endOfWeek, addWeeks,
+    startOfMonth, endOfMonth, addMonths,
+    startOfYear, endOfYear, addYears,
+    format, isFuture,
+} from "date-fns"
 import { useGnoloveReport, useGnoloveRepositories } from "../../hooks/gnolove"
 import { REPORT_TAB_LABELS, TEAMS } from "../../lib/gnoloveConstants"
 import type { ReportTab } from "../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
 import { exportToCSV, exportToMarkdown } from "../../lib/gnoloveExport"
+import { extractRepoFromUrl } from "../../lib/gnoloveApi"
 
-function extractRepoFromUrl(url: string): string {
-    const match = url.match(/github\.com\/([^/]+\/[^/]+)/)
-    return match ? match[1] : ""
+type ReportPeriod = "weekly" | "monthly" | "yearly" | "all_time"
+
+const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
+    weekly: "Weekly",
+    monthly: "Monthly",
+    yearly: "Yearly",
+    all_time: "All Time",
+}
+
+function computeRange(period: ReportPeriod, offset: number): { start: Date; end: Date } {
+    const now = new Date()
+    switch (period) {
+        case "weekly": {
+            const ref = addWeeks(now, offset)
+            return { start: startOfWeek(ref, { weekStartsOn: 1 }), end: endOfWeek(ref, { weekStartsOn: 1 }) }
+        }
+        case "monthly": {
+            const ref = addMonths(now, offset)
+            return { start: startOfMonth(ref), end: endOfMonth(ref) }
+        }
+        case "yearly": {
+            const ref = addYears(now, offset)
+            return { start: startOfYear(ref), end: endOfYear(ref) }
+        }
+        case "all_time":
+            return { start: new Date(1980, 0, 1), end: now }
+    }
 }
 
 export default function GnoloveReport() {
-    const [weekOffset, setWeekOffset] = useState(0)
+    const [period, setPeriod] = useState<ReportPeriod>("weekly")
+    const [offset, setOffset] = useState(0)
     const [activeTab, setActiveTab] = useState<ReportTab>("merged")
     const [selectedTeam, setSelectedTeam] = useState("all")
     const [selectedRepo, setSelectedRepo] = useState("all")
 
     const { data: repos } = useGnoloveRepositories()
 
-    const { start, end } = useMemo(() => {
-        const ref = addWeeks(new Date(), weekOffset)
-        return {
-            start: startOfWeek(ref, { weekStartsOn: 1 }),
-            end: endOfWeek(ref, { weekStartsOn: 1 }),
-        }
-    }, [weekOffset])
+    const { start, end } = useMemo(() => computeRange(period, offset), [period, offset])
 
     const { data: report, isLoading } = useGnoloveReport(start, end)
 
@@ -71,13 +96,34 @@ export default function GnoloveReport() {
         }
     }, [report])
 
-    const canGoForward = !isFuture(addWeeks(start, 1))
-    const weekLabel = `${format(start, "MMM d")} — ${format(end, "MMM d, yyyy")}`
+    const canGoForward = period !== "all_time" && !isFuture(
+        period === "weekly" ? addWeeks(start, 1) :
+        period === "monthly" ? addMonths(start, 1) :
+        addYears(start, 1)
+    )
+
+    const dateLabel = useMemo(() => {
+        switch (period) {
+            case "weekly":
+                return `${format(start, "MMM d")} — ${format(end, "MMM d, yyyy")}`
+            case "monthly":
+                return format(start, "MMMM yyyy")
+            case "yearly":
+                return format(start, "yyyy")
+            case "all_time":
+                return "All Time"
+        }
+    }, [period, start, end])
+
+    function handlePeriodChange(p: ReportPeriod) {
+        setPeriod(p)
+        setOffset(0)
+    }
 
     return (
         <div className="gl-page">
             <div className="gl-header">
-                <h1 className="gl-title">📋 Weekly Report</h1>
+                <h1 className="gl-title">📋 PR Report</h1>
                 <div className="gl-report-actions">
                     <button
                         className="gl-export-btn"
@@ -88,7 +134,7 @@ export default function GnoloveReport() {
                     </button>
                     <button
                         className="gl-export-btn"
-                        onClick={() => exportToMarkdown(filteredPrs, activeTab, weekLabel)}
+                        onClick={() => exportToMarkdown(filteredPrs, activeTab, dateLabel)}
                         disabled={filteredPrs.length === 0}
                     >
                         Export MD
@@ -96,19 +142,34 @@ export default function GnoloveReport() {
                 </div>
             </div>
 
-            {/* Week Navigator */}
-            <div className="gl-week-nav">
-                <button className="gl-week-btn" onClick={() => setWeekOffset(o => o - 1)} aria-label="Previous week">← Previous</button>
-                <span className="gl-week-label">{weekLabel}</span>
-                <button
-                    className="gl-week-btn"
-                    onClick={() => setWeekOffset(o => o + 1)}
-                    disabled={!canGoForward}
-                    aria-label="Next week"
-                >
-                    Next →
-                </button>
+            {/* Period Tabs */}
+            <div className="gl-tabs">
+                {(Object.entries(REPORT_PERIOD_LABELS) as [ReportPeriod, string][]).map(([key, label]) => (
+                    <button
+                        key={key}
+                        className={`gl-tab ${period === key ? "gl-tab--active" : ""}`}
+                        onClick={() => handlePeriodChange(key)}
+                    >
+                        {label}
+                    </button>
+                ))}
             </div>
+
+            {/* Date Navigator */}
+            {period !== "all_time" && (
+                <div className="gl-week-nav">
+                    <button className="gl-week-btn" onClick={() => setOffset(o => o - 1)} aria-label="Previous">← Previous</button>
+                    <span className="gl-week-label">{dateLabel}</span>
+                    <button
+                        className="gl-week-btn"
+                        onClick={() => setOffset(o => o + 1)}
+                        disabled={!canGoForward}
+                        aria-label="Next"
+                    >
+                        Next →
+                    </button>
+                </div>
+            )}
 
             {/* Filters */}
             <div className="gl-report-filters">
@@ -159,7 +220,7 @@ export default function GnoloveReport() {
                         <div className="gl-skeleton" /><div className="gl-skeleton" /><div className="gl-skeleton" />
                     </div>
                 ) : filteredPrs.length === 0 ? (
-                    <div className="gl-empty">No pull requests in this category for the selected week.</div>
+                    <div className="gl-empty">No pull requests in this category for the selected period.</div>
                 ) : (
                     <div className="gl-pr-list">
                         {filteredPrs.map(pr => (

@@ -1,14 +1,14 @@
 /**
- * GnoloveAnalytics — Ecosystem insights with contribution heatmap and team scores.
+ * GnoloveAnalytics — Ecosystem insights with stat cards and contribution charts.
  *
- * Uses Recharts for bar charts and a custom SVG heatmap calendar.
+ * Uses Recharts for bar charts.
  *
  * @module pages/gnolove/GnoloveAnalytics
  */
 
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from "recharts"
 import {
     useGnoloveContributors,
@@ -16,11 +16,16 @@ import {
     useGnoloveGovdaoMembers,
     useGnolovePackages,
     useGnoloveNamespaces,
-    useGnoloveHeatmapData,
+    useGnoloveRepoActivity,
 } from "../../hooks/gnolove"
 import { TEAMS, TEAM_CSS_COLORS, TimeFilter } from "../../lib/gnoloveConstants"
 
-type HeatmapRange = "3m" | "6m" | "1y"
+const TOOLTIP_STYLE = {
+    background: "#1a1a2e",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    fontSize: 12,
+}
 
 export default function GnoloveAnalytics() {
     const { data: contributors, isLoading } = useGnoloveContributors(TimeFilter.ALL_TIME)
@@ -28,19 +33,7 @@ export default function GnoloveAnalytics() {
     const { data: govdaoMembers } = useGnoloveGovdaoMembers()
     const { data: packages } = useGnolovePackages()
     const { data: namespaces } = useGnoloveNamespaces()
-
-    const [heatmapRange, setHeatmapRange] = useState<HeatmapRange>("6m")
-
-    // Top 20 contributors by score for heatmap data
-    const topLogins = useMemo(() => {
-        if (!contributors?.users) return []
-        return [...contributors.users]
-            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-            .slice(0, 20)
-            .map(u => u.login)
-    }, [contributors])
-
-    const { data: heatmapData, isLoading: heatmapLoading } = useGnoloveHeatmapData(topLogins)
+    const { data: repoActivity } = useGnoloveRepoActivity()
 
     // ── Team contribution breakdown ──────────────────────────
     const teamData = useMemo(() => {
@@ -58,6 +51,32 @@ export default function GnoloveAnalytics() {
             }
         }).filter(t => t.score > 0).sort((a, b) => b.score - a.score)
     }, [contributors])
+
+    // ── Contribution distribution tiers ──────────────────────
+    const contributionTiers = useMemo(() => {
+        if (!contributors?.users) return []
+        const tiers = [
+            { label: "1 PR", min: 1, max: 1, count: 0 },
+            { label: "2-5", min: 2, max: 5, count: 0 },
+            { label: "6-10", min: 6, max: 10, count: 0 },
+            { label: "11-25", min: 11, max: 25, count: 0 },
+            { label: "26-50", min: 26, max: 50, count: 0 },
+            { label: "50+", min: 51, max: Infinity, count: 0 },
+        ]
+        for (const user of contributors.users) {
+            const prs = user.TotalPrs ?? 0
+            if (prs === 0) continue
+            const tier = tiers.find(t => prs >= t.min && prs <= t.max)
+            if (tier) tier.count++
+        }
+        return tiers
+    }, [contributors])
+
+    // ── Top repos by merged PRs ──────────────────────────────
+    const topRepos = useMemo(() => {
+        if (!repoActivity) return []
+        return repoActivity.slice(0, 15)
+    }, [repoActivity])
 
     // ── Summary stats ────────────────────────────────────────
     const stats = useMemo(() => {
@@ -97,57 +116,73 @@ export default function GnoloveAnalytics() {
                 </div>
             )}
 
-            {/* Contribution Heatmap */}
-            <div className="gl-section">
-                <div className="gl-section-header">
-                    <h2 className="gl-section-title">🗓️ Top Contributors Activity</h2>
-                    <div className="gl-heatmap-range">
-                        {(["3m", "6m", "1y"] as HeatmapRange[]).map(r => (
-                            <button
-                                key={r}
-                                className={`gl-filter-btn gl-filter-btn--sm ${heatmapRange === r ? "gl-filter-btn--active" : ""}`}
-                                onClick={() => setHeatmapRange(r)}
-                            >
-                                {r === "3m" ? "3 months" : r === "6m" ? "6 months" : "1 year"}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                {heatmapLoading || isLoading ? (
-                    <div className="gl-loading">
-                        <div className="gl-skeleton" style={{ height: 140 }} />
-                    </div>
-                ) : heatmapData && heatmapData.length > 0 ? (
-                    <ContributionHeatmap data={heatmapData} range={heatmapRange} />
-                ) : (
-                    <div className="gl-empty">No contribution data available for heatmap.</div>
-                )}
-            </div>
-
             {isLoading ? (
                 <div className="gl-loading">
                     <div className="gl-skeleton" style={{ height: 300 }} />
                 </div>
             ) : (
                 <>
-                    {/* Team Score Bar Chart */}
+                    {/* Chart A: Contribution Distribution */}
+                    {contributionTiers.length > 0 && (
+                        <div className="gl-section">
+                            <h2 className="gl-section-title">📊 Contribution Distribution</h2>
+                            <p className="gl-section-desc">Number of contributors grouped by total merged PRs</p>
+                            <div className="gl-chart-container">
+                                <ResponsiveContainer width="100%" height={350}>
+                                    <BarChart data={contributionTiers} margin={{ left: 10, right: 20, top: 10, bottom: 10 }}>
+                                        <XAxis dataKey="label" tick={{ fill: "#f0f0f0", fontSize: 12 }} />
+                                        <YAxis tick={{ fill: "#888", fontSize: 11 }} />
+                                        <Tooltip
+                                            contentStyle={TOOLTIP_STYLE}
+                                            labelStyle={{ color: "#f0f0f0" }}
+                                        />
+                                        <Bar dataKey="count" name="Contributors" fill="#00d4aa" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chart B: Team Contribution Breakdown */}
                     {teamData.length > 0 && (
                         <div className="gl-section">
-                            <h2 className="gl-section-title">🏆 Team Contribution Scores</h2>
+                            <h2 className="gl-section-title">🏆 Team Contribution Breakdown</h2>
+                            <p className="gl-section-desc">PRs, commits, issues, and reviews by team</p>
                             <div className="gl-chart-container">
                                 <ResponsiveContainer width="100%" height={350}>
                                     <BarChart data={teamData} layout="vertical" margin={{ left: 120, right: 20, top: 10, bottom: 10 }}>
                                         <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} />
                                         <YAxis type="category" dataKey="name" tick={{ fill: "#f0f0f0", fontSize: 12 }} width={110} />
                                         <Tooltip
-                                            contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                                            contentStyle={TOOLTIP_STYLE}
                                             labelStyle={{ color: "#f0f0f0" }}
                                         />
-                                        <Bar dataKey="score" name="Score" radius={[0, 4, 4, 0]}>
-                                            {teamData.map((entry, i) => (
-                                                <Cell key={i} fill={entry.color} />
-                                            ))}
-                                        </Bar>
+                                        <Legend />
+                                        <Bar dataKey="prs" name="PRs" fill="#4a9eff" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="commits" name="Commits" fill="#22c55e" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="issues" name="Issues" fill="#ffc107" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="reviews" name="Reviews" fill="#a855f7" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chart C: Most Active Repositories */}
+                    {topRepos.length > 0 && (
+                        <div className="gl-section">
+                            <h2 className="gl-section-title">📂 Most Active Repositories</h2>
+                            <p className="gl-section-desc">Top repositories by merged PRs in the last year</p>
+                            <div className="gl-chart-container">
+                                <ResponsiveContainer width="100%" height={Math.max(300, topRepos.length * 30)}>
+                                    <BarChart data={topRepos} layout="vertical" margin={{ left: 120, right: 20, top: 10, bottom: 10 }}>
+                                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} />
+                                        <YAxis type="category" dataKey="name" tick={{ fill: "#f0f0f0", fontSize: 12 }} width={110} />
+                                        <Tooltip
+                                            contentStyle={TOOLTIP_STYLE}
+                                            labelStyle={{ color: "#f0f0f0" }}
+                                        />
+                                        <Bar dataKey="prs" name="Merged PRs" fill="#00d4aa" radius={[0, 4, 4, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -167,136 +202,6 @@ function StatCard({ label, value, icon }: { label: string; value: number; icon: 
             <div className="gl-stat-icon">{icon}</div>
             <div className="gl-stat-value">{value.toLocaleString()}</div>
             <div className="gl-stat-label">{label}</div>
-        </div>
-    )
-}
-
-const CELL_SIZE = 12
-const CELL_GAP = 2
-const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
-
-function ContributionHeatmap({ data, range }: {
-    data: Array<{ date: string; count: number }>
-    range: HeatmapRange
-}) {
-    const { cells, weeks, maxCount, monthLabels } = useMemo(() => {
-        const now = new Date()
-        const months = range === "3m" ? 3 : range === "6m" ? 6 : 12
-        const startDate = new Date(now.getFullYear(), now.getMonth() - months, now.getDate())
-        // Align to start of week (Monday)
-        const dayOfWeek = startDate.getDay()
-        startDate.setDate(startDate.getDate() - ((dayOfWeek + 6) % 7))
-
-        const dayMap = new Map<string, number>()
-        for (const { date, count } of data) {
-            dayMap.set(date, count)
-        }
-
-        const cells: Array<{ x: number; y: number; date: string; count: number }> = []
-        const monthLabels: Array<{ x: number; label: string }> = []
-        let maxCount = 0
-        const currentDate = new Date(startDate)
-        let week = 0
-        let lastMonth = -1
-
-        while (currentDate <= now) {
-            const dayIdx = (currentDate.getDay() + 6) % 7 // Monday = 0
-            const dateStr = currentDate.toISOString().split("T")[0]
-            const count = dayMap.get(dateStr) ?? 0
-            if (count > maxCount) maxCount = count
-
-            cells.push({ x: week, y: dayIdx, date: dateStr, count })
-
-            if (currentDate.getMonth() !== lastMonth) {
-                monthLabels.push({ x: week, label: currentDate.toLocaleString("en", { month: "short" }) })
-                lastMonth = currentDate.getMonth()
-            }
-
-            currentDate.setDate(currentDate.getDate() + 1)
-            if ((currentDate.getDay() + 6) % 7 === 0) week++
-        }
-
-        return { cells, weeks: week + 1, maxCount, monthLabels }
-    }, [data, range])
-
-    const leftPad = 30
-    const topPad = 18
-    const svgWidth = leftPad + weeks * (CELL_SIZE + CELL_GAP) + 4
-    const svgHeight = topPad + 7 * (CELL_SIZE + CELL_GAP) + 4
-
-    function cellColor(count: number): string {
-        if (count === 0 || maxCount === 0) return "rgba(255, 255, 255, 0.03)"
-        const intensity = count / maxCount
-        if (intensity < 0.25) return "rgba(0, 212, 170, 0.15)"
-        if (intensity < 0.5) return "rgba(0, 212, 170, 0.35)"
-        if (intensity < 0.75) return "rgba(0, 212, 170, 0.6)"
-        return "#00d4aa"
-    }
-
-    return (
-        <div className="gl-heatmap-wrap">
-            <svg width={svgWidth} height={svgHeight} className="gl-heatmap-svg"
-                 role="img" aria-label={`Contribution heatmap showing top contributor activity over the last ${range === "3m" ? "3 months" : range === "6m" ? "6 months" : "year"}`}>
-                {/* Month labels */}
-                {monthLabels.map((m, i) => (
-                    <text
-                        key={i}
-                        x={leftPad + m.x * (CELL_SIZE + CELL_GAP)}
-                        y={12}
-                        fill="#666"
-                        fontSize={9}
-                        fontFamily="JetBrains Mono, monospace"
-                    >
-                        {m.label}
-                    </text>
-                ))}
-                {/* Day labels */}
-                {DAY_LABELS.map((label, i) => (
-                    label && (
-                        <text
-                            key={i}
-                            x={0}
-                            y={topPad + i * (CELL_SIZE + CELL_GAP) + CELL_SIZE - 2}
-                            fill="#555"
-                            fontSize={8}
-                            fontFamily="JetBrains Mono, monospace"
-                        >
-                            {label}
-                        </text>
-                    )
-                ))}
-                {/* Cells */}
-                {cells.map((cell, i) => (
-                    <rect
-                        key={i}
-                        x={leftPad + cell.x * (CELL_SIZE + CELL_GAP)}
-                        y={topPad + cell.y * (CELL_SIZE + CELL_GAP)}
-                        width={CELL_SIZE}
-                        height={CELL_SIZE}
-                        rx={2}
-                        fill={cellColor(cell.count)}
-                        className="gl-heatmap-cell"
-                    >
-                        <title>{cell.date}: {cell.count} contribution{cell.count !== 1 ? "s" : ""}</title>
-                    </rect>
-                ))}
-            </svg>
-            <div className="gl-heatmap-legend">
-                <span className="gl-heatmap-legend-label">Less</span>
-                {[0, 0.15, 0.35, 0.6, 1].map((_, i) => (
-                    <span
-                        key={i}
-                        className="gl-heatmap-legend-cell"
-                        style={{
-                            background: i === 0 ? "rgba(255,255,255,0.03)" :
-                                i === 1 ? "rgba(0,212,170,0.15)" :
-                                i === 2 ? "rgba(0,212,170,0.35)" :
-                                i === 3 ? "rgba(0,212,170,0.6)" : "#00d4aa"
-                        }}
-                    />
-                ))}
-                <span className="gl-heatmap-legend-label">More</span>
-            </div>
         </div>
     )
 }

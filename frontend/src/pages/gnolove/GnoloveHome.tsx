@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo, useRef, useEffect } from "react"
+import { Link } from "react-router-dom"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
 const safeHex = (c: string) => /^[0-9a-fA-F]{3,8}$/.test(c) ? c : "888"
@@ -27,7 +28,7 @@ type SortKey = "score" | "TotalCommits" | "TotalPrs" | "TotalIssues" | "TotalRev
 
 export default function GnoloveHome() {
     const [timeFilter, setTimeFilter] = useState<TimeFilter>(TimeFilter.ALL_TIME)
-    const [excludeCore, setExcludeCore] = useState(false)
+    const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
     const [sortBy, setSortBy] = useState<SortKey>("score")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
     const [selectedRepos, setSelectedRepos] = useState<string[]>([])
@@ -36,8 +37,20 @@ export default function GnoloveHome() {
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
 
+    // Derive logins to exclude from the set of excluded teams
+    const excludeLogins = useMemo(() => {
+        if (excludedTeams.size === 0) return undefined
+        const logins: string[] = []
+        for (const team of TEAMS) {
+            if (excludedTeams.has(team.name)) {
+                logins.push(...team.members)
+            }
+        }
+        return logins.length > 0 ? logins : undefined
+    }, [excludedTeams])
+
     const { data: contributors, isLoading, isFetching } = useGnoloveContributors(
-        timeFilter, excludeCore, selectedRepos.length > 0 ? selectedRepos : undefined
+        timeFilter, excludeLogins, selectedRepos.length > 0 ? selectedRepos : undefined
     )
     const { data: issues } = useGnoloveIssues()
     const { data: freshlyMerged } = useGnoloveFreshlyMerged()
@@ -98,6 +111,15 @@ export default function GnoloveHome() {
         const closed = milestone.issues.filter(i => i.state === "CLOSED" || i.state === "closed").length
         return { total, closed, pct: total > 0 ? Math.round((closed / total) * 100) : 0, title: milestone.title }
     }, [milestone])
+
+    const toggleTeamExclusion = (teamName: string) => {
+        setExcludedTeams(prev => {
+            const next = new Set(prev)
+            if (next.has(teamName)) next.delete(teamName)
+            else next.add(teamName)
+            return next
+        })
+    }
 
     return (
         <div className="gl-page">
@@ -180,10 +202,31 @@ export default function GnoloveHome() {
                         </button>
                     ))}
                 </div>
-                <label className="gl-checkbox">
-                    <input type="checkbox" checked={excludeCore} onChange={e => setExcludeCore(e.target.checked)} />
-                    Exclude Core Team
-                </label>
+                <div className="gl-team-chips">
+                    <span className="gl-team-chips-label">Filter teams:</span>
+                    {TEAMS.map(team => {
+                        const excluded = excludedTeams.has(team.name)
+                        const color = TEAM_CSS_COLORS[team.color]
+                        return (
+                            <button
+                                key={team.name}
+                                className={`gl-team-chip ${excluded ? "gl-team-chip--excluded" : ""}`}
+                                style={{
+                                    borderColor: color,
+                                    background: excluded ? "transparent" : `${color}18`,
+                                    color: excluded ? "#888" : color,
+                                    textDecoration: excluded ? "line-through" : "none",
+                                    opacity: excluded ? 0.5 : 1,
+                                }}
+                                onClick={() => toggleTeamExclusion(team.name)}
+                                aria-pressed={!excluded}
+                                title={excluded ? `Show ${team.name} contributors` : `Hide ${team.name} contributors`}
+                            >
+                                {team.name}
+                            </button>
+                        )
+                    })}
+                </div>
                 {repos && repos.length > 0 && (
                     <div ref={repoFilterRef} className="gl-repo-filter">
                         <button
@@ -362,8 +405,19 @@ function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithSt
                 <div className="gl-contributor-cell">
                     <img src={user.avatarUrl} alt="" className="gl-avatar" loading="lazy" />
                     <div>
-                        <a href={user.url} target="_blank" rel="noopener noreferrer" className="gl-contributor-name">
+                        <Link to={`/gnolove/contributor/${user.login}`} className="gl-contributor-name">
                             {user.name || user.login}
+                        </Link>
+                        <a
+                            href={user.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gl-github-link"
+                            title={`${user.login} on GitHub`}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                            </svg>
                         </a>
                         <span className="gl-contributor-login">@{user.login}</span>
                         {team && (
