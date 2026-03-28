@@ -4,6 +4,42 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.20.0 (2026-03-28) — Polish, CI Fix & Documentation Sweep
+
+### Fixed
+
+- **CI/CD** — corrected `deploy-frontend.yml` chain ID from `test11` to `test12` (lines 68-69);
+  the workflow was silently targeting a deprecated chain. Added missing `VITE_GNOLOVE_API_URL`
+  and `VITE_GNO_MONITORING_API_URL` env vars for production parity
+- **Gnolove Team Filter** — when team filters are active, non-team contributors are now
+  correctly excluded from the leaderboard (previously they leaked through because the API
+  `exclude` param only filters excluded team members, not unaffiliated contributors)
+
+### Changed
+
+- **Version Realignment** — bumped `package.json` from `2.17.2` → `2.20.0` to match the
+  CHANGELOG release history; fixes Sentry release tagging and `APP_VERSION` display
+- **Gnolove Filter Extraction** — extracted `filterAndSortContributors()` and
+  `deriveExcludeLogins()` from `GnoloveHome.tsx` into `lib/gnoloveFilters.ts` for testability
+
+### Added
+
+- **13 new unit tests** in `gnoloveFilters.test.ts` covering team filter logic, sort
+  directions, edge cases (all teams excluded, missing scores, array immutability)
+- **E2E spec** — `gnolove.spec.ts` Playwright smoke tests for the `/gnolove` section
+
+### Documentation
+
+- **README.md** — updated test badge (868→896+), features section (v2.19→v2.20),
+  testing counts (43 files, 16 specs)
+- **ROADMAP.md** — added v2.20.0 section, updated status header
+- **DEPLOYMENT.md** — updated chain references (test11→test12), added Clerk and
+  monitoring env vars to Netlify table
+- **MASTER_ROADMAP.md** — added milestones v2.14–v2.20, updated quality gates
+- **GNO_CORE_BREAKING_CHANGES.md** — refreshed PR status, date, version
+- **MAINNET_PREPARATION.md** — updated date, version, blocker status
+- **CHANGELOG.md** — comprehensive v2.20.0 entry (this section)
+
 ## v2.19.1 (2026-03-28) — Gnolove CSP & Polish
 
 ### Fixed

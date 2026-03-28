@@ -20,8 +20,8 @@ import {
 import { TimeFilter, TIME_FILTER_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 import type { Team } from "../../lib/gnoloveConstants"
 import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
-
-type SortKey = "score" | "TotalCommits" | "TotalPrs" | "TotalIssues" | "TotalReviewedPullRequests"
+import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
+import type { SortKey } from "../../lib/gnoloveFilters"
 
 export default function GnoloveHome() {
     const [timeFilter, setTimeFilter] = useState<TimeFilter>(TimeFilter.ALL_TIME)
@@ -36,16 +36,7 @@ export default function GnoloveHome() {
     const repoFilterRef = useRef<HTMLDivElement>(null)
 
     // Derive logins to exclude from the set of excluded teams
-    const excludeLogins = useMemo(() => {
-        if (excludedTeams.size === 0) return undefined
-        const logins: string[] = []
-        for (const team of TEAMS) {
-            if (excludedTeams.has(team.name)) {
-                logins.push(...team.members)
-            }
-        }
-        return logins.length > 0 ? logins : undefined
-    }, [excludedTeams])
+    const excludeLogins = useMemo(() => deriveExcludeLogins(excludedTeams), [excludedTeams])
 
     const { data: contributors, isLoading, isFetching } = useGnoloveContributors(
         timeFilter, excludeLogins, selectedRepos.length > 0 ? selectedRepos : undefined
@@ -70,23 +61,7 @@ export default function GnoloveHome() {
 
     const sorted = useMemo(() => {
         if (!contributors?.users) return []
-        let users = contributors.users
-        // When any team is excluded, only show members of the remaining active teams
-        // (the API exclude param filters out excluded team members, but non-team
-        // contributors still pass through — this client-side filter catches those)
-        if (excludedTeams.size > 0) {
-            const includedLogins = new Set<string>()
-            for (const team of TEAMS) {
-                if (!excludedTeams.has(team.name)) {
-                    for (const login of team.members) includedLogins.add(login)
-                }
-            }
-            users = users.filter(u => includedLogins.has(u.login))
-        }
-        return [...users].sort((a, b) => {
-            const diff = (b[sortBy] ?? 0) - (a[sortBy] ?? 0)
-            return sortDir === "desc" ? diff : -diff
-        })
+        return filterAndSortContributors(contributors.users, excludedTeams, sortBy, sortDir)
     }, [contributors, sortBy, sortDir, excludedTeams])
 
     const handleSort = (key: SortKey) => {

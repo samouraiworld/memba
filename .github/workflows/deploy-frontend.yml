@@ -65,11 +65,13 @@ jobs:
         run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_GNO_CHAIN_ID: test11
-          VITE_GNO_RPC_URL: https://rpc.test11.testnets.gno.land:443
+          VITE_GNO_CHAIN_ID: test12
+          VITE_GNO_RPC_URL: https://rpc.testnet12.samourai.live:443
           VITE_DAO_REALM_PATH: gno.land/r/samcrew/samourai_dao
           VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_GNOLOVE_API_URL: https://backend.gnolove.world
+          VITE_GNO_MONITORING_API_URL: https://monitoring.gnolove.world
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

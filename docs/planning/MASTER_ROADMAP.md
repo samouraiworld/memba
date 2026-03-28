@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-10 (v2.13 deep audit, docs sync)
+> Last updated: 2026-03-28 (v2.20 docs sweep)
 
 ## Milestone Status
 
@@ -36,21 +36,29 @@
 | 25 | **Tier 1 Security Audit** | v2.12 | ✅ SHIPPED | PR #99 → `main` |
 | 26 | **v2.13 Deep Audit** | v2.13 | ✅ SHIPPED | PR #100 → `main` |
 | 27 | **v2.13 Betanet Plan** | v2.13 | ✅ SHIPPED | PR #97 → `main` |
+| 28 | **Hacker Gnockpit Parity** | v2.14 | ✅ SHIPPED | PR #124 → `main` |
+| 29 | **gnoland1 Network** | v2.14 | ✅ SHIPPED | PR #125-126 → `main` |
+| 30 | **test11 Re-activation** | v2.16 | ✅ SHIPPED | PR #128-129 → `main` |
+| 31 | **Monitoring + Deps Cleanup** | v2.17 | ✅ SHIPPED | PR #142 → `main` |
+| 32 | **Validator Perf & Hardening** | v2.17.2 | ✅ SHIPPED | PR #143-145 → `main` |
+| 33 | **Professional Alerting** | v2.18 | ✅ SHIPPED | PR #147-151 → `main` |
+| 34 | **Gnolove Consolidation** | v2.19 | ✅ SHIPPED | PR #152-157 → `main` |
+| 35 | **CI Fix + Docs Sweep** | v2.20 | ✅ SHIPPED | `main` |
 | — | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
 | — | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | — | **Premium** | v3.5 | 🔮 HORIZON | — |
 | — | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.13)
+## Quality Gates (as of v2.20)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 756 (35 files) |
-| E2E tests | 143 (16 spec files) |
+| Unit tests | 896 (43 files) |
+| E2E specs | 16 spec files |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | ~470KB (~135KB gzip) |
-| package.json | 2.13.0 |
+| Build size | ~481KB (~138KB gzip) |
+| package.json | 2.20.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
@@ -154,9 +162,10 @@
 
 | Chain | Status | Memba target |
 |-------|--------|-------------|
-| test11 | ✅ Active | All dev + testing |
-| Betanet | 🟡 Pending upstream ([gno#5250](https://github.com/gnolang/gno/pull/5250)) | v2.13 deployed |
-| Mainnet | 🟡 ~April 2026 | v2.0-γ (GnoSwap) live |
+| test12 ⭐ | ✅ Active (default) | All dev + testing |
+| test11 | ✅ Active (legacy) | Maintained for compatibility |
+| gnoland1 (Betanet) | ✅ Active | Deployed since v2.14 |
+| Mainnet | 🟡 ~H2 2026 | Track upstream |
 
 ## ⚠️ Upstream Tracking
 
