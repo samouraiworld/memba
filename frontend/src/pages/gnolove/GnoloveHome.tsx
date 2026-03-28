@@ -70,11 +70,24 @@ export default function GnoloveHome() {
 
     const sorted = useMemo(() => {
         if (!contributors?.users) return []
-        return [...contributors.users].sort((a, b) => {
+        let users = contributors.users
+        // When any team is excluded, only show members of the remaining active teams
+        // (the API exclude param filters out excluded team members, but non-team
+        // contributors still pass through — this client-side filter catches those)
+        if (excludedTeams.size > 0) {
+            const includedLogins = new Set<string>()
+            for (const team of TEAMS) {
+                if (!excludedTeams.has(team.name)) {
+                    for (const login of team.members) includedLogins.add(login)
+                }
+            }
+            users = users.filter(u => includedLogins.has(u.login))
+        }
+        return [...users].sort((a, b) => {
             const diff = (b[sortBy] ?? 0) - (a[sortBy] ?? 0)
             return sortDir === "desc" ? diff : -diff
         })
-    }, [contributors, sortBy, sortDir])
+    }, [contributors, sortBy, sortDir, excludedTeams])
 
     const handleSort = (key: SortKey) => {
         if (sortBy === key) setSortDir(d => (d === "desc" ? "asc" : "desc"))
