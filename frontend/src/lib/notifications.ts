@@ -28,7 +28,7 @@ export interface Notification {
     type: NotificationType
     title: string
     body: string
-    /** DAO realm path (e.g. "gno.land/r/samcrew/samourai_dao") */
+    /** DAO realm path (e.g. "gno.land/r/samcrew/memba_dao") */
     daoPath: string
     /** Internal navigation link (e.g. "/dao/samourai-dao/proposal/12") */
     link: string

@@ -19,7 +19,7 @@ describe('slug encoding', () => {
     })
 
     it('roundtrips encode/decode', () => {
-        const path = 'gno.land/r/samcrew/samourai_dao'
+        const path = 'gno.land/r/samcrew/memba_dao'
         expect(decodeSlug(encodeSlug(path))).toBe(path)
     })
 
@@ -42,7 +42,7 @@ describe('validateRealmPath', () => {
     })
 
     it('accepts realm path with underscores', () => {
-        expect(validateRealmPath('gno.land/r/samcrew/samourai_dao')).toBeNull()
+        expect(validateRealmPath('gno.land/r/samcrew/memba_dao')).toBeNull()
     })
 
     it('rejects empty path', () => {
