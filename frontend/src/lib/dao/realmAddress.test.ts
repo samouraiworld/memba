@@ -44,7 +44,7 @@ describe("derivePkgBech32Addr", () => {
         const paths = [
             "gno.land/r/gov/dao",
             "gno.land/r/demo/users",
-            "gno.land/r/samcrew/samourai_dao",
+            "gno.land/r/samcrew/memba_dao",
             "gno.land/r/gnoswap/pool",
         ]
         for (const p of paths) {

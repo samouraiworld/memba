@@ -168,7 +168,7 @@ export const UGNOT_PER_GNOT = 1_000_000
 // ── 5. External Services ─────────────────────────────────────
 
 /** DAO realm path on-chain. Update when the DAO realm is deployed. */
-export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/samourai_dao"
+export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/memba_dao"
 
 /** Gnolove API base URL for profile enrichment and contribution data. */
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://backend.gnolove.world"

@@ -374,7 +374,7 @@ describe('GovDAO detection (via buildVoteMsg)', () => {
     })
 
     it('does NOT detect user DAOs as GovDAO', () => {
-        const msg = buildVoteMsg('g1x', 'gno.land/r/samcrew/samourai_dao', 1, 'YES')
+        const msg = buildVoteMsg('g1x', 'gno.land/r/samcrew/memba_dao', 1, 'YES')
         expect(msg.value.func).toBe('VoteOnProposal')
     })
 })
