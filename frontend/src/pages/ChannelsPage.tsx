@@ -16,6 +16,7 @@ import { getBoardInfo, detectChannelRealm } from "../plugins/board/parser"
 import type { BoardInfo } from "../plugins/board/parser"
 import BoardView from "../plugins/board/BoardView"
 import { GNO_RPC_URL } from "../lib/config"
+import { getDAOMembers } from "../lib/dao"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { channelIcon, defaultChannel } from "./channelHelpers"
 import type { LayoutContext } from "../types/layout"
@@ -35,6 +36,33 @@ export function ChannelsPage() {
     const [activeChannel, setActiveChannel] = useState<string>(channelParam || "general")
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [loading, setLoading] = useState(true)
+    // G1/G2: Membership for ACL checks and moderation
+    const [userRoles, setUserRoles] = useState<string[]>([])
+    const [isMember, setIsMember] = useState(false)
+
+    // G1/G2: Detect user's DAO membership and roles
+    useEffect(() => {
+        if (!realmPath || !adena.connected || !adena.address) {
+            setUserRoles([])
+            setIsMember(false)
+            return
+        }
+        getDAOMembers(GNO_RPC_URL, realmPath)
+            .then(members => {
+                const member = members.find(m => m.address === adena.address)
+                if (member) {
+                    setIsMember(true)
+                    setUserRoles(member.tier ? [member.tier.toLowerCase(), "member"] : ["member"])
+                } else {
+                    setIsMember(false)
+                    setUserRoles([])
+                }
+            })
+            .catch(() => {
+                setIsMember(false)
+                setUserRoles([])
+            })
+    }, [realmPath, adena.connected, adena.address])
 
     // ── Detect channel realm ──────────────────────────────────
     useEffect(() => {
@@ -222,6 +250,8 @@ export function ChannelsPage() {
                             >
                                 <span className="channel-icon">{channelIcon(ch)}</span>
                                 <span className="channel-name">{ch.name}</span>
+                                {ch.type === "readonly" && <span className="channel-lock-icon">🔒</span>}
+                                {ch.type === "announcements" && <span className="channel-lock-icon">📢</span>}
                                 {ch.archived && <span className="channel-badge">archived</span>}
                                 {/* U1 fix: show "Join" for voice/video, thread count for text */}
                                 {!ch.archived && (ch.type === "voice" || ch.type === "video") && (
@@ -246,6 +276,9 @@ export function ChannelsPage() {
                         initialChannel={activeChannel}
                         onChannelChange={handleChannelChange}
                         hideChannelList
+                        userRoles={userRoles}
+                        daoName={boardInfo?.name?.replace(" Channels", "").replace(" Board", "") || "this DAO"}
+                        isMember={isMember}
                     />
                 </div>
             </div>
