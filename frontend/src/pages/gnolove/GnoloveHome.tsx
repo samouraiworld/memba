@@ -69,16 +69,18 @@ export default function GnoloveHome() {
         return filterAndSortContributors(contributors.users, excludedTeams, sortBy, sortDir)
     }, [contributors, sortBy, sortDir, excludedTeams])
 
-    // Reset to page 1 when filters/sorting change
-    useEffect(() => { setPage(1) }, [timeFilter, excludedTeams, sortBy, sortDir, selectedRepos])
-
+    // Clamp page to valid range when data or filters change
     const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+    // Clamp page to valid range when data or filters change
+    const activePage = Math.min(page, totalPages)
     const pagedContributors = useMemo(() => {
-        const start = (page - 1) * PAGE_SIZE
+        const p = Math.min(page, Math.max(1, Math.ceil(sorted.length / PAGE_SIZE)))
+        const start = (p - 1) * PAGE_SIZE
         return sorted.slice(start, start + PAGE_SIZE)
     }, [sorted, page])
 
     const handleSort = (key: SortKey) => {
+        setPage(1)
         if (sortBy === key) setSortDir(d => (d === "desc" ? "asc" : "desc"))
         else { setSortBy(key); setSortDir("desc") }
     }
@@ -113,6 +115,7 @@ export default function GnoloveHome() {
     }, [milestone])
 
     const toggleTeamExclusion = (teamName: string) => {
+        setPage(1)
         setExcludedTeams(prev => {
             const next = new Set(prev)
             if (next.has(teamName)) next.delete(teamName)
@@ -250,7 +253,7 @@ export default function GnoloveHome() {
                         <button
                             key={value}
                             className={`gl-filter-btn ${timeFilter === value ? "gl-filter-btn--active" : ""}`}
-                            onClick={() => setTimeFilter(value as TimeFilter)}
+                            onClick={() => { setPage(1); setTimeFilter(value as TimeFilter) }}
                         >
                             {label}
                         </button>
@@ -344,7 +347,7 @@ export default function GnoloveHome() {
                     <h2 className="gl-section-title">Contributor Leaderboard</h2>
                     {sorted.length > 0 && (
                         <span className="gl-section-count">
-                            {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+                            {(activePage - 1) * PAGE_SIZE + 1}-{Math.min(activePage * PAGE_SIZE, sorted.length)} of {sorted.length}
                         </span>
                     )}
                 </div>
@@ -375,7 +378,7 @@ export default function GnoloveHome() {
                                         <ContributorRow
                                             key={user.id}
                                             user={user}
-                                            rank={(page - 1) * PAGE_SIZE + i + 1}
+                                            rank={(activePage - 1) * PAGE_SIZE + i + 1}
                                             loginToTeam={loginToTeam}
                                         />
                                     ))}
@@ -388,13 +391,13 @@ export default function GnoloveHome() {
                                 <button
                                     className="gl-pagination-btn"
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
+                                    disabled={activePage === 1}
                                     aria-label="Previous page"
                                 >
                                     &lsaquo; Prev
                                 </button>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                                    .filter(p => p === 1 || p === totalPages || Math.abs(p - activePage) <= 2)
                                     .reduce<(number | "...")[]>((acc, p, i, arr) => {
                                         if (i > 0 && p - (arr[i - 1]) > 1) acc.push("...")
                                         acc.push(p)
@@ -406,9 +409,9 @@ export default function GnoloveHome() {
                                         ) : (
                                             <button
                                                 key={p}
-                                                className={`gl-pagination-btn ${page === p ? "gl-pagination-btn--active" : ""}`}
+                                                className={`gl-pagination-btn ${activePage === p ? "gl-pagination-btn--active" : ""}`}
                                                 onClick={() => setPage(p)}
-                                                aria-current={page === p ? "page" : undefined}
+                                                aria-current={activePage === p ? "page" : undefined}
                                             >
                                                 {p}
                                             </button>
@@ -417,7 +420,7 @@ export default function GnoloveHome() {
                                 <button
                                     className="gl-pagination-btn"
                                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page === totalPages}
+                                    disabled={activePage === totalPages}
                                     aria-label="Next page"
                                 >
                                     Next &rsaquo;
