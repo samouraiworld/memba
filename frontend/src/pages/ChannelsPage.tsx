@@ -19,6 +19,7 @@ import { GNO_RPC_URL } from "../lib/config"
 import { getDAOMembers } from "../lib/dao"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { channelIcon, defaultChannel } from "./channelHelpers"
+import { hasChannelUnread, markChannelVisited, updateChannelThreadCount } from "../plugins/board/boardHelpers"
 import type { LayoutContext } from "../types/layout"
 import "./channels.css"
 
@@ -95,14 +96,23 @@ export function ChannelsPage() {
         else if (boardPath === null) setLoading(false)
     }, [boardPath, loadBoardInfo])
 
-    // Sync URL channel param → state
+    // Sync URL channel param → state + G3: mark as visited
     useEffect(() => {
-        if (channelParam) setActiveChannel(channelParam)
-    }, [channelParam])
+        if (channelParam) {
+            setActiveChannel(channelParam)
+            markChannelVisited(channelParam)
+            const ch = boardInfo?.channels.find(c => c.name === channelParam)
+            if (ch) updateChannelThreadCount(channelParam, ch.threadCount)
+        }
+    }, [channelParam, boardInfo])
 
     const handleChannelClick = (name: string) => {
         setActiveChannel(name)
         setSidebarOpen(false)
+        // G3: Mark channel as visited and store thread count
+        markChannelVisited(name)
+        const ch = boardInfo?.channels.find(c => c.name === name)
+        if (ch) updateChannelThreadCount(name, ch.threadCount)
         navigate(`/dao/${encodedSlug}/channels/${name}`, { replace: true })
     }
 
@@ -256,6 +266,10 @@ export function ChannelsPage() {
                                 {/* U1 fix: show "Join" for voice/video, thread count for text */}
                                 {!ch.archived && (ch.type === "voice" || ch.type === "video") && (
                                     <span className="channel-badge" style={{ color: "#00d4aa", background: "rgba(0, 212, 170, 0.08)" }}>Join</span>
+                                )}
+                                {/* G3: Unread dot */}
+                                {!ch.archived && ch.type !== "voice" && ch.type !== "video" && ch.name !== activeChannel && hasChannelUnread(ch.name, ch.threadCount) && (
+                                    <span className="channel-unread-dot" />
                                 )}
                                 {!ch.archived && ch.type !== "voice" && ch.type !== "video" && ch.threadCount > 0 && (
                                     <span className="thread-count">{ch.threadCount}</span>

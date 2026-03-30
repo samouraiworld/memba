@@ -99,7 +99,8 @@
     letter-spacing: 0.5px;
 }
 
-.channels-sidebar-item .unread-dot {
+.channels-sidebar-item .unread-dot,
+.channels-sidebar-item .channel-unread-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
