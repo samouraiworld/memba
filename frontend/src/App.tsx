@@ -72,6 +72,9 @@ const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 // ── Alerts page (lazy — v2.18.0) ──
 const AlertsPage = lazy(() => import("./pages/AlertsPage"))
 
+// ── Organizations page (lazy — v2.22.0) ──
+const OrganizationsPage = lazy(() => import("./pages/OrganizationsPage"))
+
 // ── Gnolove section (lazy — v2.19.0) ──
 const GnoloveLayout = lazy(() => import("./layouts/GnoloveLayout"))
 const GnoloveHome = lazy(() => import("./pages/gnolove/GnoloveHome"))
@@ -166,6 +169,9 @@ function App() {
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
+
+          {/* Organizations — Team management (v2.22.0) */}
+          <Route path="/organizations" element={<Suspense fallback={<PageLoader />}><OrganizationsPage /></Suspense>} />
 
           {/* Gnolove — Contributor scoreboard & analytics (v2.19.0) */}
           <Route path="/gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>

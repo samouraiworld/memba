@@ -1,0 +1,325 @@
+/* ── Organizations Page (v2.22.0 redesign) ──────────────── */
+
+.org-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 0;
+}
+
+.org-header {
+    margin-bottom: 24px;
+}
+
+.org-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 4px;
+}
+
+.org-subtitle {
+    font-size: 12px;
+    color: #888;
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Sections ──────────────────────────────────────────── */
+
+.org-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.org-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.org-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ccc;
+    margin: 0;
+}
+
+.org-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Workspace Cards ───────────────────────────────────── */
+
+.org-workspace-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.org-workspace-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    color: inherit;
+    width: 100%;
+}
+
+.org-workspace-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.org-workspace-card--active {
+    border-color: rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.04);
+}
+
+.org-workspace-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #888;
+    flex-shrink: 0;
+}
+
+.org-workspace-icon--team {
+    background: rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.org-workspace-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.org-workspace-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.org-workspace-desc {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.org-workspace-active-badge {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    color: #00d4aa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.1);
+    flex-shrink: 0;
+}
+
+/* ── Team List ─────────────────────────────────────────── */
+
+.org-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.org-team-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.org-team-row-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+    flex-shrink: 0;
+}
+
+.org-team-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+
+.org-team-row-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #f0f0f0;
+}
+
+.org-team-row-role {
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.org-team-row-badge {
+    font-size: 9px;
+    font-family: "JetBrains Mono", monospace;
+    color: #00d4aa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(0, 212, 170, 0.08);
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+
+.org-btn-primary {
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: rgba(0, 212, 170, 0.12);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
+}
+
+.org-btn-primary:hover {
+    background: rgba(0, 212, 170, 0.18);
+}
+
+.org-btn-secondary {
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #888;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
+    margin-top: 8px;
+}
+
+.org-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Auth Section ──────────────────────────────────────── */
+
+.org-auth-section {
+    display: flex;
+    justify-content: center;
+}
+
+.org-auth-card {
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+}
+
+.org-auth-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 8px;
+}
+
+.org-auth-desc {
+    font-size: 12px;
+    color: #888;
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+
+.org-auth-clerk-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+/* ── Create Wrapper ────────────────────────────────────── */
+
+.org-create-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ── Empty State ───────────────────────────────────────── */
+
+.org-empty-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 40px 24px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    text-align: center;
+}
+
+.org-empty-icon {
+    color: #444;
+}
+
+.org-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ccc;
+    margin: 0;
+}
+
+.org-empty-desc {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+    max-width: 320px;
+    line-height: 1.4;
+}
+
+/* ── Loading ───────────────────────────────────────────── */
+
+.org-loading {
+    padding: 24px;
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .org-page {
+        padding: 16px 0;
+    }
+}

@@ -2,9 +2,9 @@ import { Link, useLocation } from "react-router-dom"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
-    LinkSimpleHorizontal, Bell, Heart,
+    LinkSimpleHorizontal, Bell, Heart, UsersThree,
 } from "@phosphor-icons/react"
-import { OrgSwitcher } from "./OrgSwitcher"
+import { useOrg } from "../../contexts/OrgContext"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -79,6 +79,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
+    const { orgsEnabled, activeOrgName, isOrgMode } = useOrg()
 
     return (
         <aside
@@ -98,12 +99,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                     onClick={onToggleCollapse}
                     aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                 >
-                    {collapsed ? "→" : "←"}
+                    {collapsed ? "\u2192" : "\u2190"}
                 </button>
             </div>
-
-            {/* ── Org Switcher (Clerk Organizations) ─────────────── */}
-            <OrgSwitcher collapsed={collapsed} />
 
             {/* ── Section 1: Navigation ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
@@ -125,9 +123,21 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
             <div className="k-sidebar-user">
+                {/* Org indicator — only when in org mode */}
+                {connected && orgsEnabled && isOrgMode && (
+                    <div className="k-sidebar-org-badge" title={`Team: ${activeOrgName}`}>
+                        <Link to="/organizations" className="k-sidebar-org-badge-link">
+                            <span className="k-sidebar-org-badge-dot" />
+                            {!collapsed && <span className="k-sidebar-org-badge-name">{activeOrgName}</span>}
+                        </Link>
+                    </div>
+                )}
                 <div className="k-sidebar-section">
                     {connected && address && (
                         <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
+                    )}
+                    {connected && orgsEnabled && (
+                        <SidebarLink to="/organizations" icon={<UsersThree size={18} />} label="Teams" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
