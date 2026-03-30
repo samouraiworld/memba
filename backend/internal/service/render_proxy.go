@@ -47,7 +47,7 @@ func abciQuery(rpcURL, path, data string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -114,13 +114,13 @@ func HandleRenderProxy() http.Handler {
 			slog.Warn("render proxy failed", "realm", realm, "path", renderPath, "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			_, _ = fmt.Fprintf(w, `{"error":%q}`, err.Error())
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=5")
-		fmt.Fprint(w, result)
+		_, _ = fmt.Fprint(w, result)
 	})
 }
 
@@ -156,13 +156,13 @@ func HandleEvalProxy() http.Handler {
 			slog.Warn("eval proxy failed", "realm", realm, "expr", expr, "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			_, _ = fmt.Fprintf(w, `{"error":%q}`, err.Error())
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=5")
-		fmt.Fprint(w, result)
+		_, _ = fmt.Fprint(w, result)
 	})
 }
 
@@ -192,12 +192,12 @@ func HandleBalanceProxy() http.Handler {
 			slog.Warn("balance proxy failed", "address", address, "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			_, _ = fmt.Fprintf(w, `{"error":%q}`, err.Error())
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=10")
-		fmt.Fprint(w, result)
+		_, _ = fmt.Fprint(w, result)
 	})
 }
