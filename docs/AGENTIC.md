@@ -40,18 +40,35 @@ curl -s 'https://backend.gnolove.world/stats?time_filter=all'
 curl -s 'https://monitoring.gnolove.world/validators'
 ```
 
-## MCP Server (Planned)
+## MCP Server
 
-A TypeScript MCP server will expose Memba actions as callable tools for
-Cursor, Claude Desktop, and other MCP-compatible agents:
+The Memba MCP server (`mcp-server/`) exposes 9 tools for agents:
 
 | Tool | Description |
 |------|-------------|
-| `memba_list_daos` | List saved DAOs with config and member counts |
-| `memba_get_proposal` | Get proposal details including vote breakdown |
-| `memba_get_validators` | Get validator set with uptime and participation |
-| `memba_get_contributor` | Get contributor profile with PR/commit/review stats |
-| `memba_query_render` | Raw ABCI Render() query on any realm |
+| `memba_query_render` | Query any realm's Render() output (raw ABCI) |
+| `memba_query_eval` | Evaluate a realm function (vm/qeval) |
+| `memba_get_balance` | Get GNOT balance of an address |
+| `memba_get_dao` | Get DAO overview (name, members, proposals) |
+| `memba_get_proposal` | Get proposal details by ID |
+| `memba_get_contributors` | Gnolove contributor leaderboard |
+| `memba_get_contributor` | Single contributor profile |
+| `memba_get_repositories` | Tracked Gnolove repositories |
+| `memba_get_network` | Current chain status (height, chain ID) |
+
+### Setup (Claude Desktop)
+```json
+{
+  "mcpServers": {
+    "memba": {
+      "command": "node",
+      "args": ["/path/to/memba/mcp-server/build/index.js"]
+    }
+  }
+}
+```
+
+See `mcp-server/README.md` for full configuration details.
 
 ## CI/CD Integration
 
