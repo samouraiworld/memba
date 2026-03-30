@@ -4,6 +4,26 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.22.0 (2026-03-30) — Clerk Organizations
+
+### Added
+
+- **OrgContext** — organization state management with personal/org workspace switching,
+  persisted to localStorage
+- **OrgSwitcher** — sidebar workspace indicator with lazy-loaded Clerk org dropdown.
+  Clerk bundle (~45KB) only loaded when user interacts with org switcher, zero impact
+  on main bundle
+- **Org-scoped saved DAOs** — `getSavedDAOsForOrg()`, `addSavedDAOForOrg()`,
+  `removeSavedDAOForOrg()` in `daoSlug.ts` for per-organization DAO persistence
+- **ClerkOrgUI** — lazy-loaded Clerk OrganizationList with personal/org switching,
+  role display, and sync to OrgContext
+
+### Changed
+
+- Layout wrapped with `OrgProvider` for app-wide org state access
+- Sidebar now shows org switcher below logo (only when Clerk key configured)
+- `SavedDAO` interface extended with optional `orgId` field
+
 ## v2.22.1 (2026-03-30) — Agentic & Hardening
 
 ### Added

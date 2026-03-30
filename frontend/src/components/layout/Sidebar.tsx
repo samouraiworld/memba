@@ -4,6 +4,7 @@ import {
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
     LinkSimpleHorizontal, Bell, Heart,
 } from "@phosphor-icons/react"
+import { OrgSwitcher } from "./OrgSwitcher"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -100,6 +101,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                     {collapsed ? "→" : "←"}
                 </button>
             </div>
+
+            {/* ── Org Switcher (Clerk Organizations) ─────────────── */}
+            <OrgSwitcher collapsed={collapsed} />
 
             {/* ── Section 1: Navigation ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">

@@ -5,6 +5,7 @@
  */
 
 const LS_KEY = "memba_saved_daos"
+const LS_ORG_KEY_PREFIX = "memba_saved_daos_org_"
 
 /** Allowed characters in a decoded realm path — prevents traversal and injection. */
 const VALID_REALM_PATH = /^gno\.land\/r\/[a-zA-Z0-9_/]+$/
@@ -19,6 +20,8 @@ export interface SavedDAO {
     realmPath: string
     name: string
     addedAt: number
+    /** Organization ID this DAO belongs to, or undefined for personal. */
+    orgId?: string
 }
 
 // ── Slug encoding ─────────────────────────────────────────
@@ -98,5 +101,59 @@ export function removeSavedDAO(realmPath: string): void {
     const daos = getSavedDAOs().filter((d) => d.realmPath !== realmPath)
     try {
         localStorage.setItem(LS_KEY, JSON.stringify(daos))
+    } catch { /* ignore */ }
+}
+
+// ── Org-scoped DAO persistence (v2.22.0) ─────────────────
+
+function orgKey(orgId: string): string {
+    return `${LS_ORG_KEY_PREFIX}${orgId}`
+}
+
+/**
+ * Get saved DAOs for a specific org.
+ * Returns org-scoped DAOs if orgId is provided, personal DAOs if null.
+ */
+export function getSavedDAOsForOrg(orgId: string | null): SavedDAO[] {
+    if (!orgId) return getSavedDAOs()
+    try {
+        const raw = localStorage.getItem(orgKey(orgId))
+        if (!raw) return []
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed)) return []
+        return parsed.filter(
+            (d): d is SavedDAO =>
+                typeof d === "object" && d !== null &&
+                typeof d.realmPath === "string" && d.realmPath.length > 0 &&
+                typeof d.name === "string" && d.name.length > 0 &&
+                typeof d.addedAt === "number",
+        )
+    } catch {
+        return []
+    }
+}
+
+/** Add a DAO to an org's saved list. */
+export function addSavedDAOForOrg(orgId: string | null, realmPath: string, name?: string): void {
+    if (!orgId) { addSavedDAO(realmPath, name); return }
+    if (!VALID_REALM_PATH.test(realmPath)) return
+    const daos = getSavedDAOsForOrg(orgId)
+    const existing = daos.find((d) => d.realmPath === realmPath)
+    if (existing) {
+        if (name) existing.name = name
+    } else {
+        daos.push({ realmPath, name: name || realmPath.split("/").pop() || "DAO", addedAt: Date.now(), orgId })
+    }
+    try {
+        localStorage.setItem(orgKey(orgId), JSON.stringify(daos))
+    } catch { /* quota exceeded */ }
+}
+
+/** Remove a DAO from an org's saved list. */
+export function removeSavedDAOForOrg(orgId: string | null, realmPath: string): void {
+    if (!orgId) { removeSavedDAO(realmPath); return }
+    const daos = getSavedDAOsForOrg(orgId).filter((d) => d.realmPath !== realmPath)
+    try {
+        localStorage.setItem(orgKey(orgId), JSON.stringify(daos))
     } catch { /* ignore */ }
 }
