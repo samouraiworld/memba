@@ -24,7 +24,7 @@ interface DAOOverviewCardProps {
     totalPower: number
     healthScore: { grade: string; total: number; color: string; participationPts: number; execPts: number; activityPts: number } | null
     session: { daoSlug: string; channelName: string } | null
-    joinRoom: (opts: { daoSlug: string; channelName: string; mode: string; label: string; description: string }) => void
+    joinRoom: (opts: { daoSlug: string; channelName: string; mode: "voice" | "video"; label: string; description?: string }) => void
 }
 
 function RealmAddressBadge({ realmPath }: { realmPath: string }) {
