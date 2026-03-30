@@ -21,6 +21,7 @@ export type NotificationType =
     | "candidature_approved"
     | "candidature_rejected"
     | "member_added"
+    | "mention"
 
 export interface Notification {
     /** Unique ID: "{type}:{daoSlug}:{identifier}:{timestamp}" */
@@ -204,6 +205,7 @@ export function getNotificationIcon(type: NotificationType): string {
         case "candidature_approved": return "🎉"
         case "candidature_rejected": return "🚫"
         case "member_added": return "👋"
+        case "mention": return "💬"
         default: return "🔔"
     }
 }
