@@ -4,6 +4,19 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.22.1 (2026-03-30) — Agentic & Hardening
+
+### Added
+
+- **`SKILL.md`** — comprehensive agent instruction file at repo root with API endpoints,
+  curl examples, DAO lifecycle, token operations, and project structure
+- **`docs/AGENTIC.md`** — dedicated documentation for AI agent and MCP integration
+
+### Fixed
+
+- **CreateToken fee display** — UI label showed "Platform fee (5%)" but actual fee is 2.5%
+  since v2.1a. Fixed to match `grc20.ts` enforcement
+
 ## v2.21.1 (2026-03-30) — Gnolove Data Accuracy & UX Overhaul
 
 ### Added

@@ -336,7 +336,7 @@ export function CreateToken() {
                 </div>
                 {fee > 0n && (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        <span style={{ color: "#666" }}>Platform fee (5%)</span>
+                        <span style={{ color: "#666" }}>Platform fee (2.5%)</span>
                         <span style={{ color: "#f5a623" }}>{String(fee)} {symbol.trim().toUpperCase() || "TOKEN"}</span>
                     </div>
                 )}
