@@ -22,14 +22,16 @@ test.describe('Directory Page', () => {
         await expect(page.locator('.dir-header p')).toContainText('Discover DAOs, tokens, packages, realms, and users')
     })
 
-    test('five tabs are visible', async ({ page }) => {
+    test('all tabs are visible', async ({ page }) => {
         const tabs = page.locator('.dir-tab')
-        await expect(tabs).toHaveCount(5)
+        await expect(tabs).toHaveCount(7)
         await expect(tabs.nth(0)).toContainText('DAOs')
         await expect(tabs.nth(1)).toContainText('Tokens')
         await expect(tabs.nth(2)).toContainText('Packages')
         await expect(tabs.nth(3)).toContainText('Realms')
         await expect(tabs.nth(4)).toContainText('Users')
+        await expect(tabs.nth(5)).toContainText('GovDAO')
+        await expect(tabs.nth(6)).toContainText('Leaderboard')
     })
 
     test('DAOs tab is active by default', async ({ page }) => {

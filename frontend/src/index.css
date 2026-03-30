@@ -1132,17 +1132,7 @@ body {
   }
 
   .k-mobile-only {
-    display: block;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
-    pointer-events: none;
-  }
-
-  .k-mobile-only > * {
-    pointer-events: auto;
+    display: contents;
   }
 
   .k-mobile-tabbar {
