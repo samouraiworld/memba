@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
-    LinkSimpleHorizontal, Bell, Heart, UsersThree,
+    LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
 
@@ -119,6 +119,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
             {/* ── Section 2: Extensions ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Extensions">
                 <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Agents" connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
