@@ -30,11 +30,12 @@ export function GatedChannelBanner({ boardPath, channel, userRoles, isConnected,
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        setLoading(true)
+        let cancelled = false
         getChannelACL(GNO_RPC_URL, boardPath, channel)
-            .then(setAcl)
-            .catch(() => setAcl(null))
-            .finally(() => setLoading(false))
+            .then(data => { if (!cancelled) setAcl(data) })
+            .catch(() => { if (!cancelled) setAcl(null) })
+            .finally(() => { if (!cancelled) setLoading(false) })
+        return () => { cancelled = true }
     }, [boardPath, channel])
 
     if (loading || !acl) return null

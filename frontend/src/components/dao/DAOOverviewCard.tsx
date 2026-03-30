@@ -48,7 +48,7 @@ function RealmAddressBadge({ realmPath }: { realmPath: string }) {
                         setCopied(true)
                         setTimeout(() => setCopied(false), 1500)
                     }).catch(() => {})
-                } catch {}
+                } catch { /* Clipboard API not available */ }
             }}
             className="k-realm-address"
         >

@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback } from "react"
 import type { PluginProps } from "../types"
 import { getDAOMembers } from "../../lib/dao"
-import { GNO_RPC_URL, GNOLOVE_API_URL } from "../../lib/config"
+import { GNO_RPC_URL } from "../../lib/config"
 import { getLeaderboardData, sortEntries } from "./queries"
 import type { LeaderboardEntry, SortField, SortDir } from "./queries"
 

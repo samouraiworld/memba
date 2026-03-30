@@ -712,11 +712,12 @@ function GovDAOTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        setLoading(true)
+        let cancelled = false
         getDAOProposals(GNO_RPC_URL, GOVDAO_PATH)
-            .then(p => setProposals(p.slice(0, 20)))
-            .catch(err => setError(err instanceof Error ? err.message : "Failed to load GovDAO proposals"))
-            .finally(() => setLoading(false))
+            .then(p => { if (!cancelled) setProposals(p.slice(0, 20)) })
+            .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load GovDAO proposals") })
+            .finally(() => { if (!cancelled) setLoading(false) })
+        return () => { cancelled = true }
     }, [])
 
     const statusColor = (s: string) => {
@@ -792,11 +793,12 @@ function LeaderboardTab({ navigate }: { navigate: ReturnType<typeof useNavigate>
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        setLoading(true)
+        let cancelled = false
         getContributors()
-            .then(res => setContributors(res?.users?.slice(0, 20) || []))
-            .catch(() => setContributors([]))
-            .finally(() => setLoading(false))
+            .then(res => { if (!cancelled) setContributors(res?.users?.slice(0, 20) || []) })
+            .catch(() => { if (!cancelled) setContributors([]) })
+            .finally(() => { if (!cancelled) setLoading(false) })
+        return () => { cancelled = true }
     }, [])
 
     return (

@@ -5,7 +5,7 @@ import { getPlugins } from "../../plugins"
 import {
     House, Buildings, Coins, FolderOpen,
     DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
-    ChartBar, LinkSimpleHorizontal, Heart, UsersThree,
+    ChartBar, LinkSimpleHorizontal, Heart,
 } from "@phosphor-icons/react"
 
 interface MobileTabBarProps {
