@@ -30,7 +30,7 @@ import {
 import { batchGetDAOMetadata, type DAOMetadata } from "../lib/daoMetadata"
 import { queryRender } from "../lib/dao/shared"
 import { resolveAvatarUrl } from "../lib/ipfs"
-import { DAOCard, FeaturedDAOs } from "../components/directory"
+import { DAOCard, FeaturedDAOs, ChainMetricsBanner } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import "./directory.css"
 
@@ -39,9 +39,29 @@ type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms"
 export function Directory() {
     const navigate = useNavigate()
     const [tab, setTab] = useState<DirectoryTab>("daos")
+    const [globalSearch, setGlobalSearch] = useState("")
+    const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
+    const [previewLoading, setPreviewLoading] = useState(false)
 
     // M6 pattern: page title
     useEffect(() => { document.title = "Directory — Memba" }, [])
+
+    // Phase 3a: Universal search — attempt qrender for gno.land paths
+    const handleGlobalSearch = useCallback(async (query: string) => {
+        setGlobalSearch(query)
+        setRealmPreview(null)
+
+        if (query.startsWith("gno.land/") && query.length > 12) {
+            setPreviewLoading(true)
+            try {
+                const raw = await queryRender(GNO_RPC_URL, query, "")
+                if (raw && !raw.includes("404")) {
+                    setRealmPreview({ path: query, content: raw.slice(0, 500) })
+                }
+            } catch { /* not a valid realm */ }
+            setPreviewLoading(false)
+        }
+    }, [])
 
     return (
         <div className="dir-page">
@@ -49,6 +69,35 @@ export function Directory() {
                 <h1>📂 Directory</h1>
                 <p>Discover DAOs, tokens, packages, realms, and users on gno.land</p>
             </div>
+
+            {/* Phase 3a: Live chain metrics */}
+            <ChainMetricsBanner />
+
+            {/* Phase 3a: Universal search */}
+            <input
+                type="text"
+                placeholder="Search across all tabs or enter a gno.land/ path..."
+                value={globalSearch}
+                onChange={e => handleGlobalSearch(e.target.value)}
+                className="dir-search dir-search--global"
+                data-testid="global-search"
+            />
+
+            {/* Realm path preview */}
+            {previewLoading && (
+                <div className="k-shimmer" style={{ height: 48, borderRadius: 8, background: "#111" }} />
+            )}
+            {realmPreview && (
+                <a
+                    className="dir-realm-preview"
+                    href={`${getExplorerBaseUrl()}/${realmPreview.path.replace("gno.land/", "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <div className="dir-realm-preview__path">{realmPreview.path}</div>
+                    <pre className="dir-realm-preview__content">{realmPreview.content}</pre>
+                </a>
+            )}
 
             <div className="dir-tabs" role="tablist">
                 {([
