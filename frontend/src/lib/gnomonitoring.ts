@@ -452,14 +452,25 @@ export async function fetchAllMonitoringData(
         }
     }
 
-    // Merge incidents
+    // Merge incidents — create entries for validators not yet in result
     if (incidents) {
         for (const inc of incidents) {
             const key = inc.addr.toLowerCase()
-            const existing = result.get(key)
-            if (existing) {
-                existing.incidents.push(inc)
+            if (!result.has(key)) {
+                result.set(key, {
+                    addr: inc.addr,
+                    moniker: inc.moniker,
+                    participationRate: 0,
+                    uptime: null,
+                    firstSeen: null,
+                    missedBlocks: null,
+                    incidents: [],
+                    operationTime: null,
+                    lastDownDate: null,
+                    txContrib: null,
+                })
             }
+            result.get(key)!.incidents.push(inc)
         }
     }
 

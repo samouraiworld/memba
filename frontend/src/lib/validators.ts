@@ -810,6 +810,26 @@ export async function getNetPeers(
 }
 
 /**
+ * Fetch mempool status (pending unconfirmed transaction count).
+ * Resilient: returns null if endpoint unavailable.
+ */
+export async function getMempoolStatus(
+    rpcUrl: string,
+    signal?: AbortSignal,
+): Promise<{ count: number; totalBytes: number } | null> {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await rpcCall(rpcUrl, "/num_unconfirmed_txs", {}, signal) as any
+        return {
+            count: parseInt(result?.n_txs || result?.total || "0", 10),
+            totalBytes: parseInt(result?.total_bytes || "0", 10),
+        }
+    } catch {
+        return null
+    }
+}
+
+/**
  * Batch-fetch up to `blockCount` recent blocks and compute per-block health data
  * for the 100-block heatmap visualization.
  *

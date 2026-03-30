@@ -198,8 +198,11 @@ export default function Validators() {
     // Reset to page 1 on search change
     useEffect(() => { setPage(1) }, [search, pageSize])
 
-    // Has monitoring data?
-    const hasMonitoring = validators.some(v => v.participationRate != null || v.uptimePercent != null)
+    // Has monitoring data? Check all metrics sources, not just participation/uptime
+    const hasMonitoring = validators.some(v =>
+        v.participationRate != null || v.uptimePercent != null ||
+        v.txContrib != null || (v.incidents && v.incidents.length > 0)
+    )
 
     if (loading) {
         return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />

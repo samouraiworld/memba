@@ -176,7 +176,24 @@ export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://
 /** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
  *  Serves Memba's /validators dashboard. Public, no auth required.
  *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
-export const GNO_MONITORING_API_URL = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
+/** Trusted domains for the monitoring API. */
+const TRUSTED_MONITORING_DOMAINS = ["gnolove.world", "monitoring.gnolove.world", "localhost"]
+
+function isTrustedMonitoringDomain(url: string): boolean {
+    try {
+        const hostname = new URL(url).hostname.toLowerCase()
+        return TRUSTED_MONITORING_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`))
+    } catch { return false }
+}
+
+export const GNO_MONITORING_API_URL = (() => {
+    const url = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
+    if (url !== "https://monitoring.gnolove.world" && !isTrustedMonitoringDomain(url)) {
+        console.warn(`[Memba] Untrusted monitoring API URL: ${url}. Falling back to default.`)
+        return "https://monitoring.gnolove.world"
+    }
+    return url
+})()
 
 /** Clerk publishable key for alerting feature auth.
  *  Shared Clerk app instance for Memba alerting.

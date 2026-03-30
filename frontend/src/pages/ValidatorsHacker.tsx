@@ -28,6 +28,7 @@ import { GNO_CHAIN_ID, getTelemetryRpcUrl } from "../lib/config"
 import {
     getConsensusState,
     getNetPeers,
+    getMempoolStatus,
     fetchBlockHeatmap,
     getNodeStatus,
     getNetworkStats,
@@ -84,6 +85,7 @@ export default function ValidatorsHacker() {
     const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null)
     const [incidents, setIncidents] = useState<MonitoringIncident[]>([])
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
+    const [mempoolCount, setMempoolCount] = useState<number | null>(null)
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
     const [monitoringLoading, setMonitoringLoading] = useState(true)
@@ -194,6 +196,13 @@ export default function ValidatorsHacker() {
             }
         }, CONSENSUS_MS)
 
+        // Mempool: 10s — pending transaction count
+        const mempoolInterval = setInterval(async () => {
+            if (!isVisible.current) return
+            const data = await getMempoolStatus(rpcUrl, abortCs.signal)
+            if (data && !abortCs.signal.aborted) setMempoolCount(data.count)
+        }, 10_000)
+
         // Peers: 15s
         const peersInterval = setInterval(async () => {
             if (!isVisible.current) return
@@ -250,6 +259,7 @@ export default function ValidatorsHacker() {
 
         return () => {
             clearInterval(consensusInterval)
+            clearInterval(mempoolInterval)
             clearInterval(peersInterval)
             clearInterval(heatmapInterval)
             clearInterval(incidentsInterval)
@@ -285,7 +295,7 @@ export default function ValidatorsHacker() {
 
                 {/* Row 1: Connect + Network State + Consensus */}
                 <ConnectSection nodeStatus={nodeStatus} />
-                <NetworkStateGrid stats={networkStats} cs={cs} peerCount={netInfo?.peerCount} />
+                <NetworkStateGrid stats={networkStats} cs={cs} peerCount={netInfo?.peerCount} mempoolCount={mempoolCount} />
                 <ConsensusWidget cs={cs} loading={loading} />
 
                 {/* Row 2: Recent Blocks (full width) */}
