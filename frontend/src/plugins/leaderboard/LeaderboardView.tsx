@@ -112,9 +112,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                     All Time
                 </span>
                 <a
-                    href={GNOLOVE_API_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/gnolove"
                     style={{
                         marginLeft: "auto", fontSize: 10, color: "#555",
                         textDecoration: "none", fontFamily: "JetBrains Mono, monospace",
@@ -123,7 +121,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                     onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
                     onMouseLeave={e => e.currentTarget.style.color = "#555"}
                 >
-                    gnolove.world →
+                    Full analytics →
                 </a>
             </div>
 

@@ -1,0 +1,390 @@
+/**
+ * ProposalView.css — Extracted from inline styles in ProposalView.tsx.
+ *
+ * Note: Several styles remain inline because they depend on dynamic values
+ * (status colors, vote outcome colors, disabled opacity). This is intentional.
+ */
+
+/* ── Layout ──────────────────────────────────────────────── */
+.proposal-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.proposal-skeleton-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ── Not found ───────────────────────────────────────────── */
+.proposal-notfound {
+    text-align: center;
+    padding: 48px;
+}
+
+.proposal-notfound p {
+    color: #666;
+    font-size: 14px;
+    font-family: JetBrains Mono, monospace;
+}
+
+.proposal-notfound-back {
+    color: #00d4aa;
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-top: 16px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Breadcrumb ──────────────────────────────────────────── */
+.proposal-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: JetBrains Mono, monospace;
+    flex-wrap: wrap;
+}
+
+.proposal-breadcrumb-btn {
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0;
+}
+
+.proposal-breadcrumb-btn--active {
+    color: #00d4aa;
+}
+
+.proposal-breadcrumb-sep {
+    color: #333;
+}
+
+.proposal-breadcrumb-current {
+    color: #f0f0f0;
+}
+
+/* ── Header meta row ─────────────────────────────────────── */
+.proposal-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.proposal-id-label {
+    font-size: 12px;
+    font-family: JetBrains Mono, monospace;
+    color: #555;
+}
+
+.proposal-source-link {
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    color: #444;
+    text-decoration: none;
+    transition: color 0.15s;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #222;
+}
+
+.proposal-source-link:hover {
+    color: #00d4aa;
+}
+
+.proposal-status-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+}
+
+.proposal-awaiting-hint {
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    color: #888;
+}
+
+.proposal-live-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    background: rgba(0, 212, 170, 0.06);
+    color: #00d4aa;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.proposal-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00d4aa;
+    display: inline-block;
+}
+
+.proposal-tier-badges {
+    display: flex;
+    gap: 3px;
+}
+
+.proposal-tier-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.04);
+    color: #888;
+}
+
+.proposal-category-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 500;
+    background: rgba(33, 150, 243, 0.06);
+    color: #5ba3d9;
+    text-transform: uppercase;
+}
+
+.proposal-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* ── Author card ─────────────────────────────────────────── */
+.proposal-author-card {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.proposal-author-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 212, 170, 0.08);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-family: JetBrains Mono, monospace;
+    color: #00d4aa;
+}
+
+.proposal-author-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.proposal-author-link {
+    color: #00d4aa;
+    text-decoration: none;
+}
+
+.proposal-author-role {
+    font-size: 10px;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+}
+
+.proposal-author-address {
+    margin-left: auto;
+}
+
+/* ── Description ─────────────────────────────────────────── */
+.proposal-desc-card {
+    padding: 20px;
+}
+
+.proposal-desc-text {
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.7;
+    font-family: JetBrains Mono, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* ── Action metadata ─────────────────────────────────────── */
+.proposal-action-card {
+    padding: 20px;
+}
+
+.proposal-action-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.proposal-action-type-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    background: rgba(33, 150, 243, 0.08);
+    color: #2196f3;
+}
+
+.proposal-executor-label {
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    color: #888;
+    margin-bottom: 10px;
+}
+
+.proposal-executor-link {
+    color: #00d4aa;
+    text-decoration: none;
+}
+
+.proposal-action-body {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #1a1a1a;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    color: #aaa;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    max-height: 300px;
+}
+
+/* ── Vote breakdown ──────────────────────────────────────── */
+.proposal-votes-card {
+    padding: 20px;
+}
+
+.proposal-votes-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 16px;
+}
+
+.proposal-votes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Actions section ─────────────────────────────────────── */
+.proposal-actions-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.proposal-vote-btns {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.proposal-success-msg {
+    padding: 12px 16px;
+    background: rgba(0, 212, 170, 0.08);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    color: #00d4aa;
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+}
+
+.proposal-warning {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(245, 166, 35, 0.06);
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    font-size: 12px;
+    color: #f5a623;
+    font-family: JetBrains Mono, monospace;
+}
+
+.proposal-warning--mb {
+    margin-bottom: 8px;
+}
+
+/* ── Archive banner ──────────────────────────────────────── */
+.proposal-archived-banner {
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: rgba(245, 166, 35, 0.05);
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.proposal-archived-icon {
+    font-size: 16px;
+    display: flex;
+}
+
+.proposal-archived-text {
+    font-size: 12px;
+    color: #f5a623;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Connect CTA ─────────────────────────────────────────── */
+.proposal-connect-cta {
+    background: #0c0c0c;
+    padding: 28px;
+    text-align: center;
+}
+
+.proposal-connect-cta p {
+    color: #555;
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .proposal-title {
+        font-size: 18px;
+    }
+
+    .proposal-author-card {
+        flex-wrap: wrap;
+    }
+
+    .proposal-author-address {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .proposal-vote-btns {
+        flex-direction: column;
+    }
+}

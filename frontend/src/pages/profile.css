@@ -1,0 +1,519 @@
+/**
+ * ProfilePage.css — Extracted from 150+ inline style={{}} props.
+ *
+ * Design tokens used:
+ *   --accent: #00d4aa
+ *   --text-primary: #f0f0f0
+ *   --text-secondary: #888
+ *   --text-muted: #666
+ *   --text-dimmed: #555
+ *   --text-dim: #444
+ *   --mono: JetBrains Mono, monospace
+ *   --card-border: rgba(255,255,255,0.06)
+ *   --blue-accent: #58a6ff
+ *   --red-accent: #ff4757
+ */
+
+/* ── Back button ─────────────────────────────────────────── */
+.profile-back-btn {
+    color: #00d4aa;
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+    text-align: left;
+}
+
+/* ── Header Card ─────────────────────────────────────────── */
+.profile-header {
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-header-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #00d4aa, #2196f3, #7b61ff);
+}
+
+.profile-header-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* ── Avatar ──────────────────────────────────────────────── */
+.profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(0, 212, 170, 0.08);
+    border: 2px solid rgba(0, 212, 170, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-avatar-fallback {
+    font-size: 28px;
+    color: #00d4aa;
+}
+
+/* ── Identity section ────────────────────────────────────── */
+.profile-identity {
+    flex: 1;
+    min-width: 200px;
+}
+
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.profile-name {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f0f0f0;
+}
+
+.profile-badge-you {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    background: rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+}
+
+.profile-edit-btn {
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #222;
+    color: #888;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.profile-edit-btn:hover {
+    border-color: #00d4aa;
+    color: #00d4aa;
+}
+
+.profile-saved-indicator {
+    font-size: 10px;
+    color: #4caf50;
+    font-family: JetBrains Mono, monospace;
+}
+
+.profile-address-row {
+    margin-top: 6px;
+}
+
+.profile-bio {
+    color: #888;
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+    margin-top: 10px;
+    max-width: 500px;
+}
+
+/* ── Meta chips row ──────────────────────────────────────── */
+.profile-meta-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+/* ── Edit Form ───────────────────────────────────────────── */
+.profile-edit-card {
+    padding: 20px;
+}
+
+.profile-edit-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 16px;
+}
+
+.profile-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.profile-edit-fullwidth {
+    grid-column: 1 / -1;
+}
+
+.profile-edit-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.profile-btn-cancel {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    background: none;
+    border: 1px solid #333;
+    color: #888;
+    cursor: pointer;
+}
+
+.profile-btn-save {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    background: rgba(0, 212, 170, 0.15);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    cursor: pointer;
+}
+
+.profile-btn-save:disabled,
+.profile-btn-save.saving {
+    background: rgba(0, 212, 170, 0.1);
+    cursor: wait;
+}
+
+/* ── Social Links row ────────────────────────────────────── */
+.profile-socials-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ── GitHub Link CTA ─────────────────────────────────────── */
+.profile-github-cta {
+    padding: 20px;
+    border-color: rgba(88, 166, 255, 0.15);
+}
+
+.profile-github-cta-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.profile-github-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: rgba(88, 166, 255, 0.06);
+    border: 1px solid rgba(88, 166, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.profile-github-cta-text {
+    flex: 1;
+    min-width: 180px;
+}
+
+.profile-github-cta-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 4px;
+}
+
+.profile-github-cta-desc {
+    font-size: 11px;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+    max-width: 400px;
+}
+
+.profile-github-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    color: #58a6ff;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.profile-github-link-btn:hover {
+    background: rgba(88, 166, 255, 0.2);
+    border-color: rgba(88, 166, 255, 0.4);
+}
+
+/* ── Unlink GitHub ────────────────────────────────────────── */
+.profile-unlink-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #888;
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+    transition: border-color 0.15s, color 0.15s;
+    align-self: flex-start;
+}
+
+.profile-unlink-btn:hover {
+    border-color: #ff4757;
+    color: #ff4757;
+}
+
+/* ── Contributions Card ──────────────────────────────────── */
+.profile-contrib-card {
+    padding: 20px;
+}
+
+.profile-contrib-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.profile-contrib-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.profile-contrib-link {
+    font-size: 10px;
+    color: #00d4aa;
+    font-family: JetBrains Mono, monospace;
+    text-decoration: none;
+}
+
+.profile-contrib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.profile-score-formula {
+    margin-top: 12px;
+    font-size: 9px;
+    color: #444;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Packages Card ───────────────────────────────────────── */
+.profile-packages-card {
+    padding: 20px;
+}
+
+.profile-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 14px;
+}
+
+.profile-packages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.profile-package-item {
+    padding: 10px 14px;
+    text-decoration: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.15s;
+}
+
+.profile-package-item:hover {
+    border-color: #333;
+}
+
+.profile-package-path {
+    font-size: 12px;
+    font-family: JetBrains Mono, monospace;
+    color: #00d4aa;
+    word-break: break-all;
+}
+
+.profile-package-block {
+    font-size: 9px;
+    color: #555;
+    font-family: JetBrains Mono, monospace;
+    white-space: nowrap;
+    margin-left: 10px;
+}
+
+.profile-packages-more {
+    font-size: 11px;
+    color: #555;
+    font-family: JetBrains Mono, monospace;
+    text-align: center;
+    padding: 8px;
+}
+
+/* ── Votes Card ──────────────────────────────────────────── */
+.profile-votes-card {
+    padding: 20px;
+}
+
+.profile-votes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.profile-vote-item {
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-vote-id {
+    font-size: 10px;
+    color: #555;
+    font-family: JetBrains Mono, monospace;
+}
+
+.profile-vote-title {
+    font-size: 12px;
+    color: #ccc;
+    margin-left: 8px;
+}
+
+.profile-vote-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+}
+
+/* ── Empty State ─────────────────────────────────────────── */
+.profile-empty {
+    background: #0c0c0c;
+    padding: 48px;
+    text-align: center;
+}
+
+.profile-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px dashed rgba(0, 212, 170, 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.profile-empty-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.profile-empty-desc {
+    color: #666;
+    font-size: 12px;
+    max-width: 360px;
+    margin: 0 auto;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── General ─────────────────────────────────────────────── */
+.profile-no-address {
+    text-align: center;
+    padding: 48px;
+}
+
+.profile-no-address p {
+    color: #666;
+    font-size: 14px;
+    font-family: JetBrains Mono, monospace;
+}
+
+.profile-skeleton-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.profile-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .profile-header {
+        padding: 20px 16px;
+    }
+
+    .profile-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-name {
+        font-size: 18px;
+    }
+
+    .profile-edit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-github-cta-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-contrib-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .profile-vote-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}

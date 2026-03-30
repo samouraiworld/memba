@@ -1,0 +1,470 @@
+/**
+ * DAOHome.css — Extracted from inline styles in DAOHome.tsx.
+ *
+ * Many styles in DAOHome already use CSS classes from index.css
+ * (k-stat-grid, k-stat-card, dao-card-columns, dao-channels-sidebar).
+ * This file covers the remaining inline style extractions.
+ */
+
+/* ── Layout containers ───────────────────────────────────── */
+.dao-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.dao-skeleton-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.dao-overview-card {
+    padding: 16px 20px;
+}
+
+/* ── Breadcrumb ──────────────────────────────────────────── */
+.dao-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.dao-breadcrumb-btn {
+    color: #555;
+    font-size: 11px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+    padding: 0;
+    transition: color 0.15s;
+}
+
+.dao-breadcrumb-btn:hover {
+    color: #00d4aa;
+}
+
+.dao-breadcrumb-sep {
+    color: #333;
+    font-size: 10px;
+}
+
+.dao-breadcrumb-name {
+    color: #888;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Title row ───────────────────────────────────────────── */
+.dao-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dao-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dao-badge-archived {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    background: rgba(245, 166, 35, 0.1);
+    color: #f5a623;
+}
+
+.dao-member-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0, 212, 170, 0.06);
+    flex-shrink: 0;
+}
+
+.dao-member-pill__check {
+    color: #00d4aa;
+    font-size: 11px;
+}
+
+.dao-member-pill__text {
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+    color: #00d4aa;
+    font-weight: 600;
+}
+
+.dao-guest-badge {
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    color: #555;
+    padding: 4px 8px;
+}
+
+/* ── Realm path row ──────────────────────────────────────── */
+.dao-path-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 5px;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dao-path-left {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.dao-path-text {
+    color: #444;
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+}
+
+.dao-path-source-link {
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+    color: #444;
+    text-decoration: none;
+    transition: color 0.15s;
+    padding: 0 3px;
+}
+
+.dao-path-source-link:hover {
+    color: #00d4aa;
+}
+
+/* ── Description ─────────────────────────────────────────── */
+.dao-description {
+    color: #666;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    line-height: 1.6;
+    margin: 8px 0 0;
+}
+
+/* ── Archive warning ─────────────────────────────────────── */
+.dao-archive-warning {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: rgba(245, 166, 35, 0.05);
+    font-size: 10px;
+    color: #f5a623;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Username CTA ────────────────────────────────────────── */
+.dao-username-cta {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.03);
+    border: 1px dashed rgba(0, 212, 170, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dao-username-cta__text {
+    font-size: 10px;
+    color: #00d4aa;
+    font-family: JetBrains Mono, monospace;
+}
+
+.dao-username-cta__link {
+    font-size: 9px;
+    padding: 3px 8px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+.dao-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    margin: 12px 0 10px;
+}
+
+/* ── Section headers ─────────────────────────────────────── */
+.dao-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.dao-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.dao-section-title--sm {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.dao-new-proposal-btn {
+    font-size: 12px;
+    padding: 8px 16px;
+}
+
+/* ── Vote filter tabs ────────────────────────────────────── */
+.dao-filter-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.dao-filter-tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 500;
+    border: 1px solid #222;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dao-filter-tab.active {
+    border-color: rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.08);
+    color: #00d4aa;
+}
+
+/* ── List containers ─────────────────────────────────────── */
+.dao-list-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ── Empty states ────────────────────────────────────────── */
+.dao-empty {
+    background: #0c0c0c;
+    padding: 28px;
+    text-align: center;
+}
+
+.dao-empty p {
+    color: #555;
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── History toggle ──────────────────────────────────────── */
+.dao-history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    font-family: JetBrains Mono, monospace;
+    padding: 8px 0;
+    transition: color 0.15s;
+}
+
+.dao-history-toggle:hover {
+    color: #f0f0f0;
+}
+
+.dao-history-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.dao-history-arrow.open {
+    transform: rotate(90deg);
+}
+
+/* ── Members grid ────────────────────────────────────────── */
+.dao-members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+/* ── View all link ───────────────────────────────────────── */
+.dao-view-all-btn {
+    color: #00d4aa;
+    font-size: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Treasury card ───────────────────────────────────────── */
+.dao-treasury-card {
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dao-treasury-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dao-treasury-icon {
+    font-size: 22px;
+    display: flex;
+}
+
+.dao-treasury-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.dao-treasury-desc {
+    font-size: 11px;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+}
+
+.dao-treasury-open-btn {
+    color: #00d4aa;
+    font-size: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Extensions grid ─────────────────────────────────────── */
+.dao-extensions-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 16px;
+}
+
+.dao-extensions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+}
+
+.dao-plugin-card {
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    cursor: pointer;
+    border: 1px solid #1a1a1a;
+    text-align: left;
+    width: 100%;
+    height: 100%;
+    min-height: 80px;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.dao-plugin-card:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+    background: rgba(0, 212, 170, 0.02);
+}
+
+.dao-plugin-icon {
+    font-size: 22px;
+    margin-top: 2px;
+}
+
+.dao-plugin-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.dao-plugin-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dao-plugin-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.dao-plugin-version {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(0, 212, 170, 0.08);
+    color: #00d4aa;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+}
+
+.dao-plugin-desc {
+    font-size: 11px;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+    margin-top: 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dao-plugin-arrow {
+    color: #444;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dao-title {
+        font-size: 18px;
+    }
+
+    .dao-title-row {
+        flex-direction: column;
+    }
+
+    .dao-filter-tabs {
+        flex-wrap: wrap;
+    }
+
+    .dao-treasury-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .dao-extensions-grid {
+        grid-template-columns: 1fr;
+    }
+}

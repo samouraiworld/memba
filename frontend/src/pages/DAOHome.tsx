@@ -24,6 +24,7 @@ import { getPlugins } from "../plugins"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import { useJitsiContext } from "../contexts/JitsiContext"
 import type { LayoutContext } from "../types/layout"
+import "./daohome.css"
 
 /** Tiny component that derives + displays the realm's bech32 address. */
 function RealmAddressBadge({ realmPath }: { realmPath: string }) {
@@ -235,7 +236,7 @@ export function DAOHome() {
 
     if (!realmPath) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div className="animate-fade-in dao-skeleton-col">
                 <SkeletonCard />
             </div>
         )
@@ -243,7 +244,7 @@ export function DAOHome() {
 
     if (configLoading) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div className="animate-fade-in dao-skeleton-col">
                 <SkeletonCard />
                 <SkeletonCard />
                 <SkeletonCard />
@@ -252,37 +253,31 @@ export function DAOHome() {
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="animate-fade-in dao-container">
             {/* ─── DAO Overview Card (single card: identity + stats) ─── */}
-            <div className="k-card" style={{ padding: "16px 20px" }}>
+            <div className="k-card dao-overview-card">
                 {/* Breadcrumb */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <div className="dao-breadcrumb">
                     <button
                         id="dao-back-btn"
                         aria-label="Back to DAO list"
                         onClick={() => navigate("/dao")}
-                        style={{ color: "#555", fontSize: 11, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", padding: 0 }}
-                        onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
-                        onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                        className="dao-breadcrumb-btn"
                     >
                         DAOs
                     </button>
-                    <span style={{ color: "#333", fontSize: 10 }}>›</span>
-                    <span style={{ color: "#888", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                    <span className="dao-breadcrumb-sep">›</span>
+                    <span className="dao-breadcrumb-name">
                         {config?.name || "DAO"}
                     </span>
                 </div>
 
                 {/* Title + membership pill */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div className="dao-title-row">
+                    <h2 className="dao-title">
                         <Bank size={20} style={{ color: '#888' }} /> {config?.name || "DAO Governance"}
                         {config?.isArchived && (
-                            <span style={{
-                                padding: "2px 8px", borderRadius: 4, fontSize: 9,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                background: "rgba(245,166,35,0.1)", color: "#f5a623",
-                            }}>
+                            <span className="dao-badge-archived">
                                 <Archive size={12} /> ARCHIVED
                             </span>
                         )}
@@ -290,28 +285,24 @@ export function DAOHome() {
                     {auth.isAuthenticated && currentMember && (
                         <div
                             title={`Your role: ${currentMember.tier || "Member"} — Voting power: ${currentMember.votingPower || "1"}`}
-                            style={{
-                                display: "flex", alignItems: "center", gap: 6,
-                                padding: "4px 10px", borderRadius: 6,
-                                background: "rgba(0,212,170,0.06)",
-                                flexShrink: 0,
-                            }}>
-                            <span style={{ color: "#00d4aa", fontSize: 11 }}>✓</span>
-                            <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
+                            className="dao-member-pill"
+                        >
+                            <span className="dao-member-pill__check">✓</span>
+                            <span className="dao-member-pill__text">
                                 {currentMember.tier || ""}
                                 {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
                             </span>
                         </div>
                     )}
                     {auth.isAuthenticated && !currentMember && (
-                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#555", padding: "4px 8px" }}>Guest</span>
+                        <span className="dao-guest-badge">Guest</span>
                     )}
                 </div>
 
                 {/* Realm path · </> (left)    address (right) */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5, flexWrap: "wrap", gap: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ color: "#444", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="dao-path-row">
+                    <div className="dao-path-left">
+                        <span className="dao-path-text">
                             {realmPath}
                         </span>
                         <a
@@ -319,9 +310,7 @@ export function DAOHome() {
                             target="_blank"
                             rel="noopener noreferrer"
                             title="View source on gno.land"
-                            style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#444", textDecoration: "none", transition: "color 0.15s", padding: "0 3px" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                            className="dao-path-source-link"
                             onClick={(e) => e.stopPropagation()}
                         >
                             &lt;/&gt;
@@ -332,39 +321,29 @@ export function DAOHome() {
 
                 {/* Description */}
                 {(config?.description || realmPath === "gno.land/r/gov/dao") && (
-                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace", lineHeight: 1.6, margin: "8px 0 0" }}>
+                    <p className="dao-description">
                         {config?.description || "Gno chain governance — proposals and membership management."}
                     </p>
                 )}
 
                 {/* Archive warning */}
                 {config?.isArchived && (
-                    <div style={{
-                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
-                        background: "rgba(245,166,35,0.05)",
-                        fontSize: 10, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
-                    }}>
+                    <div className="dao-archive-warning">
                         ⚠️ Archived — no new proposals or votes.
                     </div>
                 )}
 
                 {/* Username CTA */}
                 {auth.isAuthenticated && currentMember && !currentMember.username && (
-                    <div style={{
-                        marginTop: 8, padding: "6px 10px", borderRadius: 4,
-                        background: "rgba(0,212,170,0.03)", border: "1px dashed rgba(0,212,170,0.08)",
-                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-                        flexWrap: "wrap",
-                    }}>
-                        <span style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div className="dao-username-cta">
+                        <span className="dao-username-cta__text">
                             🏷️ Register @username to be recognized across DAOs
                         </span>
                         <a
                             href={`${getExplorerBaseUrl()}/${getUserRegistryPath().replace("gno.land/", "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="k-btn-primary"
-                            style={{ fontSize: 9, padding: "3px 8px", textDecoration: "none", flexShrink: 0 }}
+                            className="k-btn-primary dao-username-cta__link"
                         >
                             Register →
                         </a>
@@ -372,7 +351,7 @@ export function DAOHome() {
                 )}
 
                 {/* ── Divider ── */}
-                <div style={{ height: 1, background: "rgba(255,255,255,0.04)", margin: "12px 0 10px" }} />
+                <div className="dao-divider" />
 
                 {/* v2.12: 2-column layout — stats left, channel sidebar right */}
                 <div className="dao-card-columns">
@@ -500,13 +479,12 @@ export function DAOHome() {
 
             {/* Active Proposals (now includes "passed" proposals with inline ⚡ EXECUTE badge) */}
             <div id="dao-proposals-section">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>Active Proposals</h3>
+                <div className="dao-section-header">
+                    <h3 className="dao-section-title">Active Proposals</h3>
                     {auth.isAuthenticated && !config?.isArchived && (
                         <button
-                            className="k-btn-primary"
+                            className="k-btn-primary dao-new-proposal-btn"
                             onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
-                            style={{ fontSize: 12, padding: "8px 16px" }}
                         >
                             + New Proposal
                         </button>
@@ -515,7 +493,7 @@ export function DAOHome() {
 
                 {/* Filter tabs (only for members with active proposals) */}
                 {auth.isAuthenticated && currentMember && activeProposals.length > 0 && (
-                    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                    <div className="dao-filter-tabs">
                         {(["all", "needs", "voted"] as const).map(f => {
                             const count = f === "all" ? activeProposals.length
                                 // v2.13 fix: "needs" should only count OPEN proposals (passed can't be voted on)
@@ -526,15 +504,7 @@ export function DAOHome() {
                                 <button
                                     key={f}
                                     onClick={() => setVoteFilter(f)}
-                                    style={{
-                                        padding: "5px 12px", borderRadius: 6, fontSize: 11,
-                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
-                                        border: "1px solid",
-                                        borderColor: voteFilter === f ? "rgba(0,212,170,0.3)" : "#222",
-                                        background: voteFilter === f ? "rgba(0,212,170,0.08)" : "transparent",
-                                        color: voteFilter === f ? "#00d4aa" : "#666",
-                                        cursor: "pointer", transition: "all 0.15s",
-                                    }}
+                                    className={`dao-filter-tab${voteFilter === f ? " active" : ""}`}
                                 >
                                     {labels[f]} ({count})
                                 </button>
@@ -544,18 +514,16 @@ export function DAOHome() {
                 )}
 
                 {proposalsLoading ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="dao-list-col">
                         <SkeletonCard />
                         <SkeletonCard />
                     </div>
                 ) : activeProposals.length === 0 ? (
-                    <div className="k-dashed" style={{ background: "#0c0c0c", padding: 28, textAlign: "center" }}>
-                        <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                            No active proposals
-                        </p>
+                    <div className="k-dashed dao-empty">
+                        <p>No active proposals</p>
                     </div>
                 ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="dao-list-col">
                         {activeProposals
                             .filter(p => {
                                 // v2.13 fix: "needs" only includes OPEN proposals (passed can't be voted on)
@@ -584,21 +552,13 @@ export function DAOHome() {
                 <div>
                     <button
                         onClick={() => setShowHistory(!showHistory)}
-                        style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            background: "none", border: "none", cursor: "pointer",
-                            fontSize: 14, fontWeight: 600, color: "#888",
-                            fontFamily: "JetBrains Mono, monospace",
-                            padding: "8px 0", transition: "color 0.15s",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#f0f0f0")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#888")}
+                        className="dao-history-toggle"
                     >
-                        <span style={{ fontSize: 10, transition: "transform 0.2s", display: "inline-block", transform: showHistory ? "rotate(90deg)" : "none" }}>▶</span>
+                        <span className={`dao-history-arrow${showHistory ? " open" : ""}`}>▶</span>
                         Past Proposals ({completedProposals.length})
                     </button>
                     {showHistory && (
-                        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                        <div className="animate-fade-in dao-list-col" style={{ marginTop: 8 }}>
                             {completedProposals.map((p) => (
                                 <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={!!currentMember} enriched={true} totalMembers={config?.memberCount || members.length} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                             ))}
@@ -609,29 +569,26 @@ export function DAOHome() {
 
             {/* Members Preview */}
             <div id="dao-members-section">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                <div className="dao-section-header">
+                    <h3 className="dao-section-title--sm">
                         <UsersThree size={16} style={{ display: 'inline' }} /> ({config?.memberCount || members.length})
                     </h3>
                     <button
                         onClick={() => navigate(`/dao/${encodedSlug}/members`)}
-                        style={{
-                            color: "#00d4aa", fontSize: 12, background: "none",
-                            border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
-                        }}
+                        className="dao-view-all-btn"
                     >
                         View All →
                     </button>
                 </div>
 
                 {membersLoading ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+                    <div className="dao-members-grid">
                         <SkeletonCard />
                         <SkeletonCard />
                         <SkeletonCard />
                     </div>
                 ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+                    <div className="dao-members-grid">
                         {members.slice(0, 6).map((m) => (
                             <MemberCard key={m.address} member={m} isCurrentUser={m.address === adena.address} onProfileClick={(addr) => navigate(`/profile/${addr}`)} />
                         ))}
@@ -642,17 +599,17 @@ export function DAOHome() {
             {/* Channels card removed — consolidated into overview quickbar + DAORooms (v2.12) */}
 
             {/* Treasury */}
-            <div className="k-card" style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 22, display: 'flex' }}><Vault size={22} /></span>
+            <div className="k-card dao-treasury-card">
+                <div className="dao-treasury-left">
+                    <span className="dao-treasury-icon"><Vault size={22} /></span>
                     <div>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>Treasury</div>
-                        <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>View DAO assets and balances</div>
+                        <div className="dao-treasury-title">Treasury</div>
+                        <div className="dao-treasury-desc">View DAO assets and balances</div>
                     </div>
                 </div>
                 <button
                     onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
-                    style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
+                    className="dao-treasury-open-btn"
                 >
                     Open →
                 </button>
@@ -661,45 +618,30 @@ export function DAOHome() {
             {/* Plugins */}
             {getPlugins().length > 0 && (
                 <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                    <h3 className="dao-extensions-title">
                         🧩 Extensions
                     </h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+                    <div className="dao-extensions-grid">
                         {getPlugins().map(plugin => (
                             <div key={plugin.id} style={{ display: "flex", flexDirection: "column" }}>
                                 <button
                                     id={`plugin-card-${plugin.id}`}
                                     onClick={() => navigate(`/dao/${encodedSlug}/plugin/${plugin.id}`)}
-                                    className="k-card"
-                                    style={{
-                                        padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14,
-                                        cursor: "pointer", border: "1px solid #1a1a1a", textAlign: "left",
-                                        width: "100%", height: "100%", minHeight: 80,
-                                        transition: "border-color 0.15s, background 0.15s",
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"; e.currentTarget.style.background = "rgba(0,212,170,0.02)" }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.background = "" }}
+                                    className="k-card dao-plugin-card"
                                 >
-                                    <span style={{ fontSize: 22, marginTop: 2 }}>{plugin.icon}</span>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{plugin.name}</span>
-                                            <span style={{
-                                                fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                                                background: "rgba(0,212,170,0.08)", color: "#00d4aa",
-                                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            }}>
+                                    <span className="dao-plugin-icon">{plugin.icon}</span>
+                                    <div className="dao-plugin-body">
+                                        <div className="dao-plugin-name-row">
+                                            <span className="dao-plugin-name">{plugin.name}</span>
+                                            <span className="dao-plugin-version">
                                                 v{plugin.version}
                                             </span>
                                         </div>
-                                        <div style={{
-                                            fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginTop: 3,
-                                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
-                                        }}>
+                                        <div className="dao-plugin-desc">
                                             {plugin.description}
                                         </div>
                                     </div>
-                                    <span style={{ color: "#444", fontSize: 12, marginTop: 2 }}>→</span>
+                                    <span className="dao-plugin-arrow">→</span>
                                 </button>
                             </div>
                         ))}

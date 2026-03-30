@@ -4,7 +4,7 @@
  * - Gnolove: GitHub profile, contribution stats, deployed packages
  * - Memba backend: editable fields (bio, company, title, socials) — Phase 2
  *
- * See: gno.land/r/gnoland/users/v1, gnolove.world API
+ * See: gno.land/r/gnoland/users/v1, Gnolove API
  */
 
 import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "./config"

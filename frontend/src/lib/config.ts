@@ -174,12 +174,12 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://backend.gnolove.world"
 
 /** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
- *  Same service used by gnolove.world/validators. Public, no auth required.
+ *  Serves Memba's /validators dashboard. Public, no auth required.
  *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
 export const GNO_MONITORING_API_URL = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
 
 /** Clerk publishable key for alerting feature auth.
- *  Shared with gnolove.world — same Clerk app instance.
+ *  Shared Clerk app instance for Memba alerting.
  *  Only loaded by the /alerts route (lazy). No impact on other pages. */
 export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
 

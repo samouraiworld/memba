@@ -12,6 +12,7 @@ import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyV
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
 import type { LayoutContext } from "../types/layout"
+import "./profile.css"
 
 function hasSocials(profile: UserProfile | null): boolean {
     if (!profile) return false
@@ -29,6 +30,7 @@ export function ProfilePage() {
     const [editing, setEditing] = useState(false)
     const [saving, setSaving] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
+    const [avatarError, setAvatarError] = useState(false)
     const [editForm, setEditForm] = useState({
         bio: "", company: "", title: "", avatarUrl: "",
         twitter: "", github: "", website: "",
@@ -40,6 +42,7 @@ export function ProfilePage() {
         if (!address) return
         setLoading(true)
         setError(null)
+        setAvatarError(false)
         try {
             const p = await fetchUserProfile(GNOLOVE_API_URL, address)
             setProfile(p)
@@ -108,17 +111,15 @@ export function ProfilePage() {
 
     if (!address) {
         return (
-            <div className="animate-fade-in" style={{ textAlign: "center", padding: 48 }}>
-                <p style={{ color: "#666", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                    No address specified
-                </p>
+            <div className="animate-fade-in profile-no-address">
+                <p>No address specified</p>
             </div>
         )
     }
 
     if (loading) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div className="animate-fade-in profile-skeleton-col">
                 <SkeletonCard /><SkeletonCard /><SkeletonCard />
             </div>
         )
@@ -129,82 +130,57 @@ export function ProfilePage() {
     const explorerUrl = getExplorerBaseUrl()
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="animate-fade-in profile-container">
             {/* Back nav */}
             <button
                 id="profile-back-btn"
                 aria-label="Go back"
                 onClick={() => navigate(-1)}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                className="profile-back-btn"
             >
                 ← Back
             </button>
 
             {/* ── Profile Header Card ─────────────────────────────── */}
-            <div className="k-card" style={{ padding: "28px 24px", position: "relative", overflow: "hidden" }}>
+            <div className="k-card profile-header">
                 {/* Gradient accent */}
-                <div style={{
-                    position: "absolute", top: 0, left: 0, right: 0, height: 4,
-                    background: "linear-gradient(90deg, #00d4aa, #2196f3, #7b61ff)",
-                }} />
+                <div className="profile-header-accent" />
 
-                <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-                    {/* Avatar */}
-                    <div style={{
-                        width: 72, height: 72, borderRadius: "50%",
-                        background: "rgba(0,212,170,0.08)",
-                        border: "2px solid rgba(0,212,170,0.2)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0, overflow: "hidden",
-                    }}>
-                        {avatar ? (
+                <div className="profile-header-row">
+                    {/* Avatar (B13: React-idiomatic fallback) */}
+                    <div className="profile-avatar">
+                        {avatar && !avatarError ? (
                             <img
                                 src={avatar}
                                 alt="Avatar"
                                 referrerPolicy="no-referrer"
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                onError={(e) => { e.currentTarget.style.display = "none"; const sib = e.currentTarget.nextElementSibling as HTMLElement | null; if (sib) sib.style.display = "flex" }}
+                                onError={() => setAvatarError(true)}
                             />
-                        ) : null}
-                        <span style={{ fontSize: 28, color: "#00d4aa", display: avatar ? "none" : "flex" }}>👤</span>
+                        ) : (
+                            <span className="profile-avatar-fallback">👤</span>
+                        )}
                     </div>
 
                     {/* Identity */}
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "#f0f0f0" }}>
+                    <div className="profile-identity">
+                        <div className="profile-name-row">
+                            <h2 className="profile-name">
                                 {displayName}
                             </h2>
                             {isOwnProfile && (
-                                <span style={{
-                                    padding: "2px 8px", borderRadius: 4, fontSize: 9,
-                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                    background: "rgba(0,212,170,0.1)", color: "#00d4aa",
-                                }}>
-                                    YOU
-                                </span>
+                                <span className="profile-badge-you">YOU</span>
                             )}
                             {isOwnProfile && auth.isAuthenticated && !editing && (
-                                <button
-                                    onClick={startEditing}
-                                    style={{
-                                        padding: "3px 10px", borderRadius: 4, fontSize: 10,
-                                        fontFamily: "JetBrains Mono, monospace",
-                                        background: "rgba(255,255,255,0.04)", border: "1px solid #222",
-                                        color: "#888", cursor: "pointer", transition: "border-color 0.15s, color 0.15s",
-                                    }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#00d4aa"; e.currentTarget.style.color = "#00d4aa" }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#222"; e.currentTarget.style.color = "#888" }}
-                                >
+                                <button onClick={startEditing} className="profile-edit-btn">
                                     ✏️ Edit
                                 </button>
                             )}
                             {saveSuccess && (
-                                <span style={{ fontSize: 10, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>✓ Saved</span>
+                                <span className="profile-saved-indicator">✓ Saved</span>
                             )}
                         </div>
 
-                        <div style={{ marginTop: 6 }}>
+                        <div className="profile-address-row">
                             <CopyableAddress address={address} />
                         </div>
 
@@ -215,7 +191,7 @@ export function ProfilePage() {
 
                         {/* Bio */}
                         {(profile?.bio || profile?.githubBio) && (
-                            <p style={{ color: "#888", fontSize: 13, fontFamily: "JetBrains Mono, monospace", marginTop: 10, maxWidth: 500 }}>
+                            <p className="profile-bio">
                                 {profile.bio || profile.githubBio}
                             </p>
                         )}
@@ -223,7 +199,7 @@ export function ProfilePage() {
                 </div>
 
                 {/* Meta: company, title, location */}
-                <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+                <div className="profile-meta-row">
                     {profile?.company && (
                         <MetaChip icon="🏢" text={profile.company} />
                     )}
@@ -238,15 +214,15 @@ export function ProfilePage() {
 
             {/* ── Edit Profile Form ────────────────────────────────── */}
             {editing && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                <div className="k-card profile-edit-card">
+                    <h3 className="profile-edit-title">
                         ✏️ Edit Profile
                     </h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="profile-edit-grid">
                         <EditField label="Bio" value={editForm.bio} onChange={(v) => setEditForm(f => ({ ...f, bio: v }))} multiline maxLen={512} fullWidth />
                         <EditField label="Company" value={editForm.company} onChange={(v) => setEditForm(f => ({ ...f, company: v }))} maxLen={128} />
                         <EditField label="Title / Role" value={editForm.title} onChange={(v) => setEditForm(f => ({ ...f, title: v }))} maxLen={128} />
-                        <div style={{ gridColumn: "1 / -1" }}>
+                        <div className="profile-edit-fullwidth">
                             <AvatarUploader
                                 currentUrl={editForm.avatarUrl}
                                 onUrlChange={(url) => setEditForm(f => ({ ...f, avatarUrl: url }))}
@@ -256,29 +232,18 @@ export function ProfilePage() {
                         <EditField label="GitHub" value={editForm.github} onChange={(v) => setEditForm(f => ({ ...f, github: v }))} maxLen={256} placeholder="https://github.com/..." />
                         <EditField label="Website" value={editForm.website} onChange={(v) => setEditForm(f => ({ ...f, website: v }))} maxLen={256} placeholder="https://..." />
                     </div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
+                    <div className="profile-edit-actions">
                         <button
                             onClick={() => setEditing(false)}
                             disabled={saving}
-                            style={{
-                                padding: "6px 16px", borderRadius: 6, fontSize: 11,
-                                fontFamily: "JetBrains Mono, monospace",
-                                background: "none", border: "1px solid #333",
-                                color: "#888", cursor: "pointer",
-                            }}
+                            className="profile-btn-cancel"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            style={{
-                                padding: "6px 16px", borderRadius: 6, fontSize: 11,
-                                fontFamily: "JetBrains Mono, monospace",
-                                background: saving ? "rgba(0,212,170,0.1)" : "rgba(0,212,170,0.15)",
-                                border: "1px solid rgba(0,212,170,0.3)",
-                                color: "#00d4aa", cursor: saving ? "wait" : "pointer",
-                            }}
+                            className={`profile-btn-save${saving ? " saving" : ""}`}
                         >
                             {saving ? "Saving..." : "✅ Save Profile"}
                         </button>
@@ -288,7 +253,7 @@ export function ProfilePage() {
 
             {/* ── Social Links ─────────────────────────────────────── */}
             {hasSocials(profile) && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div className="profile-socials-row">
                     {profile?.socialLinks.github && (
                         <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="#f0f0f0" />} label="GitHub" />
                     )}
@@ -309,20 +274,16 @@ export function ProfilePage() {
 
             {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
             {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (
-                <div className="k-card" style={{ padding: 20, borderColor: "rgba(88,166,255,0.15)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                        <div style={{
-                            width: 44, height: 44, borderRadius: 10,
-                            background: "rgba(88,166,255,0.06)", border: "1px solid rgba(88,166,255,0.15)",
-                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                        }}>
+                <div className="k-card profile-github-cta">
+                    <div className="profile-github-cta-row">
+                        <div className="profile-github-icon-box">
                             <GitHubIcon size={22} color="#58a6ff" />
                         </div>
-                        <div style={{ flex: 1, minWidth: 180 }}>
-                            <h4 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 4 }}>
+                        <div className="profile-github-cta-text">
+                            <h4 className="profile-github-cta-title">
                                 Link your GitHub account
                             </h4>
-                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
+                            <p className="profile-github-cta-desc">
                                 Link your GitHub to verify your on-chain identity and show your contribution stats, avatar, and deployed packages.
                             </p>
                         </div>
@@ -342,16 +303,7 @@ export function ProfilePage() {
                                     window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user`
                                 }
                             }}
-                            style={{
-                                display: "inline-flex", alignItems: "center", gap: 6,
-                                padding: "8px 16px", borderRadius: 6, fontSize: 11,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                background: "rgba(88,166,255,0.1)", border: "1px solid rgba(88,166,255,0.25)",
-                                color: "#58a6ff", cursor: "pointer",
-                                transition: "background 0.15s, border-color 0.15s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.2)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.4)" }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(88,166,255,0.1)"; e.currentTarget.style.borderColor = "rgba(88,166,255,0.25)" }}
+                            className="profile-github-link-btn"
                         >
                             <GitHubIcon size={12} color="#58a6ff" /> Link GitHub →
                         </button>
@@ -369,16 +321,7 @@ export function ProfilePage() {
                             loadProfile()
                         } catch { /* silent */ }
                     }}
-                    style={{
-                        background: "none", border: "1px solid #333",
-                        color: "#888", fontSize: 11, padding: "6px 14px",
-                        borderRadius: 6, cursor: "pointer",
-                        fontFamily: "JetBrains Mono, monospace",
-                        transition: "border-color 0.15s, color 0.15s",
-                        alignSelf: "flex-start",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ff4757"; e.currentTarget.style.color = "#ff4757" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.color = "#888" }}
+                    className="profile-unlink-btn"
                 >
                     Unlink GitHub
                 </button>
@@ -386,22 +329,17 @@ export function ProfilePage() {
 
             {/* ── Gnolove Contribution Stats ───────────────────────── */}
             {profile && profile.lovePowerScore > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                        <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                <div className="k-card profile-contrib-card">
+                    <div className="profile-contrib-header">
+                        <h3 className="profile-contrib-title">
                             ❤️ Gno Contributions
                         </h3>
-                        <a
-                            href="https://gnolove.world"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
-                        >
-                            gnolove.world →
+                        <a href="/gnolove" className="profile-contrib-link">
+                            View full analytics →
                         </a>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+                    <div className="profile-contrib-grid">
                         <ContribStat label="Love Power" value={String(profile.lovePowerScore)} icon="💜" accent />
                         <ContribStat label="Commits" value={String(profile.totalCommits)} icon="📝" />
                         <ContribStat label="Pull Requests" value={String(profile.totalPRs)} icon="🔀" />
@@ -410,7 +348,7 @@ export function ProfilePage() {
                     </div>
 
                     {/* Score formula note */}
-                    <div style={{ marginTop: 12, fontSize: 9, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div className="profile-score-formula">
                         Score = commits×10 + PRs×2 + issues×0.5 + reviews×2
                     </div>
                 </div>
@@ -418,36 +356,29 @@ export function ProfilePage() {
 
             {/* ── Deployed Packages/Realms ──────────────────────────── */}
             {profile && profile.deployedPackages.length > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 14 }}>
+                <div className="k-card profile-packages-card">
+                    <h3 className="profile-section-title">
                         📦 Deployed Packages ({profile.deployedPackages.length})
                     </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="profile-packages-list">
                         {profile.deployedPackages.slice(0, 20).map((pkg) => (
                             <a
                                 key={pkg.path}
                                 href={`${explorerUrl}/${pkg.path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="k-card"
-                                style={{
-                                    padding: "10px 14px", textDecoration: "none",
-                                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                                    transition: "border-color 0.15s",
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#333")}
-                                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "")}
+                                className="k-card profile-package-item"
                             >
-                                <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", wordBreak: "break-all" }}>
+                                <span className="profile-package-path">
                                     {pkg.path}
                                 </span>
-                                <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap", marginLeft: 10 }}>
+                                <span className="profile-package-block">
                                     Block #{pkg.blockHeight}
                                 </span>
                             </a>
                         ))}
                         {profile.deployedPackages.length > 20 && (
-                            <div style={{ fontSize: 11, color: "#555", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 8 }}>
+                            <div className="profile-packages-more">
                                 +{profile.deployedPackages.length - 20} more
                             </div>
                         )}
@@ -458,28 +389,27 @@ export function ProfilePage() {
             {/* ── Governance Votes / My Votes ────────────────────────── */}
             {profile && isOwnProfile && <MyVotesSection address={address || ""} gnoloveVotes={profile.governanceVotes} />}
             {profile && !isOwnProfile && profile.governanceVotes.length > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 14 }}>
+                <div className="k-card profile-votes-card">
+                    <h3 className="profile-section-title">
                         🗳️ Governance Votes ({profile.governanceVotes.length})
                     </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="profile-votes-list">
                         {profile.governanceVotes.slice(0, 20).map((v, i) => {
                             const voteColor = v.vote === "YES" ? "#4caf50" : v.vote === "NO" ? "#f44336" : "#888"
                             return (
-                                <div key={i} className="k-card" style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div key={i} className="k-card profile-vote-item">
                                     <div>
-                                        <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                                        <span className="profile-vote-id">
                                             Prop #{v.proposalId}
                                         </span>
-                                        <span style={{ fontSize: 12, color: "#ccc", marginLeft: 8 }}>
+                                        <span className="profile-vote-title">
                                             {v.proposalTitle}
                                         </span>
                                     </div>
-                                    <span style={{
-                                        padding: "2px 8px", borderRadius: 4, fontSize: 9,
-                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                        background: `${voteColor}15`, color: voteColor,
-                                    }}>
+                                    <span
+                                        className="profile-vote-badge"
+                                        style={{ background: `${voteColor}15`, color: voteColor }}
+                                    >
                                         {v.vote}
                                     </span>
                                 </div>
@@ -491,12 +421,12 @@ export function ProfilePage() {
 
             {/* ── Empty State ───────────────────────────────────────── */}
             {profile && !profile.username && !profile.githubLogin && profile.deployedPackages.length === 0 && profile.governanceVotes.length === 0 && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <div className="k-dashed profile-empty">
+                    <div className="profile-empty-icon">
                         <span style={{ fontSize: 28 }}>👤</span>
                     </div>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>No profile data yet</h3>
-                    <p style={{ color: "#666", fontSize: 12, maxWidth: 360, margin: "0 auto", fontFamily: "JetBrains Mono, monospace" }}>
+                    <h3 className="profile-empty-title">No profile data yet</h3>
+                    <p className="profile-empty-desc">
                         This address has no registered username, GitHub activity, or on-chain deployments.
                     </p>
                 </div>

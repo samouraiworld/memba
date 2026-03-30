@@ -183,7 +183,7 @@ export function WizardStepExtensions({
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>Leaderboard</div>
                             <div style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
-                                Contribution ranking — powered by gnolove.world
+                                Contribution ranking — powered by Gnolove analytics
                             </div>
                         </div>
                     </div>
