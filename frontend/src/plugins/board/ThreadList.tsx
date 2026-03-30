@@ -9,6 +9,7 @@
 import type { BoardThread } from "./parser"
 import { cardStyle, getLastVisited } from "./boardHelpers"
 import { NewMessagesToast } from "../../components/ui/NewMessagesToast"
+import { FlagButton } from "./FlagButton"
 
 interface ThreadListProps {
     threads: BoardThread[]
@@ -17,6 +18,12 @@ interface ThreadListProps {
     onDismissNew: () => void
     onSelectThread: (threadId: number) => void
     error?: string | null
+    /** G2: Moderation props */
+    boardPath?: string
+    isMember?: boolean
+    isAuthenticated?: boolean
+    callerAddress?: string
+    onFlagged?: () => void
 }
 
 export function ThreadList({
@@ -26,6 +33,11 @@ export function ThreadList({
     onDismissNew,
     onSelectThread,
     error,
+    boardPath,
+    isMember,
+    isAuthenticated,
+    callerAddress,
+    onFlagged,
 }: ThreadListProps) {
     return (
         <>
@@ -59,8 +71,21 @@ export function ThreadList({
                                 )}
                                 {t.title}
                             </div>
-                            <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
-                                by {t.author} · {t.replyCount} repl{t.replyCount !== 1 ? "ies" : "y"} · block {t.blockHeight}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                                    by {t.author} · {t.replyCount} repl{t.replyCount !== 1 ? "ies" : "y"} · block {t.blockHeight}
+                                </div>
+                                {boardPath && (
+                                    <FlagButton
+                                        boardPath={boardPath}
+                                        channel={channel}
+                                        threadId={t.id}
+                                        isMember={!!isMember}
+                                        isAuthenticated={!!isAuthenticated}
+                                        callerAddress={callerAddress || ""}
+                                        onFlagged={onFlagged}
+                                    />
+                                )}
                             </div>
                         </div>
                     ))}

@@ -5,6 +5,7 @@ import { getPlugins } from "../../plugins"
 import {
     House, Buildings, Coins, FolderOpen,
     DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
+    ChartBar, LinkSimpleHorizontal, Heart,
 } from "@phosphor-icons/react"
 
 interface MobileTabBarProps {
@@ -53,6 +54,12 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith("/feedback")
         || location.pathname.startsWith("/plugins")
         || location.pathname.startsWith("/alerts")
+        || location.pathname.startsWith("/dashboard")
+        || location.pathname.startsWith("/validators")
+        || location.pathname.startsWith("/gnolove")
+        || location.pathname.startsWith("/extensions")
+        || location.pathname.startsWith("/multisig")
+        || location.pathname.startsWith("/organizations")
 
     return (
         <div className="k-mobile-only">
@@ -81,7 +88,34 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
 
             <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
                 <div id="mobile-more-sheet">
-                    {/* User section */}
+                    {/* Navigate section — routes missing from bottom tab bar */}
+                    <div className="k-sidebar-section">
+                        <div className="k-sidebar-section-label">Navigate</div>
+                        {connected && (
+                            <Link to="/dashboard" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                                <span className="k-sidebar-icon"><ChartBar size={18} /></span>
+                                <span className="k-sidebar-label">Dashboard</span>
+                            </Link>
+                        )}
+                        <Link to="/validators" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <span className="k-sidebar-icon"><LinkSimpleHorizontal size={18} /></span>
+                            <span className="k-sidebar-label">Validators</span>
+                        </Link>
+                        <Link to="/gnolove" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <span className="k-sidebar-icon"><Heart size={18} /></span>
+                            <span className="k-sidebar-label">Gnolove</span>
+                        </Link>
+                        <Link to="/extensions" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
+                            <span className="k-sidebar-label">Extensions</span>
+                        </Link>
+                        <Link to="/alerts" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <span className="k-sidebar-icon"><Bell size={18} /></span>
+                            <span className="k-sidebar-label">Alerts</span>
+                        </Link>
+                    </div>
+
+                    {/* Account section */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Account</div>
                         {connected && address && (
@@ -97,15 +131,11 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                             </Link>
                         )}
                         {connected && (
-                            <Link to="/create" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <Link to="/multisig" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                                 <span className="k-sidebar-icon"><Briefcase size={18} /></span>
                                 <span className="k-sidebar-label">Multisig</span>
                             </Link>
                         )}
-                        <Link to="/alerts" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><Bell size={18} /></span>
-                            <span className="k-sidebar-label">Alerts</span>
-                        </Link>
                         <Link to="/feedback" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><Megaphone size={18} /></span>
                             <span className="k-sidebar-label">Feedback</span>

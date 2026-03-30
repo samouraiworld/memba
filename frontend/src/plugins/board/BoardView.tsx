@@ -13,7 +13,7 @@
  * @module plugins/board/BoardView
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { PluginProps } from "../types"
 import { getBoardInfo } from "./parser"
 import type { BoardInfo } from "./parser"
@@ -29,6 +29,9 @@ import { BoardHeader } from "./BoardHeader"
 import { ThreadList } from "./ThreadList"
 import { ThreadView } from "./ThreadView"
 import { ComposeThread } from "./ComposeThread"
+import { GatedChannelBanner } from "./GatedChannelBanner"
+import { parseMentions } from "./parserV1"
+import { addNotification } from "../../lib/notifications"
 import "./board.css"
 
 type View = "home" | "channel" | "thread" | "new-thread"
@@ -50,9 +53,15 @@ interface BoardViewProps extends PluginProps {
     onChannelChange?: (channel: string) => void
     /** v2.5a: Hide internal channel list — ChannelsPage provides its own sidebar. */
     hideChannelList?: boolean
+    /** G1/G2: User's DAO roles for ACL checking (e.g. ["admin", "member"]). */
+    userRoles?: string[]
+    /** G1: DAO display name for gated channel CTA. */
+    daoName?: string
+    /** G2: Whether the user is a DAO member (for flag eligibility). */
+    isMember?: boolean
 }
 
-export default function BoardView({ boardPath, slug, auth, adena, initialChannel, onChannelChange, hideChannelList }: BoardViewProps) {
+export default function BoardView({ boardPath, realmPath, slug, auth, adena, initialChannel, onChannelChange, hideChannelList, userRoles = [], daoName = "this DAO", isMember = false }: BoardViewProps) {
     const isV2 = boardPath.endsWith("_channels")
 
     // v2.5a: Start in "channel" view when initialChannel is provided (headless mode)
@@ -124,6 +133,33 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
     useEffect(() => {
         if (viewState.view === "home") loadBoardHome()
     }, [viewState.view, loadBoardHome])
+
+    // G4: @mention → Notification Center
+    const lastReplyCount = useRef(0)
+    useEffect(() => {
+        if (!adena.address || !threadDetail) return
+        const currentCount = threadDetail.replies.length
+        // Only scan new replies (skip initial load)
+        if (lastReplyCount.current > 0 && currentCount > lastReplyCount.current) {
+            const newReplies = threadDetail.replies.slice(lastReplyCount.current)
+            const userAddr = adena.address.toLowerCase()
+            for (const reply of newReplies) {
+                // Don't notify for own replies
+                if (reply.author.toLowerCase().includes(userAddr.slice(0, 10))) continue
+                const mentions = parseMentions(reply.body)
+                if (mentions.some(m => m.toLowerCase().includes(userAddr.slice(0, 10)))) {
+                    addNotification(adena.address, {
+                        type: "mention",
+                        title: `Mentioned in #${viewState.channel}`,
+                        body: `${reply.author} mentioned you in "${threadDetail.title}"`,
+                        daoPath: realmPath,
+                        link: `/dao/${slug}/channels/${viewState.channel}`,
+                    })
+                }
+            }
+        }
+        lastReplyCount.current = currentCount
+    }, [threadDetail?.replies.length, adena.address, viewState.channel, slug, realmPath, threadDetail])
 
     // Local error for form validation / post actions
     const [formError, setFormError] = useState<string | null>(null)
@@ -325,6 +361,15 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
 
                 {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
 
+                {/* G1: Gated channel banner — shown when user lacks write access */}
+                <GatedChannelBanner
+                    boardPath={boardPath}
+                    channel={viewState.channel}
+                    userRoles={userRoles}
+                    isConnected={adena.connected}
+                    daoName={daoName}
+                />
+
                 <ThreadList
                     threads={threads}
                     channel={viewState.channel}
@@ -332,6 +377,11 @@ export default function BoardView({ boardPath, slug, auth, adena, initialChannel
                     onDismissNew={dismissNew}
                     onSelectThread={(id) => navigateTo("thread", viewState.channel, id)}
                     error={error}
+                    boardPath={boardPath}
+                    isMember={isMember}
+                    isAuthenticated={auth.isAuthenticated}
+                    callerAddress={adena.address}
+                    onFlagged={refresh}
                 />
             </div>
         )

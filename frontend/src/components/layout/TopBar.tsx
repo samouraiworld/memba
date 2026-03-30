@@ -42,13 +42,26 @@ interface TopBarProps {
     addAndSwitchWalletNetwork?: (chainId: string, chainName: string, rpcUrl: string) => Promise<boolean>
     /** Callback when wallet network switch succeeds. */
     onWalletSwitchSuccess?: (chainName: string) => void
+    /** B3: Toggle sidebar on tablet viewports. */
+    onToggleSidebar?: () => void
 }
 
 // ── TopBar Component ───────────────────────────────────────────────────
-export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess }: TopBarProps) {
+export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess, onToggleSidebar }: TopBarProps) {
     return (
         <>
             <header className="k-topbar" role="banner" data-testid="topbar">
+                {/* B3: Hamburger toggle — visible only on tablet (768-1024px) via CSS */}
+                {onToggleSidebar && (
+                    <button
+                        className="k-topbar-hamburger"
+                        onClick={onToggleSidebar}
+                        aria-label="Toggle sidebar"
+                        title="Toggle sidebar"
+                    >
+                        ☰
+                    </button>
+                )}
                 {/* Left: badges */}
                 <div className="k-topbar-left">
                     <span className="k-version-badge" data-testid="alpha-badge" style={{

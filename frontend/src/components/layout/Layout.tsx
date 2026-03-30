@@ -11,6 +11,7 @@ import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { CommandPalette } from "../ui/CommandPalette"
+import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { JitsiProvider } from "../../contexts/JitsiContext"
 import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
@@ -202,6 +203,7 @@ export function Layout() {
                         onDisconnect={handleDisconnect}
                         onClearError={() => setAuthError(null)}
                         notifications={notifs}
+                        onToggleSidebar={handleToggleCollapse}
                         addAndSwitchWalletNetwork={async (chainId, chainName, rpcUrl) => {
                             return adena.switchWalletNetwork(chainId, chainName, rpcUrl)
                         }}
@@ -213,7 +215,12 @@ export function Layout() {
 
                     {/* ── Main ─────────────────────────────────────── */}
                     <main id="main-content" className="k-main">
-                        <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
+                        {/* B8: Universal guard — show loader while wallet is syncing */}
+                        {isLoggingIn ? (
+                            <ConnectingLoader />
+                        ) : (
+                            <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
+                        )}
                     </main>
 
                     {/* ── Footer ───────────────────────────────── */}

@@ -187,3 +187,71 @@
 .board-back-btn:hover {
     color: #00d4aa;
 }
+
+/* ── G1: Gated Channel Banner ─────────────────────────────── */
+
+.gated-channel-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(245, 166, 35, 0.06);
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    font-size: 12px;
+    color: #aaa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gated-channel-banner__icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.gated-channel-banner__text strong {
+    color: #f5a623;
+}
+
+/* ── G1: Lock icon on restricted channels in sidebar ──────── */
+
+.channel-lock-icon {
+    font-size: 10px;
+    margin-left: auto;
+    opacity: 0.5;
+}
+
+/* ── G2: Flag Button ──────────────────────────────────────── */
+
+.flag-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1;
+}
+
+.flag-button:hover:not(:disabled) {
+    color: #f5a623;
+    background: rgba(245, 166, 35, 0.08);
+}
+
+.flag-button.flagged {
+    color: #ef4444;
+    cursor: default;
+}
+
+.flag-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.flag-button__error {
+    display: block;
+    font-size: 9px;
+    color: #ef4444;
+    margin-top: 2px;
+}

@@ -25,6 +25,7 @@ import { resolveOnChainUsername } from "../lib/profile"
 import { TierVoteBlock } from "../components/proposal"
 import { VotingInsights } from "../components/dao/TierPieChart"
 import type { LayoutContext } from "../types/layout"
+import "./proposalview.css"
 
 export function ProposalView() {
     const { slug, id } = useParams<{ slug: string; id: string }>()
@@ -205,7 +206,7 @@ export function ProposalView() {
 
     if (loading) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div className="animate-fade-in proposal-skeleton-col">
                 <SkeletonCard />
                 <SkeletonCard />
                 <SkeletonCard />
@@ -215,15 +216,13 @@ export function ProposalView() {
 
     if (!proposal) {
         return (
-            <div className="animate-fade-in" style={{ textAlign: "center", padding: 48 }}>
-                <p style={{ color: "#666", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                    Proposal #{proposalId} not found
-                </p>
+            <div className="animate-fade-in proposal-notfound">
+                <p>Proposal #{proposalId} not found</p>
                 <button
                     onClick={() => navigate(`/dao/${encodedSlug}`)}
                     aria-label="Back to DAO"
                     id="proposal-notfound-back-btn"
-                    style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginTop: 16, fontFamily: "JetBrains Mono, monospace" }}
+                    className="proposal-notfound-back"
                 >
                     ← Back to DAO
                 </button>
@@ -236,32 +235,32 @@ export function ProposalView() {
 
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="animate-fade-in proposal-container">
             {/* Breadcrumb navigation */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "JetBrains Mono, monospace", flexWrap: "wrap" }}>
+            <div className="proposal-breadcrumb">
                 <button
                     onClick={() => navigate("/dao")}
-                    style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
+                    className="proposal-breadcrumb-btn"
                 >
                     DAO
                 </button>
-                <span style={{ color: "#333" }}>›</span>
+                <span className="proposal-breadcrumb-sep">›</span>
                 <button
                     onClick={() => navigate(`/dao/${encodedSlug}`)}
                     aria-label="Back to DAO"
                     id="proposal-back-btn"
-                    style={{ color: "#00d4aa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
+                    className="proposal-breadcrumb-btn proposal-breadcrumb-btn--active"
                 >
                     {(() => { const name = realmPath.split("/").pop() || "DAO"; return name.charAt(0).toUpperCase() + name.slice(1) })()}
                 </button>
-                <span style={{ color: "#333" }}>›</span>
-                <span style={{ color: "#f0f0f0" }}>Proposal #{proposal?.id ?? proposalId}</span>
+                <span className="proposal-breadcrumb-sep">›</span>
+                <span className="proposal-breadcrumb-current">Proposal #{proposal?.id ?? proposalId}</span>
             </div>
 
             {/* Header */}
             <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
+                <div className="proposal-meta-row">
+                    <span className="proposal-id-label">
                         Proposal #{proposal.id}
                     </span>
                     <a
@@ -269,48 +268,31 @@ export function ProposalView() {
                         target="_blank"
                         rel="noopener noreferrer"
                         title="View source on gno.land"
-                        style={{
-                            fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                            color: "#444", textDecoration: "none", transition: "color 0.15s",
-                            padding: "1px 5px", borderRadius: 3,
-                            border: "1px solid #222",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+                        className="proposal-source-link"
                     >
                         &lt;/&gt;
                     </a>
-                    <span style={{
-                        padding: "4px 10px", borderRadius: 6, fontSize: 10,
-                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                        background: sc.bg, color: sc.color,
-                    }}>
+                    <span
+                        className="proposal-status-badge"
+                        style={{ background: sc.bg, color: sc.color }}
+                    >
                         {sc.label}
                     </span>
                     {proposal.status === "passed" && (
-                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                        <span className="proposal-awaiting-hint">
                             ⚡ Awaiting execution
                         </span>
                     )}
                     {isLive && (
-                        <span style={{
-                            padding: "3px 8px", borderRadius: 4, fontSize: 9,
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                            background: "rgba(0,212,170,0.06)", color: "#00d4aa",
-                            display: "flex", alignItems: "center", gap: 4,
-                        }}>
-                            <span className="animate-glow" style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa", display: "inline-block" }} />
+                        <span className="proposal-live-badge">
+                            <span className="animate-glow proposal-live-dot" />
                             LIVE
                         </span>
                     )}
                     {proposal.tiers.length > 0 && (
-                        <div style={{ display: "flex", gap: 3 }}>
+                        <div className="proposal-tier-badges">
                             {proposal.tiers.map((t) => (
-                                <span key={t} style={{
-                                    padding: "2px 6px", borderRadius: 3, fontSize: 9,
-                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
-                                    background: "rgba(255,255,255,0.04)", color: "#888",
-                                }}>
+                                <span key={t} className="proposal-tier-badge">
                                     {t}
                                 </span>
                             ))}
@@ -318,48 +300,38 @@ export function ProposalView() {
                     )}
                     {/* v2.13: Category badge */}
                     {proposal.category && (
-                        <span style={{
-                            padding: "2px 6px", borderRadius: 3, fontSize: 9,
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
-                            background: "rgba(33,150,243,0.06)", color: "#5ba3d9",
-                            textTransform: "uppercase",
-                        }}>
+                        <span className="proposal-category-badge">
                             {proposal.category}
                         </span>
                     )}
                 </div>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
+                <h2 className="proposal-title">
                     {proposal.title}
                 </h2>
             </div>
 
             {/* Author Card */}
             {proposal.author && (
-                <div className="k-card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{
-                        width: 36, height: 36, borderRadius: "50%",
-                        background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.15)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 14, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa",
-                    }}>
+                <div className="k-card proposal-author-card">
+                    <div className="proposal-author-avatar">
                         {proposal.author.charAt(0) === "@" ? proposal.author.charAt(1).toUpperCase() : "?"}
                     </div>
                     <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
+                        <div className="proposal-author-name">
                             {proposal.authorProfile ? (
                                 <a href={proposal.authorProfile} target="_blank" rel="noopener noreferrer"
-                                    style={{ color: "#00d4aa", textDecoration: "none" }}
+                                    className="proposal-author-link"
                                 >
                                     {proposal.author}
                                 </a>
                             ) : proposal.author}
                         </div>
-                        <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                        <div className="proposal-author-role">
                             Proposer
                         </div>
                     </div>
                     {proposal.proposer && proposal.proposer.startsWith(BECH32_PREFIX) && (
-                        <div style={{ marginLeft: "auto" }}>
+                        <div className="proposal-author-address">
                             <CopyableAddress address={proposal.proposer} />
                         </div>
                     )}
@@ -368,8 +340,8 @@ export function ProposalView() {
 
             {/* Description */}
             {proposal.description && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <p style={{ color: "#ccc", fontSize: 14, lineHeight: 1.7, fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                <div className="k-card proposal-desc-card">
+                    <p className="proposal-desc-text">
                         {proposal.description}
                     </p>
                 </div>
@@ -377,41 +349,30 @@ export function ProposalView() {
 
             {/* v2.13: Proposal Action Metadata */}
             {(proposal.actionType || proposal.actionBody || proposal.executorRealm) && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="k-card proposal-action-card">
+                    <h3 className="proposal-action-title">
                         📦 Proposal Action
                         {proposal.actionType && (
-                            <span style={{
-                                padding: "3px 8px", borderRadius: 4, fontSize: 9,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                background: "rgba(33,150,243,0.08)", color: "#2196f3",
-                            }}>
+                            <span className="proposal-action-type-badge">
                                 {proposal.actionType}
                             </span>
                         )}
                     </h3>
                     {proposal.executorRealm && (
-                        <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#888", marginBottom: 10 }}>
+                        <div className="proposal-executor-label">
                             Executor realm:{" "}
                             <a
                                 href={`${getExplorerBaseUrl()}/r/${proposal.executorRealm.replace("gno.land/r/", "")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ color: "#00d4aa", textDecoration: "none" }}
+                                className="proposal-executor-link"
                             >
                                 {proposal.executorRealm}
                             </a>
                         </div>
                     )}
                     {proposal.actionBody && (
-                        <pre style={{
-                            padding: "12px 14px", borderRadius: 8,
-                            background: "rgba(0,0,0,0.4)", border: "1px solid #1a1a1a",
-                            fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                            color: "#aaa", lineHeight: 1.6,
-                            whiteSpace: "pre-wrap", wordBreak: "break-word",
-                            overflowX: "auto", maxHeight: 300,
-                        }}>
+                        <pre className="proposal-action-body">
                             {proposal.actionBody}
                         </pre>
                     )}
@@ -430,11 +391,11 @@ export function ProposalView() {
 
             {/* Tier-Grouped Vote Breakdown */}
             {voteRecords.length > 0 && (
-                <div className="k-card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>
+                <div className="k-card proposal-votes-card">
+                    <h3 className="proposal-votes-title">
                         Vote Breakdown by Tier
                     </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div className="proposal-votes-list">
                         {voteRecords.map((record) => (
                             <TierVoteBlock key={record.tier} record={record} />
                         ))}
@@ -444,24 +405,19 @@ export function ProposalView() {
 
             {/* Success message */}
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="proposal-success-msg">
                     ✓ {success}
                 </div>
             )}
 
             {/* Actions */}
             {auth.isAuthenticated && !isArchived && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="proposal-actions-col">
                     {proposal.status === "open" && (
                         <>
                             {/* Membership warning */}
                             {isMember === false && (
-                                <div style={{
-                                    padding: "12px 16px", borderRadius: 8,
-                                    background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                                    fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
-                                    marginBottom: 8,
-                                }}>
+                                <div className="proposal-warning proposal-warning--mb">
                                     ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
                                 </div>
                             )}
@@ -477,7 +433,7 @@ export function ProposalView() {
                                     ✓ You voted {userVote} on this proposal
                                 </div>
                             ) : (
-                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                <div className="proposal-vote-btns">
                                     <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✓ Vote Yes"}
                                     </button>
@@ -501,11 +457,7 @@ export function ProposalView() {
                     )}
 
                     {proposal.status === "passed" && isMember === false && (
-                        <div style={{
-                            padding: "12px 16px", borderRadius: 8,
-                            background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                            fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
-                        }}>
+                        <div className="proposal-warning">
                             ⚠ Only DAO members can execute passed proposals.
                         </div>
                     )}
@@ -514,24 +466,17 @@ export function ProposalView() {
 
             {/* Archived info */}
             {auth.isAuthenticated && isArchived && (
-                <div style={{
-                    padding: "12px 18px", borderRadius: 10,
-                    background: "rgba(245,166,35,0.05)",
-                    border: "1px solid rgba(245,166,35,0.15)",
-                    display: "flex", alignItems: "center", gap: 10,
-                }}>
-                    <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
-                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="proposal-archived-banner">
+                    <span className="proposal-archived-icon"><Archive size={16} /></span>
+                    <div className="proposal-archived-text">
                         This DAO is archived — voting and execution are disabled
                     </div>
                 </div>
             )}
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                        Connect your wallet to vote on proposals
-                    </p>
+                <div className="k-dashed proposal-connect-cta">
+                    <p>Connect your wallet to vote on proposals</p>
                 </div>
             )}
 

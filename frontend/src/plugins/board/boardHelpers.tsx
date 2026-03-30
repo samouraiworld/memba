@@ -72,6 +72,48 @@ export function markVisited(channel: string, threadId: number): void {
     } catch { /* quota */ }
 }
 
+// ── G3: Per-channel unread tracking ─────────────────────────
+
+const CHANNEL_VISITS_KEY = "memba_channel_visits"
+
+/** Get the timestamp of the last time the user viewed a channel. */
+export function getChannelLastVisited(channel: string): number {
+    try {
+        const data = JSON.parse(localStorage.getItem(CHANNEL_VISITS_KEY) || "{}")
+        return data[channel] || 0
+    } catch { return 0 }
+}
+
+/** Mark a channel as visited right now. */
+export function markChannelVisited(channel: string): void {
+    try {
+        const data = JSON.parse(localStorage.getItem(CHANNEL_VISITS_KEY) || "{}")
+        data[channel] = Date.now()
+        localStorage.setItem(CHANNEL_VISITS_KEY, JSON.stringify(data))
+    } catch { /* quota */ }
+}
+
+/** Check if a channel has unread content based on thread count change. */
+export function hasChannelUnread(channel: string, currentThreadCount: number): boolean {
+    const lastVisit = getChannelLastVisited(channel)
+    if (lastVisit === 0 && currentThreadCount > 0) return true // never visited
+    // Store thread counts alongside visit timestamps
+    try {
+        const data = JSON.parse(localStorage.getItem(CHANNEL_VISITS_KEY) || "{}")
+        const lastCount = data[`${channel}__count`] || 0
+        return currentThreadCount > lastCount
+    } catch { return false }
+}
+
+/** Update the stored thread count for a channel (called when visiting). */
+export function updateChannelThreadCount(channel: string, count: number): void {
+    try {
+        const data = JSON.parse(localStorage.getItem(CHANNEL_VISITS_KEY) || "{}")
+        data[`${channel}__count`] = count
+        localStorage.setItem(CHANNEL_VISITS_KEY, JSON.stringify(data))
+    } catch { /* quota */ }
+}
+
 // ── Shared Styles ────────────────────────────────────────────
 
 export const cardStyle: React.CSSProperties = {

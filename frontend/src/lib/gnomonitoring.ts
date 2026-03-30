@@ -1,7 +1,7 @@
 /**
  * Gnomonitoring API client — validator metrics (monikers, uptime, participation).
  *
- * Data source: gnomonitoring service (same backend that powers gnolove.world/validators).
+ * Data source: gnomonitoring service (serves Memba's /validators dashboard).
  * All endpoints are public and require no authentication.
  *
  * Integration pattern:

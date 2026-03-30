@@ -489,9 +489,36 @@ export const SEED_PACKAGES: DirectoryPackage[] = [
 ]
 
 /**
- * Fetch packages — returns the static seed list.
- * Future: could probe ABCI for package availability.
+ * Fetch packages — live from gnolove API, with seed list as fallback.
+ * Phase 3c: replaces static-only list with live on-chain data.
  */
+export async function fetchPackagesLive(): Promise<DirectoryPackage[]> {
+    try {
+        const { getPackages } = await import("./gnoloveApi")
+        const livePackages = await getPackages()
+        if (livePackages.length === 0) return [...SEED_PACKAGES]
+
+        const seedPaths = new Set(SEED_PACKAGES.map(p => p.path))
+        const result = [...SEED_PACKAGES]
+
+        // Add live packages not in seed list (realms = /r/, packages = /p/)
+        for (const pkg of livePackages) {
+            if (!seedPaths.has(pkg.path) && pkg.path.includes("/p/")) {
+                const name = pkg.path.split("/").pop() || pkg.path
+                result.push({
+                    name: name.charAt(0).toUpperCase() + name.slice(1),
+                    path: pkg.path,
+                    description: `Deployed at block ${pkg.blockHeight}`,
+                })
+            }
+        }
+        return result
+    } catch {
+        return [...SEED_PACKAGES]
+    }
+}
+
+/** Synchronous fallback — returns the static seed list only. */
 export function fetchPackages(): DirectoryPackage[] {
     return [...SEED_PACKAGES]
 }
@@ -521,23 +548,52 @@ export const SEED_REALMS: DirectoryRealm[] = [
 ]
 
 /**
- * Fetch realms: seed + user's saved DAOs (deduplicated).
- * Merges DAOs from the DAO list as "standard" category realms.
+ * Fetch realms: live from gnolove API + seed + saved DAOs (deduplicated).
+ * Phase 3c: replaces static-only list with live on-chain data.
  */
+export async function fetchRealmsLive(): Promise<DirectoryRealm[]> {
+    const result = [...SEED_REALMS]
+    const existingPaths = new Set(result.map(r => r.path))
+
+    // Merge saved DAOs
+    const savedDAOs = getDirectoryDAOs()
+    for (const dao of savedDAOs) {
+        if (!existingPaths.has(dao.path)) {
+            result.push({ name: dao.name, path: dao.path, description: "DAO governance realm", category: "standard" })
+            existingPaths.add(dao.path)
+        }
+    }
+
+    // Merge live packages that are realms (/r/)
+    try {
+        const { getPackages } = await import("./gnoloveApi")
+        const livePackages = await getPackages()
+        for (const pkg of livePackages) {
+            if (!existingPaths.has(pkg.path) && pkg.path.includes("/r/")) {
+                const name = pkg.path.split("/").pop() || pkg.path
+                result.push({
+                    name: name.charAt(0).toUpperCase() + name.slice(1),
+                    path: pkg.path,
+                    description: `Deployed at block ${pkg.blockHeight}`,
+                    category: "unknown",
+                })
+                existingPaths.add(pkg.path)
+            }
+        }
+    } catch { /* fallback to seed only */ }
+
+    return result
+}
+
+/** Synchronous fallback — returns seed + saved DAOs only. */
 export function fetchRealms(): DirectoryRealm[] {
     const result = [...SEED_REALMS]
     const existingPaths = new Set(result.map(r => r.path))
 
-    // Merge saved DAOs as realms
     const savedDAOs = getDirectoryDAOs()
     for (const dao of savedDAOs) {
         if (!existingPaths.has(dao.path)) {
-            result.push({
-                name: dao.name,
-                path: dao.path,
-                description: "DAO governance realm",
-                category: "standard",
-            })
+            result.push({ name: dao.name, path: dao.path, description: "DAO governance realm", category: "standard" })
             existingPaths.add(dao.path)
         }
     }

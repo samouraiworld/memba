@@ -980,9 +980,11 @@ body {
   inset: 0;
   z-index: 60;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .k-bottom-sheet.open {
+  visibility: visible;
   pointer-events: auto;
 }
 
@@ -1025,12 +1027,35 @@ body {
   margin: 0 auto 12px;
 }
 
-/* ── Responsive ────────────────────────────────────────────────── */
+/* ── B3: Hamburger toggle (hidden by default — shown only at tablet) ── */
+.k-topbar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  line-height: 1;
+}
 
-/* Large tablet: collapse sidebar */
+.k-topbar-hamburger:hover {
+  color: #00d4aa;
+  background: rgba(0, 212, 170, 0.06);
+}
+
+/* Large tablet: collapse sidebar to icons, show hamburger */
 @media (max-width: 1024px) {
+  .k-topbar-hamburger {
+    display: flex;
+    align-items: center;
+  }
+
   .k-sidebar {
     width: var(--sidebar-collapsed-width);
+    transition: width 0.2s ease, transform 0.2s ease;
   }
 
   .k-main-column {
@@ -1059,6 +1084,41 @@ body {
   .k-sidebar .k-sidebar-toggle {
     display: none;
   }
+
+  /* B3: When sidebar is NOT collapsed (user clicked hamburger), expand as overlay */
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar {
+    width: var(--sidebar-width);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-label,
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-badge,
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-logo-text,
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-section-label {
+    display: inline;
+  }
+
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-link {
+    justify-content: flex-start;
+    padding: 8px 14px;
+    margin: 1px 8px;
+  }
+
+  .k-app-layout:not(.k-sidebar-collapsed) .k-sidebar .k-sidebar-header {
+    justify-content: flex-start;
+    padding: 12px 16px 4px;
+    margin: 0;
+  }
+
+  /* Keep main column at collapsed-width offset even when sidebar overlays */
+  .k-app-layout:not(.k-sidebar-collapsed) .k-main-column {
+    margin-left: var(--sidebar-collapsed-width);
+  }
 }
 
 /* Tablet: hide sidebar, show mobile tab bar */
@@ -1068,7 +1128,7 @@ body {
   }
 
   .k-main-column {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
 
   .k-mobile-only {
