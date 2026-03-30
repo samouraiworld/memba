@@ -18,7 +18,9 @@ import {
     fetchTokens,
     fetchUsers,
     fetchPackages,
+    fetchPackagesLive,
     fetchRealms,
+    fetchRealmsLive,
     batchFetchUserAvatars,
     calculateContributionScores,
     parseDAOMemberAddresses,
@@ -466,8 +468,12 @@ function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 function PackagesTab() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
+    const [packages, setPackages] = useState(() => fetchPackages())
 
-    const packages = useMemo(() => fetchPackages(), [])
+    // Phase 3c: fetch live packages on mount
+    useEffect(() => {
+        fetchPackagesLive().then(setPackages)
+    }, [])
 
     const filtered = useMemo(() =>
         deferredSearch
@@ -566,7 +572,12 @@ function RealmsTab() {
         setRenderLoading(false)
     }, [expandedRealm])
 
-    const realms = useMemo(() => fetchRealms(), [])
+    const [realms, setRealms] = useState(() => fetchRealms())
+
+    // Phase 3c: fetch live realms on mount
+    useEffect(() => {
+        fetchRealmsLive().then(setRealms)
+    }, [])
 
     const categories = useMemo(() => {
         const cats = new Set(realms.map(r => r.category))
