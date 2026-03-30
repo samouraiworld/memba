@@ -8,13 +8,14 @@ import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
     FEATURED_DAO,
     encodeSlug,
-    getSavedDAOs,
-    addSavedDAO,
-    removeSavedDAO,
+    getSavedDAOsForOrg,
+    addSavedDAOForOrg,
+    removeSavedDAOForOrg,
     validateRealmPath,
 } from "../lib/daoSlug"
 import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
 import { useNotifications } from "../hooks/useNotifications"
+import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
 
 interface DAOEntry {
@@ -27,6 +28,7 @@ interface DAOEntry {
 export function DAOList() {
     const navigate = useNavigate()
     const { auth } = useOutletContext<LayoutContext>()
+    const { activeOrgId, activeOrgName, isOrgMode } = useOrg()
 
     const [daoEntries, setDaoEntries] = useState<DAOEntry[]>([])
     const [loading, setLoading] = useState(true)
@@ -58,7 +60,7 @@ export function DAOList() {
         setLoading(true)
         setError(null)
         try {
-            const saved = getSavedDAOs()
+            const saved = getSavedDAOsForOrg(activeOrgId)
 
             // Build unique list: featured + saved
             const allPaths = new Map<string, { name: string; featured: boolean }>()
@@ -96,8 +98,9 @@ export function DAOList() {
             setError(err instanceof Error ? err.message : "Failed to load DAOs")
             setLoading(false)
         }
-    }, [])
+    }, [activeOrgId])
 
+    // Reload when org changes
     useEffect(() => { loadDAOs() }, [loadDAOs])
 
     const handleConnect = async () => {
@@ -117,7 +120,7 @@ export function DAOList() {
                 setError("No DAO found at this realm path. It may not be deployed yet.")
                 return
             }
-            addSavedDAO(path, config.name)
+            addSavedDAOForOrg(activeOrgId, path, config.name)
             setRealmInput("")
             navigate(`/dao/${encodeSlug(path)}`)
         } catch {
@@ -128,7 +131,7 @@ export function DAOList() {
     }
 
     const handleRemove = (realmPath: string) => {
-        removeSavedDAO(realmPath)
+        removeSavedDAOForOrg(activeOrgId, realmPath)
         setDaoEntries((prev) => prev.filter((d) => d.realmPath !== realmPath || d.featured))
     }
 
@@ -150,6 +153,17 @@ export function DAOList() {
                 <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
                     Browse proposals, vote, and manage DAO governance on gno.land
                 </p>
+                {isOrgMode && (
+                    <div style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        marginTop: 8, padding: "3px 10px", borderRadius: 5,
+                        background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
+                        fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa",
+                    }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#00d4aa" }} />
+                        Team: {activeOrgName}
+                    </div>
+                )}
             </div>
 
             {/* ── ⚡ Action Required Banner ──────────────────────── */}
@@ -242,7 +256,7 @@ export function DAOList() {
                             unvotedCount={unvotedByDao.get(dao.realmPath) || 0}
                             notifCount={getDAOUnreadCount(dao.realmPath)}
                             onOpen={() => {
-                                addSavedDAO(dao.realmPath, dao.name)
+                                addSavedDAOForOrg(activeOrgId, dao.realmPath, dao.name)
                                 navigate(`/dao/${encodeSlug(dao.realmPath)}`)
                             }}
                             onRemove={dao.featured ? undefined : () => handleRemove(dao.realmPath)}

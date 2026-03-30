@@ -24,7 +24,8 @@ import { buildVoteMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
-import { getSavedDAOs } from "../lib/daoSlug"
+import { getSavedDAOsForOrg } from "../lib/daoSlug"
+import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import {
@@ -40,6 +41,7 @@ import {
 export function Dashboard() {
     const navigate = useNavigate()
     const { balance, auth, isLoggingIn } = useOutletContext<LayoutContext>()
+    const { activeOrgId } = useOrg()
     const token = auth.token
 
     // Redirect disconnected users to landing page (only after login state is resolved)
@@ -66,8 +68,8 @@ export function Dashboard() {
     const [votingId, setVotingId] = useState<string | null>(null)
     const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
 
-    // Saved DAOs count for feature card
-    const savedDAOsCount = auth.isAuthenticated ? getSavedDAOs().length : 0
+    // Saved DAOs count for feature card (org-scoped)
+    const savedDAOsCount = auth.isAuthenticated ? getSavedDAOsForOrg(activeOrgId).length : 0
 
     const fetchData = useCallback(async () => {
         if (!token || !auth.isAuthenticated) return
@@ -241,7 +243,7 @@ export function Dashboard() {
                     />
 
                     {/* My DAOs */}
-                    <DashboardDAOList savedDAOs={getSavedDAOs()} userAddress={userAddress} />
+                    <DashboardDAOList savedDAOs={getSavedDAOsForOrg(activeOrgId)} userAddress={userAddress} />
 
                     {/* My Multisigs (always visible) */}
                     <div>
