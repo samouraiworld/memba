@@ -27,6 +27,9 @@ import {
     type DirectoryUser,
     type ContributionScore,
 } from "../lib/directory"
+import { getDAOProposals, type DAOProposal } from "../lib/dao"
+import { getContributors } from "../lib/gnoloveApi"
+import type { TEnhancedUserWithStats } from "../lib/gnoloveSchemas"
 import { batchGetDAOMetadata, type DAOMetadata } from "../lib/daoMetadata"
 import { queryRender } from "../lib/dao/shared"
 import { resolveAvatarUrl } from "../lib/ipfs"
@@ -34,7 +37,7 @@ import { DAOCard, FeaturedDAOs, ChainMetricsBanner } from "../components/directo
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import "./directory.css"
 
-type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms"
+type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
 
 export function Directory() {
     const navigate = useNavigate()
@@ -106,6 +109,8 @@ export function Directory() {
                     { key: "packages" as const, label: "📦 Packages" },
                     { key: "realms" as const, label: "🌐 Realms" },
                     { key: "users" as const, label: "👤 Users" },
+                    { key: "govdao" as const, label: "🏛️ GovDAO" },
+                    { key: "leaderboard" as const, label: "🏆 Leaderboard" },
                 ]).map(t => (
                     <button
                         key={t.key}
@@ -128,6 +133,8 @@ export function Directory() {
                 {tab === "packages" && <PackagesTab />}
                 {tab === "realms" && <RealmsTab />}
                 {tab === "users" && <UsersTab navigate={navigate} />}
+                {tab === "govdao" && <GovDAOTab navigate={navigate} />}
+                {tab === "leaderboard" && <LeaderboardTab navigate={navigate} />}
             </div>
         </div>
     )
@@ -536,6 +543,28 @@ function RealmsTab() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [categoryFilter, setCategoryFilter] = useState<string>("all")
+    // Phase 3b: Realm Render() preview
+    const [expandedRealm, setExpandedRealm] = useState<string | null>(null)
+    const [realmRender, setRealmRender] = useState<string | null>(null)
+    const [renderLoading, setRenderLoading] = useState(false)
+
+    const handleRealmClick = useCallback(async (path: string) => {
+        if (expandedRealm === path) {
+            setExpandedRealm(null)
+            setRealmRender(null)
+            return
+        }
+        setExpandedRealm(path)
+        setRealmRender(null)
+        setRenderLoading(true)
+        try {
+            const raw = await queryRender(GNO_RPC_URL, path, "")
+            setRealmRender(raw && !raw.includes("404") ? raw.slice(0, 1000) : "No Render() output available.")
+        } catch {
+            setRealmRender("Failed to fetch Render() output.")
+        }
+        setRenderLoading(false)
+    }, [expandedRealm])
 
     const realms = useMemo(() => fetchRealms(), [])
 
@@ -604,40 +633,211 @@ function RealmsTab() {
             ) : (
                 <div className="dir-grid">
                     {filtered.map(r => (
-                        <a
-                            key={r.path}
-                            className="dir-card"
-                            href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            data-testid="realm-card"
-                        >
-                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                                <div className="dir-token-avatar" style={{
-                                    background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                    color: REALM_CATEGORY_COLORS[r.category] || "#666",
-                                }}>
-                                    🌐
-                                </div>
-                                <div className="dir-card-main">
-                                    <div className="dir-card-name">
-                                        {r.name}
-                                        <span
-                                            className="dir-inline-badge"
-                                            style={{
-                                                background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                                color: REALM_CATEGORY_COLORS[r.category] || "#666",
-                                            }}
-                                        >
-                                            {r.category}
-                                        </span>
+                        <div key={r.path} className={`dir-card dir-card--expandable${expandedRealm === r.path ? " expanded" : ""}`} data-testid="realm-card">
+                            <button
+                                className="dir-card__header"
+                                onClick={() => handleRealmClick(r.path)}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                                    <div className="dir-token-avatar" style={{
+                                        background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
+                                        color: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                    }}>
+                                        🌐
                                     </div>
-                                    <div className="dir-card-path">{r.path}</div>
-                                    <div className="dir-card-desc">{r.description}</div>
+                                    <div className="dir-card-main">
+                                        <div className="dir-card-name">
+                                            {r.name}
+                                            <span
+                                                className="dir-inline-badge"
+                                                style={{
+                                                    background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
+                                                    color: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                                }}
+                                            >
+                                                {r.category}
+                                            </span>
+                                        </div>
+                                        <div className="dir-card-path">{r.path}</div>
+                                        <div className="dir-card-desc">{r.description}</div>
+                                    </div>
+                                </div>
+                                <span className={`dir-expand-icon${expandedRealm === r.path ? " open" : ""}`}>▶</span>
+                            </button>
+                            {expandedRealm === r.path && (
+                                <div className="dir-render-preview">
+                                    {renderLoading ? (
+                                        <div className="k-shimmer" style={{ height: 40, borderRadius: 6, background: "#111" }} />
+                                    ) : (
+                                        <>
+                                            <pre className="dir-render-preview__content">{realmRender}</pre>
+                                            <a
+                                                href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="dir-render-preview__link"
+                                            >
+                                                View on Explorer →
+                                            </a>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── GovDAO Tab ──────────────────────────────────────────────
+
+const GOVDAO_PATH = "gno.land/r/gov/dao"
+
+function GovDAOTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+    const [proposals, setProposals] = useState<DAOProposal[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        setLoading(true)
+        getDAOProposals(GNO_RPC_URL, GOVDAO_PATH)
+            .then(p => setProposals(p.slice(0, 20)))
+            .catch(err => setError(err instanceof Error ? err.message : "Failed to load GovDAO proposals"))
+            .finally(() => setLoading(false))
+    }, [])
+
+    const statusColor = (s: string) => {
+        if (s === "open") return "#00d4aa"
+        if (s === "passed") return "#f59e0b"
+        if (s === "executed") return "#3b82f6"
+        if (s === "failed" || s === "rejected") return "#ef4444"
+        return "#666"
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="dir-govdao-header">
+                <div>
+                    <h3 className="dir-govdao-title">GovDAO Proposals</h3>
+                    <p className="dir-govdao-desc">Latest governance proposals from gno.land chain-level DAO</p>
+                </div>
+                <button
+                    className="k-btn-primary"
+                    style={{ fontSize: 11, padding: "6px 14px", whiteSpace: "nowrap" }}
+                    onClick={() => navigate(`/dao/${encodeSlug(GOVDAO_PATH)}`)}
+                >
+                    Open GovDAO →
+                </button>
+            </div>
+
+            {loading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <SkeletonCard /><SkeletonCard /><SkeletonCard />
+                </div>
+            ) : error ? (
+                <div className="dir-error"><p>{error}</p></div>
+            ) : proposals.length === 0 ? (
+                <div className="dir-empty"><p>No proposals found</p></div>
+            ) : (
+                <div className="dir-govdao-list">
+                    {proposals.map(p => (
+                        <button
+                            key={p.id}
+                            className="dir-govdao-card"
+                            onClick={() => navigate(`/dao/${encodeSlug(GOVDAO_PATH)}/proposal/${p.id}`)}
+                        >
+                            <div className="dir-govdao-card__id">#{p.id}</div>
+                            <div className="dir-govdao-card__main">
+                                <div className="dir-govdao-card__title">{p.title}</div>
+                                <div className="dir-govdao-card__meta">
+                                    <span
+                                        className="dir-govdao-status"
+                                        style={{ color: statusColor(p.status), borderColor: `${statusColor(p.status)}33` }}
+                                    >
+                                        {p.status}
+                                    </span>
+                                    {p.yesVotes + p.noVotes > 0 && (
+                                        <span className="dir-govdao-votes">
+                                            ✓ {p.yesVotes} / ✗ {p.noVotes}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <ArrowRight size={14} className="dir-arrow" />
-                        </a>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── Leaderboard Tab ─────────────────────────────────────────
+
+function LeaderboardTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+    const [contributors, setContributors] = useState<TEnhancedUserWithStats[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        setLoading(true)
+        getContributors()
+            .then(res => setContributors(res?.users?.slice(0, 20) || []))
+            .catch(() => setContributors([]))
+            .finally(() => setLoading(false))
+    }, [])
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="dir-govdao-header">
+                <div>
+                    <h3 className="dir-govdao-title">Top Contributors</h3>
+                    <p className="dir-govdao-desc">Most active Gno ecosystem contributors tracked by gnolove</p>
+                </div>
+                <button
+                    className="k-btn-primary"
+                    style={{ fontSize: 11, padding: "6px 14px", whiteSpace: "nowrap" }}
+                    onClick={() => navigate("/gnolove")}
+                >
+                    Full Leaderboard →
+                </button>
+            </div>
+
+            {loading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <SkeletonCard /><SkeletonCard /><SkeletonCard />
+                </div>
+            ) : contributors.length === 0 ? (
+                <div className="dir-empty"><p>No contributor data available</p></div>
+            ) : (
+                <div className="dir-govdao-list">
+                    {contributors.map((c, i) => (
+                        <button
+                            key={c.login}
+                            className="dir-govdao-card"
+                            onClick={() => navigate(`/gnolove`)}
+                        >
+                            <div className="dir-lb-rank">#{i + 1}</div>
+                            <img
+                                src={c.avatarUrl}
+                                alt={c.login}
+                                className="dir-lb-avatar"
+                            />
+                            <div className="dir-govdao-card__main">
+                                <div className="dir-govdao-card__title">
+                                    {c.name || c.login}
+                                </div>
+                                <div className="dir-govdao-card__meta">
+                                    <span className="dir-govdao-votes">
+                                        {c.TotalCommits} commits · {c.TotalPrs} PRs · {c.TotalIssues} issues
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="dir-lb-score">
+                                {c.score}
+                            </div>
+                        </button>
                     ))}
                 </div>
             )}
