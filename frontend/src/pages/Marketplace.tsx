@@ -24,6 +24,9 @@ export default function Marketplace() {
     const [category, setCategory] = useState<AgentCategory | "all">("all")
     const [selectedAgent, setSelectedAgent] = useState<AgentListing | null>(null)
     const [copied, setCopied] = useState(false)
+    const [showRegister, setShowRegister] = useState(false)
+    const [reviewRating, setReviewRating] = useState(5)
+    const [reviewComment, setReviewComment] = useState("")
 
     useEffect(() => { document.title = "AI Agent Marketplace — Memba" }, [])
 
@@ -119,6 +122,47 @@ export default function Marketplace() {
                         </div>
                     </div>
 
+                    {/* Review Form */}
+                    <div className="mp-detail__section">
+                        <h3>Leave a Review</h3>
+                        <div className="mp-review-form">
+                            <div className="mp-review-stars">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                        key={star}
+                                        className={`mp-star${star <= reviewRating ? " active" : ""}`}
+                                        onClick={() => setReviewRating(star)}
+                                    >
+                                        ★
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                className="mp-review-input"
+                                placeholder="Share your experience with this agent..."
+                                value={reviewComment}
+                                onChange={e => setReviewComment(e.target.value)}
+                                maxLength={500}
+                                rows={3}
+                            />
+                            <div className="mp-review-actions">
+                                <span className="mp-review-hint">
+                                    Reviews are stored on-chain when registry is deployed
+                                </span>
+                                <button
+                                    className="mp-review-submit"
+                                    disabled={!reviewComment.trim()}
+                                    onClick={() => {
+                                        setReviewComment("")
+                                        setReviewRating(5)
+                                    }}
+                                >
+                                    Submit Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Tags */}
                     <div className="mp-detail__tags">
                         {selectedAgent.tags.map(t => (
@@ -134,9 +178,22 @@ export default function Marketplace() {
     return (
         <div className="mp-page animate-fade-in">
             <div className="mp-header">
-                <h1>🤖 AI Agent Marketplace</h1>
-                <p>Discover and connect AI agents for the Gno ecosystem via MCP</p>
+                <div>
+                    <h1>🤖 AI Agent Marketplace</h1>
+                    <p>Discover and connect AI agents for the Gno ecosystem via MCP</p>
+                </div>
+                <button
+                    className="mp-register-btn"
+                    onClick={() => setShowRegister(true)}
+                >
+                    + Register Agent
+                </button>
             </div>
+
+            {/* Register Agent Modal */}
+            {showRegister && (
+                <RegisterAgentForm onClose={() => setShowRegister(false)} />
+            )}
 
             {/* Search */}
             <input
@@ -217,6 +274,146 @@ export default function Marketplace() {
                     ))}
                 </div>
             )}
+        </div>
+    )
+}
+
+// ── Register Agent Form ──────────────────────────────────────
+
+function RegisterAgentForm({ onClose }: { onClose: () => void }) {
+    const [form, setForm] = useState({
+        id: "",
+        name: "",
+        description: "",
+        category: "custom" as AgentCategory,
+        capabilities: "",
+        endpoint: "",
+        transport: "stdio" as "stdio" | "sse" | "streamable-http",
+        pricing: "free" as "free" | "pay-per-use" | "subscription",
+        pricePerCall: 0,
+        version: "1.0.0",
+    })
+
+    const update = (field: string, value: string | number) => {
+        setForm(prev => ({ ...prev, [field]: value }))
+    }
+
+    const idFromName = (name: string) =>
+        name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+
+    return (
+        <div className="mp-register-overlay" onClick={onClose}>
+            <div className="mp-register-modal" onClick={e => e.stopPropagation()}>
+                <div className="mp-register-header">
+                    <h2>Register Agent</h2>
+                    <button className="mp-register-close" onClick={onClose}>×</button>
+                </div>
+
+                <div className="mp-register-form">
+                    <label className="mp-field">
+                        <span>Agent Name *</span>
+                        <input
+                            type="text"
+                            value={form.name}
+                            onChange={e => { update("name", e.target.value); update("id", idFromName(e.target.value)) }}
+                            placeholder="My Agent"
+                            maxLength={100}
+                        />
+                    </label>
+
+                    <label className="mp-field">
+                        <span>ID</span>
+                        <input type="text" value={form.id} onChange={e => update("id", e.target.value)} placeholder="my-agent" maxLength={50} />
+                    </label>
+
+                    <label className="mp-field">
+                        <span>Description *</span>
+                        <textarea
+                            value={form.description}
+                            onChange={e => update("description", e.target.value)}
+                            placeholder="What does this agent do?"
+                            maxLength={1000}
+                            rows={3}
+                        />
+                    </label>
+
+                    <label className="mp-field">
+                        <span>Category</span>
+                        <select value={form.category} onChange={e => update("category", e.target.value)}>
+                            {AGENT_CATEGORIES.map(c => (
+                                <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="mp-field">
+                        <span>Capabilities (comma-separated)</span>
+                        <input
+                            type="text"
+                            value={form.capabilities}
+                            onChange={e => update("capabilities", e.target.value)}
+                            placeholder="Query data, Analyze proposals, Generate reports"
+                        />
+                    </label>
+
+                    <label className="mp-field">
+                        <span>MCP Endpoint *</span>
+                        <input
+                            type="text"
+                            value={form.endpoint}
+                            onChange={e => update("endpoint", e.target.value)}
+                            placeholder="node /path/to/server.js or https://..."
+                        />
+                    </label>
+
+                    <div className="mp-field-row">
+                        <label className="mp-field">
+                            <span>Transport</span>
+                            <select value={form.transport} onChange={e => update("transport", e.target.value)}>
+                                <option value="stdio">stdio</option>
+                                <option value="sse">SSE</option>
+                                <option value="streamable-http">Streamable HTTP</option>
+                            </select>
+                        </label>
+
+                        <label className="mp-field">
+                            <span>Pricing</span>
+                            <select value={form.pricing} onChange={e => update("pricing", e.target.value)}>
+                                <option value="free">Free</option>
+                                <option value="pay-per-use">Pay-per-use</option>
+                                <option value="subscription">Subscription</option>
+                            </select>
+                        </label>
+
+                        <label className="mp-field">
+                            <span>Version</span>
+                            <input type="text" value={form.version} onChange={e => update("version", e.target.value)} placeholder="1.0.0" />
+                        </label>
+                    </div>
+
+                    {form.pricing === "pay-per-use" && (
+                        <label className="mp-field">
+                            <span>Price per call (ugnot)</span>
+                            <input type="number" value={form.pricePerCall} onChange={e => update("pricePerCall", parseInt(e.target.value) || 0)} min={0} />
+                        </label>
+                    )}
+
+                    <div className="mp-register-actions">
+                        <button className="mp-register-cancel" onClick={onClose}>Cancel</button>
+                        <button
+                            className="mp-register-submit"
+                            disabled={!form.name.trim() || !form.description.trim() || !form.endpoint.trim()}
+                            onClick={() => {
+                                // In production: call buildRegisterAgentMsg + doContractBroadcast
+                                alert(`Agent "${form.name}" ready for on-chain registration.\nDeploy the agent registry realm first, then register via MsgCall.`)
+                                onClose()
+                            }}
+                        >
+                            Register Agent
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

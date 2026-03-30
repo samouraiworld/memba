@@ -112,12 +112,16 @@ type Review struct {
 var (
 	agents  *avl.Tree // id -> *Agent
 	reviews *avl.Tree // "agentId" -> []*Review
+	credits *avl.Tree // "agentId/userAddr" -> int64 (prepaid credits in ugnot)
+	usage   *avl.Tree // "agentId/userAddr" -> int64 (total calls)
 	idCount int
 )
 
 func init() {
 	agents = avl.NewTree()
 	reviews = avl.NewTree()
+	credits = avl.NewTree()
+	usage = avl.NewTree()
 }
 
 // ── Public Functions ─────────────────────────────────────────
@@ -241,6 +245,109 @@ func RemoveAgent(cur realm, id string) {
 	}
 	agents.Remove(id)
 	reviews.Remove(id)
+}
+
+// ── Pay-Per-Use Credit System ────────────────────────────────
+
+// DepositCredits deposits GNOT as prepaid credits for an agent.
+// Send ugnot with the transaction to fund the credits.
+func DepositCredits(cur realm, agentId string) {
+	caller := std.PreviousRealm().Addr()
+	if _, exists := agents.Get(agentId); !exists {
+		panic("agent not found")
+	}
+
+	sent := std.GetOrigSend()
+	if len(sent) == 0 || sent.AmountOf("ugnot") == 0 {
+		panic("must send ugnot to deposit credits")
+	}
+	amount := sent.AmountOf("ugnot")
+
+	key := agentId + "/" + string(caller)
+	existing := int64(0)
+	if val, ok := credits.Get(key); ok {
+		existing = val.(int64)
+	}
+	credits.Set(key, existing+amount)
+}
+
+// UseCredit deducts one invocation credit. Called by the agent service.
+// Returns the remaining credits.
+func UseCredit(cur realm, agentId, userAddr string) int64 {
+	val, exists := agents.Get(agentId)
+	if !exists {
+		panic("agent not found")
+	}
+	a := val.(*Agent)
+
+	key := agentId + "/" + userAddr
+	if a.Pricing == "pay-per-use" && a.PricePerCall > 0 {
+		cval, cexists := credits.Get(key)
+		if !cexists {
+			panic("no credits deposited")
+		}
+		balance := cval.(int64)
+		if balance < a.PricePerCall {
+			panic(ufmt.Sprintf("insufficient credits: %d < %d", balance, a.PricePerCall))
+		}
+		credits.Set(key, balance-a.PricePerCall)
+	}
+
+	// Track usage
+	a.TotalCalls++
+	agents.Set(agentId, a)
+
+	uval := int64(0)
+	if uv, uok := usage.Get(key); uok {
+		uval = uv.(int64)
+	}
+	usage.Set(key, uval+1)
+
+	remaining := int64(0)
+	if rv, rok := credits.Get(key); rok {
+		remaining = rv.(int64)
+	}
+	return remaining
+}
+
+// GetCredits returns the credit balance for a user on an agent.
+func GetCredits(agentId, userAddr string) int64 {
+	key := agentId + "/" + userAddr
+	if val, ok := credits.Get(key); ok {
+		return val.(int64)
+	}
+	return 0
+}
+
+// GetUsage returns the total invocation count for a user on an agent.
+func GetUsage(agentId, userAddr string) int64 {
+	key := agentId + "/" + userAddr
+	if val, ok := usage.Get(key); ok {
+		return val.(int64)
+	}
+	return 0
+}
+
+// RefundCredits refunds remaining credits to the user.
+// Auto-refund: callable by user or admin after 30 days (not enforced in v1).
+func RefundCredits(cur realm, agentId string) {
+	caller := std.PreviousRealm().Addr()
+	key := agentId + "/" + string(caller)
+
+	cval, cexists := credits.Get(key)
+	if !cexists {
+		panic("no credits to refund")
+	}
+	balance := cval.(int64)
+	if balance == 0 {
+		panic("zero balance")
+	}
+
+	// Transfer credits back via banker
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker.SendCoins(std.CurrentRealm().Addr(), caller, std.Coins{std.NewCoin("ugnot", balance)})
+
+	credits.Set(key, int64(0))
 }
 
 // ── Render ───────────────────────────────────────────────────
@@ -395,6 +502,41 @@ export function buildReviewAgentMsg(
             pkg_path: registryPath,
             func: "ReviewAgent",
             args: [agentId, String(rating), comment],
+        },
+    }
+}
+
+export function buildDepositCreditsMsg(
+    callerAddress: string,
+    registryPath: string,
+    agentId: string,
+    amountUgnot: number,
+) {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller: callerAddress,
+            send: `${amountUgnot}ugnot`,
+            pkg_path: registryPath,
+            func: "DepositCredits",
+            args: [agentId],
+        },
+    }
+}
+
+export function buildRefundCreditsMsg(
+    callerAddress: string,
+    registryPath: string,
+    agentId: string,
+) {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller: callerAddress,
+            send: "",
+            pkg_path: registryPath,
+            func: "RefundCredits",
+            args: [agentId],
         },
     }
 }
