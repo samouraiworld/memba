@@ -1,0 +1,271 @@
+/**
+ * NFT Gallery styles — Phase 4b.
+ * Dark theme matching Memba design language.
+ */
+
+.nft-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 900px;
+}
+
+.nft-header h1 { font-size: 22px; font-weight: 700; color: #f0f0f0; margin: 0; }
+.nft-header p { font-size: 12px; color: #666; margin: 6px 0 0; font-family: "JetBrains Mono", monospace; }
+
+.nft-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* ── Explore ───────────────────────────────────── */
+
+.nft-explore {
+    display: flex;
+    gap: 8px;
+}
+
+.nft-explore__input {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.3);
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.nft-explore__input:focus { border-color: rgba(0, 212, 170, 0.3); }
+.nft-explore__input::placeholder { color: #444; }
+
+.nft-explore__btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #00d4aa, #00b894);
+    color: #000;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.nft-explore__btn:hover:not(:disabled) { opacity: 0.85; }
+.nft-explore__btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Collection Cards ──────────────────────────── */
+
+.nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.nft-collection-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+}
+
+.nft-collection-card:hover {
+    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.nft-collection-card__icon { font-size: 28px; flex-shrink: 0; }
+
+.nft-collection-card__body { flex: 1; min-width: 0; }
+
+.nft-collection-card__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.nft-collection-card__symbol {
+    font-size: 10px;
+    color: #8b5cf6;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+}
+
+.nft-collection-card__stats {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 4px;
+}
+
+.nft-collection-card__arrow { color: #444; flex-shrink: 0; }
+
+/* ── Empty ─────────────────────────────────────── */
+
+.nft-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.nft-empty__icon { font-size: 36px; }
+.nft-empty p { font-size: 12px; color: #666; font-family: "JetBrains Mono", monospace; margin: 0; }
+.nft-empty__hint { font-size: 11px; color: #444; }
+
+/* ── Detail View ───────────────────────────────── */
+
+.nft-back {
+    background: none;
+    border: none;
+    color: #00d4aa;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    padding: 0;
+}
+
+.nft-back:hover { opacity: 0.7; }
+
+.nft-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.nft-detail-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.nft-detail-meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.nft-detail-desc {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.nft-explorer-link {
+    font-size: 11px;
+    color: #00d4aa;
+    text-decoration: none;
+    font-family: "JetBrains Mono", monospace;
+    white-space: nowrap;
+}
+
+.nft-explorer-link:hover { text-decoration: underline; }
+
+/* ── Mint Form ─────────────────────────────────── */
+
+.nft-mint-section {
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(139, 92, 246, 0.03);
+    border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.nft-mint-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.nft-mint-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.3);
+    color: #f0f0f0;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.nft-mint-input:focus { border-color: rgba(139, 92, 246, 0.3); }
+
+.nft-mint-btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: none;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.nft-mint-btn:hover:not(:disabled) { opacity: 0.85; }
+.nft-mint-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Render Output ─────────────────────────────── */
+
+.nft-render-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nft-render-output {
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #ccc;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ── Responsive ────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .nft-grid { grid-template-columns: 1fr; }
+    .nft-explore { flex-direction: column; }
+    .nft-detail-header { flex-direction: column; }
+    .nft-mint-form { flex-direction: column; }
+    .nft-mint-input { min-width: 0; }
+}

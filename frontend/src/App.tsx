@@ -84,6 +84,10 @@ const GnoloveContributorProfile = lazy(() => import("./pages/gnolove/GnoloveCont
 const GnoloveTeams = lazy(() => import("./pages/gnolove/GnoloveTeams"))
 const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile"))
 
+// ── NFT Gallery (lazy — v3.0) ──
+const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTGallery })))
+const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTCollectionView })))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -163,6 +167,10 @@ function App() {
           {/* CRITICAL: /validators/hacker must come BEFORE /validators/:address */}
           <Route path="/validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
           <Route path="/validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
+
+          {/* NFT Gallery (v3.0) */}
+          <Route path="/nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
+          <Route path="/nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
