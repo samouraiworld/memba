@@ -980,9 +980,11 @@ body {
   inset: 0;
   z-index: 60;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .k-bottom-sheet.open {
+  visibility: visible;
   pointer-events: auto;
 }
 
@@ -1130,7 +1132,17 @@ body {
   }
 
   .k-mobile-only {
-    display: contents;
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .k-mobile-only > * {
+    pointer-events: auto;
   }
 
   .k-mobile-tabbar {
