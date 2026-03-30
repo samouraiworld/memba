@@ -1128,7 +1128,7 @@ body {
   }
 
   .k-main-column {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
 
   .k-mobile-only {
