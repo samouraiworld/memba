@@ -76,6 +76,44 @@ function deriveDiagnostics(netInfo: NetInfo | null, cs: HackerConsensusState | n
         })
     }
 
+    // BFT threshold not met — prevotes
+    if (cs && cs.valsetSize > 0) {
+        const bftThreshold = Math.ceil(cs.valsetSize * 2 / 3)
+        if (cs.prevoteCount > 0 && cs.prevoteCount < bftThreshold && cs.roundAge != null && cs.roundAge > 5) {
+            diags.push({
+                type: "warn",
+                message: `Prevotes below BFT threshold: ${cs.prevoteCount}/${cs.valsetSize} (need ${bftThreshold})`,
+                detail: `${cs.valsetSize - cs.prevoteCount} validator${cs.valsetSize - cs.prevoteCount !== 1 ? "s" : ""} have not prevoted after ${cs.roundAge}s`,
+            })
+        }
+        // BFT threshold not met — precommits
+        if (cs.precommitCount > 0 && cs.precommitCount < bftThreshold && cs.roundAge != null && cs.roundAge > 10) {
+            diags.push({
+                type: "error",
+                message: `Precommits below BFT threshold: ${cs.precommitCount}/${cs.valsetSize} (need ${bftThreshold})`,
+                detail: `Block cannot be committed without ${bftThreshold} precommits. ${bftThreshold - cs.precommitCount} more needed.`,
+            })
+        }
+    }
+
+    // Multiple consensus rounds (slow consensus)
+    if (cs && cs.round > 0) {
+        diags.push({
+            type: cs.round >= 3 ? "error" : "warn",
+            message: `Consensus on round ${cs.round} (expected round 0)`,
+            detail: `Multiple rounds indicate validators are disagreeing on the block proposal. This slows block production.`,
+        })
+    }
+
+    // No peers at all
+    if (peers.length === 0 && netInfo) {
+        diags.push({
+            type: "error",
+            message: "No peers connected — node is isolated",
+            detail: "Node cannot participate in consensus without peers. Check network configuration.",
+        })
+    }
+
     return diags
 }
 

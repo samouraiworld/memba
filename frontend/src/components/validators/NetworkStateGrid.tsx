@@ -17,6 +17,8 @@ interface NetworkStateGridProps {
     seedAddr?: string
     /** Peer count from NetInfo (optional) */
     peerCount?: number
+    /** Pending transaction count from mempool (optional) */
+    mempoolCount?: number | null
 }
 
 function Row({ label, value, accent, mono }: {
@@ -57,7 +59,7 @@ function blockTimeAgo(isoStr: string): string {
     return `${m}m ago`
 }
 
-export function NetworkStateGrid({ stats, cs, seedAddr, peerCount }: NetworkStateGridProps) {
+export function NetworkStateGrid({ stats, cs, seedAddr, peerCount, mempoolCount }: NetworkStateGridProps) {
     const chainId = cs?.chainId || stats?.chainId || "—"
     const appHash = cs?.appHash || "—"
     const genesisTime = cs?.genesisTime || "—"
@@ -98,6 +100,9 @@ export function NetworkStateGrid({ stats, cs, seedAddr, peerCount }: NetworkStat
                     )}
                     {peerCount != null && (
                         <Row label="peers" value={peerCount} accent />
+                    )}
+                    {mempoolCount != null && (
+                        <Row label="mempool" value={`${mempoolCount} pending tx${mempoolCount !== 1 ? "s" : ""}`} accent={mempoolCount > 0} />
                     )}
                 </div>
 
