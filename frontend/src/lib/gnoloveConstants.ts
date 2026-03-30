@@ -15,12 +15,15 @@ export interface Team {
     name: string
     color: TeamColor
     members: string[]
+    description?: string
+    logoUrl?: string
 }
 
 export const TEAMS: Team[] = [
     {
         name: "Core Team",
         color: "blue",
+        description: "Gno core protocol engineers building the chain, VM, and standard libraries.",
         members: [
             "sw360cab", "jaekwon", "ajnavarro", "gfanton", "ltzmaxwell",
             "zivkovicmilos", "thehowl", "piux2", "petar-dambovaliev", "mvertes",
@@ -30,21 +33,25 @@ export const TEAMS: Team[] = [
     {
         name: "All in Bits",
         color: "yellow",
+        description: "AiB team contributing to Gno ecosystem tooling and infrastructure.",
         members: ["albttx", "alexiscolin", "tbruyelle", "leohhhn", "n2p5", "michelleellen"],
     },
     {
         name: "Onbloc",
         color: "purple",
+        description: "Building GnoSwap DEX, Adena wallet, and GnoScan explorer.",
         members: ["notJoon", "r3v4s", "adr-sk", "jinoosss", "dongonw8247"],
     },
     {
         name: "VarMeta",
         color: "yellow",
+        description: "Vietnam-based team contributing to Gno core and tooling.",
         members: ["linhpn99", "thinhnx-var", "AnhVAR"],
     },
     {
         name: "Samourai.world",
         color: "red",
+        description: "Building Memba, gnolove, gnomonitoring, and ecosystem dApps.",
         members: [
             "n0izn0iz", "omarsy", "villaquiranm", "hthieu1110",
             "MikaelVallenet", "WaDadidou", "dtczelo", "naim-ea",
@@ -55,16 +62,19 @@ export const TEAMS: Team[] = [
     {
         name: "Berty",
         color: "green",
+        description: "Decentralized messaging protocol team contributing to Gno networking.",
         members: ["jefft0", "D4ryl00", "iuricmp"],
     },
     {
         name: "DevX",
         color: "brown",
+        description: "Developer experience team improving Gno SDK and toolchain.",
         members: ["ilgooz", "jeronimoalbi", "salmad3"],
     },
     {
         name: "Grants",
         color: "pink",
+        description: "Independent contributors funded through the Gno grants program.",
         members: [
             "NicolasMelet", "Chaegnal", "paulogarithm", "louonezime",
             "Milosevic02", "Tchips46", "matijamarjanovic", "odeke-em",

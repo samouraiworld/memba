@@ -4,6 +4,31 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.21.1 (2026-03-30) — Gnolove Data Accuracy & UX Overhaul
+
+### Added
+
+- **Best Performing Teams** moved above leaderboard as compact, always-visible cards
+  with team descriptions, score, PR count, and member count
+- **Team Profile Page** — new `/gnolove/teams/:teamName` route with team stats,
+  description, and ranked member list with full contribution metrics
+- **Leaderboard pagination** — 25 per page with page controls, range display
+  (e.g., "26-50 of 281"), and preserved sort/filter state across pages
+- **Team descriptions** — `description` and `logoUrl` fields added to `Team` interface
+  in `gnoloveConstants.ts` with descriptions for all 8 teams
+
+### Fixed
+
+- **PR Activity Trend "0 reviewed"** — renamed misleading "Reviewed" line to "In Review"
+  and combined `reviewed` + `waiting_for_review` categories. The gnolove backend classifies
+  "reviewed" as currently-open+approved PRs (a snapshot), not historical review count.
+  Once merged, PRs leave this bucket, making past months always show 0.
+
+### Changed
+
+- Team cards on GnoloveHome now link to individual team profile pages
+- GnoloveTeams page team names now link to team profile pages
+
 ## v2.21.0 (2026-03-30) — Upstream Compatibility Shield
 
 ### Added

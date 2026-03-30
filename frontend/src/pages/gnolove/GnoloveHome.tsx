@@ -1,6 +1,9 @@
 /**
  * GnoloveHome — Contributors overview, team cards, issues, and freshly merged PRs.
  *
+ * v2.21.1: Best Performing Teams moved above leaderboard (compact, always visible).
+ * Leaderboard paginated at 25 per page with sticky header.
+ *
  * @module pages/gnolove/GnoloveHome
  */
 
@@ -23,6 +26,8 @@ import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
 
+const PAGE_SIZE = 25
+
 export default function GnoloveHome() {
     const [timeFilter, setTimeFilter] = useState<TimeFilter>(TimeFilter.ALL_TIME)
     const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
@@ -30,8 +35,8 @@ export default function GnoloveHome() {
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
     const [selectedRepos, setSelectedRepos] = useState<string[]>([])
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
-    const [teamsExpanded, setTeamsExpanded] = useState(false)
     const [activityExpanded, setActivityExpanded] = useState(false)
+    const [page, setPage] = useState(1)
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +68,15 @@ export default function GnoloveHome() {
         if (!contributors?.users) return []
         return filterAndSortContributors(contributors.users, excludedTeams, sortBy, sortDir)
     }, [contributors, sortBy, sortDir, excludedTeams])
+
+    // Reset to page 1 when filters/sorting change
+    useEffect(() => { setPage(1) }, [timeFilter, excludedTeams, sortBy, sortDir, selectedRepos])
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+    const pagedContributors = useMemo(() => {
+        const start = (page - 1) * PAGE_SIZE
+        return sorted.slice(start, start + PAGE_SIZE)
+    }, [sorted, page])
 
     const handleSort = (key: SortKey) => {
         if (sortBy === key) setSortDir(d => (d === "desc" ? "asc" : "desc"))
@@ -112,7 +126,7 @@ export default function GnoloveHome() {
     return (
         <div className="gl-page">
             <div className="gl-header">
-                <h1 className="gl-title">💚 Contributors Overview</h1>
+                <h1 className="gl-title">Contributors Overview</h1>
                 {contributors?.lastSyncedAt && (
                     <span className="gl-sync-time">
                         Last sync: {new Date(contributors.lastSyncedAt).toLocaleString()}
@@ -124,7 +138,7 @@ export default function GnoloveHome() {
             {milestoneProgress && (
                 <div className="gl-milestone">
                     <div className="gl-milestone-header">
-                        <span className="gl-milestone-title">🎯 {milestoneProgress.title}</span>
+                        <span className="gl-milestone-title">{milestoneProgress.title}</span>
                         <span className="gl-milestone-count">
                             {milestoneProgress.closed}/{milestoneProgress.total} ({milestoneProgress.pct}%)
                         </span>
@@ -143,17 +157,17 @@ export default function GnoloveHome() {
                         onClick={() => setActivityExpanded(e => !e)}
                         aria-expanded={activityExpanded}
                     >
-                        <h2 className="gl-section-title" style={{ margin: 0 }}>🔀 Activity Feed</h2>
+                        <h2 className="gl-section-title" style={{ margin: 0 }}>Activity Feed</h2>
                         <span className="gl-section-summary">
                             {freshlyMerged?.length ?? 0} merged, {issues?.length ?? 0} help wanted
                         </span>
-                        <span className="gl-chevron" data-expanded={activityExpanded}>▸</span>
+                        <span className="gl-chevron" data-expanded={activityExpanded}>&#9656;</span>
                     </button>
                     {activityExpanded && (
                         <div className="gl-activity-feed" style={{ marginTop: 12 }}>
                             {freshlyMerged && freshlyMerged.length > 0 && (
                                 <div className="gl-activity-column">
-                                    <h3 className="gl-activity-title">🔀 Freshly Merged</h3>
+                                    <h3 className="gl-activity-title">Freshly Merged</h3>
                                     <div className="gl-activity-list">
                                         {freshlyMerged.slice(0, 5).map(pr => (
                                             <a key={pr.id} href={pr.url} target="_blank" rel="noopener noreferrer"
@@ -170,7 +184,7 @@ export default function GnoloveHome() {
 
                             {issues && issues.length > 0 && (
                                 <div className="gl-activity-column">
-                                    <h3 className="gl-activity-title">🆘 Help Wanted</h3>
+                                    <h3 className="gl-activity-title">Help Wanted</h3>
                                     <div className="gl-activity-list">
                                         {issues.slice(0, 5).map(issue => (
                                             <a key={issue.id} href={issue.url} target="_blank" rel="noopener noreferrer"
@@ -191,6 +205,41 @@ export default function GnoloveHome() {
                             )}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Best Performing Teams — Compact, always visible, ABOVE leaderboard */}
+            {teamStats.length > 0 && (
+                <div className="gl-section">
+                    <div className="gl-section-header-row">
+                        <h2 className="gl-section-title">Best Performing Teams</h2>
+                        <Link to="/gnolove/teams" className="gl-section-link">View all teams &rarr;</Link>
+                    </div>
+                    <div className="gl-team-compact-grid">
+                        {teamStats.map((team, i) => (
+                            <Link
+                                key={team.name}
+                                to={`/gnolove/teams/${encodeURIComponent(team.name)}`}
+                                className="gl-team-compact-card"
+                                style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}
+                            >
+                                <div className="gl-team-compact-top">
+                                    <span className="gl-team-compact-rank">#{i + 1}</span>
+                                    <span className="gl-team-compact-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
+                                        {team.name}
+                                    </span>
+                                </div>
+                                {team.description && (
+                                    <span className="gl-team-compact-desc">{team.description}</span>
+                                )}
+                                <div className="gl-team-compact-stats">
+                                    <span>{team.totalScore} pts</span>
+                                    <span>{team.totalPrs} PRs</span>
+                                    <span>{team.memberCount} members</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
                 </div>
             )}
 
@@ -231,7 +280,7 @@ export default function GnoloveHome() {
                             onClick={() => setRepoFilterOpen(o => !o)}
                             aria-expanded={repoFilterOpen}
                         >
-                            📦 {selectedRepos.length === 0 ? "All Repos" : `${selectedRepos.length} repo${selectedRepos.length > 1 ? "s" : ""}`}
+                            {selectedRepos.length === 0 ? "All Repos" : `${selectedRepos.length} repo${selectedRepos.length > 1 ? "s" : ""}`}
                         </button>
                         {repoFilterOpen && (
                             <div
@@ -282,16 +331,23 @@ export default function GnoloveHome() {
             {scoreFactors && (
                 <div className="gl-score-factors">
                     <span className="gl-score-label">Score weights:</span>
-                    <span className="gl-score-badge">PR ×{scoreFactors.prFactor}</span>
-                    <span className="gl-score-badge">Issue ×{scoreFactors.issueFactor}</span>
-                    <span className="gl-score-badge">Commit ×{scoreFactors.commitFactor}</span>
-                    <span className="gl-score-badge">Review ×{scoreFactors.reviewedPrFactor}</span>
+                    <span className="gl-score-badge">PR x{scoreFactors.prFactor}</span>
+                    <span className="gl-score-badge">Issue x{scoreFactors.issueFactor}</span>
+                    <span className="gl-score-badge">Commit x{scoreFactors.commitFactor}</span>
+                    <span className="gl-score-badge">Review x{scoreFactors.reviewedPrFactor}</span>
                 </div>
             )}
 
-            {/* Leaderboard Table */}
+            {/* Leaderboard Table — Paginated */}
             <div className="gl-section">
-                <h2 className="gl-section-title">📊 Contributor Leaderboard</h2>
+                <div className="gl-section-header-row">
+                    <h2 className="gl-section-title">Contributor Leaderboard</h2>
+                    {sorted.length > 0 && (
+                        <span className="gl-section-count">
+                            {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+                        </span>
+                    )}
+                </div>
                 {isLoading ? (
                     <div className="gl-loading">
                         <div className="gl-skeleton" /><div className="gl-skeleton" /><div className="gl-skeleton" />
@@ -299,75 +355,83 @@ export default function GnoloveHome() {
                 ) : sorted.length === 0 ? (
                     <div className="gl-empty">No contributors found for this time range.</div>
                 ) : (
-                    <div className="gl-table-wrap" style={{ opacity: isFetching ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                        <table className="gl-table">
-                            <caption className="gl-sr-only">Contributor leaderboard ranked by {sortBy === 'score' ? 'total score' : sortBy}</caption>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Contributor</th>
-                                    <SortHeader label="Score" field="score" current={sortBy} dir={sortDir} onClick={handleSort} />
-                                    <SortHeader label="Commits" field="TotalCommits" current={sortBy} dir={sortDir} onClick={handleSort} />
-                                    <SortHeader label="PRs" field="TotalPrs" current={sortBy} dir={sortDir} onClick={handleSort} />
-                                    <SortHeader label="Issues" field="TotalIssues" current={sortBy} dir={sortDir} onClick={handleSort} />
-                                    <SortHeader label="Reviews" field="TotalReviewedPullRequests" current={sortBy} dir={sortDir} onClick={handleSort} />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sorted.map((user, i) => (
-                                    <ContributorRow key={user.id} user={user} rank={i + 1} loginToTeam={loginToTeam} />
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <>
+                        <div className="gl-table-wrap" style={{ opacity: isFetching ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+                            <table className="gl-table">
+                                <caption className="gl-sr-only">Contributor leaderboard ranked by {sortBy === 'score' ? 'total score' : sortBy}</caption>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Contributor</th>
+                                        <SortHeader label="Score" field="score" current={sortBy} dir={sortDir} onClick={handleSort} />
+                                        <SortHeader label="Commits" field="TotalCommits" current={sortBy} dir={sortDir} onClick={handleSort} />
+                                        <SortHeader label="PRs" field="TotalPrs" current={sortBy} dir={sortDir} onClick={handleSort} />
+                                        <SortHeader label="Issues" field="TotalIssues" current={sortBy} dir={sortDir} onClick={handleSort} />
+                                        <SortHeader label="Reviews" field="TotalReviewedPullRequests" current={sortBy} dir={sortDir} onClick={handleSort} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pagedContributors.map((user, i) => (
+                                        <ContributorRow
+                                            key={user.id}
+                                            user={user}
+                                            rank={(page - 1) * PAGE_SIZE + i + 1}
+                                            loginToTeam={loginToTeam}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="gl-pagination">
+                                <button
+                                    className="gl-pagination-btn"
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    aria-label="Previous page"
+                                >
+                                    &lsaquo; Prev
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                                    .reduce<(number | "...")[]>((acc, p, i, arr) => {
+                                        if (i > 0 && p - (arr[i - 1]) > 1) acc.push("...")
+                                        acc.push(p)
+                                        return acc
+                                    }, [])
+                                    .map((p, i) =>
+                                        p === "..." ? (
+                                            <span key={`ellipsis-${i}`} className="gl-pagination-ellipsis">&hellip;</span>
+                                        ) : (
+                                            <button
+                                                key={p}
+                                                className={`gl-pagination-btn ${page === p ? "gl-pagination-btn--active" : ""}`}
+                                                onClick={() => setPage(p)}
+                                                aria-current={page === p ? "page" : undefined}
+                                            >
+                                                {p}
+                                            </button>
+                                        )
+                                    )}
+                                <button
+                                    className="gl-pagination-btn"
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page === totalPages}
+                                    aria-label="Next page"
+                                >
+                                    Next &rsaquo;
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
-
-            {/* Best Performing Teams — Collapsible, links to /gnolove/teams */}
-            {teamStats.length > 0 && (
-                <div className="gl-section">
-                    <button
-                        className="gl-section-toggle"
-                        onClick={() => setTeamsExpanded(e => !e)}
-                        aria-expanded={teamsExpanded}
-                    >
-                        <h2 className="gl-section-title" style={{ margin: 0 }}>🏆 Best Performing Teams</h2>
-                        <span className="gl-section-summary">
-                            {teamStats.length} teams — Top: {teamStats[0]?.name} ({teamStats[0]?.totalScore} pts)
-                            {" · "}<Link to="/gnolove/teams" className="gl-section-summary-link" onClick={e => e.stopPropagation()}>View all</Link>
-                        </span>
-                        <span className="gl-chevron" data-expanded={teamsExpanded}>▸</span>
-                    </button>
-                    {teamsExpanded && (
-                        <div className="gl-team-grid gl-team-grid--expanded">
-                            {teamStats.map((team, i) => (
-                                <Link
-                                    key={team.name}
-                                    to="/gnolove/teams"
-                                    className="gl-team-card"
-                                    style={{ borderColor: TEAM_CSS_COLORS[team.color], textDecoration: "none" }}
-                                >
-                                    <div className="gl-team-rank">#{i + 1}</div>
-                                    <div className="gl-team-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
-                                        {team.name}
-                                    </div>
-                                    <div className="gl-team-stats">
-                                        <span>⭐ {team.totalScore}</span>
-                                        <span>🔀 {team.totalPrs} PRs</span>
-                                        <span>📝 {team.totalCommits} commits</span>
-                                        <span>👥 {team.memberCount} members</span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Repositories */}
             {repos && repos.length > 0 && (
                 <div className="gl-section">
-                    <h2 className="gl-section-title">📦 Tracked Repositories ({repos.length})</h2>
+                    <h2 className="gl-section-title">Tracked Repositories ({repos.length})</h2>
                     <div className="gl-repo-grid">
                         {repos.map(repo => (
                             <a
@@ -398,13 +462,13 @@ function SortHeader({ label, field, current, dir, onClick }: {
         <th className="gl-sortable" onClick={() => onClick(field)} role="button" tabIndex={0}
             aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : undefined}
             onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(field) } }}>
-            {label} {active ? (dir === "desc" ? "▼" : "▲") : ""}
+            {label} {active ? (dir === "desc" ? "\u25BC" : "\u25B2") : ""}
         </th>
     )
 }
 
 function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithStats; rank: number; loginToTeam: Map<string, Team> }) {
-    const rankBadge = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `${rank}`
+    const rankBadge = rank === 1 ? "\uD83E\uDD47" : rank === 2 ? "\uD83E\uDD48" : rank === 3 ? "\uD83E\uDD49" : `${rank}`
     const team = loginToTeam.get(user.login)
 
     return (

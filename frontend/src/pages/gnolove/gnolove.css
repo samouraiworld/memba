@@ -1768,4 +1768,218 @@
     .gl-dash-stats {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .gl-team-compact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-pagination {
+        flex-wrap: wrap;
+    }
+}
+
+/* ── Compact Team Cards (v2.21.1 — above leaderboard) ────── */
+
+.gl-team-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.gl-team-compact-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 3px solid;
+    background: rgba(255, 255, 255, 0.02);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease;
+}
+
+.gl-team-compact-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gl-team-compact-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gl-team-compact-rank {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+    min-width: 18px;
+}
+
+.gl-team-compact-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.gl-team-compact-desc {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.gl-team-compact-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+}
+
+/* ── Section Header Row ──────────────────────────────────── */
+
+.gl-section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.gl-section-header-row .gl-section-title {
+    margin-bottom: 0;
+}
+
+.gl-section-link {
+    font-size: 11px;
+    color: #00d4aa;
+    text-decoration: none;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-section-link:hover {
+    text-decoration: underline;
+}
+
+.gl-section-count {
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Pagination ──────────────────────────────────────────── */
+
+.gl-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.gl-pagination-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #aaa;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.gl-pagination-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0f0f0;
+}
+
+.gl-pagination-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.gl-pagination-btn--active {
+    background: rgba(0, 212, 170, 0.12);
+    border-color: rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+}
+
+.gl-pagination-ellipsis {
+    color: #555;
+    padding: 0 4px;
+    font-size: 11px;
+}
+
+/* ── Team Profile Page (v2.21.1) ─────────────────────────── */
+
+.gl-team-profile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    border-left: 4px solid;
+    background: rgba(255, 255, 255, 0.02);
+    margin-bottom: 16px;
+}
+
+.gl-team-profile-desc {
+    font-size: 12px;
+    color: #888;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.gl-team-profile-stats {
+    display: flex;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.gl-team-profile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.gl-team-profile-stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-team-profile-stat-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gl-team-member-rank {
+    font-size: 11px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    min-width: 24px;
+    text-align: right;
+    margin-right: 4px;
+}
+
+@media (max-width: 768px) {
+    .gl-team-profile-header {
+        flex-direction: column;
+    }
+
+    .gl-team-profile-stats {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
 }

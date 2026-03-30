@@ -121,7 +121,7 @@ export default function GnoloveAnalytics() {
 
     const sparklineOpen = useMemo(() => {
         if (!monthlyActivity?.length) return []
-        return monthlyActivity.map(m => m.open + m.reviewed)
+        return monthlyActivity.map(m => m.open + m.inReview)
     }, [monthlyActivity])
 
     return (
@@ -172,7 +172,7 @@ export default function GnoloveAnalytics() {
                                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
                                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }} />
                                 <Area type="monotone" dataKey="merged" name="Merged" stroke="#00d4aa" strokeWidth={2} fill="url(#gradMerged)" />
-                                <Area type="monotone" dataKey="reviewed" name="Reviewed" stroke="#a855f7" strokeWidth={1.5} fill="url(#gradReviewed)" />
+                                <Area type="monotone" dataKey="inReview" name="In Review" stroke="#a855f7" strokeWidth={1.5} fill="url(#gradReviewed)" />
                                 <Area type="monotone" dataKey="open" name="Open" stroke="#4a9eff" strokeWidth={1.5} fill="url(#gradOpen)" />
                             </AreaChart>
                         </ResponsiveContainer>

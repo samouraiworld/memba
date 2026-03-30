@@ -144,22 +144,25 @@ export function useGnoloveMonthlyActivity() {
             yearAgo.setFullYear(yearAgo.getFullYear() - 1)
             const report = await api.getPullRequestsReport(yearAgo, new Date(), signal)
             if (!report) return []
-            // Bucket all PRs (merged + in_progress + reviewed + waiting + blocked) by month
+            // Bucket all PRs by month using creation/merge date.
+            // Note: "reviewed" from the API is a snapshot (currently OPEN + APPROVED),
+            // not historical review count. We combine reviewed + waiting as "in review"
+            // since both represent open PRs with review activity.
             const allPrs = [
                 ...(report.merged ?? []).map(pr => ({ ...pr, _status: "merged" as const })),
                 ...(report.in_progress ?? []).map(pr => ({ ...pr, _status: "open" as const })),
-                ...(report.reviewed ?? []).map(pr => ({ ...pr, _status: "reviewed" as const })),
-                ...(report.waiting_for_review ?? []).map(pr => ({ ...pr, _status: "waiting" as const })),
-                ...(report.blocked ?? []).map(pr => ({ ...pr, _status: "blocked" as const })),
+                ...(report.reviewed ?? []).map(pr => ({ ...pr, _status: "inReview" as const })),
+                ...(report.waiting_for_review ?? []).map(pr => ({ ...pr, _status: "inReview" as const })),
+                ...(report.blocked ?? []).map(pr => ({ ...pr, _status: "open" as const })),
             ]
-            const monthMap = new Map<string, { merged: number; open: number; reviewed: number }>()
+            const monthMap = new Map<string, { merged: number; open: number; inReview: number }>()
             for (const pr of allPrs) {
                 const date = pr.mergedAt ?? pr.createdAt
                 if (!date) continue
                 const month = date.slice(0, 7) // "YYYY-MM"
-                const entry = monthMap.get(month) ?? { merged: 0, open: 0, reviewed: 0 }
+                const entry = monthMap.get(month) ?? { merged: 0, open: 0, inReview: 0 }
                 if (pr._status === "merged") entry.merged++
-                else if (pr._status === "reviewed") entry.reviewed++
+                else if (pr._status === "inReview") entry.inReview++
                 else entry.open++
                 monthMap.set(month, entry)
             }
