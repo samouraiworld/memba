@@ -4,6 +4,26 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.21.0 (2026-03-30) — Upstream Compatibility Shield
+
+### Added
+
+- **Board parser strategy pattern** — extracted types to `types.ts`, current regex parsers
+  to `parserV1.ts`, and created `parserV2.ts` skeleton for boards2 hub migration (gno#5037).
+  ABCI query functions now delegate parsing via `getActiveBoardParser()` interface
+- **GovDAO function name constants** — `GOVDAO_VOTE_FUNC` and `GOVDAO_PROPOSE_FUNC` in
+  `builders.ts` make voting function names configurable for gno#5222 migration
+- **63 new integration tests** — `integration.test.ts` (DAO parsers) and
+  `parser.integration.test.ts` (board parser) validate real Render() format samples
+  against parsers, covering GovDAO v3, basedao, memberstore, and channel formats
+- **`GNO_CORE_COMPAT.md`** — step-by-step migration playbook for each tracked upstream PR
+  with files-to-modify tables, regression checklists, and gnokey verification commands
+
+### Documentation
+
+- **GNO_CORE_COMPAT.md** — new migration playbook for tracked Gno upstream PRs
+- **CHANGELOG.md** — v2.21.0 entry
+
 ## v2.20.0 (2026-03-28) — Polish, CI Fix & Documentation Sweep
 
 ### Fixed
