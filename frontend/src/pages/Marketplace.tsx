@@ -126,12 +126,19 @@ export default function Marketplace() {
                     <div className="mp-detail__section">
                         <h3>Leave a Review</h3>
                         <div className="mp-review-form">
-                            <div className="mp-review-stars">
+                            <div className="mp-review-stars" role="radiogroup" aria-label="Rating">
                                 {[1, 2, 3, 4, 5].map(star => (
                                     <button
                                         key={star}
                                         className={`mp-star${star <= reviewRating ? " active" : ""}`}
                                         onClick={() => setReviewRating(star)}
+                                        onKeyDown={e => {
+                                            if (e.key === "ArrowRight" && star < 5) setReviewRating(star + 1)
+                                            if (e.key === "ArrowLeft" && star > 1) setReviewRating(star - 1)
+                                        }}
+                                        aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+                                        role="radio"
+                                        aria-checked={star === reviewRating}
                                     >
                                         ★
                                     </button>
@@ -202,6 +209,7 @@ export default function Marketplace() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="mp-search"
+                aria-label="Search agents"
             />
 
             {/* Category filters */}
@@ -281,6 +289,13 @@ export default function Marketplace() {
 // ── Register Agent Form ──────────────────────────────────────
 
 function RegisterAgentForm({ onClose }: { onClose: () => void }) {
+    // Close on Escape
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+        document.addEventListener("keydown", handleKey)
+        return () => document.removeEventListener("keydown", handleKey)
+    }, [onClose])
+
     const [form, setForm] = useState({
         id: "",
         name: "",

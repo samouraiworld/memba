@@ -62,13 +62,6 @@ export interface AgentListing {
     verified: boolean
 }
 
-export interface AgentReview {
-    reviewer: string
-    rating: number
-    comment: string
-    timestamp: number
-}
-
 // ── Categories ───────────────────────────────────────────────
 
 export const AGENT_CATEGORIES: { key: AgentCategory; label: string; icon: string; description: string }[] = [

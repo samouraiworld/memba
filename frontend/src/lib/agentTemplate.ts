@@ -28,8 +28,31 @@ export interface AgentRegistryConfig {
 
 // ── Code Generation ──────────────────────────────────────────
 
+/** Escape string for safe embedding in Gno string literals. */
+function escapeGnoString(s: string): string {
+    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "")
+}
+
+/** Validate realm path format. */
+function validateRealmPath(path: string): void {
+    if (!/^gno\.land\/r\/[a-z0-9_/]+$/.test(path)) {
+        throw new Error(`Invalid realm path: ${path}`)
+    }
+}
+
+/** Validate Gno address format. */
+function validateAddress(addr: string): void {
+    if (!/^g1[a-z0-9]{38}$/.test(addr)) {
+        throw new Error(`Invalid Gno address: ${addr}`)
+    }
+}
+
 export function generateAgentRegistryCode(config: AgentRegistryConfig): string {
+    validateRealmPath(config.realmPath)
+    validateAddress(config.adminAddress)
     const pkgName = config.realmPath.split("/").pop() || "agent_registry"
+    const safeName = escapeGnoString(config.name)
+    const safeDesc = escapeGnoString(config.description)
     return `package ${pkgName}
 
 // ${config.name} — On-chain AI Agent Registry
@@ -76,8 +99,8 @@ const (
 	MaxCapsLen     = 2000
 	MaxReviewLen   = 500
 	AdminAddress   = "${config.adminAddress}"
-	RegistryName   = "${config.name}"
-	RegistryDesc   = "${config.description}"
+	RegistryName   = "${safeName}"
+	RegistryDesc   = "${safeDesc}"
 )
 
 // ── Types ────────────────────────────────────────────────────
