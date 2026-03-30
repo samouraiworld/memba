@@ -82,7 +82,7 @@ describe("friendlyError", () => {
     it("truncates very long messages", () => {
         const msg = friendlyError("x".repeat(300))
         expect(msg.length).toBeLessThan(210)
-        expect(msg).toContain("…")
+        expect(msg).toContain("...")
     })
 
     it("handles null/undefined errors", () => {
@@ -98,6 +98,47 @@ describe("friendlyError", () => {
     it("wraps panic-style errors", () => {
         const msg = friendlyError("panic: unexpected internal state 0x1234")
         expect(msg).toContain("unexpected error")
+    })
+
+    // ── Path leakage hardening (v2.22.1) ────────────────
+    it("does not leak realm paths in panic errors", () => {
+        const msg = friendlyError("panic: gno.land/r/samcrew/memba_dao: some internal error")
+        expect(msg).not.toContain("gno.land/r/samcrew")
+        expect(msg).toContain("unexpected error")
+    })
+
+    it("does not leak realm paths in plain errors", () => {
+        const msg = friendlyError("error at gno.land/r/gov/dao/v3: bad state")
+        expect(msg).not.toContain("gno.land/r/gov")
+        expect(msg).toContain("unexpected error")
+    })
+
+    it("does not leak hex addresses", () => {
+        const msg = friendlyError("0xdeadbeef: invalid pointer")
+        expect(msg).not.toContain("0xdeadbeef")
+        expect(msg).toContain("unexpected error")
+    })
+
+    it("extracts error class from Error: prefix without realm paths", () => {
+        const msg = friendlyError("Error: InvalidArgument in request handler")
+        expect(msg).toContain("InvalidArgument")
+    })
+
+    it("strips realm paths even from Error: messages", () => {
+        const msg = friendlyError("Error: InvalidArgument — gno.land/r/samcrew/dao called with bad args")
+        expect(msg).not.toContain("gno.land")
+        expect(msg).toContain("unexpected error")
+    })
+
+    it("handles short Error: message", () => {
+        const msg = friendlyError("Error: something failed")
+        expect(msg).toBe("Error: something failed")
+    })
+
+    it("handles panic without realm path", () => {
+        const msg = friendlyError("panic: slice bounds out of range")
+        expect(msg).toContain("unexpected error")
+        expect(msg).not.toContain("slice bounds")
     })
 })
 

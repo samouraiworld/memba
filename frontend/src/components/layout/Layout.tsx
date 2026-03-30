@@ -12,6 +12,7 @@ import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
 import { CommandPalette } from "../ui/CommandPalette"
 import { JitsiProvider } from "../../contexts/JitsiContext"
+import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
 
@@ -171,6 +172,7 @@ export function Layout() {
     const notifs = useNotifications(savedDaoPaths, adena.connected ? adena.address : null)
 
     return (
+        <OrgProvider>
         <JitsiProvider>
             <div className={`k-app-layout${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
                 {/* Skip to content (accessibility — focus-only) */}
@@ -295,5 +297,6 @@ export function Layout() {
                 )}
             </div>
         </JitsiProvider>
+        </OrgProvider>
     )
 }

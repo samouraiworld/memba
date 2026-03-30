@@ -49,9 +49,12 @@ export default function GnoloveTeams() {
                             <div className="gl-teams-panel-header">
                                 <div className="gl-teams-panel-title">
                                     <span className="gl-teams-panel-rank">#{i + 1}</span>
-                                    <h2 style={{ color: TEAM_CSS_COLORS[team.color], margin: 0, fontSize: 16, fontWeight: 600 }}>
+                                    <Link
+                                        to={`/gnolove/teams/${encodeURIComponent(team.name)}`}
+                                        style={{ color: TEAM_CSS_COLORS[team.color], margin: 0, fontSize: 16, fontWeight: 600, textDecoration: "none" }}
+                                    >
                                         {team.name}
-                                    </h2>
+                                    </Link>
                                 </div>
                                 <div className="gl-teams-panel-stats">
                                     <span>⭐ {team.totalScore}</span>

@@ -12,6 +12,25 @@
 
 import type { AminoMsg } from "./shared"
 
+// ── GovDAO Function Names (configurable for upstream migration) ──
+
+/**
+ * GovDAO vote function name — configurable for upstream migration.
+ *
+ * Current (test12, gnoland1): "MustVoteOnProposalSimple"
+ * If gno#5222 (govdao T1 multisig) renames this function, update here.
+ * All GovDAO voting calls flow through this constant.
+ *
+ * Tracking: https://github.com/gnolang/gno/pull/5222
+ */
+export const GOVDAO_VOTE_FUNC = "MustVoteOnProposalSimple"
+
+/**
+ * GovDAO propose function name.
+ * Separate from Memba DAO propose (which includes category).
+ */
+export const GOVDAO_PROPOSE_FUNC = "Propose"
+
 /** Known GovDAO paths that use different function names. */
 export function isGovDAO(realmPath: string): boolean {
     return realmPath.includes("/gov/dao")
@@ -25,7 +44,7 @@ export function buildVoteMsg(
     vote: "YES" | "NO" | "ABSTAIN",
 ): AminoMsg {
     if (isGovDAO(realmPath)) {
-        return buildDAOMsgCall(realmPath, "MustVoteOnProposalSimple", [String(proposalId), vote], caller)
+        return buildDAOMsgCall(realmPath, GOVDAO_VOTE_FUNC, [String(proposalId), vote], caller)
     }
     return buildDAOMsgCall(realmPath, "VoteOnProposal", [String(proposalId), vote], caller)
 }

@@ -5,16 +5,16 @@
 
 ---
 
-## Current Status (2026-03-28)
+## Current Status (2026-03-30)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v2.20.0 (CI Fix + Docs Sweep) |
-| **Shipped Versions** | 23+ (v0.1.0 → v2.20.0) |
-| **Test Suite** | 896+ unit tests (43 files) + 16 E2E spec files |
+| **Latest Release** | v2.21.0 (Upstream Compatibility Shield) |
+| **Shipped Versions** | 24+ (v0.1.0 → v2.21.0) |
+| **Test Suite** | 959+ unit tests (45 files) + 16 E2E spec files |
 | **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
 | **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite |
-| **Next Priority** | Clerk auth investigation, gnolove.world sunset (Phase 2), monitoring validation |
+| **Next Priority** | Gnolove data accuracy & UX, Clerk Organizations, Agentic features (SKILL.md + MCP) |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 

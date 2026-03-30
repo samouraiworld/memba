@@ -79,6 +79,7 @@ const GnoloveReport = lazy(() => import("./pages/gnolove/GnoloveReport"))
 const GnoloveAnalytics = lazy(() => import("./pages/gnolove/GnoloveAnalytics"))
 const GnoloveContributorProfile = lazy(() => import("./pages/gnolove/GnoloveContributorProfile"))
 const GnoloveTeams = lazy(() => import("./pages/gnolove/GnoloveTeams"))
+const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile"))
 
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
@@ -173,6 +174,7 @@ function App() {
             <Route path="analytics" element={<GnoloveAnalytics />} />
             <Route path="contributor/:login" element={<GnoloveContributorProfile />} />
             <Route path="teams" element={<GnoloveTeams />} />
+            <Route path="teams/:teamName" element={<GnoloveTeamProfile />} />
           </Route>
 
           {/* Feedback (v2.10) */}

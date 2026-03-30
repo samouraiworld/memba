@@ -1,6 +1,8 @@
 # Gno Core PRs — Breaking Change Impact Assessment
 
-> **Date:** 2026-03-28 · **Memba:** v2.20.0 · **Status:** All tracked PRs still open — monitor and act when merged
+> **Date:** 2026-03-30 · **Memba:** v2.21.0 · **Status:** All tracked PRs still open — monitor and act when merged
+>
+> Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
 
 ## Priority Matrix
 
@@ -18,8 +20,8 @@
 
 | Surface | Key files | What could break |
 |---------|-----------|------------------|
-| **boards2 Render()** | `plugins/board/parser.ts`, `ChannelsPage.tsx` | Board listing/thread format changes |
-| **GovDAO functions** | `lib/dao/builders.ts` | `MustVoteOnProposalSimple` rename → voting breaks |
+| **boards2 Render()** | `plugins/board/parserV1.ts`, `parserV2.ts`, `parser.ts` | Board listing/thread format changes — V2 parser skeleton ready |
+| **GovDAO functions** | `lib/dao/builders.ts` (`GOVDAO_VOTE_FUNC` constant) | `MustVoteOnProposalSimple` rename → update constant |
 | **GovDAO memberstore** | `lib/dao/config.ts`, `members.ts`, `voteScanner.ts` | Tier table format, memberstore path changes |
 | **GovDAO proposals** | `lib/dao/proposals.ts` | `# GovDAO` header format, proposal rendering |
 | **r/sys/users** | `lib/dao/shared.ts`, `lib/config.ts` | Username resolution (safe for now) |

@@ -160,12 +160,23 @@ export function friendlyError(error: unknown): string {
         }
     }
 
-    // Fallback: if the error looks technical, wrap it
-    if (raw.includes("panic:") || raw.includes("Error:") || raw.includes("0x")) {
-        return `An unexpected error occurred. Details: ${raw.slice(0, 120)}`
+    // Fallback: strip internal paths and technical details from raw errors.
+    // Raw ABCI errors may contain realm paths (e.g., "panic: gno.land/r/samcrew/...")
+    // which leak internal structure to non-technical users.
+    if (raw.includes("panic:") || raw.includes("0x") || raw.includes("gno.land/")) {
+        return "An unexpected error occurred. Please try again or contact support if the issue persists."
     }
 
-    return raw.length > 200 ? `${raw.slice(0, 200)}…` : raw
+    if (raw.includes("Error:")) {
+        // Extract just the error class, not the full technical details
+        const errorTypeMatch = raw.match(/Error:\s*([^.\n]{1,80})/)
+        if (errorTypeMatch) {
+            return `Error: ${errorTypeMatch[1].trim()}`
+        }
+        return "An unexpected error occurred. Please try again."
+    }
+
+    return raw.length > 200 ? `${raw.slice(0, 200)}...` : raw
 }
 
 /**

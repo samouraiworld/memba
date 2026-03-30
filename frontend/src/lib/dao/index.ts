@@ -52,6 +52,8 @@ export {
     buildProposeRemoveMemberMsg,
     buildProposeAssignRoleMsg,
     isGovDAO,
+    GOVDAO_VOTE_FUNC,
+    GOVDAO_PROPOSE_FUNC,
 } from "./builders"
 
 // ── Test Exports ──────────────────────────────────────────────

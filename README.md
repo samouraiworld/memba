@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-896%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-959%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.20)
+## Features (v2.21)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -142,7 +142,7 @@
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **896+ unit tests** (Vitest, 43 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters
+- 🧪 **959+ unit tests** (Vitest, 45 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, integration tests
 - 🧪 **E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove
 
 ## Architecture

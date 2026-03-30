@@ -4,6 +4,84 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.22.0 (2026-03-30) — Clerk Organizations
+
+### Added
+
+- **OrgContext** — organization state management with personal/org workspace switching,
+  persisted to localStorage
+- **OrgSwitcher** — sidebar workspace indicator with lazy-loaded Clerk org dropdown.
+  Clerk bundle (~45KB) only loaded when user interacts with org switcher, zero impact
+  on main bundle
+- **Org-scoped saved DAOs** — `getSavedDAOsForOrg()`, `addSavedDAOForOrg()`,
+  `removeSavedDAOForOrg()` in `daoSlug.ts` for per-organization DAO persistence
+- **ClerkOrgUI** — lazy-loaded Clerk OrganizationList with personal/org switching,
+  role display, and sync to OrgContext
+
+### Changed
+
+- Layout wrapped with `OrgProvider` for app-wide org state access
+- Sidebar now shows org switcher below logo (only when Clerk key configured)
+- `SavedDAO` interface extended with optional `orgId` field
+
+## v2.22.1 (2026-03-30) — Agentic & Hardening
+
+### Added
+
+- **`SKILL.md`** — comprehensive agent instruction file at repo root with API endpoints,
+  curl examples, DAO lifecycle, token operations, and project structure
+- **`docs/AGENTIC.md`** — dedicated documentation for AI agent and MCP integration
+
+### Fixed
+
+- **CreateToken fee display** — UI label showed "Platform fee (5%)" but actual fee is 2.5%
+  since v2.1a. Fixed to match `grc20.ts` enforcement
+
+## v2.21.1 (2026-03-30) — Gnolove Data Accuracy & UX Overhaul
+
+### Added
+
+- **Best Performing Teams** moved above leaderboard as compact, always-visible cards
+  with team descriptions, score, PR count, and member count
+- **Team Profile Page** — new `/gnolove/teams/:teamName` route with team stats,
+  description, and ranked member list with full contribution metrics
+- **Leaderboard pagination** — 25 per page with page controls, range display
+  (e.g., "26-50 of 281"), and preserved sort/filter state across pages
+- **Team descriptions** — `description` and `logoUrl` fields added to `Team` interface
+  in `gnoloveConstants.ts` with descriptions for all 8 teams
+
+### Fixed
+
+- **PR Activity Trend "0 reviewed"** — renamed misleading "Reviewed" line to "In Review"
+  and combined `reviewed` + `waiting_for_review` categories. The gnolove backend classifies
+  "reviewed" as currently-open+approved PRs (a snapshot), not historical review count.
+  Once merged, PRs leave this bucket, making past months always show 0.
+
+### Changed
+
+- Team cards on GnoloveHome now link to individual team profile pages
+- GnoloveTeams page team names now link to team profile pages
+
+## v2.21.0 (2026-03-30) — Upstream Compatibility Shield
+
+### Added
+
+- **Board parser strategy pattern** — extracted types to `types.ts`, current regex parsers
+  to `parserV1.ts`, and created `parserV2.ts` skeleton for boards2 hub migration (gno#5037).
+  ABCI query functions now delegate parsing via `getActiveBoardParser()` interface
+- **GovDAO function name constants** — `GOVDAO_VOTE_FUNC` and `GOVDAO_PROPOSE_FUNC` in
+  `builders.ts` make voting function names configurable for gno#5222 migration
+- **63 new integration tests** — `integration.test.ts` (DAO parsers) and
+  `parser.integration.test.ts` (board parser) validate real Render() format samples
+  against parsers, covering GovDAO v3, basedao, memberstore, and channel formats
+- **`GNO_CORE_COMPAT.md`** — step-by-step migration playbook for each tracked upstream PR
+  with files-to-modify tables, regression checklists, and gnokey verification commands
+
+### Documentation
+
+- **GNO_CORE_COMPAT.md** — new migration playbook for tracked Gno upstream PRs
+- **CHANGELOG.md** — v2.21.0 entry
+
 ## v2.20.0 (2026-03-28) — Polish, CI Fix & Documentation Sweep
 
 ### Fixed
