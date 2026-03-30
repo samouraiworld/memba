@@ -1,0 +1,28 @@
+{
+  "name": "@samouraiworld/memba-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Memba — query DAOs, proposals, validators, and contributors on Gno",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "memba-mcp": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["mcp", "gno", "dao", "memba", "blockchain"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
