@@ -110,6 +110,11 @@ func main() {
 	// Health check — enhanced with DB, uptime, memory diagnostics
 	mux.HandleFunc("/health", healthHandler(database, dbPath))
 
+	// Render proxy — REST endpoints for ABCI queries (no auth, rate-limited)
+	mux.Handle("/api/render", rateLimiter(service.HandleRenderProxy()))
+	mux.Handle("/api/eval", rateLimiter(service.HandleEvalProxy()))
+	mux.Handle("/api/balance", rateLimiter(service.HandleBalanceProxy()))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimiter(service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimiter(service.HandleGitHubOAuthExchange(oauthStore)))
