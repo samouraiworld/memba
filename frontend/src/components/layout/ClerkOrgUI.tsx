@@ -18,7 +18,6 @@ import { useOrg } from "../../contexts/OrgContext"
 
 interface Props {
     onClose: () => void
-    clerkAlreadyLoaded: boolean
 }
 
 function OrgDropdownContent({ onClose }: { onClose: () => void }) {

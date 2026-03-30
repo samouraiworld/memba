@@ -23,7 +23,7 @@ interface Props {
 }
 
 export function OrgSwitcher({ collapsed }: Props) {
-    const { orgsEnabled, activeOrgName, isOrgMode, clerkLoaded } = useOrg()
+    const { orgsEnabled, activeOrgName, isOrgMode } = useOrg()
     const [showClerkUI, setShowClerkUI] = useState(false)
 
     if (!orgsEnabled) return null
@@ -48,7 +48,6 @@ export function OrgSwitcher({ collapsed }: Props) {
                 }>
                     <ClerkOrgUI
                         onClose={() => setShowClerkUI(false)}
-                        clerkAlreadyLoaded={clerkLoaded}
                     />
                 </Suspense>
             )}
