@@ -92,6 +92,19 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
 
+      - name: Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+          lhci autorun --config=lighthouserc.json || echo "::warning::Lighthouse budget exceeded — check artifacts"
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report-node${{ matrix.node-version }}
+          path: frontend/.lighthouseci/
+          retention-days: 14
+
   proto:
     name: Proto (Buf)
     runs-on: ubuntu-latest
