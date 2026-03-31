@@ -5,16 +5,17 @@
 
 ---
 
-## Current Status (2026-03-30)
+## Current Status (2026-03-31)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v2.21.0 (Upstream Compatibility Shield) |
-| **Shipped Versions** | 24+ (v0.1.0 → v2.21.0) |
-| **Test Suite** | 959+ unit tests (45 files) + 16 E2E spec files |
+| **Latest Release** | v2.25.1 (Escrow Chain API Correction + CSS Extraction) |
+| **Shipped Versions** | 28+ (v0.1.0 → v2.25.1) |
+| **Test Suite** | 1,151+ unit tests (49 files) + 16 E2E spec files |
 | **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
 | **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite |
-| **Next Priority** | Gnolove data accuracy & UX, Clerk Organizations, Agentic features (SKILL.md + MCP) |
+| **URL Format** | Network-scoped: `/:network/dao/gno.land/r/gov/dao` (v2.25+) |
+| **Next Priority** | Phase 2 URL stabilization, Freelance marketplace (v3.0), Lighthouse CI tuning |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
