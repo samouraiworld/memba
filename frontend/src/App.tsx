@@ -91,6 +91,9 @@ const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ d
 // ── AI Agent Marketplace (lazy — v3.0) ──
 const Marketplace = lazy(() => import("./pages/Marketplace"))
 
+// ── Freelance Services (lazy — v3.0) ──
+const FreelanceServices = lazy(() => import("./pages/FreelanceServices"))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -174,6 +177,9 @@ function App() {
           {/* NFT Gallery (v3.0) */}
           <Route path="/nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
           <Route path="/nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
+
+          {/* Freelance Services (v3.0) */}
+          <Route path="/services" element={<Suspense fallback={<PageLoader />}><FreelanceServices /></Suspense>} />
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
