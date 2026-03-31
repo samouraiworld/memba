@@ -46,7 +46,7 @@ jobs:
           for dir in contracts/*/; do
             if [ -f "$dir/gnomod.toml" ]; then
               echo "=== Testing $dir ==="
-              gno test "./$dir" || exit 1
+              (cd "$dir" && gno test .) || exit 1
             fi
           done
 
@@ -55,6 +55,6 @@ jobs:
           for dir in contracts/*/; do
             if [ -f "$dir/gnomod.toml" ]; then
               echo "=== Linting $dir ==="
-              gno lint "./$dir" || true
+              (cd "$dir" && gno lint .) || true
             fi
           done
