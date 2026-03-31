@@ -241,24 +241,19 @@ export function Layout() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title={label}
-                                    style={{
-                                        color: "#444", fontSize: 13, textDecoration: "none",
-                                        transition: "color 0.2s", fontFamily: "system-ui, sans-serif",
-                                    }}
-                                    onMouseOver={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                                    onMouseOut={(e) => (e.currentTarget.style.color = "#444")}
+                                    className="k-footer-social"
                                 >
                                     {icon}
                                 </a>
                             ))}
                         </div>
-                        <p style={{ color: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p className="k-footer-copy">
                             memba v2 • built by samourai coop
                         </p>
-                        <p style={{ color: "#555", fontSize: 9, fontFamily: "JetBrains Mono, monospace", maxWidth: 500, lineHeight: 1.4 }}>
+                        <p className="k-footer-disclaimer">
                             ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
                             Unaudited, under active development. Use at your own risk.{" "}
-                            <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa" }}>
+                            <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer">
                                 Tips & sponsorships
                             </a>{" "}welcome.
                         </p>
@@ -286,18 +281,7 @@ export function Layout() {
                     <div
                         role="status"
                         aria-live="polite"
-                        style={{
-                            position: "fixed",
-                            top: 80, right: 24, zIndex: 1000,
-                            padding: "10px 18px", borderRadius: 10,
-                            background: "rgba(0,212,170,0.12)",
-                            border: "1px solid rgba(0,212,170,0.25)",
-                            color: "#00d4aa", fontSize: 12,
-                            fontFamily: "JetBrains Mono, monospace",
-                            fontWeight: 600,
-                            backdropFilter: "blur(4px)",
-                            animation: "membaToastIn 300ms ease-out",
-                        }}
+                        className="k-toast-network"
                     >
                         {walletSwitchMsg}
                     </div>

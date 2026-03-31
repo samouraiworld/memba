@@ -4,6 +4,40 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.25.0 (2026-03-31) — Escrow Hardening & Chain Compatibility
+
+### Fixed
+
+- **Escrow template chain migration** — migrated 27 occurrences of deprecated `std.*` API
+  to the post-split `chain/*` API surface (`chain.PreviousRealm()`, `chain.GetBanker()`,
+  `chain.Coins{}`, `chain.OrigSend()`, `chain.GetHeight()`, `address` built-in type).
+  Matches the pattern used by `daoTemplate.ts`, `boardTemplate.ts`, `channelTemplate.ts`,
+  and `candidatureTemplate.ts`
+- **Escrow reentrancy fix** — state-before-send pattern applied to `ReleaseFunds`,
+  `ResolveDispute`, and `CancelContract`: contract state is now committed to storage
+  BEFORE any `banker.SendCoins()` calls (prevents inconsistent state on VM panic)
+- **Escrow bounds checks** — added `milestoneIdx` validation in `CompleteMilestone`,
+  `ReleaseFunds`, `RaiseDispute`, and `ResolveDispute` (matches existing
+  `FundMilestone` pattern)
+- **Layout inline styles** — extracted 25+ inline `style={{}}` blocks from footer social
+  links, version text, disclaimer, and network toast to CSS classes
+  (`.k-footer-social`, `.k-footer-copy`, `.k-footer-disclaimer`, `.k-toast-network`)
+
+### Added
+
+- **Escrow test suite** — `escrowTemplate.test.ts` with 40 tests covering chain API
+  compliance (15), security patterns (12), query helpers (7), and MsgCall builders (6)
+- **CSS design tokens** — `tokens.css` with 25+ CSS custom properties for colors,
+  typography, spacing, and transitions (foundation for gradual migration)
+- **Version alignment** — package.json bumped from `2.20.0` to `2.25.0` to match
+  changelog history
+
+### Changed
+
+- **Layout footer** — social link hover now handled via CSS `:hover` rule instead of
+  `onMouseOver`/`onMouseOut` JS handlers
+- **main.tsx** — `tokens.css` imported before `index.css` to establish design system layer
+
 ## v2.22.0 (2026-03-30) — Clerk Organizations
 
 ### Added

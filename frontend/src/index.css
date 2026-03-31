@@ -882,6 +882,56 @@ body {
   color: var(--color-k-accent);
 }
 
+/* ── Footer extracted styles (from Layout.tsx inline) ──────────── */
+.k-footer-social {
+  color: #444;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.2s;
+  font-family: system-ui, sans-serif;
+  display: inline-flex;
+  align-items: center;
+}
+
+.k-footer-social:hover {
+  color: #00d4aa;
+}
+
+.k-footer-copy {
+  color: #666;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.k-footer-disclaimer {
+  color: #555;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  max-width: 500px;
+  line-height: 1.4;
+}
+
+.k-footer-disclaimer a {
+  color: #00d4aa;
+}
+
+.k-toast-network {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 1000;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: rgba(0, 212, 170, 0.12);
+  border: 1px solid rgba(0, 212, 170, 0.25);
+  color: #00d4aa;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  animation: membaToastIn 300ms ease-out;
+}
+
 /* Disabled sidebar link (e.g. plugin with no DAO selected) */
 .k-sidebar-link.disabled {
   opacity: 0.4;
