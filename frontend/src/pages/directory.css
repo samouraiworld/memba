@@ -431,6 +431,46 @@ a.dir-card {
     white-space: nowrap;
 }
 
+/* ── Live Deployment Badge ─────────────────────────── */
+
+.dir-inline-badge--live {
+    background: rgba(0, 212, 170, 0.12);
+    color: #00d4aa;
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+/* ── Gnoweb Link ──────────────────────────────────── */
+
+.dir-gnoweb-link {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    color: #00d4aa;
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    white-space: nowrap;
+    transition: background 150ms ease;
+}
+
+.dir-gnoweb-link:hover {
+    background: rgba(0, 212, 170, 0.1);
+}
+
+.dir-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.dir-render-preview__links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 /* ── Category Badge ────────────────────────────────── */
 
 .dir-category-badge {

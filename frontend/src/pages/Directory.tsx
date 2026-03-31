@@ -520,12 +520,31 @@ function PackagesTab() {
                                     📦
                                 </div>
                                 <div className="dir-card-main">
-                                    <div className="dir-card-name">{p.name}</div>
+                                    <div className="dir-card-name">
+                                        {p.name}
+                                        {p.deploymentStatus === "live" && (
+                                            <span className="dir-inline-badge dir-inline-badge--live">Live</span>
+                                        )}
+                                    </div>
                                     <div className="dir-card-path">{p.path}</div>
                                     <div className="dir-card-desc">{p.description}</div>
                                 </div>
                             </div>
-                            <ArrowRight size={14} className="dir-arrow" />
+                            <div className="dir-card-actions">
+                                {p.gnowebUrl && (
+                                    <a
+                                        href={p.gnowebUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="dir-gnoweb-link"
+                                        onClick={e => e.stopPropagation()}
+                                        title="View on gnoweb"
+                                    >
+                                        gnoweb
+                                    </a>
+                                )}
+                                <ArrowRight size={14} className="dir-arrow" />
+                            </div>
                         </a>
                     ))}
                 </div>
@@ -668,6 +687,9 @@ function RealmsTab() {
                                             >
                                                 {r.category}
                                             </span>
+                                            {r.deploymentStatus === "live" && (
+                                                <span className="dir-inline-badge dir-inline-badge--live">Live</span>
+                                            )}
                                         </div>
                                         <div className="dir-card-path">{r.path}</div>
                                         <div className="dir-card-desc">{r.description}</div>
@@ -682,14 +704,26 @@ function RealmsTab() {
                                     ) : (
                                         <>
                                             <pre className="dir-render-preview__content">{realmRender}</pre>
-                                            <a
-                                                href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="dir-render-preview__link"
-                                            >
-                                                View on Explorer →
-                                            </a>
+                                            <div className="dir-render-preview__links">
+                                                <a
+                                                    href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="dir-render-preview__link"
+                                                >
+                                                    View on Explorer →
+                                                </a>
+                                                {r.gnowebUrl && (
+                                                    <a
+                                                        href={r.gnowebUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="dir-render-preview__link"
+                                                    >
+                                                        View on gnoweb →
+                                                    </a>
+                                                )}
+                                            </div>
                                         </>
                                     )}
                                 </div>

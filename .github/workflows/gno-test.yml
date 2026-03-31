@@ -1,0 +1,41 @@
+name: Gno Contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'scripts/extract-contracts.ts'
+      - 'frontend/src/lib/*Template.ts'
+      - '.github/workflows/gno-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'scripts/extract-contracts.ts'
+      - 'frontend/src/lib/*Template.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gno-test:
+    name: Gno Test & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install gno toolchain
+        run: go install github.com/gnolang/gno/gnovm/cmd/gno@latest
+
+      - name: Run gno test on contracts
+        run: gno test ./contracts/...
+
+      - name: Run gno lint on contracts
+        run: gno lint ./contracts/...
