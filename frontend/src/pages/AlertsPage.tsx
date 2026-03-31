@@ -351,14 +351,19 @@ function AlertsContent() {
                 </div>
             </div>
 
-            {/* Section A: Webhooks (default open) */}
-            <Section title="Webhooks" icon={<span>🔔</span>} defaultOpen>
+            {/* Section A: Telegram (easiest/instant setup — shown first) */}
+            <Section title="Telegram Bots" icon={<span>✈️</span>} defaultOpen>
+                <TelegramBotCards />
+            </Section>
+
+            {/* Section B: Webhooks */}
+            <Section title="Webhooks" icon={<span>🔔</span>}>
                 <WebhookSection kind="govdao" label="GovDAO" token={auth.getToken} />
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
                 <WebhookSection kind="validator" label="Validator" token={auth.getToken} />
             </Section>
 
-            {/* Section B: Contacts & Schedule */}
+            {/* Section C: Contacts & Schedule */}
             <Section title="Alert Contacts & Daily Report" icon={<span>👤</span>}>
                 {loadingContacts ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8 }}>
@@ -409,11 +414,6 @@ function AlertsContent() {
                         />
                     </>
                 )}
-            </Section>
-
-            {/* Section C: Telegram */}
-            <Section title="Telegram Bots" icon={<span>✈️</span>}>
-                <TelegramBotCards />
             </Section>
         </div>
     )
