@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -21,7 +21,7 @@ import {
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import { resolveOnChainUsername } from "../lib/profile"
 import { TierVoteBlock } from "../components/proposal"
 import { VotingInsights } from "../components/dao/TierPieChart"
@@ -29,13 +29,10 @@ import type { LayoutContext } from "../types/layout"
 import "./proposalview.css"
 
 export function ProposalView() {
-    const { slug, id } = useParams<{ slug: string; id: string }>()
+    const { realmPath, encodedSlug, proposalId: routeProposalId } = useDaoRoute()
+    const id = routeProposalId
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
-
-    const realmPath = slug ? decodeSlug(slug) : ""
-    // Always re-encode to tilde format — fixes broken back-navigation when entered via %2F URL
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
     const govDAO = isGovDAO(realmPath)
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)

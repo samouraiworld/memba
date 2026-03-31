@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
     encodeSlug,
     decodeSlug,
+    parseDaoSplat,
     validateRealmPath,
     getSavedDAOs,
     addSavedDAO,
@@ -10,8 +11,12 @@ import {
 } from './daoSlug'
 
 describe('slug encoding', () => {
-    it('encodes realm path to URL-safe slug', () => {
-        expect(encodeSlug('gno.land/r/gov/dao')).toBe('gno.land~r~gov~dao')
+    it('encodes realm path to URL-safe slug (Phase 2: returns path as-is)', () => {
+        expect(encodeSlug('gno.land/r/gov/dao')).toBe('gno.land/r/gov/dao')
+    })
+
+    it('decodes legacy ~ encoded slugs', () => {
+        expect(decodeSlug('gno.land~r~gov~dao')).toBe('gno.land/r/gov/dao')
     })
 
     it('decodes slug back to realm path', () => {
@@ -33,6 +38,60 @@ describe('slug encoding', () => {
 
     it('blocks control characters', () => {
         expect(decodeSlug('gno.land~r~test\x00evil')).toBe('')
+    })
+})
+
+describe('parseDaoSplat', () => {
+    it('parses plain realm path (no sub-route)', () => {
+        const r = parseDaoSplat('gno.land/r/gov/dao')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('')
+    })
+
+    it('parses realm path with proposal sub-route', () => {
+        const r = parseDaoSplat('gno.land/r/gov/dao/proposal/5')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('proposal/5')
+    })
+
+    it('parses realm path with members sub-route', () => {
+        const r = parseDaoSplat('gno.land/r/gov/dao/members')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('members')
+    })
+
+    it('parses treasury/propose nested sub-route', () => {
+        const r = parseDaoSplat('gno.land/r/gov/dao/treasury/propose')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('treasury/propose')
+    })
+
+    it('parses channels with channel name', () => {
+        const r = parseDaoSplat('gno.land/r/gov/dao/channels/general')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('channels/general')
+    })
+
+    it('parses legacy ~ encoded slug', () => {
+        const r = parseDaoSplat('gno.land~r~gov~dao')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('')
+    })
+
+    it('parses legacy ~ slug with sub-route', () => {
+        const r = parseDaoSplat('gno.land~r~gov~dao/proposal/3')
+        expect(r.realmPath).toBe('gno.land/r/gov/dao')
+        expect(r.subRoute).toBe('proposal/3')
+    })
+
+    it('returns empty for invalid path', () => {
+        const r = parseDaoSplat('invalid/path')
+        expect(r.realmPath).toBe('')
+    })
+
+    it('returns empty for empty string', () => {
+        const r = parseDaoSplat('')
+        expect(r.realmPath).toBe('')
     })
 })
 

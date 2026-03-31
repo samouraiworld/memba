@@ -27,16 +27,8 @@ const TokenView = lazy(() => import("./pages/TokenView").then(m => ({ default: m
 
 // ── DAO pages (lazy — loaded on /dao/*) ──
 const DAOList = lazy(() => import("./pages/DAOList").then(m => ({ default: m.DAOList })))
-const DAOHome = lazy(() => import("./pages/DAOHome").then(m => ({ default: m.DAOHome })))
-const ProposalView = lazy(() => import("./pages/ProposalView").then(m => ({ default: m.ProposalView })))
-const DAOMembers = lazy(() => import("./pages/DAOMembers").then(m => ({ default: m.DAOMembers })))
-const ProposeDAO = lazy(() => import("./pages/ProposeDAO").then(m => ({ default: m.ProposeDAO })))
-const Treasury = lazy(() => import("./pages/Treasury").then(m => ({ default: m.Treasury })))
-const TreasuryProposal = lazy(() => import("./pages/TreasuryProposal").then(m => ({ default: m.TreasuryProposal })))
 const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
-
-// ── Channels page (lazy — v2.5a) ──
-const ChannelsPage = lazy(() => import("./pages/ChannelsPage").then(m => ({ default: m.ChannelsPage })))
+import { DAORouter } from "./components/dao/DAORouter"
 
 // ── Profile page (lazy) ──
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
@@ -53,9 +45,6 @@ const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.S
 
 // ── Directory page (lazy) ──
 const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m.Directory })))
-
-// ── Plugin page (lazy) ──
-const PluginPage = lazy(() => import("./pages/PluginPage").then(m => ({ default: m.PluginPage })))
 
 // ── Validators pages (lazy) — ORDER MATTERS: /hacker before /:address ──
 // CRITICAL: /validators/hacker must be declared before /validators/:address,
@@ -173,18 +162,10 @@ function App() {
           <Route path="tokens" element={<Suspense fallback={<PageLoader />}><TokenDashboard /></Suspense>} />
           <Route path="tokens/:symbol" element={<Suspense fallback={<PageLoader />}><TokenView /></Suspense>} />
 
-          {/* DAO routes (lazy chunk) */}
+          {/* DAO routes — splat for clean realm paths with real / */}
           <Route path="dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
           <Route path="dao/create" element={<Suspense fallback={<PageLoader />}><CreateDAO /></Suspense>} />
-          <Route path="dao/:slug" element={<Suspense fallback={<PageLoader />}><DAOHome /></Suspense>} />
-          <Route path="dao/:slug/proposal/:id" element={<Suspense fallback={<PageLoader />}><ProposalView /></Suspense>} />
-          <Route path="dao/:slug/members" element={<Suspense fallback={<PageLoader />}><DAOMembers /></Suspense>} />
-          <Route path="dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
-          <Route path="dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
-          <Route path="dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
-          <Route path="dao/:slug/channels" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
-          <Route path="dao/:slug/channels/:channel" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
-          <Route path="dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
+          <Route path="dao/*" element={<DAORouter />} />
 
           {/* Profile routes (lazy) */}
           <Route path="profile" element={<ProfileRedirect />} />

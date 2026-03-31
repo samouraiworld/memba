@@ -7,19 +7,16 @@
  * @module pages/PluginPage
  */
 
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import type { LayoutContext } from "../types/layout"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import { PluginLoader } from "../plugins/PluginLoader"
 
 export function PluginPage() {
-    const { slug, pluginId } = useParams<{ slug: string; pluginId: string }>()
+    const { realmPath, encodedSlug, pluginId } = useDaoRoute()
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
-
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = slug || encodeSlug(realmPath)
 
     if (!realmPath || !pluginId) {
         navigate("/dao")
