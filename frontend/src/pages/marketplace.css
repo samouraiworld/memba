@@ -1,0 +1,713 @@
+/**
+ * Marketplace — AI Agent Marketplace styles.
+ * Phase 4a: Premium dark theme matching Directory design language.
+ */
+
+/* ── Layout ────────────────────────────────────── */
+
+.mp-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 900px;
+}
+
+.mp-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.mp-header p {
+    font-size: 12px;
+    color: #666;
+    margin: 6px 0 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Search ────────────────────────────────────── */
+
+.mp-search {
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.mp-search:focus {
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+.mp-search::placeholder {
+    color: #444;
+}
+
+/* ── Categories ────────────────────────────────── */
+
+.mp-categories {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.mp-cat-pill {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: none;
+    color: #888;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mp-cat-pill:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+    color: #ccc;
+}
+
+.mp-cat-pill[data-active="true"] {
+    border-color: rgba(0, 212, 170, 0.4);
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.06);
+}
+
+/* ── Count ─────────────────────────────────────── */
+
+.mp-count {
+    font-size: 11px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Agent Cards ───────────────────────────────── */
+
+.mp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.mp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+}
+
+.mp-card:hover {
+    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(0, 212, 170, 0.15);
+}
+
+.mp-card__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.mp-card__icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.mp-card__header {
+    flex: 1;
+    min-width: 0;
+}
+
+.mp-card__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mp-card__creator {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+}
+
+.mp-card__desc {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mp-card__footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.mp-card__rating {
+    font-size: 10px;
+    color: #f59e0b;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.mp-card__arrow {
+    margin-left: auto;
+    color: #444;
+    flex-shrink: 0;
+}
+
+/* ── Verified Badge ────────────────────────────── */
+
+.mp-verified {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0, 212, 170, 0.15);
+    color: #00d4aa;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ── Pricing Badge ─────────────────────────────── */
+
+.mp-pricing-badge {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mp-pricing-badge[data-pricing="free"] {
+    background: rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+}
+
+.mp-pricing-badge[data-pricing="pay-per-use"] {
+    background: rgba(245, 166, 35, 0.1);
+    color: #f5a623;
+}
+
+.mp-pricing-badge[data-pricing="subscription"] {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+/* ── Empty State ───────────────────────────────── */
+
+.mp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.mp-empty__icon {
+    font-size: 36px;
+}
+
+.mp-empty p {
+    font-size: 12px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+    margin: 0;
+}
+
+/* ── Detail View ───────────────────────────────── */
+
+.mp-back {
+    background: none;
+    border: none;
+    color: #00d4aa;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.15s;
+}
+
+.mp-back:hover {
+    opacity: 0.7;
+}
+
+.mp-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.mp-detail__header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.mp-detail__icon {
+    font-size: 40px;
+    flex-shrink: 0;
+}
+
+.mp-detail__name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mp-detail__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.mp-detail__stats {
+    display: flex;
+    gap: 24px;
+}
+
+.mp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.mp-stat__value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f0f0f0;
+}
+
+.mp-stat__label {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mp-detail__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mp-detail__section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #aaa;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mp-detail__desc {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin: 0;
+    font-family: inherit;
+}
+
+.mp-detail__hint {
+    font-size: 11px;
+    color: #666;
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Capabilities ──────────────────────────────── */
+
+.mp-caps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mp-cap {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.12);
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── MCP Config ────────────────────────────────── */
+
+.mp-config {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mp-config__code {
+    padding: 16px;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.3);
+    color: #ccc;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    line-height: 1.6;
+    overflow-x: auto;
+}
+
+.mp-config__copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    background: rgba(0, 0, 0, 0.5);
+    color: #00d4aa;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mp-config__copy:hover {
+    background: rgba(0, 212, 170, 0.1);
+}
+
+/* ── Tags ──────────────────────────────────────── */
+
+.mp-detail__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mp-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Responsive ────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .mp-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mp-detail__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .mp-detail__stats {
+        gap: 16px;
+    }
+}
+
+/* ── Header with Register Button ───────────────── */
+
+.mp-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.mp-register-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    background: linear-gradient(135deg, #00d4aa, #00b894);
+    color: #000;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.mp-register-btn:hover {
+    opacity: 0.85;
+}
+
+/* ── Review Form ───────────────────────────────── */
+
+.mp-review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mp-review-stars {
+    display: flex;
+    gap: 4px;
+}
+
+.mp-star {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #333;
+    cursor: pointer;
+    padding: 0 2px;
+    transition: color 0.1s;
+}
+
+.mp-star.active {
+    color: #f59e0b;
+}
+
+.mp-star:hover {
+    color: #f5a623;
+}
+
+.mp-review-input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.3);
+    color: #f0f0f0;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.mp-review-input:focus {
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+.mp-review-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.mp-review-hint {
+    font-size: 10px;
+    color: #444;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.mp-review-submit {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.08);
+    color: #00d4aa;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mp-review-submit:hover:not(:disabled) {
+    background: rgba(0, 212, 170, 0.15);
+}
+
+.mp-review-submit:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* ── Register Modal ────────────────────────────── */
+
+.mp-register-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.mp-register-modal {
+    background: #0c0c0c;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.mp-register-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mp-register-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.mp-register-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.mp-register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+}
+
+.mp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mp-field span {
+    font-size: 10px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mp-field input,
+.mp-field textarea,
+.mp-field select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.3);
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.mp-field input:focus,
+.mp-field textarea:focus,
+.mp-field select:focus {
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+.mp-field select {
+    cursor: pointer;
+}
+
+.mp-field-row {
+    display: flex;
+    gap: 12px;
+}
+
+.mp-field-row .mp-field {
+    flex: 1;
+}
+
+.mp-register-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.mp-register-cancel {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: none;
+    color: #888;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+}
+
+.mp-register-submit {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    background: linear-gradient(135deg, #00d4aa, #00b894);
+    color: #000;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.mp-register-submit:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.mp-register-submit:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+@media (max-width: 600px) {
+    .mp-header {
+        flex-direction: column;
+    }
+
+    .mp-field-row {
+        flex-direction: column;
+        gap: 14px;
+    }
+}

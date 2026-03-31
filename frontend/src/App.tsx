@@ -88,6 +88,9 @@ const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile
 const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTGallery })))
 const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTCollectionView })))
 
+// ── AI Agent Marketplace (lazy — v3.0) ──
+const Marketplace = lazy(() => import("./pages/Marketplace"))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -174,6 +177,9 @@ function App() {
 
           {/* Extensions Hub (v2.6) */}
           <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
+
+          {/* AI Agent Marketplace (v3.0) */}
+          <Route path="/marketplace" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
