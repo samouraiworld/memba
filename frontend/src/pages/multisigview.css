@@ -1,0 +1,256 @@
+/* ── MultisigView Page ────────────────────────────────────────── */
+
+.k-msview {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.k-msview__back {
+  color: var(--color-k-accent);
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 16px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.k-msview__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.k-msview__title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.k-msview__title-edit {
+  font-size: 14px;
+  opacity: 0.4;
+}
+
+/* ── Rename Form ─────────────────────────────────────────────── */
+
+.k-msview__rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.k-msview__rename-input {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #f0f0f0;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 6px 12px;
+  font-family: inherit;
+  letter-spacing: -0.02em;
+  outline: none;
+}
+.k-msview__rename-save {
+  background: var(--color-k-accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.k-msview__rename-cancel {
+  background: none;
+  color: #666;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* ── Share Link Button ───────────────────────────────────────── */
+
+.k-msview__share-btn {
+  background: none;
+  border: 1px dashed #333;
+  border-radius: 6px;
+  color: #666;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 6px;
+  transition: all 0.15s;
+}
+.k-msview__share-btn--copied {
+  color: var(--color-k-accent);
+}
+
+.k-msview__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Action Required Banner ──────────────────────────────────── */
+
+.k-msview__action-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.06), rgba(245, 166, 35, 0.02));
+  border: 1px solid rgba(245, 166, 35, 0.15);
+}
+.k-msview__action-text {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f5a623;
+}
+.k-msview__action-btn {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+/* ── Info Grid ───────────────────────────────────────────────── */
+
+.k-msview__info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* ── Section Title ───────────────────────────────────────────── */
+
+.k-msview__section-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* ── Table ───────────────────────────────────────────────────── */
+
+.k-msview__table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.k-msview__table-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #222;
+  display: grid;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.k-msview__table-header--2col {
+  grid-template-columns: 1fr auto;
+}
+.k-msview__table-header--3col {
+  grid-template-columns: 1fr 1fr auto;
+}
+.k-msview__table-row {
+  padding: 12px 20px;
+  border-bottom: 1px solid #111;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.k-msview__member-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 212, 170, 0.08);
+  color: var(--color-k-accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Tab Bar ─────────────────────────────────────────────────── */
+
+.k-msview__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #222;
+  margin-bottom: 16px;
+}
+.k-msview__tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.k-msview__tab--active {
+  border-bottom-color: var(--color-k-accent);
+  color: var(--color-k-accent);
+}
+
+/* ── Activity Rows (reuses dashboard pattern) ────────────────── */
+
+.k-msview__tx-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  padding: 14px 20px;
+  border-bottom: 1px solid #1a1a1a;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-msview__tx-row:hover {
+  background: #0c0c0c;
+}
+.k-msview__tx-type {
+  color: #f0f0f0;
+  text-transform: capitalize;
+}
+.k-msview__tx-date {
+  color: #555;
+  font-size: 11px;
+}
+
+/* ── Empty / Auth States ─────────────────────────────────────── */
+
+.k-msview__empty {
+  text-align: center;
+  padding: 32px;
+}
+.k-msview__empty-text {
+  color: #555;
+  font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-msview__auth-gate {
+  background: #0c0c0c;
+  padding: 48px;
+  text-align: center;
+}
+.k-msview__auth-text {
+  color: #666;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
