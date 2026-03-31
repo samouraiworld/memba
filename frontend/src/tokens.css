@@ -1,0 +1,48 @@
+/**
+ * tokens.css — Design system foundation for Memba.
+ *
+ * CSS custom properties for colors, typography, spacing, and transitions.
+ * Import before index.css in main.tsx.
+ *
+ * Usage: var(--color-primary), var(--font-mono), var(--radius-md), etc.
+ * Existing CSS files can gradually adopt these tokens.
+ */
+
+:root {
+    /* ── Colors ─────────────────────────────────────────── */
+    --color-primary: #00d4aa;
+    --color-primary-bg: rgba(0, 212, 170, 0.08);
+    --color-primary-border: rgba(0, 212, 170, 0.15);
+    --color-primary-hover: rgba(0, 212, 170, 0.12);
+    --color-danger: #f44336;
+    --color-danger-bg: rgba(244, 67, 54, 0.06);
+    --color-warning: #f5a623;
+    --color-warning-bg: rgba(245, 166, 35, 0.06);
+    --color-success: #4caf50;
+    --color-info: #2196f3;
+    --color-text: #f0f0f0;
+    --color-text-secondary: #888;
+    --color-text-muted: #555;
+    --color-text-dim: #444;
+    --color-bg: #0a0a0a;
+    --color-bg-card: #0c0c0c;
+    --color-bg-hover: rgba(255, 255, 255, 0.02);
+    --color-border: #1a1a1a;
+    --color-border-light: #222;
+
+    /* ── Typography ─────────────────────────────────────── */
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+
+    /* ── Spacing / Radius ───────────────────────────────── */
+    --radius-xs: 3px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* ── Transitions ────────────────────────────────────── */
+    --transition-fast: 0.15s ease;
+    --transition-medium: 0.2s ease;
+    --transition-slow: 0.3s ease;
+}

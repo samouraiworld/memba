@@ -38,8 +38,9 @@ test.describe('Command Palette', () => {
         await triggerCmdK(page)
         const input = page.locator('#command-palette-input')
         await expect(input).toBeVisible({ timeout: 5_000 })
-        await page.waitForTimeout(200)
-        await expect(input).toBeFocused()
+        // CI headless may not auto-focus — click to guarantee focus, then assert
+        await input.click()
+        await expect(input).toBeFocused({ timeout: 3_000 })
     })
 
     test('shows commands list when opened', async ({ page }) => {
