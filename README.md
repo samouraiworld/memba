@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-1151%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-1249%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -136,13 +136,13 @@
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test12 ↔ test11 ↔ staging ↔ portal-loop ↔ gnoland1) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
-- ⚡ Code splitting (450KB main, 129KB gzip, lazy-loaded DAO/token/directory/channel chunks)
+- ⚡ Code splitting (478KB main, 139KB gzip, lazy-loaded DAO/token/directory/channel chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,151+ unit tests** (Vitest, 49 files) — ABCI parsers, code generators, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, integration tests
+- 🧪 **1,249+ unit tests** (Vitest, 52 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, integration tests
 - 🧪 **E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove
 
 ## Architecture

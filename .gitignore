@@ -7,6 +7,9 @@ dist/
 build/
 backend/memba
 
+# Generated contract stubs (created by scripts/extract-contracts.ts)
+contracts/*_stub/
+
 # Environment
 .env
 .env.local

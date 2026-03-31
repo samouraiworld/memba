@@ -12,6 +12,7 @@ import { useEffect, useRef, useCallback, useState } from "react"
 import { Player } from "@remotion/player"
 import type { LayoutContext } from "../types/layout"
 import { NetworkStatsLive } from "../components/landing/NetworkStatsLive"
+import { fetchTractionMetrics, type TractionMetrics } from "../lib/traction"
 import "./landing.css"
 
 // ── Composition imports (tree-shaken, code-split via lazy page) ────────
@@ -88,8 +89,8 @@ const TECH_BADGES = [
     { label: "ConnectRPC", accent: false },
     { label: "gno.land", accent: true },
     { label: "MIT License", accent: false },
-    { label: "740+ Unit Tests", accent: true },
-    { label: "139 E2E Tests", accent: true },
+    { label: "1249+ Unit Tests", accent: true },
+    { label: "73 Backend Tests", accent: true },
 ]
 
 // ── Hook: IntersectionObserver for scroll-triggered fade-in ────────────
@@ -163,6 +164,11 @@ export function Landing() {
     const networkKey = useNetworkKey()
     const { adena } = useOutletContext<LayoutContext>()
     const setRef = useFadeOnScroll()
+    const [traction, setTraction] = useState<TractionMetrics | null>(null)
+
+    useEffect(() => {
+        fetchTractionMetrics().then(setTraction).catch(() => {})
+    }, [])
 
     // N1: Redirect connected users to Dashboard
     if (adena.connected) {
@@ -246,6 +252,34 @@ export function Landing() {
                 </div>
                 <NetworkStatsLive />
             </section>
+
+            {/* ── Ecosystem Metrics ─────────────────────────────── */}
+            {traction && (traction.contributorCount > 0 || traction.repoCount > 0) && (
+                <section ref={setRef(2)} className="landing-fade-section">
+                    <div className="landing-section-header">
+                        <h2 className="landing-section-header__title">Ecosystem Traction</h2>
+                        <p className="landing-section-header__subtitle">Live metrics from the Gno ecosystem</p>
+                    </div>
+                    <div className="landing-traction">
+                        <div className="landing-traction__card">
+                            <span className="landing-traction__value">{traction.daoCount}</span>
+                            <span className="landing-traction__label">Deployed Realms</span>
+                        </div>
+                        {traction.contributorCount > 0 && (
+                            <div className="landing-traction__card">
+                                <span className="landing-traction__value">{traction.contributorCount}</span>
+                                <span className="landing-traction__label">Contributors</span>
+                            </div>
+                        )}
+                        {traction.repoCount > 0 && (
+                            <div className="landing-traction__card">
+                                <span className="landing-traction__value">{traction.repoCount}</span>
+                                <span className="landing-traction__label">Tracked Repos</span>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* ── Tech + Open Source ────────────────────────────── */}
             <section ref={setRef(2)} className="landing-fade-section landing-tech">
