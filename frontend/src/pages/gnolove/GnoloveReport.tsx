@@ -61,7 +61,7 @@ export default function GnoloveReport() {
 
     const { start, end } = useMemo(() => computeRange(period, offset), [period, offset])
 
-    const { data: report, isLoading } = useGnoloveReport(start, end)
+    const { data: report, isLoading, isError: reportError, refetch } = useGnoloveReport(start, end)
 
     const prs: TPullRequest[] = useMemo(() => {
         if (!report) return []
@@ -141,6 +141,14 @@ export default function GnoloveReport() {
                     </button>
                 </div>
             </div>
+
+            {/* ── Error Banner ────────────────────────────────── */}
+            {reportError && !isLoading && (
+                <div className="gl-error-banner">
+                    <span>⚠️ Failed to load report data — the Gnolove backend may be unavailable.</span>
+                    <button className="gl-error-retry" onClick={() => refetch()}>Retry</button>
+                </div>
+            )}
 
             {/* Period Tabs */}
             <div className="gl-tabs">

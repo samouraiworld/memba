@@ -35,7 +35,7 @@ const GRID_STYLE = { stroke: "rgba(255,255,255,0.04)" }
 const AXIS_TICK = { fill: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }
 
 export default function GnoloveAnalytics() {
-    const { data: contributors, isLoading } = useGnoloveContributors(TimeFilter.ALL_TIME)
+    const { data: contributors, isLoading, isError: contributorsError, refetch } = useGnoloveContributors(TimeFilter.ALL_TIME)
     const { data: proposals } = useGnoloveProposals()
     const { data: govdaoMembers } = useGnoloveGovdaoMembers()
     const { data: packages } = useGnolovePackages()
@@ -129,6 +129,14 @@ export default function GnoloveAnalytics() {
             <div className="gl-header">
                 <h1 className="gl-title">📈 Ecosystem Insights</h1>
             </div>
+
+            {/* ── Error Banner ────────────────────────────────── */}
+            {contributorsError && !isLoading && (
+                <div className="gl-error-banner">
+                    <span>⚠️ Failed to load analytics data — the Gnolove backend may be unavailable.</span>
+                    <button className="gl-error-retry" onClick={() => refetch()}>Retry</button>
+                </div>
+            )}
 
             {/* ── Stat Cards with Sparklines ──────────────────── */}
             {stats && (
