@@ -1,19 +1,17 @@
 import { useState } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
 export function TreasuryProposal() {
     const navigate = useNetworkNav()
-    const { slug } = useParams<{ slug: string }>()
+    const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [recipient, setRecipient] = useState("")
     const [amount, setAmount] = useState("")

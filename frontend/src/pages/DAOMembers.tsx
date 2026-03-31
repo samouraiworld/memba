@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useOutletContext, Link } from "react-router-dom"
+import { useOutletContext, Link } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -7,17 +7,15 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
 import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 import "./daomembers.css"
 
 export function DAOMembers() {
     const navigate = useNetworkNav()
-    const { slug } = useParams<{ slug: string }>()
+    const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])

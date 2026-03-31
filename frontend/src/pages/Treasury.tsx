@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember } from "../lib/dao"
 import { getTokenBalance, listFactoryTokens, type TokenInfo } from "../lib/grc20"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
 interface TreasuryAsset {
@@ -19,11 +19,9 @@ interface TreasuryAsset {
 
 export function Treasury() {
     const navigate = useNetworkNav()
-    const { slug } = useParams<{ slug: string }>()
+    const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])

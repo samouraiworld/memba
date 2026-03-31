@@ -26,23 +26,73 @@ export interface SavedDAO {
 
 // ── Slug encoding ─────────────────────────────────────────
 
-/** Encode a realm path to a URL-safe slug: "/" → "~" */
+/**
+ * Encode a realm path for use in URLs.
+ * Phase 2: returns the path as-is (real forward slashes) for clean URLs.
+ * Old ~ format is still decoded for backwards compatibility.
+ */
 export function encodeSlug(realmPath: string): string {
-    return realmPath.replace(/\//g, "~")
+    return realmPath
 }
 
 /**
- * Decode a URL slug back to a realm path: "~" → "/"
+ * Decode a URL slug back to a realm path.
+ * Supports both legacy "~" format and new "/" format.
  * Validates the result to prevent path traversal and injection.
  * Returns empty string if invalid.
  */
 export function decodeSlug(slug: string): string {
-    const decoded = slug.replace(/~/g, "/")
+    // Support legacy ~ encoding
+    const decoded = slug.includes("~") ? slug.replace(/~/g, "/") : slug
     // Block traversal, control chars, and non-gno.land paths
     if (decoded.includes("..") || !VALID_REALM_PATH.test(decoded)) {
         return ""
     }
     return decoded
+}
+
+/** Known DAO sub-route keywords — used to parse splat paths. */
+const DAO_SUB_ROUTES = ["proposal", "members", "propose", "treasury", "channels", "plugin", "create"]
+
+/**
+ * Parse a DAO splat path to extract the realm path and sub-route.
+ *
+ * Examples:
+ *   "gno.land/r/gov/dao" → { realmPath: "gno.land/r/gov/dao", subRoute: "" }
+ *   "gno.land/r/gov/dao/proposal/5" → { realmPath: "gno.land/r/gov/dao", subRoute: "proposal/5" }
+ *   "gno.land/r/gov/dao/members" → { realmPath: "gno.land/r/gov/dao", subRoute: "members" }
+ *   "gno.land/r/gov/dao/treasury/propose" → { realmPath: "gno.land/r/gov/dao", subRoute: "treasury/propose" }
+ *   "gno.land~r~gov~dao" → { realmPath: "gno.land/r/gov/dao", subRoute: "" } (legacy)
+ */
+export function parseDaoSplat(splat: string): { realmPath: string; subRoute: string } {
+    if (!splat) return { realmPath: "", subRoute: "" }
+
+    // Handle legacy ~ encoded slugs
+    if (splat.includes("~")) {
+        const realmPath = decodeSlug(splat.split("/")[0])
+        const rest = splat.includes("/") ? splat.slice(splat.indexOf("/") + 1) : ""
+        return { realmPath, subRoute: rest }
+    }
+
+    // Split by / and find where the sub-route starts
+    const segments = splat.split("/")
+    for (let i = 0; i < segments.length; i++) {
+        if (DAO_SUB_ROUTES.includes(segments[i])) {
+            const realmPath = segments.slice(0, i).join("/")
+            const subRoute = segments.slice(i).join("/")
+            if (VALID_REALM_PATH.test(realmPath)) {
+                return { realmPath, subRoute }
+            }
+        }
+    }
+
+    // No sub-route found — entire splat is the realm path
+    const full = segments.join("/")
+    if (VALID_REALM_PATH.test(full)) {
+        return { realmPath: full, subRoute: "" }
+    }
+
+    return { realmPath: "", subRoute: "" }
 }
 
 /**

@@ -12,13 +12,13 @@
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { getBoardInfo, detectChannelRealm } from "../plugins/board/parser"
 import type { BoardInfo } from "../plugins/board/parser"
 import BoardView from "../plugins/board/BoardView"
 import { GNO_RPC_URL } from "../lib/config"
 import { getDAOMembers } from "../lib/dao"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import { channelIcon, defaultChannel } from "./channelHelpers"
 import { hasChannelUnread, markChannelVisited, updateChannelThreadCount } from "../plugins/board/boardHelpers"
 import type { LayoutContext } from "../types/layout"
@@ -26,11 +26,8 @@ import "./channels.css"
 
 export function ChannelsPage() {
     const navigate = useNetworkNav()
-    const { slug, channel: channelParam } = useParams<{ slug: string; channel?: string }>()
+    const { realmPath, encodedSlug, channelName: channelParam } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
-
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = slug || encodeSlug(realmPath)
 
     // State
     const [boardPath, setBoardPath] = useState<string | null | undefined>(undefined)

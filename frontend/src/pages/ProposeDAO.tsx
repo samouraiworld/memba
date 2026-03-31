@@ -1,21 +1,19 @@
 import { useState, useEffect } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil, UsersThree, Vault, GearSix, Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposeDAO() {
     const navigate = useNetworkNav()
-    const { slug } = useParams<{ slug: string }>()
+    const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")

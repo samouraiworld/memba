@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -15,7 +15,7 @@ import {
     type DAOMember,
     type DAOProposal,
 } from "../lib/dao"
-import { decodeSlug, encodeSlug } from "../lib/daoSlug"
+import { useDaoRoute } from "../hooks/useDaoRoute"
 import { resolveOnChainUsername } from "../lib/profile"
 import { useJitsiContext } from "../contexts/JitsiContext"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
@@ -28,12 +28,9 @@ import "./daohome.css"
 
 export function DAOHome() {
     const navigate = useNetworkNav()
-    const { slug } = useParams<{ slug: string }>()
+    const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const { session, joinRoom } = useJitsiContext()
-
-    const realmPath = slug ? decodeSlug(slug) : ""
-    const encodedSlug = realmPath ? encodeSlug(realmPath) : (slug || "")
 
     const [config, setConfig] = useState<DAOConfig | null>(null)
     const [members, setMembers] = useState<DAOMember[]>([])
