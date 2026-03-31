@@ -86,6 +86,18 @@ export interface EscrowState {
     autoResolveBlocks?: number
 }
 
+/**
+ * Minimum auto-resolve blocks (~3.5 days at 3s/block).
+ * Prevents griefing via instant auto-resolution.
+ */
+export const MIN_AUTO_RESOLVE_BLOCKS = 100_800
+
+/** Validate autoResolveBlocks is above minimum or disabled (0/undefined). */
+export function isValidAutoResolve(blocks: number | undefined): boolean {
+    if (blocks === undefined || blocks === 0) return true
+    return blocks >= MIN_AUTO_RESOLVE_BLOCKS
+}
+
 // ── Type Guards ─────────────────────────────────────────────
 
 /** Validate a PaymentConfig has required fields. */
