@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
@@ -7,7 +8,7 @@ import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function TreasuryProposal() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
 

@@ -8,8 +8,8 @@
  * @module components/ui/WhatsNewToast
  */
 
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
 import { APP_VERSION } from "../../lib/config"
 
 const STORAGE_KEY = "memba_whats_new_seen"
@@ -48,7 +48,7 @@ function initWhatsNewKey(): void {
 initWhatsNewKey()
 
 export function WhatsNewToast() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [visible, setVisible] = useState(false)
     const [exiting, setExiting] = useState(false)
 

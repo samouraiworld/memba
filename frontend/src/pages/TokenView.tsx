@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ArrowsClockwise } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
@@ -16,7 +17,7 @@ type ActionTab = "transfer" | "mint" | "burn" | "faucet"
 
 export function TokenView() {
     const { symbol } = useParams<{ symbol: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const [token, setToken] = useState<TokenInfo | null>(null)

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -29,7 +30,7 @@ import "./proposalview.css"
 
 export function ProposalView() {
     const { slug, id } = useParams<{ slug: string; id: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""

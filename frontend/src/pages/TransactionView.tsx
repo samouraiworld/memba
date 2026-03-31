@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { parseMsgs, parseFee } from "../lib/parseMsgs"
@@ -28,7 +29,7 @@ function buildSignDoc(tx: Transaction): Record<string, unknown> {
 
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { adena, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 

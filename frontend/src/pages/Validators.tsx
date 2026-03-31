@@ -15,8 +15,9 @@
  * Hacker Mode: matrix CLI aesthetic, monospace, neon green.
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
@@ -69,7 +70,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function Validators() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)

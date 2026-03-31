@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
@@ -11,7 +12,7 @@ type TxType = "send" | "call" | "grc20-transfer" | "grc20-mint" | "grc20-burn" |
 
 export function ProposeTransaction() {
     const { address } = useParams<{ address: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const [txType, setTxType] = useState<TxType>("send")
 

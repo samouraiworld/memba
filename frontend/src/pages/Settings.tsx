@@ -13,8 +13,8 @@
  * @module pages/Settings
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, APP_VERSION } from "../lib/config"
 import { Globe, FolderOpen, GasPump, User, Wrench, Gear } from "@phosphor-icons/react"
 
@@ -93,7 +93,7 @@ function Section({ title, icon, defaultOpen = false, children }: {
 }
 
 export function Settings() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [settings, setSettings] = useState(loadSettings)
     const [network, setNetwork] = useState(GNO_CHAIN_ID)
     const [saved, setSaved] = useState(false)

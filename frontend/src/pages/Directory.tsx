@@ -8,8 +8,8 @@
  * Metadata: lib/daoMetadata.ts (DAO Render parsing)
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
-import { useNavigate } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
 import { encodeSlug } from "../lib/daoSlug"
@@ -42,7 +42,7 @@ import "./directory.css"
 type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
 
 export function Directory() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [tab, setTab] = useState<DirectoryTab>("daos")
     const [globalSearch, setGlobalSearch] = useState("")
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
@@ -144,7 +144,7 @@ export function Directory() {
 
 // ── DAOs Tab ─────────────────────────────────────────────────
 
-function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
     const [search, setSearch] = useState("")
     // I2 audit fix: useDeferredValue for search — smooth typing with large datasets
     const deferredSearch = useDeferredValue(search)
@@ -222,7 +222,7 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 
 // ── Tokens Tab ───────────────────────────────────────────────
 
-function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function TokensTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
     const [tokens, setTokens] = useState<DirectoryToken[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
@@ -320,7 +320,7 @@ function TokensTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 
 // ── Users Tab ────────────────────────────────────────────────
 
-function UsersTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function UsersTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
     const [users, setUsers] = useState<DirectoryUser[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
@@ -706,7 +706,7 @@ function RealmsTab() {
 
 const GOVDAO_PATH = "gno.land/r/gov/dao"
 
-function GovDAOTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function GovDAOTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
     const [proposals, setProposals] = useState<DAOProposal[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -788,7 +788,7 @@ function GovDAOTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
 
 // ── Leaderboard Tab ─────────────────────────────────────────
 
-function LeaderboardTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+function LeaderboardTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
     const [contributors, setContributors] = useState<TEnhancedUserWithStats[]>([])
     const [loading, setLoading] = useState(true)
 

@@ -13,8 +13,9 @@
  * Graceful: if the address is not found in the validator set, shows a 404 card.
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useParams, Link, useNavigate } from "react-router-dom"
+import { useParams, Link } from "react-router-dom"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrl } from "../lib/config"
 import {
@@ -90,7 +91,7 @@ const CONSENSUS_POLL_MS = 2_000
 
 export default function ValidatorDetail() {
     const { address } = useParams<{ address: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const rpcUrl = getTelemetryRpcUrl()
     const isVisible = useRef(true)
     const abortRef = useRef<AbortController | null>(null)

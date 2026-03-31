@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
@@ -18,7 +19,7 @@ import type { LayoutContext } from "../types/layout"
 type AdminMode = "self" | "multisig"
 
 export function CreateToken() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     // Form fields

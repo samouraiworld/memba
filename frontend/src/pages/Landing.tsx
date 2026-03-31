@@ -6,7 +6,8 @@
  *
  * @see implementation_plan.md for full architecture rationale
  */
-import { useNavigate, useOutletContext, Navigate } from "react-router-dom"
+import { useOutletContext, Navigate } from "react-router-dom"
+import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
 import { useEffect, useRef, useCallback, useState } from "react"
 import { Player } from "@remotion/player"
 import type { LayoutContext } from "../types/layout"
@@ -158,13 +159,14 @@ function FeaturePlayer({ Comp, durationInFrames }: { Comp: React.FC; durationInF
 // LANDING COMPONENT
 // ══════════════════════════════════════════════════════════════════════════
 export function Landing() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
+    const networkKey = useNetworkKey()
     const { adena } = useOutletContext<LayoutContext>()
     const setRef = useFadeOnScroll()
 
     // N1: Redirect connected users to Dashboard
     if (adena.connected) {
-        return <Navigate to="/dashboard" replace />
+        return <Navigate to={`/${networkKey}/dashboard`} replace />
     }
 
     const handleCTA = () => {

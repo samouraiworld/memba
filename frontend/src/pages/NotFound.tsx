@@ -1,10 +1,10 @@
 /**
  * NotFound — 404 page for unmatched routes.
  */
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 
 export function NotFound() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     return (
         <div className="animate-fade-in" style={{

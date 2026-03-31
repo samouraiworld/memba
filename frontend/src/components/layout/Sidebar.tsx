@@ -5,6 +5,7 @@ import {
     LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -24,14 +25,16 @@ interface SidebarLinkProps {
 
 function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, connected, collapsed, disabled, disabledTooltip }: SidebarLinkProps) {
     const location = useLocation()
+    const networkKey = useNetworkKey()
+    const networkTo = `/${networkKey}${to}`
 
     // Hide auth-only links when not connected
     if (auth && !connected) return null
 
-    // Active state: exact match for "/" and "/dashboard", prefix match for others
+    // Active state: exact match for home/dashboard, prefix match for others
     const isActive = to === "/" || to === "/dashboard"
-        ? location.pathname === to
-        : location.pathname.startsWith(to)
+        ? location.pathname === networkTo
+        : location.pathname.startsWith(networkTo)
 
     if (disabled) {
         return (
@@ -48,7 +51,7 @@ function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, c
 
     return (
         <Link
-            to={to}
+            to={networkTo}
             className={`k-sidebar-link${isActive ? " active" : ""}`}
             aria-current={isActive ? "page" : undefined}
             title={collapsed ? label : undefined}
@@ -80,6 +83,7 @@ interface SidebarProps {
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
     const { orgsEnabled, activeOrgName, isOrgMode } = useOrg()
+    const nk = useNetworkKey()
 
     return (
         <aside
@@ -90,7 +94,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
         >
             {/* ── Header: Logo ──────────────────────────────────── */}
             <div className="k-sidebar-header">
-                <Link to={connected ? "/dashboard" : "/"} aria-label="Memba home">
+                <Link to={connected ? `/${nk}/dashboard` : `/${nk}/`} aria-label="Memba home">
                     <img src="/memba-icon.png" alt="Memba" />
                     <span className="k-sidebar-logo-text">Memba</span>
                 </Link>
@@ -127,7 +131,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 {/* Org indicator — only when in org mode */}
                 {connected && orgsEnabled && isOrgMode && (
                     <div className="k-sidebar-org-badge" title={`Team: ${activeOrgName}`}>
-                        <Link to="/organizations" className="k-sidebar-org-badge-link">
+                        <Link to={`/${nk}/organizations`} className="k-sidebar-org-badge-link">
                             <span className="k-sidebar-org-badge-dot" />
                             {!collapsed && <span className="k-sidebar-org-badge-name">{activeOrgName}</span>}
                         </Link>

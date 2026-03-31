@@ -2,7 +2,7 @@
  * DashboardIdentityCard — Authenticated user card with avatar, username, balance.
  * Extracted from Dashboard.tsx for maintainability.
  */
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { CopyableAddress } from "../ui/CopyableAddress"
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function DashboardIdentityCard({ address, username, avatarUrl, balance, onAvatarError }: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     return (
         <div className="k-card" style={{

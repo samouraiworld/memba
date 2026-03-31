@@ -2,7 +2,7 @@
  * QuickVoteWidget — Inline voting for unvoted DAO proposals.
  * Extracted from Dashboard.tsx for maintainability.
  */
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import type { UnvotedProposal } from "../../lib/dao/voteScanner"
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     if (proposals.length === 0) return null
 

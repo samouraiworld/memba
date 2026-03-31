@@ -7,6 +7,14 @@ import { JitsiProvider } from "../../contexts/JitsiContext"
 const mockNavigate = vi.fn()
 vi.mock("react-router-dom", () => ({
     useNavigate: () => mockNavigate,
+    useParams: () => ({ network: "test12" }),
+}))
+
+// Mock useNetworkNav (used by DAORooms since network-scoped URLs)
+vi.mock("../../hooks/useNetworkNav", () => ({
+    useNetworkNav: () => mockNavigate,
+    useNetworkKey: () => "test12",
+    useNetworkPath: () => (path: string) => `/test12/${path}`,
 }))
 
 /** Helper: wraps DAORooms in JitsiProvider (required since v2.11). */

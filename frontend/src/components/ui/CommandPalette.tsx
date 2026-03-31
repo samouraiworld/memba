@@ -6,8 +6,8 @@
  *
  * Usage: Add <CommandPalette /> to Layout component.
  */
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
 import "./command-palette.css"
 
 // ── Command definitions ───────────────────────────────────────
@@ -29,7 +29,7 @@ export function CommandPalette() {
     const [query, setQuery] = useState("")
     const [selectedIndex, setSelectedIndex] = useState(0)
     const inputRef = useRef<HTMLInputElement>(null)
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     const filtered = query.trim()
         ? COMMANDS.filter(c => fuzzyMatch(query, c))

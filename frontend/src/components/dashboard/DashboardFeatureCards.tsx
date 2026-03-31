@@ -2,7 +2,7 @@
  * DashboardFeatureCards — Grid of navigation cards (Multisig, DAO, Tokens).
  * Extracted from Dashboard.tsx for maintainability.
  */
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 
 interface FeatureCardData {
     icon: string
@@ -23,7 +23,7 @@ interface Props {
 }
 
 export function DashboardFeatureCards({ joinedMultisigCount, firstMultisigAddress, savedDAOsCount }: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     const cards: FeatureCardData[] = [
         {

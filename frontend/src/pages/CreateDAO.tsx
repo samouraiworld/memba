@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
@@ -64,7 +65,7 @@ function clearDraft() {
 // ── Main Component (Orchestrator) ─────────────────────────
 
 export function CreateDAO() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { adena } = useOutletContext<LayoutContext>()
 
     // Wizard state — shared across steps

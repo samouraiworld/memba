@@ -10,8 +10,8 @@
  * - Smooth open/close animations
  */
 
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useRef, useEffect, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
 import { Bell } from "@phosphor-icons/react"
 import {
     groupNotifications,
@@ -32,7 +32,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
     const [open, setOpen] = useState(false)
     const panelRef = useRef<HTMLDivElement>(null)
     const bellRef = useRef<HTMLButtonElement>(null)
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     // Close on outside click
     useEffect(() => {

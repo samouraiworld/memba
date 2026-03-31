@@ -8,8 +8,8 @@
  *
  * v2.1: PINNED badge, async activity data, enriched card design.
  */
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useCallback, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { encodeSlug, type SavedDAO } from "../../lib/daoSlug"
 import { getDAOConfig, getDAOProposals } from "../../lib/dao"
 import { GNO_RPC_URL } from "../../lib/config"
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function DashboardDAOList({ savedDAOs }: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [expanded, setExpanded] = useState<Record<string, boolean>>({})
     const [activity, setActivity] = useState<Record<string, DAOActivity>>({})
 

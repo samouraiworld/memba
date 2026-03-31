@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 import {
     House, Buildings, Coins, FolderOpen,
     DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
@@ -28,6 +29,7 @@ const TAB_DEFS = [
 
 export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
     const location = useLocation()
+    const nk = useNetworkKey()
     const [sheetOpen, setSheetOpen] = useState(false)
     const plugins = getPlugins()
     const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
@@ -43,23 +45,26 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         }
     }, [])
 
-    const isTabActive = useCallback((to: string) => {
-        if (to === "/") return location.pathname === "/"
-        return location.pathname.startsWith(to)
-    }, [location.pathname])
+    const np = (path: string) => `/${nk}${path}`
 
-    const isMoreActive = location.pathname.startsWith("/profile")
-        || location.pathname.startsWith("/settings")
-        || location.pathname.startsWith("/create")
-        || location.pathname.startsWith("/feedback")
-        || location.pathname.startsWith("/plugins")
-        || location.pathname.startsWith("/alerts")
-        || location.pathname.startsWith("/dashboard")
-        || location.pathname.startsWith("/validators")
-        || location.pathname.startsWith("/gnolove")
-        || location.pathname.startsWith("/extensions")
-        || location.pathname.startsWith("/multisig")
-        || location.pathname.startsWith("/organizations")
+    const isTabActive = useCallback((to: string) => {
+        const full = `/${nk}${to}`
+        if (to === "/") return location.pathname === full
+        return location.pathname.startsWith(full)
+    }, [location.pathname, nk])
+
+    const isMoreActive = location.pathname.startsWith(np("/profile"))
+        || location.pathname.startsWith(np("/settings"))
+        || location.pathname.startsWith(np("/create"))
+        || location.pathname.startsWith(np("/feedback"))
+        || location.pathname.startsWith(np("/plugins"))
+        || location.pathname.startsWith(np("/alerts"))
+        || location.pathname.startsWith(np("/dashboard"))
+        || location.pathname.startsWith(np("/validators"))
+        || location.pathname.startsWith(np("/gnolove"))
+        || location.pathname.startsWith(np("/extensions"))
+        || location.pathname.startsWith(np("/multisig"))
+        || location.pathname.startsWith(np("/organizations"))
 
     return (
         <div className="k-mobile-only">
@@ -67,7 +72,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                 {TAB_DEFS.filter(t => !(connected && t.to === "/")).map(tab => (
                     <Link
                         key={tab.to}
-                        to={tab.to}
+                        to={np(tab.to)}
                         className={`k-mobile-tab${isTabActive(tab.to) ? " active" : ""}`}
                         aria-current={isTabActive(tab.to) ? "page" : undefined}
                     >
@@ -92,24 +97,24 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Navigate</div>
                         {connected && (
-                            <Link to="/dashboard" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <Link to={np("/dashboard")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                                 <span className="k-sidebar-icon"><ChartBar size={18} /></span>
                                 <span className="k-sidebar-label">Dashboard</span>
                             </Link>
                         )}
-                        <Link to="/validators" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                        <Link to={np("/validators")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><LinkSimpleHorizontal size={18} /></span>
                             <span className="k-sidebar-label">Validators</span>
                         </Link>
-                        <Link to="/gnolove" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                        <Link to={np("/gnolove")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><Heart size={18} /></span>
                             <span className="k-sidebar-label">Gnolove</span>
                         </Link>
-                        <Link to="/extensions" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                        <Link to={np("/extensions")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
                             <span className="k-sidebar-label">Extensions</span>
                         </Link>
-                        <Link to="/alerts" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                        <Link to={np("/alerts")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><Bell size={18} /></span>
                             <span className="k-sidebar-label">Alerts</span>
                         </Link>
@@ -119,24 +124,24 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Account</div>
                         {connected && address && (
-                            <Link to={`/profile/${address}`} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <Link to={np(`/profile/${address}`)} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                                 <span className="k-sidebar-icon"><User size={18} /></span>
                                 <span className="k-sidebar-label">Profile</span>
                             </Link>
                         )}
                         {connected && (
-                            <Link to="/settings" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <Link to={np("/settings")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                                 <span className="k-sidebar-icon"><Gear size={18} /></span>
                                 <span className="k-sidebar-label">Settings</span>
                             </Link>
                         )}
                         {connected && (
-                            <Link to="/multisig" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                            <Link to={np("/multisig")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                                 <span className="k-sidebar-icon"><Briefcase size={18} /></span>
                                 <span className="k-sidebar-label">Multisig</span>
                             </Link>
                         )}
-                        <Link to="/feedback" className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                        <Link to={np("/feedback")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                             <span className="k-sidebar-icon"><Megaphone size={18} /></span>
                             <span className="k-sidebar-label">Feedback</span>
                         </Link>
@@ -149,7 +154,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                             lastVisitedDAO ? (
                                 <Link
                                     key={p.id}
-                                    to={`/dao/${lastVisitedDAO}/plugin/${p.id}`}
+                                    to={np(`/dao/${lastVisitedDAO}/plugin/${p.id}`)}
                                     className="k-sidebar-link"
                                     onClick={() => setSheetOpen(false)}
                                 >

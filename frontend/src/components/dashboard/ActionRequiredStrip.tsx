@@ -2,7 +2,7 @@
  * ActionRequiredStrip — Top notification for unvoted proposals and unsigned TXs.
  * Extracted from Dashboard.tsx for maintainability.
  */
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 
 interface Props {
     unvotedCount: number
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function ActionRequiredStrip({ unvotedCount, unsignedCount, unvotedLoading }: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const hasAction = unvotedCount > 0 || unsignedCount > 0
 
     return (

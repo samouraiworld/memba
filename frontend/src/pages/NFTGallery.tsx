@@ -7,8 +7,9 @@
  * @module pages/NFTGallery
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
 import {
     getCollectionInfo,
@@ -28,7 +29,7 @@ const SEED_COLLECTIONS = [
 ]
 
 export function NFTGallery() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [collections, setCollections] = useState<NFTCollection[]>([])
     const [loading, setLoading] = useState(true)
     const [customPath, setCustomPath] = useState("")
@@ -130,7 +131,7 @@ export function NFTGallery() {
 
 export function NFTCollectionView() {
     const { realmPath: encodedPath } = useParams<{ realmPath: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const realmPath = encodedPath ? decodeURIComponent(encodedPath) : ""
 

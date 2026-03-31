@@ -2,8 +2,9 @@
  * Resolves a gno.land username to a wallet address and redirects
  * to /profile/:address. Handles the /u/:username route.
  */
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { GNO_RPC_URL, getUserRegistryPath } from "../lib/config"
 
@@ -45,7 +46,7 @@ async function resolveUsernameToAddress(username: string): Promise<string | null
 
 export function UserRedirect() {
     const { username } = useParams<{ username: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [error, setError] = useState(false)
 
     useEffect(() => {

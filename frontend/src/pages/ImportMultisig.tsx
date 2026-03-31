@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom"
+import { useOutletContext, useSearchParams } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { LinkSimple } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -9,7 +10,7 @@ import type { LayoutContext } from "../types/layout"
 type ImportMode = "address" | "pubkey"
 
 export function ImportMultisig() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const [mode, setMode] = useState<ImportMode>("address")
     const [address, setAddress] = useState("")

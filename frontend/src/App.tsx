@@ -1,9 +1,13 @@
 import { lazy, Suspense } from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom"
 import { useAdena } from "./hooks/useAdena"
+import { useNetworkKey } from "./hooks/useNetworkNav"
 import { Layout } from "./components/layout/Layout"
 import { ScrollToTop } from "./components/layout/ScrollToTop"
+import { NetworkSync } from "./components/layout/NetworkSync"
+import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
+import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 import { Dashboard } from "./pages/Dashboard"
 
 // ── Landing page (lazy — only for unauthenticated visitors) ──
@@ -99,22 +103,45 @@ function PageLoader() {
   return <ConnectingLoader message="Loading..." minHeight="30vh" />
 }
 
-/** Redirects /profile → /profile/{address} when connected, or / when not. */
+/** Redirects /:network/profile → /:network/profile/{address} when connected. */
 function ProfileRedirect() {
   const adena = useAdena()
+  const networkKey = useNetworkKey()
   if (adena.connected && adena.address) {
-    return <Navigate to={`/profile/${adena.address}`} replace />
+    return <Navigate to={`/${networkKey}/profile/${adena.address}`} replace />
   }
-  return <Navigate to="/" replace />
+  return <Navigate to={`/${networkKey}/`} replace />
 }
 
-/** Redirects / → /dashboard when connected (Home = Dashboard when logged in). */
+/** Redirects /:network/ → /:network/dashboard when connected, shows Landing when not. */
 function HomeRedirect() {
   const adena = useAdena()
+  const networkKey = useNetworkKey()
   if (adena.connected) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={`/${networkKey}/dashboard`} replace />
   }
   return <Suspense fallback={<PageLoader />}><Landing /></Suspense>
+}
+
+/** Redirects bare / to /:defaultNetwork/ */
+function RootRedirect() {
+  const stored = localStorage.getItem("memba_network")
+  const network = (stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK
+  return <Navigate to={`/${network}/`} replace />
+}
+
+/** Validates the /:network param. If invalid, treats as legacy URL and redirects. */
+function NetworkGate() {
+  const { network } = useParams<{ network: string }>()
+  if (!network || !NETWORKS[network]) {
+    return <LegacyRedirect />
+  }
+  return (
+    <>
+      <NetworkSync />
+      <Layout />
+    </>
+  )
 }
 
 function App() {
@@ -122,73 +149,77 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
-        <Route element={<Layout />}>
+        {/* Root → redirect to /:defaultNetwork/ */}
+        <Route path="/" element={<RootRedirect />} />
+
+        {/* ── Network-scoped routes ─────────────────────────── */}
+        <Route path="/:network" element={<NetworkGate />}>
           {/* Landing page (public) — redirects to /dashboard when connected */}
-          <Route path="/" element={<HomeRedirect />} />
+          <Route index element={<HomeRedirect />} />
 
           {/* Dashboard (authenticated hub) */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
 
           {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
-          <Route path="/multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
-          <Route path="/create" element={<CreateMultisig />} />
-          <Route path="/import" element={<ImportMultisig />} />
-          <Route path="/multisig/:address" element={<MultisigView />} />
-          <Route path="/multisig/:address/propose" element={<ProposeTransaction />} />
-          <Route path="/tx/:id" element={<TransactionView />} />
+          <Route path="multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
+          <Route path="create" element={<CreateMultisig />} />
+          <Route path="import" element={<ImportMultisig />} />
+          <Route path="multisig/:address" element={<MultisigView />} />
+          <Route path="multisig/:address/propose" element={<ProposeTransaction />} />
+          <Route path="tx/:id" element={<TransactionView />} />
 
           {/* Token routes (lazy chunk) */}
-          <Route path="/create-token" element={<Suspense fallback={<PageLoader />}><CreateToken /></Suspense>} />
-          <Route path="/tokens" element={<Suspense fallback={<PageLoader />}><TokenDashboard /></Suspense>} />
-          <Route path="/tokens/:symbol" element={<Suspense fallback={<PageLoader />}><TokenView /></Suspense>} />
+          <Route path="create-token" element={<Suspense fallback={<PageLoader />}><CreateToken /></Suspense>} />
+          <Route path="tokens" element={<Suspense fallback={<PageLoader />}><TokenDashboard /></Suspense>} />
+          <Route path="tokens/:symbol" element={<Suspense fallback={<PageLoader />}><TokenView /></Suspense>} />
 
           {/* DAO routes (lazy chunk) */}
-          <Route path="/dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
-          <Route path="/dao/create" element={<Suspense fallback={<PageLoader />}><CreateDAO /></Suspense>} />
-          <Route path="/dao/:slug" element={<Suspense fallback={<PageLoader />}><DAOHome /></Suspense>} />
-          <Route path="/dao/:slug/proposal/:id" element={<Suspense fallback={<PageLoader />}><ProposalView /></Suspense>} />
-          <Route path="/dao/:slug/members" element={<Suspense fallback={<PageLoader />}><DAOMembers /></Suspense>} />
-          <Route path="/dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
-          <Route path="/dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
-          <Route path="/dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
-          <Route path="/dao/:slug/channels" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
-          <Route path="/dao/:slug/channels/:channel" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
-          <Route path="/dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
+          <Route path="dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
+          <Route path="dao/create" element={<Suspense fallback={<PageLoader />}><CreateDAO /></Suspense>} />
+          <Route path="dao/:slug" element={<Suspense fallback={<PageLoader />}><DAOHome /></Suspense>} />
+          <Route path="dao/:slug/proposal/:id" element={<Suspense fallback={<PageLoader />}><ProposalView /></Suspense>} />
+          <Route path="dao/:slug/members" element={<Suspense fallback={<PageLoader />}><DAOMembers /></Suspense>} />
+          <Route path="dao/:slug/propose" element={<Suspense fallback={<PageLoader />}><ProposeDAO /></Suspense>} />
+          <Route path="dao/:slug/treasury" element={<Suspense fallback={<PageLoader />}><Treasury /></Suspense>} />
+          <Route path="dao/:slug/treasury/propose" element={<Suspense fallback={<PageLoader />}><TreasuryProposal /></Suspense>} />
+          <Route path="dao/:slug/channels" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
+          <Route path="dao/:slug/channels/:channel" element={<Suspense fallback={<PageLoader />}><ChannelsPage /></Suspense>} />
+          <Route path="dao/:slug/plugin/:pluginId" element={<Suspense fallback={<PageLoader />}><PluginPage /></Suspense>} />
 
           {/* Profile routes (lazy) */}
-          <Route path="/profile" element={<ProfileRedirect />} />
-          <Route path="/profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
+          <Route path="profile" element={<ProfileRedirect />} />
+          <Route path="profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
 
           {/* Settings */}
-          <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
 
           {/* Directory */}
-          <Route path="/directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
+          <Route path="directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
-          <Route path="/validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
+          <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
           {/* CRITICAL: /validators/hacker must come BEFORE /validators/:address */}
-          <Route path="/validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
-          <Route path="/validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
+          <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
+          <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
           {/* NFT Gallery (v3.0) */}
-          <Route path="/nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
-          <Route path="/nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
+          <Route path="nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
+          <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
 
           {/* Extensions Hub (v2.6) */}
-          <Route path="/extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
+          <Route path="extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
 
           {/* AI Agent Marketplace (v3.0) */}
-          <Route path="/marketplace" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
+          <Route path="marketplace" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
 
           {/* Alerts — Professional alerting (v2.18.0) */}
-          <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
+          <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
 
           {/* Organizations — Team management (v2.22.0) */}
-          <Route path="/organizations" element={<Suspense fallback={<PageLoader />}><OrganizationsPage /></Suspense>} />
+          <Route path="organizations" element={<Suspense fallback={<PageLoader />}><OrganizationsPage /></Suspense>} />
 
           {/* Gnolove — Contributor scoreboard & analytics (v2.19.0) */}
-          <Route path="/gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
+          <Route path="gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
             <Route index element={<GnoloveHome />} />
             <Route path="report" element={<GnoloveReport />} />
             <Route path="analytics" element={<GnoloveAnalytics />} />
@@ -198,18 +229,18 @@ function App() {
           </Route>
 
           {/* Feedback (v2.10) */}
-          <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
+          <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
 
           {/* Changelogs (v2.14) */}
-          <Route path="/changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
+          <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
-          <Route path="/github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />
+          <Route path="github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />
 
           {/* Username → profile resolver (lazy) */}
-          <Route path="/u/:username" element={<Suspense fallback={<PageLoader />}><UserRedirect /></Suspense>} />
+          <Route path="u/:username" element={<Suspense fallback={<PageLoader />}><UserRedirect /></Suspense>} />
 
-          {/* Catch-all 404 */}
+          {/* Catch-all 404 within network scope */}
           <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
         </Route>
       </Routes>
