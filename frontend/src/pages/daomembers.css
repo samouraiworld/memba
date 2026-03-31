@@ -1,0 +1,278 @@
+/* ── DAOMembers Page ──────────────────────────────────────────── */
+
+.k-members {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.k-members__back {
+  color: var(--color-k-accent);
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: left;
+}
+
+.k-members__title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.k-members__subtitle {
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Power Distribution Card ─────────────────────────────────── */
+
+.k-members__power-card {
+  padding: 20px;
+}
+.k-members__power-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f0f0;
+  margin-bottom: 14px;
+}
+.k-members__power-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.k-members__power-bar {
+  height: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ── Tier Summary Card ───────────────────────────────────────── */
+
+.k-members__tier-card {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #1a1a1a;
+}
+.k-members__tier-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.k-members__tier-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.k-members__tier-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+.k-members__tier-count {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f0f0f0;
+}
+.k-members__tier-power {
+  font-size: 10px;
+  color: #666;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Filters ─────────────────────────────────────────────────── */
+
+.k-members__filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.k-members__filter-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.k-members__filter-count {
+  margin-left: 4px;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+/* ── Member List ─────────────────────────────────────────────── */
+
+.k-members__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.k-members__list-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  padding: 6px 16px;
+  font-size: 9px;
+  color: #555;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Member Row ──────────────────────────────────────────────── */
+
+.k-members__row {
+  padding: 12px 16px;
+}
+.k-members__row-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+}
+.k-members__row-addr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.k-members__row-username {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  text-decoration: none;
+}
+.k-members__row-profile {
+  font-size: 12px;
+  color: #555;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.k-members__row-profile:hover {
+  color: var(--color-k-accent);
+}
+.k-members__row-you {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--color-k-accent);
+}
+.k-members__row-register {
+  font-size: 9px;
+  color: var(--color-k-accent);
+  font-family: 'JetBrains Mono', monospace;
+  text-decoration: none;
+  opacity: 0.7;
+}
+
+/* ── Badges (tier + role) ────────────────────────────────────── */
+
+.k-members__tier-badge {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.k-members__roles {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.k-members__role-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.k-members__role-remove {
+  background: none;
+  border: none;
+  color: #ff3b30;
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0;
+  line-height: 1;
+}
+.k-members__add-role-btn {
+  background: none;
+  border: 1px solid #222;
+  color: #666;
+  cursor: pointer;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.k-members__add-role-btn:hover {
+  border-color: #444;
+  color: #aaa;
+}
+
+/* ── Admin Role Assignment Panel ─────────────────────────────── */
+
+.k-members__assign-panel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.k-members__assign-label {
+  font-size: 9px;
+  color: #555;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+}
+.k-members__assign-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid #222;
+  background: #0c0c0c;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+/* ── Empty + Success States ──────────────────────────────────── */
+
+.k-members__empty {
+  background: #0c0c0c;
+  padding: 28px;
+  text-align: center;
+}
+.k-members__empty-text {
+  color: #555;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-members__success {
+  padding: 12px 16px;
+  background: rgba(0, 212, 170, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  color: var(--color-k-accent);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
