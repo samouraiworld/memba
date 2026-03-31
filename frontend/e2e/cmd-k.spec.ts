@@ -31,6 +31,8 @@ test.describe('Command Palette', () => {
 
     test('opens on Cmd+K / Ctrl+K', async ({ page }) => {
         await triggerCmdK(page)
+        // Allow React to process the keydown event and update state
+        await page.waitForTimeout(200)
         const palette = page.locator('.cmd-palette')
         await expect(palette).toBeVisible({ timeout: 5_000 })
     })
@@ -47,7 +49,10 @@ test.describe('Command Palette', () => {
     test('shows commands list when opened', async ({ page }) => {
         await triggerCmdK(page)
         const items = page.locator('.cmd-palette-item')
+        // Wait for at least one item to render before counting
         await items.first().waitFor({ state: 'visible', timeout: 5_000 })
+        // Let the list fully populate
+        await page.waitForTimeout(300)
         const count = await items.count()
         expect(count).toBeGreaterThanOrEqual(3)
     })
@@ -72,6 +77,8 @@ test.describe('Command Palette', () => {
         await expect(input).toBeVisible({ timeout: 5_000 })
         await input.fill('ZZZZNONEXISTENT')
 
+        // Wait for debounced filter to apply
+        await page.waitForTimeout(500)
         const items = page.locator('.cmd-palette-item')
         const count = await items.count()
         expect(count).toBe(0)

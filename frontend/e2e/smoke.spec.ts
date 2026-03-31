@@ -8,6 +8,8 @@ import { test, expect } from '@playwright/test'
 test.describe('Smoke Tests', () => {
     test('homepage loads', async ({ page }) => {
         await page.goto('/')
+        // Wait for redirect from / to /:network/ to complete
+        await page.waitForLoadState('networkidle')
         await expect(page).toHaveTitle(/Memba/)
     })
 
@@ -42,8 +44,9 @@ test.describe('Smoke Tests', () => {
 test.describe('v1.4.0 — Landing Page', () => {
     test('feature showcase cards visible (logged-out)', async ({ page }) => {
         await page.goto('/')
+        await page.waitForLoadState('networkidle')
         // Should show feature cards for Multisig, DAO, Token
-        await expect(page.locator('body')).toContainText('Multisig Wallets')
+        await expect(page.locator('body')).toContainText('Multisig Wallets', { timeout: 10_000 })
         await expect(page.locator('body')).toContainText('DAO Governance')
         await expect(page.locator('body')).toContainText('Token Factory')
     })
@@ -100,8 +103,9 @@ test.describe('v1.4.0 — Mobile Responsive', () => {
     test('landing page at 375px — no horizontal scroll', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/')
+        await page.waitForLoadState('networkidle')
         await expect(page).toHaveTitle(/Memba/)
-        // Page width should not exceed viewport
+        // Page width should not exceed viewport (small tolerance for scrollbar)
         const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
         expect(bodyWidth).toBeLessThanOrEqual(375 + 5) // 5px tolerance
     })

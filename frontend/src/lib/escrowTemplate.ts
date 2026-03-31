@@ -12,6 +12,8 @@
  * @module lib/escrowTemplate
  */
 
+import { buildDeployMsg } from "./templates/prologue"
+
 // ── Types ────────────────────────────────────────────────────
 
 export interface EscrowConfig {
@@ -309,7 +311,10 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 	platformAmount := (ms.Amount * int64(PlatformFee)) / 100
 	freelancerAmount := ms.Amount - platformAmount
 
-	// SECURITY: Update state BEFORE external calls (state-before-send pattern)
+	// STATE-BEFORE-SEND INVARIANT: Update state BEFORE external calls.
+	// This prevents reentrancy attacks where a malicious contract could
+	// re-enter during SendCoins and exploit a stale state (e.g., double-release).
+	// Always: (1) update milestone status, (2) persist to storage, (3) THEN send coins.
 	ms.Status = MsReleased
 
 	// Check if all milestones released
@@ -374,7 +379,8 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 		panic("milestone not in dispute")
 	}
 
-	// SECURITY: Update state BEFORE external calls (state-before-send pattern)
+	// STATE-BEFORE-SEND INVARIANT: Update state before external coin transfers.
+	// See ReleaseFunds for detailed explanation of this reentrancy guard pattern.
 	if refundClient {
 		ms.Status = MsPending
 	} else {
@@ -410,7 +416,8 @@ func CancelContract(cur realm, contractId string) {
 		panic("contract not active")
 	}
 
-	// SECURITY: Update state BEFORE external calls (state-before-send pattern)
+	// STATE-BEFORE-SEND INVARIANT: Update all milestone states before any transfers.
+	// Cancel and persist first, then refund — prevents reentrancy during coin sends.
 	for i, ms := range c.Milestones {
 		if ms.Status == MsFunded {
 			c.Milestones[i].Status = MsPending
@@ -593,13 +600,10 @@ export function buildRaiseDisputeMsg(
     }
 }
 
+/**
+ * Build a MsgAddPackage for deploying an escrow realm.
+ * @deprecated Use `buildDeployMsg` from `templates/prologue` directly.
+ */
 export function buildDeployEscrowMsg(caller: string, realmPath: string, code: string) {
-    const pkgName = realmPath.split("/").pop() || "escrow"
-    return {
-        type: "/vm.m_addpkg",
-        value: { creator: caller, package: {
-            name: pkgName, path: realmPath,
-            files: [{ name: `${pkgName}.gno`, body: code }],
-        }, deposit: "" },
-    }
+    return buildDeployMsg(caller, realmPath, code)
 }

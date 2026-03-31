@@ -13,6 +13,9 @@
  */
 
 import type { AminoMsg } from "./grc20"
+import { isValidGnoAddress, isValidIdentifier } from "./templates/sanitizer"
+import { buildDeployMsg } from "./templates/prologue"
+export { validateRealmPath } from "./templates/sanitizer"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -91,25 +94,8 @@ export const DAO_PRESETS: DAOPreset[] = [
     },
 ]
 
-import { BECH32_PREFIX } from "./config"
-
-// ── Input Sanitization ────────────────────────────────────────
-
-/** Strict bech32 address validation — prefix + lowercase alphanum. */
-const VALID_ADDRESS = new RegExp(`^${BECH32_PREFIX}[a-z0-9]{38}$`)
-
-/** Alphanumeric + underscore only — safe for Gno string literals. */
-const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/
-
-/** Validate address is strict bech32 format. */
-export function isValidGnoAddress(addr: string): boolean {
-    return VALID_ADDRESS.test(addr)
-}
-
-/** Validate a role/category name — must be lowercase alphanumeric + underscore. */
-function isValidIdentifier(s: string): boolean {
-    return SAFE_IDENTIFIER.test(s) && s.length <= 30
-}
+// Re-export for backward compatibility
+export { isValidGnoAddress } from "./templates/sanitizer"
 
 // ── Code Generator ────────────────────────────────────────────
 
@@ -685,6 +671,7 @@ func GetDAOConfig() string {
 /**
  * Build a MsgAddPackage Amino message for Adena DoContract.
  * Deploys the generated Gno realm code to the specified path.
+ * @deprecated Use `buildDeployMsg` from `templates/prologue` directly.
  */
 export function buildDeployDAOMsg(
     callerAddress: string,
@@ -692,43 +679,7 @@ export function buildDeployDAOMsg(
     code: string,
     deposit: string = "",
 ): AminoMsg {
-    const pkgName = realmPath.split("/").pop() || "mydao"
-    const files = [
-        {
-            name: `${pkgName}.gno`,
-            body: code,
-        },
-        {
-            name: "gnomod.toml",
-            body: `module = "${realmPath}"\ngno = "0.9"\n`,
-        },
-    ].sort((a, b) => a.name.localeCompare(b.name))
-    return {
-        type: "/vm.m_addpkg",
-        value: {
-            creator: callerAddress,
-            package: {
-                name: pkgName,
-                path: realmPath,
-                files,
-            },
-            deposit: deposit || "",
-        },
-    }
+    return buildDeployMsg(callerAddress, realmPath, code, deposit) as AminoMsg
 }
 
-/**
- * Validate a realm path for DAO creation.
- * Must follow pattern: gno.land/r/username/daoname
- */
-export function validateRealmPath(path: string): string | null {
-    if (!path.startsWith("gno.land/r/")) return "Must start with gno.land/r/"
-    const parts = path.replace("gno.land/r/", "").split("/")
-    if (parts.length < 2) return "Must include username and DAO name (e.g., gno.land/r/myname/mydao)"
-    if (parts.some((p) => !p || p.length === 0)) return "Path segments cannot be empty"
-    if (parts.some((p) => !/^[a-z0-9_]+$/.test(p))) return "Path segments must be lowercase alphanumeric with underscores only"
-    const name = parts[parts.length - 1]
-    if (name.length < 3) return "DAO name must be at least 3 characters"
-    if (name.length > 30) return "DAO name must be at most 30 characters"
-    return null // valid
-}
+// validateRealmPath is now re-exported from templates/sanitizer at the top of this file.

@@ -324,7 +324,7 @@ describe('validateRealmPath', () => {
 
     it('rejects path without DAO name (only username)', () => {
         const result = validateRealmPath('gno.land/r/zooma')
-        expect(result).toContain('username and DAO name')
+        expect(result).toContain('namespace and realm name')
     })
 
     it('rejects uppercase in path', () => {
