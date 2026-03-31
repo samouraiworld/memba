@@ -82,12 +82,15 @@ export function generateAgentRegistryCode(config: AgentRegistryConfig): string {
 //     review text
 
 import (
-	"std"
 	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 )
 
 // ── Constants ────────────────────────────────────────────────
@@ -111,7 +114,7 @@ type Agent struct {
 	Description  string
 	Category     string
 	Capabilities string // comma-separated
-	Creator      std.Address
+	Creator      address
 	Endpoint     string
 	Transport    string // "stdio" | "sse" | "streamable-http"
 	Pricing      string // "free" | "pay-per-use" | "subscription"
@@ -124,7 +127,7 @@ type Agent struct {
 }
 
 type Review struct {
-	Reviewer std.Address
+	Reviewer address
 	Rating   int  // 1-5
 	Comment  string
 	BlockH   int64
@@ -156,7 +159,7 @@ func RegisterAgent(
 	endpoint, transport, pricing, version string,
 	pricePerCall int64,
 ) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 
 	if _, exists := agents.Get(id); exists {
 		panic("agent ID already exists: " + id)
@@ -186,7 +189,7 @@ func RegisterAgent(
 		Pricing:      pricing,
 		PricePerCall: pricePerCall,
 		Version:      version,
-		BlockH:       std.GetHeight(),
+		BlockH:       runtime.ChainHeight(),
 	}
 	agents.Set(id, a)
 	reviews.Set(id, []*Review{})
@@ -199,7 +202,7 @@ func UpdateAgent(
 	id, description, capabilities, endpoint, version string,
 	pricePerCall int64,
 ) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	val, exists := agents.Get(id)
 	if !exists {
 		panic("agent not found: " + id)
@@ -226,7 +229,7 @@ func UpdateAgent(
 
 // ReviewAgent adds a review for an agent.
 func ReviewAgent(cur realm, agentId string, rating int, comment string) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 
 	val, exists := agents.Get(agentId)
 	if !exists {
@@ -250,14 +253,14 @@ func ReviewAgent(cur realm, agentId string, rating int, comment string) {
 		Reviewer: caller,
 		Rating:   rating,
 		Comment:  comment,
-		BlockH:   std.GetHeight(),
+		BlockH:   runtime.ChainHeight(),
 	})
 	reviews.Set(agentId, revs)
 }
 
 // RemoveAgent removes an agent (admin or creator only).
 func RemoveAgent(cur realm, id string) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	val, exists := agents.Get(id)
 	if !exists {
 		panic("agent not found")
@@ -275,12 +278,12 @@ func RemoveAgent(cur realm, id string) {
 // DepositCredits deposits GNOT as prepaid credits for an agent.
 // Send ugnot with the transaction to fund the credits.
 func DepositCredits(cur realm, agentId string) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	if _, exists := agents.Get(agentId); !exists {
 		panic("agent not found")
 	}
 
-	sent := std.GetOrigSend()
+	sent := banker.OriginSend()
 	if len(sent) == 0 || sent.AmountOf("ugnot") == 0 {
 		panic("must send ugnot to deposit credits")
 	}
@@ -354,7 +357,7 @@ func GetUsage(agentId, userAddr string) int64 {
 // RefundCredits refunds remaining credits to the user.
 // Auto-refund: callable by user or admin after 30 days (not enforced in v1).
 func RefundCredits(cur realm, agentId string) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	key := agentId + "/" + string(caller)
 
 	cval, cexists := credits.Get(key)
@@ -367,8 +370,8 @@ func RefundCredits(cur realm, agentId string) {
 	}
 
 	// Transfer credits back via banker
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Addr(), caller, std.Coins{std.NewCoin("ugnot", balance)})
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+	bnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", balance)})
 
 	credits.Set(key, int64(0))
 }
@@ -472,7 +475,7 @@ func truncStr(s string, max int) string {
 	return s[:max-3] + "..."
 }
 
-func truncAddr(addr std.Address) string {
+func truncAddr(addr address) string {
 	s := string(addr)
 	if len(s) > 13 {
 		return s[:10] + "..."
