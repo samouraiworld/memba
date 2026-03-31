@@ -8,7 +8,7 @@
 
 import { useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
-import { useGnoloveContributors } from "../../hooks/gnolove"
+import { useGnoloveContributors, useGnoloveRepositories } from "../../hooks/gnolove"
 import { TimeFilter, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 
 export default function GnoloveTeamProfile() {
@@ -16,6 +16,7 @@ export default function GnoloveTeamProfile() {
     const decodedName = teamName ? decodeURIComponent(teamName) : ""
     const team = TEAMS.find(t => t.name === decodedName)
     const { data: contributors, isLoading } = useGnoloveContributors(TimeFilter.ALL_TIME)
+    const { data: repositories } = useGnoloveRepositories()
 
     const teamMembers = useMemo(() => {
         if (!team || !contributors?.users) return []
@@ -82,6 +83,27 @@ export default function GnoloveTeamProfile() {
                     </div>
                 )}
             </div>
+
+            {/* ── Team Repositories ─────────────────────────── */}
+            {repositories && repositories.length > 0 && (
+                <div className="gl-section">
+                    <h2 className="gl-section-title">Tracked Repositories ({repositories.length})</h2>
+                    <div className="gl-team-repos">
+                        {repositories.map(repo => (
+                            <a
+                                key={repo.id}
+                                href={`https://github.com/${repo.owner}/${repo.name}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="gl-team-repo"
+                            >
+                                <span className="gl-team-repo-name">{repo.owner}/{repo.name}</span>
+                                <span className="gl-team-repo-branch">{repo.baseBranch}</span>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="gl-section">
                 <h2 className="gl-section-title">Members ({teamMembers.length})</h2>
