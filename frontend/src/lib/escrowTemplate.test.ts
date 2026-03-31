@@ -52,23 +52,26 @@ describe("generateEscrowCode — chain API compliance", () => {
         expect(code).toContain("package escrow")
     })
 
-    it("imports chain and chain/runtime, NOT std", () => {
+    it("imports chain, chain/banker, and chain/runtime, NOT std", () => {
         const importBlock = getImportBlock(getCode())
         expect(importBlock).toContain('"chain"')
+        expect(importBlock).toContain('"chain/banker"')
         expect(importBlock).toContain('"chain/runtime"')
         expect(importBlock).not.toContain('"std"')
     })
 
-    it("uses chain.PreviousRealm().Addr() for caller identity", () => {
+    it("uses runtime.PreviousRealm().Address() for caller identity", () => {
         const code = getCode()
-        expect(code).toContain("chain.PreviousRealm().Addr()")
+        expect(code).toContain("runtime.PreviousRealm().Address()")
         expect(code).not.toContain("std.PreviousRealm()")
+        expect(code).not.toContain("chain.PreviousRealm()")
     })
 
-    it("uses chain.GetBanker(chain.BankerTypeRealmSend)", () => {
+    it("uses banker.NewBanker(banker.BankerTypeRealmSend)", () => {
         const code = getCode()
-        expect(code).toContain("chain.GetBanker(chain.BankerTypeRealmSend)")
+        expect(code).toContain("banker.NewBanker(banker.BankerTypeRealmSend)")
         expect(code).not.toContain("std.GetBanker")
+        expect(code).not.toContain("chain.GetBanker")
     })
 
     it("uses chain.Coins{chain.NewCoin(...)}", () => {
@@ -78,22 +81,25 @@ describe("generateEscrowCode — chain API compliance", () => {
         expect(code).not.toContain("std.NewCoin")
     })
 
-    it("uses chain.OrigSend() (not std.GetOrigSend)", () => {
+    it("uses banker.OriginSend() (not std.GetOrigSend)", () => {
         const code = getCode()
-        expect(code).toContain("chain.OrigSend()")
+        expect(code).toContain("banker.OriginSend()")
         expect(code).not.toContain("std.GetOrigSend")
+        expect(code).not.toContain("chain.OrigSend")
     })
 
-    it("uses chain.GetHeight() (not std.GetHeight)", () => {
+    it("uses runtime.ChainHeight() (not std.GetHeight)", () => {
         const code = getCode()
-        expect(code).toContain("chain.GetHeight()")
+        expect(code).toContain("runtime.ChainHeight()")
         expect(code).not.toContain("std.GetHeight")
+        expect(code).not.toContain("chain.GetHeight")
     })
 
-    it("uses chain.CurrentRealm().Addr()", () => {
+    it("uses runtime.CurrentRealm().Address()", () => {
         const code = getCode()
-        expect(code).toContain("chain.CurrentRealm().Addr()")
+        expect(code).toContain("runtime.CurrentRealm().Address()")
         expect(code).not.toContain("std.CurrentRealm")
+        expect(code).not.toContain("chain.CurrentRealm")
     })
 
     it("uses address type (not std.Address)", () => {
@@ -190,7 +196,7 @@ describe("escrowTemplate security", () => {
         const nextFunc = code.indexOf("func RaiseDispute")
         const body = code.slice(funIdx, nextFunc)
         const stateUpdateIdx = body.indexOf("ms.Status = MsReleased")
-        const sendIdx = body.indexOf("banker.SendCoins")
+        const sendIdx = body.indexOf("bnk.SendCoins")
         expect(stateUpdateIdx).toBeGreaterThan(-1)
         expect(sendIdx).toBeGreaterThan(-1)
         expect(stateUpdateIdx).toBeLessThan(sendIdx)
@@ -202,7 +208,7 @@ describe("escrowTemplate security", () => {
         const nextFunc = code.indexOf("func CancelContract")
         const body = code.slice(funIdx, nextFunc)
         const stateUpdateIdx = body.indexOf("contracts.Set(contractId, c)")
-        const sendIdx = body.indexOf("banker.SendCoins")
+        const sendIdx = body.indexOf("bnk.SendCoins")
         expect(stateUpdateIdx).toBeGreaterThan(-1)
         expect(sendIdx).toBeGreaterThan(-1)
         expect(stateUpdateIdx).toBeLessThan(sendIdx)
@@ -214,7 +220,7 @@ describe("escrowTemplate security", () => {
         const nextFunc = code.indexOf("func Render")
         const body = code.slice(funIdx, nextFunc)
         const stateUpdateIdx = body.indexOf("contracts.Set(contractId, c)")
-        const sendIdx = body.indexOf("banker.SendCoins")
+        const sendIdx = body.indexOf("bnk.SendCoins")
         expect(stateUpdateIdx).toBeGreaterThan(-1)
         expect(sendIdx).toBeGreaterThan(-1)
         expect(stateUpdateIdx).toBeLessThan(sendIdx)
