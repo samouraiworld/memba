@@ -1,0 +1,225 @@
+/**
+ * payroll.css — Payroll plugin styles.
+ * Naming: pay- prefix.
+ */
+
+.pay-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pay-header__title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.pay-header__subtitle {
+    font-size: 12px;
+    color: var(--color-text-secondary, #888);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    margin-top: 4px;
+}
+
+/* ── Actions Bar ─────────────────────────────────────── */
+
+.pay-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.pay-btn {
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    padding: 6px 14px;
+    border-radius: var(--radius-md, 8px);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.pay-btn--primary {
+    background: var(--color-primary, #00d4aa);
+    color: #000;
+    font-weight: 600;
+}
+
+.pay-btn--primary:disabled {
+    background: var(--color-border-light, #222);
+    color: #666;
+    cursor: not-allowed;
+}
+
+.pay-btn--secondary {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-secondary, #888);
+    border: 1px solid var(--color-border-light, #222);
+}
+
+.pay-btn--secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Error ────────────────────────────────────────────── */
+
+.pay-error {
+    padding: 10px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-danger-bg, rgba(244, 67, 54, 0.06));
+    border: 1px solid rgba(244, 67, 54, 0.15);
+    color: var(--color-danger, #f44336);
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* ── Inputs ──────────────────────────────────────────── */
+
+.pay-label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.pay-input {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--color-bg-card, #0c0c0c);
+    border: 1px solid var(--color-border-light, #222);
+    color: var(--color-text, #f0f0f0);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.pay-input--addr { flex: 3; min-width: 0; }
+.pay-input--amount { flex: 1; min-width: 80px; }
+.pay-input--role { flex: 1; min-width: 60px; }
+
+/* ── Recipients List ─────────────────────────────────── */
+
+.pay-recipients {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pay-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.pay-remove {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm, 4px);
+    background: none;
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    color: var(--color-danger, #f44336);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pay-remove:hover {
+    background: rgba(244, 67, 54, 0.08);
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+
+.pay-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border-light, #222);
+}
+
+.pay-footer__summary {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+}
+
+/* ── CSV Import ──────────────────────────────────────── */
+
+.pay-csv {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pay-csv__input {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-bg-card, #0c0c0c);
+    border: 1px solid var(--color-border-light, #222);
+    color: var(--color-text, #f0f0f0);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 12px;
+    outline: none;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+/* ── Preview ─────────────────────────────────────────── */
+
+.pay-preview {
+    padding: 16px;
+    border-radius: var(--radius-lg, 12px);
+    background: rgba(0, 212, 170, 0.04);
+    border: 1px solid rgba(0, 212, 170, 0.12);
+}
+
+.pay-preview h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.pay-preview__total {
+    font-size: 13px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-primary, #00d4aa);
+    margin-bottom: 12px;
+}
+
+.pay-preview__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.pay-preview__row {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    padding: 4px 0;
+}
+
+.pay-preview__addr { color: var(--color-text, #f0f0f0); flex: 2; }
+.pay-preview__role { color: var(--color-text-secondary, #888); flex: 1; }
+.pay-preview__amount { color: var(--color-primary, #00d4aa); flex: 1; text-align: right; }
+
+/* ── Period ───────────────────────────────────────────── */
+
+.pay-period {
+    max-width: 300px;
+}

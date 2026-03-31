@@ -47,6 +47,15 @@ export const BUILT_IN_PLUGINS: readonly PluginManifest[] = Object.freeze([
         version: "1.0.0",
         component: () => import("./leaderboard/index").then(m => ({ default: m.default })),
     },
+    {
+        id: "payroll",
+        name: "Payroll",
+        icon: "💰",
+        route: "payroll",
+        description: "Batch payment distribution — CSV import, recurring templates, multi-recipient proposals",
+        version: "1.0.0",
+        component: () => import("./payroll/index").then(m => ({ default: m.default })),
+    },
 ])
 
 // ── Lookup Helpers ──────────────────────────────────────────────
