@@ -1,0 +1,423 @@
+/* ── DAOList Page ─────────────────────────────────────────────── */
+
+.k-daolist {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.k-daolist__back {
+  color: var(--color-k-accent);
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: left;
+}
+
+.k-daolist__title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.k-daolist__title-icon {
+  color: #888;
+}
+
+.k-daolist__subtitle {
+  color: #888;
+  font-size: 13px;
+  margin-top: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  max-width: 600px;
+}
+
+.k-daolist__org-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: rgba(0, 212, 170, 0.06);
+  border: 1px solid rgba(0, 212, 170, 0.12);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--color-k-accent);
+}
+.k-daolist__org-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+}
+
+/* ── Action Required Banner ─────────────────────────────────── */
+
+.k-daolist__action-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.06), rgba(245, 166, 35, 0.02));
+  border: 1px solid rgba(245, 166, 35, 0.15);
+}
+.k-daolist__action-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.k-daolist__action-title {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f5a623;
+  font-weight: 600;
+}
+.k-daolist__action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 26px;
+}
+.k-daolist__action-item {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ccc;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.k-daolist__action-item:hover {
+  background: rgba(245, 166, 35, 0.06);
+}
+.k-daolist__action-dao {
+  color: #f5a623;
+  flex-shrink: 0;
+}
+.k-daolist__action-sep {
+  color: #888;
+}
+.k-daolist__action-proposal {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.k-daolist__action-arrow {
+  color: #f5a623;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.k-daolist__action-more {
+  font-size: 10px;
+  color: #888;
+  cursor: pointer;
+  padding-left: 8px;
+}
+
+/* ── Summary Line ───────────────────────────────────────────── */
+
+.k-daolist__summary {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #666;
+}
+
+/* ── DAO Grid ───────────────────────────────────────────────── */
+
+.k-daolist__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+/* ── Quick Actions ──────────────────────────────────────────── */
+
+.k-daolist__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.k-daolist__actions .k-btn-primary,
+.k-daolist__actions .k-btn-secondary {
+  font-size: 12px;
+}
+
+/* ── Connect Form ───────────────────────────────────────────── */
+
+.k-daolist__connect-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.k-daolist__connect-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.k-daolist__connect-header-icon {
+  font-size: 20px;
+  display: flex;
+}
+.k-daolist__connect-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.k-daolist__connect-desc {
+  font-size: 11px;
+  color: #666;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-daolist__connect-row {
+  display: flex;
+  gap: 10px;
+}
+.k-daolist__connect-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #0c0c0c;
+  border: 1px solid #222;
+  color: #f0f0f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  outline: none;
+}
+.k-daolist__connect-input:disabled {
+  opacity: 0.5;
+}
+
+/* ── Empty State ────────────────────────────────────────────── */
+
+.k-daolist__empty {
+  background: #0c0c0c;
+  padding: 48px;
+  text-align: center;
+}
+.k-daolist__empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(0, 212, 170, 0.06);
+  border: 1px dashed rgba(0, 212, 170, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.k-daolist__empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.k-daolist__empty-desc {
+  color: #666;
+  font-size: 13px;
+  max-width: 360px;
+  margin: 0 auto;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── DAO Card ───────────────────────────────────────────────── */
+
+.k-dao-card {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.k-dao-card--featured {
+  border-color: rgba(0, 212, 170, 0.15);
+}
+.k-dao-card:hover {
+  border-color: rgba(0, 212, 170, 0.3);
+}
+.k-dao-card--archived {
+  opacity: 0.6;
+}
+
+/* Card header */
+.k-dao-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.k-dao-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.k-dao-card__icon {
+  font-size: 22px;
+  display: flex;
+}
+.k-dao-card__name {
+  font-weight: 600;
+  font-size: 15px;
+  color: #f0f0f0;
+}
+
+/* Card badges */
+.k-dao-card__badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.k-dao-card__badge--featured {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--color-k-accent);
+}
+.k-dao-card__badge--archived {
+  background: rgba(245, 166, 35, 0.1);
+  color: #f5a623;
+}
+
+/* Card remove button */
+.k-dao-card__remove {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+}
+.k-dao-card__remove:hover {
+  color: #ff4757;
+}
+
+/* Card indicators (unvoted / notifications) */
+.k-dao-card__indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.k-dao-card__indicator--warn {
+  background: rgba(245, 166, 35, 0.06);
+  border: 1px solid rgba(245, 166, 35, 0.12);
+}
+.k-dao-card__indicator--info {
+  background: rgba(0, 212, 170, 0.04);
+  border: 1px solid rgba(0, 212, 170, 0.1);
+}
+.k-dao-card__indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.k-dao-card__indicator-dot--warn {
+  background: #f5a623;
+  animation: pulse 2s infinite;
+}
+.k-dao-card__indicator-dot--info {
+  background: var(--color-k-accent);
+}
+.k-dao-card__indicator-text {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.k-dao-card__indicator-text--warn { color: #f5a623; }
+.k-dao-card__indicator-text--info { color: var(--color-k-accent); }
+
+/* Card realm path + source link */
+.k-dao-card__path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.k-dao-card__path {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #555;
+  word-break: break-all;
+}
+.k-dao-card__source-link {
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #444;
+  text-decoration: none;
+  transition: color 0.15s;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid #222;
+  flex-shrink: 0;
+}
+.k-dao-card__source-link:hover {
+  color: var(--color-k-accent);
+}
+
+/* Card stats */
+.k-dao-card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.k-dao-card__stats-row {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #888;
+}
+
+/* Tier badges */
+.k-dao-card__tiers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.k-dao-card__tier {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.k-dao-card__tier-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Card description */
+.k-dao-card__desc {
+  color: #666;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+/* Card CTA */
+.k-dao-card__cta {
+  display: flex;
+  justify-content: flex-end;
+}
+.k-dao-card__cta-text {
+  color: var(--color-k-accent);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}

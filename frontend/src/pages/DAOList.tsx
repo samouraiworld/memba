@@ -17,6 +17,7 @@ import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
 import { useNotifications } from "../hooks/useNotifications"
 import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
+import "./daolist.css"
 
 interface DAOEntry {
     realmPath: string
@@ -139,74 +140,54 @@ export function DAOList() {
     const totalMembers = daoEntries.reduce((sum, d) => sum + (d.config?.memberCount || 0), 0)
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className="animate-fade-in k-daolist">
             {/* Back nav */}
-            <button onClick={() => navigate(auth.isAuthenticated ? "/dashboard" : "/")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}>
+            <button className="k-daolist__back" onClick={() => navigate(auth.isAuthenticated ? "/dashboard" : "/")}>
                 {auth.isAuthenticated ? "← Back to Dashboard" : "← Home"}
             </button>
 
             {/* Header */}
             <div>
-                <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                    <Bank size={20} style={{ color: '#888' }} /> DAO Governance
+                <h2 className="k-daolist__title">
+                    <Bank size={20} className="k-daolist__title-icon" /> DAO Governance
                 </h2>
-                <p style={{ color: "#888", fontSize: 13, marginTop: 6, fontFamily: "JetBrains Mono, monospace", maxWidth: 600 }}>
+                <p className="k-daolist__subtitle">
                     Browse proposals, vote, and manage DAO governance on gno.land
                 </p>
                 {isOrgMode && (
-                    <div style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        marginTop: 8, padding: "3px 10px", borderRadius: 5,
-                        background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.12)",
-                        fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa",
-                    }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#00d4aa" }} />
+                    <div className="k-daolist__org-badge">
+                        <span className="k-daolist__org-dot" />
                         Team: {activeOrgName}
                     </div>
                 )}
             </div>
 
-            {/* ── ⚡ Action Required Banner ──────────────────────── */}
+            {/* ── Action Required Banner ──────────────────────── */}
             {unvotedProposals.length > 0 && (
-                <div className="k-action-banner" style={{
-                    display: "flex", flexDirection: "column", gap: 10,
-                    padding: "14px 18px", borderRadius: 10,
-                    background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02))",
-                    border: "1px solid rgba(245,166,35,0.15)",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="k-daolist__action-banner">
+                    <div className="k-daolist__action-header">
                         <span style={{ fontSize: 14 }}>⚡</span>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", fontWeight: 600 }}>
+                        <span className="k-daolist__action-title">
                             🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
                         </span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 26 }}>
+                    <div className="k-daolist__action-list">
                         {unvotedProposals.slice(0, 3).map(p => (
                             <div
                                 key={`${p.realmPath}:${p.proposalId}`}
+                                className="k-daolist__action-item"
                                 onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
-                                style={{
-                                    fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                                    color: "#ccc", cursor: "pointer", display: "flex", gap: 8,
-                                    padding: "4px 8px", borderRadius: 6,
-                                    transition: "background 0.15s",
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = "rgba(245,166,35,0.06)"}
-                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                             >
-                                <span style={{ color: "#f5a623", flexShrink: 0 }}>{p.daoName}</span>
-                                <span style={{ color: "#888" }}>—</span>
-                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                <span className="k-daolist__action-dao">{p.daoName}</span>
+                                <span className="k-daolist__action-sep">—</span>
+                                <span className="k-daolist__action-proposal">
                                     #{p.proposalId}: {p.proposalTitle}
                                 </span>
-                                <span style={{ color: "#f5a623", marginLeft: "auto", flexShrink: 0 }}>→</span>
+                                <span className="k-daolist__action-arrow">→</span>
                             </div>
                         ))}
                         {unvotedProposals.length > 3 && (
-                            <span
-                                onClick={() => navigate("/dao")}
-                                style={{ fontSize: 10, color: "#888", cursor: "pointer", paddingLeft: 8 }}
-                            >
+                            <span className="k-daolist__action-more" onClick={() => navigate("/dao")}>
                                 +{unvotedProposals.length - 3} more…
                             </span>
                         )}
@@ -216,9 +197,7 @@ export function DAOList() {
 
             {/* ── Summary Line ───────────────────────────────────── */}
             {!loading && daoEntries.length > 0 && (
-                <div style={{
-                    display: "flex", gap: 16, fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666",
-                }}>
+                <div className="k-daolist__summary">
                     <span>{daoEntries.length} DAO{daoEntries.length !== 1 ? "s" : ""}</span>
                     <span>·</span>
                     <span>{unvotedProposals.length} pending vote{unvotedProposals.length !== 1 ? "s" : ""}</span>
@@ -233,22 +212,22 @@ export function DAOList() {
 
             {/* ── DAO Grid (MOVED UP — primary content) ────────── */}
             {loading ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                <div className="k-daolist__grid">
                     <SkeletonCard />
                     <SkeletonCard />
                 </div>
             ) : daoEntries.length === 0 ? (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(0,212,170,0.06)", border: "1px dashed rgba(0,212,170,0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                        <span style={{ fontSize: 24, display: 'flex' }}><Bank size={24} /></span>
+                <div className="k-dashed k-daolist__empty">
+                    <div className="k-daolist__empty-icon">
+                        <Bank size={24} />
                     </div>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>No DAOs yet</h3>
-                    <p style={{ color: "#666", fontSize: 13, maxWidth: 360, margin: "0 auto", fontFamily: "JetBrains Mono, monospace" }}>
+                    <h3 className="k-daolist__empty-title">No DAOs yet</h3>
+                    <p className="k-daolist__empty-desc">
                         Connect to a DAO by clicking below, or create your own
                     </p>
                 </div>
             ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                <div className="k-daolist__grid">
                     {daoEntries.map((dao) => (
                         <DAOCard
                             key={dao.realmPath}
@@ -266,40 +245,32 @@ export function DAOList() {
             )}
 
             {/* ── Quick Actions ─────────────────────────────────── */}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <button
-                    id="dao-create-btn"
-                    className="k-btn-primary"
-                    onClick={() => navigate("/dao/create")}
-                    style={{ fontSize: 12 }}
-                >
+            <div className="k-daolist__actions">
+                <button id="dao-create-btn" className="k-btn-primary" onClick={() => navigate("/dao/create")}>
                     + Create a DAO
                 </button>
-                <button
-                    className="k-btn-secondary"
-                    onClick={() => setShowConnect(!showConnect)}
-                    style={{ fontSize: 12 }}
-                >
+                <button className="k-btn-secondary" onClick={() => setShowConnect(!showConnect)}>
                     <LinkSimple size={14} /> {showConnect ? "Hide" : "Connect to DAO"}
                 </button>
             </div>
 
             {/* ── Connect Form (COLLAPSED by default) ──────────── */}
             {showConnect && (
-                <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 20, display: 'flex' }}><LinkSimple size={20} /></span>
+                <div className="k-card k-daolist__connect-form">
+                    <div className="k-daolist__connect-header">
+                        <span className="k-daolist__connect-header-icon"><LinkSimple size={20} /></span>
                         <div>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>Connect to a DAO</div>
-                            <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div className="k-daolist__connect-title">Connect to a DAO</div>
+                            <div className="k-daolist__connect-desc">
                                 Enter a DAO realm path to explore its governance
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 10 }}>
+                    <div className="k-daolist__connect-row">
                         <input
                             id="dao-connect-input"
+                            className="k-daolist__connect-input"
                             type="text"
                             value={realmInput}
                             onChange={(e) => setRealmInput(e.target.value)}
@@ -308,12 +279,6 @@ export function DAOList() {
                             maxLength={100}
                             disabled={connecting}
                             aria-label="DAO realm path"
-                            style={{
-                                flex: 1, height: 40, padding: "0 12px", borderRadius: 8,
-                                background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-                                opacity: connecting ? 0.5 : 1,
-                            }}
                         />
                         <button
                             id="dao-connect-btn"
@@ -348,43 +313,29 @@ function DAOCard({
     onOpen: () => void
     onRemove?: () => void
 }) {
+    const cardClass = [
+        "k-card k-dao-card",
+        dao.featured ? "k-dao-card--featured" : "",
+        dao.config?.isArchived ? "k-dao-card--archived" : "",
+    ].filter(Boolean).join(" ")
+
     return (
-        <div
-            className="k-card"
-            style={{
-                padding: "20px 24px",
-                display: "flex", flexDirection: "column", gap: 14,
-                cursor: "pointer", transition: "border-color 0.15s",
-                borderColor: dao.featured ? "rgba(0,212,170,0.15)" : undefined,
-                opacity: dao.config?.isArchived ? 0.6 : 1,
-            }}
-            onClick={onOpen}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = dao.featured ? "rgba(0,212,170,0.15)" : "")}
-        >
+        <div className={cardClass} onClick={onOpen}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 22, display: 'flex' }}><Bank size={22} /></span>
+            <div className="k-dao-card__header">
+                <div className="k-dao-card__name-row">
+                    <span className="k-dao-card__icon"><Bank size={22} /></span>
                     <div>
-                        <span style={{ fontWeight: 600, fontSize: 15, color: "#f0f0f0" }}>
+                        <span className="k-dao-card__name">
                             {dao.name}
                         </span>
                         {dao.featured && (
-                            <span style={{
-                                marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 9,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                background: "rgba(0,212,170,0.1)", color: "#00d4aa",
-                            }}>
+                            <span className="k-dao-card__badge k-dao-card__badge--featured">
                                 FEATURED
                             </span>
                         )}
                         {dao.config?.isArchived && (
-                            <span style={{
-                                marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 9,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                background: "rgba(245,166,35,0.1)", color: "#f5a623",
-                            }}>
+                            <span className="k-dao-card__badge k-dao-card__badge--archived">
                                 📦 Archived
                             </span>
                         )}
@@ -392,13 +343,10 @@ function DAOCard({
                 </div>
                 {onRemove && (
                     <button
+                        className="k-dao-card__remove"
                         onClick={(e) => { e.stopPropagation(); onRemove() }}
                         title="Remove"
                         aria-label={`Remove ${dao.name}`}
-                        style={{
-                            background: "none", border: "none", color: "#555",
-                            cursor: "pointer", fontSize: 14, padding: 4,
-                        }}
                     >
                         ×
                     </button>
@@ -407,19 +355,9 @@ function DAOCard({
 
             {/* Unvoted indicator */}
             {unvotedCount > 0 && (
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "4px 10px", borderRadius: 6,
-                    background: "rgba(245,166,35,0.06)",
-                    border: "1px solid rgba(245,166,35,0.12)",
-                }}>
-                    <span style={{
-                        width: 6, height: 6, borderRadius: "50%",
-                        background: "#f5a623",
-                        animation: "pulse 2s infinite",
-                        display: "inline-block", flexShrink: 0,
-                    }} />
-                    <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", fontWeight: 600 }}>
+                <div className="k-dao-card__indicator k-dao-card__indicator--warn">
+                    <span className="k-dao-card__indicator-dot k-dao-card__indicator-dot--warn" />
+                    <span className="k-dao-card__indicator-text k-dao-card__indicator-text--warn">
                         {unvotedCount} vote{unvotedCount > 1 ? "s" : ""} needed
                     </span>
                 </div>
@@ -427,41 +365,25 @@ function DAOCard({
 
             {/* v2.10: Notification unread indicator */}
             {notifCount > 0 && unvotedCount === 0 && (
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "4px 10px", borderRadius: 6,
-                    background: "rgba(0,212,170,0.04)",
-                    border: "1px solid rgba(0,212,170,0.1)",
-                }}>
-                    <span style={{
-                        width: 6, height: 6, borderRadius: "50%",
-                        background: "#00d4aa",
-                        display: "inline-block", flexShrink: 0,
-                    }} />
-                    <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", fontWeight: 600 }}>
+                <div className="k-dao-card__indicator k-dao-card__indicator--info">
+                    <span className="k-dao-card__indicator-dot k-dao-card__indicator-dot--info" />
+                    <span className="k-dao-card__indicator-text k-dao-card__indicator-text--info">
                         {notifCount} new notification{notifCount > 1 ? "s" : ""}
                     </span>
                 </div>
             )}
 
             {/* Realm path + source link */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555", wordBreak: "break-all" }}>
+            <div className="k-dao-card__path-row">
+                <div className="k-dao-card__path">
                     {dao.realmPath}
                 </div>
                 <a
+                    className="k-dao-card__source-link"
                     href={`${getExplorerBaseUrl()}/r/${dao.realmPath.replace("gno.land/r/", "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="View source on gno.land"
-                    style={{
-                        fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                        color: "#444", textDecoration: "none", transition: "color 0.15s",
-                        padding: "1px 4px", borderRadius: 3,
-                        border: "1px solid #222", flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
                     onClick={(e) => e.stopPropagation()}
                 >
                     &lt;/&gt;
@@ -470,30 +392,21 @@ function DAOCard({
 
             {/* Stats */}
             {dao.config && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", gap: 16, fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                        <span style={{ color: "#888" }}>
-                            👥 {dao.config.memberCount} members
-                        </span>
-                        <span style={{ color: "#888" }}>
-                            📊 {dao.config.threshold} threshold
-                        </span>
+                <div className="k-dao-card__stats">
+                    <div className="k-dao-card__stats-row">
+                        <span>👥 {dao.config.memberCount} members</span>
+                        <span>📊 {dao.config.threshold} threshold</span>
                     </div>
 
                     {/* Tier distribution badges */}
                     {dao.config.tierDistribution && dao.config.tierDistribution.length > 0 && (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <div className="k-dao-card__tiers">
                             {dao.config.tierDistribution.map((t) => {
                                 const colors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
                                 const color = colors[t.tier] || "#888"
                                 return (
-                                    <span key={t.tier} style={{
-                                        display: "flex", alignItems: "center", gap: 4,
-                                        padding: "2px 8px", borderRadius: 4, fontSize: 9,
-                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                        background: `${color}12`, color,
-                                    }}>
-                                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block" }} />
+                                    <span key={t.tier} className="k-dao-card__tier" style={{ background: `${color}12`, color }}>
+                                        <span className="k-dao-card__tier-dot" style={{ background: color }} />
                                         {t.tier}: {t.memberCount} • {t.power}pw
                                     </span>
                                 )
@@ -505,20 +418,14 @@ function DAOCard({
 
             {/* Description */}
             {dao.config?.description && (
-                <p style={{
-                    color: "#666", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    maxWidth: 400,
-                }}>
+                <p className="k-dao-card__desc">
                     {dao.config.description}
                 </p>
             )}
 
             {/* CTA */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <span style={{ color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    Open →
-                </span>
+            <div className="k-dao-card__cta">
+                <span className="k-dao-card__cta-text">Open →</span>
             </div>
         </div>
     )
