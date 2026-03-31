@@ -29,6 +29,12 @@ export interface EscrowConfig {
     autoRefundBlocks: number
     /** Fee recipient address */
     feeRecipient: string
+    /**
+     * Auto-resolve dispute timeout in blocks.
+     * After this many blocks without buyer/seller action, funds auto-release to seller.
+     * Default: 0 (disabled). Recommended: 201600 (~7 days at 3s/block).
+     */
+    autoResolveBlocks?: number
 }
 
 export interface ServiceListing {
