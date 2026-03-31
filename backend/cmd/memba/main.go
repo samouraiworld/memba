@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
+	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -92,8 +92,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Initialize rate limiter with app context for clean shutdown.
-	limiter = newIPRateLimiter(ctx)
+	// Initialize per-endpoint rate limiter with app context for clean shutdown.
+	limiter = ratelimit.New(ctx, ratelimit.DefaultConfigs())
 
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
@@ -105,19 +105,19 @@ func main() {
 	oauthStore := service.NewOAuthStateStore(ctx)
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
-	mux.Handle(path, rateLimiter(handler))
+	mux.Handle(path, rateLimitMiddleware("rpc", handler))
 
 	// Health check — enhanced with DB, uptime, memory diagnostics
 	mux.HandleFunc("/health", healthHandler(database, dbPath))
 
-	// Render proxy — REST endpoints for ABCI queries (no auth, rate-limited)
-	mux.Handle("/api/render", rateLimiter(service.HandleRenderProxy()))
-	mux.Handle("/api/eval", rateLimiter(service.HandleEvalProxy()))
-	mux.Handle("/api/balance", rateLimiter(service.HandleBalanceProxy()))
+	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
+	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy()))
+	mux.Handle("/api/eval", rateLimitMiddleware("eval", service.HandleEvalProxy()))
+	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
-	mux.Handle("/github/oauth/state", rateLimiter(service.HandleGitHubOAuthState(oauthStore)))
-	mux.Handle("/github/oauth/exchange", rateLimiter(service.HandleGitHubOAuthExchange(oauthStore)))
+	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
+	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
 
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(cors.Options{
@@ -148,6 +148,13 @@ func main() {
 	<-ctx.Done()
 	slog.Info("shutting down gracefully...")
 
+	// WAL checkpoint before shutdown — ensures all writes are flushed to main DB file.
+	if _, err := database.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		slog.Error("WAL checkpoint failed on shutdown", "error", err)
+	} else {
+		slog.Info("WAL checkpoint completed")
+	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -173,73 +180,15 @@ func splitOrigins(s string) []string {
 
 // ── Rate limiter ─────────────────────────────────────────────────
 
-const (
-	rateLimitWindow = time.Minute
-	rateLimitMax    = 100
-)
-
-type ipEntry struct {
-	count  int
-	expiry time.Time
-}
-
-type ipRateLimiter struct {
-	mu      sync.Mutex
-	entries map[string]*ipEntry
-}
-
-func newIPRateLimiter(ctx context.Context) *ipRateLimiter {
-	rl := &ipRateLimiter{entries: make(map[string]*ipEntry)}
-	// GC stale entries every minute, stops on context cancellation.
-	go func() {
-		ticker := time.NewTicker(rateLimitWindow)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				rl.mu.Lock()
-				now := time.Now()
-				for ip, e := range rl.entries {
-					if now.After(e.expiry) {
-						delete(rl.entries, ip)
-					}
-				}
-				rl.mu.Unlock()
-			}
-		}
-	}()
-	return rl
-}
-
-func (rl *ipRateLimiter) allow(ip string) bool {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	now := time.Now()
-	e, ok := rl.entries[ip]
-	if !ok || now.After(e.expiry) {
-		rl.entries[ip] = &ipEntry{count: 1, expiry: now.Add(rateLimitWindow)}
-		return true
-	}
-	e.count++
-	return e.count <= rateLimitMax
-}
-
 // limiter is initialized in main() with a cancellable context.
-var limiter *ipRateLimiter
+var limiter *ratelimit.Limiter
 
-func rateLimiter(next http.Handler) http.Handler {
+func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
-		}
-		ip = strings.TrimSpace(ip)
+		ip := ratelimit.ExtractIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"))
 
-		if !limiter.allow(ip) {
-			slog.Warn("rate limited", "ip", ip)
+		if !limiter.Allow(ip, endpoint) {
+			slog.Warn("rate limited", "ip", ip, "endpoint", endpoint)
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
@@ -279,6 +228,7 @@ func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
 		resp := map[string]interface{}{
 			"status":         status,
 			"version":        appVersion,
+			"go_version":     runtime.Version(),
 			"uptime_seconds": int(time.Since(startTime).Seconds()),
 			"db": map[string]interface{}{
 				"status":         dbStatus,

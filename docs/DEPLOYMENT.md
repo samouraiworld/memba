@@ -41,8 +41,11 @@ npm run dev
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
 | `VITE_GNO_RPC_URL` | `https://rpc.testnet12.samourai.live:443` | Gno chain RPC |
-| `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/samourai_dao` | DAO realm path on-chain |
+| `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
+
+> **On-chain verification**: Browse deployed Samouraï Coop realms and packages at [gnoweb test12](https://gnoweb.test12.moul.p2p.team/r/samcrew) (hosted by moul).
+> Note: `samourai_dao` is a separate Samouraï Coop DAO for crew members only — do **not** use it as `VITE_DAO_REALM_PATH`.
 
 ### Proto Generation
 

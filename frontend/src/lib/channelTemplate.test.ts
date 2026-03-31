@@ -107,8 +107,8 @@ describe("isValidChannelName", () => {
         expect(isValidChannelName("my channel")).toBe(false)
     })
 
-    it("rejects special characters except hyphens", () => {
-        expect(isValidChannelName("my_channel")).toBe(false) // underscore not allowed
+    it("rejects special characters except hyphens and underscores", () => {
+        expect(isValidChannelName("my_channel")).toBe(true) // underscore allowed (centralized sanitizer)
         expect(isValidChannelName("my.channel")).toBe(false)
         expect(isValidChannelName("my@channel")).toBe(false)
     })

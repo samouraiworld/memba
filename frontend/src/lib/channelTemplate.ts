@@ -20,6 +20,9 @@
  */
 
 import type { AminoMsg } from "./grc20"
+import { isValidChannelName } from "./templates/sanitizer"
+import { buildDeployMsg } from "./templates/prologue"
+export { isValidChannelName } from "./templates/sanitizer"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -96,13 +99,7 @@ export function defaultChannelConfig(daoRealmPath: string, daoName: string): Cha
     }
 }
 
-// ── Input Validation ──────────────────────────────────────────
-
-const SAFE_CHANNEL = /^[a-z][a-z0-9-]*$/
-
-export function isValidChannelName(s: string): boolean {
-    return SAFE_CHANNEL.test(s) && s.length <= 30
-}
+// Input validation delegated to templates/sanitizer.ts (isValidChannelName)
 
 // ── Code Generator ────────────────────────────────────────────
 
@@ -658,10 +655,9 @@ func GetChannelConfig() string {
 `
 }
 
-// ── MsgAddPackage Builder ─────────────────────────────────
-
 /**
  * Build a MsgAddPackage Amino message for deploying a channel realm.
+ * @deprecated Use `buildDeployMsg` from `templates/prologue` directly.
  */
 export function buildDeployChannelMsg(
     callerAddress: string,
@@ -669,29 +665,7 @@ export function buildDeployChannelMsg(
     code: string,
     deposit: string = "",
 ): AminoMsg {
-    const pkgName = realmPath.split("/").pop() || "channels"
-    const files = [
-        {
-            name: `${pkgName}.gno`,
-            body: code,
-        },
-        {
-            name: "gnomod.toml",
-            body: `module = "${realmPath}"\ngno = "0.9"\n`,
-        },
-    ].sort((a, b) => a.name.localeCompare(b.name))
-    return {
-        type: "/vm.m_addpkg",
-        value: {
-            creator: callerAddress,
-            package: {
-                name: pkgName,
-                path: realmPath,
-                files,
-            },
-            deposit: deposit || "",
-        },
-    }
+    return buildDeployMsg(callerAddress, realmPath, code, deposit) as AminoMsg
 }
 
 // ── MsgCall Builders ──────────────────────────────────────

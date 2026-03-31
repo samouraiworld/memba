@@ -74,7 +74,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         hint: "Archived DAOs cannot accept new proposals or votes.",
     },
     {
-        match: /rate limited/i,
+        match: /rate limit/i,
         message: "You're posting too quickly. Please wait before trying again.",
     },
     {
@@ -86,6 +86,125 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         match: /package already exists/i,
         message: "A realm with this name already exists on the chain.",
         hint: "Choose a different name for your DAO.",
+    },
+
+    // ── Profile / Identity errors ────────────────────────
+    {
+        match: /bio.*too long/i,
+        message: "Your bio is too long. Keep it under 256 characters.",
+    },
+    {
+        match: /invalid avatar/i,
+        message: "The avatar URL is invalid. Use a direct link to an image.",
+    },
+    {
+        match: /profile.*not found/i,
+        message: "Profile not found. It may not have been created yet.",
+        hint: "Set up your profile from the dashboard.",
+    },
+    {
+        match: /username.*taken/i,
+        message: "This username is already taken. Try a different one.",
+    },
+
+    // ── GitHub OAuth errors ──────────────────────────────
+    {
+        match: /oauth.*state.*mismatch/i,
+        message: "GitHub login expired. Please try connecting again.",
+        hint: "This happens when the login session times out.",
+    },
+    {
+        match: /oauth.*exchange.*failed/i,
+        message: "Failed to complete GitHub login. Please try again.",
+    },
+    {
+        match: /github.*rate limit/i,
+        message: "GitHub API rate limit reached. Please wait a few minutes.",
+    },
+
+    // ── Clerk / Authentication errors ────────────────────
+    {
+        match: /clerk.*session.*expired/i,
+        message: "Your session has expired. Please sign in again.",
+    },
+    {
+        match: /clerk.*unauthorized/i,
+        message: "Authentication failed. Please sign in again.",
+    },
+
+    // ── Channel / Board errors ───────────────────────────
+    {
+        match: /channel is archived/i,
+        message: "This channel has been archived and is read-only.",
+    },
+    {
+        match: /channel is read-only/i,
+        message: "This channel is read-only. Only admins can post here.",
+    },
+    {
+        match: /only admin can post/i,
+        message: "This is an announcement channel. Only admins can post here.",
+    },
+    {
+        match: /maximum.*channels.*reached/i,
+        message: "Maximum number of channels reached (50).",
+        hint: "Archive unused channels to create new ones.",
+    },
+    {
+        match: /title must be/i,
+        message: "Post title is too short or too long.",
+    },
+    {
+        match: /body must be/i,
+        message: "Post body is too short or too long.",
+    },
+    {
+        match: /edit window expired/i,
+        message: "You can no longer edit this message. The edit window has passed.",
+    },
+
+    // ── Escrow / Marketplace errors ──────────────────────
+    {
+        match: /milestone not funded/i,
+        message: "This milestone hasn't been funded yet.",
+    },
+    {
+        match: /contract not active/i,
+        message: "This escrow contract is no longer active.",
+    },
+    {
+        match: /dispute already raised/i,
+        message: "A dispute has already been raised for this milestone.",
+    },
+
+    // ── Token / Factory errors ───────────────────────────
+    {
+        match: /token.*already exists/i,
+        message: "A token with this symbol already exists.",
+        hint: "Choose a different symbol for your token.",
+    },
+    {
+        match: /symbol.*too short/i,
+        message: "Token symbol must be at least 2 characters.",
+    },
+    {
+        match: /supply.*must be/i,
+        message: "Token supply must be a positive number.",
+    },
+
+    // ── Candidature errors ───────────────────────────────
+    {
+        match: /already have a pending candidature/i,
+        message: "You already have a pending candidature.",
+        hint: "Wait for your current application to be reviewed.",
+    },
+    {
+        match: /cannot approve your own/i,
+        message: "You can't approve your own candidature.",
+    },
+    {
+        match: /re-candidature requires/i,
+        message: "Re-application requires a GNOT deposit (increases with each rejection).",
     },
 
     // ── Adena / Wallet errors ────────────────────────────
@@ -113,7 +232,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         hint: "Install Adena from adena.app and refresh the page.",
     },
 
-    // ── Network errors ───────────────────────────────────
+    // ── Network / Backend errors ─────────────────────────
     {
         match: /failed to fetch/i,
         message: "Can't reach the chain. Check your internet connection.",
@@ -133,6 +252,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         match: /aborted/i,
         message: "The request was interrupted.",
         hint: "Try again.",
+    },
+    {
+        match: /503|service unavailable/i,
+        message: "The backend service is temporarily unavailable.",
+        hint: "Try again in a few minutes.",
+    },
+    {
+        match: /429|too many requests/i,
+        message: "You're sending too many requests. Please slow down.",
+        hint: "Wait a moment before trying again.",
     },
 ]
 
