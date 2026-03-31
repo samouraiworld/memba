@@ -53,7 +53,7 @@ export const TEAMS: Team[] = [
         color: "red",
         description: "Building Memba, gnolove, gnomonitoring, and ecosystem dApps.",
         members: [
-            "n0izn0iz", "omarsy", "villaquiranm", "hthieu1110",
+            "n0izn0iz", "omarsy", "Villaquiranm", "hthieu1110",
             "MikaelVallenet", "WaDadidou", "dtczelo", "naim-ea",
             "louis14448", "pr0m3th3usEx", "davd-gzl", "moonia",
             "zxxma", "clegirar", "omniwired",
