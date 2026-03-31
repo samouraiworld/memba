@@ -4,6 +4,23 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.25.1 (2026-03-31) — Escrow Chain API Correction
+
+### Fixed
+
+- **Escrow template API correction** — v2.25.0 incorrectly mapped `std.*` calls to
+  the monolithic `chain.*` namespace. The upstream Gno std split (#4040) distributes
+  APIs across three subpackages: `chain/runtime` (PreviousRealm, CurrentRealm,
+  ChainHeight), `chain/banker` (NewBanker, OriginSend), and `chain` (Coins, NewCoin).
+  Corrected all generated Gno code to match the actual upstream API and the patterns
+  used by daoTemplate, channelTemplate, boardTemplate, and candidatureTemplate
+- **Realm method name** — `.Addr()` → `.Address()` (the Realm struct has no `.Addr()`
+  method; the correct method is `.Address()` per `chain/runtime/frame.gno`)
+- **Banker variable shadowing** — renamed local banker variable from `banker` to `bnk`
+  to avoid shadowing the imported `chain/banker` package
+- **Test assertions** — updated all 40 escrow test assertions to validate the correct
+  API names (runtime.PreviousRealm, banker.NewBanker, etc.)
+
 ## v2.25.0 (2026-03-31) — Escrow Hardening & Chain Compatibility
 
 ### Fixed

@@ -153,6 +153,7 @@ import (
 	"gno.land/p/demo/ufmt"
 
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 )
 
@@ -213,7 +214,7 @@ func init() {
 
 // CreateContract creates a new escrow contract with milestones.
 func CreateContract(cur realm, freelancer address, title, description string, milestones string) string {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	id := strconv.Itoa(nextID)
 	nextID++
 
@@ -230,7 +231,7 @@ func CreateContract(cur realm, freelancer address, title, description string, mi
 		Title:       title,
 		Description: description,
 		Status:      StatusActive,
-		CreatedAt:   chain.GetHeight(),
+		CreatedAt:   runtime.ChainHeight(),
 		Milestones:  ms,
 	}
 	contracts.Set(id, c)
@@ -239,7 +240,7 @@ func CreateContract(cur realm, freelancer address, title, description string, mi
 
 // FundMilestone deposits funds for a specific milestone.
 func FundMilestone(cur realm, contractId string, milestoneIdx int) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller {
@@ -257,19 +258,19 @@ func FundMilestone(cur realm, contractId string, milestoneIdx int) {
 		panic("milestone already funded")
 	}
 
-	sent := chain.OrigSend()
+	sent := banker.OriginSend()
 	if sent.AmountOf("ugnot") < ms.Amount {
 		panic(ufmt.Sprintf("insufficient funds: need %d ugnot", ms.Amount))
 	}
 
 	ms.Status = MsFunded
-	ms.FundedAt = chain.GetHeight()
+	ms.FundedAt = runtime.ChainHeight()
 	contracts.Set(contractId, c)
 }
 
 // CompleteMilestone marks a milestone as completed by the freelancer.
 func CompleteMilestone(cur realm, contractId string, milestoneIdx int) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if milestoneIdx < 0 || milestoneIdx >= len(c.Milestones) {
@@ -284,13 +285,13 @@ func CompleteMilestone(cur realm, contractId string, milestoneIdx int) {
 	}
 
 	ms.Status = MsCompleted
-	ms.CompletedAt = chain.GetHeight()
+	ms.CompletedAt = runtime.ChainHeight()
 	contracts.Set(contractId, c)
 }
 
 // ReleaseFunds releases funds to freelancer after client approves completion.
 func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller && string(caller) != AdminAddress {
@@ -324,20 +325,20 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 	}
 	contracts.Set(contractId, c)
 
-	banker := chain.GetBanker(chain.BankerTypeRealmSend)
-	realmAddr := chain.CurrentRealm().Addr()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+	realmAddr := runtime.CurrentRealm().Address()
 
 	// Pay freelancer
-	banker.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
+	bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
 	// Pay platform fee
 	if platformAmount > 0 {
-		banker.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
+		bnk.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
 	}
 }
 
 // RaiseDispute escalates a milestone to admin arbitration.
 func RaiseDispute(cur realm, contractId string, milestoneIdx int) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller && c.Freelancer != caller {
@@ -359,7 +360,7 @@ func RaiseDispute(cur realm, contractId string, milestoneIdx int) {
 
 // ResolveDispute resolves a dispute (admin only). Refund=true refunds client, false pays freelancer.
 func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient bool) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	if string(caller) != AdminAddress {
 		panic("only admin can resolve disputes")
 	}
@@ -382,24 +383,24 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 	c.Status = StatusActive
 	contracts.Set(contractId, c)
 
-	banker := chain.GetBanker(chain.BankerTypeRealmSend)
-	realmAddr := chain.CurrentRealm().Addr()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+	realmAddr := runtime.CurrentRealm().Address()
 
 	if refundClient {
-		banker.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", ms.Amount)})
+		bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", ms.Amount)})
 	} else {
 		platformAmount := (ms.Amount * int64(PlatformFee)) / 100
 		freelancerAmount := ms.Amount - platformAmount
-		banker.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
+		bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
 		if platformAmount > 0 {
-			banker.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
+			bnk.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
 		}
 	}
 }
 
 // CancelContract cancels with cancellation fee.
 func CancelContract(cur realm, contractId string) {
-	caller := chain.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller {
@@ -418,8 +419,8 @@ func CancelContract(cur realm, contractId string) {
 	c.Status = StatusCancelled
 	contracts.Set(contractId, c)
 
-	banker := chain.GetBanker(chain.BankerTypeRealmSend)
-	realmAddr := chain.CurrentRealm().Addr()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
+	realmAddr := runtime.CurrentRealm().Address()
 
 	// Refund funded milestones minus cancellation fee
 	for _, ms := range c.Milestones {
@@ -427,10 +428,10 @@ func CancelContract(cur realm, contractId string) {
 			fee := (ms.Amount * int64(CancellationFee)) / 100
 			refund := ms.Amount - fee
 			if refund > 0 {
-				banker.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", refund)})
+				bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", refund)})
 			}
 			if fee > 0 {
-				banker.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", fee)})
+				bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", fee)})
 			}
 		}
 	}
