@@ -6,6 +6,9 @@
  *
  * Usage: var(--color-primary), var(--font-mono), var(--radius-md), etc.
  * Existing CSS files can gradually adopt these tokens.
+ *
+ * Sprint 4: Expanded with 4px grid spacing, HSL semantic colors,
+ * modular type scale (1.25 ratio), and component tokens.
  */
 
 :root {
@@ -30,16 +33,57 @@
     --color-border: #1a1a1a;
     --color-border-light: #222;
 
+    /* ── HSL Semantic Color Scale (primary green) ───────── */
+    --color-primary-50: hsl(165, 100%, 95%);
+    --color-primary-100: hsl(165, 95%, 85%);
+    --color-primary-200: hsl(165, 90%, 75%);
+    --color-primary-300: hsl(165, 85%, 60%);
+    --color-primary-400: hsl(165, 82%, 50%);
+    --color-primary-500: hsl(165, 82%, 41%);   /* #00d4aa core */
+    --color-primary-600: hsl(165, 80%, 35%);
+    --color-primary-700: hsl(165, 78%, 28%);
+    --color-primary-800: hsl(165, 75%, 20%);
+    --color-primary-900: hsl(165, 70%, 12%);
+
     /* ── Typography ─────────────────────────────────────── */
     --font-mono: 'JetBrains Mono', monospace;
     --font-sans: system-ui, -apple-system, sans-serif;
 
-    /* ── Spacing / Radius ───────────────────────────────── */
+    /* ── Modular Type Scale (1.25 ratio) ────────────────── */
+    --text-xs: 0.64rem;    /* ~10px */
+    --text-sm: 0.8rem;     /* ~13px */
+    --text-base: 1rem;     /* 16px */
+    --text-lg: 1.25rem;    /* 20px */
+    --text-xl: 1.563rem;   /* 25px */
+    --text-2xl: 1.953rem;  /* ~31px */
+    --text-3xl: 2.441rem;  /* ~39px */
+    --text-4xl: 3.052rem;  /* ~49px */
+
+    /* ── 4px Grid Spacing ───────────────────────────────── */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* ── Radius ─────────────────────────────────────────── */
     --radius-xs: 3px;
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
     --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* ── Shadows ────────────────────────────────────────── */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 20px hsl(0 0% 0% / 0.15);
 
     /* ── Transitions ────────────────────────────────────── */
     --transition-fast: 0.15s ease;

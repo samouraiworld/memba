@@ -1,0 +1,144 @@
+/**
+ * createdao.css — Styles for CreateDAO wizard page.
+ *
+ * Sprint 4: extracted from 16 inline style={{}} blocks.
+ * Naming: cdao- prefix (create DAO).
+ */
+
+/* ── Layout ──────────────────────────────────────────── */
+
+.cdao-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* ── Back Button ─────────────────────────────────────── */
+
+.cdao-back-btn {
+    color: var(--color-primary, #00d4aa);
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    text-align: left;
+}
+
+/* ── Draft Banner ────────────────────────────────────── */
+
+.cdao-draft-banner {
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(0, 212, 170, 0.04);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+}
+
+.cdao-draft-banner__info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cdao-draft-banner__icon {
+    font-size: 16px;
+    display: flex;
+}
+
+.cdao-draft-banner__text {
+    font-size: 12px;
+    color: #ccc;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.cdao-draft-banner__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cdao-draft-banner__actions .k-btn-primary,
+.cdao-draft-banner__actions .k-btn-secondary {
+    font-size: 11px;
+    padding: 5px 12px;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+
+.cdao-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.cdao-subtitle {
+    color: var(--color-text-secondary, #888);
+    font-size: 12px;
+    margin-top: 4px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* ── Step Indicator ──────────────────────────────────── */
+
+.cdao-steps {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.cdao-step-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cdao-step-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    transition: all 0.2s;
+}
+
+.cdao-step-circle--active {
+    background: var(--color-primary, #00d4aa);
+    color: #000;
+}
+
+.cdao-step-circle--done {
+    background: rgba(0, 212, 170, 0.2);
+    color: var(--color-primary, #00d4aa);
+    cursor: pointer;
+}
+
+.cdao-step-circle--future {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-muted, #555);
+}
+
+.cdao-step-connector {
+    width: 24px;
+    height: 2px;
+}
+
+.cdao-step-connector--done {
+    background: rgba(0, 212, 170, 0.3);
+}
+
+.cdao-step-connector--future {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cdao-step-label {
+    font-size: 11px;
+    color: #666;
+    margin-left: 8px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
