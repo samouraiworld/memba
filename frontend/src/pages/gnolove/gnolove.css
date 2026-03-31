@@ -1964,6 +1964,50 @@
     letter-spacing: 0.5px;
 }
 
+/* ── Team Repositories ────────────────────────────────────────── */
+
+.gl-team-repos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+.gl-team-repo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+.gl-team-repo:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+    background: rgba(0, 212, 170, 0.03);
+}
+.gl-team-repo-name {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #ccc;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.gl-team-repo:hover .gl-team-repo-name {
+    color: #00d4aa;
+}
+.gl-team-repo-branch {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #555;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
 .gl-team-member-rank {
     font-size: 11px;
     color: #555;
