@@ -2,6 +2,14 @@
 
 This document tracks items to be addressed before the mainnet release.
 
+## Chain Status (2026-03-31)
+
+| Chain | Status | Notes |
+|-------|--------|-------|
+| **testnet12** | ✅ Active | Primary development target. gnoweb: [gnoweb.test12.moul.p2p.team](https://gnoweb.test12.moul.p2p.team/r/samcrew) |
+| **gnoland1 (betanet)** | 🔴 HALTED | Consensus bug under investigation by Gno core team. Continue dev on testnet12 independently. |
+| **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |
+
 ## ✅ Frontend Observability — Sentry (DONE)
 
 > **Shipped:** v2.0-z (PR #69, 2026-03-07). Self-hosted at `sentry.samourai.pro` with PII scrubbing.
@@ -80,6 +88,20 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 | **ADR-036 signature verification** | Blocked | Re-enable when Adena supports it |
 | **boards2 safe functions** | Monitor ([gno#5037](https://github.com/gnolang/gno/pull/5037)) | V2 parser skeleton ready (v2.21.0) |
 | **govdao T1 multisig** | Monitor ([gno#5222](https://github.com/gnolang/gno/pull/5222)) | Vote function name configurable (v2.21.0) |
+| **gnoland1 relaunch** | Blocked (chain halted) | Continue on testnet12, update when chain resumes |
+
+## 🟡 Deferred Security Items
+
+### ED25519_SEED Key Rotation — DEFERRED
+
+**Risk:** MEDIUM (single-key, no rotation mechanism).
+The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5 minutes + nonce replay prevention.
+**When:** Post-mainnet, when user base grows. Implement `ED25519_SEED_V{N}` key versioning.
+
+### Separate Clerk Applications — DEFERRED
+
+**Risk:** LOW. Single Clerk app used for dev and prod. Dev sessions don't touch production data.
+**When:** When team grows beyond 3 developers.
 
 ## ✅ Completed
 
@@ -93,4 +115,4 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 | Upstream Compatibility Shield | v2.21.0 | Parser V1/V2, GovDAO constants, 63 tests |
 
 ---
-*Updated 2026-03-30 during v2.23.0 mainnet hardening.*
+*Updated 2026-03-31 during v2.25.1 Sprint 2 (Security & Backend Hardening).*

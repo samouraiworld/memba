@@ -140,6 +140,83 @@ describe("friendlyError", () => {
         expect(msg).toContain("unexpected error")
         expect(msg).not.toContain("slice bounds")
     })
+
+    // ── Profile / Identity errors (v2.25.1) ─────────────
+    it("translates bio too long", () => {
+        const msg = friendlyError("bio is too long")
+        expect(msg).toContain("256 characters")
+    })
+
+    it("translates invalid avatar", () => {
+        const msg = friendlyError("invalid avatar URL provided")
+        expect(msg).toContain("invalid")
+    })
+
+    it("translates username taken", () => {
+        const msg = friendlyError("username is already taken")
+        expect(msg).toContain("already taken")
+    })
+
+    // ── GitHub OAuth errors (v2.25.1) ────────────────────
+    it("translates OAuth state mismatch", () => {
+        const msg = friendlyError("oauth state mismatch: expected abc got xyz")
+        expect(msg).toContain("expired")
+    })
+
+    it("translates OAuth exchange failure", () => {
+        const msg = friendlyError("oauth exchange failed: invalid code")
+        expect(msg).toContain("GitHub login")
+    })
+
+    // ── Channel errors (v2.25.1) ─────────────────────────
+    it("translates channel archived", () => {
+        const msg = friendlyError("channel is archived")
+        expect(msg).toContain("archived")
+    })
+
+    it("translates edit window expired", () => {
+        const msg = friendlyError("edit window expired (100 blocks)")
+        expect(msg).toContain("edit window")
+    })
+
+    it("translates max channels reached", () => {
+        const msg = friendlyError("maximum 50 channels reached")
+        expect(msg).toContain("50")
+    })
+
+    // ── Escrow errors (v2.25.1) ──────────────────────────
+    it("translates milestone not funded", () => {
+        const msg = friendlyError("milestone not funded")
+        expect(msg).toContain("funded")
+    })
+
+    // ── Token errors (v2.25.1) ───────────────────────────
+    it("translates token already exists", () => {
+        const msg = friendlyError("token MEMBA already exists")
+        expect(msg).toContain("already exists")
+    })
+
+    // ── Candidature errors (v2.25.1) ─────────────────────
+    it("translates pending candidature", () => {
+        const msg = friendlyError("You already have a pending candidature")
+        expect(msg).toContain("pending candidature")
+    })
+
+    it("translates self-approval attempt", () => {
+        const msg = friendlyError("Cannot approve your own candidature")
+        expect(msg).toContain("can't approve your own")
+    })
+
+    // ── Backend HTTP errors (v2.25.1) ────────────────────
+    it("translates 429 rate limit response", () => {
+        const msg = friendlyError("429 Too Many Requests")
+        expect(msg).toContain("too many requests")
+    })
+
+    it("translates 503 service unavailable", () => {
+        const msg = friendlyError("503 Service Unavailable")
+        expect(msg).toContain("temporarily unavailable")
+    })
 })
 
 describe("extractMessage", () => {
