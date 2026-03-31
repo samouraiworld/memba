@@ -12,6 +12,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
+import "./txview.css"
 
 /** Build deterministic Amino sign doc from transaction data. */
 function buildSignDoc(tx: Transaction): Record<string, unknown> {
@@ -62,8 +63,6 @@ export function TransactionView() {
 
     useEffect(() => { fetchTx() }, [fetchTx])
 
-
-
     const formatDate = (dateStr: string) => {
         try {
             return new Date(dateStr).toLocaleDateString("en-US", {
@@ -76,13 +75,11 @@ export function TransactionView() {
     // ── Loading state ─────────────────────────────────────────
     if (loading) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-                <button onClick={() => navigate(-1)} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", alignSelf: "flex-start" }}>
-                    ← Back
-                </button>
+            <div className="animate-fade-in k-txview">
+                <button className="k-txview__back" onClick={() => navigate(-1)}>← Back</button>
                 <SkeletonCard />
                 <SkeletonCard />
-                <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                <div className="k-card k-txview__table-card">
                     <SkeletonRow />
                     <SkeletonRow />
                     <SkeletonRow />
@@ -94,14 +91,12 @@ export function TransactionView() {
     // ── Error state ───────────────────────────────────────────
     if (!tx) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-                <button onClick={() => navigate(-1)} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", alignSelf: "flex-start" }}>
-                    ← Back
-                </button>
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 48, textAlign: "center" }}>
-                    <span style={{ fontSize: 32, marginBottom: 12, display: "flex", justifyContent: "center" }}><MagnifyingGlass size={32} /></span>
-                    <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Transaction not found</h3>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+            <div className="animate-fade-in k-txview">
+                <button className="k-txview__back" onClick={() => navigate(-1)}>← Back</button>
+                <div className="k-dashed k-txview__not-found">
+                    <span className="k-txview__not-found-icon"><MagnifyingGlass size={32} /></span>
+                    <h3 className="k-txview__not-found-title">Transaction not found</h3>
+                    <p className="k-txview__not-found-desc">
                         {auth.isAuthenticated ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}
                     </p>
                 </div>
@@ -116,33 +111,26 @@ export function TransactionView() {
     const fee = parseFee(tx.feeJson)
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className="animate-fade-in k-txview">
             {/* ── Header ───────────────────────────────────────── */}
             <div>
-                <button onClick={() => navigate(-1)} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
-                    ← Back
-                </button>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>TX #{id}</h2>
+                <button className="k-txview__back" onClick={() => navigate(-1)}>← Back</button>
+                <div className="k-txview__header-row">
+                    <div className="k-txview__title-row">
+                        <h2 className="k-txview__title">TX #{id}</h2>
                         <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} />
                         <button
+                            className={`k-txview__share-btn ${linkCopied ? "k-txview__share-btn--copied" : ""}`}
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href)
                                 setLinkCopied(true)
                                 setTimeout(() => setLinkCopied(false), 2000)
                             }}
-                            style={{
-                                background: "none", border: "1px dashed #333", borderRadius: 6,
-                                color: linkCopied ? "#00d4aa" : "#666", fontSize: 11, padding: "4px 10px",
-                                cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
-                                transition: "all 0.15s",
-                            }}
                         >
                             {linkCopied ? "✓ Link Copied" : "Share"}
                         </button>
                     </div>
-                    <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p className="k-txview__meta">
                         {(tx.type || "send").toUpperCase()} • Created by <CopyableAddress address={tx.creatorAddress} full={false} fontSize={12} /> • {formatDate(tx.createdAt)}
                     </p>
                 </div>
@@ -150,30 +138,19 @@ export function TransactionView() {
 
             {/* ── Transaction Content ──────────────────────────── */}
             {parsedMsgs.map((msg, i) => (
-                <div key={i} className="k-card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
-                            padding: "2px 8px", borderRadius: 4, textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                        }}>{msg.type}</span>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: "#f0f0f0" }}>{msg.label}</span>
+                <div key={i} className="k-card k-txview__msg-card">
+                    <div className="k-txview__msg-header">
+                        <span className="k-txview__msg-type">{msg.type}</span>
+                        <span className="k-txview__msg-label">{msg.label}</span>
                     </div>
                     {msg.fields.map((field, j) => (
-                        <div key={j} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-                            <span className="k-label" style={{ flexShrink: 0 }}>{field.key}</span>
-                            <span style={{
-                                fontFamily: "JetBrains Mono, monospace",
-                                fontSize: 13,
-                                color: field.accent ? "#00d4aa" : "#ccc",
-                                fontWeight: field.accent ? 600 : 400,
-                                textAlign: "right",
-                                wordBreak: "break-all",
-                                whiteSpace: field.key === "Raw" ? "pre-wrap" : "normal",
-                                maxHeight: field.key === "Raw" ? 200 : undefined,
-                                overflow: field.key === "Raw" ? "auto" : undefined,
-                            }}>
+                        <div key={j} className="k-txview__field-row">
+                            <span className="k-label k-txview__field-key">{field.key}</span>
+                            <span className={[
+                                "k-txview__field-value",
+                                field.accent ? "k-txview__field-value--accent" : "",
+                                field.key === "Raw" ? "k-txview__field-value--raw" : "",
+                            ].filter(Boolean).join(" ")}>
                                 {field.value}
                             </span>
                         </div>
@@ -182,7 +159,7 @@ export function TransactionView() {
             ))}
 
             {/* ── Details card ─────────────────────────────────── */}
-            <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="k-card k-txview__detail-card">
                 <DetailRow label="Multisig" value={<CopyableAddress address={tx.multisigAddress} fontSize={13} />} />
                 <DetailRow label="Chain" value={tx.chainId} />
                 <DetailRow label="Memo" value={tx.memo || "—"} />
@@ -193,7 +170,7 @@ export function TransactionView() {
 
             {/* ── Signature Progress ──────────────────────────── */}
             <div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Signature Progress</h3>
+                <h3 className="k-txview__section-title">Signature Progress</h3>
                 <ProgressBar
                     current={tx.signatures.length}
                     threshold={tx.threshold}
@@ -203,37 +180,21 @@ export function TransactionView() {
 
             {/* ── Signers ─────────────────────────────────────── */}
             <div>
-                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Signers</h3>
-                <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
-                    <div style={{
-                        padding: "12px 20px", borderBottom: "1px solid #222",
-                        display: "grid", gridTemplateColumns: "1fr auto",
-                        fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
-                        textTransform: "uppercase", letterSpacing: "0.05em",
-                    }}>
+                <h3 className="k-txview__section-title">Signers</h3>
+                <div className="k-card k-txview__table-card">
+                    <div className="k-txview__table-header">
                         <span>Address</span>
                         <span>Status</span>
                     </div>
                     {tx.signatures.length === 0 ? (
-                        <div style={{ padding: 32, textAlign: "center" }}>
-                            <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
-                                No signatures yet
-                            </p>
+                        <div className="k-txview__empty">
+                            <p className="k-txview__empty-text">No signatures yet</p>
                         </div>
                     ) : (
                         tx.signatures.map((sig, i) => (
-                            <div key={i} style={{
-                                padding: "12px 20px", borderBottom: "1px solid #111",
-                                display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center",
-                            }}>
+                            <div key={i} className="k-txview__signer-row">
                                 <CopyableAddress address={sig.userAddress} fontSize={12} />
-                                <span style={{
-                                    fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                                    background: "rgba(0,212,170,0.08)", color: "#00d4aa",
-                                    fontFamily: "JetBrains Mono, monospace",
-                                }}>
-                                    Signed
-                                </span>
+                                <span className="k-txview__signed-badge">Signed</span>
                             </div>
                         ))
                     )}
@@ -242,7 +203,7 @@ export function TransactionView() {
 
             {/* ── Actions ─────────────────────────────────────── */}
             {!tx.finalHash && auth.isAuthenticated && (
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <div className="k-txview__actions">
                     <button
                         className="k-btn-primary"
                         disabled={actionLoading}
@@ -254,7 +215,6 @@ export function TransactionView() {
                                 const signDoc = JSON.stringify(buildSignDoc(tx))
                                 const signDocBytes = new TextEncoder().encode(signDoc)
 
-                                // Sign with Adena
                                 const signature = await adena.signArbitrary(signDoc)
                                 if (!signature) {
                                     setError("Signature rejected")
@@ -262,7 +222,6 @@ export function TransactionView() {
                                     return
                                 }
 
-                                // Submit to backend
                                 await api.signTransaction({
                                     authToken: token,
                                     transactionId: tx.id,
@@ -270,7 +229,6 @@ export function TransactionView() {
                                     bodyBytes: signDocBytes,
                                 })
 
-                                // Refresh TX to update sig count
                                 await fetchTx()
                             } catch (err) {
                                 setError(err instanceof Error ? err.message : "Failed to sign")
@@ -348,21 +306,17 @@ export function TransactionView() {
 
             {/* ── Manual Signature Paste (air-gapped flow) ────── */}
             {showManualSig && !tx.finalHash && auth.isAuthenticated && (
-                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="k-card k-txview__manual-form">
                     <p className="k-label">Paste gnokey Signature</p>
-                    <p style={{ color: "#666", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p className="k-txview__manual-desc">
                         Export the unsigned TX above, sign with gnokey offline, then paste the base64 signature here.
                     </p>
                     <input
+                        className="k-txview__manual-input"
                         type="text"
                         value={manualSig}
                         onChange={(e) => setManualSig(e.target.value)}
                         placeholder="Paste base64 signature from gnokey..."
-                        style={{
-                            width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                            background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-                            fontFamily: "JetBrains Mono, monospace", fontSize: 12, outline: "none",
-                        }}
                     />
                     <button
                         className="k-btn-primary"
@@ -397,9 +351,9 @@ export function TransactionView() {
 
             {/* ── Final Hash ──────────────────────────────────── */}
             {tx.finalHash && (
-                <div className="k-card" style={{ borderColor: "rgba(0,212,170,0.2)" }}>
-                    <p className="k-label" style={{ marginBottom: 8 }}>Transaction Hash</p>
-                    <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, color: "#00d4aa", wordBreak: "break-all" }}>
+                <div className="k-card k-txview__hash-card">
+                    <p className="k-label k-txview__hash-label">Transaction Hash</p>
+                    <p className="k-txview__hash-value">
                         {tx.finalHash}
                     </p>
                 </div>
@@ -412,23 +366,17 @@ export function TransactionView() {
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
     return (
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div className="k-txview__detail-row">
             <span className="k-label">{label}</span>
-            <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 13, color: "#ccc" }}>{value}</span>
+            <span className="k-txview__detail-value">{value}</span>
         </div>
     )
 }
 
 /**
  * Build a hex-encoded Amino broadcast TX from multi-sig data.
- *
- * Gno multisig broadcast requires:
- * - The multisig pubkey as pub_key in the single signature entry
- * - Individual signatures ordered by member index in the pubkey array
- * - Each signature paired with its member's individual pubkey
  */
 function buildBroadcastTx(tx: Transaction): string {
-    // Parse the multisig pubkey to get member order
     let multisigPubkey: {
         type: string;
         value: { threshold: string; pubkeys: { type: string; value: string }[] };
@@ -440,13 +388,8 @@ function buildBroadcastTx(tx: Transaction): string {
         // If parsing fails, fall back to the raw value
     }
 
-    // Build ordered signatures: match each stored signature to its
-    // member position in the multisig pubkey's pubkeys array.
-    // For now, include all collected signatures in their stored order.
-    // Full bitfield-based Amino multisig encoding requires a dedicated
-    // library — this format works with Gno's JSON broadcast endpoint.
     const orderedSigs = tx.signatures.map(sig => ({
-        pub_key: null, // Individual member pubkey — resolved by chain from multisig
+        pub_key: null,
         signature: sig.value,
     }))
 
@@ -463,9 +406,7 @@ function buildBroadcastTx(tx: Transaction): string {
         },
     }
     const jsonStr = JSON.stringify(broadcastDoc)
-    // Convert to hex for broadcast_tx_commit
     return Array.from(new TextEncoder().encode(jsonStr))
         .map(b => b.toString(16).padStart(2, "0"))
         .join("")
 }
-

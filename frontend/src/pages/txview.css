@@ -1,0 +1,260 @@
+/* ── TransactionView Page ─────────────────────────────────────── */
+
+.k-txview {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Back Button (shared pattern) ────────────────────────────── */
+
+.k-txview__back {
+  color: var(--color-k-accent);
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  align-self: flex-start;
+  margin-bottom: 16px;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.k-txview__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.k-txview__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.k-txview__title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.k-txview__share-btn {
+  background: none;
+  border: 1px dashed #333;
+  border-radius: 6px;
+  color: #666;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.k-txview__share-btn--copied {
+  color: var(--color-k-accent);
+}
+.k-txview__meta {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Message Card ────────────────────────────────────────────── */
+
+.k-txview__msg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.k-txview__msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.k-txview__msg-type {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--color-k-accent);
+  background: rgba(0, 212, 170, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.k-txview__msg-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+/* ── Message Field Rows ──────────────────────────────────────── */
+
+.k-txview__field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.k-txview__field-key {
+  flex-shrink: 0;
+}
+.k-txview__field-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #ccc;
+  text-align: right;
+  word-break: break-all;
+}
+.k-txview__field-value--accent {
+  color: var(--color-k-accent);
+  font-weight: 600;
+}
+.k-txview__field-value--raw {
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: auto;
+}
+
+/* ── Detail Card ─────────────────────────────────────────────── */
+
+.k-txview__detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.k-txview__detail-row {
+  display: flex;
+  justify-content: space-between;
+}
+.k-txview__detail-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #ccc;
+}
+
+/* ── Section Titles ──────────────────────────────────────────── */
+
+.k-txview__section-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* ── Signers Table ───────────────────────────────────────────── */
+
+.k-txview__table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.k-txview__table-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #222;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.k-txview__signer-row {
+  padding: 12px 20px;
+  border-bottom: 1px solid #111;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.k-txview__signed-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 212, 170, 0.08);
+  color: var(--color-k-accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Empty State ─────────────────────────────────────────────── */
+
+.k-txview__empty {
+  padding: 32px;
+  text-align: center;
+}
+.k-txview__empty-text {
+  color: #555;
+  font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Not Found State ─────────────────────────────────────────── */
+
+.k-txview__not-found {
+  background: #0c0c0c;
+  padding: 48px;
+  text-align: center;
+}
+.k-txview__not-found-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+}
+.k-txview__not-found-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.k-txview__not-found-desc {
+  color: #666;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Actions ─────────────────────────────────────────────────── */
+
+.k-txview__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Manual Signature Form ───────────────────────────────────── */
+
+.k-txview__manual-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.k-txview__manual-desc {
+  color: #666;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-txview__manual-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #0c0c0c;
+  border: 1px solid #222;
+  color: #f0f0f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+}
+
+/* ── Final Hash ──────────────────────────────────────────────── */
+
+.k-txview__hash-card {
+  border-color: rgba(0, 212, 170, 0.2);
+}
+.k-txview__hash-label {
+  margin-bottom: 8px;
+}
+.k-txview__hash-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--color-k-accent);
+  word-break: break-all;
+}
