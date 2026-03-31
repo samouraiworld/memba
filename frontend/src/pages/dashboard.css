@@ -1,0 +1,197 @@
+/* ── Dashboard Page ───────────────────────────────────────────── */
+
+.k-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Page Header ─────────────────────────────────────────────── */
+
+.k-dashboard__title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.k-dashboard__subtitle {
+  color: #999;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Section Headers ─────────────────────────────────────────── */
+
+.k-dashboard__section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.k-dashboard__section-header-icon {
+  font-size: 14px;
+  display: flex;
+}
+.k-dashboard__section-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+.k-dashboard__section-count {
+  margin-left: auto;
+}
+
+/* ── Empty States ────────────────────────────────────────────── */
+
+.k-dashboard__empty {
+  text-align: center;
+  padding: 32px;
+}
+.k-dashboard__empty-text {
+  color: #555;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 12px;
+}
+.k-dashboard__empty-text--lg {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+.k-dashboard__empty-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.k-dashboard__empty-actions .k-btn-primary {
+  font-size: 11px;
+  padding: 6px 14px;
+}
+
+/* ── Multisig Grid ───────────────────────────────────────────── */
+
+.k-dashboard__ms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+/* ── Multisig Card ───────────────────────────────────────────── */
+
+.k-dashboard__ms-card {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.k-dashboard__ms-card:hover {
+  border-color: rgba(0, 212, 170, 0.3);
+}
+.k-dashboard__ms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.k-dashboard__ms-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.k-dashboard__ms-threshold {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--color-k-accent);
+  background: rgba(0, 212, 170, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ── Discoverable Multisig ───────────────────────────────────── */
+
+.k-dashboard__disc-desc {
+  color: #888;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 12px;
+}
+.k-dashboard__disc-card {
+  border-color: rgba(245, 158, 11, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.k-dashboard__disc-threshold {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.k-dashboard__disc-addr {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #666;
+  word-break: break-all;
+}
+
+/* ── Activity Table ──────────────────────────────────────────── */
+
+.k-dashboard__table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.k-dashboard__activity-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #222;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.k-dashboard__activity-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  padding: 14px 20px;
+  border-bottom: 1px solid #1a1a1a;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.k-dashboard__activity-row:hover {
+  background: #0c0c0c;
+}
+.k-dashboard__activity-type {
+  color: #f0f0f0;
+  text-transform: capitalize;
+}
+.k-dashboard__activity-date {
+  color: #555;
+  font-size: 11px;
+}
+
+/* ── Export Button ────────────────────────────────────────────── */
+
+.k-dashboard__export-btn {
+  background: rgba(0, 212, 170, 0.06);
+  border: 1px solid rgba(0, 212, 170, 0.15);
+  color: var(--color-k-accent);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.k-dashboard__export-btn:hover {
+  background: rgba(0, 212, 170, 0.12);
+}
+
+/* ── Recent Activity Header ──────────────────────────────────── */
+
+.k-dashboard__recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}

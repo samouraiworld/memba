@@ -37,6 +37,7 @@ import {
     FaucetCard,
     DashboardAssets,
 } from "../components/dashboard"
+import "./dashboard.css"
 
 export function Dashboard() {
     const navigate = useNavigate()
@@ -85,8 +86,6 @@ export function Dashboard() {
             setPendingTxs(pendRes.transactions)
             setRecentTxs(recentRes.transactions)
         } catch (err) {
-            // Silently degrade when backend API is unreachable
-            // On-chain features (DAOs, tokens, voting) still work without backend
             const msg = err instanceof Error ? err.message : ""
             const isNetworkError = /failed to fetch|networkerror|econnrefused|err_network|timeout|aborted/i.test(msg)
             if (isNetworkError) {
@@ -185,8 +184,7 @@ export function Dashboard() {
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-
+        <div className="animate-fade-in k-dashboard">
 
             {/* ── User Identity Card ────────────────────────── */}
             {auth.isAuthenticated && (
@@ -215,8 +213,8 @@ export function Dashboard() {
             {/* ── Page header ──────────────────────── */}
             {auth.isAuthenticated && (
                 <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Dashboard</h2>
-                    <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
+                    <h2 className="k-dashboard__title">Dashboard</h2>
+                    <p className="k-dashboard__subtitle">
                         Your hub for multisig wallets, DAOs, and tokens
                     </p>
                 </div>
@@ -247,36 +245,33 @@ export function Dashboard() {
 
                     {/* My Multisigs (always visible) */}
                     <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                            <span style={{ fontSize: 14, display: 'flex' }}><LockKey size={16} /></span>
-                            <h3 style={{ fontSize: 16, fontWeight: 500 }}>My Multisigs</h3>
-                            <span className="k-label" style={{ marginLeft: "auto" }}>{joinedMultisigs.length} active</span>
+                        <div className="k-dashboard__section-header">
+                            <span className="k-dashboard__section-header-icon"><LockKey size={16} /></span>
+                            <h3 className="k-dashboard__section-title">My Multisigs</h3>
+                            <span className="k-label k-dashboard__section-count">{joinedMultisigs.length} active</span>
                         </div>
                         {joinedMultisigs.length === 0 ? (
-                            <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
-                                <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
+                            <div className="k-card k-dashboard__empty">
+                                <p className="k-dashboard__empty-text">
                                     No multisig wallets yet
                                 </p>
-                                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                                    <button className="k-btn-primary" style={{ fontSize: 11, padding: "6px 14px" }} onClick={() => navigate("/create")}>
+                                <div className="k-dashboard__empty-actions">
+                                    <button className="k-btn-primary" onClick={() => navigate("/create")}>
                                         Create Multisig →
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                            <div className="k-dashboard__ms-grid">
                                 {joinedMultisigs.map(ms => (
                                     <div
                                         key={ms.address}
-                                        className="k-card"
+                                        className="k-card k-dashboard__ms-card"
                                         onClick={() => navigate(`/multisig/${ms.address}`)}
-                                        style={{ cursor: "pointer", transition: "border-color 0.15s" }}
-                                        onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
-                                        onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
                                     >
-                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                                            <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
-                                            <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", background: "rgba(0,212,170,0.08)", padding: "2px 6px", borderRadius: 4 }}>
+                                        <div className="k-dashboard__ms-header">
+                                            <span className="k-dashboard__ms-name">{ms.name || "Unnamed"}</span>
+                                            <span className="k-dashboard__ms-threshold">
                                                 {ms.threshold}/{ms.membersCount}
                                             </span>
                                         </div>
@@ -299,24 +294,24 @@ export function Dashboard() {
             {/* ── Discoverable Multisigs ─────────────── */}
             {auth.isAuthenticated && discoverableMultisigs.length > 0 && (
                 <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                        <span style={{ fontSize: 14, display: 'flex' }}><MagnifyingGlass size={16} /></span>
-                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Discovered Multisigs</h3>
-                        <span className="k-label" style={{ marginLeft: "auto" }}>{discoverableMultisigs.length} found</span>
+                    <div className="k-dashboard__section-header">
+                        <span className="k-dashboard__section-header-icon"><MagnifyingGlass size={16} /></span>
+                        <h3 className="k-dashboard__section-title">Discovered Multisigs</h3>
+                        <span className="k-label k-dashboard__section-count">{discoverableMultisigs.length} found</span>
                     </div>
-                    <p style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
+                    <p className="k-dashboard__disc-desc">
                         These multisigs include your address as a member. Join to manage them.
                     </p>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                    <div className="k-dashboard__ms-grid">
                         {discoverableMultisigs.map(ms => (
-                            <div key={ms.address} className="k-card" style={{ borderColor: "rgba(245,158,11,0.2)", display: "flex", flexDirection: "column", gap: 8 }}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                    <span style={{ fontWeight: 600, fontSize: 14 }}>{ms.name || "Unnamed"}</span>
-                                    <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#f59e0b", background: "rgba(245,158,11,0.1)", padding: "2px 6px", borderRadius: 4 }}>
+                            <div key={ms.address} className="k-card k-dashboard__disc-card">
+                                <div className="k-dashboard__ms-header">
+                                    <span className="k-dashboard__ms-name">{ms.name || "Unnamed"}</span>
+                                    <span className="k-dashboard__disc-threshold">
                                         {ms.threshold}/{ms.membersCount}
                                     </span>
                                 </div>
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", wordBreak: "break-all" }}>
+                                <span className="k-dashboard__disc-addr">
                                     <CopyableAddress address={ms.address} />
                                 </span>
                                 <button
@@ -336,44 +331,36 @@ export function Dashboard() {
             {/* ── Pending Transactions ───────────────────────────────── */}
             {auth.isAuthenticated && (
                 <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Pending Transactions</h3>
-                        <span className="k-label" style={{ marginLeft: "auto" }}>{pendingTxs.length} pending</span>
+                    <div className="k-dashboard__section-header">
+                        <span className="k-status-dot k-status-dot--ok animate-glow" />
+                        <h3 className="k-dashboard__section-title">Pending Transactions</h3>
+                        <span className="k-label k-dashboard__section-count">{pendingTxs.length} pending</span>
                     </div>
                     {loading ? (
-                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                        <div className="k-card k-dashboard__table-card">
                             <SkeletonRow />
                             <SkeletonRow />
                         </div>
                     ) : pendingTxs.length === 0 ? (
-                        <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
-                            <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div className="k-card k-dashboard__empty">
+                            <p className="k-dashboard__empty-text k-dashboard__empty-text--lg">
                                 No pending transactions
                             </p>
                         </div>
                     ) : (
-                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                        <div className="k-card k-dashboard__table-card">
                             {pendingTxs.map((tx) => {
                                 const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
                                 return (
                                     <div
                                         key={tx.id}
+                                        className="k-activity-row k-dashboard__activity-row"
                                         onClick={() => navigate(`/tx/${tx.id}`)}
-                                        className="k-activity-row"
-                                        style={{
-                                            display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
-                                            padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
-                                            cursor: "pointer", transition: "background 0.15s",
-                                            fontSize: 13, fontFamily: "JetBrains Mono, monospace",
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                     >
-                                        <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
+                                        <span className="k-dashboard__activity-type">{tx.type || "send"}</span>
                                         <span className="k-activity-hide-mobile"><CopyableAddress address={tx.multisigAddress} full={false} /></span>
                                         <span><StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} /></span>
-                                        <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
+                                        <span className="k-dashboard__activity-date">{formatDate(tx.createdAt)}</span>
                                     </div>
                                 )
                             })}
@@ -385,10 +372,11 @@ export function Dashboard() {
             {/* ── Recent Activity ────────────────────────────────────────── */}
             {auth.isAuthenticated && (
                 <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 500 }}>Recent Activity</h3>
+                    <div className="k-dashboard__recent-header">
+                        <h3 className="k-dashboard__section-title">Recent Activity</h3>
                         {recentTxs.length > 0 && (
                             <button
+                                className="k-dashboard__export-btn"
                                 onClick={() => {
                                     const exportable: ExportableTransaction[] = recentTxs.map((tx) => ({
                                         id: tx.id,
@@ -404,49 +392,34 @@ export function Dashboard() {
                                     }))
                                     exportTransactionsCSV(exportable)
                                 }}
-                                style={{
-                                    background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.15)",
-                                    color: "#00d4aa", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                    padding: "4px 10px", borderRadius: 4, cursor: "pointer",
-                                }}
                             >
                                 📥 Export CSV
                             </button>
                         )}
                     </div>
                     {loading ? (
-                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                        <div className="k-card k-dashboard__table-card">
                             <SkeletonRow />
                             <SkeletonRow />
                             <SkeletonRow />
                         </div>
                     ) : recentTxs.length === 0 ? (
-                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
-                            <div className="k-activity-header" style={{
-                                padding: "12px 20px", borderBottom: "1px solid #222",
-                                display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
-                                fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
-                                textTransform: "uppercase", letterSpacing: "0.05em",
-                            }}>
+                        <div className="k-card k-dashboard__table-card">
+                            <div className="k-dashboard__activity-header">
                                 <span>Type</span>
                                 <span>Multisig</span>
                                 <span>Status</span>
                                 <span>Date</span>
                             </div>
-                            <div style={{ padding: 32, textAlign: "center" }}>
-                                <p style={{ color: "#555", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}>
+                            <div className="k-dashboard__empty">
+                                <p className="k-dashboard__empty-text k-dashboard__empty-text--lg">
                                     No activity yet
                                 </p>
                             </div>
                         </div>
                     ) : (
-                        <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
-                            <div className="k-activity-header" style={{
-                                padding: "12px 20px", borderBottom: "1px solid #222",
-                                display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
-                                fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#555",
-                                textTransform: "uppercase", letterSpacing: "0.05em",
-                            }}>
+                        <div className="k-card k-dashboard__table-card">
+                            <div className="k-dashboard__activity-header">
                                 <span>Type</span>
                                 <span>Multisig</span>
                                 <span>Status</span>
@@ -457,23 +430,15 @@ export function Dashboard() {
                                 return (
                                     <div
                                         key={tx.id}
+                                        className="k-activity-row k-dashboard__activity-row"
                                         onClick={() => navigate(`/tx/${tx.id}`)}
-                                        className="k-activity-row"
-                                        style={{
-                                            display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
-                                            padding: "14px 20px", borderBottom: "1px solid #1a1a1a",
-                                            cursor: "pointer", transition: "background 0.15s",
-                                            fontSize: 13, fontFamily: "JetBrains Mono, monospace",
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = "#0c0c0c"}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                     >
-                                        <span style={{ color: "#f0f0f0", textTransform: "capitalize" }}>{tx.type || "send"}</span>
+                                        <span className="k-dashboard__activity-type">{tx.type || "send"}</span>
                                         <span><CopyableAddress address={tx.multisigAddress} full={false} /></span>
                                         <span>
                                             <StatusBadge status={status} sigCount={tx.signatures.length} threshold={tx.threshold} hash={tx.finalHash} />
                                         </span>
-                                        <span style={{ color: "#555", fontSize: 11 }}>{formatDate(tx.createdAt)}</span>
+                                        <span className="k-dashboard__activity-date">{formatDate(tx.createdAt)}</span>
                                     </div>
                                 )
                             })}
