@@ -1973,6 +1973,36 @@
     margin-right: 4px;
 }
 
+/* ── Error Banner ─────────────────────────────────────────────── */
+
+.gl-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(255, 71, 87, 0.06);
+    border: 1px solid rgba(255, 71, 87, 0.15);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #ff8a94;
+}
+.gl-error-retry {
+    background: rgba(255, 71, 87, 0.1);
+    border: 1px solid rgba(255, 71, 87, 0.25);
+    color: #ff4757;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.gl-error-retry:hover {
+    background: rgba(255, 71, 87, 0.18);
+}
+
 @media (max-width: 768px) {
     .gl-team-profile-header {
         flex-direction: column;
