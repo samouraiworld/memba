@@ -12,6 +12,7 @@ import {
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { LayoutContext } from "../types/layout"
+import "./tokenview.css"
 
 type ActionTab = "transfer" | "mint" | "burn" | "faucet"
 
@@ -117,22 +118,22 @@ export function TokenView() {
 
     if (loading) {
         return (
-            <div className="animate-fade-in" style={{ textAlign: "center", padding: 64 }}>
-                <p style={{ color: "#555", fontFamily: "JetBrains Mono, monospace" }}>Loading token...</p>
+            <div className="animate-fade-in tv-loading">
+                <p className="tv-loading__text">Loading token...</p>
             </div>
         )
     }
 
     if (!token) {
         return (
-            <div className="animate-fade-in" style={{ textAlign: "center", padding: 64 }}>
-                <h2 style={{ fontSize: 18, marginBottom: 8 }}>Token not found</h2>
-                <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
+            <div className="animate-fade-in tv-empty">
+                <h2 className="tv-empty__title">Token not found</h2>
+                <p className="tv-empty__hint">
                     If you just created this token, it may still be indexing. Try again in a few seconds.
                 </p>
-                <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                    <button onClick={() => fetchTokenInfo()} style={{ ...backBtnStyle, color: "#00d4aa" }}><ArrowsClockwise size={14} /> Retry</button>
-                    <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
+                <div className="tv-empty__actions">
+                    <button onClick={() => fetchTokenInfo()} className="tv-back-btn"><ArrowsClockwise size={14} /> Retry</button>
+                    <button onClick={() => navigate("/tokens")} className="tv-back-btn">← Back to Tokens</button>
                 </div>
             </div>
         )
@@ -143,34 +144,32 @@ export function TokenView() {
     const fee = mintAmount > 0n ? calculateFee(mintAmount) : 0n
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="animate-fade-in tv-page">
             {/* Header */}
             <div>
-                <button onClick={() => navigate("/tokens")} style={backBtnStyle}>← Back to Tokens</button>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
-                    <span style={{ fontSize: 28 }}>🪙</span>
+                <button onClick={() => navigate("/tokens")} className="tv-back-btn">← Back to Tokens</button>
+                <div className="tv-header">
+                    <span className="tv-header__icon">🪙</span>
                     <div>
-                        <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
-                            {token.name} <span style={{ color: "#888", fontWeight: 400, fontSize: 16 }}>${token.symbol}</span>
+                        <h2 className="tv-header__name">
+                            {token.name} <span className="tv-header__symbol">${token.symbol}</span>
                         </h2>
                     </div>
                     {isAdmin && (
-                        <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa", background: "rgba(0,212,170,0.08)", padding: "3px 8px", borderRadius: 4 }}>
-                            Admin
-                        </span>
+                        <span className="tv-admin-badge">Admin</span>
                     )}
                 </div>
             </div>
 
             {/* Metadata card */}
-            <div className="k-card" style={{ padding: 20 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="k-card tv-meta-card">
+                <div className="tv-meta-card__rows">
                     <MetaRow label="Symbol" value={`$${token.symbol}`} />
                     <MetaRow label="Decimals" value={String(token.decimals)} />
                     <MetaRow label="Total Supply" value={token.totalSupply} accent />
                     {token.admin && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                            <span style={{ color: "#666" }}>Admin</span>
+                        <div className="tv-meta-row">
+                            <span className="tv-meta-row__label">Admin</span>
                             <CopyableAddress address={token.admin} fontSize={12} />
                         </div>
                     )}
@@ -181,11 +180,11 @@ export function TokenView() {
 
             {/* Your balance */}
             {adena.connected && (
-                <div className="k-card" style={{ padding: 16, borderColor: "rgba(0,212,170,0.15)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>Your Balance</span>
-                        <span style={{ fontSize: 20, fontWeight: 600, color: balance > 0n ? "#00d4aa" : "#555" }}>
-                            {String(balance)} <span style={{ fontSize: 12, color: "#888" }}>${token.symbol}</span>
+                <div className="k-card tv-balance-card">
+                    <div className="tv-balance-card__inner">
+                        <span className="tv-balance-card__label">Your Balance</span>
+                        <span className={`tv-balance-card__amount ${balance > 0n ? "tv-balance-card__amount--positive" : "tv-balance-card__amount--zero"}`}>
+                            {String(balance)} <span className="tv-balance-card__symbol">${token.symbol}</span>
                         </span>
                     </div>
                 </div>
@@ -195,25 +194,17 @@ export function TokenView() {
             {auth.isAuthenticated && (
                 <>
                     {success && (
-                        <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                            ✓ {success}
-                        </div>
+                        <div className="tv-success">✓ {success}</div>
                     )}
 
                     {/* Action tabs */}
-                    <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222" }}>
+                    <div className="tv-action-tabs">
                         {(["transfer", ...(isAdmin ? ["mint", "burn"] as const : []), "faucet"] as ActionTab[]).map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => { setActionTab(tab); setError(null); setSuccess(null) }}
-                                style={{
-                                    padding: "10px 16px", background: "none", border: "none",
-                                    borderBottom: actionTab === tab ? "2px solid #00d4aa" : "2px solid transparent",
-                                    color: actionTab === tab ? "#00d4aa" : "#666",
-                                    fontFamily: "JetBrains Mono, monospace", fontSize: 12,
-                                    cursor: "pointer", transition: "all 0.15s",
-                                    textTransform: "capitalize",
-                                }}
+                                className="tv-action-tab"
+                                data-active={actionTab === tab}
                             >
                                 {tab}
                             </button>
@@ -221,31 +212,31 @@ export function TokenView() {
                     </div>
 
                     {/* Action form */}
-                    <div className="k-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div className="k-card tv-action-form">
                         {actionTab === "faucet" ? (
-                            <p style={{ color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <p className="tv-action-form__hint">
                                 Request free tokens from the faucet (if enabled by admin).
                             </p>
                         ) : (
                             <>
                                 <div>
-                                    <label style={labelStyle}>
+                                    <label className="tv-label">
                                         {actionTab === "burn" ? "Burn From Address" : "Recipient Address"}
                                     </label>
                                     <input
                                         type="text" value={toAddress}
                                         onChange={e => setToAddress(e.target.value)}
                                         placeholder={actionTab === "burn" ? "g1..." : "g1..."}
-                                        style={inputStyle(txLoading)} disabled={txLoading}
+                                        className="tv-input" disabled={txLoading}
                                     />
                                 </div>
                                 <div>
-                                    <label style={labelStyle}>Amount (smallest unit)</label>
+                                    <label className="tv-label">Amount (smallest unit)</label>
                                     <input
                                         type="text" value={amount}
                                         onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
                                         placeholder="e.g. 1000000"
-                                        style={inputStyle(txLoading)} disabled={txLoading}
+                                        className="tv-input" disabled={txLoading}
                                     />
                                 </div>
                             </>
@@ -253,11 +244,7 @@ export function TokenView() {
 
                         {/* Mint fee disclosure */}
                         {actionTab === "mint" && fee > 0n && (
-                            <div style={{
-                                padding: "10px 14px", borderRadius: 8,
-                                background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                                fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
-                            }}>
+                            <div className="tv-fee-disclosure">
                                 💰 {feeDisclosure(mintAmount, token.symbol)}
                             </div>
                         )}
@@ -265,14 +252,7 @@ export function TokenView() {
                         <button
                             onClick={handleAction}
                             disabled={txLoading}
-                            style={{
-                                width: "100%", height: 40, borderRadius: 8,
-                                background: txLoading ? "#222" : "#00d4aa",
-                                color: txLoading ? "#666" : "#000",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 13, fontWeight: 600,
-                                border: "none", cursor: txLoading ? "not-allowed" : "pointer",
-                                transition: "all 0.15s", textTransform: "capitalize",
-                            }}
+                            className="tv-submit-btn"
                         >
                             {txLoading ? "Processing..." : actionTab}
                         </button>
@@ -289,31 +269,9 @@ export function TokenView() {
 
 function MetaRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
     return (
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-            <span style={{ color: "#666" }}>{label}</span>
-            <span style={{ color: accent ? "#00d4aa" : "#aaa" }}>{value}</span>
+        <div className="tv-meta-row">
+            <span className="tv-meta-row__label">{label}</span>
+            <span className={accent ? "tv-meta-row__value--accent" : "tv-meta-row__value"}>{value}</span>
         </div>
     )
-}
-
-// ── Styles ────────────────────────────────────────────────────
-
-const backBtnStyle: React.CSSProperties = {
-    color: "#00d4aa", fontSize: 13, background: "none", border: "none",
-    cursor: "pointer", marginBottom: 8, fontFamily: "JetBrains Mono, monospace",
-}
-
-const labelStyle: React.CSSProperties = {
-    display: "block", marginBottom: 6, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#888",
-    textTransform: "uppercase", letterSpacing: "0.05em",
-}
-
-function inputStyle(loading: boolean): React.CSSProperties {
-    return {
-        width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
-        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-        opacity: loading ? 0.5 : 1,
-    }
 }

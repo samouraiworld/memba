@@ -16,6 +16,7 @@ import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
 import { getGasConfig } from "../lib/gasConfig"
 import type { LayoutContext } from "../types/layout"
+import "./createdao.css"
 
 // ── Draft Persistence ─────────────────────────────────────
 
@@ -303,35 +304,31 @@ export function CreateDAO() {
     // ── Render ────────────────────────────────────────────
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="animate-fade-in cdao-page">
             {/* Nav */}
             <button
                 id="create-dao-back-btn"
                 aria-label="Back to DAO list"
                 onClick={() => navigate("/dao")}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                className="cdao-back-btn"
             >
                 ← Back to DAOs
             </button>
 
             {/* Draft resume banner */}
             {showDraftBanner && (
-                <div className="k-card" style={{
-                    padding: "12px 18px", display: "flex", alignItems: "center",
-                    justifyContent: "space-between", gap: 12,
-                    background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.15)",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 16, display: 'flex' }}><NotePencil size={16} /></span>
-                        <span style={{ fontSize: 12, color: "#ccc", fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="k-card cdao-draft-banner">
+                    <div className="cdao-draft-banner__info">
+                        <span className="cdao-draft-banner__icon"><NotePencil size={16} /></span>
+                        <span className="cdao-draft-banner__text">
                             You have an unsaved draft
                         </span>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <button className="k-btn-primary" onClick={resumeDraft} style={{ fontSize: 11, padding: "5px 12px" }}>
+                    <div className="cdao-draft-banner__actions">
+                        <button className="k-btn-primary" onClick={resumeDraft}>
                             Resume
                         </button>
-                        <button className="k-btn-secondary" onClick={discardDraft} style={{ fontSize: 11, padding: "5px 12px" }}>
+                        <button className="k-btn-secondary" onClick={discardDraft}>
                             Discard
                         </button>
                     </div>
@@ -340,36 +337,28 @@ export function CreateDAO() {
 
             {/* Header */}
             <div>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
+                <h2 className="cdao-title">
                     🏗️ Create a DAO
                 </h2>
-                <p style={{ color: "#888", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p className="cdao-subtitle">
                     Deploy a new governance realm on gno.land
                 </p>
             </div>
 
             {/* Step indicator */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="cdao-steps">
                 {[1, 2, 3, 4, 5].map((s) => (
-                    <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div key={s} className="cdao-step-group">
                         <div
-                            style={{
-                                width: 28, height: 28, borderRadius: "50%",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 12, fontWeight: 600, fontFamily: "JetBrains Mono, monospace",
-                                background: s === step ? "#00d4aa" : s < step ? "rgba(0,212,170,0.2)" : "rgba(255,255,255,0.05)",
-                                color: s === step ? "#000" : s < step ? "#00d4aa" : "#555",
-                                cursor: s < step ? "pointer" : "default",
-                                transition: "all 0.2s",
-                            }}
+                            className={`cdao-step-circle ${s === step ? "cdao-step-circle--active" : s < step ? "cdao-step-circle--done" : "cdao-step-circle--future"}`}
                             onClick={() => s < step && goToStep(s as Step)}
                         >
                             {s < step ? "✓" : s}
                         </div>
-                        {s < 5 && <div style={{ width: 24, height: 2, background: s < step ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.05)" }} />}
+                        {s < 5 && <div className={`cdao-step-connector ${s < step ? "cdao-step-connector--done" : "cdao-step-connector--future"}`} />}
                     </div>
                 ))}
-                <span style={{ fontSize: 11, color: "#666", marginLeft: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                <span className="cdao-step-label">
                     {step === 1 && "Name, Path & Preset"}
                     {step === 2 && "Members & Roles"}
                     {step === 3 && "Governance Settings"}

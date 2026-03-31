@@ -1,0 +1,275 @@
+/**
+ * tokenview.css — Styles for TokenView page.
+ *
+ * Sprint 4: extracted from 32 inline style={{}} blocks.
+ * Naming: tv- prefix (token view).
+ */
+
+/* ── Layout ──────────────────────────────────────────── */
+
+.tv-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* ── Loading / Empty States ──────────────────────────── */
+
+.tv-loading,
+.tv-empty {
+    text-align: center;
+    padding: 64px;
+}
+
+.tv-loading__text {
+    color: var(--color-text-muted, #555);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.tv-empty__title {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.tv-empty__hint {
+    font-size: 11px;
+    color: #666;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    margin-bottom: 16px;
+}
+
+.tv-empty__actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* ── Back Button ─────────────────────────────────────── */
+
+.tv-back-btn {
+    color: var(--color-primary, #00d4aa);
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 8px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* ── Header ──────────────────────────────────────────── */
+
+.tv-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.tv-header__icon {
+    font-size: 28px;
+}
+
+.tv-header__name {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.tv-header__symbol {
+    color: var(--color-text-secondary, #888);
+    font-weight: 400;
+    font-size: 16px;
+}
+
+.tv-admin-badge {
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-primary, #00d4aa);
+    background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
+    padding: 3px 8px;
+    border-radius: var(--radius-sm, 4px);
+}
+
+/* ── Metadata Card ───────────────────────────────────── */
+
+.tv-meta-card {
+    padding: 20px;
+}
+
+.tv-meta-card__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tv-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.tv-meta-row__label {
+    color: #666;
+}
+
+.tv-meta-row__value {
+    color: #aaa;
+}
+
+.tv-meta-row__value--accent {
+    color: var(--color-primary, #00d4aa);
+}
+
+/* ── Balance Card ────────────────────────────────────── */
+
+.tv-balance-card {
+    padding: 16px;
+    border-color: var(--color-primary-border, rgba(0, 212, 170, 0.15));
+}
+
+.tv-balance-card__inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tv-balance-card__label {
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+}
+
+.tv-balance-card__amount {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.tv-balance-card__amount--positive {
+    color: var(--color-primary, #00d4aa);
+}
+
+.tv-balance-card__amount--zero {
+    color: var(--color-text-muted, #555);
+}
+
+.tv-balance-card__symbol {
+    font-size: 12px;
+    color: var(--color-text-secondary, #888);
+}
+
+/* ── Success Banner ──────────────────────────────────── */
+
+.tv-success {
+    padding: 12px 16px;
+    background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    color: var(--color-primary, #00d4aa);
+    font-size: 13px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* ── Action Tabs ─────────────────────────────────────── */
+
+.tv-action-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--color-border-light, #222);
+}
+
+.tv-action-tab {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #666;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast, 0.15s ease);
+    text-transform: capitalize;
+}
+
+.tv-action-tab[data-active="true"] {
+    border-bottom-color: var(--color-primary, #00d4aa);
+    color: var(--color-primary, #00d4aa);
+}
+
+/* ── Action Form ─────────────────────────────────────── */
+
+.tv-action-form {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tv-action-form__hint {
+    color: var(--color-text-secondary, #888);
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.tv-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.tv-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-bg-card, #0c0c0c);
+    border: 1px solid var(--color-border-light, #222);
+    color: var(--color-text, #f0f0f0);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.tv-input:disabled {
+    opacity: 0.5;
+}
+
+/* ── Fee Disclosure ──────────────────────────────────── */
+
+.tv-fee-disclosure {
+    padding: 10px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.06));
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-warning, #f5a623);
+}
+
+/* ── Submit Button ───────────────────────────────────── */
+
+.tv-submit-btn {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-primary, #00d4aa);
+    color: #000;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast, 0.15s ease);
+    text-transform: capitalize;
+}
+
+.tv-submit-btn:disabled {
+    background: var(--color-border-light, #222);
+    color: #666;
+    cursor: not-allowed;
+}

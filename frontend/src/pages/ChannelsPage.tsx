@@ -133,9 +133,9 @@ export function ChannelsPage() {
     // ── Loading ───────────────────────────────────────────────
     if (loading || boardPath === undefined) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="animate-fade-in channels-page-col">
                 {/* Header skeleton */}
-                <div className="k-shimmer" style={{ height: 32, borderRadius: 8, background: "#111", maxWidth: 300 }} />
+                <div className="k-shimmer channels-shimmer-header" />
                 <div className="channels-layout">
                     <div className="channels-sidebar">
                         <div className="channels-loading">
@@ -145,7 +145,7 @@ export function ChannelsPage() {
                         </div>
                     </div>
                     <div className="channels-content">
-                        <div className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "#111" }} />
+                        <div className="k-shimmer channels-shimmer-content" />
                     </div>
                 </div>
             </div>
@@ -155,7 +155,7 @@ export function ChannelsPage() {
     // ── No channels deployed — show demo board ─────────────────
     if (boardPath === null) {
         return (
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="animate-fade-in channels-page-col">
                 <div className="channels-header">
                     <div className="breadcrumb">
                         <button onClick={() => navigate("/dao")}>DAOs</button>
@@ -169,27 +169,16 @@ export function ChannelsPage() {
                 </div>
 
                 {/* Demo banner */}
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 16px", borderRadius: 8,
-                    background: "rgba(0, 212, 170, 0.04)",
-                    border: "1px solid rgba(0, 212, 170, 0.12)",
-                    fontSize: 11, color: "#888",
-                    fontFamily: "JetBrains Mono, monospace",
-                }}>
-                    <span style={{
-                        fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                        background: "rgba(0, 212, 170, 0.1)", color: "#00d4aa",
-                        fontWeight: 700, letterSpacing: "0.05em",
-                    }}>DEMO</span>
+                <div className="channels-demo-banner">
+                    <span className="channels-demo-badge">DEMO</span>
                     <span>
-                        Live preview from <strong style={{ color: "#aaa" }}>gno.land/r/gnoland/boards2/v1</strong> — deploy your own channels from the Create DAO wizard.
+                        Live preview from <strong className="channels-demo-board-path">gno.land/r/gnoland/boards2/v1</strong> — deploy your own channels from the Create DAO wizard.
                     </span>
                 </div>
 
                 {/* Demo BoardView */}
                 <div className="channels-layout">
-                    <div className="channels-content" style={{ flex: 1 }}>
+                    <div className="channels-content channels-content--full">
                         <BoardView
                             boardPath="gno.land/r/gnoland/boards2/v1"
                             realmPath={realmPath}
@@ -210,7 +199,7 @@ export function ChannelsPage() {
     const activeChannelCount = channels.filter(c => !c.archived).length
 
     return (
-        <div id="channels-page" className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div id="channels-page" className="animate-fade-in channels-page-col">
             {/* ── Header ────────────────────────────────────── */}
             <div className="channels-header">
                 <div className="breadcrumb">
@@ -232,7 +221,7 @@ export function ChannelsPage() {
             >
                 <span>{sidebarOpen ? "▼" : "▶"}</span>
                 <span>#{activeChannel}</span>
-                <span style={{ color: "#444" }}>({activeChannelCount} channels)</span>
+                <span className="channels-count">({activeChannelCount} channels)</span>
             </button>
 
             {/* ── Layout: Sidebar + Content ──────────────────── */}
@@ -243,7 +232,7 @@ export function ChannelsPage() {
                         Channels
                     </div>
                     {channels.length === 0 ? (
-                        <div style={{ padding: "8px 14px", fontSize: 11, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                        <div className="channels-empty-sidebar">
                             No channels found
                         </div>
                     ) : (
@@ -263,7 +252,7 @@ export function ChannelsPage() {
                                 {ch.archived && <span className="channel-badge">archived</span>}
                                 {/* U1 fix: show "Join" for voice/video, thread count for text */}
                                 {!ch.archived && (ch.type === "voice" || ch.type === "video") && (
-                                    <span className="channel-badge" style={{ color: "#00d4aa", background: "rgba(0, 212, 170, 0.08)" }}>Join</span>
+                                    <span className="channel-badge channel-badge--join">Join</span>
                                 )}
                                 {/* G3: Unread dot */}
                                 {!ch.archived && ch.type !== "voice" && ch.type !== "video" && ch.name !== activeChannel && hasChannelUnread(ch.name, ch.threadCount) && (
