@@ -64,38 +64,21 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 )}
                 {/* Left: badges */}
                 <div className="k-topbar-left">
-                    <span className="k-version-badge" data-testid="alpha-badge" style={{
-                        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                        color: "#f5a623", background: "rgba(245,166,35,0.1)",
-                        padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                        border: "1px solid rgba(245,166,35,0.2)",
-                    }}>Alpha</span>
-                    <span className="k-version-badge" data-testid="version-badge" style={{
-                        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                        color: "#00d4aa", background: "rgba(0,212,170,0.08)",
-                        padding: "2px 6px", borderRadius: 4, letterSpacing: "0.05em",
-                    }}>v2</span>
+                    <span className="k-topbar-badge k-topbar-badge--alpha" data-testid="alpha-badge">Alpha</span>
+                    <span className="k-topbar-badge k-topbar-badge--version" data-testid="version-badge">v2</span>
                 </div>
 
                 {/* Right: network + wallet */}
                 <div className="k-topbar-right">
                     {/* Network selector */}
                     <select
+                        className="k-topbar-network-select"
                         value={network.networkKey}
                         onChange={(e) => network.switchNetwork(e.target.value)}
                         title="Switch network"
-                        style={{
-                            background: "rgba(0,212,170,0.06)", border: "1px solid #1a1a1a",
-                            color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            padding: "4px 8px", borderRadius: 6, cursor: "pointer",
-                            outline: "none", appearance: "none", WebkitAppearance: "none" as never,
-                            backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23555'/%3E%3C/svg%3E\")",
-                            backgroundRepeat: "no-repeat", backgroundPosition: "right 6px center",
-                            paddingRight: 20,
-                        }}
                     >
                         {Object.entries(network.networks).map(([key, net]) => (
-                            <option key={key} value={key} style={{ background: "#111", color: "#ccc" }}>
+                            <option key={key} value={key}>
                                 {net.label}
                             </option>
                         ))}
@@ -114,42 +97,34 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                     {/* Wallet area */}
                     {adena.connected && auth.isAuthenticated ? (
                         <>
-                            <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                            <span className="k-topbar-balance">
                                 {compactBalance}
                             </span>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} className="animate-glow" />
-                                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <div className="k-topbar-wallet-row">
+                                <span className="k-status-dot k-status-dot--ok animate-glow" />
+                                <span className="k-topbar-wallet-addr">
                                     <CopyableAddress address={auth.address || adena.address} compact={true} fontSize={12} />
                                 </span>
                             </div>
-                            <button
-                                onClick={onDisconnect}
-                                style={{
-                                    padding: "6px 12px", borderRadius: 6,
-                                    background: "none", border: "1px solid #333",
-                                    color: "#888", fontSize: 11, cursor: "pointer",
-                                    fontFamily: "JetBrains Mono, monospace",
-                                }}
-                            >
+                            <button className="k-topbar-disconnect" onClick={onDisconnect}>
                                 Disconnect
                             </button>
                         </>
                     ) : isLoggingIn ? (
                         <span className="k-btn-wallet" style={{ cursor: "default", opacity: 0.7 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: adena.reconnecting ? "#00d4aa" : "#f59e0b" }} className="animate-glow" />
+                            <span className={`k-status-dot ${adena.reconnecting ? "k-status-dot--ok" : "k-status-dot--warn"} animate-glow`} />
                             {adena.reconnecting ? "Syncing..." : "Authenticating..."}
                         </span>
                     ) : adena.reconnecting ? (
                         /* B3: Sync timed out — show retry */
                         <span className="k-btn-wallet" style={{ cursor: "pointer", opacity: 0.8, borderColor: "rgba(245,166,35,0.3)" }} onClick={() => window.location.reload()}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                            <span className="k-status-dot k-status-dot--warn" />
                             Sync timeout — Retry
                         </span>
                     ) : (
                         adena.installed ? (
                             <button className="k-btn-wallet" onClick={adena.connect} disabled={isLoggingIn}>
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4aa" }} />
+                                <span className="k-status-dot k-status-dot--ok" />
                                 Connect Wallet
                             </button>
                         ) : (
@@ -160,7 +135,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                                 className="k-btn-wallet"
                                 style={{ textDecoration: "none" }}
                             >
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                                <span className="k-status-dot k-status-dot--warn" />
                                 Install Adena
                             </a>
                         )
@@ -170,17 +145,11 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
 
             {/* ── Auth error banner ──────────────────────────────── */}
             {authError && (
-                <div style={{
-                    background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.2)",
-                    padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-                }}>
-                    <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="k-topbar-banner k-topbar-banner--error">
+                    <span className="k-topbar-banner__text k-topbar-banner__text--error">
                         ⚠ {authError}
                     </span>
-                    <button
-                        onClick={onClearError}
-                        style={{ color: "#888", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
-                    >
+                    <button className="k-topbar-banner__dismiss" onClick={onClearError}>
                         ×
                     </button>
                 </div>
@@ -201,20 +170,20 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
             {/* ── Untrusted wallet RPC warning ──────────────────── */}
             {adena.connected && !adena.rpcTrusted && (
                 <div className="k-security-banner">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div className="k-security-banner__header">
                         <span style={{ fontSize: 18 }}>🛡️</span>
-                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>
+                        <span className="k-security-banner__title">
                             SECURITY WARNING
                         </span>
-                        <span style={{ color: "#ff8a94", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        <span className="k-security-banner__subtitle">
                             — All transactions are blocked
                         </span>
                     </div>
-                    <div style={{ color: "#ccc", fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 1.5 }}>
+                    <div className="k-security-banner__body">
                         {adena.rpcUrl ? (
                             <>
                                 Your wallet is connected to an untrusted RPC:{" "}
-                                <code style={{ color: "#ff4757", background: "rgba(255,71,87,0.12)", padding: "2px 6px", borderRadius: 4, fontSize: 10 }}>
+                                <code className="k-security-banner__code">
                                     {adena.rpcUrl}
                                 </code>
                             </>
@@ -222,7 +191,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                             <>Unable to verify your wallet&apos;s RPC URL.</>
                         )}
                         <br />
-                        <span style={{ color: "#00d4aa", fontWeight: 600 }}>
+                        <span className="k-security-banner__action">
                             Open Adena → Settings → Networks → switch to a *.gno.land RPC
                         </span>
                     </div>
@@ -234,12 +203,9 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 const rpcWarning = validateActiveRpcDomain()
                 if (!rpcWarning || (adena.connected && !adena.rpcTrusted)) return null
                 return (
-                    <div style={{
-                        background: "rgba(255,71,87,0.08)", borderBottom: "1px solid rgba(255,71,87,0.3)",
-                        padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                    }}>
+                    <div className="k-topbar-banner k-topbar-banner--security">
                         <span style={{ fontSize: 16 }}>🛡️</span>
-                        <span style={{ color: "#ff4757", fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                        <span className="k-topbar-banner__text k-topbar-banner__text--error" style={{ fontWeight: 600 }}>
                             SECURITY WARNING: {rpcWarning}
                         </span>
                     </div>
@@ -284,43 +250,28 @@ function ChainMismatchBanner({
     }
 
     return (
-        <div style={{
-            background: "rgba(245,166,35,0.06)", borderBottom: "1px solid rgba(245,166,35,0.15)",
-            padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
-        }}>
-            <span style={{ color: "#f5a623", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+        <div className="k-topbar-banner k-topbar-banner--warning">
+            <span className="k-topbar-banner__text k-topbar-banner__text--warning">
                 ⚠ Network mismatch — wallet is on <strong>{walletChainId}</strong>, Memba is on <strong>{membaChainId}</strong>
             </span>
             {walletInMemba ? (
                 <button
+                    className="k-topbar-banner__btn k-topbar-banner__btn--warning"
                     onClick={() => switchMembaNetwork(walletChainId)}
-                    style={{
-                        background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.3)",
-                        color: "#f5a623", fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                        padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                    }}
                 >
                     Switch Memba to {walletChainId}
                 </button>
             ) : addAndSwitchWallet && membaNet ? (
                 <button
+                    className={`k-topbar-banner__btn ${switching ? "k-topbar-banner__btn--switching" : "k-topbar-banner__btn--accent"}`}
                     onClick={handleAddAndSwitch}
                     disabled={switching}
                     aria-busy={switching}
-                    style={{
-                        background: switching ? "rgba(245,166,35,0.06)" : "rgba(0,212,170,0.12)",
-                        border: `1px solid ${switching ? "rgba(245,166,35,0.2)" : "rgba(0,212,170,0.3)"}`,
-                        color: switching ? "#f5a623" : "#00d4aa",
-                        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                        padding: "3px 10px", borderRadius: 4,
-                        cursor: switching ? "wait" : "pointer",
-                        opacity: switching ? 0.7 : 1,
-                    }}
                 >
                     {switching ? "Switching…" : `Add & Switch Wallet to ${membaChainId}`}
                 </button>
             ) : (
-                <span style={{ color: "#888", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                <span className="k-topbar-banner__text k-topbar-banner__text--muted">
                     Switch your wallet to {membaChainId} in Adena
                 </span>
             )}
