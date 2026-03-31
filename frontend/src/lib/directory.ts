@@ -11,6 +11,7 @@
 import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
 import { GNO_RPC_URL, getUserRegistryPath } from "./config"
+import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -113,6 +114,17 @@ function setCache<T>(key: string, data: T): void {
             JSON.stringify({ data, ts: Date.now() }),
         )
     } catch { /* quota exceeded */ }
+}
+
+// ── Network Helpers ─────────────────────────────────────────
+
+/** Returns the active network key for gnoweb lookups. */
+function _activeNetworkKey(): string {
+    try {
+        const stored = localStorage.getItem("memba_network")
+        if (stored) return stored
+    } catch { /* SSR */ }
+    return "test12"
 }
 
 // ── Known Seed DAOs ──────────────────────────────────────────
@@ -467,6 +479,10 @@ export interface DirectoryPackage {
     name: string
     path: string
     description: string
+    /** Live deployment status from gnoweb. undefined = not checked. */
+    deploymentStatus?: "live" | "unknown"
+    /** Gnoweb URL for this package (if deployed). */
+    gnowebUrl?: string
 }
 
 /** Well-known standard library and community packages on gno.land. */
@@ -489,33 +505,65 @@ export const SEED_PACKAGES: DirectoryPackage[] = [
 ]
 
 /**
- * Fetch packages — live from gnolove API, with seed list as fallback.
+ * Fetch packages — live from gnolove API + gnoweb namespace, with seed list as fallback.
  * Phase 3c: replaces static-only list with live on-chain data.
+ * Sprint 3: adds gnoweb namespace discovery for samcrew packages with deployment badges.
  */
 export async function fetchPackagesLive(): Promise<DirectoryPackage[]> {
+    const result = [...SEED_PACKAGES]
+    const existingPaths = new Set(result.map(p => p.path))
+
     try {
         const { getPackages } = await import("./gnoloveApi")
         const livePackages = await getPackages()
-        if (livePackages.length === 0) return [...SEED_PACKAGES]
 
-        const seedPaths = new Set(SEED_PACKAGES.map(p => p.path))
-        const result = [...SEED_PACKAGES]
-
-        // Add live packages not in seed list (realms = /r/, packages = /p/)
         for (const pkg of livePackages) {
-            if (!seedPaths.has(pkg.path) && pkg.path.includes("/p/")) {
+            if (!existingPaths.has(pkg.path) && pkg.path.includes("/p/")) {
                 const name = pkg.path.split("/").pop() || pkg.path
                 result.push({
                     name: name.charAt(0).toUpperCase() + name.slice(1),
                     path: pkg.path,
                     description: `Deployed at block ${pkg.blockHeight}`,
                 })
+                existingPaths.add(pkg.path)
             }
         }
-        return result
-    } catch {
-        return [...SEED_PACKAGES]
+    } catch { /* fallback to seed only */ }
+
+    // Sprint 3: gnoweb namespace discovery — mark deployment status
+    const gnowebBaseUrl = getGnowebUrl(_activeNetworkKey())
+    if (gnowebBaseUrl) {
+        try {
+            const livePackages = await fetchNamespacePackages(gnowebBaseUrl, "samcrew")
+            const livePaths = new Set(livePackages.map(p => "gno.land" + p.path))
+
+            // Mark existing entries with deployment status
+            for (const pkg of result) {
+                if (livePaths.has(pkg.path)) {
+                    pkg.deploymentStatus = "live"
+                    const match = livePackages.find(p => "gno.land" + p.path === pkg.path)
+                    if (match) pkg.gnowebUrl = match.gnowebUrl
+                }
+            }
+
+            // Add gnoweb-discovered packages not already in the list
+            for (const item of livePackages) {
+                const fullPath = "gno.land" + item.path
+                if (!existingPaths.has(fullPath)) {
+                    result.push({
+                        name: item.name,
+                        path: fullPath,
+                        description: "Deployed on-chain",
+                        deploymentStatus: "live",
+                        gnowebUrl: item.gnowebUrl,
+                    })
+                    existingPaths.add(fullPath)
+                }
+            }
+        } catch { /* gnoweb unavailable */ }
     }
+
+    return result
 }
 
 /** Synchronous fallback — returns the static seed list only. */
@@ -530,6 +578,10 @@ export interface DirectoryRealm {
     path: string
     description: string
     category: "standard" | "defi" | "social" | "utility" | "game" | "unknown"
+    /** Live deployment status from gnoweb. undefined = not checked. */
+    deploymentStatus?: "live" | "unknown"
+    /** Gnoweb URL for this realm (if deployed). */
+    gnowebUrl?: string
 }
 
 /** Well-known realms deployed on gno.land. */
@@ -548,8 +600,9 @@ export const SEED_REALMS: DirectoryRealm[] = [
 ]
 
 /**
- * Fetch realms: live from gnolove API + seed + saved DAOs (deduplicated).
+ * Fetch realms: live from gnolove API + gnoweb namespace + seed + saved DAOs (deduplicated).
  * Phase 3c: replaces static-only list with live on-chain data.
+ * Sprint 3: adds gnoweb namespace discovery for samcrew realms with deployment badges.
  */
 export async function fetchRealmsLive(): Promise<DirectoryRealm[]> {
     const result = [...SEED_REALMS]
@@ -564,7 +617,7 @@ export async function fetchRealmsLive(): Promise<DirectoryRealm[]> {
         }
     }
 
-    // Merge live packages that are realms (/r/)
+    // Merge live packages that are realms (/r/) from gnolove API
     try {
         const { getPackages } = await import("./gnoloveApi")
         const livePackages = await getPackages()
@@ -581,6 +634,40 @@ export async function fetchRealmsLive(): Promise<DirectoryRealm[]> {
             }
         }
     } catch { /* fallback to seed only */ }
+
+    // Sprint 3: gnoweb namespace discovery — mark deployment status
+    const gnowebBaseUrl = getGnowebUrl(_activeNetworkKey())
+    if (gnowebBaseUrl) {
+        try {
+            const liveRealms = await fetchNamespaceRealms(gnowebBaseUrl, "samcrew")
+            const livePaths = new Set(liveRealms.map(r => "gno.land" + r.path))
+
+            // Mark existing entries with deployment status
+            for (const realm of result) {
+                if (livePaths.has(realm.path)) {
+                    realm.deploymentStatus = "live"
+                    const match = liveRealms.find(r => "gno.land" + r.path === realm.path)
+                    if (match) realm.gnowebUrl = match.gnowebUrl
+                }
+            }
+
+            // Add gnoweb-discovered realms not already in the list
+            for (const item of liveRealms) {
+                const fullPath = "gno.land" + item.path
+                if (!existingPaths.has(fullPath)) {
+                    result.push({
+                        name: item.name,
+                        path: fullPath,
+                        description: "Deployed on-chain",
+                        category: "unknown",
+                        deploymentStatus: "live",
+                        gnowebUrl: item.gnowebUrl,
+                    })
+                    existingPaths.add(fullPath)
+                }
+            }
+        } catch { /* gnoweb unavailable — no status badges */ }
+    }
 
     return result
 }

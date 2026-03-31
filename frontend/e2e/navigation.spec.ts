@@ -174,3 +174,71 @@ test.describe('404 Navigation', () => {
         await expect(page.locator('body')).toContainText('404')
     })
 })
+
+// ── Sprint 3: Network-scoped routing (PR #194) ─────────────
+
+test.describe('Network-Scoped Routing (/:network prefix)', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 })
+    })
+
+    test('/ redirects to /:network/', async ({ page }) => {
+        await page.goto('/')
+        // Should redirect to a network-prefixed URL (e.g., /test12/)
+        await page.waitForURL(/\/\w+\//, { timeout: 5000 })
+        const url = page.url()
+        expect(url).toMatch(/\/\w+\/$/)
+    })
+
+    test('/dao redirects to /:network/dao', async ({ page }) => {
+        await page.goto('/dao')
+        await page.waitForURL(/\/\w+\/dao/, { timeout: 5000 })
+        const url = page.url()
+        expect(url).toMatch(/\/\w+\/dao/)
+    })
+
+    test('/tokens redirects to /:network/tokens', async ({ page }) => {
+        await page.goto('/tokens')
+        await page.waitForURL(/\/\w+\/tokens/, { timeout: 5000 })
+        const url = page.url()
+        expect(url).toMatch(/\/\w+\/tokens/)
+    })
+
+    test('/directory redirects to /:network/directory', async ({ page }) => {
+        await page.goto('/directory')
+        await page.waitForURL(/\/\w+\/directory/, { timeout: 5000 })
+        const url = page.url()
+        expect(url).toMatch(/\/\w+\/directory/)
+    })
+
+    test('network prefix is preserved during navigation', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForURL(/\/\w+\//, { timeout: 5000 })
+        // Extract network from URL
+        const url = new URL(page.url())
+        const networkMatch = url.pathname.match(/^\/(\w+)\//)
+        expect(networkMatch).toBeTruthy()
+        const network = networkMatch![1]
+
+        // Navigate via sidebar
+        const daosLink = page.locator('[data-testid="sidebar"] .k-sidebar-link', { hasText: 'DAOs' })
+        await daosLink.click()
+        await page.waitForURL(`**/${network}/dao**`, { timeout: 5000 })
+    })
+})
+
+// ── Sprint 3: DAO URL separator (PR #198 — / replaces ~) ───
+
+test.describe('DAO URL Separator (/ not ~)', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 })
+    })
+
+    test('DAO URLs use / separator in directory links', async ({ page }) => {
+        await page.goto('/dao')
+        await page.waitForLoadState('networkidle')
+        // Check that no DAO links use the old ~ separator
+        const links = await page.locator('a[href*="~"]').count()
+        expect(links).toBe(0)
+    })
+})

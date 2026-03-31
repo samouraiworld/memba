@@ -1,0 +1,60 @@
+name: Gno Contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'scripts/extract-contracts.ts'
+      - 'frontend/src/lib/*Template.ts'
+      - '.github/workflows/gno-test.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'scripts/extract-contracts.ts'
+      - 'frontend/src/lib/*Template.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gno-test:
+    name: Gno Test & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install gno toolchain
+        run: go install github.com/gnolang/gno/gnovm/cmd/gno@latest
+
+      - name: Generate contract stubs
+        run: npx tsx scripts/extract-contracts.ts
+
+      - name: Run gno test on each contract
+        run: |
+          for dir in contracts/*/; do
+            if [ -f "$dir/gno.mod" ]; then
+              echo "=== Testing $dir ==="
+              gno test "./$dir" || exit 1
+            fi
+          done
+
+      - name: Run gno lint on each contract
+        run: |
+          for dir in contracts/*/; do
+            if [ -f "$dir/gno.mod" ]; then
+              echo "=== Linting $dir ==="
+              gno lint "./$dir" || true
+            fi
+          done
