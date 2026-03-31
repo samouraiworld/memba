@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { useBalance } from "../hooks/useBalance"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -14,7 +15,7 @@ import type { LayoutContext } from "../types/layout"
 
 export function MultisigView() {
     const { address } = useParams<{ address: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 

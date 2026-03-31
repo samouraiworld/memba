@@ -7,7 +7,7 @@
  * v2.0.0-alpha.1 (Sprint B, Step 9)
  */
 
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { encodeSlug, getSavedDAOs, type SavedDAO } from "../../lib/daoSlug"
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function DAOMembershipsCard(props: Props) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     // Only show saved DAOs for own profile (localStorage is per-user)
     if (!props.isOwnProfile) return null

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -21,7 +22,7 @@ function hasSocials(profile: UserProfile | null): boolean {
 
 export function ProfilePage() {
     const { address } = useParams<{ address: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { adena, auth, isLoggingIn } = useOutletContext<LayoutContext>()
 
     const [profile, setProfile] = useState<UserProfile | null>(null)

@@ -8,8 +8,9 @@
  * save the GitHub handle via the Memba backend profile API
  * rather than an on-chain MsgCall.
  */
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect } from "react"
-import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom"
+import { useOutletContext, useSearchParams } from "react-router-dom"
 import { API_BASE_URL } from "../lib/config"
 import { updateBackendProfile } from "../lib/profile"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
@@ -24,7 +25,7 @@ interface GitHubUserInfo {
 }
 
 export function GithubCallback() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [searchParams] = useSearchParams()
     const { auth, adena } = useOutletContext<LayoutContext>()
 

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { ProposalCard } from "./ProposalCard"
 import type { DAOProposal } from "../../lib/dao"
@@ -21,7 +21,7 @@ export function DAOProposalsSection({
     encodedSlug, isAuthenticated, isArchived, isMember, memberCount,
     activeProposals, completedProposals, votedIds, enrichedIds, proposalsLoading,
 }: DAOProposalsSectionProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [voteFilter, setVoteFilter] = useState<"all" | "needs" | "voted">("all")
     const [showHistory, setShowHistory] = useState(false)
 

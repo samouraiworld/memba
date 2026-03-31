@@ -7,14 +7,15 @@
  * @module pages/PluginPage
  */
 
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import type { LayoutContext } from "../types/layout"
 import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import { PluginLoader } from "../plugins/PluginLoader"
 
 export function PluginPage() {
     const { slug, pluginId } = useParams<{ slug: string; pluginId: string }>()
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const realmPath = slug ? decodeSlug(slug) : ""

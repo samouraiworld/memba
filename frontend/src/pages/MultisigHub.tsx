@@ -9,8 +9,9 @@
  * Replaces the old redirect-to-dashboard behavior.
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useCallback, useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
@@ -22,7 +23,7 @@ import { logChainError } from "../lib/errorLog"
 import "./multisig-hub.css"
 
 export default function MultisigHub() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 

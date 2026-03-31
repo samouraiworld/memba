@@ -10,8 +10,8 @@
  * v2.0.0-alpha.1 (Sprint B, Step 8)
  */
 
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
 import type { PluginProps } from "../types"
 import { GNO_RPC_URL } from "../../lib/config"
 import { getDAOProposals, type DAOProposal } from "../../lib/dao"
@@ -31,7 +31,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const [proposals, setProposals] = useState<DAOProposal[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

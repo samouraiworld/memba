@@ -25,7 +25,8 @@ async function triggerCmdK(page: import('@playwright/test').Page) {
 test.describe('Command Palette', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/')
-        await page.waitForLoadState('networkidle')
+        // Wait for Layout to fully mount after the / → /:network/ redirect
+        await page.waitForSelector('[data-testid="sidebar"]', { timeout: 10_000 })
     })
 
     test('opens on Cmd+K / Ctrl+K', async ({ page }) => {

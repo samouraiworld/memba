@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import { listFactoryTokens, getTokenInfo, getTokenBalance, type TokenInfo } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -7,7 +8,7 @@ import type { LayoutContext } from "../types/layout"
 import "./tokendashboard.css"
 
 export function TokenDashboard() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     const [tokens, setTokens] = useState<TokenInfo[]>([])

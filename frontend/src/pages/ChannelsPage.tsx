@@ -10,8 +10,9 @@
  * @module pages/ChannelsPage
  */
 
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
 import { getBoardInfo, detectChannelRealm } from "../plugins/board/parser"
 import type { BoardInfo } from "../plugins/board/parser"
 import BoardView from "../plugins/board/BoardView"
@@ -24,7 +25,7 @@ import type { LayoutContext } from "../types/layout"
 import "./channels.css"
 
 export function ChannelsPage() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { slug, channel: channelParam } = useParams<{ slug: string; channel?: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
 

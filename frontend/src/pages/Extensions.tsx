@@ -5,7 +5,8 @@
  * Shows active, coming soon, and future extensions with cards.
  */
 
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { PuzzlePiece, ArrowRight, ChatCircleDots, ListChecks, ArrowsLeftRight, Trophy } from "@phosphor-icons/react"
 import type { LayoutContext } from "../types/layout"
 
@@ -63,7 +64,7 @@ const statusStyles: Record<string, { bg: string; color: string; border: string }
 }
 
 export function Extensions() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { adena } = useOutletContext<LayoutContext>()
 
     const lastDAO = localStorage.getItem("memba_last_dao_slug")

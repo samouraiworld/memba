@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -27,7 +28,7 @@ interface DAOEntry {
 }
 
 export function DAOList() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const { activeOrgId, activeOrgName, isOrgMode } = useOrg()
 

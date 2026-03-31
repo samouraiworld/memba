@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL } from "../lib/config"
@@ -26,7 +27,7 @@ import type { LayoutContext } from "../types/layout"
 import "./daohome.css"
 
 export function DAOHome() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const { session, joinRoom } = useJitsiContext()

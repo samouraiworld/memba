@@ -76,10 +76,10 @@ test.describe('Sidebar Navigation (Desktop ≥1025px)', () => {
         await expect(feedbackLink).toBeVisible()
     })
 
-    test('/dashboard redirects to / when disconnected', async ({ page }) => {
+    test('/dashboard redirects to landing when disconnected', async ({ page }) => {
         await page.goto('/dashboard')
-        await page.waitForURL('/', { timeout: 5000 })
-        await expect(page).toHaveURL('/')
+        // Legacy redirect: /dashboard → /:network/dashboard → /:network/ (landing)
+        await page.waitForURL(/\/\w+\/$/, { timeout: 5000 })
     })
 })
 

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { Vault } from "@phosphor-icons/react"
 import { getPlugins } from "../../plugins"
 
@@ -7,7 +7,7 @@ interface DAOPluginsGridProps {
 }
 
 export function DAOTreasuryCard({ encodedSlug }: { encodedSlug: string }) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     return (
         <div className="k-card dao-treasury-card">
@@ -29,7 +29,7 @@ export function DAOTreasuryCard({ encodedSlug }: { encodedSlug: string }) {
 }
 
 export function DAOPluginsGrid({ encodedSlug }: DAOPluginsGridProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const plugins = getPlugins()
 
     if (plugins.length === 0) return null

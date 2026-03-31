@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
@@ -15,7 +16,7 @@ interface MemberEntry {
 }
 
 export function CreateMultisig() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
     const [name, setName] = useState("")
     const [threshold, setThreshold] = useState(2)

@@ -4,8 +4,9 @@
  * Decomposed in v2.0.0: UI sections extracted into components/dashboard/.
  * This file handles data fetching, state management, and composition.
  */
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useOutletContext } from "react-router-dom"
 import { LockKey, MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { StatusBadge } from "../components/ui/StatusBadge"
@@ -40,7 +41,7 @@ import {
 import "./dashboard.css"
 
 export function Dashboard() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { balance, auth, isLoggingIn } = useOutletContext<LayoutContext>()
     const { activeOrgId } = useOrg()
     const token = auth.token

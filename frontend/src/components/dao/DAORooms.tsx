@@ -16,7 +16,7 @@
  * @module components/dao/DAORooms
  */
 
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { memo } from "react"
 import { useJitsiContext } from "../../contexts/JitsiContext"
 import "./dao-rooms.css"
@@ -36,7 +36,7 @@ interface DAORoomsProps {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember, hasChannels, isConnected }: DAORoomsProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { session, joinRoom } = useJitsiContext()
 
     // Check if user is already in a room for this DAO

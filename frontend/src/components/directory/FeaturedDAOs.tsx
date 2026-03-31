@@ -8,7 +8,7 @@
  * of fetching independently, avoiding duplicate RPC calls.
  */
 
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { encodeSlug } from "../../lib/daoSlug"
 import { type DAOMetadata } from "../../lib/daoMetadata"
 import { SEED_DAOS } from "../../lib/directory"
@@ -18,7 +18,7 @@ interface FeaturedDAOsProps {
 }
 
 export function FeaturedDAOs({ metadata }: FeaturedDAOsProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     if (SEED_DAOS.length === 0) return null
 

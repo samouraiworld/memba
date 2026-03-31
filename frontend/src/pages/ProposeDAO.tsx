@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil, UsersThree, Vault, GearSix, Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
@@ -9,7 +10,7 @@ import { decodeSlug, encodeSlug } from "../lib/daoSlug"
 import type { LayoutContext } from "../types/layout"
 
 export function ProposeDAO() {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
     const { slug } = useParams<{ slug: string }>()
     const { auth, adena } = useOutletContext<LayoutContext>()
 

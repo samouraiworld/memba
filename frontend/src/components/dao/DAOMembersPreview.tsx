@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { UsersThree } from "@phosphor-icons/react"
 import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { MemberCard } from "./MemberCard"
@@ -13,7 +13,7 @@ interface DAOMembersPreviewProps {
 }
 
 export function DAOMembersPreview({ encodedSlug, members, memberCount, membersLoading, currentUserAddress }: DAOMembersPreviewProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     return (
         <div id="dao-members-section">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { Bank, Archive } from "@phosphor-icons/react"
 import { getExplorerBaseUrl, getUserRegistryPath } from "../../lib/config"
 import { derivePkgBech32Addr } from "../../lib/dao/realmAddress"
@@ -63,7 +63,7 @@ export function DAOOverviewCard({
     nonVoterPercent, nonVoterCount, maxVoterParticipation, proposalsWithVotesCount,
     totalPower, healthScore, session, joinRoom,
 }: DAOOverviewCardProps) {
-    const navigate = useNavigate()
+    const navigate = useNetworkNav()
 
     return (
         <div className="k-card dao-overview-card">
