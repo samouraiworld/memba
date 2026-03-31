@@ -64,12 +64,14 @@ export function generateNFTCollectionCode(config: NFTCollectionConfig): string {
 //     **Token ID:** id
 
 import (
-	"std"
 	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+
+	"chain/banker"
+	"chain/runtime"
 )
 
 // ── Constants ────────────────────────────────────────────────
@@ -109,19 +111,19 @@ func init() {
 
 // ── GRC721 Core ──────────────────────────────────────────────
 
-func BalanceOf(owner std.Address) int64 {
+func BalanceOf(owner address) int64 {
 	if val, ok := balances.Get(string(owner)); ok {
 		return val.(int64)
 	}
 	return 0
 }
 
-func OwnerOf(tokenId string) std.Address {
+func OwnerOf(tokenId string) address {
 	val, ok := owners.Get(tokenId)
 	if !ok {
 		panic("token not found: " + tokenId)
 	}
-	return val.(std.Address)
+	return val.(address)
 }
 
 func TokenURI(tokenId string) string {
@@ -141,8 +143,8 @@ func Symbol() string { return CollectionSymbol }
 
 // ── Transfer ─────────────────────────────────────────────────
 
-func TransferFrom(cur realm, from, to std.Address, tokenId string) {
-	caller := std.PreviousRealm().Addr()
+func TransferFrom(cur realm, from, to address, tokenId string) {
+	caller := runtime.PreviousRealm().Address()
 	owner := OwnerOf(tokenId)
 
 	if owner != from {
@@ -168,8 +170,8 @@ func TransferFrom(cur realm, from, to std.Address, tokenId string) {
 
 // ── Approval ─────────────────────────────────────────────────
 
-func Approve(cur realm, to std.Address, tokenId string) {
-	caller := std.PreviousRealm().Addr()
+func Approve(cur realm, to address, tokenId string) {
+	caller := runtime.PreviousRealm().Address()
 	owner := OwnerOf(tokenId)
 
 	if caller != owner && !IsApprovedForAll(owner, caller) {
@@ -182,8 +184,8 @@ func Approve(cur realm, to std.Address, tokenId string) {
 	approvals.Set(tokenId, to)
 }
 
-func SetApprovalForAll(cur realm, operator std.Address, approved bool) {
-	caller := std.PreviousRealm().Addr()
+func SetApprovalForAll(cur realm, operator address, approved bool) {
+	caller := runtime.PreviousRealm().Address()
 	key := string(caller) + ":" + string(operator)
 	if approved {
 		opApprovals.Set(key, true)
@@ -192,15 +194,15 @@ func SetApprovalForAll(cur realm, operator std.Address, approved bool) {
 	}
 }
 
-func GetApproved(tokenId string) std.Address {
+func GetApproved(tokenId string) address {
 	val, ok := approvals.Get(tokenId)
 	if !ok {
 		return ""
 	}
-	return val.(std.Address)
+	return val.(address)
 }
 
-func IsApprovedForAll(owner, operator std.Address) bool {
+func IsApprovedForAll(owner, operator address) bool {
 	key := string(owner) + ":" + string(operator)
 	val, ok := opApprovals.Get(key)
 	if !ok {
@@ -211,8 +213,8 @@ func IsApprovedForAll(owner, operator std.Address) bool {
 
 // ── Mint ─────────────────────────────────────────────────────
 
-func Mint(cur realm, to std.Address, tokenId, name, uri string) {
-	caller := std.PreviousRealm().Addr()
+func Mint(cur realm, to address, tokenId, name, uri string) {
+	caller := runtime.PreviousRealm().Address()
 
 	if !PublicMint && string(caller) != AdminAddress {
 		panic("only admin can mint")
@@ -226,7 +228,7 @@ func Mint(cur realm, to std.Address, tokenId, name, uri string) {
 
 	// Check mint price
 	if MintPrice > 0 {
-		sent := std.GetOrigSend()
+		sent := banker.OriginSend()
 		if sent.AmountOf("ugnot") < MintPrice {
 			panic(ufmt.Sprintf("insufficient payment: need %d ugnot", MintPrice))
 		}
@@ -243,7 +245,7 @@ func Mint(cur realm, to std.Address, tokenId, name, uri string) {
 // ── Burn ─────────────────────────────────────────────────────
 
 func Burn(cur realm, tokenId string) {
-	caller := std.PreviousRealm().Addr()
+	caller := runtime.PreviousRealm().Address()
 	owner := OwnerOf(tokenId)
 
 	if caller != owner && string(caller) != AdminAddress {
@@ -260,12 +262,12 @@ func Burn(cur realm, tokenId string) {
 
 // ── Royalty (ERC2981) ────────────────────────────────────────
 
-func RoyaltyInfo(tokenId string, salePrice int64) (std.Address, int64) {
+func RoyaltyInfo(tokenId string, salePrice int64) (address, int64) {
 	if RoyaltyPercent == 0 {
 		return "", 0
 	}
 	royalty := (salePrice * int64(RoyaltyPercent)) / 100
-	return std.Address(AdminAddress), royalty
+	return address(AdminAddress), royalty
 }
 
 // ── Render ───────────────────────────────────────────────────
@@ -308,7 +310,7 @@ func renderHome() string {
 		if !exists {
 			continue
 		}
-		owner := ownerVal.(std.Address)
+		owner := ownerVal.(address)
 		nameVal, _ := tokenNames.Get(tid)
 		name := tid
 		if nameVal != nil {
@@ -325,7 +327,7 @@ func renderToken(tokenId string) string {
 	if !exists {
 		return "# 404\\nToken not found: " + tokenId
 	}
-	owner := ownerVal.(std.Address)
+	owner := ownerVal.(address)
 
 	var sb strings.Builder
 	nameVal, _ := tokenNames.Get(tokenId)
@@ -351,7 +353,7 @@ func renderToken(tokenId string) string {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-func isApprovedOrOwner(caller std.Address, tokenId string) bool {
+func isApprovedOrOwner(caller address, tokenId string) bool {
 	owner := OwnerOf(tokenId)
 	if caller == owner {
 		return true
@@ -362,7 +364,7 @@ func isApprovedOrOwner(caller std.Address, tokenId string) bool {
 	return IsApprovedForAll(owner, caller)
 }
 
-func incBalance(addr std.Address) {
+func incBalance(addr address) {
 	key := string(addr)
 	if val, ok := balances.Get(key); ok {
 		balances.Set(key, val.(int64)+1)
@@ -371,7 +373,7 @@ func incBalance(addr std.Address) {
 	}
 }
 
-func decBalance(addr std.Address) {
+func decBalance(addr address) {
 	key := string(addr)
 	if val, ok := balances.Get(key); ok {
 		n := val.(int64) - 1
@@ -383,7 +385,7 @@ func decBalance(addr std.Address) {
 	}
 }
 
-func truncAddr(addr std.Address) string {
+func truncAddr(addr address) string {
 	s := string(addr)
 	if len(s) > 13 {
 		return s[:10] + "..."
