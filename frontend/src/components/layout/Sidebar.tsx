@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
@@ -71,6 +72,38 @@ function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, c
     )
 }
 
+// ── Cmd+K Discovery Hint ──────────────────────────────────────────────
+
+const CMDK_HINT_KEY = "memba_cmdk_seen"
+
+function CmdKHint() {
+    const [visible, setVisible] = useState(() => {
+        try {
+            return !localStorage.getItem(CMDK_HINT_KEY)
+        } catch {
+            return false
+        }
+    })
+
+    if (!visible) return null
+
+    const dismiss = () => {
+        setVisible(false)
+        try { localStorage.setItem(CMDK_HINT_KEY, "1") } catch { /* */ }
+    }
+
+    return (
+        <button
+            className="k-sidebar-cmdk-hint"
+            onClick={dismiss}
+            title="Press ⌘K to open the command palette"
+        >
+            <span className="k-sidebar-cmdk-hint__key">⌘K</span>
+            <span className="k-sidebar-cmdk-hint__text">Quick actions</span>
+        </button>
+    )
+}
+
 // ── Sidebar Component ──────────────────────────────────────────────────
 interface SidebarProps {
     connected: boolean
@@ -118,6 +151,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 <SidebarLink to="/alerts" icon={<Bell size={18} />} label="Alerts" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/multisig" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/gnolove" icon={<Heart size={18} />} label="Gnolove" connected={connected} collapsed={collapsed} />
+                {!collapsed && <CmdKHint />}
             </nav>
 
             {/* ── Section 2: Extensions ─────────────────────────── */}

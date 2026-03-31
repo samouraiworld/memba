@@ -699,6 +699,39 @@ body {
   display: none;
 }
 
+/* Sprint 5: Cmd+K discovery hint */
+.k-sidebar-cmdk-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin: 4px 12px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid rgba(0, 212, 170, 0.15);
+  background: rgba(0, 212, 170, 0.04);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.k-sidebar-cmdk-hint:hover {
+  background: rgba(0, 212, 170, 0.08);
+}
+
+.k-sidebar-cmdk-hint__key {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-k-accent, #00d4aa);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.k-sidebar-cmdk-hint__text {
+  font-size: 11px;
+  color: var(--color-k-dim, #888);
+}
+
 .k-sidebar-section {
   padding: 8px 0;
 }
