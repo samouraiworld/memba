@@ -10,10 +10,10 @@
  *
  * Output structure:
  *   contracts/
- *     memba_dao_test/        — DAO realm
- *     memba_channels_test/   — Channels realm
- *     memba_candidature_test/ — Candidature realm
- *     escrow_test/           — Escrow realm
+ *     memba_dao_stub/        — DAO realm
+ *     memba_channels_stub/   — Channels realm
+ *     memba_candidature_stub/ — Candidature realm
+ *     escrow_stub/           — Escrow realm
  */
 
 import { writeFileSync, mkdirSync } from "node:fs"
@@ -39,17 +39,14 @@ interface Contract {
 
 const contracts: Contract[] = [
     {
-        dir: "memba_dao_test",
+        dir: "memba_dao_stub",
         files: {
-            "gno.mod": `module gno.land/r/samcrew/memba_dao_test
-
-require (
-\tgno.land/p/demo/ufmt v0.0.0
-)
+            "gnomod.toml": `module = "gno.land/r/samcrew/memba_dao_stub"
+gno = "0.9"
 `,
-            "dao.gno": `package memba_dao_test
+            "dao.gno": `package memba_dao_stub
 
-import "gno.land/p/demo/ufmt"
+import "strconv"
 
 var (
 \tname        = "Memba DAO Test"
@@ -60,15 +57,15 @@ var (
 func Render(path string) string {
 \tswitch path {
 \tcase "":
-\t\treturn ufmt.Sprintf("# %s\\n\\n%s\\n\\nMembers: %d", name, description, len(members))
+\t\treturn "# " + name + "\\n\\n" + description + "\\n\\nMembers: " + strconv.Itoa(len(members))
 \tcase "config":
-\t\treturn ufmt.Sprintf("Name: %s\\nDescription: %s", name, description)
+\t\treturn "Name: " + name + "\\nDescription: " + description
 \tdefault:
 \t\treturn "404: path not found"
 \t}
 }
 `,
-            "dao_test.gno": `package memba_dao_test
+            "dao_test.gno": `package memba_dao_stub
 
 import "testing"
 
@@ -96,17 +93,12 @@ func TestRender404(t *testing.T) {
         },
     },
     {
-        dir: "memba_channels_test",
+        dir: "memba_channels_stub",
         files: {
-            "gno.mod": `module gno.land/r/samcrew/memba_channels_test
-
-require (
-\tgno.land/p/demo/ufmt v0.0.0
-)
+            "gnomod.toml": `module = "gno.land/r/samcrew/memba_channels_stub"
+gno = "0.9"
 `,
-            "channels.gno": `package memba_channels_test
-
-import "gno.land/p/demo/ufmt"
+            "channels.gno": `package memba_channels_stub
 
 var channels = []string{"general", "announcements", "dev"}
 
@@ -114,14 +106,14 @@ func Render(path string) string {
 \tif path == "" {
 \t\tout := "# Channels\\n\\n"
 \t\tfor _, ch := range channels {
-\t\t\tout += ufmt.Sprintf("- [%s](%s)\\n", ch, ch)
+\t\t\tout += "- [" + ch + "](" + ch + ")\\n"
 \t\t}
 \t\treturn out
 \t}
-\treturn ufmt.Sprintf("## %s\\n\\nChannel content here.", path)
+\treturn "## " + path + "\\n\\nChannel content here."
 }
 `,
-            "channels_test.gno": `package memba_channels_test
+            "channels_test.gno": `package memba_channels_stub
 
 import "testing"
 
@@ -142,17 +134,14 @@ func TestRenderChannel(t *testing.T) {
         },
     },
     {
-        dir: "memba_candidature_test",
+        dir: "memba_candidature_stub",
         files: {
-            "gno.mod": `module gno.land/r/samcrew/memba_candidature_test
-
-require (
-\tgno.land/p/demo/ufmt v0.0.0
-)
+            "gnomod.toml": `module = "gno.land/r/samcrew/memba_candidature_stub"
+gno = "0.9"
 `,
-            "candidature.gno": `package memba_candidature_test
+            "candidature.gno": `package memba_candidature_stub
 
-import "gno.land/p/demo/ufmt"
+import "strconv"
 
 type Candidature struct {
 \tApplicant string
@@ -176,12 +165,12 @@ func Render(_ string) string {
 \t}
 \tout := "# Candidatures\\n\\n"
 \tfor i, c := range candidatures {
-\t\tout += ufmt.Sprintf("%d. %s — %s (%s)\\n", i+1, c.Applicant, c.Reason, c.Status)
+\t\tout += strconv.Itoa(i+1) + ". " + c.Applicant + " - " + c.Reason + " (" + c.Status + ")\\n"
 \t}
 \treturn out
 }
 `,
-            "candidature_test.gno": `package memba_candidature_test
+            "candidature_test.gno": `package memba_candidature_stub
 
 import "testing"
 
@@ -203,17 +192,14 @@ func TestApplyAndRender(t *testing.T) {
         },
     },
     {
-        dir: "escrow_test",
+        dir: "escrow_stub",
         files: {
-            "gno.mod": `module gno.land/r/samcrew/escrow_test
-
-require (
-\tgno.land/p/demo/ufmt v0.0.0
-)
+            "gnomod.toml": `module = "gno.land/r/samcrew/escrow_stub"
+gno = "0.9"
 `,
-            "escrow.gno": `package escrow_test
+            "escrow.gno": `package escrow_stub
 
-import "gno.land/p/demo/ufmt"
+import "strconv"
 
 type EscrowContract struct {
 \tBuyer  string
@@ -250,12 +236,12 @@ func Render(_ string) string {
 \t}
 \tout := "# Escrow Contracts\\n\\n"
 \tfor i, c := range contracts {
-\t\tout += ufmt.Sprintf("%d. %s → %s: %d ugnot (%s)\\n", i, c.Buyer, c.Seller, c.Amount, c.Status)
+\t\tout += strconv.Itoa(i) + ". " + c.Buyer + " > " + c.Seller + ": " + strconv.FormatInt(c.Amount, 10) + " ugnot (" + c.Status + ")\\n"
 \t}
 \treturn out
 }
 `,
-            "escrow_test.gno": `package escrow_test
+            "escrow_test.gno": `package escrow_stub
 
 import "testing"
 

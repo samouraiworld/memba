@@ -44,7 +44,7 @@ jobs:
       - name: Run gno test on each contract
         run: |
           for dir in contracts/*/; do
-            if [ -f "$dir/gno.mod" ]; then
+            if [ -f "$dir/gnomod.toml" ]; then
               echo "=== Testing $dir ==="
               gno test "./$dir" || exit 1
             fi
@@ -53,7 +53,7 @@ jobs:
       - name: Run gno lint on each contract
         run: |
           for dir in contracts/*/; do
-            if [ -f "$dir/gno.mod" ]; then
+            if [ -f "$dir/gnomod.toml" ]; then
               echo "=== Linting $dir ==="
               gno lint "./$dir" || true
             fi
