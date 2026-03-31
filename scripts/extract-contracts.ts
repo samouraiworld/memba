@@ -17,14 +17,20 @@
  */
 
 import { writeFileSync, mkdirSync } from "node:fs"
-import { join } from "node:path"
+import { join, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
 
 // We can't import the templates directly since they have browser deps.
 // Instead, we generate minimal contract stubs that exercise the same patterns.
 // This is intentional — the contracts/ directory is for `gno test` validation,
 // not for deployment (deployment uses the frontend template generators).
 
-const CONTRACTS_DIR = join(import.meta.dirname, "..", "contracts")
+// Compatible with both ESM and CJS (tsx in CJS mode sets import.meta.dirname to undefined)
+const __scriptDir = typeof import.meta.dirname === "string"
+    ? import.meta.dirname
+    : dirname(fileURLToPath(import.meta.url))
+
+const CONTRACTS_DIR = join(__scriptDir, "..", "contracts")
 
 interface Contract {
     dir: string
