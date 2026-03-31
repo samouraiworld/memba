@@ -11,7 +11,7 @@
 import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
 import { GNO_RPC_URL, getUserRegistryPath } from "./config"
-import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages, type NamespaceItem } from "./gnoweb"
+import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
 
 // ── Types ────────────────────────────────────────────────────
 

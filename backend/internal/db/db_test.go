@@ -11,7 +11,7 @@ func TestOpen_InMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open in-memory database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	// Verify WAL mode is enabled
 	var journalMode string
@@ -38,7 +38,7 @@ func TestOpen_MaxConnections(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	stats := database.Stats()
 	if stats.MaxOpenConnections != 1 {
@@ -51,7 +51,7 @@ func TestMigrate_CreatesTablesAndTracks(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	if err := Migrate(database); err != nil {
 		t.Fatal("migration failed:", err)
@@ -71,7 +71,7 @@ func TestMigrate_CreatesTablesAndTracks(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to query migration names:", err)
 	}
-	defer rows.Close()
+	t.Cleanup(func() { _ = rows.Close() })
 
 	var names []string
 	for rows.Next() {
@@ -95,7 +95,7 @@ func TestMigrate_Idempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	// Run migrations twice — should not fail
 	if err := Migrate(database); err != nil {
@@ -120,7 +120,7 @@ func TestMigrate_ProfilesTableExists(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	if err := Migrate(database); err != nil {
 		t.Fatal("migration failed:", err)
@@ -150,7 +150,7 @@ func TestMigrate_ForeignKeysEnforced(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to open database:", err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { _ = database.Close() })
 
 	if err := Migrate(database); err != nil {
 		t.Fatal("migration failed:", err)
