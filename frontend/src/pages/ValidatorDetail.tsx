@@ -41,6 +41,7 @@ import {
     healthIcon,
 } from "../lib/validatorHealth"
 import { BlockHeatmap } from "../components/validators/BlockHeatmap"
+import { completeQuest, trackPageVisit } from "../lib/quests"
 import "../components/validators/hacker-mode.css"
 import "./validator-detail.css"
 
@@ -116,6 +117,14 @@ export default function ValidatorDetail() {
             navigate("/validators", { replace: true })
         }
     }, [address, navigate])
+
+    // Quest triggers
+    useEffect(() => {
+        if (address) {
+            completeQuest("view-validator")
+            trackPageVisit("validator-detail")
+        }
+    }, [address])
 
     // Load all validator data
     const load = useCallback(async () => {

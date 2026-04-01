@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from "react"
 import { FeedbackFeed } from "../components/FeedbackFeed"
+import { completeQuest, trackPageVisit } from "../lib/quests"
 
 const GITHUB_REPO = "samouraiworld/Memba"
 const GITHUB_ISSUES_URL = `https://api.github.com/repos/${GITHUB_REPO}/issues`
@@ -35,6 +36,7 @@ export default function FeedbackPage() {
 
     useEffect(() => {
         document.title = "Feedback — Memba"
+        trackPageVisit("feedback")
 
         fetch(`${GITHUB_ISSUES_URL}?state=open&per_page=15&sort=created&direction=desc`, {
             headers: { Accept: "application/vnd.github.v3+json" },
@@ -83,6 +85,7 @@ export default function FeedbackPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     id="feedback-submit-btn"
+                    onClick={() => completeQuest("submit-feedback")}
                     style={{
                         padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                         background: "#00d4aa", color: "#000", textDecoration: "none",

@@ -2,6 +2,7 @@ import { CopyableAddress } from "../ui/CopyableAddress"
 import { validateActiveRpcDomain } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
+import { completeQuest } from "../../lib/quests"
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface TopBarProps {
@@ -74,7 +75,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                     <select
                         className="k-topbar-network-select"
                         value={network.networkKey}
-                        onChange={(e) => network.switchNetwork(e.target.value)}
+                        onChange={(e) => { completeQuest("switch-network"); network.switchNetwork(e.target.value) }}
                         title="Switch network"
                     >
                         {Object.entries(network.networks).map(([key, net]) => (

@@ -12,6 +12,7 @@ import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL } from "../lib/config"
+import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
 
@@ -124,6 +125,7 @@ export function TransactionView() {
                             className={`k-txview__share-btn ${linkCopied ? "k-txview__share-btn--copied" : ""}`}
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href)
+                                completeQuest("share-link")
                                 setLinkCopied(true)
                                 setTimeout(() => setLinkCopied(false), 2000)
                             }}

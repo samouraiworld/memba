@@ -29,6 +29,7 @@ import { getSavedDAOsForOrg } from "../lib/daoSlug"
 import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
+import { trackPageVisit } from "../lib/quests"
 import {
     DashboardIdentityCard,
     ActionRequiredStrip,
@@ -50,6 +51,9 @@ export function Dashboard() {
     useEffect(() => {
         if (!isLoggingIn && !auth.isAuthenticated) navigate("/", { replace: true })
     }, [auth.isAuthenticated, isLoggingIn, navigate])
+
+    // Quest: page visit tracking
+    useEffect(() => { trackPageVisit("dashboard") }, [])
 
     const [multisigs, setMultisigs] = useState<Multisig[]>([])
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])

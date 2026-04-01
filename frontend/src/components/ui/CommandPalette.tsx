@@ -13,6 +13,7 @@ import "./command-palette.css"
 // ── Command definitions ───────────────────────────────────────
 
 import { COMMANDS, type Command } from "./commands"
+import { completeQuest } from "../../lib/quests"
 
 // ── Fuzzy search ──────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export function CommandPalette() {
     }, [query])
 
     const handleSelect = useCallback((command: Command) => {
+        completeQuest("use-cmdk")
         navigate(command.path)
         setOpen(false)
     }, [navigate])
