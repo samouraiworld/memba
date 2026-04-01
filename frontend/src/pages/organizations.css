@@ -316,6 +316,103 @@
     font-family: "JetBrains Mono", monospace;
 }
 
+/* ── Input ────────────────────────────────────────────── */
+
+.org-input {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.org-input:focus {
+    outline: none;
+    border-color: rgba(0, 212, 170, 0.4);
+}
+
+/* ── Action Row ───────────────────────────────────────── */
+
+.org-action-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ── Danger Button ────────────────────────────────────── */
+
+.org-btn-danger {
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
+}
+
+.org-btn-danger:hover {
+    background: rgba(244, 67, 54, 0.15);
+}
+
+/* ── Team Meta ────────────────────────────────────────── */
+
+.org-team-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.org-team-meta-item {
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.org-invite-code {
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(0, 212, 170, 0.08);
+    color: #00d4aa;
+    font-size: 11px;
+    user-select: all;
+}
+
+/* ── Error ────────────────────────────────────────────── */
+
+.org-error {
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: rgba(244, 67, 54, 0.06);
+    border: 1px solid rgba(244, 67, 54, 0.15);
+    color: #f44336;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Clickable Row ────────────────────────────────────── */
+
+.org-team-row--clickable {
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.org-team-row--clickable:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* ── Responsive ────────────────────────────────────────── */
 
 @media (max-width: 768px) {

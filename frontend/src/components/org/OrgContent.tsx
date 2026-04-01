@@ -1,123 +1,257 @@
 /**
- * OrgContent — Clerk-powered team management UI (Memba-branded).
+ * OrgContent — Memba-native team management UI.
  *
- * Loaded via React.lazy() from OrganizationsPage. All Clerk components
- * are wrapped with Memba styling — no Clerk branding is exposed.
+ * Uses Memba backend Team RPCs (CreateTeam, GetMyTeams, JoinTeam,
+ * LeaveTeam, UpdateTeamMemberRole) instead of Clerk Organizations.
  *
  * Sections:
  * 1. Current workspace indicator with switch action
- * 2. Team list with member counts
- * 3. Create team form
+ * 2. Team list with member counts and roles
+ * 3. Create team form / Join team via invite code
  *
  * @module components/org/OrgContent
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useOutletContext } from "react-router-dom"
+import { api } from "../../lib/api"
+import { create } from "@bufbuild/protobuf"
 import {
-    ClerkProvider as ClerkReactProvider,
-    useAuth,
-    useOrganization,
-    useOrganizationList,
-    SignIn,
-    CreateOrganization,
-} from "@clerk/clerk-react"
-import { dark } from "@clerk/themes"
-import { CLERK_PUBLISHABLE_KEY } from "../../lib/config"
+    CreateTeamRequestSchema,
+    GetMyTeamsRequestSchema,
+    GetTeamRequestSchema,
+    JoinTeamRequestSchema,
+    LeaveTeamRequestSchema,
+    UpdateTeamMemberRoleRequestSchema,
+    TeamRole,
+} from "../../gen/memba/v1/memba_pb"
+import type { Team, TeamMember } from "../../gen/memba/v1/memba_pb"
 import { useOrg } from "../../contexts/OrgContext"
+import type { LayoutContext } from "../../types/layout"
 
-/** Memba-styled appearance overrides for Clerk components. */
-const clerkAppearance = {
-    baseTheme: dark,
-    variables: {
-        colorPrimary: "#00d4aa",
-        colorBackground: "#12121e",
-        colorInputBackground: "rgba(255,255,255,0.04)",
-        colorText: "#f0f0f0",
-        colorTextSecondary: "#888",
-        borderRadius: "8px",
-        fontFamily: "'JetBrains Mono', monospace",
-    },
-    elements: {
-        // Hide Clerk branding
-        footer: { display: "none" },
-        // Style cards to match Memba panels
-        card: {
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: "12px",
-            boxShadow: "none",
-        },
-        headerTitle: {
-            fontFamily: "'JetBrains Mono', monospace",
-            color: "#f0f0f0",
-        },
-        headerSubtitle: {
-            color: "#888",
-        },
-    },
+function roleLabel(role: TeamRole): string {
+    return role === TeamRole.ADMIN ? "Admin" : "Member"
 }
 
-function OrgInner() {
-    const { isLoaded, isSignedIn } = useAuth()
-    const { organization } = useOrganization()
-    const { userMemberships, setActive } = useOrganizationList({
-        userMemberships: { infinite: true },
-    })
-    const { setActiveOrg, markClerkLoaded, activeOrgId } = useOrg()
+export default function OrgContent() {
+    const { auth } = useOutletContext<LayoutContext>()
+    const { setActiveOrg, activeOrgId } = useOrg()
+
+    const [teams, setTeams] = useState<Team[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    // Create team
     const [showCreate, setShowCreate] = useState(false)
+    const [newName, setNewName] = useState("")
+    const [creating, setCreating] = useState(false)
 
-    useEffect(() => {
-        if (isLoaded) markClerkLoaded()
-    }, [isLoaded, markClerkLoaded])
+    // Join team
+    const [showJoin, setShowJoin] = useState(false)
+    const [inviteCode, setInviteCode] = useState("")
+    const [joining, setJoining] = useState(false)
 
-    // Sync active org from Clerk to OrgContext
-    useEffect(() => {
-        if (organization) {
-            setActiveOrg(organization.id, organization.name)
+    // Selected team detail
+    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+
+    const loadTeams = useCallback(async () => {
+        if (!auth.token) return
+        setLoading(true)
+        setError(null)
+        try {
+            const resp = await api.getMyTeams(create(GetMyTeamsRequestSchema, {
+                authToken: auth.token,
+            }))
+            setTeams(resp.teams)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load teams")
+        } finally {
+            setLoading(false)
         }
-    }, [organization, setActiveOrg])
+    }, [auth.token])
 
-    if (!isLoaded) {
-        return <div className="org-loading">Loading...</div>
+    useEffect(() => { loadTeams() }, [loadTeams])
+
+    const handleCreate = async () => {
+        if (!auth.token || !newName.trim()) return
+        setCreating(true)
+        setError(null)
+        try {
+            await api.createTeam(create(CreateTeamRequestSchema, {
+                authToken: auth.token,
+                name: newName.trim(),
+            }))
+            setNewName("")
+            setShowCreate(false)
+            loadTeams()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to create team")
+        } finally {
+            setCreating(false)
+        }
     }
 
-    // Not signed in — show Memba-branded sign-in
-    if (!isSignedIn) {
+    const handleJoin = async () => {
+        if (!auth.token || !inviteCode.trim()) return
+        setJoining(true)
+        setError(null)
+        try {
+            await api.joinTeam(create(JoinTeamRequestSchema, {
+                authToken: auth.token,
+                inviteCode: inviteCode.trim(),
+            }))
+            setInviteCode("")
+            setShowJoin(false)
+            loadTeams()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Invalid invite code")
+        } finally {
+            setJoining(false)
+        }
+    }
+
+    const handleLeave = async (teamId: string) => {
+        if (!auth.token) return
+        setError(null)
+        try {
+            await api.leaveTeam(create(LeaveTeamRequestSchema, {
+                authToken: auth.token,
+                teamId,
+            }))
+            if (activeOrgId === teamId) setActiveOrg(null)
+            setSelectedTeam(null)
+            loadTeams()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to leave team")
+        }
+    }
+
+    const handleRoleChange = async (teamId: string, memberAddress: string, role: TeamRole) => {
+        if (!auth.token) return
+        setError(null)
+        try {
+            const resp = await api.updateTeamMemberRole(create(UpdateTeamMemberRoleRequestSchema, {
+                authToken: auth.token,
+                teamId,
+                memberAddress,
+                role,
+            }))
+            if (resp.team) setSelectedTeam(resp.team)
+            loadTeams()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to update role")
+        }
+    }
+
+    const viewTeam = async (teamId: string) => {
+        if (!auth.token) return
+        try {
+            const resp = await api.getTeam(create(GetTeamRequestSchema, {
+                authToken: auth.token,
+                teamId,
+            }))
+            if (resp.team) setSelectedTeam(resp.team)
+        } catch {
+            // ignore
+        }
+    }
+
+    if (!auth.isAuthenticated || !auth.token) {
         return (
-            <div className="org-auth-section">
-                <div className="org-auth-card">
-                    <h2 className="org-auth-title">Sign in to manage teams</h2>
-                    <p className="org-auth-desc">
-                        Create and join teams to share DAOs, alerts, and workspace configurations
-                        with your collaborators. Sign in with your email to get started.
-                    </p>
-                    <div className="org-auth-clerk-wrapper">
-                        <SignIn
-                            appearance={clerkAppearance}
-                            routing="hash"
-                            forceRedirectUrl={window.location.href}
-                        />
-                    </div>
-                </div>
+            <div className="org-empty-card">
+                <h2 className="org-empty-title">Connect your wallet to manage teams</h2>
+                <p className="org-empty-desc">
+                    Teams let you share DAOs, alerts, and configurations with your collaborators.
+                </p>
             </div>
         )
     }
 
-    const memberships = userMemberships?.data ?? []
+    if (loading) {
+        return <div className="org-loading">Loading teams...</div>
+    }
 
+    // ── Team detail view ──
+    if (selectedTeam) {
+        const isAdmin = selectedTeam.members.some(
+            m => m.address === auth.address && m.role === TeamRole.ADMIN
+        )
+        return (
+            <div className="org-content">
+                <button className="org-btn-secondary" onClick={() => setSelectedTeam(null)}>
+                    ← Back to teams
+                </button>
+
+                <div className="org-section">
+                    <h2 className="org-section-title">{selectedTeam.name}</h2>
+                    <div className="org-team-meta">
+                        <span className="org-team-meta-item">
+                            Invite code: <code className="org-invite-code">{selectedTeam.inviteCode}</code>
+                        </span>
+                        <span className="org-team-meta-item">
+                            {selectedTeam.members.length} member{selectedTeam.members.length !== 1 ? "s" : ""}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="org-section">
+                    <h2 className="org-section-title">Members</h2>
+                    <div className="org-team-list">
+                        {selectedTeam.members.map((m: TeamMember) => (
+                            <div key={m.address} className="org-team-row">
+                                <div className="org-team-row-icon">
+                                    {m.address.slice(2, 4).toUpperCase()}
+                                </div>
+                                <div className="org-team-row-info">
+                                    <span className="org-team-row-name">
+                                        {m.address.slice(0, 10)}...{m.address.slice(-4)}
+                                    </span>
+                                    <span className="org-team-row-role">{roleLabel(m.role)}</span>
+                                </div>
+                                {m.role === TeamRole.ADMIN && (
+                                    <span className="org-team-row-badge">Admin</span>
+                                )}
+                                {isAdmin && m.address !== auth.address && (
+                                    <button
+                                        className="org-btn-secondary"
+                                        onClick={() => handleRoleChange(
+                                            selectedTeam.id,
+                                            m.address,
+                                            m.role === TeamRole.ADMIN ? TeamRole.MEMBER : TeamRole.ADMIN,
+                                        )}
+                                    >
+                                        {m.role === TeamRole.ADMIN ? "Demote" : "Promote"}
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button
+                    className="org-btn-danger"
+                    onClick={() => handleLeave(selectedTeam.id)}
+                >
+                    Leave Team
+                </button>
+
+                {error && <div className="org-error">{error}</div>}
+            </div>
+        )
+    }
+
+    // ── Main teams view ──
     return (
         <div className="org-content">
+            {error && <div className="org-error">{error}</div>}
+
             {/* Current Workspace */}
             <div className="org-section">
                 <h2 className="org-section-title">Current Workspace</h2>
                 <div className="org-workspace-cards">
-                    {/* Personal */}
                     <button
                         className={`org-workspace-card${!activeOrgId ? " org-workspace-card--active" : ""}`}
-                        onClick={() => {
-                            if (setActive) setActive({ organization: null })
-                            setActiveOrg(null)
-                        }}
+                        onClick={() => setActiveOrg(null)}
                     >
                         <div className="org-workspace-icon">
                             <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor">
@@ -131,26 +265,22 @@ function OrgInner() {
                         {!activeOrgId && <span className="org-workspace-active-badge">Active</span>}
                     </button>
 
-                    {/* Team workspaces */}
-                    {memberships.map(mem => (
+                    {teams.map(team => (
                         <button
-                            key={mem.organization.id}
-                            className={`org-workspace-card${activeOrgId === mem.organization.id ? " org-workspace-card--active" : ""}`}
-                            onClick={() => {
-                                if (setActive) setActive({ organization: mem.organization.id })
-                                setActiveOrg(mem.organization.id, mem.organization.name)
-                            }}
+                            key={team.id}
+                            className={`org-workspace-card${activeOrgId === team.id ? " org-workspace-card--active" : ""}`}
+                            onClick={() => setActiveOrg(team.id, team.name)}
                         >
                             <div className="org-workspace-icon org-workspace-icon--team">
-                                {mem.organization.name.charAt(0).toUpperCase()}
+                                {team.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="org-workspace-info">
-                                <span className="org-workspace-name">{mem.organization.name}</span>
+                                <span className="org-workspace-name">{team.name}</span>
                                 <span className="org-workspace-desc">
-                                    {mem.role === "org:admin" ? "Admin" : "Member"}
+                                    {team.members.length} member{team.members.length !== 1 ? "s" : ""}
                                 </span>
                             </div>
-                            {activeOrgId === mem.organization.id && (
+                            {activeOrgId === team.id && (
                                 <span className="org-workspace-active-badge">Active</span>
                             )}
                         </button>
@@ -158,81 +288,119 @@ function OrgInner() {
                 </div>
             </div>
 
-            {/* Create Team */}
+            {/* Actions */}
             <div className="org-section">
                 <div className="org-section-header">
-                    <h2 className="org-section-title">Create a Team</h2>
+                    <h2 className="org-section-title">Actions</h2>
                 </div>
+
                 {showCreate ? (
                     <div className="org-create-wrapper">
-                        <CreateOrganization
-                            appearance={clerkAppearance}
-                            routing="hash"
-                            afterCreateOrganizationUrl={window.location.href}
+                        <input
+                            type="text"
+                            value={newName}
+                            onChange={e => setNewName(e.target.value)}
+                            placeholder="Team name (1-64 chars)"
+                            maxLength={64}
+                            className="org-input"
+                            onKeyDown={e => e.key === "Enter" && handleCreate()}
+                            disabled={creating}
                         />
-                        <button
-                            className="org-btn-secondary"
-                            onClick={() => setShowCreate(false)}
-                        >
-                            Cancel
-                        </button>
+                        <div className="org-action-row">
+                            <button
+                                className="org-btn-primary"
+                                onClick={handleCreate}
+                                disabled={creating || !newName.trim()}
+                            >
+                                {creating ? "Creating..." : "Create Team"}
+                            </button>
+                            <button className="org-btn-secondary" onClick={() => setShowCreate(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : showJoin ? (
+                    <div className="org-create-wrapper">
+                        <input
+                            type="text"
+                            value={inviteCode}
+                            onChange={e => setInviteCode(e.target.value)}
+                            placeholder="Enter 8-character invite code"
+                            maxLength={8}
+                            className="org-input"
+                            onKeyDown={e => e.key === "Enter" && handleJoin()}
+                            disabled={joining}
+                        />
+                        <div className="org-action-row">
+                            <button
+                                className="org-btn-primary"
+                                onClick={handleJoin}
+                                disabled={joining || !inviteCode.trim()}
+                            >
+                                {joining ? "Joining..." : "Join Team"}
+                            </button>
+                            <button className="org-btn-secondary" onClick={() => setShowJoin(false)}>
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    <button
-                        className="org-btn-primary"
-                        onClick={() => setShowCreate(true)}
-                    >
-                        + New Team
-                    </button>
+                    <div className="org-action-row">
+                        <button className="org-btn-primary" onClick={() => setShowCreate(true)}>
+                            + New Team
+                        </button>
+                        <button className="org-btn-secondary" onClick={() => setShowJoin(true)}>
+                            Join with Invite Code
+                        </button>
+                    </div>
                 )}
             </div>
 
             {/* Teams Overview */}
-            {memberships.length > 0 && (
+            {teams.length > 0 && (
                 <div className="org-section">
-                    <h2 className="org-section-title">Your Teams ({memberships.length})</h2>
+                    <h2 className="org-section-title">Your Teams ({teams.length})</h2>
                     <div className="org-team-list">
-                        {memberships.map(mem => (
-                            <div key={mem.organization.id} className="org-team-row">
-                                <div className="org-team-row-icon">
-                                    {mem.organization.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="org-team-row-info">
-                                    <span className="org-team-row-name">{mem.organization.name}</span>
-                                    <span className="org-team-row-role">
-                                        {mem.role === "org:admin" ? "Admin" : "Member"}
-                                    </span>
-                                </div>
-                                {mem.role === "org:admin" && (
-                                    <span className="org-team-row-badge">Admin</span>
-                                )}
-                            </div>
-                        ))}
+                        {teams.map(team => {
+                            const myRole = team.members.find(m => m.address === auth.address)?.role
+                            return (
+                                <button
+                                    key={team.id}
+                                    className="org-team-row org-team-row--clickable"
+                                    onClick={() => viewTeam(team.id)}
+                                >
+                                    <div className="org-team-row-icon">
+                                        {team.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="org-team-row-info">
+                                        <span className="org-team-row-name">{team.name}</span>
+                                        <span className="org-team-row-role">
+                                            {roleLabel(myRole ?? TeamRole.MEMBER)} · {team.members.length} member{team.members.length !== 1 ? "s" : ""}
+                                        </span>
+                                    </div>
+                                    {myRole === TeamRole.ADMIN && (
+                                        <span className="org-team-row-badge">Admin</span>
+                                    )}
+                                </button>
+                            )
+                        })}
                     </div>
                 </div>
             )}
+
+            {teams.length === 0 && !loading && (
+                <div className="org-empty-card">
+                    <div className="org-empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 256 256" fill="currentColor" opacity="0.3">
+                            <path d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM64,112a24,24,0,1,0-23.24-30A8,8,0,1,1,25.26,78,40,40,0,1,1,91,117.51a67.94,67.94,0,0,1,27.43,21.68,8,8,0,0,1-1.6,11.2,8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,64,128a8,8,0,0,1,0-16Z" />
+                        </svg>
+                    </div>
+                    <h2 className="org-empty-title">No teams yet</h2>
+                    <p className="org-empty-desc">
+                        Create a team or join one with an invite code to start collaborating.
+                    </p>
+                </div>
+            )}
         </div>
-    )
-}
-
-export default function OrgContent() {
-    if (!CLERK_PUBLISHABLE_KEY) {
-        return (
-            <div className="org-empty-card">
-                <p className="org-empty-title">Teams not configured</p>
-                <p className="org-empty-desc">
-                    Contact your administrator to enable team features.
-                </p>
-            </div>
-        )
-    }
-
-    return (
-        <ClerkReactProvider
-            publishableKey={CLERK_PUBLISHABLE_KEY}
-            appearance={clerkAppearance}
-        >
-            <OrgInner />
-        </ClerkReactProvider>
     )
 }
