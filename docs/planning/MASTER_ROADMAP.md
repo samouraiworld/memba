@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-03-28 (v2.20 docs sweep)
+> Last updated: 2026-04-01 (v2.27 docs hygiene)
 
 ## Milestone Status
 
@@ -44,6 +44,10 @@
 | 33 | **Professional Alerting** | v2.18 | ✅ SHIPPED | PR #147-151 → `main` |
 | 34 | **Gnolove Consolidation** | v2.19 | ✅ SHIPPED | PR #152-157 → `main` |
 | 35 | **CI Fix + Docs Sweep** | v2.20 | ✅ SHIPPED | `main` |
+| 36 | **CSP Security + Docs** | v2.27 | ✅ SHIPPED | PR #215 → `main` |
+| 37 | **Coming Soon Gates** | v2.27 | ✅ SHIPPED | PR #216 → `main` |
+| 38 | **Quest Backend** | v2.27 | ✅ SHIPPED | PR #217 → `main` |
+| 39 | **Feature Activation Plans** | v2.27 | ✅ SHIPPED | PR #218 → `main` |
 | — | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
 | — | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | — | **Premium** | v3.5 | 🔮 HORIZON | — |
