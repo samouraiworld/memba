@@ -305,23 +305,23 @@ enum TeamRole {
 }
 
 message Team {
-  string id = 1;        // UUID
+  string id = 1; // UUID
   string name = 2;
-  string invite_code = 3;  // 8-char alphanumeric, unique
-  string created_by = 4;   // creator address
-  string created_at = 5;   // RFC3339
+  string invite_code = 3; // 8-char alphanumeric, unique
+  string created_by = 4; // creator address
+  string created_at = 5; // RFC3339
   repeated TeamMember members = 6;
 }
 
 message TeamMember {
   string address = 1;
   TeamRole role = 2;
-  string joined_at = 3;  // RFC3339
+  string joined_at = 3; // RFC3339
 }
 
 message CreateTeamRequest {
   Token auth_token = 1;
-  string name = 2;       // 1-64 chars
+  string name = 2; // 1-64 chars
 }
 
 message CreateTeamResponse {
