@@ -224,7 +224,7 @@ export function Landing() {
                         <div
                             key={f.id}
                             className="landing-feature-card"
-                            onClick={() => adena.connected ? navigate(f.href) : handleCTA()}
+                            onClick={() => navigate(f.href)}
                         >
                             <div className="landing-feature-card__player">
                                 <FeaturePlayer Comp={f.Comp} durationInFrames={f.durationInFrames} />
