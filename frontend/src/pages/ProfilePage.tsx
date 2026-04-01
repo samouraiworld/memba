@@ -12,6 +12,8 @@ import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
+import { QuestProgress } from "../components/ui/QuestProgress"
+import { completeQuest, trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./profile.css"
 
@@ -55,6 +57,14 @@ export function ProfilePage() {
     }, [address])
 
     useEffect(() => { loadProfile() }, [loadProfile])
+
+    // Quest triggers: view-profile + page visit tracking
+    useEffect(() => {
+        if (isOwnProfile) {
+            completeQuest("view-profile", auth.token ?? undefined)
+        }
+        trackPageVisit("profile", auth.token ?? undefined)
+    }, [isOwnProfile, auth.token])
 
     // Auto-apply pending GitHub link (deferred from OAuth redirect)
     useEffect(() => {
@@ -272,6 +282,13 @@ export function ProfilePage() {
 
             {/* ── DAO Memberships ─────────────────────────────────── */}
             {address && <DAOMembershipsCard address={address} isOwnProfile={isOwnProfile} />}
+
+            {/* ── Quest Progress ──────────────────────────────────── */}
+            {address && (
+                <div className="k-card profile-quest-card">
+                    <QuestProgress address={isOwnProfile ? undefined : address} />
+                </div>
+            )}
 
             {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
             {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (

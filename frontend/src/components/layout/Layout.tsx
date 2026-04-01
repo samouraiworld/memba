@@ -7,6 +7,7 @@ import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
+import { syncQuestsToBackend, completeQuest } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
@@ -91,6 +92,10 @@ export function Layout() {
             // 4. Exchange for auth token
             const token = await auth.getToken(infoJson, signature)
             if (!token) throw new Error("Authentication failed")
+
+            // 5. Quest integration: sync localStorage quests to backend + mark connect-wallet
+            completeQuest("connect-wallet", token)
+            syncQuestsToBackend(token).catch(() => { /* offline-first */ })
         } catch (err) {
             console.error("[Memba] Login failed:", err)
             setAuthError(err instanceof Error ? err.message : "Login failed")

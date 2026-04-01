@@ -37,19 +37,26 @@ import { queryRender } from "../lib/dao/shared"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { DAOCard, FeaturedDAOs, ChainMetricsBanner } from "../components/directory"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
+import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
 import "./directory.css"
 
 type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
 
 export function Directory() {
     const navigate = useNetworkNav()
-    const [tab, setTab] = useState<DirectoryTab>("daos")
+    const [tab, setTab] = useState<DirectoryTab>(() => {
+        trackDirectoryTab("daos")
+        return "daos"
+    })
     const [globalSearch, setGlobalSearch] = useState("")
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
     const [previewLoading, setPreviewLoading] = useState(false)
 
-    // M6 pattern: page title
-    useEffect(() => { document.title = "Directory — Memba" }, [])
+    // M6 pattern: page title + quest tracking
+    useEffect(() => {
+        document.title = "Directory — Memba"
+        trackPageVisit("directory")
+    }, [])
 
     // Phase 3a: Universal search — attempt qrender for gno.land paths
     const handleGlobalSearch = useCallback(async (query: string) => {
@@ -121,7 +128,7 @@ export function Directory() {
                         role="tab"
                         aria-selected={tab === t.key}
                         data-active={tab === t.key}
-                        onClick={() => setTab(t.key)}
+                        onClick={() => { trackDirectoryTab(t.key); setTab(t.key) }}
                     >
                         {t.label}
                     </button>

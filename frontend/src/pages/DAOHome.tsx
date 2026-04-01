@@ -23,6 +23,7 @@ import { DAOOverviewCard } from "../components/dao/DAOOverviewCard"
 import { DAOProposalsSection } from "../components/dao/DAOProposalsSection"
 import { DAOMembersPreview } from "../components/dao/DAOMembersPreview"
 import { DAOTreasuryCard, DAOPluginsGrid } from "../components/dao/DAOPluginsGrid"
+import { completeQuest, trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./daohome.css"
 
@@ -76,6 +77,14 @@ export function DAOHome() {
     }, [realmPath])
 
     useEffect(() => { loadData() }, [loadData])
+
+    // Quest triggers: browse-proposals + page visit
+    useEffect(() => {
+        if (realmPath) {
+            completeQuest("browse-proposals", auth.token ?? undefined)
+            trackPageVisit("dao-home", auth.token ?? undefined)
+        }
+    }, [realmPath, auth.token])
 
     // Persist last visited DAO slug for plugin sidebar routing
     useEffect(() => {
