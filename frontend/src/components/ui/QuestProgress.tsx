@@ -30,11 +30,11 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
     useEffect(() => {
         if (!address) return
         let cancelled = false
-        setLoading(true)
         fetchUserQuests(address).then(result => {
-            if (cancelled) return
-            if (result) setState(result)
-            setLoading(false)
+            if (!cancelled) {
+                if (result) setState(result)
+                setLoading(false)
+            }
         })
         return () => { cancelled = true }
     }, [address])
