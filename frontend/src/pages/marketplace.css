@@ -711,3 +711,33 @@
         gap: 14px;
     }
 }
+
+/* ── Register Notice (Sprint 10) ─────────────── */
+
+.mp-register-notice {
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+    text-align: center;
+}
+
+.mp-register-notice p {
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    color: #aaa;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.mp-register-notice__btn {
+    font-size: 12px;
+    padding: 6px 16px;
+    border-radius: 6px;
+    background: #00d4aa;
+    border: none;
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+}

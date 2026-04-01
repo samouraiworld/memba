@@ -4,6 +4,7 @@ import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
     LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
+    Handshake, ImageSquare,
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
@@ -158,6 +159,8 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
             <nav className="k-sidebar-section" aria-label="Extensions">
                 <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Agents" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}

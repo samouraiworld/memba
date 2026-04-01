@@ -22,6 +22,7 @@ export default function FreelanceServices() {
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<ServiceCategory | "all">("all")
     const [selectedService, setSelectedService] = useState<ServiceListing | null>(null)
+    const [hireNotice, setHireNotice] = useState(false)
 
     useEffect(() => { document.title = "Freelance Services — Memba" }, [])
 
@@ -112,10 +113,16 @@ export default function FreelanceServices() {
 
                     <button
                         className="fl-hire-btn"
-                        onClick={() => alert("Connect wallet and deploy escrow contract to hire this freelancer.")}
+                        onClick={() => setHireNotice(true)}
                     >
                         Hire Freelancer →
                     </button>
+                    {hireNotice && (
+                        <div className="fl-notice">
+                            <p>Escrow contracts are coming soon. Connect your wallet and deploy the escrow realm to start hiring freelancers on-chain.</p>
+                            <button className="fl-notice__dismiss" onClick={() => setHireNotice(false)}>Got it</button>
+                        </div>
+                    )}
                 </div>
             </div>
         )

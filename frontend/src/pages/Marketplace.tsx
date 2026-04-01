@@ -296,6 +296,7 @@ function RegisterAgentForm({ onClose }: { onClose: () => void }) {
         return () => document.removeEventListener("keydown", handleKey)
     }, [onClose])
 
+    const [registerNotice, setRegisterNotice] = useState("")
     const [form, setForm] = useState({
         id: "",
         name: "",
@@ -413,20 +414,27 @@ function RegisterAgentForm({ onClose }: { onClose: () => void }) {
                         </label>
                     )}
 
-                    <div className="mp-register-actions">
-                        <button className="mp-register-cancel" onClick={onClose}>Cancel</button>
-                        <button
-                            className="mp-register-submit"
-                            disabled={!form.name.trim() || !form.description.trim() || !form.endpoint.trim()}
-                            onClick={() => {
-                                // In production: call buildRegisterAgentMsg + doContractBroadcast
-                                alert(`Agent "${form.name}" ready for on-chain registration.\nDeploy the agent registry realm first, then register via MsgCall.`)
-                                onClose()
-                            }}
-                        >
-                            Register Agent
-                        </button>
-                    </div>
+                    {registerNotice && (
+                        <div className="mp-register-notice">
+                            <p>{registerNotice}</p>
+                            <button onClick={onClose} className="mp-register-notice__btn">Close</button>
+                        </div>
+                    )}
+
+                    {!registerNotice && (
+                        <div className="mp-register-actions">
+                            <button className="mp-register-cancel" onClick={onClose}>Cancel</button>
+                            <button
+                                className="mp-register-submit"
+                                disabled={!form.name.trim() || !form.description.trim() || !form.endpoint.trim()}
+                                onClick={() => {
+                                    setRegisterNotice(`Agent "${form.name}" is ready. On-chain registration will be available once the agent registry realm is deployed.`)
+                                }}
+                            >
+                                Register Agent
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
