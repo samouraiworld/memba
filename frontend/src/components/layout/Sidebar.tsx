@@ -158,9 +158,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
             {/* ── Section 2: Extensions ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Extensions">
                 <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Agents" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Agents" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
             </nav>
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}

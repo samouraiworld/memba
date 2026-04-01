@@ -1,0 +1,190 @@
+/**
+ * coming-soon.css — Styles for ComingSoonGate and related UI.
+ *
+ * Matches Memba's dark-theme design system (tokens.css).
+ * Features glassmorphic card, animated icon, and feature checklist.
+ */
+
+.coming-soon-gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: var(--space-8, 32px) var(--space-4, 16px);
+    animation: fadeIn 0.45s ease-out;
+}
+
+.coming-soon-card {
+    max-width: 520px;
+    width: 100%;
+    background: rgba(18, 18, 18, 0.85);
+    border: 1px solid var(--color-border, #1a1a1a);
+    border-radius: var(--radius-lg, 16px);
+    padding: var(--space-8, 32px) var(--space-6, 24px);
+    text-align: center;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle gradient accent at top */
+.coming-soon-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        var(--color-primary, #00d4aa),
+        var(--color-warning, #f5a623),
+        var(--color-primary, #00d4aa)
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+.coming-soon-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-4, 16px);
+    display: inline-block;
+    animation: pulse 2.5s ease-in-out infinite;
+}
+
+.coming-soon-title {
+    font-size: var(--text-xl, 1.5rem);
+    font-weight: 700;
+    color: var(--color-text, #f0f0f0);
+    margin: 0 0 var(--space-2, 8px);
+    letter-spacing: -0.02em;
+}
+
+.coming-soon-badge {
+    display: inline-block;
+    font-size: var(--text-xs, 0.75rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-warning, #f5a623);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.06));
+    border: 1px solid rgba(245, 166, 35, 0.2);
+    border-radius: var(--radius-full, 100px);
+    padding: 4px 12px;
+    margin-bottom: var(--space-4, 16px);
+}
+
+.coming-soon-desc {
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, #888);
+    line-height: 1.6;
+    margin: 0 0 var(--space-6, 24px);
+    max-width: 420px;
+    margin-inline: auto;
+}
+
+/* ── Feature checklist ───────────────────────────────── */
+.coming-soon-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-6, 24px);
+    text-align: left;
+}
+
+.coming-soon-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) 0;
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, #888);
+    line-height: 1.4;
+}
+
+.coming-soon-features li::before {
+    content: "☐";
+    flex-shrink: 0;
+    color: var(--color-primary, #00d4aa);
+    font-size: 0.9em;
+    margin-top: 1px;
+}
+
+/* ── CTA ─────────────────────────────────────────────── */
+.coming-soon-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 10px 20px;
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: 600;
+    color: var(--color-primary, #00d4aa);
+    background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
+    border: 1px solid var(--color-primary-border, rgba(0, 212, 170, 0.15));
+    border-radius: var(--radius-md, 8px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.coming-soon-cta:hover {
+    background: var(--color-primary-hover, rgba(0, 212, 170, 0.12));
+    border-color: rgba(0, 212, 170, 0.3);
+    transform: translateY(-1px);
+}
+
+/* ── Estimated release ───────────────────────────────── */
+.coming-soon-eta {
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted, #555);
+    margin-top: var(--space-4, 16px);
+}
+
+/* ── IBC Coming Soon pill ────────────────────────────── */
+.ibc-coming-soon-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-warning, #f5a623);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.06));
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    border-radius: var(--radius-full, 100px);
+    padding: 2px 8px;
+    cursor: default;
+    transition: opacity 0.2s;
+}
+
+.ibc-coming-soon-pill:hover {
+    opacity: 0.8;
+}
+
+/* ── Sidebar "soon" pill ─────────────────────────────── */
+.k-sidebar-link .k-sidebar-soon {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-warning, #f5a623);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.06));
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    border-radius: var(--radius-full, 100px);
+    padding: 1px 6px;
+    margin-left: auto;
+}
+
+/* ── Animations ──────────────────────────────────────── */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.85; }
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}

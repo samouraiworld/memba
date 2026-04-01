@@ -16,9 +16,33 @@ import {
     type AgentListing,
     type AgentCategory,
 } from "../lib/agentRegistry"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import "./marketplace.css"
 
+const MARKETPLACE_ENABLED = import.meta.env.VITE_ENABLE_MARKETPLACE === "true"
+
 export default function Marketplace() {
+    if (!MARKETPLACE_ENABLED) {
+        return (
+            <ComingSoonGate
+                title="AI Agent Marketplace"
+                icon="🤖"
+                description="Discover and connect AI agents for the Gno ecosystem via MCP (Model Context Protocol)."
+                features={[
+                    "Browse and discover AI agents for the Gno ecosystem",
+                    "Connect agents via MCP (Model Context Protocol)",
+                    "Agent verification and community rating system",
+                    "Pay-per-use and subscription pricing models",
+                    "On-chain agent registry with DAO curation",
+                ]}
+            />
+        )
+    }
+
+    return <MarketplaceContent />
+}
+
+function MarketplaceContent() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<AgentCategory | "all">("all")
