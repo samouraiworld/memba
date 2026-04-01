@@ -1,0 +1,112 @@
+/**
+ * ConnectWalletPrompt — Modal styles.
+ * Sprint 11: Read-only preview mode.
+ */
+
+.cwp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: cwpFadeIn 0.2s ease-out;
+}
+
+@keyframes cwpFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.cwp-modal {
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-lg, 12px);
+    padding: 32px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    animation: cwpSlideIn 0.25s ease-out;
+}
+
+@keyframes cwpSlideIn {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.cwp-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.cwp-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+}
+
+.cwp-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.cwp-desc {
+    font-size: 13px;
+    color: var(--color-text-secondary, #888);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.cwp-hint {
+    font-size: 11px;
+    color: var(--color-text-dim, #555);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.cwp-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cwp-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-md, 8px);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+}
+
+.cwp-btn--primary {
+    background: var(--color-primary, #00d4aa);
+    color: #000;
+}
+
+.cwp-btn--primary:hover {
+    opacity: 0.9;
+}
+
+.cwp-btn--secondary {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-secondary, #888);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cwp-btn--secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
