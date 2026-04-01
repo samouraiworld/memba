@@ -78,6 +78,23 @@ const (
 	// MultisigServiceSyncQuestsProcedure is the fully-qualified name of the MultisigService's
 	// SyncQuests RPC.
 	MultisigServiceSyncQuestsProcedure = "/memba.v1.MultisigService/SyncQuests"
+	// MultisigServiceCreateTeamProcedure is the fully-qualified name of the MultisigService's
+	// CreateTeam RPC.
+	MultisigServiceCreateTeamProcedure = "/memba.v1.MultisigService/CreateTeam"
+	// MultisigServiceGetTeamProcedure is the fully-qualified name of the MultisigService's GetTeam RPC.
+	MultisigServiceGetTeamProcedure = "/memba.v1.MultisigService/GetTeam"
+	// MultisigServiceGetMyTeamsProcedure is the fully-qualified name of the MultisigService's
+	// GetMyTeams RPC.
+	MultisigServiceGetMyTeamsProcedure = "/memba.v1.MultisigService/GetMyTeams"
+	// MultisigServiceJoinTeamProcedure is the fully-qualified name of the MultisigService's JoinTeam
+	// RPC.
+	MultisigServiceJoinTeamProcedure = "/memba.v1.MultisigService/JoinTeam"
+	// MultisigServiceLeaveTeamProcedure is the fully-qualified name of the MultisigService's LeaveTeam
+	// RPC.
+	MultisigServiceLeaveTeamProcedure = "/memba.v1.MultisigService/LeaveTeam"
+	// MultisigServiceUpdateTeamMemberRoleProcedure is the fully-qualified name of the MultisigService's
+	// UpdateTeamMemberRole RPC.
+	MultisigServiceUpdateTeamMemberRoleProcedure = "/memba.v1.MultisigService/UpdateTeamMemberRole"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -102,6 +119,13 @@ type MultisigServiceClient interface {
 	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
 	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
 	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
+	// Teams — Collaborative workspaces for DAO management
+	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
+	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
+	GetMyTeams(context.Context, *connect.Request[v1.GetMyTeamsRequest]) (*connect.Response[v1.GetMyTeamsResponse], error)
+	JoinTeam(context.Context, *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error)
+	LeaveTeam(context.Context, *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error)
+	UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -205,6 +229,42 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
 			connect.WithClientOptions(opts...),
 		),
+		createTeam: connect.NewClient[v1.CreateTeamRequest, v1.CreateTeamResponse](
+			httpClient,
+			baseURL+MultisigServiceCreateTeamProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("CreateTeam")),
+			connect.WithClientOptions(opts...),
+		),
+		getTeam: connect.NewClient[v1.GetTeamRequest, v1.GetTeamResponse](
+			httpClient,
+			baseURL+MultisigServiceGetTeamProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetTeam")),
+			connect.WithClientOptions(opts...),
+		),
+		getMyTeams: connect.NewClient[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetMyTeamsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetMyTeams")),
+			connect.WithClientOptions(opts...),
+		),
+		joinTeam: connect.NewClient[v1.JoinTeamRequest, v1.JoinTeamResponse](
+			httpClient,
+			baseURL+MultisigServiceJoinTeamProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("JoinTeam")),
+			connect.WithClientOptions(opts...),
+		),
+		leaveTeam: connect.NewClient[v1.LeaveTeamRequest, v1.LeaveTeamResponse](
+			httpClient,
+			baseURL+MultisigServiceLeaveTeamProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("LeaveTeam")),
+			connect.WithClientOptions(opts...),
+		),
+		updateTeamMemberRole: connect.NewClient[v1.UpdateTeamMemberRoleRequest, v1.UpdateTeamMemberRoleResponse](
+			httpClient,
+			baseURL+MultisigServiceUpdateTeamMemberRoleProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("UpdateTeamMemberRole")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -225,6 +285,12 @@ type multisigServiceClient struct {
 	completeQuest        *connect.Client[v1.CompleteQuestRequest, v1.CompleteQuestResponse]
 	getUserQuests        *connect.Client[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse]
 	syncQuests           *connect.Client[v1.SyncQuestsRequest, v1.SyncQuestsResponse]
+	createTeam           *connect.Client[v1.CreateTeamRequest, v1.CreateTeamResponse]
+	getTeam              *connect.Client[v1.GetTeamRequest, v1.GetTeamResponse]
+	getMyTeams           *connect.Client[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse]
+	joinTeam             *connect.Client[v1.JoinTeamRequest, v1.JoinTeamResponse]
+	leaveTeam            *connect.Client[v1.LeaveTeamRequest, v1.LeaveTeamResponse]
+	updateTeamMemberRole *connect.Client[v1.UpdateTeamMemberRoleRequest, v1.UpdateTeamMemberRoleResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -302,6 +368,36 @@ func (c *multisigServiceClient) SyncQuests(ctx context.Context, req *connect.Req
 	return c.syncQuests.CallUnary(ctx, req)
 }
 
+// CreateTeam calls memba.v1.MultisigService.CreateTeam.
+func (c *multisigServiceClient) CreateTeam(ctx context.Context, req *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {
+	return c.createTeam.CallUnary(ctx, req)
+}
+
+// GetTeam calls memba.v1.MultisigService.GetTeam.
+func (c *multisigServiceClient) GetTeam(ctx context.Context, req *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error) {
+	return c.getTeam.CallUnary(ctx, req)
+}
+
+// GetMyTeams calls memba.v1.MultisigService.GetMyTeams.
+func (c *multisigServiceClient) GetMyTeams(ctx context.Context, req *connect.Request[v1.GetMyTeamsRequest]) (*connect.Response[v1.GetMyTeamsResponse], error) {
+	return c.getMyTeams.CallUnary(ctx, req)
+}
+
+// JoinTeam calls memba.v1.MultisigService.JoinTeam.
+func (c *multisigServiceClient) JoinTeam(ctx context.Context, req *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error) {
+	return c.joinTeam.CallUnary(ctx, req)
+}
+
+// LeaveTeam calls memba.v1.MultisigService.LeaveTeam.
+func (c *multisigServiceClient) LeaveTeam(ctx context.Context, req *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error) {
+	return c.leaveTeam.CallUnary(ctx, req)
+}
+
+// UpdateTeamMemberRole calls memba.v1.MultisigService.UpdateTeamMemberRole.
+func (c *multisigServiceClient) UpdateTeamMemberRole(ctx context.Context, req *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error) {
+	return c.updateTeamMemberRole.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -324,6 +420,13 @@ type MultisigServiceHandler interface {
 	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
 	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
 	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
+	// Teams — Collaborative workspaces for DAO management
+	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
+	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
+	GetMyTeams(context.Context, *connect.Request[v1.GetMyTeamsRequest]) (*connect.Response[v1.GetMyTeamsResponse], error)
+	JoinTeam(context.Context, *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error)
+	LeaveTeam(context.Context, *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error)
+	UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -423,6 +526,42 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceCreateTeamHandler := connect.NewUnaryHandler(
+		MultisigServiceCreateTeamProcedure,
+		svc.CreateTeam,
+		connect.WithSchema(multisigServiceMethods.ByName("CreateTeam")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetTeamHandler := connect.NewUnaryHandler(
+		MultisigServiceGetTeamProcedure,
+		svc.GetTeam,
+		connect.WithSchema(multisigServiceMethods.ByName("GetTeam")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetMyTeamsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetMyTeamsProcedure,
+		svc.GetMyTeams,
+		connect.WithSchema(multisigServiceMethods.ByName("GetMyTeams")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceJoinTeamHandler := connect.NewUnaryHandler(
+		MultisigServiceJoinTeamProcedure,
+		svc.JoinTeam,
+		connect.WithSchema(multisigServiceMethods.ByName("JoinTeam")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceLeaveTeamHandler := connect.NewUnaryHandler(
+		MultisigServiceLeaveTeamProcedure,
+		svc.LeaveTeam,
+		connect.WithSchema(multisigServiceMethods.ByName("LeaveTeam")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceUpdateTeamMemberRoleHandler := connect.NewUnaryHandler(
+		MultisigServiceUpdateTeamMemberRoleProcedure,
+		svc.UpdateTeamMemberRole,
+		connect.WithSchema(multisigServiceMethods.ByName("UpdateTeamMemberRole")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -455,6 +594,18 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetUserQuestsHandler.ServeHTTP(w, r)
 		case MultisigServiceSyncQuestsProcedure:
 			multisigServiceSyncQuestsHandler.ServeHTTP(w, r)
+		case MultisigServiceCreateTeamProcedure:
+			multisigServiceCreateTeamHandler.ServeHTTP(w, r)
+		case MultisigServiceGetTeamProcedure:
+			multisigServiceGetTeamHandler.ServeHTTP(w, r)
+		case MultisigServiceGetMyTeamsProcedure:
+			multisigServiceGetMyTeamsHandler.ServeHTTP(w, r)
+		case MultisigServiceJoinTeamProcedure:
+			multisigServiceJoinTeamHandler.ServeHTTP(w, r)
+		case MultisigServiceLeaveTeamProcedure:
+			multisigServiceLeaveTeamHandler.ServeHTTP(w, r)
+		case MultisigServiceUpdateTeamMemberRoleProcedure:
+			multisigServiceUpdateTeamMemberRoleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -522,4 +673,28 @@ func (UnimplementedMultisigServiceHandler) GetUserQuests(context.Context, *conne
 
 func (UnimplementedMultisigServiceHandler) SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SyncQuests is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.CreateTeam is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetTeam is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetMyTeams(context.Context, *connect.Request[v1.GetMyTeamsRequest]) (*connect.Response[v1.GetMyTeamsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetMyTeams is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) JoinTeam(context.Context, *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.JoinTeam is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) LeaveTeam(context.Context, *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.LeaveTeam is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateTeamMemberRole is not implemented"))
 }

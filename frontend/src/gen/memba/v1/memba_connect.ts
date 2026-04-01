@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetProfileRequest, GetProfileResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetProfileRequest, GetProfileResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -157,6 +157,62 @@ export const MultisigService = {
       name: "SyncQuests",
       I: SyncQuestsRequest,
       O: SyncQuestsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Teams — Collaborative workspaces for DAO management
+     *
+     * @generated from rpc memba.v1.MultisigService.CreateTeam
+     */
+    createTeam: {
+      name: "CreateTeam",
+      I: CreateTeamRequest,
+      O: CreateTeamResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetTeam
+     */
+    getTeam: {
+      name: "GetTeam",
+      I: GetTeamRequest,
+      O: GetTeamResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetMyTeams
+     */
+    getMyTeams: {
+      name: "GetMyTeams",
+      I: GetMyTeamsRequest,
+      O: GetMyTeamsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.JoinTeam
+     */
+    joinTeam: {
+      name: "JoinTeam",
+      I: JoinTeamRequest,
+      O: JoinTeamResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.LeaveTeam
+     */
+    leaveTeam: {
+      name: "LeaveTeam",
+      I: LeaveTeamRequest,
+      O: LeaveTeamResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.UpdateTeamMemberRole
+     */
+    updateTeamMemberRole: {
+      name: "UpdateTeamMemberRole",
+      I: UpdateTeamMemberRoleRequest,
+      O: UpdateTeamMemberRoleResponse,
       kind: MethodKind.Unary,
     },
   }
