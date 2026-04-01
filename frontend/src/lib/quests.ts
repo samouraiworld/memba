@@ -2,7 +2,8 @@
  * quests.ts — Memba DAO quest system for Bootstrap Era onboarding.
  *
  * Sprint 13: 10 quests that users complete to earn XP and unlock
- * Memba DAO candidature. Progress tracked in localStorage + backend.
+ * Memba DAO candidature. Progress tracked in localStorage only
+ * (backend sync planned for v2.27 Sprint 4).
  */
 
 // ── Types ────────────────────────────────────────────────────
