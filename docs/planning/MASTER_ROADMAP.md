@@ -49,16 +49,16 @@
 | — | **Premium** | v3.5 | 🔮 HORIZON | — |
 | — | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.20)
+## Quality Gates (as of v2.27)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 896 (43 files) |
+| Unit tests | 1,349 (59 files) |
 | E2E specs | 16 spec files |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | ~481KB (~138KB gzip) |
-| package.json | 2.20.0 |
+| Build size | ~481KB (~140KB gzip) |
+| package.json | 2.27.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
