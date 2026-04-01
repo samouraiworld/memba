@@ -184,6 +184,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                     {connected && (
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
                     )}
+                    {connected && (
+                        <SidebarLink to="/candidature" icon={<span style={{ fontSize: 18 }}>🏛️</span>} label="Candidature" connected={connected} collapsed={collapsed} />
+                    )}
                     <SidebarLink to="/feedback" icon={<Megaphone size={18} />} label="Feedback" connected={connected} collapsed={collapsed} />
                 </div>
             </div>

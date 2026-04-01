@@ -1,0 +1,342 @@
+/* ── Candidature Page ────────────────────────────────────── */
+
+.candidature-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 640px;
+}
+
+.candidature-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.candidature-subtitle {
+    font-size: 12px;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ── XP Gate ─────────────────────────────────────────────── */
+
+.candidature-gate {
+    padding: 20px;
+    border-color: rgba(255, 193, 7, 0.15);
+}
+
+.candidature-gate__header {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.candidature-gate__icon {
+    font-size: 24px;
+}
+
+.candidature-gate__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 4px;
+}
+
+.candidature-gate__desc {
+    font-size: 11px;
+    color: #888;
+    font-family: JetBrains Mono, monospace;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ── Status Card ─────────────────────────────────────────── */
+
+.candidature-status {
+    padding: 20px;
+}
+
+.candidature-status--pending { border-color: rgba(255, 193, 7, 0.2); }
+.candidature-status--approved { border-color: rgba(76, 175, 80, 0.2); }
+.candidature-status--rejected { border-color: rgba(244, 67, 54, 0.2); }
+
+.candidature-status__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 8px;
+}
+
+.candidature-status__meta {
+    font-size: 11px;
+    color: #888;
+    font-family: JetBrains Mono, monospace;
+    margin: 0 0 4px;
+}
+
+.candidature-status__approvals {
+    font-size: 11px;
+    color: #ffc107;
+    font-family: JetBrains Mono, monospace;
+    margin: 0;
+}
+
+/* ── Form ────────────────────────────────────────────────── */
+
+.candidature-form {
+    padding: 20px;
+}
+
+.candidature-form__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 16px;
+}
+
+.candidature-form__cost {
+    font-size: 11px;
+    color: #ffc107;
+    font-family: JetBrains Mono, monospace;
+    padding: 8px 12px;
+    background: rgba(255, 193, 7, 0.06);
+    border: 1px solid rgba(255, 193, 7, 0.15);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.candidature-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    position: relative;
+}
+
+.candidature-form__field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #aaa;
+    font-family: JetBrains Mono, monospace;
+}
+
+.candidature-form__field input,
+.candidature-form__field textarea {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: #f0f0f0;
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+    resize: vertical;
+    transition: border-color 0.15s;
+}
+
+.candidature-form__field input:focus,
+.candidature-form__field textarea:focus {
+    outline: none;
+    border-color: rgba(0, 212, 170, 0.4);
+}
+
+.candidature-form__counter {
+    font-size: 9px;
+    color: #444;
+    font-family: JetBrains Mono, monospace;
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+}
+
+.candidature-form__preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.candidature-skill-tag {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: JetBrains Mono, monospace;
+    background: rgba(0, 212, 170, 0.08);
+    color: #00d4aa;
+    border: 1px solid rgba(0, 212, 170, 0.15);
+}
+
+.candidature-skill-tag--sm {
+    padding: 2px 6px;
+    font-size: 9px;
+}
+
+.candidature-form__submit {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: JetBrains Mono, monospace;
+    background: rgba(0, 212, 170, 0.15);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.candidature-form__submit:hover:not(:disabled) {
+    background: rgba(0, 212, 170, 0.25);
+    border-color: rgba(0, 212, 170, 0.5);
+}
+
+.candidature-form__submit:disabled,
+.candidature-form__submit.submitting {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* ── Success ─────────────────────────────────────────────── */
+
+.candidature-success {
+    padding: 32px;
+    text-align: center;
+}
+
+.candidature-success__icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.candidature-success__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 8px;
+}
+
+.candidature-success__desc {
+    font-size: 12px;
+    color: #888;
+    font-family: JetBrains Mono, monospace;
+    margin: 0 0 16px;
+}
+
+.candidature-success__btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: JetBrains Mono, monospace;
+    background: rgba(0, 212, 170, 0.1);
+    border: 1px solid rgba(0, 212, 170, 0.25);
+    color: #00d4aa;
+    cursor: pointer;
+}
+
+/* ── Candidature List ────────────────────────────────────── */
+
+.candidature-list {
+    padding: 20px;
+}
+
+.candidature-list__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 14px;
+}
+
+.candidature-list__items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.candidature-list__item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.candidature-list__item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.candidature-list__item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.candidature-list__item-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: JetBrains Mono, monospace;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.candidature-list__item-badge--pending {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.candidature-list__item-badge--approved {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+.candidature-list__item-badge--rejected {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
+.candidature-list__item-addr {
+    font-size: 10px;
+    color: #555;
+    font-family: JetBrains Mono, monospace;
+}
+
+.candidature-list__item-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+/* ── Loading / Empty ─────────────────────────────────────── */
+
+.candidature-loading,
+.candidature-empty {
+    font-size: 12px;
+    color: #555;
+    font-family: JetBrains Mono, monospace;
+    text-align: center;
+    padding: 24px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .candidature-page {
+        gap: 16px;
+    }
+
+    .candidature-title {
+        font-size: 18px;
+    }
+
+    .candidature-gate__header {
+        flex-direction: column;
+    }
+}

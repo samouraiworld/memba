@@ -45,3 +45,20 @@
 .quest-item__xp { font-size: 11px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--color-primary, #00d4aa); white-space: nowrap; }
 .quest-item--done .quest-item__title { color: var(--color-text-secondary, #888); text-decoration: line-through; }
 .quest-item--done .quest-item__xp { color: var(--color-text-dim, #555); }
+
+/* ── Candidature CTA ───────────────────────────── */
+.quest-panel__cta {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    background: rgba(0, 212, 170, 0.1);
+    border: 1px solid rgba(0, 212, 170, 0.25);
+    color: var(--color-primary, #00d4aa);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.quest-panel__cta:hover { background: rgba(0, 212, 170, 0.2); }
