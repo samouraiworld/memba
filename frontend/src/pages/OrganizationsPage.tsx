@@ -9,10 +9,11 @@
  * @module pages/OrganizationsPage
  */
 
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { useOutletContext } from "react-router-dom"
+import { trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./organizations.css"
 
@@ -26,6 +27,8 @@ const TEAMS_ENABLED = import.meta.env.VITE_ENABLE_TEAMS === "true"
 
 export default function OrganizationsPage() {
     const { adena } = useOutletContext<LayoutContext>()
+
+    useEffect(() => { trackPageVisit("organizations") }, [])
 
     if (!TEAMS_ENABLED) {
         return (

@@ -116,7 +116,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
-    const { orgsEnabled, activeOrgName, isOrgMode } = useOrg()
+    const { activeOrgName, isOrgMode } = useOrg()
     const nk = useNetworkKey()
 
     return (
@@ -166,7 +166,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
             <div className="k-sidebar-user">
                 {/* Org indicator — only when in org mode */}
-                {connected && orgsEnabled && isOrgMode && (
+                {connected && isOrgMode && (
                     <div className="k-sidebar-org-badge" title={`Team: ${activeOrgName}`}>
                         <Link to={`/${nk}/organizations`} className="k-sidebar-org-badge-link">
                             <span className="k-sidebar-org-badge-dot" />
@@ -178,7 +178,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                     {connected && address && (
                         <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
                     )}
-                    {connected && orgsEnabled && (
+                    {connected && (
                         <SidebarLink to="/organizations" icon={<UsersThree size={18} />} label="Teams" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (

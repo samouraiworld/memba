@@ -35,6 +35,10 @@ export const COMMANDS: Command[] = [
     { id: "validators", label: "Validators", icon: "⚡", path: "/validators", section: "Explore", keywords: ["network", "staking", "nodes"] },
     { id: "extensions", label: "Extensions", icon: "🧩", path: "/extensions", section: "Explore", keywords: ["plugins", "swap", "leaderboard", "proposals", "channels", "gnoswap"] },
 
+    // Community
+    { id: "candidature", label: "Candidature", icon: "🏛️", path: "/candidature", section: "Community", keywords: ["membership", "apply", "dao", "join", "xp"] },
+    { id: "organizations", label: "Teams", icon: "👥", path: "/organizations", section: "Community", keywords: ["team", "workspace", "collaborate", "invite"] },
+
     // Profile
     { id: "profile", label: "My Profile", icon: "👤", path: "/profile", section: "Profile", keywords: ["account", "bio", "votes"] },
     { id: "feedback", label: "Feedback", icon: "📣", path: "/feedback", section: "Profile", keywords: ["bug", "report", "suggest", "help"] },
