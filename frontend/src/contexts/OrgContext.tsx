@@ -1,45 +1,34 @@
 /**
- * OrgContext — Clerk Organizations context for team/workspace features.
+ * OrgContext — Team/workspace context for Memba.
  *
- * Provides org state (active org, personal/org mode) to the app.
- * Clerk is lazy-loaded only when the user first interacts with org features
- * (e.g., clicking the org switcher in the sidebar).
+ * Provides org state (active team, personal/team mode) to the app.
+ * Uses Memba backend Team RPCs — no Clerk dependency.
  *
- * When Clerk is not loaded or not configured, all org functions return
- * personal-mode defaults — zero impact on existing features.
+ * When no team is selected, all features operate in personal mode
+ * with zero impact on existing functionality.
  *
  * @module contexts/OrgContext
  */
 
 import { createContext, useContext, useState, useCallback, useMemo } from "react"
 import type { ReactNode } from "react"
-import { CLERK_PUBLISHABLE_KEY } from "../lib/config"
 
 export interface OrgState {
-    /** Whether Clerk Organizations is available (key configured). */
-    orgsEnabled: boolean
-    /** Active organization ID, or null for personal workspace. */
+    /** Active team ID, or null for personal workspace. */
     activeOrgId: string | null
-    /** Active organization name, or "Personal" for personal workspace. */
+    /** Active team name, or "Personal" for personal workspace. */
     activeOrgName: string
-    /** Whether we're in org mode (vs personal). */
+    /** Whether we're in team mode (vs personal). */
     isOrgMode: boolean
-    /** Switch to a different org (or null for personal). */
+    /** Switch to a different team (or null for personal). */
     setActiveOrg: (orgId: string | null, orgName?: string) => void
-    /** Whether the Clerk org UI has been loaded (lazy). */
-    clerkLoaded: boolean
-    /** Mark Clerk as loaded (called by the lazy org switcher). */
-    markClerkLoaded: () => void
 }
 
 const defaultState: OrgState = {
-    orgsEnabled: false,
     activeOrgId: null,
     activeOrgName: "Personal",
     isOrgMode: false,
     setActiveOrg: () => {},
-    clerkLoaded: false,
-    markClerkLoaded: () => {},
 }
 
 const OrgContext = createContext<OrgState>(defaultState)
@@ -56,10 +45,6 @@ interface Props {
 }
 
 export function OrgProvider({ children }: Props) {
-    const orgsEnabled = !!CLERK_PUBLISHABLE_KEY
-    const [clerkLoaded, setClerkLoaded] = useState(false)
-
-    // Persist active org to localStorage
     const [activeOrg, setActiveOrgState] = useState<{ id: string | null; name: string }>(() => {
         try {
             const stored = localStorage.getItem(LS_ACTIVE_ORG)
@@ -74,24 +59,19 @@ export function OrgProvider({ children }: Props) {
     })
 
     const setActiveOrg = useCallback((orgId: string | null, orgName?: string) => {
-        const state = { id: orgId, name: orgName || (orgId ? "Organization" : "Personal") }
+        const state = { id: orgId, name: orgName || (orgId ? "Team" : "Personal") }
         setActiveOrgState(state)
         try {
             localStorage.setItem(LS_ACTIVE_ORG, JSON.stringify(state))
         } catch { /* quota */ }
     }, [])
 
-    const markClerkLoaded = useCallback(() => setClerkLoaded(true), [])
-
     const value = useMemo<OrgState>(() => ({
-        orgsEnabled,
         activeOrgId: activeOrg.id,
         activeOrgName: activeOrg.name,
         isOrgMode: activeOrg.id !== null,
         setActiveOrg,
-        clerkLoaded,
-        markClerkLoaded,
-    }), [orgsEnabled, activeOrg, setActiveOrg, clerkLoaded, markClerkLoaded])
+    }), [activeOrg, setActiveOrg])
 
     return (
         <OrgContext.Provider value={value}>
