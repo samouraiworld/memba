@@ -2,9 +2,18 @@
  * quests.ts — Memba DAO quest system for Bootstrap Era onboarding.
  *
  * Sprint 13: 10 quests that users complete to earn XP and unlock
- * Memba DAO candidature. Progress tracked in localStorage only
- * (backend sync planned for v2.27 Sprint 4).
+ * Memba DAO candidature. Dual-write: localStorage (offline-first) + backend.
  */
+
+import { api } from "./api"
+import { create } from "@bufbuild/protobuf"
+import {
+    CompleteQuestRequestSchema,
+    GetUserQuestsRequestSchema,
+    SyncQuestsRequestSchema,
+    QuestCompletionSchema,
+} from "../gen/memba/v1/memba_pb"
+import type { Token } from "../gen/memba/v1/memba_pb"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -81,8 +90,9 @@ export function isQuestCompleted(questId: string): boolean {
 
 /**
  * Complete a quest. Returns updated state, or null if already completed.
+ * Dual-write: always writes to localStorage, fire-and-forget to backend if token available.
  */
-export function completeQuest(questId: string): UserQuestState | null {
+export function completeQuest(questId: string, authToken?: Token): UserQuestState | null {
     const quest = QUESTS.find(q => q.id === questId)
     if (!quest) return null
 
@@ -92,6 +102,15 @@ export function completeQuest(questId: string): UserQuestState | null {
     state.completed.push({ questId, completedAt: Date.now() })
     state.totalXP += quest.xp
     saveQuestProgress(state)
+
+    // Fire-and-forget backend sync
+    if (authToken) {
+        api.completeQuest(create(CompleteQuestRequestSchema, {
+            authToken,
+            questId,
+        })).catch(() => { /* offline-first: ignore backend errors */ })
+    }
+
     return state
 }
 
@@ -107,12 +126,75 @@ export function getCompletionPercent(): number {
     return Math.round((state.completed.length / QUESTS.length) * 100)
 }
 
+// ── Backend Sync ─────────────────────────────────────────────
+
+/**
+ * Sync localStorage quests to backend on first authenticated session.
+ * Merges local completions with server state, server is authoritative for XP.
+ */
+export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestState> {
+    const local = loadQuestProgress()
+
+    // Upload local completions to backend (server ignores duplicates + validates quest IDs)
+    const completions = local.completed.map(c =>
+        create(QuestCompletionSchema, {
+            questId: c.questId,
+            completedAt: new Date(c.completedAt).toISOString(),
+        })
+    )
+
+    try {
+        const resp = await api.syncQuests(create(SyncQuestsRequestSchema, {
+            authToken,
+            completions,
+        }))
+
+        if (resp.state) {
+            // Server state is authoritative — merge back to localStorage
+            const serverState: UserQuestState = {
+                completed: resp.state.completed.map(c => ({
+                    questId: c.questId,
+                    completedAt: new Date(c.completedAt).getTime(),
+                })),
+                totalXP: resp.state.totalXp,
+            }
+            saveQuestProgress(serverState)
+            return serverState
+        }
+    } catch {
+        // Offline-first: if backend is unreachable, local state is still valid
+    }
+
+    return local
+}
+
+/**
+ * Fetch quest state for any user (public read, no auth needed).
+ */
+export async function fetchUserQuests(address: string): Promise<UserQuestState | null> {
+    try {
+        const resp = await api.getUserQuests(create(GetUserQuestsRequestSchema, { address }))
+        if (resp.state) {
+            return {
+                completed: resp.state.completed.map(c => ({
+                    questId: c.questId,
+                    completedAt: new Date(c.completedAt).getTime(),
+                })),
+                totalXP: resp.state.totalXp,
+            }
+        }
+    } catch {
+        // Backend unreachable
+    }
+    return null
+}
+
 // ── Page Visit Tracking ──────────────────────────────────────
 
 const PAGES_KEY = "memba_quest_pages"
 
 /** Track a page visit for the "visit 5 pages" quest. */
-export function trackPageVisit(pageName: string): void {
+export function trackPageVisit(pageName: string, authToken?: Token): void {
     try {
         const raw = localStorage.getItem(PAGES_KEY)
         const pages: string[] = raw ? JSON.parse(raw) : []
@@ -120,7 +202,7 @@ export function trackPageVisit(pageName: string): void {
             pages.push(pageName)
             localStorage.setItem(PAGES_KEY, JSON.stringify(pages))
             if (pages.length >= 5) {
-                completeQuest("visit-5-pages")
+                completeQuest("visit-5-pages", authToken)
             }
         }
     } catch { /* */ }
@@ -129,7 +211,7 @@ export function trackPageVisit(pageName: string): void {
 const DIR_TABS_KEY = "memba_quest_dir_tabs"
 
 /** Track directory tab visits for the "browse 3 tabs" quest. */
-export function trackDirectoryTab(tabName: string): void {
+export function trackDirectoryTab(tabName: string, authToken?: Token): void {
     try {
         const raw = localStorage.getItem(DIR_TABS_KEY)
         const tabs: string[] = raw ? JSON.parse(raw) : []
@@ -137,7 +219,7 @@ export function trackDirectoryTab(tabName: string): void {
             tabs.push(tabName)
             localStorage.setItem(DIR_TABS_KEY, JSON.stringify(tabs))
             if (tabs.length >= 3) {
-                completeQuest("directory-tabs")
+                completeQuest("directory-tabs", authToken)
             }
         }
     } catch { /* */ }

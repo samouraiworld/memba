@@ -2069,6 +2069,392 @@ func (x *UpdateProfileResponse) GetProfile() *Profile {
 	return nil
 }
 
+type QuestCompletion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QuestId       string                 `protobuf:"bytes,1,opt,name=quest_id,json=questId,proto3" json:"quest_id,omitempty"`
+	CompletedAt   string                 `protobuf:"bytes,2,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"` // RFC3339
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QuestCompletion) Reset() {
+	*x = QuestCompletion{}
+	mi := &file_memba_v1_memba_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QuestCompletion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QuestCompletion) ProtoMessage() {}
+
+func (x *QuestCompletion) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QuestCompletion.ProtoReflect.Descriptor instead.
+func (*QuestCompletion) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *QuestCompletion) GetQuestId() string {
+	if x != nil {
+		return x.QuestId
+	}
+	return ""
+}
+
+func (x *QuestCompletion) GetCompletedAt() string {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return ""
+}
+
+type UserQuestState struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Completed     []*QuestCompletion     `protobuf:"bytes,1,rep,name=completed,proto3" json:"completed,omitempty"`
+	TotalXp       uint32                 `protobuf:"varint,2,opt,name=total_xp,json=totalXp,proto3" json:"total_xp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserQuestState) Reset() {
+	*x = UserQuestState{}
+	mi := &file_memba_v1_memba_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserQuestState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserQuestState) ProtoMessage() {}
+
+func (x *UserQuestState) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserQuestState.ProtoReflect.Descriptor instead.
+func (*UserQuestState) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *UserQuestState) GetCompleted() []*QuestCompletion {
+	if x != nil {
+		return x.Completed
+	}
+	return nil
+}
+
+func (x *UserQuestState) GetTotalXp() uint32 {
+	if x != nil {
+		return x.TotalXp
+	}
+	return 0
+}
+
+type CompleteQuestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	QuestId       string                 `protobuf:"bytes,2,opt,name=quest_id,json=questId,proto3" json:"quest_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteQuestRequest) Reset() {
+	*x = CompleteQuestRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteQuestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteQuestRequest) ProtoMessage() {}
+
+func (x *CompleteQuestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteQuestRequest.ProtoReflect.Descriptor instead.
+func (*CompleteQuestRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *CompleteQuestRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *CompleteQuestRequest) GetQuestId() string {
+	if x != nil {
+		return x.QuestId
+	}
+	return ""
+}
+
+type CompleteQuestResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         *UserQuestState        `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteQuestResponse) Reset() {
+	*x = CompleteQuestResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteQuestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteQuestResponse) ProtoMessage() {}
+
+func (x *CompleteQuestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteQuestResponse.ProtoReflect.Descriptor instead.
+func (*CompleteQuestResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *CompleteQuestResponse) GetState() *UserQuestState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+type GetUserQuestsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"` // no auth required — public read
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserQuestsRequest) Reset() {
+	*x = GetUserQuestsRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserQuestsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserQuestsRequest) ProtoMessage() {}
+
+func (x *GetUserQuestsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserQuestsRequest.ProtoReflect.Descriptor instead.
+func (*GetUserQuestsRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetUserQuestsRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+type GetUserQuestsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         *UserQuestState        `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserQuestsResponse) Reset() {
+	*x = GetUserQuestsResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserQuestsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserQuestsResponse) ProtoMessage() {}
+
+func (x *GetUserQuestsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserQuestsResponse.ProtoReflect.Descriptor instead.
+func (*GetUserQuestsResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetUserQuestsResponse) GetState() *UserQuestState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+// SyncQuests allows the frontend to upload localStorage quests on first backend connection.
+// The server validates each quest_id and ignores duplicates. completed_at is preserved from client.
+type SyncQuestsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	Completions   []*QuestCompletion     `protobuf:"bytes,2,rep,name=completions,proto3" json:"completions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncQuestsRequest) Reset() {
+	*x = SyncQuestsRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncQuestsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncQuestsRequest) ProtoMessage() {}
+
+func (x *SyncQuestsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncQuestsRequest.ProtoReflect.Descriptor instead.
+func (*SyncQuestsRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *SyncQuestsRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *SyncQuestsRequest) GetCompletions() []*QuestCompletion {
+	if x != nil {
+		return x.Completions
+	}
+	return nil
+}
+
+type SyncQuestsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         *UserQuestState        `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncQuestsResponse) Reset() {
+	*x = SyncQuestsResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncQuestsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncQuestsResponse) ProtoMessage() {}
+
+func (x *SyncQuestsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncQuestsResponse.ProtoReflect.Descriptor instead.
+func (*SyncQuestsResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *SyncQuestsResponse) GetState() *UserQuestState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -2238,7 +2624,29 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12+\n" +
 	"\aprofile\x18\x02 \x01(\v2\x11.memba.v1.ProfileR\aprofile\"D\n" +
 	"\x15UpdateProfileResponse\x12+\n" +
-	"\aprofile\x18\x01 \x01(\v2\x11.memba.v1.ProfileR\aprofile*N\n" +
+	"\aprofile\x18\x01 \x01(\v2\x11.memba.v1.ProfileR\aprofile\"O\n" +
+	"\x0fQuestCompletion\x12\x19\n" +
+	"\bquest_id\x18\x01 \x01(\tR\aquestId\x12!\n" +
+	"\fcompleted_at\x18\x02 \x01(\tR\vcompletedAt\"d\n" +
+	"\x0eUserQuestState\x127\n" +
+	"\tcompleted\x18\x01 \x03(\v2\x19.memba.v1.QuestCompletionR\tcompleted\x12\x19\n" +
+	"\btotal_xp\x18\x02 \x01(\rR\atotalXp\"a\n" +
+	"\x14CompleteQuestRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x19\n" +
+	"\bquest_id\x18\x02 \x01(\tR\aquestId\"G\n" +
+	"\x15CompleteQuestResponse\x12.\n" +
+	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state\"0\n" +
+	"\x14GetUserQuestsRequest\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\"G\n" +
+	"\x15GetUserQuestsResponse\x12.\n" +
+	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state\"\x80\x01\n" +
+	"\x11SyncQuestsRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12;\n" +
+	"\vcompletions\x18\x02 \x03(\v2\x19.memba.v1.QuestCompletionR\vcompletions\"D\n" +
+	"\x12SyncQuestsResponse\x12.\n" +
+	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -2246,7 +2654,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0eExecutionState\x12\x1f\n" +
 	"\x1bEXECUTION_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17EXECUTION_STATE_PENDING\x10\x01\x12\x1c\n" +
-	"\x18EXECUTION_STATE_EXECUTED\x10\x022\xf8\a\n" +
+	"\x18EXECUTION_STATE_EXECUTED\x10\x022\xe5\t\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -2260,7 +2668,11 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x13CompleteTransaction\x12$.memba.v1.CompleteTransactionRequest\x1a%.memba.v1.CompleteTransactionResponse\x12G\n" +
 	"\n" +
 	"GetProfile\x12\x1b.memba.v1.GetProfileRequest\x1a\x1c.memba.v1.GetProfileResponse\x12P\n" +
-	"\rUpdateProfile\x12\x1e.memba.v1.UpdateProfileRequest\x1a\x1f.memba.v1.UpdateProfileResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\rUpdateProfile\x12\x1e.memba.v1.UpdateProfileRequest\x1a\x1f.memba.v1.UpdateProfileResponse\x12P\n" +
+	"\rCompleteQuest\x12\x1e.memba.v1.CompleteQuestRequest\x1a\x1f.memba.v1.CompleteQuestResponse\x12P\n" +
+	"\rGetUserQuests\x12\x1e.memba.v1.GetUserQuestsRequest\x1a\x1f.memba.v1.GetUserQuestsResponse\x12G\n" +
+	"\n" +
+	"SyncQuests\x12\x1b.memba.v1.SyncQuestsRequest\x1a\x1c.memba.v1.SyncQuestsResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -2275,7 +2687,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -2310,6 +2722,14 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*GetProfileResponse)(nil),           // 30: memba.v1.GetProfileResponse
 	(*UpdateProfileRequest)(nil),         // 31: memba.v1.UpdateProfileRequest
 	(*UpdateProfileResponse)(nil),        // 32: memba.v1.UpdateProfileResponse
+	(*QuestCompletion)(nil),              // 33: memba.v1.QuestCompletion
+	(*UserQuestState)(nil),               // 34: memba.v1.UserQuestState
+	(*CompleteQuestRequest)(nil),         // 35: memba.v1.CompleteQuestRequest
+	(*CompleteQuestResponse)(nil),        // 36: memba.v1.CompleteQuestResponse
+	(*GetUserQuestsRequest)(nil),         // 37: memba.v1.GetUserQuestsRequest
+	(*GetUserQuestsResponse)(nil),        // 38: memba.v1.GetUserQuestsResponse
+	(*SyncQuestsRequest)(nil),            // 39: memba.v1.SyncQuestsRequest
+	(*SyncQuestsResponse)(nil),           // 40: memba.v1.SyncQuestsResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	2,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -2334,35 +2754,48 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,  // 19: memba.v1.UpdateProfileRequest.auth_token:type_name -> memba.v1.Token
 	28, // 20: memba.v1.UpdateProfileRequest.profile:type_name -> memba.v1.Profile
 	28, // 21: memba.v1.UpdateProfileResponse.profile:type_name -> memba.v1.Profile
-	5,  // 22: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	7,  // 23: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	10, // 24: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	12, // 25: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	14, // 26: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	18, // 27: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	22, // 28: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
-	20, // 29: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	24, // 30: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	26, // 31: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	29, // 32: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
-	31, // 33: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
-	6,  // 34: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	8,  // 35: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	11, // 36: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	13, // 37: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	15, // 38: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	19, // 39: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	23, // 40: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	21, // 41: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	25, // 42: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	27, // 43: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	30, // 44: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
-	32, // 45: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
-	34, // [34:46] is the sub-list for method output_type
-	22, // [22:34] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	33, // 22: memba.v1.UserQuestState.completed:type_name -> memba.v1.QuestCompletion
+	3,  // 23: memba.v1.CompleteQuestRequest.auth_token:type_name -> memba.v1.Token
+	34, // 24: memba.v1.CompleteQuestResponse.state:type_name -> memba.v1.UserQuestState
+	34, // 25: memba.v1.GetUserQuestsResponse.state:type_name -> memba.v1.UserQuestState
+	3,  // 26: memba.v1.SyncQuestsRequest.auth_token:type_name -> memba.v1.Token
+	33, // 27: memba.v1.SyncQuestsRequest.completions:type_name -> memba.v1.QuestCompletion
+	34, // 28: memba.v1.SyncQuestsResponse.state:type_name -> memba.v1.UserQuestState
+	5,  // 29: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	7,  // 30: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	10, // 31: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	12, // 32: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	14, // 33: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	18, // 34: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	22, // 35: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	20, // 36: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	24, // 37: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	26, // 38: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	29, // 39: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
+	31, // 40: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
+	35, // 41: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
+	37, // 42: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
+	39, // 43: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
+	6,  // 44: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	8,  // 45: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	11, // 46: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	13, // 47: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	15, // 48: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	19, // 49: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	23, // 50: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	21, // 51: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	25, // 52: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	27, // 53: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	30, // 54: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	32, // 55: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	36, // 56: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
+	38, // 57: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
+	40, // 58: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
+	44, // [44:59] is the sub-list for method output_type
+	29, // [29:44] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -2376,7 +2809,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   31,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
