@@ -16,6 +16,7 @@ import { JitsiProvider } from "../../contexts/JitsiContext"
 import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
+import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -275,6 +276,7 @@ export function Layout() {
 
                 {/* ── What's New Toast (v2.14 — shown once per version to returning users) ── */}
                 <WhatsNewToast />
+                <NetworkStatusToast />
 
                 {/* ── Network switch success toast ── */}
                 {walletSwitchMsg && (

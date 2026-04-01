@@ -732,6 +732,32 @@ body {
   color: var(--color-k-dim, #888);
 }
 
+/* Sprint 12: Network status toast */
+.net-status-toast {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-family: 'JetBrains Mono', monospace;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.net-status-toast__icon { font-size: 16px; }
+.net-status-toast__body { display: flex; flex-direction: column; gap: 2px; }
+.net-status-toast__label { font-size: 12px; font-weight: 600; }
+.net-status-toast__detail { font-size: 10px; color: #888; }
+.net-status-toast__dismiss { background: none; border: none; color: #666; font-size: 16px; cursor: pointer; padding: 0 4px; }
+
+@media (max-width: 640px) {
+  .net-status-toast { bottom: 70px; right: 12px; left: 12px; }
+}
+
 .k-sidebar-section {
   padding: 8px 0;
 }
