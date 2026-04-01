@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.25)
+## Features (v2.26)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
