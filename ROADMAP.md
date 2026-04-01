@@ -9,13 +9,13 @@
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v2.27.0 (Security, Quest Backend, Feature Gates) |
-| **Shipped Versions** | 33+ (v0.1.0 → v2.27.0) |
-| **Test Suite** | 1,349+ unit tests (59 files) + 73 backend tests + 16 E2E spec files |
+| **Latest Release** | v2.28.0 (Teams, Candidature, Quest Integration) |
+| **Shipped Versions** | 34+ (v0.1.0 → v2.28.0) |
+| **Test Suite** | 1,349+ unit tests (59 files) + 87 backend tests + 16 E2E spec files |
 | **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
 | **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite |
 | **URL Format** | Network-scoped: `/:network/dao/gno.land/r/gov/dao` (v2.25+) |
-| **Next Priority** | Quest integration, Teams backend, Deployment Runbook |
+| **Next Priority** | r/sys/users migration, boards2 integration, shared team resources |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 

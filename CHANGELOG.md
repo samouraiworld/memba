@@ -4,6 +4,27 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.28.0 (2026-04-01) — Teams, Candidature & Quest Integration
+
+### Added
+
+- **Teams backend** — 6 ConnectRPC RPCs (CreateTeam, GetTeam, GetMyTeams, JoinTeam, LeaveTeam, UpdateTeamMemberRole), `004_teams.sql` migration, 14 test cases (#222)
+- **Teams frontend** — Memba-native team management replacing Clerk Organizations: create team, join via invite code, workspace switcher, member list, admin role management (#224)
+- **Candidature UI** — `/candidature` page with XP-gated submission form (100 XP threshold), on-chain MsgCall to candidature realm, re-application fee display, candidature list from Render() (#223)
+- **Quest integration** — `syncQuestsToBackend()` in auth flow, QuestProgress on profile page, all 10 quest triggers wired across UI (connect-wallet, use-cmdk, switch-network, view-profile, browse-proposals, view-validator, submit-feedback, share-link, visit-5-pages, directory-tabs) (#221)
+- **Deployment Runbook** — Full samcrew-deployer procedures: pre-deploy checks, multi-network order, post-deploy verification, failure recovery, new network checklist (#220)
+
+### Changed
+
+- **QuestProgress** — Enhanced to accept `address` prop for viewing other users' quests from backend, added candidature CTA link when eligible (#221, #223)
+- **OrgContent** — Replaced Clerk Organizations dependency with Memba-native Team RPCs (#224)
+
+### Metrics
+
+- Frontend: 1,349 tests (59 files) — unchanged
+- Backend: 87 tests (4 packages) — was 73 (+14 team tests)
+- Build: 489 KB (< 520 KB budget)
+
 ## v2.27.0 (2026-04-01) — Security, Quest Backend & Feature Gates
 
 ### Added

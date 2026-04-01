@@ -1,7 +1,7 @@
 # Memba v2.x — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-04-01 (v2.27 docs hygiene)
+> Last updated: 2026-04-01 (v2.28 teams + candidature)
 
 ## Milestone Status
 
@@ -48,12 +48,16 @@
 | 37 | **Coming Soon Gates** | v2.27 | ✅ SHIPPED | PR #216 → `main` |
 | 38 | **Quest Backend** | v2.27 | ✅ SHIPPED | PR #217 → `main` |
 | 39 | **Feature Activation Plans** | v2.27 | ✅ SHIPPED | PR #218 → `main` |
+| 40 | **Quest Integration** | v2.28 | ✅ SHIPPED | PR #221 → `main` |
+| 41 | **Teams Backend** | v2.28 | ✅ SHIPPED | PR #222 → `main` |
+| 42 | **Candidature UI** | v2.28 | ✅ SHIPPED | PR #223 → `main` |
+| 43 | **Teams Frontend** | v2.28 | ✅ SHIPPED | PR #224 → `main` |
 | — | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
 | — | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | — | **Premium** | v3.5 | 🔮 HORIZON | — |
 | — | **Horizon** | v4.0 | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.27)
+## Quality Gates (as of v2.28)
 
 | Metric | Value |
 |--------|-------|
@@ -61,8 +65,8 @@
 | E2E specs | 16 spec files |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | ~481KB (~140KB gzip) |
-| package.json | 2.27.0 |
+| Build size | ~489KB (~143KB gzip) |
+| package.json | 2.28.0 |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 
