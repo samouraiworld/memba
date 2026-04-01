@@ -2,10 +2,9 @@
  * OrganizationsPage — Team management for Memba.
  *
  * Provides workspace switching (personal/team), team creation,
- * member management, and team settings. Uses Clerk Organizations
- * under the hood but all UI is Memba-branded.
+ * member management, and team settings. Uses Memba backend Team RPCs.
  *
- * Lazy-loaded: Clerk bundle (~45KB) only loaded when visiting this page.
+ * Lazy-loaded: OrgContent only loaded when visiting this page.
  *
  * @module pages/OrganizationsPage
  */
@@ -14,18 +13,13 @@ import { lazy, Suspense } from "react"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { useOutletContext } from "react-router-dom"
+import type { LayoutContext } from "../types/layout"
 import "./organizations.css"
 
-// Lazy-load Clerk-dependent content
 const OrgContent = lazy(() => import("../components/org/OrgContent"))
 
 function PageLoader() {
     return <ConnectingLoader message="Loading teams..." minHeight="30vh" />
-}
-
-interface LayoutContext {
-    adena: { connected: boolean }
-    auth: { isAuthenticated: boolean }
 }
 
 const TEAMS_ENABLED = import.meta.env.VITE_ENABLE_TEAMS === "true"
