@@ -34,7 +34,7 @@ func TestCompleteQuest_Idempotent(t *testing.T) {
 	ctx := context.Background()
 
 	// Complete twice — should not double XP.
-	h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+	_, _ = h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: token,
 		QuestId:   "connect-wallet",
 	}))
@@ -101,10 +101,10 @@ func TestGetUserQuests_WithCompletions(t *testing.T) {
 	ctx := context.Background()
 
 	// Complete two quests.
-	h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+	_, _ = h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: token, QuestId: "connect-wallet",
 	}))
-	h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+	_, _ = h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: token, QuestId: "browse-proposals",
 	}))
 
@@ -164,7 +164,7 @@ func TestSyncQuests_IdempotentWithExisting(t *testing.T) {
 	ctx := context.Background()
 
 	// Complete one quest first.
-	h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+	_, _ = h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: token, QuestId: "connect-wallet",
 	}))
 
@@ -242,7 +242,7 @@ func TestGetUserQuests_IsolatedPerUser(t *testing.T) {
 
 	// Alice completes a quest.
 	aliceToken := h.makeToken(t, "g1alice")
-	h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+	_, _ = h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
 		AuthToken: aliceToken, QuestId: "connect-wallet",
 	}))
 

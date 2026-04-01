@@ -116,7 +116,7 @@ func (s *MultisigService) loadUserQuestState(ctx context.Context, address string
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	state := &membav1.UserQuestState{}
 	for rows.Next() {
