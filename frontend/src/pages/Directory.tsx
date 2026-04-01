@@ -177,14 +177,24 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
             {/* I1 audit fix: pass metadata from parent to avoid duplicate RPC calls */}
             <FeaturedDAOs metadata={metadata} />
 
-            <input
-                type="text"
-                placeholder="Search DAOs..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="dir-search"
-                data-testid="dao-search"
-            />
+            <div className="dir-search-row">
+                <input
+                    type="text"
+                    placeholder="Search DAOs..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="dir-search"
+                    data-testid="dao-search"
+                />
+                <button
+                    className="k-btn-primary dir-create-btn"
+                    onClick={() => navigate("/dao/create")}
+                    data-testid="create-dao-btn"
+                >
+                    <span className="dir-create-btn__full">+ Create DAO</span>
+                    <span className="dir-create-btn__compact">+</span>
+                </button>
+            </div>
 
             {filtered.length === 0 ? (
                 <div className="dir-empty">
@@ -207,15 +217,6 @@ function DAOsTab({ navigate }: { navigate: ReturnType<typeof useNetworkNav> }) {
                 </div>
             )}
 
-            <div className="dir-actions">
-                <button
-                    className="k-btn-primary"
-                    style={{ fontSize: 11, padding: "6px 14px" }}
-                    onClick={() => navigate("/dao/create")}
-                >
-                    + Create DAO
-                </button>
-            </div>
         </div>
     )
 }

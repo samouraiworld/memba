@@ -99,6 +99,44 @@
     color: #444;
 }
 
+/* ── Search + Create Row ───────────────────────── */
+
+.dir-search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dir-search-row .dir-search {
+    flex: 1;
+    max-width: none;
+}
+
+.dir-create-btn {
+    font-size: 13px;
+    padding: 8px 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dir-create-btn__compact {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .dir-create-btn__full {
+        display: none;
+    }
+    .dir-create-btn__compact {
+        display: inline;
+        font-size: 16px;
+        font-weight: 700;
+    }
+    .dir-create-btn {
+        padding: 6px 12px;
+    }
+}
+
 /* ── Card Grid ──────────────────────────────────── */
 
 .dir-grid {
