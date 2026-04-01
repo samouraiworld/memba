@@ -73,7 +73,7 @@ buf generate
 VITE_API_URL = https://memba-backend.fly.dev
 VITE_GNO_CHAIN_ID = test12
 VITE_GNO_RPC_URL = https://rpc.testnet12.samourai.live:443
-VITE_DAO_REALM_PATH = gno.land/r/samcrew/samourai_dao
+VITE_DAO_REALM_PATH = gno.land/r/samcrew/memba_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 VITE_GNOLOVE_API_URL = https://backend.gnolove.world
 VITE_GNO_MONITORING_API_URL = https://monitoring.gnolove.world

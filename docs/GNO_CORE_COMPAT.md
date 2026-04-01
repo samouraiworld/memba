@@ -1,6 +1,6 @@
 # Gno Core Compatibility — Migration Playbook
 
-> **Date:** 2026-03-31 · **Memba:** v2.26.0 · **Baseline:** 1,249 frontend tests + 73 backend tests, 0 TS errors
+> **Date:** 2026-04-01 · **Memba:** v2.26.0 · **Baseline:** 1,349 frontend tests + 73 backend tests, 0 TS errors
 >
 > Step-by-step migration instructions for each tracked upstream PR.
 > See also: [GNO_CORE_BREAKING_CHANGES.md](planning/GNO_CORE_BREAKING_CHANGES.md)
