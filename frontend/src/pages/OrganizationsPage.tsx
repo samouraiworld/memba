@@ -12,6 +12,7 @@
 
 import { lazy, Suspense } from "react"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { useOutletContext } from "react-router-dom"
 import "./organizations.css"
 
@@ -27,8 +28,26 @@ interface LayoutContext {
     auth: { isAuthenticated: boolean }
 }
 
+const TEAMS_ENABLED = import.meta.env.VITE_ENABLE_TEAMS === "true"
+
 export default function OrganizationsPage() {
     const { adena } = useOutletContext<LayoutContext>()
+
+    if (!TEAMS_ENABLED) {
+        return (
+            <ComingSoonGate
+                title="Teams"
+                icon="👥"
+                description="Manage your teams and share DAOs, alerts, and configurations with collaborators."
+                features={[
+                    "Team workspaces for collaborative DAO management",
+                    "Shared alerts and configurations",
+                    "Role-based access control",
+                    "Cross-team analytics dashboards",
+                ]}
+            />
+        )
+    }
 
     if (!adena.connected) {
         return (

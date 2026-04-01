@@ -18,6 +18,7 @@ import {
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import type { LayoutContext } from "../types/layout"
 import "./nft-gallery.css"
 
@@ -28,7 +29,29 @@ const SEED_COLLECTIONS = [
     "gno.land/r/demo/nft",
 ]
 
+const NFT_ENABLED = import.meta.env.VITE_ENABLE_NFT === "true"
+
 export function NFTGallery() {
+    if (!NFT_ENABLED) {
+        return (
+            <ComingSoonGate
+                title="NFT Gallery"
+                icon="🎨"
+                description="Browse, mint, and trade GRC721 NFTs on gno.land."
+                features={[
+                    "Browse GRC721 NFT collections on gno.land",
+                    "Mint new NFTs with IPFS metadata",
+                    "Collection-level statistics and royalty tracking",
+                    "Cross-collection search and discovery",
+                ]}
+            />
+        )
+    }
+
+    return <NFTGalleryContent />
+}
+
+function NFTGalleryContent() {
     const navigate = useNetworkNav()
     const [collections, setCollections] = useState<NFTCollection[]>([])
     const [loading, setLoading] = useState(true)

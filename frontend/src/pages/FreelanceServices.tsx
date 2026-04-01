@@ -15,9 +15,32 @@ import {
     type ServiceListing,
     type ServiceCategory,
 } from "../lib/escrowTemplate"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import "./freelance.css"
 
+const SERVICES_ENABLED = import.meta.env.VITE_ENABLE_SERVICES === "true"
+
 export default function FreelanceServices() {
+    if (!SERVICES_ENABLED) {
+        return (
+            <ComingSoonGate
+                title="Freelance Services"
+                icon="💼"
+                description="Hire experts with milestone-based escrow contracts on gno.land."
+                features={[
+                    "On-chain escrow contracts for freelance work",
+                    "DAO-to-contributor matching",
+                    "Milestone-based payment releases",
+                    "Dispute resolution via DAO governance",
+                ]}
+            />
+        )
+    }
+
+    return <FreelanceServicesContent />
+}
+
+function FreelanceServicesContent() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<ServiceCategory | "all">("all")
