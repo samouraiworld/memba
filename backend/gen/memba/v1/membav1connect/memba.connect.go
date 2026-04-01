@@ -69,6 +69,15 @@ const (
 	// MultisigServiceUpdateProfileProcedure is the fully-qualified name of the MultisigService's
 	// UpdateProfile RPC.
 	MultisigServiceUpdateProfileProcedure = "/memba.v1.MultisigService/UpdateProfile"
+	// MultisigServiceCompleteQuestProcedure is the fully-qualified name of the MultisigService's
+	// CompleteQuest RPC.
+	MultisigServiceCompleteQuestProcedure = "/memba.v1.MultisigService/CompleteQuest"
+	// MultisigServiceGetUserQuestsProcedure is the fully-qualified name of the MultisigService's
+	// GetUserQuests RPC.
+	MultisigServiceGetUserQuestsProcedure = "/memba.v1.MultisigService/GetUserQuests"
+	// MultisigServiceSyncQuestsProcedure is the fully-qualified name of the MultisigService's
+	// SyncQuests RPC.
+	MultisigServiceSyncQuestsProcedure = "/memba.v1.MultisigService/SyncQuests"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -89,6 +98,10 @@ type MultisigServiceClient interface {
 	// Profile — Read/Write user profile
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
+	// Quests — XP tracking for Memba DAO onboarding
+	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
+	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
+	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -174,6 +187,24 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("UpdateProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		completeQuest: connect.NewClient[v1.CompleteQuestRequest, v1.CompleteQuestResponse](
+			httpClient,
+			baseURL+MultisigServiceCompleteQuestProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("CompleteQuest")),
+			connect.WithClientOptions(opts...),
+		),
+		getUserQuests: connect.NewClient[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetUserQuestsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetUserQuests")),
+			connect.WithClientOptions(opts...),
+		),
+		syncQuests: connect.NewClient[v1.SyncQuestsRequest, v1.SyncQuestsResponse](
+			httpClient,
+			baseURL+MultisigServiceSyncQuestsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -191,6 +222,9 @@ type multisigServiceClient struct {
 	completeTransaction  *connect.Client[v1.CompleteTransactionRequest, v1.CompleteTransactionResponse]
 	getProfile           *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
 	updateProfile        *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	completeQuest        *connect.Client[v1.CompleteQuestRequest, v1.CompleteQuestResponse]
+	getUserQuests        *connect.Client[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse]
+	syncQuests           *connect.Client[v1.SyncQuestsRequest, v1.SyncQuestsResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -253,6 +287,21 @@ func (c *multisigServiceClient) UpdateProfile(ctx context.Context, req *connect.
 	return c.updateProfile.CallUnary(ctx, req)
 }
 
+// CompleteQuest calls memba.v1.MultisigService.CompleteQuest.
+func (c *multisigServiceClient) CompleteQuest(ctx context.Context, req *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error) {
+	return c.completeQuest.CallUnary(ctx, req)
+}
+
+// GetUserQuests calls memba.v1.MultisigService.GetUserQuests.
+func (c *multisigServiceClient) GetUserQuests(ctx context.Context, req *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error) {
+	return c.getUserQuests.CallUnary(ctx, req)
+}
+
+// SyncQuests calls memba.v1.MultisigService.SyncQuests.
+func (c *multisigServiceClient) SyncQuests(ctx context.Context, req *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error) {
+	return c.syncQuests.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -271,6 +320,10 @@ type MultisigServiceHandler interface {
 	// Profile — Read/Write user profile
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
+	// Quests — XP tracking for Memba DAO onboarding
+	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
+	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
+	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -352,6 +405,24 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("UpdateProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceCompleteQuestHandler := connect.NewUnaryHandler(
+		MultisigServiceCompleteQuestProcedure,
+		svc.CompleteQuest,
+		connect.WithSchema(multisigServiceMethods.ByName("CompleteQuest")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetUserQuestsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetUserQuestsProcedure,
+		svc.GetUserQuests,
+		connect.WithSchema(multisigServiceMethods.ByName("GetUserQuests")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceSyncQuestsHandler := connect.NewUnaryHandler(
+		MultisigServiceSyncQuestsProcedure,
+		svc.SyncQuests,
+		connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -378,6 +449,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetProfileHandler.ServeHTTP(w, r)
 		case MultisigServiceUpdateProfileProcedure:
 			multisigServiceUpdateProfileHandler.ServeHTTP(w, r)
+		case MultisigServiceCompleteQuestProcedure:
+			multisigServiceCompleteQuestHandler.ServeHTTP(w, r)
+		case MultisigServiceGetUserQuestsProcedure:
+			multisigServiceGetUserQuestsHandler.ServeHTTP(w, r)
+		case MultisigServiceSyncQuestsProcedure:
+			multisigServiceSyncQuestsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -433,4 +510,16 @@ func (UnimplementedMultisigServiceHandler) GetProfile(context.Context, *connect.
 
 func (UnimplementedMultisigServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateProfile is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.CompleteQuest is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetUserQuests is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SyncQuests is not implemented"))
 }

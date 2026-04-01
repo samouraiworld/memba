@@ -25,6 +25,11 @@ service MultisigService {
   // Profile — Read/Write user profile
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // Quests — XP tracking for Memba DAO onboarding
+  rpc CompleteQuest(CompleteQuestRequest) returns (CompleteQuestResponse);
+  rpc GetUserQuests(GetUserQuestsRequest) returns (GetUserQuestsResponse);
+  rpc SyncQuests(SyncQuestsRequest) returns (SyncQuestsResponse);
 }
 
 // --- Auth Messages ---
@@ -241,4 +246,44 @@ message UpdateProfileRequest {
 
 message UpdateProfileResponse {
   Profile profile = 1;
+}
+
+// --- Quest Messages ---
+
+message QuestCompletion {
+  string quest_id = 1;
+  string completed_at = 2; // RFC3339
+}
+
+message UserQuestState {
+  repeated QuestCompletion completed = 1;
+  uint32 total_xp = 2;
+}
+
+message CompleteQuestRequest {
+  Token auth_token = 1;
+  string quest_id = 2;
+}
+
+message CompleteQuestResponse {
+  UserQuestState state = 1;
+}
+
+message GetUserQuestsRequest {
+  string address = 1; // no auth required — public read
+}
+
+message GetUserQuestsResponse {
+  UserQuestState state = 1;
+}
+
+// SyncQuests allows the frontend to upload localStorage quests on first backend connection.
+// The server validates each quest_id and ignores duplicates. completed_at is preserved from client.
+message SyncQuestsRequest {
+  Token auth_token = 1;
+  repeated QuestCompletion completions = 2;
+}
+
+message SyncQuestsResponse {
+  UserQuestState state = 1;
 }

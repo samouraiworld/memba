@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetProfileRequest, GetProfileResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetProfileRequest, GetProfileResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -128,6 +128,35 @@ export const MultisigService = {
       name: "UpdateProfile",
       I: UpdateProfileRequest,
       O: UpdateProfileResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Quests — XP tracking for Memba DAO onboarding
+     *
+     * @generated from rpc memba.v1.MultisigService.CompleteQuest
+     */
+    completeQuest: {
+      name: "CompleteQuest",
+      I: CompleteQuestRequest,
+      O: CompleteQuestResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetUserQuests
+     */
+    getUserQuests: {
+      name: "GetUserQuests",
+      I: GetUserQuestsRequest,
+      O: GetUserQuestsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.SyncQuests
+     */
+    syncQuests: {
+      name: "SyncQuests",
+      I: SyncQuestsRequest,
+      O: SyncQuestsResponse,
       kind: MethodKind.Unary,
     },
   }
