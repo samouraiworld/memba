@@ -4,6 +4,41 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.26.0 (2026-03-31) — Hardening, Marketplace & Payroll
+
+### Added
+
+- **Centralized template sanitizer** — 10 validators replacing duplicated logic across 5 template generators (Sprint 1)
+- **Per-endpoint rate limiter** — render 30/min, eval 10/min, oauth 5/min with /24 subnet bucketing (Sprint 2)
+- **Error message humanization** — `friendlyError()` expanded from 20 to 35+ patterns (Sprint 2)
+- **Security CI** — Weekly npm audit + govulncheck + CycloneDX SBOM (Sprint 2)
+- **Gnoweb namespace explorer** — Live deployment status badges in Directory (Sprint 3)
+- **Backend tests** — Profile CRUD, sanitization, DB migrations, WAL mode (+35 tests) (Sprint 3)
+- **E2E navigation tests** — /:network prefix routing, / DAO URL separator (Sprint 3)
+- **Gno contract CI** — gno test + gno lint on 4 contract stubs (Sprint 3)
+- **Design token system** — HSL color scale, 4px grid spacing, modular type scale (Sprint 4)
+- **Traction metrics** — Ecosystem metrics on landing page from gnolove API (Sprint 5)
+- **Cmd+K discovery** — First-visit tooltip in sidebar (Sprint 5)
+- **Shared marketplace types** — PaymentConfig (multi-token ready), MarketplaceListing, EscrowState (Sprint 6)
+- **Freelance Services page** — Browse services with escrow flow, category filters (Sprint 6)
+- **Payroll plugin** — Batch MsgSend proposals, CSV import, recurring templates (Sprint 7)
+
+### Changed
+
+- **CSS extraction** — 60 inline styles removed from TokenView (32), CreateDAO (16), Channels (12) (Sprint 4)
+- **Documentation** — README, ROADMAP, GNO_CORE_COMPAT updated with current baselines (Sprint 5)
+
+### Fixed
+
+- **DAO path** — DEPLOYMENT.md corrected `samourai_dao` → `memba_dao` (Sprint 1)
+- **Gno-test CI** — gnomod.toml format, _stub naming, CWD fix, import.meta.dirname (Sprint 3+fix)
+
+### Metrics
+
+- Frontend: 1,307 tests (56 files) — was 1,151 (49 files)
+- Backend: 73 tests (4 packages)
+- Build: 479 KB (< 520 KB budget)
+
 ## v2.25.1 (2026-03-31) — Escrow Chain API Correction
 
 ### Fixed
