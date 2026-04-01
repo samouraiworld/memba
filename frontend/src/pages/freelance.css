@@ -94,6 +94,31 @@
 }
 .fl-hire-btn:hover { opacity: 0.85; }
 
+.fl-notice {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fl-notice__dismiss {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.1);
+    border: none;
+    color: #00d4aa;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 @media (max-width: 600px) {
     .fl-grid { grid-template-columns: 1fr; }
     .fl-detail__header { flex-direction: column; }
