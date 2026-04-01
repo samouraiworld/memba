@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file memba/v1/memba.proto.
  */
 export const file_memba_v1_memba: GenFile = /*@__PURE__*/
-  fileDesc("ChRtZW1iYS92MS9tZW1iYS5wcm90bxIIbWVtYmEudjEiSAoJQ2hhbGxlbmdlEg0KBW5vbmNlGAEgASgMEhIKCmV4cGlyYXRpb24YAiABKAkSGAoQc2VydmVyX3NpZ25hdHVyZRgDIAEoDCJaCgVUb2tlbhINCgVub25jZRgBIAEoCRISCgpleHBpcmF0aW9uGAIgASgJEhQKDHVzZXJfYWRkcmVzcxgDIAEoCRIYChBzZXJ2ZXJfc2lnbmF0dXJlGAQgASgJIpQBChBUb2tlblJlcXVlc3RJbmZvEgwKBGtpbmQYASABKAkSJgoJY2hhbGxlbmdlGAIgASgLMhMubWVtYmEudjEuQ2hhbGxlbmdlEhoKEnVzZXJfYmVjaDMyX3ByZWZpeBgDIAEoCRIYChB1c2VyX3B1YmtleV9qc29uGAQgASgJEhQKDHVzZXJfYWRkcmVzcxgFIAEoCSIVChNHZXRDaGFsbGVuZ2VSZXF1ZXN0Ij4KFEdldENoYWxsZW5nZVJlc3BvbnNlEiYKCWNoYWxsZW5nZRgBIAEoCzITLm1lbWJhLnYxLkNoYWxsZW5nZSI8Cg9HZXRUb2tlblJlcXVlc3QSEQoJaW5mb19qc29uGAEgASgJEhYKDnVzZXJfc2lnbmF0dXJlGAIgASgJIjcKEEdldFRva2VuUmVzcG9uc2USIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuIrcBCghNdWx0aXNpZxISCgpjcmVhdGVkX2F0GAEgASgJEhAKCGNoYWluX2lkGAIgASgJEg8KB2FkZHJlc3MYAyABKAkSDgoGam9pbmVkGAQgASgIEgwKBG5hbWUYBSABKAkSEwoLcHVia2V5X2pzb24YBiABKAkSFwoPdXNlcnNfYWRkcmVzc2VzGAcgAygJEhEKCXRocmVzaG9sZBgIIAEoDRIVCg1tZW1iZXJzX2NvdW50GAkgASgNIpcBChtDcmVhdGVPckpvaW5NdWx0aXNpZ1JlcXVlc3QSEAoIY2hhaW5faWQYASABKAkSHAoUbXVsdGlzaWdfcHVia2V5X2pzb24YAiABKAkSIwoKYXV0aF90b2tlbhgDIAEoCzIPLm1lbWJhLnYxLlRva2VuEgwKBG5hbWUYBCABKAkSFQoNYmVjaDMyX3ByZWZpeBgFIAEoCSJZChxDcmVhdGVPckpvaW5NdWx0aXNpZ1Jlc3BvbnNlEg8KB2NyZWF0ZWQYASABKAgSDgoGam9pbmVkGAIgASgIEhgKEG11bHRpc2lnX2FkZHJlc3MYAyABKAkiZgoTTXVsdGlzaWdJbmZvUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SGAoQbXVsdGlzaWdfYWRkcmVzcxgCIAEoCRIQCghjaGFpbl9pZBgDIAEoCSI8ChRNdWx0aXNpZ0luZm9SZXNwb25zZRIkCghtdWx0aXNpZxgBIAEoCzISLm1lbWJhLnYxLk11bHRpc2lnIpYBChBNdWx0aXNpZ3NSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhINCgVsaW1pdBgCIAEoDRITCgtzdGFydF9hZnRlchgDIAEoCRIQCghjaGFpbl9pZBgEIAEoCRInCgpqb2luX3N0YXRlGAUgASgOMhMubWVtYmEudjEuSm9pblN0YXRlIjoKEU11bHRpc2lnc1Jlc3BvbnNlEiUKCW11bHRpc2lncxgBIAMoCzISLm1lbWJhLnYxLk11bHRpc2lnIlgKCVNpZ25hdHVyZRINCgV2YWx1ZRgBIAEoCRIUCgx1c2VyX2FkZHJlc3MYAiABKAkSEgoKYm9keV9ieXRlcxgDIAEoDBISCgpjcmVhdGVkX2F0GAQgASgJIuICCgtUcmFuc2FjdGlvbhIKCgJpZBgBIAEoDRISCgpjcmVhdGVkX2F0GAIgASgJEhIKCmZpbmFsX2hhc2gYAyABKAkSGAoQbXVsdGlzaWdfYWRkcmVzcxgEIAEoCRIQCghjaGFpbl9pZBgFIAEoCRIRCgltc2dzX2pzb24YBiABKAkSEAoIZmVlX2pzb24YByABKAkSFgoOYWNjb3VudF9udW1iZXIYCCABKA0SEAoIc2VxdWVuY2UYCSABKA0SFwoPY3JlYXRvcl9hZGRyZXNzGAogASgJEhEKCXRocmVzaG9sZBgLIAEoDRIVCg1tZW1iZXJzX2NvdW50GAwgASgNEgwKBG1lbW8YDSABKAkSJwoKc2lnbmF0dXJlcxgOIAMoCzITLm1lbWJhLnYxLlNpZ25hdHVyZRIcChRtdWx0aXNpZ19wdWJrZXlfanNvbhgPIAEoCRIMCgR0eXBlGBAgASgJItYBChhDcmVhdGVUcmFuc2FjdGlvblJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhgKEG11bHRpc2lnX2FkZHJlc3MYAiABKAkSFgoOYWNjb3VudF9udW1iZXIYAyABKA0SEAoIc2VxdWVuY2UYBCABKA0SEQoJbXNnc19qc29uGAUgASgJEhAKCGZlZV9qc29uGAYgASgJEhAKCGNoYWluX2lkGAcgASgJEgwKBG1lbW8YCCABKAkSDAoEdHlwZRgJIAEoCSIzChlDcmVhdGVUcmFuc2FjdGlvblJlc3BvbnNlEhYKDnRyYW5zYWN0aW9uX2lkGAEgASgNIr0BChNUcmFuc2FjdGlvbnNSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhINCgVsaW1pdBgCIAEoDRITCgtzdGFydF9hZnRlchgDIAEoCRIYChBtdWx0aXNpZ19hZGRyZXNzGAQgASgJEhAKCGNoYWluX2lkGAUgASgJEjEKD2V4ZWN1dGlvbl9zdGF0ZRgGIAEoDjIYLm1lbWJhLnYxLkV4ZWN1dGlvblN0YXRlIkMKFFRyYW5zYWN0aW9uc1Jlc3BvbnNlEisKDHRyYW5zYWN0aW9ucxgBIAMoCzIVLm1lbWJhLnYxLlRyYW5zYWN0aW9uIlQKFUdldFRyYW5zYWN0aW9uUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SFgoOdHJhbnNhY3Rpb25faWQYAiABKA0iRAoWR2V0VHJhbnNhY3Rpb25SZXNwb25zZRIqCgt0cmFuc2FjdGlvbhgBIAEoCzIVLm1lbWJhLnYxLlRyYW5zYWN0aW9uInwKFlNpZ25UcmFuc2FjdGlvblJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhEKCXNpZ25hdHVyZRgCIAEoCRIWCg50cmFuc2FjdGlvbl9pZBgDIAEoDRISCgpib2R5X2J5dGVzGAQgASgMIhkKF1NpZ25UcmFuc2FjdGlvblJlc3BvbnNlIm0KGkNvbXBsZXRlVHJhbnNhY3Rpb25SZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhIWCg50cmFuc2FjdGlvbl9pZBgCIAEoDRISCgpmaW5hbF9oYXNoGAMgASgJIh0KG0NvbXBsZXRlVHJhbnNhY3Rpb25SZXNwb25zZSKhAQoHUHJvZmlsZRIPCgdhZGRyZXNzGAEgASgJEgsKA2JpbxgCIAEoCRIPCgdjb21wYW55GAMgASgJEg0KBXRpdGxlGAQgASgJEhIKCmF2YXRhcl91cmwYBSABKAkSDwoHdHdpdHRlchgGIAEoCRIOCgZnaXRodWIYByABKAkSDwoHd2Vic2l0ZRgIIAEoCRISCgp1cGRhdGVkX2F0GAkgASgJIiQKEUdldFByb2ZpbGVSZXF1ZXN0Eg8KB2FkZHJlc3MYASABKAkiOAoSR2V0UHJvZmlsZVJlc3BvbnNlEiIKB3Byb2ZpbGUYASABKAsyES5tZW1iYS52MS5Qcm9maWxlIl8KFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhIiCgdwcm9maWxlGAIgASgLMhEubWVtYmEudjEuUHJvZmlsZSI7ChVVcGRhdGVQcm9maWxlUmVzcG9uc2USIgoHcHJvZmlsZRgBIAEoCzIRLm1lbWJhLnYxLlByb2ZpbGUiOQoPUXVlc3RDb21wbGV0aW9uEhAKCHF1ZXN0X2lkGAEgASgJEhQKDGNvbXBsZXRlZF9hdBgCIAEoCSJQCg5Vc2VyUXVlc3RTdGF0ZRIsCgljb21wbGV0ZWQYASADKAsyGS5tZW1iYS52MS5RdWVzdENvbXBsZXRpb24SEAoIdG90YWxfeHAYAiABKA0iTQoUQ29tcGxldGVRdWVzdFJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhAKCHF1ZXN0X2lkGAIgASgJIkAKFUNvbXBsZXRlUXVlc3RSZXNwb25zZRInCgVzdGF0ZRgBIAEoCzIYLm1lbWJhLnYxLlVzZXJRdWVzdFN0YXRlIicKFEdldFVzZXJRdWVzdHNSZXF1ZXN0Eg8KB2FkZHJlc3MYASABKAkiQAoVR2V0VXNlclF1ZXN0c1Jlc3BvbnNlEicKBXN0YXRlGAEgASgLMhgubWVtYmEudjEuVXNlclF1ZXN0U3RhdGUiaAoRU3luY1F1ZXN0c1JlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEi4KC2NvbXBsZXRpb25zGAIgAygLMhkubWVtYmEudjEuUXVlc3RDb21wbGV0aW9uIj0KElN5bmNRdWVzdHNSZXNwb25zZRInCgVzdGF0ZRgBIAEoCzIYLm1lbWJhLnYxLlVzZXJRdWVzdFN0YXRlKk4KCUpvaW5TdGF0ZRIaChZKT0lOX1NUQVRFX1VOU1BFQ0lGSUVEEAASEQoNSk9JTl9TVEFURV9JThABEhIKDkpPSU5fU1RBVEVfT1VUEAIqbAoORXhlY3V0aW9uU3RhdGUSHwobRVhFQ1VUSU9OX1NUQVRFX1VOU1BFQ0lGSUVEEAASGwoXRVhFQ1VUSU9OX1NUQVRFX1BFTkRJTkcQARIcChhFWEVDVVRJT05fU1RBVEVfRVhFQ1VURUQQAjLlCQoPTXVsdGlzaWdTZXJ2aWNlEk0KDEdldENoYWxsZW5nZRIdLm1lbWJhLnYxLkdldENoYWxsZW5nZVJlcXVlc3QaHi5tZW1iYS52MS5HZXRDaGFsbGVuZ2VSZXNwb25zZRJBCghHZXRUb2tlbhIZLm1lbWJhLnYxLkdldFRva2VuUmVxdWVzdBoaLm1lbWJhLnYxLkdldFRva2VuUmVzcG9uc2USZQoUQ3JlYXRlT3JKb2luTXVsdGlzaWcSJS5tZW1iYS52MS5DcmVhdGVPckpvaW5NdWx0aXNpZ1JlcXVlc3QaJi5tZW1iYS52MS5DcmVhdGVPckpvaW5NdWx0aXNpZ1Jlc3BvbnNlEk0KDE11bHRpc2lnSW5mbxIdLm1lbWJhLnYxLk11bHRpc2lnSW5mb1JlcXVlc3QaHi5tZW1iYS52MS5NdWx0aXNpZ0luZm9SZXNwb25zZRJECglNdWx0aXNpZ3MSGi5tZW1iYS52MS5NdWx0aXNpZ3NSZXF1ZXN0GhsubWVtYmEudjEuTXVsdGlzaWdzUmVzcG9uc2USXAoRQ3JlYXRlVHJhbnNhY3Rpb24SIi5tZW1iYS52MS5DcmVhdGVUcmFuc2FjdGlvblJlcXVlc3QaIy5tZW1iYS52MS5DcmVhdGVUcmFuc2FjdGlvblJlc3BvbnNlElMKDkdldFRyYW5zYWN0aW9uEh8ubWVtYmEudjEuR2V0VHJhbnNhY3Rpb25SZXF1ZXN0GiAubWVtYmEudjEuR2V0VHJhbnNhY3Rpb25SZXNwb25zZRJNCgxUcmFuc2FjdGlvbnMSHS5tZW1iYS52MS5UcmFuc2FjdGlvbnNSZXF1ZXN0Gh4ubWVtYmEudjEuVHJhbnNhY3Rpb25zUmVzcG9uc2USVgoPU2lnblRyYW5zYWN0aW9uEiAubWVtYmEudjEuU2lnblRyYW5zYWN0aW9uUmVxdWVzdBohLm1lbWJhLnYxLlNpZ25UcmFuc2FjdGlvblJlc3BvbnNlEmIKE0NvbXBsZXRlVHJhbnNhY3Rpb24SJC5tZW1iYS52MS5Db21wbGV0ZVRyYW5zYWN0aW9uUmVxdWVzdBolLm1lbWJhLnYxLkNvbXBsZXRlVHJhbnNhY3Rpb25SZXNwb25zZRJHCgpHZXRQcm9maWxlEhsubWVtYmEudjEuR2V0UHJvZmlsZVJlcXVlc3QaHC5tZW1iYS52MS5HZXRQcm9maWxlUmVzcG9uc2USUAoNVXBkYXRlUHJvZmlsZRIeLm1lbWJhLnYxLlVwZGF0ZVByb2ZpbGVSZXF1ZXN0Gh8ubWVtYmEudjEuVXBkYXRlUHJvZmlsZVJlc3BvbnNlElAKDUNvbXBsZXRlUXVlc3QSHi5tZW1iYS52MS5Db21wbGV0ZVF1ZXN0UmVxdWVzdBofLm1lbWJhLnYxLkNvbXBsZXRlUXVlc3RSZXNwb25zZRJQCg1HZXRVc2VyUXVlc3RzEh4ubWVtYmEudjEuR2V0VXNlclF1ZXN0c1JlcXVlc3QaHy5tZW1iYS52MS5HZXRVc2VyUXVlc3RzUmVzcG9uc2USRwoKU3luY1F1ZXN0cxIbLm1lbWJhLnYxLlN5bmNRdWVzdHNSZXF1ZXN0GhwubWVtYmEudjEuU3luY1F1ZXN0c1Jlc3BvbnNlQj1aO2dpdGh1Yi5jb20vc2Ftb3VyYWl3b3JsZC9tZW1iYS9iYWNrZW5kL2dlbi9tZW1iYS92MTttZW1iYXYxYgZwcm90bzM");
+  fileDesc("ChRtZW1iYS92MS9tZW1iYS5wcm90bxIIbWVtYmEudjEiSAoJQ2hhbGxlbmdlEg0KBW5vbmNlGAEgASgMEhIKCmV4cGlyYXRpb24YAiABKAkSGAoQc2VydmVyX3NpZ25hdHVyZRgDIAEoDCJaCgVUb2tlbhINCgVub25jZRgBIAEoCRISCgpleHBpcmF0aW9uGAIgASgJEhQKDHVzZXJfYWRkcmVzcxgDIAEoCRIYChBzZXJ2ZXJfc2lnbmF0dXJlGAQgASgJIpQBChBUb2tlblJlcXVlc3RJbmZvEgwKBGtpbmQYASABKAkSJgoJY2hhbGxlbmdlGAIgASgLMhMubWVtYmEudjEuQ2hhbGxlbmdlEhoKEnVzZXJfYmVjaDMyX3ByZWZpeBgDIAEoCRIYChB1c2VyX3B1YmtleV9qc29uGAQgASgJEhQKDHVzZXJfYWRkcmVzcxgFIAEoCSIVChNHZXRDaGFsbGVuZ2VSZXF1ZXN0Ij4KFEdldENoYWxsZW5nZVJlc3BvbnNlEiYKCWNoYWxsZW5nZRgBIAEoCzITLm1lbWJhLnYxLkNoYWxsZW5nZSI8Cg9HZXRUb2tlblJlcXVlc3QSEQoJaW5mb19qc29uGAEgASgJEhYKDnVzZXJfc2lnbmF0dXJlGAIgASgJIjcKEEdldFRva2VuUmVzcG9uc2USIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuIrcBCghNdWx0aXNpZxISCgpjcmVhdGVkX2F0GAEgASgJEhAKCGNoYWluX2lkGAIgASgJEg8KB2FkZHJlc3MYAyABKAkSDgoGam9pbmVkGAQgASgIEgwKBG5hbWUYBSABKAkSEwoLcHVia2V5X2pzb24YBiABKAkSFwoPdXNlcnNfYWRkcmVzc2VzGAcgAygJEhEKCXRocmVzaG9sZBgIIAEoDRIVCg1tZW1iZXJzX2NvdW50GAkgASgNIpcBChtDcmVhdGVPckpvaW5NdWx0aXNpZ1JlcXVlc3QSEAoIY2hhaW5faWQYASABKAkSHAoUbXVsdGlzaWdfcHVia2V5X2pzb24YAiABKAkSIwoKYXV0aF90b2tlbhgDIAEoCzIPLm1lbWJhLnYxLlRva2VuEgwKBG5hbWUYBCABKAkSFQoNYmVjaDMyX3ByZWZpeBgFIAEoCSJZChxDcmVhdGVPckpvaW5NdWx0aXNpZ1Jlc3BvbnNlEg8KB2NyZWF0ZWQYASABKAgSDgoGam9pbmVkGAIgASgIEhgKEG11bHRpc2lnX2FkZHJlc3MYAyABKAkiZgoTTXVsdGlzaWdJbmZvUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SGAoQbXVsdGlzaWdfYWRkcmVzcxgCIAEoCRIQCghjaGFpbl9pZBgDIAEoCSI8ChRNdWx0aXNpZ0luZm9SZXNwb25zZRIkCghtdWx0aXNpZxgBIAEoCzISLm1lbWJhLnYxLk11bHRpc2lnIpYBChBNdWx0aXNpZ3NSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhINCgVsaW1pdBgCIAEoDRITCgtzdGFydF9hZnRlchgDIAEoCRIQCghjaGFpbl9pZBgEIAEoCRInCgpqb2luX3N0YXRlGAUgASgOMhMubWVtYmEudjEuSm9pblN0YXRlIjoKEU11bHRpc2lnc1Jlc3BvbnNlEiUKCW11bHRpc2lncxgBIAMoCzISLm1lbWJhLnYxLk11bHRpc2lnIlgKCVNpZ25hdHVyZRINCgV2YWx1ZRgBIAEoCRIUCgx1c2VyX2FkZHJlc3MYAiABKAkSEgoKYm9keV9ieXRlcxgDIAEoDBISCgpjcmVhdGVkX2F0GAQgASgJIuICCgtUcmFuc2FjdGlvbhIKCgJpZBgBIAEoDRISCgpjcmVhdGVkX2F0GAIgASgJEhIKCmZpbmFsX2hhc2gYAyABKAkSGAoQbXVsdGlzaWdfYWRkcmVzcxgEIAEoCRIQCghjaGFpbl9pZBgFIAEoCRIRCgltc2dzX2pzb24YBiABKAkSEAoIZmVlX2pzb24YByABKAkSFgoOYWNjb3VudF9udW1iZXIYCCABKA0SEAoIc2VxdWVuY2UYCSABKA0SFwoPY3JlYXRvcl9hZGRyZXNzGAogASgJEhEKCXRocmVzaG9sZBgLIAEoDRIVCg1tZW1iZXJzX2NvdW50GAwgASgNEgwKBG1lbW8YDSABKAkSJwoKc2lnbmF0dXJlcxgOIAMoCzITLm1lbWJhLnYxLlNpZ25hdHVyZRIcChRtdWx0aXNpZ19wdWJrZXlfanNvbhgPIAEoCRIMCgR0eXBlGBAgASgJItYBChhDcmVhdGVUcmFuc2FjdGlvblJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhgKEG11bHRpc2lnX2FkZHJlc3MYAiABKAkSFgoOYWNjb3VudF9udW1iZXIYAyABKA0SEAoIc2VxdWVuY2UYBCABKA0SEQoJbXNnc19qc29uGAUgASgJEhAKCGZlZV9qc29uGAYgASgJEhAKCGNoYWluX2lkGAcgASgJEgwKBG1lbW8YCCABKAkSDAoEdHlwZRgJIAEoCSIzChlDcmVhdGVUcmFuc2FjdGlvblJlc3BvbnNlEhYKDnRyYW5zYWN0aW9uX2lkGAEgASgNIr0BChNUcmFuc2FjdGlvbnNSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhINCgVsaW1pdBgCIAEoDRITCgtzdGFydF9hZnRlchgDIAEoCRIYChBtdWx0aXNpZ19hZGRyZXNzGAQgASgJEhAKCGNoYWluX2lkGAUgASgJEjEKD2V4ZWN1dGlvbl9zdGF0ZRgGIAEoDjIYLm1lbWJhLnYxLkV4ZWN1dGlvblN0YXRlIkMKFFRyYW5zYWN0aW9uc1Jlc3BvbnNlEisKDHRyYW5zYWN0aW9ucxgBIAMoCzIVLm1lbWJhLnYxLlRyYW5zYWN0aW9uIlQKFUdldFRyYW5zYWN0aW9uUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SFgoOdHJhbnNhY3Rpb25faWQYAiABKA0iRAoWR2V0VHJhbnNhY3Rpb25SZXNwb25zZRIqCgt0cmFuc2FjdGlvbhgBIAEoCzIVLm1lbWJhLnYxLlRyYW5zYWN0aW9uInwKFlNpZ25UcmFuc2FjdGlvblJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhEKCXNpZ25hdHVyZRgCIAEoCRIWCg50cmFuc2FjdGlvbl9pZBgDIAEoDRISCgpib2R5X2J5dGVzGAQgASgMIhkKF1NpZ25UcmFuc2FjdGlvblJlc3BvbnNlIm0KGkNvbXBsZXRlVHJhbnNhY3Rpb25SZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhIWCg50cmFuc2FjdGlvbl9pZBgCIAEoDRISCgpmaW5hbF9oYXNoGAMgASgJIh0KG0NvbXBsZXRlVHJhbnNhY3Rpb25SZXNwb25zZSKhAQoHUHJvZmlsZRIPCgdhZGRyZXNzGAEgASgJEgsKA2JpbxgCIAEoCRIPCgdjb21wYW55GAMgASgJEg0KBXRpdGxlGAQgASgJEhIKCmF2YXRhcl91cmwYBSABKAkSDwoHdHdpdHRlchgGIAEoCRIOCgZnaXRodWIYByABKAkSDwoHd2Vic2l0ZRgIIAEoCRISCgp1cGRhdGVkX2F0GAkgASgJIiQKEUdldFByb2ZpbGVSZXF1ZXN0Eg8KB2FkZHJlc3MYASABKAkiOAoSR2V0UHJvZmlsZVJlc3BvbnNlEiIKB3Byb2ZpbGUYASABKAsyES5tZW1iYS52MS5Qcm9maWxlIl8KFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhIiCgdwcm9maWxlGAIgASgLMhEubWVtYmEudjEuUHJvZmlsZSI7ChVVcGRhdGVQcm9maWxlUmVzcG9uc2USIgoHcHJvZmlsZRgBIAEoCzIRLm1lbWJhLnYxLlByb2ZpbGUiOQoPUXVlc3RDb21wbGV0aW9uEhAKCHF1ZXN0X2lkGAEgASgJEhQKDGNvbXBsZXRlZF9hdBgCIAEoCSJQCg5Vc2VyUXVlc3RTdGF0ZRIsCgljb21wbGV0ZWQYASADKAsyGS5tZW1iYS52MS5RdWVzdENvbXBsZXRpb24SEAoIdG90YWxfeHAYAiABKA0iTQoUQ29tcGxldGVRdWVzdFJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEhAKCHF1ZXN0X2lkGAIgASgJIkAKFUNvbXBsZXRlUXVlc3RSZXNwb25zZRInCgVzdGF0ZRgBIAEoCzIYLm1lbWJhLnYxLlVzZXJRdWVzdFN0YXRlIicKFEdldFVzZXJRdWVzdHNSZXF1ZXN0Eg8KB2FkZHJlc3MYASABKAkiQAoVR2V0VXNlclF1ZXN0c1Jlc3BvbnNlEicKBXN0YXRlGAEgASgLMhgubWVtYmEudjEuVXNlclF1ZXN0U3RhdGUiaAoRU3luY1F1ZXN0c1JlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEi4KC2NvbXBsZXRpb25zGAIgAygLMhkubWVtYmEudjEuUXVlc3RDb21wbGV0aW9uIj0KElN5bmNRdWVzdHNSZXNwb25zZRInCgVzdGF0ZRgBIAEoCzIYLm1lbWJhLnYxLlVzZXJRdWVzdFN0YXRlIoQBCgRUZWFtEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLaW52aXRlX2NvZGUYAyABKAkSEgoKY3JlYXRlZF9ieRgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEiUKB21lbWJlcnMYBiADKAsyFC5tZW1iYS52MS5UZWFtTWVtYmVyIlIKClRlYW1NZW1iZXISDwoHYWRkcmVzcxgBIAEoCRIgCgRyb2xlGAIgASgOMhIubWVtYmEudjEuVGVhbVJvbGUSEQoJam9pbmVkX2F0GAMgASgJIkYKEUNyZWF0ZVRlYW1SZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhIMCgRuYW1lGAIgASgJIjIKEkNyZWF0ZVRlYW1SZXNwb25zZRIcCgR0ZWFtGAEgASgLMg4ubWVtYmEudjEuVGVhbSJGCg5HZXRUZWFtUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SDwoHdGVhbV9pZBgCIAEoCSIvCg9HZXRUZWFtUmVzcG9uc2USHAoEdGVhbRgBIAEoCzIOLm1lbWJhLnYxLlRlYW0iOAoRR2V0TXlUZWFtc1JlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuIjMKEkdldE15VGVhbXNSZXNwb25zZRIdCgV0ZWFtcxgBIAMoCzIOLm1lbWJhLnYxLlRlYW0iSwoPSm9pblRlYW1SZXF1ZXN0EiMKCmF1dGhfdG9rZW4YASABKAsyDy5tZW1iYS52MS5Ub2tlbhITCgtpbnZpdGVfY29kZRgCIAEoCSIwChBKb2luVGVhbVJlc3BvbnNlEhwKBHRlYW0YASABKAsyDi5tZW1iYS52MS5UZWFtIkgKEExlYXZlVGVhbVJlcXVlc3QSIwoKYXV0aF90b2tlbhgBIAEoCzIPLm1lbWJhLnYxLlRva2VuEg8KB3RlYW1faWQYAiABKAkiEwoRTGVhdmVUZWFtUmVzcG9uc2UijQEKG1VwZGF0ZVRlYW1NZW1iZXJSb2xlUmVxdWVzdBIjCgphdXRoX3Rva2VuGAEgASgLMg8ubWVtYmEudjEuVG9rZW4SDwoHdGVhbV9pZBgCIAEoCRIWCg5tZW1iZXJfYWRkcmVzcxgDIAEoCRIgCgRyb2xlGAQgASgOMhIubWVtYmEudjEuVGVhbVJvbGUiPAocVXBkYXRlVGVhbU1lbWJlclJvbGVSZXNwb25zZRIcCgR0ZWFtGAEgASgLMg4ubWVtYmEudjEuVGVhbSpOCglKb2luU3RhdGUSGgoWSk9JTl9TVEFURV9VTlNQRUNJRklFRBAAEhEKDUpPSU5fU1RBVEVfSU4QARISCg5KT0lOX1NUQVRFX09VVBACKmwKDkV4ZWN1dGlvblN0YXRlEh8KG0VYRUNVVElPTl9TVEFURV9VTlNQRUNJRklFRBAAEhsKF0VYRUNVVElPTl9TVEFURV9QRU5ESU5HEAESHAoYRVhFQ1VUSU9OX1NUQVRFX0VYRUNVVEVEEAIqUAoIVGVhbVJvbGUSGQoVVEVBTV9ST0xFX1VOU1BFQ0lGSUVEEAASFAoQVEVBTV9ST0xFX01FTUJFUhABEhMKD1RFQU1fUk9MRV9BRE1JThACMqcNCg9NdWx0aXNpZ1NlcnZpY2USTQoMR2V0Q2hhbGxlbmdlEh0ubWVtYmEudjEuR2V0Q2hhbGxlbmdlUmVxdWVzdBoeLm1lbWJhLnYxLkdldENoYWxsZW5nZVJlc3BvbnNlEkEKCEdldFRva2VuEhkubWVtYmEudjEuR2V0VG9rZW5SZXF1ZXN0GhoubWVtYmEudjEuR2V0VG9rZW5SZXNwb25zZRJlChRDcmVhdGVPckpvaW5NdWx0aXNpZxIlLm1lbWJhLnYxLkNyZWF0ZU9ySm9pbk11bHRpc2lnUmVxdWVzdBomLm1lbWJhLnYxLkNyZWF0ZU9ySm9pbk11bHRpc2lnUmVzcG9uc2USTQoMTXVsdGlzaWdJbmZvEh0ubWVtYmEudjEuTXVsdGlzaWdJbmZvUmVxdWVzdBoeLm1lbWJhLnYxLk11bHRpc2lnSW5mb1Jlc3BvbnNlEkQKCU11bHRpc2lncxIaLm1lbWJhLnYxLk11bHRpc2lnc1JlcXVlc3QaGy5tZW1iYS52MS5NdWx0aXNpZ3NSZXNwb25zZRJcChFDcmVhdGVUcmFuc2FjdGlvbhIiLm1lbWJhLnYxLkNyZWF0ZVRyYW5zYWN0aW9uUmVxdWVzdBojLm1lbWJhLnYxLkNyZWF0ZVRyYW5zYWN0aW9uUmVzcG9uc2USUwoOR2V0VHJhbnNhY3Rpb24SHy5tZW1iYS52MS5HZXRUcmFuc2FjdGlvblJlcXVlc3QaIC5tZW1iYS52MS5HZXRUcmFuc2FjdGlvblJlc3BvbnNlEk0KDFRyYW5zYWN0aW9ucxIdLm1lbWJhLnYxLlRyYW5zYWN0aW9uc1JlcXVlc3QaHi5tZW1iYS52MS5UcmFuc2FjdGlvbnNSZXNwb25zZRJWCg9TaWduVHJhbnNhY3Rpb24SIC5tZW1iYS52MS5TaWduVHJhbnNhY3Rpb25SZXF1ZXN0GiEubWVtYmEudjEuU2lnblRyYW5zYWN0aW9uUmVzcG9uc2USYgoTQ29tcGxldGVUcmFuc2FjdGlvbhIkLm1lbWJhLnYxLkNvbXBsZXRlVHJhbnNhY3Rpb25SZXF1ZXN0GiUubWVtYmEudjEuQ29tcGxldGVUcmFuc2FjdGlvblJlc3BvbnNlEkcKCkdldFByb2ZpbGUSGy5tZW1iYS52MS5HZXRQcm9maWxlUmVxdWVzdBocLm1lbWJhLnYxLkdldFByb2ZpbGVSZXNwb25zZRJQCg1VcGRhdGVQcm9maWxlEh4ubWVtYmEudjEuVXBkYXRlUHJvZmlsZVJlcXVlc3QaHy5tZW1iYS52MS5VcGRhdGVQcm9maWxlUmVzcG9uc2USUAoNQ29tcGxldGVRdWVzdBIeLm1lbWJhLnYxLkNvbXBsZXRlUXVlc3RSZXF1ZXN0Gh8ubWVtYmEudjEuQ29tcGxldGVRdWVzdFJlc3BvbnNlElAKDUdldFVzZXJRdWVzdHMSHi5tZW1iYS52MS5HZXRVc2VyUXVlc3RzUmVxdWVzdBofLm1lbWJhLnYxLkdldFVzZXJRdWVzdHNSZXNwb25zZRJHCgpTeW5jUXVlc3RzEhsubWVtYmEudjEuU3luY1F1ZXN0c1JlcXVlc3QaHC5tZW1iYS52MS5TeW5jUXVlc3RzUmVzcG9uc2USRwoKQ3JlYXRlVGVhbRIbLm1lbWJhLnYxLkNyZWF0ZVRlYW1SZXF1ZXN0GhwubWVtYmEudjEuQ3JlYXRlVGVhbVJlc3BvbnNlEj4KB0dldFRlYW0SGC5tZW1iYS52MS5HZXRUZWFtUmVxdWVzdBoZLm1lbWJhLnYxLkdldFRlYW1SZXNwb25zZRJHCgpHZXRNeVRlYW1zEhsubWVtYmEudjEuR2V0TXlUZWFtc1JlcXVlc3QaHC5tZW1iYS52MS5HZXRNeVRlYW1zUmVzcG9uc2USQQoISm9pblRlYW0SGS5tZW1iYS52MS5Kb2luVGVhbVJlcXVlc3QaGi5tZW1iYS52MS5Kb2luVGVhbVJlc3BvbnNlEkQKCUxlYXZlVGVhbRIaLm1lbWJhLnYxLkxlYXZlVGVhbVJlcXVlc3QaGy5tZW1iYS52MS5MZWF2ZVRlYW1SZXNwb25zZRJlChRVcGRhdGVUZWFtTWVtYmVyUm9sZRIlLm1lbWJhLnYxLlVwZGF0ZVRlYW1NZW1iZXJSb2xlUmVxdWVzdBomLm1lbWJhLnYxLlVwZGF0ZVRlYW1NZW1iZXJSb2xlUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9zYW1vdXJhaXdvcmxkL21lbWJhL2JhY2tlbmQvZ2VuL21lbWJhL3YxO21lbWJhdjFiBnByb3RvMw");
 
 /**
  * @generated from message memba.v1.Challenge
@@ -1092,6 +1092,322 @@ export const SyncQuestsResponseSchema: GenMessage<SyncQuestsResponse> = /*@__PUR
   messageDesc(file_memba_v1_memba, 38);
 
 /**
+ * @generated from message memba.v1.Team
+ */
+export type Team = Message<"memba.v1.Team"> & {
+  /**
+   * UUID
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * 8-char alphanumeric, unique
+   *
+   * @generated from field: string invite_code = 3;
+   */
+  inviteCode: string;
+
+  /**
+   * creator address
+   *
+   * @generated from field: string created_by = 4;
+   */
+  createdBy: string;
+
+  /**
+   * RFC3339
+   *
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: repeated memba.v1.TeamMember members = 6;
+   */
+  members: TeamMember[];
+};
+
+/**
+ * Describes the message memba.v1.Team.
+ * Use `create(TeamSchema)` to create a new message.
+ */
+export const TeamSchema: GenMessage<Team> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 39);
+
+/**
+ * @generated from message memba.v1.TeamMember
+ */
+export type TeamMember = Message<"memba.v1.TeamMember"> & {
+  /**
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  /**
+   * @generated from field: memba.v1.TeamRole role = 2;
+   */
+  role: TeamRole;
+
+  /**
+   * RFC3339
+   *
+   * @generated from field: string joined_at = 3;
+   */
+  joinedAt: string;
+};
+
+/**
+ * Describes the message memba.v1.TeamMember.
+ * Use `create(TeamMemberSchema)` to create a new message.
+ */
+export const TeamMemberSchema: GenMessage<TeamMember> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 40);
+
+/**
+ * @generated from message memba.v1.CreateTeamRequest
+ */
+export type CreateTeamRequest = Message<"memba.v1.CreateTeamRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+
+  /**
+   * 1-64 chars
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message memba.v1.CreateTeamRequest.
+ * Use `create(CreateTeamRequestSchema)` to create a new message.
+ */
+export const CreateTeamRequestSchema: GenMessage<CreateTeamRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 41);
+
+/**
+ * @generated from message memba.v1.CreateTeamResponse
+ */
+export type CreateTeamResponse = Message<"memba.v1.CreateTeamResponse"> & {
+  /**
+   * @generated from field: memba.v1.Team team = 1;
+   */
+  team?: Team;
+};
+
+/**
+ * Describes the message memba.v1.CreateTeamResponse.
+ * Use `create(CreateTeamResponseSchema)` to create a new message.
+ */
+export const CreateTeamResponseSchema: GenMessage<CreateTeamResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 42);
+
+/**
+ * @generated from message memba.v1.GetTeamRequest
+ */
+export type GetTeamRequest = Message<"memba.v1.GetTeamRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+
+  /**
+   * @generated from field: string team_id = 2;
+   */
+  teamId: string;
+};
+
+/**
+ * Describes the message memba.v1.GetTeamRequest.
+ * Use `create(GetTeamRequestSchema)` to create a new message.
+ */
+export const GetTeamRequestSchema: GenMessage<GetTeamRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 43);
+
+/**
+ * @generated from message memba.v1.GetTeamResponse
+ */
+export type GetTeamResponse = Message<"memba.v1.GetTeamResponse"> & {
+  /**
+   * @generated from field: memba.v1.Team team = 1;
+   */
+  team?: Team;
+};
+
+/**
+ * Describes the message memba.v1.GetTeamResponse.
+ * Use `create(GetTeamResponseSchema)` to create a new message.
+ */
+export const GetTeamResponseSchema: GenMessage<GetTeamResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 44);
+
+/**
+ * @generated from message memba.v1.GetMyTeamsRequest
+ */
+export type GetMyTeamsRequest = Message<"memba.v1.GetMyTeamsRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+};
+
+/**
+ * Describes the message memba.v1.GetMyTeamsRequest.
+ * Use `create(GetMyTeamsRequestSchema)` to create a new message.
+ */
+export const GetMyTeamsRequestSchema: GenMessage<GetMyTeamsRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 45);
+
+/**
+ * @generated from message memba.v1.GetMyTeamsResponse
+ */
+export type GetMyTeamsResponse = Message<"memba.v1.GetMyTeamsResponse"> & {
+  /**
+   * @generated from field: repeated memba.v1.Team teams = 1;
+   */
+  teams: Team[];
+};
+
+/**
+ * Describes the message memba.v1.GetMyTeamsResponse.
+ * Use `create(GetMyTeamsResponseSchema)` to create a new message.
+ */
+export const GetMyTeamsResponseSchema: GenMessage<GetMyTeamsResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 46);
+
+/**
+ * @generated from message memba.v1.JoinTeamRequest
+ */
+export type JoinTeamRequest = Message<"memba.v1.JoinTeamRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+
+  /**
+   * @generated from field: string invite_code = 2;
+   */
+  inviteCode: string;
+};
+
+/**
+ * Describes the message memba.v1.JoinTeamRequest.
+ * Use `create(JoinTeamRequestSchema)` to create a new message.
+ */
+export const JoinTeamRequestSchema: GenMessage<JoinTeamRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 47);
+
+/**
+ * @generated from message memba.v1.JoinTeamResponse
+ */
+export type JoinTeamResponse = Message<"memba.v1.JoinTeamResponse"> & {
+  /**
+   * @generated from field: memba.v1.Team team = 1;
+   */
+  team?: Team;
+};
+
+/**
+ * Describes the message memba.v1.JoinTeamResponse.
+ * Use `create(JoinTeamResponseSchema)` to create a new message.
+ */
+export const JoinTeamResponseSchema: GenMessage<JoinTeamResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 48);
+
+/**
+ * @generated from message memba.v1.LeaveTeamRequest
+ */
+export type LeaveTeamRequest = Message<"memba.v1.LeaveTeamRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+
+  /**
+   * @generated from field: string team_id = 2;
+   */
+  teamId: string;
+};
+
+/**
+ * Describes the message memba.v1.LeaveTeamRequest.
+ * Use `create(LeaveTeamRequestSchema)` to create a new message.
+ */
+export const LeaveTeamRequestSchema: GenMessage<LeaveTeamRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 49);
+
+/**
+ * @generated from message memba.v1.LeaveTeamResponse
+ */
+export type LeaveTeamResponse = Message<"memba.v1.LeaveTeamResponse"> & {
+};
+
+/**
+ * Describes the message memba.v1.LeaveTeamResponse.
+ * Use `create(LeaveTeamResponseSchema)` to create a new message.
+ */
+export const LeaveTeamResponseSchema: GenMessage<LeaveTeamResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 50);
+
+/**
+ * @generated from message memba.v1.UpdateTeamMemberRoleRequest
+ */
+export type UpdateTeamMemberRoleRequest = Message<"memba.v1.UpdateTeamMemberRoleRequest"> & {
+  /**
+   * @generated from field: memba.v1.Token auth_token = 1;
+   */
+  authToken?: Token;
+
+  /**
+   * @generated from field: string team_id = 2;
+   */
+  teamId: string;
+
+  /**
+   * @generated from field: string member_address = 3;
+   */
+  memberAddress: string;
+
+  /**
+   * @generated from field: memba.v1.TeamRole role = 4;
+   */
+  role: TeamRole;
+};
+
+/**
+ * Describes the message memba.v1.UpdateTeamMemberRoleRequest.
+ * Use `create(UpdateTeamMemberRoleRequestSchema)` to create a new message.
+ */
+export const UpdateTeamMemberRoleRequestSchema: GenMessage<UpdateTeamMemberRoleRequest> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 51);
+
+/**
+ * @generated from message memba.v1.UpdateTeamMemberRoleResponse
+ */
+export type UpdateTeamMemberRoleResponse = Message<"memba.v1.UpdateTeamMemberRoleResponse"> & {
+  /**
+   * @generated from field: memba.v1.Team team = 1;
+   */
+  team?: Team;
+};
+
+/**
+ * Describes the message memba.v1.UpdateTeamMemberRoleResponse.
+ * Use `create(UpdateTeamMemberRoleResponseSchema)` to create a new message.
+ */
+export const UpdateTeamMemberRoleResponseSchema: GenMessage<UpdateTeamMemberRoleResponse> = /*@__PURE__*/
+  messageDesc(file_memba_v1_memba, 52);
+
+/**
  * @generated from enum memba.v1.JoinState
  */
 export enum JoinState {
@@ -1142,6 +1458,32 @@ export enum ExecutionState {
  */
 export const ExecutionStateSchema: GenEnum<ExecutionState> = /*@__PURE__*/
   enumDesc(file_memba_v1_memba, 1);
+
+/**
+ * @generated from enum memba.v1.TeamRole
+ */
+export enum TeamRole {
+  /**
+   * @generated from enum value: TEAM_ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TEAM_ROLE_MEMBER = 1;
+   */
+  MEMBER = 1,
+
+  /**
+   * @generated from enum value: TEAM_ROLE_ADMIN = 2;
+   */
+  ADMIN = 2,
+}
+
+/**
+ * Describes the enum memba.v1.TeamRole.
+ */
+export const TeamRoleSchema: GenEnum<TeamRole> = /*@__PURE__*/
+  enumDesc(file_memba_v1_memba, 2);
 
 /**
  * MultisigService provides multisig wallet management and transaction coordination.
@@ -1278,6 +1620,56 @@ export const MultisigService: GenService<{
     methodKind: "unary";
     input: typeof SyncQuestsRequestSchema;
     output: typeof SyncQuestsResponseSchema;
+  },
+  /**
+   * Teams — Collaborative workspaces for DAO management
+   *
+   * @generated from rpc memba.v1.MultisigService.CreateTeam
+   */
+  createTeam: {
+    methodKind: "unary";
+    input: typeof CreateTeamRequestSchema;
+    output: typeof CreateTeamResponseSchema;
+  },
+  /**
+   * @generated from rpc memba.v1.MultisigService.GetTeam
+   */
+  getTeam: {
+    methodKind: "unary";
+    input: typeof GetTeamRequestSchema;
+    output: typeof GetTeamResponseSchema;
+  },
+  /**
+   * @generated from rpc memba.v1.MultisigService.GetMyTeams
+   */
+  getMyTeams: {
+    methodKind: "unary";
+    input: typeof GetMyTeamsRequestSchema;
+    output: typeof GetMyTeamsResponseSchema;
+  },
+  /**
+   * @generated from rpc memba.v1.MultisigService.JoinTeam
+   */
+  joinTeam: {
+    methodKind: "unary";
+    input: typeof JoinTeamRequestSchema;
+    output: typeof JoinTeamResponseSchema;
+  },
+  /**
+   * @generated from rpc memba.v1.MultisigService.LeaveTeam
+   */
+  leaveTeam: {
+    methodKind: "unary";
+    input: typeof LeaveTeamRequestSchema;
+    output: typeof LeaveTeamResponseSchema;
+  },
+  /**
+   * @generated from rpc memba.v1.MultisigService.UpdateTeamMemberRole
+   */
+  updateTeamMemberRole: {
+    methodKind: "unary";
+    input: typeof UpdateTeamMemberRoleRequestSchema;
+    output: typeof UpdateTeamMemberRoleResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_memba_v1_memba, 0);

@@ -30,6 +30,14 @@ service MultisigService {
   rpc CompleteQuest(CompleteQuestRequest) returns (CompleteQuestResponse);
   rpc GetUserQuests(GetUserQuestsRequest) returns (GetUserQuestsResponse);
   rpc SyncQuests(SyncQuestsRequest) returns (SyncQuestsResponse);
+
+  // Teams — Collaborative workspaces for DAO management
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
+  rpc GetMyTeams(GetMyTeamsRequest) returns (GetMyTeamsResponse);
+  rpc JoinTeam(JoinTeamRequest) returns (JoinTeamResponse);
+  rpc LeaveTeam(LeaveTeamRequest) returns (LeaveTeamResponse);
+  rpc UpdateTeamMemberRole(UpdateTeamMemberRoleRequest) returns (UpdateTeamMemberRoleResponse);
 }
 
 // --- Auth Messages ---
@@ -286,4 +294,80 @@ message SyncQuestsRequest {
 
 message SyncQuestsResponse {
   UserQuestState state = 1;
+}
+
+// --- Team Messages ---
+
+enum TeamRole {
+  TEAM_ROLE_UNSPECIFIED = 0;
+  TEAM_ROLE_MEMBER = 1;
+  TEAM_ROLE_ADMIN = 2;
+}
+
+message Team {
+  string id = 1;        // UUID
+  string name = 2;
+  string invite_code = 3;  // 8-char alphanumeric, unique
+  string created_by = 4;   // creator address
+  string created_at = 5;   // RFC3339
+  repeated TeamMember members = 6;
+}
+
+message TeamMember {
+  string address = 1;
+  TeamRole role = 2;
+  string joined_at = 3;  // RFC3339
+}
+
+message CreateTeamRequest {
+  Token auth_token = 1;
+  string name = 2;       // 1-64 chars
+}
+
+message CreateTeamResponse {
+  Team team = 1;
+}
+
+message GetTeamRequest {
+  Token auth_token = 1;
+  string team_id = 2;
+}
+
+message GetTeamResponse {
+  Team team = 1;
+}
+
+message GetMyTeamsRequest {
+  Token auth_token = 1;
+}
+
+message GetMyTeamsResponse {
+  repeated Team teams = 1;
+}
+
+message JoinTeamRequest {
+  Token auth_token = 1;
+  string invite_code = 2;
+}
+
+message JoinTeamResponse {
+  Team team = 1;
+}
+
+message LeaveTeamRequest {
+  Token auth_token = 1;
+  string team_id = 2;
+}
+
+message LeaveTeamResponse {}
+
+message UpdateTeamMemberRoleRequest {
+  Token auth_token = 1;
+  string team_id = 2;
+  string member_address = 3;
+  TeamRole role = 4;
+}
+
+message UpdateTeamMemberRoleResponse {
+  Team team = 1;
 }
