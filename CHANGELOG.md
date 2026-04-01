@@ -4,6 +4,30 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.27.0 (2026-04-01) — Security, Quest Backend & Feature Gates
+
+### Added
+
+- **Quest backend** — 3 ConnectRPC RPCs (CompleteQuest, GetUserQuests, SyncQuests), `003_quests.sql` migration, dual-write localStorage + backend (#217)
+- **Coming Soon gates** — `ComingSoonGate` component gating 4 aspirational pages (Marketplace, NFT, Services, Teams) behind `VITE_ENABLE_*` flags (#216)
+- **Feature activation plans** — 5 docs in `docs/features/` covering IBC, Marketplace, NFT, Services, Teams rollout (#218)
+- **Deployment Runbook** — placeholder for samcrew-deployer procedures (#215)
+
+### Fixed
+
+- **CSP drift** — Content Security Policy meta tag updated, Clerk dev domains stripped (#215)
+- **Docs accuracy** — version bumps, DEPLOYMENT.md corrections (#215)
+
+### Security
+
+- **Clerk dev domains removed** — no dev/staging Clerk domains in production CSP (#215)
+
+### Metrics
+
+- Frontend: 1,349 tests (59 files) — was 1,307 (56 files)
+- Backend: 73 tests (4 packages)
+- Build: 483 KB (< 520 KB budget)
+
 ## v2.26.0 (2026-03-31) — Hardening, Marketplace & Payroll
 
 ### Added
