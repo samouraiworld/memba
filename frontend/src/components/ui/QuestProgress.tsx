@@ -6,6 +6,8 @@
  */
 
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 import {
     QUESTS,
     CANDIDATURE_XP_THRESHOLD,
@@ -22,6 +24,7 @@ interface QuestProgressProps {
 }
 
 export function QuestProgress({ compact, address }: QuestProgressProps) {
+    const networkKey = useNetworkKey()
     const [state, setState] = useState<UserQuestState>(() =>
         address ? { completed: [], totalXP: 0 } : loadQuestProgress()
     )
@@ -81,6 +84,12 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
                     {eligible && " — Eligible!"}
                 </span>
             </div>
+
+            {eligible && !address && (
+                <Link to={`/${networkKey}/candidature`} className="quest-panel__cta">
+                    Apply for Memba DAO Membership →
+                </Link>
+            )}
 
             <div className="quest-panel__list">
                 {QUESTS.map(q => (

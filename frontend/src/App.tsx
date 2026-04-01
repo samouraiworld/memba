@@ -87,6 +87,9 @@ const Marketplace = lazy(() => import("./pages/Marketplace"))
 // ── Freelance Services (lazy — v3.0) ──
 const FreelanceServices = lazy(() => import("./pages/FreelanceServices"))
 
+// ── Candidature page (lazy — v2.28) ──
+const CandidaturePage = lazy(() => import("./pages/CandidaturePage"))
+
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
 
@@ -214,6 +217,9 @@ function App() {
             <Route path="teams" element={<GnoloveTeams />} />
             <Route path="teams/:teamName" element={<GnoloveTeamProfile />} />
           </Route>
+
+          {/* Candidature — Memba DAO membership application (v2.28) */}
+          <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />
 
           {/* Feedback (v2.10) */}
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
