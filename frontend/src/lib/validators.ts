@@ -4,6 +4,7 @@ import type { ValidatorHealthMeta } from "./validatorHealth"
 import { hexToBech32 } from "./dao/realmAddress"
 import { queryRender } from "./dao/shared"
 import { getExplorerBaseUrl } from "./config"
+import { resilientRpcCall } from "./rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -82,25 +83,16 @@ export interface ValidatorUptime {
 
 // ── RPC Helpers ───────────────────────────────────────────────
 
-/** Make a Tendermint JSON-RPC call. */
+/** Make a Tendermint JSON-RPC call with automatic RPC failover.
+ *  The rpcUrl parameter is kept for API compatibility but the resilient layer
+ *  handles failover to backup endpoints automatically. */
 async function rpcCall(
-    rpcUrl: string,
+    _rpcUrl: string,
     method: string,
     params: Record<string, string> = {},
     signal?: AbortSignal,
 ): Promise<unknown> {
-    const url = new URL(rpcUrl)
-    url.pathname = method
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
-
-    const res = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
-        signal,
-    })
-    if (!res.ok) throw new Error(`RPC ${method} failed: ${res.status}`)
-    const json = await res.json()
-    if (json.error) throw new Error(`RPC error: ${json.error.message || json.error}`)
-    return json.result
+    return resilientRpcCall(method, params, signal)
 }
 
 // ── Validators ────────────────────────────────────────────────

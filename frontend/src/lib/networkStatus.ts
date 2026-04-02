@@ -2,7 +2,10 @@
  * networkStatus.ts — Network health detection for status toasts.
  *
  * Sprint 12: Polls RPC /status endpoint to detect halted or slow networks.
+ * v2.29: Uses resilient RPC fallback for health checks.
  */
+
+import { getRpcUrlsInOrder } from "./rpcFallback"
 
 export type NetworkHealth = "healthy" | "slow" | "halted" | "unreachable"
 
@@ -24,35 +27,41 @@ const HALTED_THRESHOLD_SEC = 300 // 5 minutes
  * @returns Network health status
  */
 export async function checkNetworkHealth(rpcUrl: string): Promise<NetworkStatusResult> {
-    try {
-        const response = await fetch(`${rpcUrl}/status`, {
-            signal: AbortSignal.timeout(5000),
-        })
-        if (!response.ok) {
-            return { health: "unreachable", chainId: "", latestBlockTime: null, blockAge: Infinity }
+    // Try all available RPCs (primary + fallbacks) to determine network health.
+    // The network may be healthy even if our primary RPC is down.
+    const urls = getRpcUrlsInOrder()
+    // Always include the passed-in URL as first candidate
+    if (!urls.includes(rpcUrl)) urls.unshift(rpcUrl)
+
+    for (const url of urls) {
+        try {
+            const response = await fetch(`${url}/status`, {
+                signal: AbortSignal.timeout(5000),
+            })
+            if (!response.ok) continue
+
+            const data = await response.json()
+            const syncInfo = data?.result?.sync_info
+            if (!syncInfo?.latest_block_time) continue
+
+            const chainId = data?.result?.node_info?.network || ""
+            const latestBlockTime = new Date(syncInfo.latest_block_time)
+            const blockAge = Math.floor((Date.now() - latestBlockTime.getTime()) / 1000)
+
+            let health: NetworkHealth = "healthy"
+            if (blockAge > HALTED_THRESHOLD_SEC) {
+                health = "halted"
+            } else if (blockAge > SLOW_THRESHOLD_SEC) {
+                health = "slow"
+            }
+
+            return { health, chainId, latestBlockTime, blockAge }
+        } catch {
+            // Try next URL
         }
-
-        const data = await response.json()
-        const syncInfo = data?.result?.sync_info
-        if (!syncInfo?.latest_block_time) {
-            return { health: "unreachable", chainId: "", latestBlockTime: null, blockAge: Infinity }
-        }
-
-        const chainId = data?.result?.node_info?.network || ""
-        const latestBlockTime = new Date(syncInfo.latest_block_time)
-        const blockAge = Math.floor((Date.now() - latestBlockTime.getTime()) / 1000)
-
-        let health: NetworkHealth = "healthy"
-        if (blockAge > HALTED_THRESHOLD_SEC) {
-            health = "halted"
-        } else if (blockAge > SLOW_THRESHOLD_SEC) {
-            health = "slow"
-        }
-
-        return { health, chainId, latestBlockTime, blockAge }
-    } catch {
-        return { health: "unreachable", chainId: "", latestBlockTime: null, blockAge: Infinity }
     }
+
+    return { health: "unreachable", chainId: "", latestBlockTime: null, blockAge: Infinity }
 }
 
 /**

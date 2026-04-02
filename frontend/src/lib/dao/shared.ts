@@ -9,6 +9,7 @@
 
 import type { AminoMsg } from "../grc20"
 import { getUserRegistryPath } from "../config"
+import { resilientAbciQuery } from "../rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -97,31 +98,12 @@ export function sanitize(str: string): string {
     return str.replace(/[^a-zA-Z0-9_./:\-?=&]/g, "")
 }
 
-/** Low-level ABCI query via JSON-RPC POST. Returns decoded string or null.
- *  Uses TextDecoder for proper UTF-8 handling (atob alone corrupts multi-byte chars like em dash). */
-async function abciQuery(rpcUrl: string, path: string, data: string): Promise<string | null> {
-    try {
-        const b64Data = btoa(data)
-        const res = await fetch(rpcUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba-dao",
-                method: "abci_query",
-                params: { path, data: b64Data },
-            }),
-        })
-        const json = await res.json()
-        const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return null
-        // Decode base64 → binary string → Uint8Array → UTF-8 string
-        const binaryStr = atob(value)
-        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
-        return new TextDecoder().decode(bytes)
-    } catch {
-        return null
-    }
+/** Low-level ABCI query with automatic RPC failover.
+ *  Uses TextDecoder for proper UTF-8 handling (atob alone corrupts multi-byte chars like em dash).
+ *  The rpcUrl parameter is kept for API compatibility but the resilient layer
+ *  handles failover to backup endpoints automatically. */
+async function abciQuery(_rpcUrl: string, path: string, data: string): Promise<string | null> {
+    return resilientAbciQuery(path, data)
 }
 
 // ── Username Resolution ───────────────────────────────────────
