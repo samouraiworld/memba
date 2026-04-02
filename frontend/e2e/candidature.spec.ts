@@ -37,9 +37,7 @@ test.describe('Candidature — XP Gate', () => {
 
     test('quest progress widget shown when locked', async ({ page }) => {
         await page.goto('/candidature')
-        // The QuestProgress component should be embedded in the gate
-        const questHub = page.locator('[data-testid="quest-hub"]')
-        // May or may not be visible depending on the exact gate rendering
+        // Quest progress widget should be embedded in the gate
         await expect(page.locator('body')).toContainText(/Quest|XP/)
     })
 })

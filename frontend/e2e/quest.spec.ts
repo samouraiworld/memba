@@ -8,9 +8,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Quest Hub — Profile Page', () => {
     test('quest hub renders collapsed on profile page', async ({ page }) => {
         await page.goto('/profile/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')
-        // Quest Hub should be visible (collapsed by default)
-        const hub = page.locator('[data-testid="quest-hub"]')
-        // May or may not be visible depending on auth state, but page should not crash
+        // Page should load without crash
         await expect(page.locator('body')).not.toBeEmpty()
     })
 

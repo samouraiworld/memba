@@ -36,7 +36,6 @@ vi.mock("../../hooks/useNetworkNav", () => ({
     useNetworkKey: () => "test12",
 }))
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const questsMock = await import("../../lib/quests")
 
 function renderWithRouter(ui: React.ReactElement) {

@@ -26,7 +26,6 @@ import {
     getRequiredDeposit,
     MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
-    MIN_DEPOSIT_UGNOT,
     type Candidature,
 } from "../lib/candidatureTemplate"
 import { MEMBA_DAO, GNO_RPC_URL } from "../lib/config"
