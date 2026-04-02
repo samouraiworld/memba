@@ -62,13 +62,11 @@ export async function checkChainHealth(
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
                 const data = await res.json()
                 // Tendermint RPC wraps result in { result: { ... } }
-                // Tendermint RPC response shape is dynamic — safe to cast here
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const rpcData = data as any
-                const syncInfo = rpcData?.result?.sync_info || rpcData?.sync_info || {}
+                const syncInfo = (data as any)?.result?.sync_info || (data as any)?.sync_info || {}
                 const blockHeight = parseInt(syncInfo.latest_block_height || "0", 10)
-                const chainId = rpcData?.result?.node_info?.network
-                    || rpcData?.node_info?.network
+                const chainId = (data as any)?.result?.node_info?.network
+                    || (data as any)?.node_info?.network
                     || network.chainId
                 return { rpc, blockHeight, chainId }
             }),
