@@ -59,8 +59,8 @@
 |---------|-------|---------------|
 | `cmd/memba` | `main.go` | Server entry, CORS (`connectrpc.com/cors`), rate limiter, graceful shutdown |
 | `internal/auth` | `crypto.go`, `crypto_test.go` | Challenge/token lifecycle, ADR-036, secp256k1 |
-| `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go`, `profile_rpc.go`, `github_oauth.go` | Core struct + 11 RPC handlers + GitHub OAuth (CSRF-protected) |
-| `internal/db` | `db.go`, `migrations/` | SQLite connection, migration runner |
+| `internal/service` | `service.go`, `auth_rpc.go`, `multisig_rpc.go`, `tx_rpc.go`, `profile_rpc.go`, `github_oauth.go`, `quest_rpc.go`, `team_rpc.go`, `render_proxy.go` | Core struct + 20 RPC handlers + GitHub OAuth (CSRF-protected) |
+| `internal/db` | `db.go`, `migrations/` (001-004) | SQLite connection, migration runner |
 | `gen/memba/v1` | Generated | Proto stubs (Go + ConnectRPC) |
 
 ## Frontend Structure
@@ -108,6 +108,12 @@
 | `hooks/gnolove/index.ts` | 13 React Query hooks scoped to GnoloveLayout QueryClientProvider |
 | `layouts/GnoloveLayout.tsx` | Section-scoped layout with isolated React Query cache + sub-nav |
 | `pages/gnolove/` | GnoloveHome (scoreboard), GnoloveReport (weekly PRs), GnoloveAnalytics (charts) |
+| `lib/quests.ts` | Quest system: 10 quests, XP tracking, dual-write (localStorage + backend ConnectRPC), page visit tracking |
+| `components/ui/QuestProgress.tsx` | Quest completion status widget (compact/full modes), SVG radial progress ring |
+| `pages/CandidaturePage.tsx` | XP-gated Memba DAO membership application form |
+| `pages/OrganizationsPage.tsx` | Team workspaces: create, invite, join, member management |
+| `components/org/OrgContent.tsx` | Team content pane: member list, invite link, role management |
+| `contexts/OrgContext.tsx` | Team state provider: active team, team mode toggle, team CRUD |
 
 ## Data Flow — Multisig Transaction
 
@@ -128,13 +134,29 @@
 
 ## Database Schema
 
-5 tables + 1 migration tracker:
+9 tables + 1 migration tracker:
 - `multisigs` — chain_id, address, pubkey_json, threshold, members_count
 - `user_multisigs` — user↔multisig membership, join state, role
 - `transactions` — proposed txs with msgs, fees, sequence, final_hash
 - `signatures` — per-user signature on a transaction
 - `profiles` — user profile data (bio, company, title, avatar_url, social links)
+- `quest_completions` — per-user quest progress (quest_id, completed_at)
+- `teams` — team workspaces (name, invite_code, created_by)
+- `team_members` — user↔team membership (address, role: admin/member, joined_at)
 - `_migrations` — schema version tracking
+
+### RPC Surface (v2.28.0)
+
+| Category | RPCs | Auth? |
+|----------|------|-------|
+| **Auth** | `GetChallenge`, `Authenticate` | No |
+| **Multisig** | `CreateMultisig`, `GetMultisig`, `GetMultisigsForUser` | Mixed |
+| **Transactions** | `ProposeTransaction`, `AddSignature`, `CompleteTransaction`, `GetTransactionsForMultisig` | Yes |
+| **Profiles** | `GetProfile`, `UpdateProfile` | Mixed |
+| **GitHub OAuth** | `GetOAuthState`, `HandleCallback` | No |
+| **Quests** | `CompleteQuest`, `GetUserQuests`, `SyncQuests` | Mixed |
+| **Teams** | `CreateTeam`, `GetTeam`, `GetMyTeams`, `JoinTeam`, `LeaveTeam`, `UpdateTeamMemberRole` | Yes |
+| **Render** | `RenderProxy` (ABCI passthrough) | No |
 
 ## Validators Telemetry Layer (v2.14+)
 

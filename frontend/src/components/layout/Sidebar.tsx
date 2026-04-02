@@ -4,7 +4,7 @@ import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
     LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
-    Handshake, ImageSquare,
+    Handshake, ImageSquare, Bank,
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
@@ -185,7 +185,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
-                        <SidebarLink to="/candidature" icon={<span style={{ fontSize: 18 }}>🏛️</span>} label="Candidature" connected={connected} collapsed={collapsed} />
+                        <SidebarLink to="/candidature" icon={<Bank size={18} />} label="Candidature" connected={connected} collapsed={collapsed} />
                     )}
                     <SidebarLink to="/feedback" icon={<Megaphone size={18} />} label="Feedback" connected={connected} collapsed={collapsed} />
                 </div>

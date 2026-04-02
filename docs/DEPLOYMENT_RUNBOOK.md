@@ -411,4 +411,35 @@ npm run build              # verify build succeeds
 
 ---
 
-*Expanded from placeholder during v2.27 docs session. Source of truth for all samcrew on-chain deployments.*
+## Realm Deploy Rollback
+
+> ⚠️ **On-chain realm deployment is NOT reversible.** If a realm deploys with a bug, you cannot update the code at the same path. The VM returns `"package already exists"`.
+
+**Recovery strategy:**
+1. **If deploy fails pre-broadcast** (lint, sequence, gas): Fix and re-run. No chain state affected.
+2. **If deploy succeeds with buggy code**: Deploy a fixed version at a **versioned path suffix**:
+   - `gno.land/r/samcrew/memba_dao_candidature` → `gno.land/r/samcrew/memba_dao_candidature/v2`
+   - Update all frontend references to the new path
+3. **If deploy partially lands** (timeout, ambiguous): Run `samcrew-status.sh` to check on-chain state before retrying.
+
+---
+
+## Feature Flags Reference
+
+Frontend feature flags are configured as **Netlify environment variables** (NOT committed to `netlify.toml`).
+
+| Flag | Default | Status | Notes |
+|------|---------|--------|-------|
+| `VITE_ENABLE_TEAMS` | `false` | ✅ Ready to enable | Backend + frontend shipped in v2.28. Set to `true` via Netlify UI. |
+| `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | Agent registry realm not deployed. Mock data only. |
+| `VITE_ENABLE_NFT` | `false` | 🔒 Gated | GRC721 standard evolving upstream. No seed collections. |
+| `VITE_ENABLE_SERVICES` | `false` | 🔒 Gated | Escrow realm not deployed. |
+
+**Where to set:** Netlify Dashboard → Site → Build & Deploy → Environment Variables.
+**NOT in:** `netlify.toml`, `.env`, or any committed file.
+
+See `docs/features/` for detailed activation plans per feature.
+
+---
+
+*Expanded from placeholder during v2.27 docs session. Updated v2.29 with rollback and feature flags. Source of truth for all samcrew on-chain deployments.*

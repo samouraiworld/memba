@@ -23,9 +23,8 @@ import {
     parseSkills,
     buildSubmitCandidatureMsg,
     parseCandidatureList,
-    getCandidatureSendAmount,
-    MAX_NAME_LENGTH,
-    MAX_PHILOSOPHY_LENGTH,
+    getRequiredDeposit,
+    MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
     type Candidature,
 } from "../lib/candidatureTemplate"
@@ -41,8 +40,7 @@ export default function CandidaturePage() {
 
     const [eligible, setEligible] = useState(false)
     const [questState, setQuestState] = useState(() => loadQuestProgress())
-    const [name, setName] = useState("")
-    const [philosophy, setPhilosophy] = useState("")
+    const [bio, setBio] = useState("")
     const [skills, setSkills] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
@@ -74,13 +72,13 @@ export default function CandidaturePage() {
 
     useEffect(() => { loadCandidatures() }, [loadCandidatures])
 
-    // Check if this user already submitted
+    // Check if this user already submitted (pending application in list)
+    const userAddr = auth.address || adena.address
     const existingCandidature = candidatures.find(
-        c => c.applicant === (auth.address || adena.address)
+        c => c.applicant === userAddr
     )
-    const pastRejections = candidatures.filter(
-        c => c.applicant === (auth.address || adena.address) && c.status === "rejected"
-    ).length
+    // Count prior applications to determine deposit scaling
+    const applyCount = existingCandidature?.applyCount || 0
 
     const handleSubmit = async () => {
         if (!adena.connected || !auth.isAuthenticated) {
@@ -88,7 +86,7 @@ export default function CandidaturePage() {
             return
         }
 
-        const validationError = validateCandidature(name, philosophy, skills)
+        const validationError = validateCandidature(bio, skills)
         if (validationError) {
             setError(validationError)
             return
@@ -100,11 +98,10 @@ export default function CandidaturePage() {
         try {
             const msg = buildSubmitCandidatureMsg(
                 adena.address,
-                name.trim(),
-                philosophy.trim(),
+                bio.trim(),
                 skills.trim(),
                 MEMBA_DAO.candidaturePath,
-                pastRejections,
+                applyCount,
             )
             await doContractBroadcast([msg], "Memba DAO Candidature")
             setSubmitted(true)
@@ -116,7 +113,7 @@ export default function CandidaturePage() {
         }
     }
 
-    const sendCost = getCandidatureSendAmount(pastRejections)
+    const requiredDeposit = getRequiredDeposit(applyCount)
 
     return (
         <div className="candidature-page animate-fade-in">
@@ -149,13 +146,15 @@ export default function CandidaturePage() {
                         {existingCandidature.status === "pending" && "⏳ Candidature Pending"}
                         {existingCandidature.status === "approved" && "✅ Candidature Approved"}
                         {existingCandidature.status === "rejected" && "❌ Candidature Rejected"}
+                        {existingCandidature.status === "withdrawn" && "↩ Candidature Withdrawn"}
                     </h3>
                     <p className="candidature-status__meta">
-                        Name: {existingCandidature.name} | Skills: {existingCandidature.skills}
+                        Deposit: {Number(existingCandidature.deposit) / 1_000_000} GNOT
+                        {existingCandidature.skills && ` | Skills: ${existingCandidature.skills}`}
                     </p>
                     {existingCandidature.status === "pending" && (
                         <p className="candidature-status__approvals">
-                            Approvals: {existingCandidature.approvedBy.length}/2
+                            Awaiting DAO governance vote for approval
                         </p>
                     )}
                 </div>
@@ -166,38 +165,23 @@ export default function CandidaturePage() {
                 <div className="k-card candidature-form">
                     <h3 className="candidature-form__title">Submit Your Application</h3>
 
-                    {sendCost > 0n && (
-                        <div className="candidature-form__cost">
-                            Re-application fee: {Number(sendCost) / 1_000_000} GNOT
-                        </div>
-                    )}
-
-                    <div className="candidature-form__field">
-                        <label htmlFor="cand-name">Name</label>
-                        <input
-                            id="cand-name"
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            maxLength={MAX_NAME_LENGTH}
-                            placeholder="Your name or pseudonym"
-                            disabled={submitting}
-                        />
-                        <span className="candidature-form__counter">{name.length}/{MAX_NAME_LENGTH}</span>
+                    <div className="candidature-form__cost">
+                        Required deposit: {Number(requiredDeposit) / 1_000_000} GNOT
+                        {applyCount > 0 && ` (attempt #${applyCount + 1} — deposit scales 10x per re-application)`}
                     </div>
 
                     <div className="candidature-form__field">
-                        <label htmlFor="cand-philosophy">Why Memba?</label>
+                        <label htmlFor="cand-bio">Bio</label>
                         <textarea
-                            id="cand-philosophy"
-                            value={philosophy}
-                            onChange={e => setPhilosophy(e.target.value)}
-                            maxLength={MAX_PHILOSOPHY_LENGTH}
-                            placeholder="Tell us why you want to join Memba DAO and what you'll contribute..."
-                            rows={4}
+                            id="cand-bio"
+                            value={bio}
+                            onChange={e => setBio(e.target.value)}
+                            maxLength={MAX_BIO_LENGTH}
+                            placeholder="Tell us about yourself, why you want to join Memba DAO, and what you'll contribute..."
+                            rows={5}
                             disabled={submitting}
                         />
-                        <span className="candidature-form__counter">{philosophy.length}/{MAX_PHILOSOPHY_LENGTH}</span>
+                        <span className="candidature-form__counter">{bio.length}/{MAX_BIO_LENGTH}</span>
                     </div>
 
                     <div className="candidature-form__field">
@@ -227,7 +211,7 @@ export default function CandidaturePage() {
                         onClick={handleSubmit}
                         disabled={submitting || !adena.connected}
                     >
-                        {submitting ? "Submitting..." : "Submit Candidature"}
+                        {submitting ? "Submitting..." : `Submit Candidature (${Number(requiredDeposit) / 1_000_000} GNOT deposit)`}
                     </button>
                 </div>
             )}
@@ -259,21 +243,16 @@ export default function CandidaturePage() {
                         {candidatures.map(c => (
                             <div key={c.applicant} className={`candidature-list__item candidature-list__item--${c.status}`}>
                                 <div className="candidature-list__item-header">
-                                    <span className="candidature-list__item-name">{c.name}</span>
+                                    <span className="candidature-list__item-name">
+                                        {c.applicant.slice(0, 10)}...{c.applicant.slice(-4)}
+                                    </span>
                                     <span className={`candidature-list__item-badge candidature-list__item-badge--${c.status}`}>
                                         {c.status}
                                     </span>
                                 </div>
                                 <span className="candidature-list__item-addr">
-                                    {c.applicant.slice(0, 10)}...{c.applicant.slice(-4)}
+                                    Deposit: {Number(c.deposit) / 1_000_000} GNOT — block {c.appliedAt}
                                 </span>
-                                {c.skills && (
-                                    <div className="candidature-list__item-skills">
-                                        {parseSkills(c.skills).map(s => (
-                                            <span key={s} className="candidature-skill-tag candidature-skill-tag--sm">{s}</span>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>
