@@ -318,7 +318,7 @@ export function validateActiveRpcDomain(): string | null {
 // ── 8. MembaDAO Token ────────────────────────────────────────
 
 /** GRC20 factory realm path (shared with grc20.ts). */
-export const GRC20_FACTORY_PATH = "gno.land/r/demo/defi/grc20factory"
+export const GRC20_FACTORY_PATH = "gno.land/r/samcrew/tokenfactory"
 
 /** Memba token config for development (test12). */
 export const MEMBA_TOKEN_DEV = {

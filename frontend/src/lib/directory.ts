@@ -589,7 +589,7 @@ export const SEED_REALMS: DirectoryRealm[] = [
     { name: "GRC20 Registry", path: "gno.land/r/demo/grc20reg", description: "Token registry — lists all GRC20 tokens", category: "standard" },
     { name: "User Registry", path: getUserRegistryPath(), description: "On-chain username registry", category: "standard" },
     { name: "GnoSwap", path: "gno.land/r/gnoswap/v1/router", description: "Decentralized token exchange", category: "defi" },
-    { name: "GRC20 Factory", path: "gno.land/r/demo/defi/grc20factory", description: "Deploy new GRC20 tokens", category: "defi" },
+    { name: "GRC20 Factory", path: "gno.land/r/samcrew/tokenfactory", description: "Deploy new GRC20 tokens", category: "defi" },
     { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },
     { name: "Blog", path: "gno.land/r/gnoland/blog", description: "Official gno.land blog", category: "social" },
     { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Faucet for ugnot", category: "utility" },

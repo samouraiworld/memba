@@ -7,7 +7,7 @@ import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
-import { syncQuestsToBackend, completeQuest } from "../../lib/quests"
+import { syncQuestsToBackend, completeQuest, setQuestWalletAddress } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
@@ -18,6 +18,7 @@ import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
+import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -104,6 +105,15 @@ export function Layout() {
             setAuthLoading(false)
         }
     }, [adena, auth])
+
+    // H-06: Set wallet address for per-wallet quest isolation
+    useEffect(() => {
+        if (adena.connected && adena.address) {
+            setQuestWalletAddress(adena.address)
+        } else if (!adena.connected && !adena.reconnecting) {
+            setQuestWalletAddress(null)
+        }
+    }, [adena.connected, adena.address, adena.reconnecting])
 
     useEffect(() => {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {
@@ -217,6 +227,12 @@ export function Layout() {
                             setWalletSwitchMsg(`✅ Wallet switched to ${chainName}`)
                             setTimeout(() => setWalletSwitchMsg(null), 3000)
                         }}
+                    />
+
+                    {/* ── C-02: Chain Halted Banner ── */}
+                    <ChainHaltedBanner
+                        networkKey={network.networkKey}
+                        onSwitchNetwork={network.switchNetwork}
                     />
 
                     {/* ── Main ─────────────────────────────────────── */}

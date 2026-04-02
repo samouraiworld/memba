@@ -150,6 +150,7 @@ function FeaturePlayer({ Comp, durationInFrames }: { Comp: React.FC; durationInF
             fps={30}
             loop
             autoPlay
+            acknowledgeRemotionLicense
             style={{ width: "100%", height: "100%" }}
             controls={false}
         />
