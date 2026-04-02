@@ -1,64 +1,375 @@
 /**
- * Quest progress styles.
- * Sprint 13: Memba DAO quest system.
+ * Quest Hub styles — v2.29 gamified redesign.
+ *
+ * Architecture:
+ *   .quest-hub          — <details> container
+ *   .quest-hub__summary — <summary> collapsed bar
+ *   .quest-hub__content — expanded grid wrapper (grid-template-rows transition)
+ *   .quest-card         — individual quest item
+ *   .quest-ring         — SVG radial progress
+ *   .quest-compact      — miniature sidebar mode (unchanged)
  */
 
-/* ── Compact (sidebar/profile badge) ─────────── */
+/* ── Compact (sidebar badge, unchanged API) ──────────── */
 .quest-compact { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
 .quest-compact__bar { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
 .quest-compact__fill { height: 100%; background: var(--color-primary, #00d4aa); border-radius: 2px; transition: width 0.3s; }
 .quest-compact__label { font-size: 10px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--color-primary, #00d4aa); white-space: nowrap; }
 
-/* ── Full Panel ──────────────────────────────── */
-.quest-panel { display: flex; flex-direction: column; gap: 16px; }
-.quest-panel__title { font-size: 18px; font-weight: 600; }
-.quest-panel__subtitle { font-size: 12px; color: var(--color-text-secondary, #888); font-family: var(--font-mono, 'JetBrains Mono', monospace); }
+/* ── Quest Hub Container ─────────────────────────────── */
+.quest-hub {
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-lg, 12px);
+    background: rgba(0,0,0,0.15);
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
 
-.quest-panel__progress { display: flex; flex-direction: column; gap: 6px; }
-.quest-panel__bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
-.quest-panel__fill { height: 100%; background: var(--color-primary, #00d4aa); border-radius: 4px; transition: width 0.3s; }
-.quest-panel__xp { font-size: 12px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--color-text-secondary, #888); }
+.quest-hub:hover {
+    border-color: rgba(0, 212, 170, 0.15);
+}
 
-/* ── Quest Items ─────────────────────────────── */
-.quest-panel__list { display: flex; flex-direction: column; gap: 4px; }
+.quest-hub--loading {
+    padding: 16px;
+}
 
-.quest-item {
+/* ── Summary Bar (collapsed state) ───────────────────── */
+.quest-hub__summary {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    border-radius: var(--radius-md, 8px);
-    border: 1px solid rgba(255,255,255,0.04);
-    background: rgba(0,0,0,0.15);
-    transition: background 0.15s;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    position: relative;
+    list-style: none; /* remove default marker */
+    user-select: none;
+    transition: background 0.15s, transform 0.15s;
 }
 
-.quest-item--done {
-    background: rgba(0, 212, 170, 0.04);
-    border-color: rgba(0, 212, 170, 0.1);
+.quest-hub__summary::-webkit-details-marker { display: none; }
+.quest-hub__summary::marker { display: none; content: ""; }
+
+.quest-hub__summary:hover {
+    background: rgba(255,255,255,0.02);
+    transform: translateY(-1px);
 }
 
-.quest-item__icon { font-size: 16px; flex-shrink: 0; }
-.quest-item__info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.quest-item__title { font-size: 13px; font-weight: 500; }
-.quest-item__desc { font-size: 11px; color: var(--color-text-secondary, #888); font-family: var(--font-mono, 'JetBrains Mono', monospace); }
-.quest-item__xp { font-size: 11px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--color-primary, #00d4aa); white-space: nowrap; }
-.quest-item--done .quest-item__title { color: var(--color-text-secondary, #888); text-decoration: line-through; }
-.quest-item--done .quest-item__xp { color: var(--color-text-dim, #555); }
+.quest-hub__info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 
-/* ── Candidature CTA ───────────────────────────── */
-.quest-panel__cta {
-    display: block;
-    text-align: center;
-    padding: 10px;
-    border-radius: 6px;
+.quest-hub__count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary, #f0f0f0);
+}
+
+.quest-hub__separator {
+    color: var(--color-text-dim, #444);
+    font-size: 13px;
+}
+
+.quest-hub__xp {
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+}
+
+.quest-hub__xp--eligible {
+    color: var(--color-primary, #00d4aa);
+    animation: quest-pulse 2s ease-in-out infinite;
+}
+
+.quest-hub__eligible-badge {
+    font-size: 9px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.12);
+    color: var(--color-primary, #00d4aa);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+.quest-hub__label {
+    font-size: 12px;
+    color: var(--color-text-secondary, #888);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* Chevron rotation */
+.quest-hub__chevron {
+    color: var(--color-text-dim, #555);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.quest-hub[open] .quest-hub__chevron {
+    transform: rotate(180deg);
+}
+
+/* Progress accent bar */
+.quest-hub__accent {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.04);
+}
+
+.quest-hub__accent-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00d4aa, #2196f3, #7b61ff);
+    border-radius: 1px;
+    transition: width 0.5s ease-out;
+}
+
+/* ── Expanded Content (grid-template-rows animation) ── */
+.quest-hub__content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out;
+}
+
+.quest-hub[open] .quest-hub__content {
+    grid-template-rows: 1fr;
+}
+
+.quest-hub__content > * {
+    overflow: hidden;
+}
+
+/* Inner padding wrapper — applied via direct children */
+.quest-hub__hero {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 16px 0;
+}
+
+.quest-hub__hero-info {
+    flex: 1;
+}
+
+.quest-hub__hero-xp {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.quest-hub__xp-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-primary, #00d4aa);
+    font-variant-numeric: tabular-nums;
+}
+
+.quest-hub__hero-xp-label {
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+}
+
+.quest-hub__hero-desc {
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-dim, #555);
+    margin-top: 4px;
+}
+
+/* ── Candidature CTA ─────────────────────────────────── */
+.quest-hub__cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px 16px 0;
+    padding: 12px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    background: rgba(0, 212, 170, 0.1);
-    border: 1px solid rgba(0, 212, 170, 0.25);
-    color: var(--color-primary, #00d4aa);
     text-decoration: none;
-    transition: background 0.15s;
+    color: var(--color-primary, #00d4aa);
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: background 0.2s, border-color 0.2s;
 }
-.quest-panel__cta:hover { background: rgba(0, 212, 170, 0.2); }
+
+.quest-hub__cta:hover {
+    background: rgba(0, 212, 170, 0.12);
+    border-color: rgba(0, 212, 170, 0.35);
+}
+
+/* Shine sweep animation */
+.quest-hub__cta::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.08), transparent);
+    animation: quest-shine 3s ease-in-out infinite;
+}
+
+.quest-hub__cta-arrow {
+    transition: transform 0.15s;
+}
+
+.quest-hub__cta:hover .quest-hub__cta-arrow {
+    transform: translateX(3px);
+}
+
+/* ── Quest Card Grid ─────────────────────────────────── */
+.quest-hub__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px;
+    padding: 16px;
+}
+
+.quest-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.2);
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.quest-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.08);
+}
+
+/* Completed quest card */
+.quest-card--done {
+    background: rgba(0, 212, 170, 0.03);
+    border-color: rgba(0, 212, 170, 0.1);
+    animation: quest-glow 2s ease-in-out 1;
+}
+
+.quest-card--done:hover {
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.quest-card__icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+
+.quest-card__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.quest-card__title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-primary, #f0f0f0);
+}
+
+.quest-card--done .quest-card__title {
+    color: var(--color-text-secondary, #888);
+    text-decoration: line-through;
+}
+
+.quest-card__desc {
+    font-size: 10px;
+    color: var(--color-text-dim, #555);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.quest-card__xp {
+    font-size: 10px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 600;
+    color: var(--color-primary, #00d4aa);
+    white-space: nowrap;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.08);
+}
+
+.quest-card--done .quest-card__xp {
+    color: var(--color-text-dim, #555);
+    background: rgba(255,255,255,0.03);
+}
+
+/* ── SVG Radial Ring ─────────────────────────────────── */
+.quest-ring {
+    flex-shrink: 0;
+}
+
+.quest-ring__bg {
+    stroke: rgba(255,255,255,0.06);
+}
+
+.quest-ring__fill {
+    stroke: var(--color-primary, #00d4aa);
+    transition: stroke-dashoffset 0.8s ease-out;
+}
+
+.quest-ring__text {
+    fill: var(--color-text-secondary, #888);
+    font-size: 8px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 600;
+}
+
+/* ── Animations ──────────────────────────────────────── */
+@keyframes quest-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes quest-glow {
+    0% { border-color: rgba(0, 212, 170, 0.1); }
+    50% { border-color: rgba(0, 212, 170, 0.35); }
+    100% { border-color: rgba(0, 212, 170, 0.1); }
+}
+
+@keyframes quest-shine {
+    0% { left: -100%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 600px) {
+    .quest-hub__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quest-hub__hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .quest-hub__summary {
+        padding: 12px 14px;
+    }
+
+    .quest-card__desc {
+        white-space: normal;
+    }
+}

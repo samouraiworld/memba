@@ -426,7 +426,10 @@
 
 /* ── Quest Progress Card ────────────────────────────────── */
 .profile-quest-card {
-    padding: 20px;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+    background: transparent;
 }
 
 /* ── Empty State ─────────────────────────────────────────── */

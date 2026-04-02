@@ -16,7 +16,7 @@
   -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app https://*.clerk.accounts.dev blob:;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app blob:;
     worker-src 'self' blob:;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
@@ -24,8 +24,8 @@
     media-src 'self' data: blob:;
     object-src 'none';
     base-uri 'self';
-    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://backend.gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land https://*.clerk.accounts.dev https://clerk.samourai.app https://accounts.samourai.app;
-    frame-src https://meet.jit.si https://8x8.vc https://*.clerk.accounts.dev https://accounts.samourai.app;
+    connect-src 'self' https://memba-backend.fly.dev https://*.gno.land https://*.testnets.gno.land https://*.samourai.live https://*.sentry.io https://monitoring.gnolove.world https://gnolove.world https://backend.gnolove.world https://api.github.com https://gateway.lighthouse.storage wss://*.gno.land https://clerk.samourai.app https://accounts.samourai.app;
+    frame-src https://meet.jit.si https://8x8.vc https://accounts.samourai.app;
   " />
 
   <!-- Open Graph / Facebook -->
