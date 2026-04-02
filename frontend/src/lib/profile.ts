@@ -7,7 +7,8 @@
  * See: gno.land/r/gnoland/users/v1, Gnolove API
  */
 
-import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "./config"
+import { getExplorerBaseUrl, getUserRegistryPath } from "./config"
+import { resilientFetch } from "./rpcFallback"
 import { api } from "./api"
 import type { Token } from "../gen/memba/v1/memba_pb"
 
@@ -172,16 +173,19 @@ export async function fetchUserProfile(
 export async function resolveOnChainUsername(address: string): Promise<string> {
     try {
         const b64Data = btoa(`${USER_REGISTRY}:${address}`)
-        const res = await fetch(GNO_RPC_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "profile",
-                method: "abci_query",
-                params: { path: "vm/qrender", data: b64Data },
-            }),
-        })
+        const res = await resilientFetch((rpcUrl) => ({
+            url: rpcUrl,
+            init: {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "profile",
+                    method: "abci_query",
+                    params: { path: "vm/qrender", data: b64Data },
+                }),
+            },
+        }))
         const json = await res.json()
         const value = json?.result?.response?.ResponseBase?.Data
         if (!value) return ""

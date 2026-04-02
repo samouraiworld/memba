@@ -4,7 +4,7 @@
  * Uses JSON-RPC POST to prevent ABCI query injection via address.
  */
 
-import { GNO_RPC_URL } from "./config"
+import { resilientFetch } from "./rpcFallback"
 
 /**
  * Fetch account number and sequence from the Gno chain.
@@ -20,16 +20,19 @@ export async function fetchAccountInfo(
     }
 
     try {
-        const res = await fetch(GNO_RPC_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba",
-                method: "abci_query",
-                params: { path: `auth/accounts/${address}`, data: "" },
-            }),
-        })
+        const res = await resilientFetch((rpcUrl) => ({
+            url: rpcUrl,
+            init: {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "memba",
+                    method: "abci_query",
+                    params: { path: `auth/accounts/${address}`, data: "" },
+                }),
+            },
+        }))
         const json = await res.json()
         const rawValue = json?.result?.response?.ResponseBase?.Value
         if (!rawValue) return { accountNumber: 0, sequence: 0 }

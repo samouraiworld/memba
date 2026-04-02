@@ -30,11 +30,22 @@ export const API_BASE_URL =
 
 // ── 3. Gno Networks ──────────────────────────────────────────
 
+/** Network configuration type. */
+interface NetworkConfig {
+    chainId: string
+    rpcUrl: string
+    fallbackRpcUrls: string[]
+    label: string
+    userRegistryPath: string
+    faucetUrl: string
+}
+
 /** Available Gno networks for the chain selector. */
-export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: string; userRegistryPath: string; faucetUrl: string }> = {
+export const NETWORKS: Record<string, NetworkConfig> = {
     test12: {
         chainId: "test12",
         rpcUrl: "https://rpc.testnet12.samourai.live:443",
+        fallbackRpcUrls: [],
         label: "Testnet 12",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
@@ -42,6 +53,7 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
     test11: {
         chainId: "test11",
         rpcUrl: "https://rpc.test11.testnets.gno.land:443",
+        fallbackRpcUrls: [],
         label: "Testnet 11",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "https://faucet.gno.land",
@@ -49,6 +61,7 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
     staging: {
         chainId: "staging",
         rpcUrl: "https://rpc.gno.land:443",
+        fallbackRpcUrls: [],
         label: "Staging",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "",
@@ -56,6 +69,7 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
     "portal-loop": {
         chainId: "portal-loop",
         rpcUrl: "https://rpc.gno.land:443",
+        fallbackRpcUrls: [],
         label: "Portal Loop",
         userRegistryPath: "gno.land/r/gnoland/users/v1",
         faucetUrl: "",
@@ -63,10 +77,15 @@ export const NETWORKS: Record<string, { chainId: string; rpcUrl: string; label: 
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
+        fallbackRpcUrls: [
+            "https://rpc.gnoland1.moul.p2p.team",
+            "https://rpc.gnoland1.aeddi.org",
+            "https://rpc.betanet.testnets.gno.land",
+            "http://163.172.33.181:26657",
+        ],
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
-        // Official RPC (currently down): https://rpc.betanet.testnets.gno.land:443
     },
 }
 
@@ -105,6 +124,9 @@ export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
  * Defaults to the active network's RPC URL.
  */
 export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.testnet12.samourai.live:443"
+
+/** Fallback RPC URLs for the active network (tried in order if primary fails). */
+export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbackRpcUrls || []
 
 /**
  * Samourai Sentry RPC URL (Dual-RPC Strategy).
@@ -253,7 +275,9 @@ export const TRUSTED_RPC_DOMAINS = [
     //   - testnet12: https://rpc.testnet12.samourai.live (live)
     "samourai.live",
     "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
+    "aeddi.org",      // aeddi's gnoland1 validator node
     "gnoland1.io",    // gnoland1 betanet official
+    "163.172.33.181", // gno core team bare-metal node
     "localhost",      // local devnet
 ]
 

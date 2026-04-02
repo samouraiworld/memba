@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { GNO_RPC_URL } from "../lib/config";
+import { resilientFetch } from "../lib/rpcFallback";
 
 interface BalanceState {
     balance: string; // human-readable full precision, e.g. "1.500001 GNOT"
@@ -51,20 +51,23 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
 
         setState((s) => ({ ...s, loading: true, error: null }));
         try {
-            // Use JSON-RPC POST for reliability (same pattern as dao/shared.ts)
-            const res = await fetch(GNO_RPC_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: "memba-balance",
-                    method: "abci_query",
-                    params: {
-                        path: `bank/balances/${address}`,
-                        data: "",
-                    },
-                }),
-            });
+            // Use JSON-RPC POST with RPC failover for reliability
+            const res = await resilientFetch((rpcUrl) => ({
+                url: rpcUrl,
+                init: {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: "memba-balance",
+                        method: "abci_query",
+                        params: {
+                            path: `bank/balances/${address}`,
+                            data: "",
+                        },
+                    }),
+                },
+            }));
             const json = await res.json();
 
             // Try ResponseBase.Value first, then Data (different RPC versions)

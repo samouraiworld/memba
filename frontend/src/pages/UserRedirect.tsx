@@ -6,7 +6,8 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { MagnifyingGlass } from "@phosphor-icons/react"
-import { GNO_RPC_URL, getUserRegistryPath } from "../lib/config"
+import { getUserRegistryPath } from "../lib/config"
+import { resilientFetch } from "../lib/rpcFallback"
 
 /**
  * Resolve a gno.land username to a wallet address
@@ -19,16 +20,19 @@ async function resolveUsernameToAddress(username: string): Promise<string | null
     try {
         const registryPath = getUserRegistryPath()
         const b64Data = btoa(`${registryPath}:${username}`)
-        const res = await fetch(GNO_RPC_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "resolve-user",
-                method: "abci_query",
-                params: { path: "vm/qrender", data: b64Data },
-            }),
-        })
+        const res = await resilientFetch((rpcUrl) => ({
+            url: rpcUrl,
+            init: {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "resolve-user",
+                    method: "abci_query",
+                    params: { path: "vm/qrender", data: b64Data },
+                }),
+            },
+        }))
         const json = await res.json()
         const value = json?.result?.response?.ResponseBase?.Data
         if (!value) return null
