@@ -12,6 +12,7 @@ import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
 import { GNO_RPC_URL, getUserRegistryPath } from "./config"
 import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
+import { listFactoryTokens } from "./grc20"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -288,19 +289,28 @@ export function parseTokenRegistry(raw: string): DirectoryToken[] {
 }
 
 /**
- * Fetch token registry from GRC20 registry realm.
+ * Fetch tokens from the GRC20 factory (unified with TokenDashboard).
+ * M-14 fix: Previously queried gno.land/r/demo/grc20reg which returned
+ * different results than the Tokens page. Now uses the same factory source.
  * Uses sessionStorage cache.
  */
 export async function fetchTokens(): Promise<DirectoryToken[]> {
     const cached = getCached<DirectoryToken[]>("tokens")
     if (cached) return cached
 
-    const raw = await queryRender(GNO_RPC_URL, "gno.land/r/demo/grc20reg", "")
-    if (!raw) return []
-
-    const tokens = parseTokenRegistry(raw)
-    setCache("tokens", tokens)
-    return tokens
+    try {
+        const factoryTokens = await listFactoryTokens(GNO_RPC_URL)
+        const tokens: DirectoryToken[] = factoryTokens.map(t => ({
+            name: t.name,
+            symbol: t.symbol,
+            path: `gno.land/r/samcrew/tokenfactory:${t.symbol}`,
+            admin: t.admin || undefined,
+        }))
+        setCache("tokens", tokens)
+        return tokens
+    } catch {
+        return []
+    }
 }
 
 // ── User Parsing ─────────────────────────────────────────────

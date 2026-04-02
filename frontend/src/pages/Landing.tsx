@@ -89,8 +89,8 @@ const TECH_BADGES = [
     { label: "ConnectRPC", accent: false },
     { label: "gno.land", accent: true },
     { label: "MIT License", accent: false },
-    { label: "1249+ Unit Tests", accent: true },
-    { label: "73 Backend Tests", accent: true },
+    { label: "1400+ Unit Tests", accent: true },
+    { label: "87+ Backend Tests", accent: true },
 ]
 
 // ── Hook: IntersectionObserver for scroll-triggered fade-in ────────────
