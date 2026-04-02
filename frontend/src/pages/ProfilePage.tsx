@@ -9,7 +9,7 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
-import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
+import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection, AdminPanelLink } from "../components/profile"
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
 import { QuestProgress } from "../components/ui/QuestProgress"
@@ -182,9 +182,12 @@ export function ProfilePage() {
                                 <span className="profile-badge-you">YOU</span>
                             )}
                             {isOwnProfile && auth.isAuthenticated && !editing && (
-                                <button onClick={startEditing} className="profile-edit-btn">
-                                    ✏️ Edit
-                                </button>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                    <button onClick={startEditing} className="profile-edit-btn">
+                                        ✏️ Edit
+                                    </button>
+                                    <AdminPanelLink />
+                                </div>
                             )}
                             {saveSuccess && (
                                 <span className="profile-saved-indicator">✓ Saved</span>

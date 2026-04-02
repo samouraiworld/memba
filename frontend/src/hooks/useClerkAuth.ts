@@ -29,6 +29,8 @@ export interface ClerkAuthState {
         fullName: string | null
         imageUrl: string
     } | null
+    /** True if user has publicMetadata.role === "admin" */
+    isAdmin: boolean
 }
 
 /**
@@ -101,5 +103,6 @@ export function useClerkAuth(): ClerkAuthState {
             fullName: user.fullName,
             imageUrl: user.imageUrl,
         } : null,
+        isAdmin: isLoaded && isSignedIn && user?.publicMetadata?.role === "admin",
     }
 }
