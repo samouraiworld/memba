@@ -1,14 +1,13 @@
 /**
- * Candidature Template — Gno realm code generator for MembaDAO candidature flow.
+ * Candidature Template — types, validation, MsgCall builders, and Render parser
+ * for the MembaDAO candidature realm deployed at gno.land/r/samcrew/memba_dao_candidature.
  *
- * Generates a candidature realm that manages membership applications:
- * - Public candidature submission (name, philosophy, skills)
- * - Two-member approval system
- * - Admin rejection
- * - Auto-airdrop of $MEMBA tokens on approval
- * - One candidature per address
+ * The deployed realm (via samcrew-deployer) uses:
+ *   - Apply(bio, skills) — with GNOT deposit (10 GNOT min, 10x per re-application)
+ *   - MarkApproved(applicant) / MarkRejected(applicant) — DAO governance
+ *   - Withdraw() — reclaim deposit from pending application
  *
- * v2.1a: Part of the Community Foundation layer.
+ * v2.29: Aligned with deployed realm API (Apply instead of SubmitCandidature).
  *
  * @module lib/candidatureTemplate
  */
@@ -18,16 +17,16 @@ import { MEMBA_DAO, MEMBA_TOKEN } from "./config"
 
 // ── Types ─────────────────────────────────────────────────────
 
-export type CandidatureStatus = "pending" | "approved" | "rejected"
+export type CandidatureStatus = "pending" | "approved" | "rejected" | "withdrawn"
 
 export interface Candidature {
     applicant: string    // g1... address
-    name: string
-    philosophy: string   // "Why Memba?"
+    bio: string          // applicant's bio / motivation
     skills: string       // comma-separated
+    deposit: number      // deposit in ugnot
     status: CandidatureStatus
-    approvedBy: string[] // addresses of approving members
-    createdAt: number    // block height
+    appliedAt: number    // block height
+    applyCount: number   // attempt number
 }
 
 export interface CandidatureConfig {
@@ -58,21 +57,22 @@ export const defaultCandidatureConfig: CandidatureConfig = {
 
 // ── Validation ────────────────────────────────────────────────
 
-/** Max length for candidature name field. */
-export const MAX_NAME_LENGTH = 64
+/** Max length for bio field (matches deployed realm MaxBioLen). */
+export const MAX_BIO_LENGTH = 5000
 
-/** Max length for philosophy ("Why Memba?") field. */
-export const MAX_PHILOSOPHY_LENGTH = 1024
+/** Max length for skills field (matches deployed realm MaxSkillsLen). */
+export const MAX_SKILLS_LENGTH = 5000
 
-/** Max length for skills field. */
-export const MAX_SKILLS_LENGTH = 256
+/** Minimum deposit in ugnot (10 GNOT). */
+export const MIN_DEPOSIT_UGNOT = 10_000_000
+
+/** Deposit multiplier per re-application (10x). */
+export const DEPOSIT_MULTIPLY = 10
 
 /** Validate candidature submission fields. Returns null if valid, error string otherwise. */
-export function validateCandidature(name: string, philosophy: string, skills: string): string | null {
-    if (!name.trim()) return "Name is required"
-    if (name.length > MAX_NAME_LENGTH) return `Name too long (max ${MAX_NAME_LENGTH} chars)`
-    if (!philosophy.trim()) return "Philosophy is required — tell us why you want to join"
-    if (philosophy.length > MAX_PHILOSOPHY_LENGTH) return `Philosophy too long (max ${MAX_PHILOSOPHY_LENGTH} chars)`
+export function validateCandidature(bio: string, skills: string): string | null {
+    if (!bio.trim()) return "Bio is required — tell us about yourself and why you want to join"
+    if (bio.length > MAX_BIO_LENGTH) return `Bio too long (max ${MAX_BIO_LENGTH} chars)`
     if (!skills.trim()) return "At least one skill is required"
     if (skills.length > MAX_SKILLS_LENGTH) return `Skills too long (max ${MAX_SKILLS_LENGTH} chars)`
     return null
@@ -86,52 +86,51 @@ export function parseSkills(skills: string): string[] {
         .filter(Boolean)
 }
 
-/** Re-candidature base cost: 10 GNOT per past rejection (in ugnot). */
-export const RECANDIDATURE_COST_UGNOT = 10_000_000
-
 /**
- * Calculate the GNOT send amount for a candidature submission.
- * First attempt: free. Each rejection adds 10 GNOT.
+ * Calculate the required deposit for a candidature submission.
+ * First attempt: 10 GNOT. Each re-application: 10x the previous (10, 100, 1000...).
+ * Matches the deployed realm's deposit scaling logic.
  */
-export function getCandidatureSendAmount(pastRejections: number): bigint {
-    if (pastRejections <= 0) return 0n
-    return BigInt(pastRejections) * BigInt(RECANDIDATURE_COST_UGNOT)
+export function getRequiredDeposit(applyCount: number): bigint {
+    let required = BigInt(MIN_DEPOSIT_UGNOT)
+    for (let i = 0; i < applyCount; i++) {
+        required *= BigInt(DEPOSIT_MULTIPLY)
+    }
+    return required
 }
 
 // ── MsgCall Builders ──────────────────────────────────────────
 
 /**
  * Build MsgCall to submit a candidature.
- * Calls: SubmitCandidature(name, philosophy, skills)
+ * Calls deployed realm: Apply(bio, skills) with GNOT deposit.
  */
 export function buildSubmitCandidatureMsg(
     callerAddress: string,
-    name: string,
-    philosophy: string,
+    bio: string,
     skills: string,
     realmPath: string = MEMBA_DAO.candidaturePath,
-    pastRejections: number = 0,
+    applyCount: number = 0,
 ): AminoMsg {
-    const sendAmount = getCandidatureSendAmount(pastRejections)
+    const deposit = getRequiredDeposit(applyCount)
     return {
         type: "vm/MsgCall",
         value: {
             caller: callerAddress,
-            send: sendAmount > 0n ? `${sendAmount}ugnot` : "",
+            send: `${deposit}ugnot`,
             pkg_path: realmPath,
-            func: "SubmitCandidature",
-            args: [name, philosophy, skills],
+            func: "Apply",
+            args: [bio, skills],
         },
     }
 }
 
 /**
- * Build MsgCall to approve a candidature.
- * Calls: ApproveCandidature(applicantAddress)
+ * Build MsgCall to withdraw a pending candidature and reclaim deposit.
+ * Calls deployed realm: Withdraw()
  */
-export function buildApproveCandidatureMsg(
+export function buildWithdrawCandidatureMsg(
     callerAddress: string,
-    applicantAddress: string,
     realmPath: string = MEMBA_DAO.candidaturePath,
 ): AminoMsg {
     return {
@@ -140,29 +139,8 @@ export function buildApproveCandidatureMsg(
             caller: callerAddress,
             send: "",
             pkg_path: realmPath,
-            func: "ApproveCandidature",
-            args: [applicantAddress],
-        },
-    }
-}
-
-/**
- * Build MsgCall to reject a candidature.
- * Calls: RejectCandidature(applicantAddress)
- */
-export function buildRejectCandidatureMsg(
-    callerAddress: string,
-    applicantAddress: string,
-    realmPath: string = MEMBA_DAO.candidaturePath,
-): AminoMsg {
-    return {
-        type: "vm/MsgCall",
-        value: {
-            caller: callerAddress,
-            send: "",
-            pkg_path: realmPath,
-            func: "RejectCandidature",
-            args: [applicantAddress],
+            func: "Withdraw",
+            args: [],
         },
     }
 }
@@ -170,51 +148,58 @@ export function buildRejectCandidatureMsg(
 // ── ABCI Query Parsers ────────────────────────────────────────
 
 /**
- * Parse candidature list from Render("") output.
+ * Parse candidature list from the deployed realm's Render("") output.
  *
- * Expected format:
+ * Deployed realm format:
  * ```
- * # MembaDAO Candidatures
+ * # MembaDAO Candidature
  *
- * ## Pending (2)
+ * Apply to join the Memba community.
  *
- * ### g1abc...
- * **Name**: Alice | **Skills**: rust, go | **Status**: pending
- * *Approvals: 1/2 (g1voter1)*
+ * **Stats:** 1 pending | 0 approved | 0 rejected
  *
- * > Why Memba? I believe in decentralization...
+ * ## Pending Applications
+ *
+ * - [g1abc...](:application/g1abc...) — deposit: 10 GNOT — block 150813
+ * ```
+ *
+ * Individual application format (Render("application/g1addr")):
+ * ```
+ * # Application: g1abc...
+ *
+ * **Status:** pending
+ * **Deposit:** 10 GNOT
+ * **Applied at block:** 150813
+ * **Attempt #:** 1
+ *
+ * ## Bio
+ *
+ * I want to contribute to Memba DAO...
+ *
+ * ## Skills
+ *
+ * go, rust, typescript
  * ```
  */
 export function parseCandidatureList(raw: string): Candidature[] {
     const candidatures: Candidature[] = []
-    const blocks = raw.split("### ").slice(1) // split by ### headings
 
-    for (const block of blocks) {
-        const lines = block.split("\n").map(l => l.trim())
-        const applicant = lines[0]?.replace(/\.\.\./g, "").trim() || ""
-
-        const metaLine = lines.find(l => l.startsWith("**Name**:")) || ""
-        const nameMatch = metaLine.match(/\*\*Name\*\*:\s*([^|]+)/)
-        const skillsMatch = metaLine.match(/\*\*Skills\*\*:\s*([^|]+)/)
-        const statusMatch = metaLine.match(/\*\*Status\*\*:\s*(\w+)/)
-
-        const approvalsLine = lines.find(l => l.startsWith("*Approvals:")) || ""
-        const approversMatch = approvalsLine.match(/\(([^)]+)\)/)
-        const approvedBy = approversMatch
-            ? approversMatch[1].split(",").map(s => s.trim()).filter(Boolean)
-            : []
-
-        const philoLine = lines.find(l => l.startsWith("> ")) || ""
-        const philosophy = philoLine.replace(/^>\s*/, "").replace(/^Why Memba\?\s*/i, "")
+    // Parse the list entries: - [g1addr](:application/g1addr) — deposit: X GNOT — block Y
+    const listPattern = /- \[([^\]]+)\]\(:application\/[^)]+\)\s*—\s*deposit:\s*([^\s]+)\s*GNOT\s*—\s*block\s*(\d+)/g
+    let match
+    while ((match = listPattern.exec(raw)) !== null) {
+        const applicant = match[1]
+        const depositGnot = parseFloat(match[2]) || 0
+        const appliedAt = parseInt(match[3]) || 0
 
         candidatures.push({
             applicant,
-            name: nameMatch?.[1]?.trim() || "",
-            philosophy,
-            skills: skillsMatch?.[1]?.trim() || "",
-            status: (statusMatch?.[1] as CandidatureStatus) || "pending",
-            approvedBy,
-            createdAt: 0,
+            bio: "",
+            skills: "",
+            deposit: depositGnot * 1_000_000, // convert to ugnot
+            status: "pending",
+            appliedAt,
+            applyCount: 0,
         })
     }
 
@@ -222,10 +207,40 @@ export function parseCandidatureList(raw: string): Candidature[] {
 }
 
 /**
+ * Parse a single application detail from Render("application/g1addr") output.
+ */
+export function parseCandidatureDetail(raw: string): Candidature | null {
+    if (!raw || raw.includes("Application Not Found")) return null
+
+    const applicantMatch = raw.match(/# Application:\s*(\S+)/)
+    const statusMatch = raw.match(/\*\*Status:\*\*\s*(\w+)/)
+    const depositMatch = raw.match(/\*\*Deposit:\*\*\s*([^\s]+)\s*GNOT/)
+    const blockMatch = raw.match(/\*\*Applied at block:\*\*\s*(\d+)/)
+    const attemptMatch = raw.match(/\*\*Attempt #:\*\*\s*(\d+)/)
+
+    // Extract bio section (between "## Bio" and "## Skills")
+    const bioMatch = raw.match(/## Bio\s*\n\s*([\s\S]*?)(?=\n## Skills|\n*$)/)
+    // Extract skills section (after "## Skills")
+    const skillsMatch = raw.match(/## Skills\s*\n\s*([\s\S]*?)$/)
+
+    return {
+        applicant: applicantMatch?.[1] || "",
+        bio: bioMatch?.[1]?.trim() || "",
+        skills: skillsMatch?.[1]?.trim() || "",
+        deposit: (parseFloat(depositMatch?.[1] || "0") || 0) * 1_000_000,
+        status: (statusMatch?.[1] as CandidatureStatus) || "pending",
+        appliedAt: parseInt(blockMatch?.[1] || "0") || 0,
+        applyCount: parseInt(attemptMatch?.[1] || "0") || 0,
+    }
+}
+
+/**
  * Generate the candidature realm Gno source code.
- * Used by the MembaDAO deployment orchestrator.
  *
- * Note: `\\n` in template strings produces `\n` in Go source (correct behavior).
+ * NOTE: The canonical MembaDAO candidature realm is deployed via samcrew-deployer
+ * (projects/memba/realms/memba_dao_candidature/). This generator is kept for
+ * user-created DAOs that want their own candidature flow. It generates a
+ * simplified version — the deployed realm uses avl trees and banker.
  */
 export function generateCandidatureCode(config: CandidatureConfig = defaultCandidatureConfig): string {
     return `package candidature
@@ -236,155 +251,58 @@ import (
 \t"strconv"
 )
 
-// ── Types ─────────────────────────────────────────────────────
-
-type Candidature struct {
-\tApplicant   address
-\tName        string
-\tPhilosophy  string
-\tSkills      string
-\tStatus      string // "pending", "approved", "rejected"
-\tApprovedBy  []address
-\tCreatedAt   int64
+type Application struct {
+\tApplicant  address
+\tBio        string
+\tSkills     string
+\tStatus     string // "pending", "approved", "rejected"
+\tApplyCount int
 }
 
-// ── State ─────────────────────────────────────────────────────
-
 var (
-\tcandidatures []Candidature
+\tapplications []Application
 \tadminAddr    address
 \trequiredApprovals int = ${config.requiredApprovals}
-\t// Re-candidature cost: each rejection adds 10 GNOT to the next attempt
-\trejectionCount map[string]int
-\tbaseCostUgnot  int64 = 10_000_000 // 10 GNOT per past rejection
 )
 
 func init() {
 \tadminAddr = runtime.PreviousRealm().Address()
-\trejectionCount = make(map[string]int)
 }
 
-// ── Public Functions ──────────────────────────────────────────
-
-func SubmitCandidature(cur realm, name, philosophy, skills string) {
+func Apply(cur realm, bio, skills string) {
 \tcaller := runtime.PreviousRealm().Address()
-\t// Prevent duplicate pending submissions
-\tfor _, c := range candidatures {
-\t\tif c.Applicant == caller && c.Status == "pending" {
-\t\t\tpanic("You already have a pending candidature")
+\tfor _, a := range applications {
+\t\tif a.Applicant == caller && a.Status == "pending" {
+\t\t\tpanic("you already have a pending application")
 \t\t}
 \t}
-\t// Enforce increasing cost on re-application after rejection
-\trejections := rejectionCount[string(caller)]
-\tif rejections > 0 {
-\t\trequiredCost := int64(rejections) * baseCostUgnot
-\t\tsent := runtime.PreviousRealm().Coins()
-\t\tif sent.AmountOf("ugnot") < requiredCost {
-\t\t\tpanic("Re-candidature requires " + strconv.FormatInt(requiredCost/1_000_000, 10) + " GNOT (attempt #" + strconv.Itoa(rejections+1) + ")")
-\t\t}
-\t}
-\tif len(name) == 0 || len(name) > ${MAX_NAME_LENGTH} {
-\t\tpanic("Invalid name length")
-\t}
-\tif len(philosophy) == 0 || len(philosophy) > ${MAX_PHILOSOPHY_LENGTH} {
-\t\tpanic("Philosophy is required")
+\tif len(bio) == 0 || len(bio) > ${MAX_BIO_LENGTH} {
+\t\tpanic("invalid bio length")
 \t}
 \tif len(skills) > ${MAX_SKILLS_LENGTH} {
-\t\tpanic("Skills too long")
+\t\tpanic("skills too long")
 \t}
-\tcandidatures = append(candidatures, Candidature{
+\tapplications = append(applications, Application{
 \t\tApplicant:  caller,
-\t\tName:       name,
-\t\tPhilosophy: philosophy,
+\t\tBio:        bio,
 \t\tSkills:     skills,
 \t\tStatus:     "pending",
-\t\tApprovedBy: []address{},
-\t\tCreatedAt:  int64(0),
+\t\tApplyCount: 1,
 \t})
 }
 
-func ApproveCandidature(cur realm, applicant string) {
-	caller := runtime.PreviousRealm().Address()
-	addr := address(applicant)
-	// Prevent self-approval
-	if caller == addr {
-		panic("Cannot approve your own candidature")
-	}
-	for i, c := range candidatures {
-		if c.Applicant == addr && c.Status == "pending" {
-			// Check not already approved by this caller
-			for _, a := range c.ApprovedBy {
-				if a == caller {
-					panic("You already approved this candidature")
-				}
-			}
-			candidatures[i].ApprovedBy = append(c.ApprovedBy, caller)
-			if len(candidatures[i].ApprovedBy) >= requiredApprovals {
-				candidatures[i].Status = "approved"
-				// NOTE: Blocked on Gno cross-realm airdrop — ${config.airdropAmount} ${config.tokenSymbol} deferred
-			}
-			return
-		}
-	}
-	panic("Candidature not found or not pending")
-}
-
-func RejectCandidature(cur realm, applicant string) {
-	caller := runtime.PreviousRealm().Address()
-	if caller != adminAddr {
-		panic("Only admin can reject candidatures")
-	}
-	addr := address(applicant)
-	for i, c := range candidatures {
-		if c.Applicant == addr && c.Status == "pending" {
-			candidatures[i].Status = "rejected"
-			rejectionCount[string(addr)]++
-			return
-		}
-	}
-	panic("Candidature not found or not pending")
-}
-
-func GetCandidatures() []Candidature {
-	return candidatures
-}
-
-// ── Render ────────────────────────────────────────────────────
-
 func Render(path string) string {
-	var sb strings.Builder
-	sb.WriteString("# MembaDAO Candidatures\\n\\n")
-
-	// Filter by path: "", "pending", "approved", "rejected"
-	statusFilter := ""
-	if path == "pending" || path == "approved" || path == "rejected" {
-		statusFilter = path
-	}
-
-	pending := 0
-	for _, c := range candidatures {
-		if c.Status == "pending" {
-			pending++
-		}
-	}
-	sb.WriteString("## Pending (" + strconv.Itoa(pending) + ")\\n\\n")
-
-	for _, c := range candidatures {
-		if statusFilter != "" && c.Status != statusFilter {
-			continue
-		}
-		sb.WriteString("### " + string(c.Applicant) + "\\n")
-		sb.WriteString("**Name**: " + c.Name + " | **Skills**: " + c.Skills + " | **Status**: " + c.Status + "\\n")
-		approvers := ""
-		for j, a := range c.ApprovedBy {
-			if j > 0 { approvers += ", " }
-			approvers += string(a)
-		}
-		sb.WriteString("*Approvals: " + strconv.Itoa(len(c.ApprovedBy)) + "/" + strconv.Itoa(requiredApprovals) + " (" + approvers + ")*\\n")
-		sb.WriteString("> Why Memba? " + c.Philosophy + "\\n\\n")
-	}
-
-	return sb.String()
+\tvar sb strings.Builder
+\tsb.WriteString("# Candidature\\n\\n")
+\tpending := 0
+\tfor _, a := range applications {
+\t\tif a.Status == "pending" { pending++ }
+\t}
+\tsb.WriteString("**Stats:** " + strconv.Itoa(pending) + " pending\\n\\n")
+\tfor _, a := range applications {
+\t\tsb.WriteString("- " + string(a.Applicant) + " (" + a.Status + ")\\n")
+\t}
+\treturn sb.String()
 }
 `
 }

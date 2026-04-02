@@ -40,10 +40,10 @@ vi.mock("../lib/candidatureTemplate", () => ({
     ),
     buildSubmitCandidatureMsg: vi.fn(() => ({ type: "msg" })),
     parseCandidatureList: vi.fn(() => []),
-    getCandidatureSendAmount: vi.fn(() => 0n),
-    MAX_NAME_LENGTH: 64,
-    MAX_PHILOSOPHY_LENGTH: 1024,
-    MAX_SKILLS_LENGTH: 256,
+    getRequiredDeposit: vi.fn(() => 10_000_000n),
+    MAX_BIO_LENGTH: 5000,
+    MAX_SKILLS_LENGTH: 5000,
+    MIN_DEPOSIT_UGNOT: 10_000_000,
 }))
 
 vi.mock("../lib/config", () => ({
@@ -107,7 +107,7 @@ beforeEach(() => {
     vi.mocked(questsMock.canApplyForMembership).mockReturnValue(false)
     vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
     vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])
-    vi.mocked(candidatureMock.getCandidatureSendAmount).mockReturnValue(0n)
+    vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
     vi.mocked(candidatureMock.validateCandidature).mockReturnValue(null)
     vi.mocked(daoShared.queryRender).mockResolvedValue(null)
     mockAdena.connected = true
@@ -148,20 +148,19 @@ describe("CandidaturePage — Form Fields", () => {
     it("renders all form fields with labels", () => {
         render(<CandidaturePage />)
 
-        expect(screen.getByLabelText("Name")).toBeInTheDocument()
-        expect(screen.getByLabelText("Why Memba?")).toBeInTheDocument()
+        expect(screen.getByLabelText("Bio")).toBeInTheDocument()
         expect(screen.getByLabelText("Skills")).toBeInTheDocument()
     })
 
     it("shows character counters that update", () => {
         render(<CandidaturePage />)
 
-        expect(screen.getByText("0/64")).toBeInTheDocument()
-        expect(screen.getByText("0/1024")).toBeInTheDocument()
-        expect(screen.getByText("0/256")).toBeInTheDocument()
+        // Both bio and skills have 0/5000 counters
+        const counters = screen.getAllByText("0/5000")
+        expect(counters.length).toBe(2)
 
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Alice" } })
-        expect(screen.getByText("5/64")).toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText("Bio"), { target: { value: "Hello" } })
+        expect(screen.getByText("5/5000")).toBeInTheDocument()
     })
 
     it("shows skills preview tags", () => {
@@ -176,9 +175,9 @@ describe("CandidaturePage — Form Fields", () => {
         expect(screen.getByText("react")).toBeInTheDocument()
     })
 
-    it("has submit button", () => {
+    it("has submit button with deposit amount", () => {
         render(<CandidaturePage />)
-        expect(screen.getByText("Submit Candidature")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /Submit Candidature/ })).toBeInTheDocument()
     })
 })
 
@@ -191,13 +190,14 @@ describe("CandidaturePage — Submission", () => {
         vi.mocked(grc20Mock.doContractBroadcast).mockResolvedValue(undefined as never)
         render(<CandidaturePage />)
 
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Alice" } })
-        fireEvent.change(screen.getByLabelText("Why Memba?"), {
-            target: { value: "I believe in the mission" },
+        fireEvent.change(screen.getByLabelText("Bio"), {
+            target: { value: "I believe in the mission and want to contribute" },
         })
         fireEvent.change(screen.getByLabelText("Skills"), { target: { value: "go, react" } })
 
-        fireEvent.click(screen.getByText("Submit Candidature"))
+        // Submit button includes deposit amount
+        const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
+        fireEvent.click(submitBtn)
 
         await waitFor(() => {
             expect(screen.getByText("Candidature Submitted!")).toBeInTheDocument()
@@ -212,13 +212,11 @@ describe("CandidaturePage — Submission", () => {
         )
         render(<CandidaturePage />)
 
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Alice" } })
-        fireEvent.change(screen.getByLabelText("Why Memba?"), {
-            target: { value: "Motivation text" },
-        })
+        fireEvent.change(screen.getByLabelText("Bio"), { target: { value: "My bio" } })
         fireEvent.change(screen.getByLabelText("Skills"), { target: { value: "go" } })
 
-        fireEvent.click(screen.getByText("Submit Candidature"))
+        const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
+        fireEvent.click(submitBtn)
 
         await waitFor(() => {
             expect(screen.getByTestId("error-toast")).toHaveTextContent("Transaction rejected")
@@ -226,13 +224,14 @@ describe("CandidaturePage — Submission", () => {
     })
 
     it("shows validation error from validateCandidature", async () => {
-        vi.mocked(candidatureMock.validateCandidature).mockReturnValue("Name is required")
+        vi.mocked(candidatureMock.validateCandidature).mockReturnValue("Bio is required")
         render(<CandidaturePage />)
 
-        fireEvent.click(screen.getByText("Submit Candidature"))
+        const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
+        fireEvent.click(submitBtn)
 
         await waitFor(() => {
-            expect(screen.getByTestId("error-toast")).toHaveTextContent("Name is required")
+            expect(screen.getByTestId("error-toast")).toHaveTextContent("Bio is required")
         })
     })
 
@@ -241,7 +240,8 @@ describe("CandidaturePage — Submission", () => {
         mockAuth.isAuthenticated = false
         render(<CandidaturePage />)
 
-        fireEvent.click(screen.getByText("Submit Candidature"))
+        const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
+        fireEvent.click(submitBtn)
 
         await waitFor(() => {
             expect(screen.getByTestId("error-toast")).toHaveTextContent("Connect your wallet first")
@@ -252,10 +252,10 @@ describe("CandidaturePage — Submission", () => {
         vi.mocked(grc20Mock.doContractBroadcast).mockResolvedValue(undefined as never)
         render(<CandidaturePage />)
 
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Alice" } })
-        fireEvent.change(screen.getByLabelText("Why Memba?"), { target: { value: "Why" } })
+        fireEvent.change(screen.getByLabelText("Bio"), { target: { value: "My bio" } })
         fireEvent.change(screen.getByLabelText("Skills"), { target: { value: "go" } })
-        fireEvent.click(screen.getByText("Submit Candidature"))
+        const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
+        fireEvent.click(submitBtn)
 
         await waitFor(() => {
             expect(screen.getByText("Back to Dashboard")).toBeInTheDocument()
@@ -276,12 +276,12 @@ describe("CandidaturePage — Existing Candidature", () => {
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([
             {
                 applicant: "g1testuser123",
-                name: "Alice",
-                philosophy: "Why Memba",
+                bio: "I want to join",
                 skills: "go, react",
+                deposit: 10_000_000,
                 status: "pending" as const,
-                approvedBy: ["g1approver1"],
-                createdAt: Date.now(),
+                appliedAt: 150813,
+                applyCount: 1,
             },
         ])
 
@@ -290,7 +290,7 @@ describe("CandidaturePage — Existing Candidature", () => {
         await waitFor(() => {
             expect(screen.getByText("⏳ Candidature Pending")).toBeInTheDocument()
         })
-        expect(screen.getByText("Approvals: 1/2")).toBeInTheDocument()
+        expect(screen.getByText(/Awaiting DAO governance vote/)).toBeInTheDocument()
         // Form should NOT be shown
         expect(screen.queryByText("Submit Your Application")).not.toBeInTheDocument()
     })
@@ -300,12 +300,12 @@ describe("CandidaturePage — Existing Candidature", () => {
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([
             {
                 applicant: "g1testuser123",
-                name: "Alice",
-                philosophy: "Why",
+                bio: "My bio",
                 skills: "go",
+                deposit: 10_000_000,
                 status: "approved" as const,
-                approvedBy: ["g1a", "g1b"],
-                createdAt: Date.now(),
+                appliedAt: 150813,
+                applyCount: 1,
             },
         ])
 
@@ -321,12 +321,12 @@ describe("CandidaturePage — Existing Candidature", () => {
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([
             {
                 applicant: "g1testuser123",
-                name: "Alice",
-                philosophy: "Why",
+                bio: "My bio",
                 skills: "go",
+                deposit: 10_000_000,
                 status: "rejected" as const,
-                approvedBy: [],
-                createdAt: Date.now(),
+                appliedAt: 150813,
+                applyCount: 1,
             },
         ])
 
@@ -338,17 +338,17 @@ describe("CandidaturePage — Existing Candidature", () => {
     })
 })
 
-describe("CandidaturePage — Re-candidature Fee", () => {
-    it("shows re-application fee when past rejections exist", async () => {
+describe("CandidaturePage — Deposit Display", () => {
+    it("shows required deposit amount", async () => {
         vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
-        vi.mocked(candidatureMock.getCandidatureSendAmount).mockReturnValue(10_000_000n)
+        vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
         vi.mocked(daoShared.queryRender).mockResolvedValue("render output")
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])
 
         render(<CandidaturePage />)
 
         await waitFor(() => {
-            expect(screen.getByText(/Re-application fee: 10 GNOT/)).toBeInTheDocument()
+            expect(screen.getByText(/Required deposit: 10 GNOT/)).toBeInTheDocument()
         })
     })
 })
@@ -358,22 +358,22 @@ describe("CandidaturePage — Candidatures List", () => {
         vi.mocked(daoShared.queryRender).mockResolvedValue("render output")
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([
             {
-                applicant: "g1alice12345",
-                name: "Alice",
-                philosophy: "Why",
+                applicant: "g1alice12345678901234567890",
+                bio: "I want to join",
                 skills: "go, rust",
-                status: "approved" as const,
-                approvedBy: ["g1a", "g1b"],
-                createdAt: Date.now(),
+                deposit: 10_000_000,
+                status: "pending" as const,
+                appliedAt: 150813,
+                applyCount: 1,
             },
             {
-                applicant: "g1bob6789012",
-                name: "Bob",
-                philosophy: "Because",
+                applicant: "g1bob678901234567890123456",
+                bio: "Building stuff",
                 skills: "react",
+                deposit: 10_000_000,
                 status: "pending" as const,
-                approvedBy: [],
-                createdAt: Date.now(),
+                appliedAt: 150900,
+                applyCount: 1,
             },
         ])
 
@@ -382,10 +382,9 @@ describe("CandidaturePage — Candidatures List", () => {
         await waitFor(() => {
             expect(screen.getByText("All Candidatures (2)")).toBeInTheDocument()
         })
-        expect(screen.getByText("Alice")).toBeInTheDocument()
-        expect(screen.getByText("Bob")).toBeInTheDocument()
-        expect(screen.getByText("approved")).toBeInTheDocument()
-        expect(screen.getByText("pending")).toBeInTheDocument()
+        // Should show badges with "pending" text
+        const badges = screen.getAllByText("pending")
+        expect(badges.length).toBeGreaterThanOrEqual(2)
     })
 
     it("shows empty state when no candidatures", async () => {

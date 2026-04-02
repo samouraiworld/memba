@@ -1,5 +1,7 @@
 /**
  * Candidature Template Tests — validation, MsgCall builders, parser, code gen.
+ *
+ * v2.29: Updated to match deployed realm API (Apply instead of SubmitCandidature).
  */
 
 import { describe, it, expect } from "vitest"
@@ -7,57 +9,48 @@ import {
     validateCandidature,
     parseSkills,
     buildSubmitCandidatureMsg,
-    buildApproveCandidatureMsg,
-    buildRejectCandidatureMsg,
+    buildWithdrawCandidatureMsg,
     parseCandidatureList,
+    parseCandidatureDetail,
     generateCandidatureCode,
-    getCandidatureSendAmount,
-    RECANDIDATURE_COST_UGNOT,
+    getRequiredDeposit,
     defaultCandidatureConfig,
-    MAX_NAME_LENGTH,
-    MAX_PHILOSOPHY_LENGTH,
+    MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
+    MIN_DEPOSIT_UGNOT,
+    DEPOSIT_MULTIPLY,
 } from "./candidatureTemplate"
 
 // ── Validation ────────────────────────────────────────────────
 
 describe("validateCandidature", () => {
     it("accepts valid inputs", () => {
-        expect(validateCandidature("Alice", "I love Gno", "rust, go")).toBeNull()
+        expect(validateCandidature("I love Gno and want to contribute", "rust, go")).toBeNull()
     })
 
-    it("rejects empty name", () => {
-        expect(validateCandidature("", "reason", "skills")).toContain("Name is required")
+    it("rejects empty bio", () => {
+        expect(validateCandidature("", "skills")).toContain("Bio is required")
     })
 
-    it("rejects whitespace-only name", () => {
-        expect(validateCandidature("   ", "reason", "skills")).toContain("Name is required")
+    it("rejects whitespace-only bio", () => {
+        expect(validateCandidature("   ", "skills")).toContain("Bio is required")
     })
 
-    it("rejects long name", () => {
-        expect(validateCandidature("a".repeat(MAX_NAME_LENGTH + 1), "reason", "skills")).toContain("too long")
-    })
-
-    it("rejects empty philosophy", () => {
-        expect(validateCandidature("Alice", "", "skills")).toContain("Philosophy is required")
-    })
-
-    it("rejects long philosophy", () => {
-        expect(validateCandidature("Alice", "x".repeat(MAX_PHILOSOPHY_LENGTH + 1), "skills")).toContain("too long")
+    it("rejects long bio", () => {
+        expect(validateCandidature("a".repeat(MAX_BIO_LENGTH + 1), "skills")).toContain("too long")
     })
 
     it("rejects empty skills", () => {
-        expect(validateCandidature("Alice", "reason", "")).toContain("skill is required")
+        expect(validateCandidature("bio text", "")).toContain("skill is required")
     })
 
     it("rejects long skills", () => {
-        expect(validateCandidature("Alice", "reason", "x".repeat(MAX_SKILLS_LENGTH + 1))).toContain("too long")
+        expect(validateCandidature("bio text", "x".repeat(MAX_SKILLS_LENGTH + 1))).toContain("too long")
     })
 
     it("accepts max-length inputs", () => {
         expect(validateCandidature(
-            "a".repeat(MAX_NAME_LENGTH),
-            "b".repeat(MAX_PHILOSOPHY_LENGTH),
+            "a".repeat(MAX_BIO_LENGTH),
             "c".repeat(MAX_SKILLS_LENGTH),
         )).toBeNull()
     })
@@ -87,102 +80,146 @@ describe("parseSkills", () => {
     })
 })
 
+// ── Deposit Calculation ──────────────────────────────────────
+
+describe("getRequiredDeposit", () => {
+    it("returns 10 GNOT for first attempt", () => {
+        expect(getRequiredDeposit(0)).toBe(BigInt(MIN_DEPOSIT_UGNOT))
+    })
+
+    it("returns 100 GNOT for second attempt (10x)", () => {
+        expect(getRequiredDeposit(1)).toBe(BigInt(MIN_DEPOSIT_UGNOT) * BigInt(DEPOSIT_MULTIPLY))
+    })
+
+    it("returns 1000 GNOT for third attempt (10x10)", () => {
+        expect(getRequiredDeposit(2)).toBe(
+            BigInt(MIN_DEPOSIT_UGNOT) * BigInt(DEPOSIT_MULTIPLY) * BigInt(DEPOSIT_MULTIPLY)
+        )
+    })
+})
+
 // ── MsgCall Builders ──────────────────────────────────────────
 
 describe("buildSubmitCandidatureMsg", () => {
-    it("builds correct submit message", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "Alice", "I love Gno", "rust, go")
+    it("builds correct Apply message with deposit", () => {
+        const msg = buildSubmitCandidatureMsg("g1caller", "I love Gno", "rust, go")
         expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.func).toBe("SubmitCandidature")
-        expect(msg.value.args).toEqual(["Alice", "I love Gno", "rust, go"])
+        expect(msg.value.func).toBe("Apply")
+        expect(msg.value.args).toEqual(["I love Gno", "rust, go"])
         expect(msg.value.caller).toBe("g1caller")
+        expect(msg.value.send).toBe("10000000ugnot") // 10 GNOT minimum deposit
     })
 
     it("uses default candidature realm path", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "Alice", "reason", "skills")
+        const msg = buildSubmitCandidatureMsg("g1caller", "bio", "skills")
         expect(msg.value.pkg_path).toContain("candidature")
     })
 
     it("accepts custom realm path", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "A", "B", "C", "gno.land/r/custom/candidature")
+        const msg = buildSubmitCandidatureMsg("g1caller", "A", "C", "gno.land/r/custom/candidature")
         expect(msg.value.pkg_path).toBe("gno.land/r/custom/candidature")
     })
-})
 
-describe("buildApproveCandidatureMsg", () => {
-    it("builds correct approve message", () => {
-        const msg = buildApproveCandidatureMsg("g1voter", "g1applicant")
-        expect(msg.value.func).toBe("ApproveCandidature")
-        expect(msg.value.args).toEqual(["g1applicant"])
-        expect(msg.value.caller).toBe("g1voter")
+    it("scales deposit for re-application", () => {
+        const msg = buildSubmitCandidatureMsg("g1caller", "bio", "skills", undefined, 1)
+        expect(msg.value.send).toBe("100000000ugnot") // 100 GNOT (10x)
+    })
+
+    it("always includes deposit (even first attempt)", () => {
+        const msg = buildSubmitCandidatureMsg("g1caller", "bio", "skills", undefined, 0)
+        expect(msg.value.send).toBe("10000000ugnot")
     })
 })
 
-describe("buildRejectCandidatureMsg", () => {
-    it("builds correct reject message", () => {
-        const msg = buildRejectCandidatureMsg("g1admin", "g1applicant")
-        expect(msg.value.func).toBe("RejectCandidature")
-        expect(msg.value.args).toEqual(["g1applicant"])
+describe("buildWithdrawCandidatureMsg", () => {
+    it("builds correct Withdraw message", () => {
+        const msg = buildWithdrawCandidatureMsg("g1caller")
+        expect(msg.value.func).toBe("Withdraw")
+        expect(msg.value.args).toEqual([])
+        expect(msg.value.send).toBe("")
     })
 })
 
-// ── Parser ────────────────────────────────────────────────────
+// ── Parser (deployed realm format) ──────────────────────────
 
 describe("parseCandidatureList", () => {
-    const sampleRender = `# MembaDAO Candidatures
+    const sampleRender = `# MembaDAO Candidature
 
-## Pending (1)
+Apply to join the Memba community.
 
-### g1abc123
-**Name**: Alice | **Skills**: rust, go | **Status**: pending
-*Approvals: 1/2 (g1voter1)*
-> Why Memba? I believe in decentralized governance
+**Stats:** 2 pending | 1 approved | 0 rejected
 
-### g1def456
-**Name**: Bob | **Skills**: typescript | **Status**: approved
-*Approvals: 2/2 (g1voter1, g1voter2)*
-> Why Memba? Building the future
+## Pending Applications
+
+- [g1abc123456789012345678901234567890123456](:application/g1abc123456789012345678901234567890123456) — deposit: 10 GNOT — block 150813
+- [g1def987654321098765432109876543210987654](:application/g1def987654321098765432109876543210987654) — deposit: 100 GNOT — block 150900
 `
 
-    it("parses candidature list", () => {
+    it("parses candidature list from deployed Render format", () => {
         const result = parseCandidatureList(sampleRender)
         expect(result).toHaveLength(2)
     })
 
     it("extracts applicant address", () => {
         const result = parseCandidatureList(sampleRender)
-        expect(result[0].applicant).toBe("g1abc123")
+        expect(result[0].applicant).toBe("g1abc123456789012345678901234567890123456")
     })
 
-    it("extracts name", () => {
+    it("extracts deposit amount", () => {
         const result = parseCandidatureList(sampleRender)
-        expect(result[0].name).toBe("Alice")
+        expect(result[0].deposit).toBe(10_000_000) // 10 GNOT in ugnot
+        expect(result[1].deposit).toBe(100_000_000) // 100 GNOT in ugnot
     })
 
-    it("extracts skills", () => {
+    it("extracts block height", () => {
         const result = parseCandidatureList(sampleRender)
-        expect(result[0].skills).toBe("rust, go")
+        expect(result[0].appliedAt).toBe(150813)
     })
 
-    it("extracts status", () => {
+    it("defaults status to pending", () => {
         const result = parseCandidatureList(sampleRender)
         expect(result[0].status).toBe("pending")
-        expect(result[1].status).toBe("approved")
-    })
-
-    it("extracts approvers", () => {
-        const result = parseCandidatureList(sampleRender)
-        expect(result[0].approvedBy).toEqual(["g1voter1"])
-        expect(result[1].approvedBy).toEqual(["g1voter1", "g1voter2"])
-    })
-
-    it("extracts philosophy", () => {
-        const result = parseCandidatureList(sampleRender)
-        expect(result[0].philosophy).toBe("I believe in decentralized governance")
     })
 
     it("handles empty render", () => {
-        expect(parseCandidatureList("# MembaDAO Candidatures\n\n## Pending (0)")).toEqual([])
+        expect(parseCandidatureList("# MembaDAO Candidature\n\n**Stats:** 0 pending | 0 approved | 0 rejected")).toEqual([])
+    })
+})
+
+describe("parseCandidatureDetail", () => {
+    const sampleDetail = `# Application: g1abc123
+
+**Status:** pending
+**Deposit:** 10 GNOT
+**Applied at block:** 150813
+**Attempt #:** 1
+
+## Bio
+
+I want to contribute to Memba DAO and build amazing governance tools.
+
+## Skills
+
+go, rust, typescript`
+
+    it("parses application detail", () => {
+        const result = parseCandidatureDetail(sampleDetail)
+        expect(result).not.toBeNull()
+        expect(result!.applicant).toBe("g1abc123")
+        expect(result!.bio).toBe("I want to contribute to Memba DAO and build amazing governance tools.")
+        expect(result!.skills).toBe("go, rust, typescript")
+        expect(result!.status).toBe("pending")
+        expect(result!.deposit).toBe(10_000_000)
+        expect(result!.appliedAt).toBe(150813)
+        expect(result!.applyCount).toBe(1)
+    })
+
+    it("returns null for not found", () => {
+        expect(parseCandidatureDetail("# Application Not Found\nNo application for g1xyz")).toBeNull()
+    })
+
+    it("returns null for empty input", () => {
+        expect(parseCandidatureDetail("")).toBeNull()
     })
 })
 
@@ -209,94 +246,26 @@ describe("defaultCandidatureConfig", () => {
 // ── Code Generation ───────────────────────────────────────────
 
 describe("generateCandidatureCode", () => {
-    it("generates valid Gno code", () => {
+    it("generates valid Gno code with Apply function", () => {
         const code = generateCandidatureCode()
         expect(code).toContain("package candidature")
-        expect(code).toContain("func SubmitCandidature")
-        expect(code).toContain("func ApproveCandidature")
-        expect(code).toContain("func RejectCandidature")
+        expect(code).toContain("func Apply")
         expect(code).toContain("func Render")
-    })
-
-    it("embeds required approvals from config", () => {
-        const code = generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals: 3 })
-        expect(code).toContain("requiredApprovals int = 3")
     })
 
     it("includes duplicate submission prevention", () => {
         const code = generateCandidatureCode()
-        expect(code).toContain("already have a pending candidature")
+        expect(code).toContain("already have a pending application")
     })
 
-    it("includes name length validation", () => {
+    it("includes bio length validation", () => {
         const code = generateCandidatureCode()
-        expect(code).toContain(String(MAX_NAME_LENGTH))
+        expect(code).toContain(String(MAX_BIO_LENGTH))
     })
 
-    it("includes admin-only rejection", () => {
+    it("includes skills length validation", () => {
         const code = generateCandidatureCode()
-        expect(code).toContain("Only admin can reject")
-    })
-
-    it("includes skills length validation (C2 fix)", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("Skills too long")
+        expect(code).toContain("skills too long")
         expect(code).toContain(String(MAX_SKILLS_LENGTH))
-    })
-
-    it("includes rejection counter for re-candidature cost (M3 fix)", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("rejectionCount")
-        expect(code).toContain("baseCostUgnot")
-    })
-
-    it("includes self-approval guard (R2-I1 fix)", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("Cannot approve your own candidature")
-    })
-
-    it("supports Render path filtering (R2-M2 fix)", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("statusFilter")
-        expect(code).toContain(`path == "pending"`)
-        expect(code).toContain(`path == "approved"`)
-        expect(code).toContain(`path == "rejected"`)
-    })
-})
-
-// ── Re-Candidature Cost ───────────────────────────────────────
-
-describe("getCandidatureSendAmount", () => {
-    it("returns 0 for first attempt", () => {
-        expect(getCandidatureSendAmount(0)).toBe(0n)
-    })
-
-    it("returns 10 GNOT for second attempt", () => {
-        expect(getCandidatureSendAmount(1)).toBe(BigInt(RECANDIDATURE_COST_UGNOT))
-    })
-
-    it("returns 20 GNOT for third attempt", () => {
-        expect(getCandidatureSendAmount(2)).toBe(BigInt(RECANDIDATURE_COST_UGNOT) * 2n)
-    })
-
-    it("returns 0 for negative input", () => {
-        expect(getCandidatureSendAmount(-1)).toBe(0n)
-    })
-})
-
-describe("buildSubmitCandidatureMsg with re-candidature", () => {
-    it("has empty send for first attempt", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "Alice", "reason", "skills", undefined, 0)
-        expect(msg.value.send).toBe("")
-    })
-
-    it("includes GNOT send for re-candidature", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "Alice", "reason", "skills", undefined, 1)
-        expect(msg.value.send).toBe("10000000ugnot")
-    })
-
-    it("scales cost with rejection count", () => {
-        const msg = buildSubmitCandidatureMsg("g1caller", "Alice", "reason", "skills", undefined, 3)
-        expect(msg.value.send).toBe("30000000ugnot")
     })
 })
