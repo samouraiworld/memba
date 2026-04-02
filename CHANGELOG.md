@@ -4,6 +4,36 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v2.29.0 (2026-04-02) — Quest Hub Redesign, On-Chain Integration & Hardening
+
+### Added
+
+- **Quest Hub redesign** — Collapsible `<details>/<summary>` widget with SVG radial progress ring, animated XP counter, 2-column card grid with hover effects and completion glow, retracted by default (#227)
+- **QuestProgress component tests** — 15 tests covering collapsed/expanded states, SVG ring, candidature CTA, compact mode, ARIA accessibility (#227)
+- **OrgContent component tests** — 22 tests covering auth gate, teams list, create/join forms, detail view, promote/demote, leave, workspace switch, errors (#227)
+- **CandidaturePage component tests** — 22 tests covering XP gate, form fields, submission, existing candidature status, deposit display, candidatures list (#227)
+- **E2E specs** — Quest Hub (5), Teams (4), Candidature (7) Playwright specs for smoke testing and mobile responsiveness (#227)
+- **Deployment Runbook** — Realm deploy rollback strategy and feature flags reference table (#227)
+- **contracts/README.md** — Documents samcrew-deployer as source of truth for deployed realm code (#227)
+
+### Changed
+
+- **Candidature form** — Reduced from 3 fields (name, philosophy, skills) to 2 (bio, skills) to match deployed realm API `Apply(bio, skills)` (#227)
+- **Candidature deposit** — Required GNOT deposit on every submission (10 GNOT minimum, 10x scaling per re-application), deposit amount shown on submit button (#227)
+- **Candidature parser** — Rewritten to match deployed realm's Render() format (avl-backed list with `- [addr](:application/addr)` entries) (#227)
+- **Sidebar** — Candidature icon changed from emoji `🏛️` to Phosphor `<Bank>` for consistency (#227)
+- **ARCHITECTURE.md** — Added Teams (6 RPCs), Quest (3 RPCs), Render proxy, updated database schema (#227)
+- **ROADMAP.md** — Archived pre-v2.14 versions (1,116 lines) to `docs/archive/ROADMAP_PRE_V2.14.md` (#228)
+
+### Fixed
+
+- **CSP hardening** — Stripped `*.clerk.accounts.dev` dev domains from production Content-Security-Policy (#227)
+- **lodash vulnerability** — Upgraded 4.17.23 → 4.18.1 (GHSA-r5fr-rjxr-66jc, GHSA-f23m-r3pf-42rh) (#227)
+
+### Security
+
+- `npm audit` clean — 0 vulnerabilities at `--audit-level=high`
+
 ## v2.28.0 (2026-04-01) — Teams, Candidature & Quest Integration
 
 ### Added
