@@ -301,10 +301,10 @@ export async function fetchTokens(): Promise<DirectoryToken[]> {
     try {
         const factoryTokens = await listFactoryTokens(GNO_RPC_URL)
         const tokens: DirectoryToken[] = factoryTokens.map(t => ({
-            slug: t.symbol,
             name: t.name,
             symbol: t.symbol,
             path: `gno.land/r/samcrew/tokenfactory:${t.symbol}`,
+            admin: t.admin || undefined,
         }))
         setCache("tokens", tokens)
         return tokens
