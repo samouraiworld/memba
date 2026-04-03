@@ -69,7 +69,7 @@ func (s *MultisigService) GetFavorites(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, internalError("GetFavorites", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []string
 	for rows.Next() {
@@ -104,7 +104,7 @@ func (s *MultisigService) GetAgentStats(ctx context.Context, req *connect.Reques
 	}
 
 	// Read current counts
-	var viewCount int
+	var viewCount uint32
 	err = s.db.QueryRowContext(ctx,
 		`SELECT view_count FROM agent_views WHERE agent_id = ?`,
 		agentID,
@@ -113,7 +113,7 @@ func (s *MultisigService) GetAgentStats(ctx context.Context, req *connect.Reques
 		return nil, internalError("GetAgentStats/views", err)
 	}
 
-	var favCount int
+	var favCount uint32
 	err = s.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM agent_favorites WHERE agent_id = ?`,
 		agentID,
@@ -125,8 +125,8 @@ func (s *MultisigService) GetAgentStats(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&membav1.GetAgentStatsResponse{
 		Stats: &membav1.AgentStats{
 			AgentId:       agentID,
-			ViewCount:     uint32(viewCount),
-			FavoriteCount: uint32(favCount),
+			ViewCount:     viewCount,
+			FavoriteCount: favCount,
 		},
 	}), nil
 }
