@@ -3224,6 +3224,338 @@ func (x *UpdateTeamMemberRoleResponse) GetTeam() *Team {
 	return nil
 }
 
+type FavoriteAgentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	AgentId       string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"` // on-chain agent ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FavoriteAgentRequest) Reset() {
+	*x = FavoriteAgentRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FavoriteAgentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FavoriteAgentRequest) ProtoMessage() {}
+
+func (x *FavoriteAgentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FavoriteAgentRequest.ProtoReflect.Descriptor instead.
+func (*FavoriteAgentRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *FavoriteAgentRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *FavoriteAgentRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+type FavoriteAgentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Favorited     bool                   `protobuf:"varint,1,opt,name=favorited,proto3" json:"favorited,omitempty"` // true = added, false = removed (toggle)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FavoriteAgentResponse) Reset() {
+	*x = FavoriteAgentResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FavoriteAgentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FavoriteAgentResponse) ProtoMessage() {}
+
+func (x *FavoriteAgentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FavoriteAgentResponse.ProtoReflect.Descriptor instead.
+func (*FavoriteAgentResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *FavoriteAgentResponse) GetFavorited() bool {
+	if x != nil {
+		return x.Favorited
+	}
+	return false
+}
+
+type GetFavoritesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFavoritesRequest) Reset() {
+	*x = GetFavoritesRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFavoritesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFavoritesRequest) ProtoMessage() {}
+
+func (x *GetFavoritesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFavoritesRequest.ProtoReflect.Descriptor instead.
+func (*GetFavoritesRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *GetFavoritesRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+type GetFavoritesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentIds      []string               `protobuf:"bytes,1,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFavoritesResponse) Reset() {
+	*x = GetFavoritesResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFavoritesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFavoritesResponse) ProtoMessage() {}
+
+func (x *GetFavoritesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFavoritesResponse.ProtoReflect.Descriptor instead.
+func (*GetFavoritesResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GetFavoritesResponse) GetAgentIds() []string {
+	if x != nil {
+		return x.AgentIds
+	}
+	return nil
+}
+
+type AgentStats struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	ViewCount     uint32                 `protobuf:"varint,2,opt,name=view_count,json=viewCount,proto3" json:"view_count,omitempty"`
+	FavoriteCount uint32                 `protobuf:"varint,3,opt,name=favorite_count,json=favoriteCount,proto3" json:"favorite_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentStats) Reset() {
+	*x = AgentStats{}
+	mi := &file_memba_v1_memba_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentStats) ProtoMessage() {}
+
+func (x *AgentStats) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentStats.ProtoReflect.Descriptor instead.
+func (*AgentStats) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *AgentStats) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AgentStats) GetViewCount() uint32 {
+	if x != nil {
+		return x.ViewCount
+	}
+	return 0
+}
+
+func (x *AgentStats) GetFavoriteCount() uint32 {
+	if x != nil {
+		return x.FavoriteCount
+	}
+	return 0
+}
+
+type GetAgentStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"` // no auth required — public read
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentStatsRequest) Reset() {
+	*x = GetAgentStatsRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentStatsRequest) ProtoMessage() {}
+
+func (x *GetAgentStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentStatsRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *GetAgentStatsRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+type GetAgentStatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stats         *AgentStats            `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentStatsResponse) Reset() {
+	*x = GetAgentStatsResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentStatsResponse) ProtoMessage() {}
+
+func (x *GetAgentStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentStatsResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *GetAgentStatsResponse) GetStats() *AgentStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -3467,7 +3799,28 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x0emember_address\x18\x03 \x01(\tR\rmemberAddress\x12&\n" +
 	"\x04role\x18\x04 \x01(\x0e2\x12.memba.v1.TeamRoleR\x04role\"B\n" +
 	"\x1cUpdateTeamMemberRoleResponse\x12\"\n" +
-	"\x04team\x18\x01 \x01(\v2\x0e.memba.v1.TeamR\x04team*N\n" +
+	"\x04team\x18\x01 \x01(\v2\x0e.memba.v1.TeamR\x04team\"a\n" +
+	"\x14FavoriteAgentRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\"5\n" +
+	"\x15FavoriteAgentResponse\x12\x1c\n" +
+	"\tfavorited\x18\x01 \x01(\bR\tfavorited\"E\n" +
+	"\x13GetFavoritesRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\"3\n" +
+	"\x14GetFavoritesResponse\x12\x1b\n" +
+	"\tagent_ids\x18\x01 \x03(\tR\bagentIds\"m\n" +
+	"\n" +
+	"AgentStats\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1d\n" +
+	"\n" +
+	"view_count\x18\x02 \x01(\rR\tviewCount\x12%\n" +
+	"\x0efavorite_count\x18\x03 \x01(\rR\rfavoriteCount\"1\n" +
+	"\x14GetAgentStatsRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\"C\n" +
+	"\x15GetAgentStatsResponse\x12*\n" +
+	"\x05stats\x18\x01 \x01(\v2\x14.memba.v1.AgentStatsR\x05stats*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -3479,7 +3832,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\bTeamRole\x12\x19\n" +
 	"\x15TEAM_ROLE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TEAM_ROLE_MEMBER\x10\x01\x12\x13\n" +
-	"\x0fTEAM_ROLE_ADMIN\x10\x022\xa7\r\n" +
+	"\x0fTEAM_ROLE_ADMIN\x10\x022\x9a\x0f\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -3505,7 +3858,10 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"GetMyTeams\x12\x1b.memba.v1.GetMyTeamsRequest\x1a\x1c.memba.v1.GetMyTeamsResponse\x12A\n" +
 	"\bJoinTeam\x12\x19.memba.v1.JoinTeamRequest\x1a\x1a.memba.v1.JoinTeamResponse\x12D\n" +
 	"\tLeaveTeam\x12\x1a.memba.v1.LeaveTeamRequest\x1a\x1b.memba.v1.LeaveTeamResponse\x12e\n" +
-	"\x14UpdateTeamMemberRole\x12%.memba.v1.UpdateTeamMemberRoleRequest\x1a&.memba.v1.UpdateTeamMemberRoleResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\x14UpdateTeamMemberRole\x12%.memba.v1.UpdateTeamMemberRoleRequest\x1a&.memba.v1.UpdateTeamMemberRoleResponse\x12P\n" +
+	"\rFavoriteAgent\x12\x1e.memba.v1.FavoriteAgentRequest\x1a\x1f.memba.v1.FavoriteAgentResponse\x12M\n" +
+	"\fGetFavorites\x12\x1d.memba.v1.GetFavoritesRequest\x1a\x1e.memba.v1.GetFavoritesResponse\x12P\n" +
+	"\rGetAgentStats\x12\x1e.memba.v1.GetAgentStatsRequest\x1a\x1f.memba.v1.GetAgentStatsResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -3520,7 +3876,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -3578,6 +3934,13 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*LeaveTeamResponse)(nil),            // 53: memba.v1.LeaveTeamResponse
 	(*UpdateTeamMemberRoleRequest)(nil),  // 54: memba.v1.UpdateTeamMemberRoleRequest
 	(*UpdateTeamMemberRoleResponse)(nil), // 55: memba.v1.UpdateTeamMemberRoleResponse
+	(*FavoriteAgentRequest)(nil),         // 56: memba.v1.FavoriteAgentRequest
+	(*FavoriteAgentResponse)(nil),        // 57: memba.v1.FavoriteAgentResponse
+	(*GetFavoritesRequest)(nil),          // 58: memba.v1.GetFavoritesRequest
+	(*GetFavoritesResponse)(nil),         // 59: memba.v1.GetFavoritesResponse
+	(*AgentStats)(nil),                   // 60: memba.v1.AgentStats
+	(*GetAgentStatsRequest)(nil),         // 61: memba.v1.GetAgentStatsRequest
+	(*GetAgentStatsResponse)(nil),        // 62: memba.v1.GetAgentStatsResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -3623,53 +3986,62 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	4,  // 40: memba.v1.UpdateTeamMemberRoleRequest.auth_token:type_name -> memba.v1.Token
 	2,  // 41: memba.v1.UpdateTeamMemberRoleRequest.role:type_name -> memba.v1.TeamRole
 	42, // 42: memba.v1.UpdateTeamMemberRoleResponse.team:type_name -> memba.v1.Team
-	6,  // 43: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	8,  // 44: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	11, // 45: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	13, // 46: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	15, // 47: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	19, // 48: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	23, // 49: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
-	21, // 50: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	25, // 51: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	27, // 52: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	30, // 53: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
-	32, // 54: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
-	36, // 55: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
-	38, // 56: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
-	40, // 57: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
-	44, // 58: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
-	46, // 59: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
-	48, // 60: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
-	50, // 61: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
-	52, // 62: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
-	54, // 63: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
-	7,  // 64: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	9,  // 65: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	12, // 66: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	14, // 67: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	16, // 68: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	20, // 69: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	24, // 70: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	22, // 71: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	26, // 72: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	28, // 73: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	31, // 74: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
-	33, // 75: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
-	37, // 76: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
-	39, // 77: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
-	41, // 78: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
-	45, // 79: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
-	47, // 80: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
-	49, // 81: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
-	51, // 82: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
-	53, // 83: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
-	55, // 84: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
-	64, // [64:85] is the sub-list for method output_type
-	43, // [43:64] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	4,  // 43: memba.v1.FavoriteAgentRequest.auth_token:type_name -> memba.v1.Token
+	4,  // 44: memba.v1.GetFavoritesRequest.auth_token:type_name -> memba.v1.Token
+	60, // 45: memba.v1.GetAgentStatsResponse.stats:type_name -> memba.v1.AgentStats
+	6,  // 46: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	8,  // 47: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	11, // 48: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	13, // 49: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	15, // 50: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	19, // 51: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	23, // 52: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	21, // 53: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	25, // 54: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	27, // 55: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	30, // 56: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
+	32, // 57: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
+	36, // 58: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
+	38, // 59: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
+	40, // 60: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
+	44, // 61: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
+	46, // 62: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
+	48, // 63: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
+	50, // 64: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
+	52, // 65: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
+	54, // 66: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
+	56, // 67: memba.v1.MultisigService.FavoriteAgent:input_type -> memba.v1.FavoriteAgentRequest
+	58, // 68: memba.v1.MultisigService.GetFavorites:input_type -> memba.v1.GetFavoritesRequest
+	61, // 69: memba.v1.MultisigService.GetAgentStats:input_type -> memba.v1.GetAgentStatsRequest
+	7,  // 70: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	9,  // 71: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	12, // 72: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	14, // 73: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	16, // 74: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	20, // 75: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	24, // 76: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	22, // 77: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	26, // 78: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	28, // 79: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	31, // 80: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	33, // 81: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	37, // 82: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
+	39, // 83: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
+	41, // 84: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
+	45, // 85: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
+	47, // 86: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
+	49, // 87: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
+	51, // 88: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
+	53, // 89: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
+	55, // 90: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
+	57, // 91: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
+	59, // 92: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
+	62, // 93: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
+	70, // [70:94] is the sub-list for method output_type
+	46, // [46:70] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -3683,7 +4055,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   53,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

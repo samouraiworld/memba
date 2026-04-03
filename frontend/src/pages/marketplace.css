@@ -752,3 +752,34 @@
     opacity: 0.4;
     cursor: not-allowed;
 }
+
+.mp-card__fav {
+    color: #555;
+    cursor: pointer;
+    transition: color 0.15s;
+    display: inline-flex;
+    align-items: center;
+}
+.mp-card__fav:hover,
+.mp-card__fav.active {
+    color: #ff6b8a;
+}
+
+.mp-detail__fav {
+    background: none;
+    border: 1px solid rgba(255, 107, 138, 0.2);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: #555;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+.mp-detail__fav:hover,
+.mp-detail__fav.active {
+    color: #ff6b8a;
+    border-color: rgba(255, 107, 138, 0.4);
+    background: rgba(255, 107, 138, 0.06);
+}

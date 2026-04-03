@@ -10,14 +10,19 @@
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react"
 import { useOutletContext } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
+import { Heart } from "@phosphor-icons/react"
 import {
     fetchAgents,
     fetchAgentDetail,
     invalidateAgentCache,
     generateMcpConfig,
+    toggleFavorite,
+    getFavorites,
+    getAgentStats,
     AGENT_CATEGORIES,
     type AgentListing,
     type AgentCategory,
+    type AgentStats,
 } from "../lib/agentRegistry"
 import { buildRegisterAgentMsg, buildReviewAgentMsg } from "../lib/agentTemplate"
 import { doContractBroadcast } from "../lib/grc20"
@@ -52,7 +57,7 @@ export default function Marketplace() {
 }
 
 function MarketplaceContent() {
-    const { adena } = useOutletContext<LayoutContext>()
+    const { adena, auth } = useOutletContext<LayoutContext>()
 
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
@@ -61,16 +66,22 @@ function MarketplaceContent() {
     const [copied, setCopied] = useState(false)
     const [showRegister, setShowRegister] = useState(false)
     const [allAgents, setAllAgents] = useState<AgentListing[]>([])
+    const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Load agents from chain on mount
+    // Load agents from chain on mount + load favorites if authenticated
     useEffect(() => {
         document.title = "AI Agent Marketplace — Memba"
         fetchAgents()
             .then(result => { setAllAgents(result); setLoading(false) })
             .catch(() => setLoading(false))
     }, [])
+
+    useEffect(() => {
+        if (!auth.token) return
+        getFavorites(auth.token).then(ids => setFavoriteIds(new Set(ids))).catch(() => {})
+    }, [auth.token])
 
     const agents = useMemo(() => {
         let results = allAgents
@@ -118,12 +129,29 @@ function MarketplaceContent() {
         setLoading(false)
     }, [])
 
+    const handleToggleFavorite = useCallback(async (e: React.MouseEvent, agentId: string) => {
+        e.stopPropagation()
+        if (!auth.token) return
+        try {
+            const nowFavorited = await toggleFavorite(auth.token, agentId)
+            setFavoriteIds(prev => {
+                const next = new Set(prev)
+                if (nowFavorited) next.add(agentId)
+                else next.delete(agentId)
+                return next
+            })
+        } catch { /* ignore */ }
+    }, [auth.token])
+
     // ── Agent Detail Panel ────────────────────────────────────
     if (selectedAgent) {
         return (
             <AgentDetailView
                 agent={selectedAgent}
                 adena={adena}
+                auth={auth}
+                isFavorited={favoriteIds.has(selectedAgent.id)}
+                onToggleFavorite={handleToggleFavorite}
                 onBack={() => setSelectedAgent(null)}
                 onCopyConfig={() => handleCopyConfig(selectedAgent)}
                 copied={copied}
@@ -236,6 +264,15 @@ function MarketplaceContent() {
                                         ★ {agent.rating.toFixed(1)} ({agent.ratingCount})
                                     </span>
                                 )}
+                                {auth.token && (
+                                    <span
+                                        className={`mp-card__fav${favoriteIds.has(agent.id) ? " active" : ""}`}
+                                        onClick={e => handleToggleFavorite(e, agent.id)}
+                                        title={favoriteIds.has(agent.id) ? "Remove from favorites" : "Add to favorites"}
+                                    >
+                                        <Heart size={14} weight={favoriteIds.has(agent.id) ? "fill" : "regular"} />
+                                    </span>
+                                )}
                                 <ArrowRight size={14} className="mp-card__arrow" />
                             </div>
                         </button>
@@ -249,10 +286,13 @@ function MarketplaceContent() {
 // ── Agent Detail View ───────────────────────────────────────
 
 function AgentDetailView({
-    agent, adena, onBack, onCopyConfig, copied, onError,
+    agent, adena, auth, isFavorited, onToggleFavorite, onBack, onCopyConfig, copied, onError,
 }: {
     agent: AgentListing
     adena: LayoutContext["adena"]
+    auth: LayoutContext["auth"]
+    isFavorited: boolean
+    onToggleFavorite: (e: React.MouseEvent, id: string) => void
     onBack: () => void
     onCopyConfig: () => void
     copied: boolean
@@ -263,6 +303,12 @@ function AgentDetailView({
     const [reviewComment, setReviewComment] = useState("")
     const [submittingReview, setSubmittingReview] = useState(false)
     const [reviewSuccess, setReviewSuccess] = useState(false)
+    const [stats, setStats] = useState<AgentStats | null>(null)
+
+    // Load stats on mount
+    useEffect(() => {
+        getAgentStats(agent.id).then(setStats).catch(() => {})
+    }, [agent.id])
 
     const handleSubmitReview = async () => {
         if (!adena.connected || !reviewComment.trim()) return
@@ -312,6 +358,15 @@ function AgentDetailView({
                             </span>
                         </div>
                     </div>
+                    {auth.token && (
+                        <button
+                            className={`mp-detail__fav${isFavorited ? " active" : ""}`}
+                            onClick={e => onToggleFavorite(e, agent.id)}
+                            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                        >
+                            <Heart size={20} weight={isFavorited ? "fill" : "regular"} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Stats row */}
@@ -328,6 +383,18 @@ function AgentDetailView({
                         <span className="mp-stat__value">{agent.totalCalls}</span>
                         <span className="mp-stat__label">Invocations</span>
                     </div>
+                    {stats && (
+                        <>
+                            <div className="mp-stat">
+                                <span className="mp-stat__value">{stats.viewCount}</span>
+                                <span className="mp-stat__label">Views</span>
+                            </div>
+                            <div className="mp-stat">
+                                <span className="mp-stat__value">{stats.favoriteCount}</span>
+                                <span className="mp-stat__label">Favorites</span>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Description */}
