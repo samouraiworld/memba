@@ -124,7 +124,7 @@ function MarketplaceContent() {
             <AgentDetailView
                 agent={selectedAgent}
                 adena={adena}
-                onBack={() => { setSelectedAgent(null); setAgentReviews([]) }}
+                onBack={() => setSelectedAgent(null)}
                 onCopyConfig={() => handleCopyConfig(selectedAgent)}
                 copied={copied}
                 onError={setError}
