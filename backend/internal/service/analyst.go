@@ -176,7 +176,7 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("LLM request failed: %w", err)
+		return "", fmt.Errorf("llm request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -196,7 +196,7 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("LLM returned %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("llm returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	var llmResp LLMResponse
@@ -262,7 +262,7 @@ func callGoogleAI(ctx context.Context, provider LLMProvider, systemPrompt, userP
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Gemini request failed: %w", err)
+		return "", fmt.Errorf("gemini request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -272,7 +272,7 @@ func callGoogleAI(ctx context.Context, provider LLMProvider, systemPrompt, userP
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Gemini returned %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("gemini returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Parse Gemini response format
@@ -337,7 +337,7 @@ func callOllama(ctx context.Context, provider LLMProvider, systemPrompt, userPro
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Ollama request failed: %w", err)
+		return "", fmt.Errorf("ollama request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -347,7 +347,7 @@ func callOllama(ctx context.Context, provider LLMProvider, systemPrompt, userPro
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Ollama returned %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	var ollamaResp struct {
