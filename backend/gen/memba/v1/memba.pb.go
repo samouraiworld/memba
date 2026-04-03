@@ -3556,6 +3556,522 @@ func (x *GetAgentStatsResponse) GetStats() *AgentStats {
 	return nil
 }
 
+type ServiceListing struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                   // UUID
+	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`         // freelancer g1... address
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`             // 1-200 chars
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"` // up to 2000 chars
+	Category      string                 `protobuf:"bytes,5,opt,name=category,proto3" json:"category,omitempty"`       // development, design, writing, consulting, marketing, other
+	Price         uint64                 `protobuf:"varint,6,opt,name=price,proto3" json:"price,omitempty"`            // suggested price in ugnot
+	DeliveryDays  uint32                 `protobuf:"varint,7,opt,name=delivery_days,json=deliveryDays,proto3" json:"delivery_days,omitempty"`
+	Tags          string                 `protobuf:"bytes,8,opt,name=tags,proto3" json:"tags,omitempty"` // comma-separated
+	Active        bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServiceListing) Reset() {
+	*x = ServiceListing{}
+	mi := &file_memba_v1_memba_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceListing) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceListing) ProtoMessage() {}
+
+func (x *ServiceListing) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceListing.ProtoReflect.Descriptor instead.
+func (*ServiceListing) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ServiceListing) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetPrice() uint64 {
+	if x != nil {
+		return x.Price
+	}
+	return 0
+}
+
+func (x *ServiceListing) GetDeliveryDays() uint32 {
+	if x != nil {
+		return x.DeliveryDays
+	}
+	return 0
+}
+
+func (x *ServiceListing) GetTags() string {
+	if x != nil {
+		return x.Tags
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *ServiceListing) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ServiceListing) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type CreateServiceListingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Category      string                 `protobuf:"bytes,4,opt,name=category,proto3" json:"category,omitempty"`
+	Price         uint64                 `protobuf:"varint,5,opt,name=price,proto3" json:"price,omitempty"` // ugnot
+	DeliveryDays  uint32                 `protobuf:"varint,6,opt,name=delivery_days,json=deliveryDays,proto3" json:"delivery_days,omitempty"`
+	Tags          string                 `protobuf:"bytes,7,opt,name=tags,proto3" json:"tags,omitempty"` // comma-separated
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServiceListingRequest) Reset() {
+	*x = CreateServiceListingRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServiceListingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServiceListingRequest) ProtoMessage() {}
+
+func (x *CreateServiceListingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServiceListingRequest.ProtoReflect.Descriptor instead.
+func (*CreateServiceListingRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *CreateServiceListingRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *CreateServiceListingRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CreateServiceListingRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateServiceListingRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *CreateServiceListingRequest) GetPrice() uint64 {
+	if x != nil {
+		return x.Price
+	}
+	return 0
+}
+
+func (x *CreateServiceListingRequest) GetDeliveryDays() uint32 {
+	if x != nil {
+		return x.DeliveryDays
+	}
+	return 0
+}
+
+func (x *CreateServiceListingRequest) GetTags() string {
+	if x != nil {
+		return x.Tags
+	}
+	return ""
+}
+
+type CreateServiceListingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listing       *ServiceListing        `protobuf:"bytes,1,opt,name=listing,proto3" json:"listing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServiceListingResponse) Reset() {
+	*x = CreateServiceListingResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServiceListingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServiceListingResponse) ProtoMessage() {}
+
+func (x *CreateServiceListingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServiceListingResponse.ProtoReflect.Descriptor instead.
+func (*CreateServiceListingResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *CreateServiceListingResponse) GetListing() *ServiceListing {
+	if x != nil {
+		return x.Listing
+	}
+	return nil
+}
+
+type GetServiceListingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Category      string                 `protobuf:"bytes,1,opt,name=category,proto3" json:"category,omitempty"`                       // optional filter, empty = all
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`                            // default 50
+	StartAfter    string                 `protobuf:"bytes,3,opt,name=start_after,json=startAfter,proto3" json:"start_after,omitempty"` // cursor-based pagination
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServiceListingsRequest) Reset() {
+	*x = GetServiceListingsRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServiceListingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServiceListingsRequest) ProtoMessage() {}
+
+func (x *GetServiceListingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServiceListingsRequest.ProtoReflect.Descriptor instead.
+func (*GetServiceListingsRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *GetServiceListingsRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *GetServiceListingsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetServiceListingsRequest) GetStartAfter() string {
+	if x != nil {
+		return x.StartAfter
+	}
+	return ""
+}
+
+type GetServiceListingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listings      []*ServiceListing      `protobuf:"bytes,1,rep,name=listings,proto3" json:"listings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServiceListingsResponse) Reset() {
+	*x = GetServiceListingsResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServiceListingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServiceListingsResponse) ProtoMessage() {}
+
+func (x *GetServiceListingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServiceListingsResponse.ProtoReflect.Descriptor instead.
+func (*GetServiceListingsResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *GetServiceListingsResponse) GetListings() []*ServiceListing {
+	if x != nil {
+		return x.Listings
+	}
+	return nil
+}
+
+type UpdateServiceListingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	ListingId     string                 `protobuf:"bytes,2,opt,name=listing_id,json=listingId,proto3" json:"listing_id,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"` // empty = no change
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Category      string                 `protobuf:"bytes,5,opt,name=category,proto3" json:"category,omitempty"`
+	Price         uint64                 `protobuf:"varint,6,opt,name=price,proto3" json:"price,omitempty"`                                   // 0 = no change
+	DeliveryDays  uint32                 `protobuf:"varint,7,opt,name=delivery_days,json=deliveryDays,proto3" json:"delivery_days,omitempty"` // 0 = no change
+	Tags          string                 `protobuf:"bytes,8,opt,name=tags,proto3" json:"tags,omitempty"`
+	Active        bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"` // toggle active/paused
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateServiceListingRequest) Reset() {
+	*x = UpdateServiceListingRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateServiceListingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateServiceListingRequest) ProtoMessage() {}
+
+func (x *UpdateServiceListingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateServiceListingRequest.ProtoReflect.Descriptor instead.
+func (*UpdateServiceListingRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *UpdateServiceListingRequest) GetAuthToken() *Token {
+	if x != nil {
+		return x.AuthToken
+	}
+	return nil
+}
+
+func (x *UpdateServiceListingRequest) GetListingId() string {
+	if x != nil {
+		return x.ListingId
+	}
+	return ""
+}
+
+func (x *UpdateServiceListingRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *UpdateServiceListingRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpdateServiceListingRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *UpdateServiceListingRequest) GetPrice() uint64 {
+	if x != nil {
+		return x.Price
+	}
+	return 0
+}
+
+func (x *UpdateServiceListingRequest) GetDeliveryDays() uint32 {
+	if x != nil {
+		return x.DeliveryDays
+	}
+	return 0
+}
+
+func (x *UpdateServiceListingRequest) GetTags() string {
+	if x != nil {
+		return x.Tags
+	}
+	return ""
+}
+
+func (x *UpdateServiceListingRequest) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+type UpdateServiceListingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listing       *ServiceListing        `protobuf:"bytes,1,opt,name=listing,proto3" json:"listing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateServiceListingResponse) Reset() {
+	*x = UpdateServiceListingResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateServiceListingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateServiceListingResponse) ProtoMessage() {}
+
+func (x *UpdateServiceListingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateServiceListingResponse.ProtoReflect.Descriptor instead.
+func (*UpdateServiceListingResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *UpdateServiceListingResponse) GetListing() *ServiceListing {
+	if x != nil {
+		return x.Listing
+	}
+	return nil
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -3820,7 +4336,54 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x14GetAgentStatsRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"C\n" +
 	"\x15GetAgentStatsResponse\x12*\n" +
-	"\x05stats\x18\x01 \x01(\v2\x14.memba.v1.AgentStatsR\x05stats*N\n" +
+	"\x05stats\x18\x01 \x01(\v2\x14.memba.v1.AgentStatsR\x05stats\"\xb3\x02\n" +
+	"\x0eServiceListing\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bcategory\x18\x05 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05price\x18\x06 \x01(\x04R\x05price\x12#\n" +
+	"\rdelivery_days\x18\a \x01(\rR\fdeliveryDays\x12\x12\n" +
+	"\x04tags\x18\b \x01(\tR\x04tags\x12\x16\n" +
+	"\x06active\x18\t \x01(\bR\x06active\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\v \x01(\tR\tupdatedAt\"\xf0\x01\n" +
+	"\x1bCreateServiceListingRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bcategory\x18\x04 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05price\x18\x05 \x01(\x04R\x05price\x12#\n" +
+	"\rdelivery_days\x18\x06 \x01(\rR\fdeliveryDays\x12\x12\n" +
+	"\x04tags\x18\a \x01(\tR\x04tags\"R\n" +
+	"\x1cCreateServiceListingResponse\x122\n" +
+	"\alisting\x18\x01 \x01(\v2\x18.memba.v1.ServiceListingR\alisting\"n\n" +
+	"\x19GetServiceListingsRequest\x12\x1a\n" +
+	"\bcategory\x18\x01 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x1f\n" +
+	"\vstart_after\x18\x03 \x01(\tR\n" +
+	"startAfter\"R\n" +
+	"\x1aGetServiceListingsResponse\x124\n" +
+	"\blistings\x18\x01 \x03(\v2\x18.memba.v1.ServiceListingR\blistings\"\xa7\x02\n" +
+	"\x1bUpdateServiceListingRequest\x12.\n" +
+	"\n" +
+	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x1d\n" +
+	"\n" +
+	"listing_id\x18\x02 \x01(\tR\tlistingId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bcategory\x18\x05 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05price\x18\x06 \x01(\x04R\x05price\x12#\n" +
+	"\rdelivery_days\x18\a \x01(\rR\fdeliveryDays\x12\x12\n" +
+	"\x04tags\x18\b \x01(\tR\x04tags\x12\x16\n" +
+	"\x06active\x18\t \x01(\bR\x06active\"R\n" +
+	"\x1cUpdateServiceListingResponse\x122\n" +
+	"\alisting\x18\x01 \x01(\v2\x18.memba.v1.ServiceListingR\alisting*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -3832,7 +4395,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\bTeamRole\x12\x19\n" +
 	"\x15TEAM_ROLE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TEAM_ROLE_MEMBER\x10\x01\x12\x13\n" +
-	"\x0fTEAM_ROLE_ADMIN\x10\x022\x9a\x0f\n" +
+	"\x0fTEAM_ROLE_ADMIN\x10\x022\xc9\x11\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -3861,7 +4424,10 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x14UpdateTeamMemberRole\x12%.memba.v1.UpdateTeamMemberRoleRequest\x1a&.memba.v1.UpdateTeamMemberRoleResponse\x12P\n" +
 	"\rFavoriteAgent\x12\x1e.memba.v1.FavoriteAgentRequest\x1a\x1f.memba.v1.FavoriteAgentResponse\x12M\n" +
 	"\fGetFavorites\x12\x1d.memba.v1.GetFavoritesRequest\x1a\x1e.memba.v1.GetFavoritesResponse\x12P\n" +
-	"\rGetAgentStats\x12\x1e.memba.v1.GetAgentStatsRequest\x1a\x1f.memba.v1.GetAgentStatsResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\rGetAgentStats\x12\x1e.memba.v1.GetAgentStatsRequest\x1a\x1f.memba.v1.GetAgentStatsResponse\x12e\n" +
+	"\x14CreateServiceListing\x12%.memba.v1.CreateServiceListingRequest\x1a&.memba.v1.CreateServiceListingResponse\x12_\n" +
+	"\x12GetServiceListings\x12#.memba.v1.GetServiceListingsRequest\x1a$.memba.v1.GetServiceListingsResponse\x12e\n" +
+	"\x14UpdateServiceListing\x12%.memba.v1.UpdateServiceListingRequest\x1a&.memba.v1.UpdateServiceListingResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -3876,7 +4442,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 67)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -3941,6 +4507,13 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*AgentStats)(nil),                   // 60: memba.v1.AgentStats
 	(*GetAgentStatsRequest)(nil),         // 61: memba.v1.GetAgentStatsRequest
 	(*GetAgentStatsResponse)(nil),        // 62: memba.v1.GetAgentStatsResponse
+	(*ServiceListing)(nil),               // 63: memba.v1.ServiceListing
+	(*CreateServiceListingRequest)(nil),  // 64: memba.v1.CreateServiceListingRequest
+	(*CreateServiceListingResponse)(nil), // 65: memba.v1.CreateServiceListingResponse
+	(*GetServiceListingsRequest)(nil),    // 66: memba.v1.GetServiceListingsRequest
+	(*GetServiceListingsResponse)(nil),   // 67: memba.v1.GetServiceListingsResponse
+	(*UpdateServiceListingRequest)(nil),  // 68: memba.v1.UpdateServiceListingRequest
+	(*UpdateServiceListingResponse)(nil), // 69: memba.v1.UpdateServiceListingResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -3989,59 +4562,70 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	4,  // 43: memba.v1.FavoriteAgentRequest.auth_token:type_name -> memba.v1.Token
 	4,  // 44: memba.v1.GetFavoritesRequest.auth_token:type_name -> memba.v1.Token
 	60, // 45: memba.v1.GetAgentStatsResponse.stats:type_name -> memba.v1.AgentStats
-	6,  // 46: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	8,  // 47: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	11, // 48: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	13, // 49: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	15, // 50: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	19, // 51: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	23, // 52: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
-	21, // 53: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	25, // 54: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	27, // 55: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	30, // 56: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
-	32, // 57: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
-	36, // 58: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
-	38, // 59: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
-	40, // 60: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
-	44, // 61: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
-	46, // 62: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
-	48, // 63: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
-	50, // 64: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
-	52, // 65: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
-	54, // 66: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
-	56, // 67: memba.v1.MultisigService.FavoriteAgent:input_type -> memba.v1.FavoriteAgentRequest
-	58, // 68: memba.v1.MultisigService.GetFavorites:input_type -> memba.v1.GetFavoritesRequest
-	61, // 69: memba.v1.MultisigService.GetAgentStats:input_type -> memba.v1.GetAgentStatsRequest
-	7,  // 70: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	9,  // 71: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	12, // 72: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	14, // 73: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	16, // 74: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	20, // 75: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	24, // 76: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	22, // 77: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	26, // 78: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	28, // 79: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	31, // 80: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
-	33, // 81: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
-	37, // 82: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
-	39, // 83: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
-	41, // 84: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
-	45, // 85: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
-	47, // 86: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
-	49, // 87: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
-	51, // 88: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
-	53, // 89: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
-	55, // 90: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
-	57, // 91: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
-	59, // 92: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
-	62, // 93: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
-	70, // [70:94] is the sub-list for method output_type
-	46, // [46:70] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	4,  // 46: memba.v1.CreateServiceListingRequest.auth_token:type_name -> memba.v1.Token
+	63, // 47: memba.v1.CreateServiceListingResponse.listing:type_name -> memba.v1.ServiceListing
+	63, // 48: memba.v1.GetServiceListingsResponse.listings:type_name -> memba.v1.ServiceListing
+	4,  // 49: memba.v1.UpdateServiceListingRequest.auth_token:type_name -> memba.v1.Token
+	63, // 50: memba.v1.UpdateServiceListingResponse.listing:type_name -> memba.v1.ServiceListing
+	6,  // 51: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	8,  // 52: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	11, // 53: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	13, // 54: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	15, // 55: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	19, // 56: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	23, // 57: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	21, // 58: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	25, // 59: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	27, // 60: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	30, // 61: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
+	32, // 62: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
+	36, // 63: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
+	38, // 64: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
+	40, // 65: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
+	44, // 66: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
+	46, // 67: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
+	48, // 68: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
+	50, // 69: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
+	52, // 70: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
+	54, // 71: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
+	56, // 72: memba.v1.MultisigService.FavoriteAgent:input_type -> memba.v1.FavoriteAgentRequest
+	58, // 73: memba.v1.MultisigService.GetFavorites:input_type -> memba.v1.GetFavoritesRequest
+	61, // 74: memba.v1.MultisigService.GetAgentStats:input_type -> memba.v1.GetAgentStatsRequest
+	64, // 75: memba.v1.MultisigService.CreateServiceListing:input_type -> memba.v1.CreateServiceListingRequest
+	66, // 76: memba.v1.MultisigService.GetServiceListings:input_type -> memba.v1.GetServiceListingsRequest
+	68, // 77: memba.v1.MultisigService.UpdateServiceListing:input_type -> memba.v1.UpdateServiceListingRequest
+	7,  // 78: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	9,  // 79: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	12, // 80: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	14, // 81: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	16, // 82: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	20, // 83: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	24, // 84: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	22, // 85: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	26, // 86: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	28, // 87: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	31, // 88: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	33, // 89: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	37, // 90: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
+	39, // 91: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
+	41, // 92: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
+	45, // 93: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
+	47, // 94: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
+	49, // 95: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
+	51, // 96: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
+	53, // 97: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
+	55, // 98: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
+	57, // 99: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
+	59, // 100: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
+	62, // 101: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
+	65, // 102: memba.v1.MultisigService.CreateServiceListing:output_type -> memba.v1.CreateServiceListingResponse
+	67, // 103: memba.v1.MultisigService.GetServiceListings:output_type -> memba.v1.GetServiceListingsResponse
+	69, // 104: memba.v1.MultisigService.UpdateServiceListing:output_type -> memba.v1.UpdateServiceListingResponse
+	78, // [78:105] is the sub-list for method output_type
+	51, // [51:78] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -4055,7 +4639,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   60,
+			NumMessages:   67,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
