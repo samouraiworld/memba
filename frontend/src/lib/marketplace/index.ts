@@ -29,8 +29,12 @@ export {
 } from "./queries"
 
 export {
-    buildListServiceMsg,
-    buildPurchaseMsg,
-    buildCompleteEscrowMsg,
-    buildDisputeEscrowMsg,
+    buildCreateContractMsg,
+    buildFundMilestoneMsg,
+    buildCompleteMilestoneMsg,
+    buildReleaseFundsMsg,
+    buildRaiseDisputeMsg,
+    buildCancelContractMsg,
+    buildClaimRefundMsg,
+    buildClaimDisputeTimeoutMsg,
 } from "./builders"

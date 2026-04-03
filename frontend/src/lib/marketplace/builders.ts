@@ -1,11 +1,9 @@
 /**
- * marketplace/builders.ts — MsgCall builders for marketplace transactions.
+ * marketplace/builders.ts — MsgCall builders for escrow transactions.
  *
- * Sprint 6: Generates Amino-compatible messages for marketplace operations.
+ * Matches the on-chain escrow realm at gno.land/r/samcrew/escrow.
+ * Each builder generates an Amino-compatible /vm.m_call message for Adena.
  */
-
-import type { PaymentConfig } from "./types"
-import { calculatePlatformFee } from "./types"
 
 /** Amino MsgCall shape for Adena broadcasting. */
 interface MsgCall {
@@ -19,61 +17,53 @@ interface MsgCall {
     }
 }
 
-/**
- * Build a MsgCall to list a new service on the marketplace.
- */
-export function buildListServiceMsg(
+/** Build a MsgCall to create a new escrow contract with milestones. */
+export function buildCreateContractMsg(
     caller: string,
-    marketplacePath: string,
+    escrowPath: string,
+    freelancer: string,
     title: string,
     description: string,
-    pricing: PaymentConfig,
+    milestones: string, // "title1:amount1,title2:amount2"
 ): MsgCall {
     return {
         type: "/vm.m_call",
         value: {
             caller,
             send: "",
-            pkg_path: marketplacePath,
-            func: "ListService",
-            args: [title, description, pricing.denom, String(pricing.amount)],
+            pkg_path: escrowPath,
+            func: "CreateContract",
+            args: [freelancer, title, description, milestones],
         },
     }
 }
 
-/**
- * Build a MsgCall to purchase/hire a marketplace listing.
- * Sends the listing price + platform fee as attached funds.
- */
-export function buildPurchaseMsg(
+/** Build a MsgCall to fund a specific milestone. Requires exact ugnot send. */
+export function buildFundMilestoneMsg(
     caller: string,
-    marketplacePath: string,
-    listingId: string,
-    pricing: PaymentConfig,
+    escrowPath: string,
+    contractId: string,
+    milestoneIdx: number,
+    amountUgnot: number,
 ): MsgCall {
-    const fee = calculatePlatformFee(pricing.amount, pricing.feePercent)
-    const totalSend = pricing.amount + fee
-
     return {
         type: "/vm.m_call",
         value: {
             caller,
-            send: `${totalSend}${pricing.denom}`,
-            pkg_path: marketplacePath,
-            func: "Purchase",
-            args: [listingId],
+            send: `${amountUgnot}ugnot`,
+            pkg_path: escrowPath,
+            func: "FundMilestone",
+            args: [contractId, String(milestoneIdx)],
         },
     }
 }
 
-/**
- * Build a MsgCall to complete an escrow milestone.
- */
-export function buildCompleteEscrowMsg(
+/** Build a MsgCall to mark a milestone as completed. Freelancer only. */
+export function buildCompleteMilestoneMsg(
     caller: string,
     escrowPath: string,
     contractId: string,
-    milestoneId: string,
+    milestoneIdx: number,
 ): MsgCall {
     return {
         type: "/vm.m_call",
@@ -82,19 +72,17 @@ export function buildCompleteEscrowMsg(
             send: "",
             pkg_path: escrowPath,
             func: "CompleteMilestone",
-            args: [contractId, milestoneId],
+            args: [contractId, String(milestoneIdx)],
         },
     }
 }
 
-/**
- * Build a MsgCall to dispute an escrow contract.
- */
-export function buildDisputeEscrowMsg(
+/** Build a MsgCall to release funds to the freelancer. Client or Admin. */
+export function buildReleaseFundsMsg(
     caller: string,
     escrowPath: string,
     contractId: string,
-    reason: string,
+    milestoneIdx: number,
 ): MsgCall {
     return {
         type: "/vm.m_call",
@@ -102,8 +90,83 @@ export function buildDisputeEscrowMsg(
             caller,
             send: "",
             pkg_path: escrowPath,
-            func: "DisputeContract",
-            args: [contractId, reason],
+            func: "ReleaseFunds",
+            args: [contractId, String(milestoneIdx)],
+        },
+    }
+}
+
+/** Build a MsgCall to raise a dispute on a milestone. Client or Freelancer. */
+export function buildRaiseDisputeMsg(
+    caller: string,
+    escrowPath: string,
+    contractId: string,
+    milestoneIdx: number,
+): MsgCall {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller,
+            send: "",
+            pkg_path: escrowPath,
+            func: "RaiseDispute",
+            args: [contractId, String(milestoneIdx)],
+        },
+    }
+}
+
+/** Build a MsgCall to cancel a contract. Client only. */
+export function buildCancelContractMsg(
+    caller: string,
+    escrowPath: string,
+    contractId: string,
+): MsgCall {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller,
+            send: "",
+            pkg_path: escrowPath,
+            func: "CancelContract",
+            args: [contractId],
+        },
+    }
+}
+
+/** Build a MsgCall to claim a refund on a timed-out milestone. Anyone. */
+export function buildClaimRefundMsg(
+    caller: string,
+    escrowPath: string,
+    contractId: string,
+    milestoneIdx: number,
+): MsgCall {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller,
+            send: "",
+            pkg_path: escrowPath,
+            func: "ClaimRefund",
+            args: [contractId, String(milestoneIdx)],
+        },
+    }
+}
+
+/** Build a MsgCall to claim a dispute timeout. Anyone. */
+export function buildClaimDisputeTimeoutMsg(
+    caller: string,
+    escrowPath: string,
+    contractId: string,
+    milestoneIdx: number,
+): MsgCall {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller,
+            send: "",
+            pkg_path: escrowPath,
+            func: "ClaimDisputeTimeout",
+            args: [contractId, String(milestoneIdx)],
         },
     }
 }

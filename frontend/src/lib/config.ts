@@ -349,6 +349,7 @@ export const MEMBA_DAO = {
     channelsPath: "gno.land/r/samcrew/memba_dao_channels",
     candidaturePath: "gno.land/r/samcrew/memba_dao_candidature",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
+    escrowPath: "gno.land/r/samcrew/escrow",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 
