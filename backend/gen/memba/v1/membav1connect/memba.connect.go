@@ -104,6 +104,15 @@ const (
 	// MultisigServiceGetAgentStatsProcedure is the fully-qualified name of the MultisigService's
 	// GetAgentStats RPC.
 	MultisigServiceGetAgentStatsProcedure = "/memba.v1.MultisigService/GetAgentStats"
+	// MultisigServiceCreateServiceListingProcedure is the fully-qualified name of the MultisigService's
+	// CreateServiceListing RPC.
+	MultisigServiceCreateServiceListingProcedure = "/memba.v1.MultisigService/CreateServiceListing"
+	// MultisigServiceGetServiceListingsProcedure is the fully-qualified name of the MultisigService's
+	// GetServiceListings RPC.
+	MultisigServiceGetServiceListingsProcedure = "/memba.v1.MultisigService/GetServiceListings"
+	// MultisigServiceUpdateServiceListingProcedure is the fully-qualified name of the MultisigService's
+	// UpdateServiceListing RPC.
+	MultisigServiceUpdateServiceListingProcedure = "/memba.v1.MultisigService/UpdateServiceListing"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -139,6 +148,10 @@ type MultisigServiceClient interface {
 	FavoriteAgent(context.Context, *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error)
 	GetFavorites(context.Context, *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error)
 	GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error)
+	// Services — Freelance service listings
+	CreateServiceListing(context.Context, *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error)
+	GetServiceListings(context.Context, *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error)
+	UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -296,6 +309,24 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetAgentStats")),
 			connect.WithClientOptions(opts...),
 		),
+		createServiceListing: connect.NewClient[v1.CreateServiceListingRequest, v1.CreateServiceListingResponse](
+			httpClient,
+			baseURL+MultisigServiceCreateServiceListingProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("CreateServiceListing")),
+			connect.WithClientOptions(opts...),
+		),
+		getServiceListings: connect.NewClient[v1.GetServiceListingsRequest, v1.GetServiceListingsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetServiceListingsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetServiceListings")),
+			connect.WithClientOptions(opts...),
+		),
+		updateServiceListing: connect.NewClient[v1.UpdateServiceListingRequest, v1.UpdateServiceListingResponse](
+			httpClient,
+			baseURL+MultisigServiceUpdateServiceListingProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("UpdateServiceListing")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -325,6 +356,9 @@ type multisigServiceClient struct {
 	favoriteAgent        *connect.Client[v1.FavoriteAgentRequest, v1.FavoriteAgentResponse]
 	getFavorites         *connect.Client[v1.GetFavoritesRequest, v1.GetFavoritesResponse]
 	getAgentStats        *connect.Client[v1.GetAgentStatsRequest, v1.GetAgentStatsResponse]
+	createServiceListing *connect.Client[v1.CreateServiceListingRequest, v1.CreateServiceListingResponse]
+	getServiceListings   *connect.Client[v1.GetServiceListingsRequest, v1.GetServiceListingsResponse]
+	updateServiceListing *connect.Client[v1.UpdateServiceListingRequest, v1.UpdateServiceListingResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -447,6 +481,21 @@ func (c *multisigServiceClient) GetAgentStats(ctx context.Context, req *connect.
 	return c.getAgentStats.CallUnary(ctx, req)
 }
 
+// CreateServiceListing calls memba.v1.MultisigService.CreateServiceListing.
+func (c *multisigServiceClient) CreateServiceListing(ctx context.Context, req *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error) {
+	return c.createServiceListing.CallUnary(ctx, req)
+}
+
+// GetServiceListings calls memba.v1.MultisigService.GetServiceListings.
+func (c *multisigServiceClient) GetServiceListings(ctx context.Context, req *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error) {
+	return c.getServiceListings.CallUnary(ctx, req)
+}
+
+// UpdateServiceListing calls memba.v1.MultisigService.UpdateServiceListing.
+func (c *multisigServiceClient) UpdateServiceListing(ctx context.Context, req *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error) {
+	return c.updateServiceListing.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -480,6 +529,10 @@ type MultisigServiceHandler interface {
 	FavoriteAgent(context.Context, *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error)
 	GetFavorites(context.Context, *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error)
 	GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error)
+	// Services — Freelance service listings
+	CreateServiceListing(context.Context, *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error)
+	GetServiceListings(context.Context, *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error)
+	UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -633,6 +686,24 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetAgentStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceCreateServiceListingHandler := connect.NewUnaryHandler(
+		MultisigServiceCreateServiceListingProcedure,
+		svc.CreateServiceListing,
+		connect.WithSchema(multisigServiceMethods.ByName("CreateServiceListing")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetServiceListingsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetServiceListingsProcedure,
+		svc.GetServiceListings,
+		connect.WithSchema(multisigServiceMethods.ByName("GetServiceListings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceUpdateServiceListingHandler := connect.NewUnaryHandler(
+		MultisigServiceUpdateServiceListingProcedure,
+		svc.UpdateServiceListing,
+		connect.WithSchema(multisigServiceMethods.ByName("UpdateServiceListing")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -683,6 +754,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetFavoritesHandler.ServeHTTP(w, r)
 		case MultisigServiceGetAgentStatsProcedure:
 			multisigServiceGetAgentStatsHandler.ServeHTTP(w, r)
+		case MultisigServiceCreateServiceListingProcedure:
+			multisigServiceCreateServiceListingHandler.ServeHTTP(w, r)
+		case MultisigServiceGetServiceListingsProcedure:
+			multisigServiceGetServiceListingsHandler.ServeHTTP(w, r)
+		case MultisigServiceUpdateServiceListingProcedure:
+			multisigServiceUpdateServiceListingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -786,4 +863,16 @@ func (UnimplementedMultisigServiceHandler) GetFavorites(context.Context, *connec
 
 func (UnimplementedMultisigServiceHandler) GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetAgentStats is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) CreateServiceListing(context.Context, *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.CreateServiceListing is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetServiceListings(context.Context, *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetServiceListings is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateServiceListing is not implemented"))
 }

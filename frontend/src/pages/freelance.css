@@ -8,6 +8,19 @@
 .fl-header h1 { font-size: 22px; font-weight: 700; color: #f0f0f0; margin: 0; }
 .fl-header p { font-size: 12px; color: #666; margin: 6px 0 0; font-family: "JetBrains Mono", monospace; }
 
+/* Tabs */
+.fl-tabs { display: flex; gap: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 0; }
+.fl-tab {
+    padding: 10px 18px; border: none; background: none; color: #666; font-size: 12px;
+    font-family: "JetBrains Mono", monospace; cursor: pointer; display: flex;
+    align-items: center; gap: 6px; border-bottom: 2px solid transparent; transition: all 0.15s;
+}
+.fl-tab:hover { color: #aaa; }
+.fl-tab.active { color: #00d4aa; border-bottom-color: #00d4aa; }
+
+/* Toolbar (search + action button) */
+.fl-toolbar { display: flex; gap: 12px; align-items: center; }
+
 .fl-create-btn {
     padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.06); color: #00d4aa; font-size: 12px;
@@ -143,8 +156,37 @@
     padding: 8px 0; font-weight: 600;
 }
 
+/* Hire button on cards */
+.fl-btn--hire {
+    width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.06); color: #00d4aa; font-size: 12px;
+    font-family: "JetBrains Mono", monospace; cursor: pointer; transition: all 0.15s;
+    margin-top: 4px;
+}
+.fl-btn--hire:hover { background: rgba(0, 212, 170, 0.12); border-color: rgba(0, 212, 170, 0.5); }
+
+/* Card extras */
+.fl-card__delivery { font-size: 10px; color: #888; font-family: "JetBrains Mono", monospace; }
+.fl-card__tags { font-size: 10px; color: #555; font-family: "JetBrains Mono", monospace; margin-left: auto; }
+
+/* Hire view */
+.fl-hire-view { display: flex; flex-direction: column; gap: 16px; }
+.fl-hire-meta { font-size: 12px; color: #666; font-family: "JetBrains Mono", monospace; margin: 0; }
+
+/* Field row (side by side) */
+.fl-field-row { display: flex; gap: 12px; }
+.fl-field-row .fl-field { flex: 1; }
+.fl-field__hint { font-size: 10px; color: #00d4aa; font-family: "JetBrains Mono", monospace; }
+.fl-field select {
+    padding: 10px 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06); color: #f0f0f0; font-size: 13px;
+    font-family: "JetBrains Mono", monospace; outline: none; width: 100%; box-sizing: border-box;
+}
+
 @media (max-width: 600px) {
     .fl-grid { grid-template-columns: 1fr; }
     .fl-header { flex-direction: column; }
+    .fl-toolbar { flex-direction: column; }
+    .fl-field-row { flex-direction: column; }
     .fl-milestone-input { flex-direction: column; }
 }
