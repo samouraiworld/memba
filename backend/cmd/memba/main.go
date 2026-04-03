@@ -115,6 +115,9 @@ func main() {
 	mux.Handle("/api/eval", rateLimitMiddleware("eval", service.HandleEvalProxy()))
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 
+	// Marketplace — cached agent registry proxy (60s server-side TTL)
+	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy("gno.land/r/samcrew/agent_registry")))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))

@@ -95,6 +95,15 @@ const (
 	// MultisigServiceUpdateTeamMemberRoleProcedure is the fully-qualified name of the MultisigService's
 	// UpdateTeamMemberRole RPC.
 	MultisigServiceUpdateTeamMemberRoleProcedure = "/memba.v1.MultisigService/UpdateTeamMemberRole"
+	// MultisigServiceFavoriteAgentProcedure is the fully-qualified name of the MultisigService's
+	// FavoriteAgent RPC.
+	MultisigServiceFavoriteAgentProcedure = "/memba.v1.MultisigService/FavoriteAgent"
+	// MultisigServiceGetFavoritesProcedure is the fully-qualified name of the MultisigService's
+	// GetFavorites RPC.
+	MultisigServiceGetFavoritesProcedure = "/memba.v1.MultisigService/GetFavorites"
+	// MultisigServiceGetAgentStatsProcedure is the fully-qualified name of the MultisigService's
+	// GetAgentStats RPC.
+	MultisigServiceGetAgentStatsProcedure = "/memba.v1.MultisigService/GetAgentStats"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -126,6 +135,10 @@ type MultisigServiceClient interface {
 	JoinTeam(context.Context, *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error)
 	LeaveTeam(context.Context, *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error)
 	UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error)
+	// Marketplace — Agent favorites and stats
+	FavoriteAgent(context.Context, *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error)
+	GetFavorites(context.Context, *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error)
+	GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -265,6 +278,24 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("UpdateTeamMemberRole")),
 			connect.WithClientOptions(opts...),
 		),
+		favoriteAgent: connect.NewClient[v1.FavoriteAgentRequest, v1.FavoriteAgentResponse](
+			httpClient,
+			baseURL+MultisigServiceFavoriteAgentProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("FavoriteAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		getFavorites: connect.NewClient[v1.GetFavoritesRequest, v1.GetFavoritesResponse](
+			httpClient,
+			baseURL+MultisigServiceGetFavoritesProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetFavorites")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentStats: connect.NewClient[v1.GetAgentStatsRequest, v1.GetAgentStatsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetAgentStatsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetAgentStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -291,6 +322,9 @@ type multisigServiceClient struct {
 	joinTeam             *connect.Client[v1.JoinTeamRequest, v1.JoinTeamResponse]
 	leaveTeam            *connect.Client[v1.LeaveTeamRequest, v1.LeaveTeamResponse]
 	updateTeamMemberRole *connect.Client[v1.UpdateTeamMemberRoleRequest, v1.UpdateTeamMemberRoleResponse]
+	favoriteAgent        *connect.Client[v1.FavoriteAgentRequest, v1.FavoriteAgentResponse]
+	getFavorites         *connect.Client[v1.GetFavoritesRequest, v1.GetFavoritesResponse]
+	getAgentStats        *connect.Client[v1.GetAgentStatsRequest, v1.GetAgentStatsResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -398,6 +432,21 @@ func (c *multisigServiceClient) UpdateTeamMemberRole(ctx context.Context, req *c
 	return c.updateTeamMemberRole.CallUnary(ctx, req)
 }
 
+// FavoriteAgent calls memba.v1.MultisigService.FavoriteAgent.
+func (c *multisigServiceClient) FavoriteAgent(ctx context.Context, req *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error) {
+	return c.favoriteAgent.CallUnary(ctx, req)
+}
+
+// GetFavorites calls memba.v1.MultisigService.GetFavorites.
+func (c *multisigServiceClient) GetFavorites(ctx context.Context, req *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error) {
+	return c.getFavorites.CallUnary(ctx, req)
+}
+
+// GetAgentStats calls memba.v1.MultisigService.GetAgentStats.
+func (c *multisigServiceClient) GetAgentStats(ctx context.Context, req *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error) {
+	return c.getAgentStats.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -427,6 +476,10 @@ type MultisigServiceHandler interface {
 	JoinTeam(context.Context, *connect.Request[v1.JoinTeamRequest]) (*connect.Response[v1.JoinTeamResponse], error)
 	LeaveTeam(context.Context, *connect.Request[v1.LeaveTeamRequest]) (*connect.Response[v1.LeaveTeamResponse], error)
 	UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error)
+	// Marketplace — Agent favorites and stats
+	FavoriteAgent(context.Context, *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error)
+	GetFavorites(context.Context, *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error)
+	GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -562,6 +615,24 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("UpdateTeamMemberRole")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceFavoriteAgentHandler := connect.NewUnaryHandler(
+		MultisigServiceFavoriteAgentProcedure,
+		svc.FavoriteAgent,
+		connect.WithSchema(multisigServiceMethods.ByName("FavoriteAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetFavoritesHandler := connect.NewUnaryHandler(
+		MultisigServiceGetFavoritesProcedure,
+		svc.GetFavorites,
+		connect.WithSchema(multisigServiceMethods.ByName("GetFavorites")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetAgentStatsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetAgentStatsProcedure,
+		svc.GetAgentStats,
+		connect.WithSchema(multisigServiceMethods.ByName("GetAgentStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -606,6 +677,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceLeaveTeamHandler.ServeHTTP(w, r)
 		case MultisigServiceUpdateTeamMemberRoleProcedure:
 			multisigServiceUpdateTeamMemberRoleHandler.ServeHTTP(w, r)
+		case MultisigServiceFavoriteAgentProcedure:
+			multisigServiceFavoriteAgentHandler.ServeHTTP(w, r)
+		case MultisigServiceGetFavoritesProcedure:
+			multisigServiceGetFavoritesHandler.ServeHTTP(w, r)
+		case MultisigServiceGetAgentStatsProcedure:
+			multisigServiceGetAgentStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -697,4 +774,16 @@ func (UnimplementedMultisigServiceHandler) LeaveTeam(context.Context, *connect.R
 
 func (UnimplementedMultisigServiceHandler) UpdateTeamMemberRole(context.Context, *connect.Request[v1.UpdateTeamMemberRoleRequest]) (*connect.Response[v1.UpdateTeamMemberRoleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateTeamMemberRole is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) FavoriteAgent(context.Context, *connect.Request[v1.FavoriteAgentRequest]) (*connect.Response[v1.FavoriteAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.FavoriteAgent is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetFavorites(context.Context, *connect.Request[v1.GetFavoritesRequest]) (*connect.Response[v1.GetFavoritesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFavorites is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetAgentStats(context.Context, *connect.Request[v1.GetAgentStatsRequest]) (*connect.Response[v1.GetAgentStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetAgentStats is not implemented"))
 }

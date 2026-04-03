@@ -38,6 +38,11 @@ service MultisigService {
   rpc JoinTeam(JoinTeamRequest) returns (JoinTeamResponse);
   rpc LeaveTeam(LeaveTeamRequest) returns (LeaveTeamResponse);
   rpc UpdateTeamMemberRole(UpdateTeamMemberRoleRequest) returns (UpdateTeamMemberRoleResponse);
+
+  // Marketplace — Agent favorites and stats
+  rpc FavoriteAgent(FavoriteAgentRequest) returns (FavoriteAgentResponse);
+  rpc GetFavorites(GetFavoritesRequest) returns (GetFavoritesResponse);
+  rpc GetAgentStats(GetAgentStatsRequest) returns (GetAgentStatsResponse);
 }
 
 // --- Auth Messages ---
@@ -370,4 +375,37 @@ message UpdateTeamMemberRoleRequest {
 
 message UpdateTeamMemberRoleResponse {
   Team team = 1;
+}
+
+// --- Marketplace Messages ---
+
+message FavoriteAgentRequest {
+  Token auth_token = 1;
+  string agent_id = 2; // on-chain agent ID
+}
+
+message FavoriteAgentResponse {
+  bool favorited = 1; // true = added, false = removed (toggle)
+}
+
+message GetFavoritesRequest {
+  Token auth_token = 1;
+}
+
+message GetFavoritesResponse {
+  repeated string agent_ids = 1;
+}
+
+message AgentStats {
+  string agent_id = 1;
+  uint32 view_count = 2;
+  uint32 favorite_count = 3;
+}
+
+message GetAgentStatsRequest {
+  string agent_id = 1; // no auth required — public read
+}
+
+message GetAgentStatsResponse {
+  AgentStats stats = 1;
 }

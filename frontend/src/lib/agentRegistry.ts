@@ -8,8 +8,10 @@
  */
 
 import { queryRender } from "./dao/shared"
-import { GNO_RPC_URL } from "./config"
+import { GNO_RPC_URL, API_BASE_URL } from "./config"
 import { MEMBA_DAO } from "./config"
+import { api } from "./api"
+import type { Token } from "../gen/memba/v1/memba_pb"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -329,72 +331,97 @@ function extractField(line: string): string {
 }
 
 /**
- * Fetch all agents from the on-chain registry.
- * Falls back to seed data if the realm is unreachable.
+ * Fetch all agents. Tries backend cache first, then direct ABCI, then seed data.
  */
 export async function fetchAgents(): Promise<AgentListing[]> {
     const cached = getCachedAgents()
     if (cached) return cached
 
-    try {
-        const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, "")
-        if (!raw || raw.includes("No agents registered")) {
-            return [...SEED_AGENTS]
-        }
-
-        const onChainAgents = parseAgentTable(raw)
-        if (onChainAgents.length === 0) {
-            return [...SEED_AGENTS]
-        }
-
-        // Enrich each agent with detail data (endpoint, capabilities, etc.)
-        const enriched = await Promise.all(
-            onChainAgents.map(async (stub) => {
-                try {
-                    const detail = await fetchAgentDetail(stub.id)
-                    return detail || stub
-                } catch {
-                    return stub
-                }
-            }),
-        )
-
-        agentCache = { agents: enriched, ts: Date.now() }
-        return enriched
-    } catch {
+    // Try backend cached proxy first (60s server-side TTL)
+    const raw = await fetchAgentsRaw()
+    if (!raw || raw.includes("No agents registered")) {
         return [...SEED_AGENTS]
+    }
+
+    const onChainAgents = parseAgentTable(raw)
+    if (onChainAgents.length === 0) {
+        return [...SEED_AGENTS]
+    }
+
+    // Enrich each agent with detail data (endpoint, capabilities, etc.)
+    const enriched = await Promise.all(
+        onChainAgents.map(async (stub) => {
+            try {
+                const detail = await fetchAgentDetail(stub.id)
+                return detail || stub
+            } catch {
+                return stub
+            }
+        }),
+    )
+
+    agentCache = { agents: enriched, ts: Date.now() }
+    return enriched
+}
+
+/** Fetch raw agent listing — backend proxy with ABCI fallback. */
+async function fetchAgentsRaw(): Promise<string | null> {
+    // Try backend proxy first
+    try {
+        const backendUrl = API_BASE_URL || ""
+        const resp = await fetch(`${backendUrl}/api/marketplace/agents`)
+        if (resp.ok) return resp.text()
+    } catch { /* fallback to direct ABCI */ }
+
+    // Direct ABCI fallback
+    try {
+        return await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, "")
+    } catch {
+        return null
     }
 }
 
 /**
- * Fetch a single agent's full detail from the chain.
+ * Fetch a single agent's full detail.
+ * Backend proxy with ABCI fallback.
  */
 export async function fetchAgentDetail(id: string): Promise<AgentListing | null> {
-    try {
-        const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, `agent/${id}`)
-        if (!raw) return null
-        const result = parseAgentDetail(raw)
-        if (!result) return null
+    const raw = await fetchAgentDetailRaw(id)
+    if (!raw) return null
+    const result = parseAgentDetail(raw)
+    if (!result) return null
 
-        const a = result.agent
-        return {
-            id: a.id || id,
-            name: a.name || "",
-            description: a.description || "",
-            category: a.category || "custom",
-            capabilities: a.capabilities || [],
-            creator: a.creator || "",
-            mcpEndpoint: a.mcpEndpoint || "",
-            mcpTransport: a.mcpTransport || "stdio",
-            pricing: a.pricing || "free",
-            pricePerCall: a.pricePerCall || 0,
-            rating: a.rating || 0,
-            ratingCount: a.ratingCount || 0,
-            totalCalls: a.totalCalls || 0,
-            tags: [], // tags are not stored on-chain in v1
-            version: a.version || "",
-            verified: false, // verification is off-chain
-        }
+    const a = result.agent
+    return {
+        id: a.id || id,
+        name: a.name || "",
+        description: a.description || "",
+        category: a.category || "custom",
+        capabilities: a.capabilities || [],
+        creator: a.creator || "",
+        mcpEndpoint: a.mcpEndpoint || "",
+        mcpTransport: a.mcpTransport || "stdio",
+        pricing: a.pricing || "free",
+        pricePerCall: a.pricePerCall || 0,
+        rating: a.rating || 0,
+        ratingCount: a.ratingCount || 0,
+        totalCalls: a.totalCalls || 0,
+        tags: [],
+        version: a.version || "",
+        verified: false,
+    }
+}
+
+/** Fetch raw agent detail — backend proxy with ABCI fallback. */
+async function fetchAgentDetailRaw(id: string): Promise<string | null> {
+    try {
+        const backendUrl = API_BASE_URL || ""
+        const resp = await fetch(`${backendUrl}/api/marketplace/agents?id=${encodeURIComponent(id)}`)
+        if (resp.ok) return resp.text()
+    } catch { /* fallback */ }
+
+    try {
+        return await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, `agent/${id}`)
     } catch {
         return null
     }
@@ -469,5 +496,33 @@ export function generateMcpConfig(agent: AgentListing): McpConfig {
                 transport: agent.mcpTransport,
             },
         },
+    }
+}
+
+// ── Favorites & Stats (via ConnectRPC backend) ──────────────
+
+export interface AgentStats {
+    viewCount: number
+    favoriteCount: number
+}
+
+/** Toggle favorite for an agent. Returns true if now favorited, false if removed. */
+export async function toggleFavorite(authToken: Token, agentId: string): Promise<boolean> {
+    const res = await api.favoriteAgent({ authToken, agentId })
+    return res.favorited
+}
+
+/** Get the current user's favorited agent IDs. */
+export async function getFavorites(authToken: Token): Promise<string[]> {
+    const res = await api.getFavorites({ authToken })
+    return res.agentIds || []
+}
+
+/** Get public stats (views + favorites) for an agent. */
+export async function getAgentStats(agentId: string): Promise<AgentStats> {
+    const res = await api.getAgentStats({ agentId })
+    return {
+        viewCount: res.stats?.viewCount || 0,
+        favoriteCount: res.stats?.favoriteCount || 0,
     }
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, GetChallengeRequest, GetChallengeResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetProfileRequest, GetProfileResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetProfileRequest, GetProfileResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -213,6 +213,35 @@ export const MultisigService = {
       name: "UpdateTeamMemberRole",
       I: UpdateTeamMemberRoleRequest,
       O: UpdateTeamMemberRoleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Marketplace — Agent favorites and stats
+     *
+     * @generated from rpc memba.v1.MultisigService.FavoriteAgent
+     */
+    favoriteAgent: {
+      name: "FavoriteAgent",
+      I: FavoriteAgentRequest,
+      O: FavoriteAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetFavorites
+     */
+    getFavorites: {
+      name: "GetFavorites",
+      I: GetFavoritesRequest,
+      O: GetFavoritesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc memba.v1.MultisigService.GetAgentStats
+     */
+    getAgentStats: {
+      name: "GetAgentStats",
+      I: GetAgentStatsRequest,
+      O: GetAgentStatsResponse,
       kind: MethodKind.Unary,
     },
   }
