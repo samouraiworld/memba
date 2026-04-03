@@ -14,12 +14,10 @@ import {
     fetchAgents,
     fetchAgentDetail,
     invalidateAgentCache,
-    searchAgents,
     generateMcpConfig,
     AGENT_CATEGORIES,
     type AgentListing,
     type AgentCategory,
-    type AgentReview,
 } from "../lib/agentRegistry"
 import { buildRegisterAgentMsg, buildReviewAgentMsg } from "../lib/agentTemplate"
 import { doContractBroadcast } from "../lib/grc20"
@@ -60,9 +58,9 @@ function MarketplaceContent() {
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<AgentCategory | "all">("all")
     const [selectedAgent, setSelectedAgent] = useState<AgentListing | null>(null)
-    const [agentReviews, setAgentReviews] = useState<AgentReview[]>([])
     const [copied, setCopied] = useState(false)
     const [showRegister, setShowRegister] = useState(false)
+    const [allAgents, setAllAgents] = useState<AgentListing[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -70,19 +68,30 @@ function MarketplaceContent() {
     useEffect(() => {
         document.title = "AI Agent Marketplace — Memba"
         fetchAgents()
-            .then(() => setLoading(false))
+            .then(result => { setAllAgents(result); setLoading(false) })
             .catch(() => setLoading(false))
     }, [])
 
-    const agents = useMemo(() =>
-        searchAgents(deferredSearch, category === "all" ? undefined : category),
-        [deferredSearch, category, loading],
-    )
+    const agents = useMemo(() => {
+        let results = allAgents
+        if (category !== "all") {
+            results = results.filter(a => a.category === category)
+        }
+        if (deferredSearch) {
+            const q = deferredSearch.toLowerCase()
+            results = results.filter(a =>
+                a.name.toLowerCase().includes(q) ||
+                a.description.toLowerCase().includes(q) ||
+                a.tags.some(t => t.includes(q)) ||
+                a.capabilities.some(c => c.toLowerCase().includes(q)),
+            )
+        }
+        return results
+    }, [allAgents, deferredSearch, category])
 
     const handleSelectAgent = useCallback(async (agent: AgentListing) => {
         setSelectedAgent(agent)
-        setAgentReviews([])
-        // Fetch full detail to get reviews
+        // Fetch full detail from chain
         try {
             const detail = await fetchAgentDetail(agent.id)
             if (detail) {
@@ -104,7 +113,8 @@ function MarketplaceContent() {
         setShowRegister(false)
         invalidateAgentCache()
         setLoading(true)
-        await fetchAgents().catch(() => {})
+        const result = await fetchAgents().catch(() => [] as AgentListing[])
+        setAllAgents(result)
         setLoading(false)
     }, [])
 
@@ -113,7 +123,6 @@ function MarketplaceContent() {
         return (
             <AgentDetailView
                 agent={selectedAgent}
-                reviews={agentReviews}
                 adena={adena}
                 onBack={() => { setSelectedAgent(null); setAgentReviews([]) }}
                 onCopyConfig={() => handleCopyConfig(selectedAgent)}
@@ -240,10 +249,9 @@ function MarketplaceContent() {
 // ── Agent Detail View ───────────────────────────────────────
 
 function AgentDetailView({
-    agent, reviews, adena, onBack, onCopyConfig, copied, onError,
+    agent, adena, onBack, onCopyConfig, copied, onError,
 }: {
     agent: AgentListing
-    reviews: AgentReview[]
     adena: LayoutContext["adena"]
     onBack: () => void
     onCopyConfig: () => void
