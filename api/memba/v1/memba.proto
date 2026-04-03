@@ -418,14 +418,14 @@ message GetAgentStatsResponse {
 // --- Service Listing Messages ---
 
 message ServiceListing {
-  string id = 1;           // UUID
-  string address = 2;      // freelancer g1... address
-  string title = 3;        // 1-200 chars
-  string description = 4;  // up to 2000 chars
-  string category = 5;     // development, design, writing, consulting, marketing, other
-  uint64 price = 6;        // suggested price in ugnot
+  string id = 1; // UUID
+  string address = 2; // freelancer g1... address
+  string title = 3; // 1-200 chars
+  string description = 4; // up to 2000 chars
+  string category = 5; // development, design, writing, consulting, marketing, other
+  uint64 price = 6; // suggested price in ugnot
   uint32 delivery_days = 7;
-  string tags = 8;         // comma-separated
+  string tags = 8; // comma-separated
   bool active = 9;
   string created_at = 10;
   string updated_at = 11;
@@ -436,9 +436,9 @@ message CreateServiceListingRequest {
   string title = 2;
   string description = 3;
   string category = 4;
-  uint64 price = 5;        // ugnot
+  uint64 price = 5; // ugnot
   uint32 delivery_days = 6;
-  string tags = 7;         // comma-separated
+  string tags = 7; // comma-separated
 }
 
 message CreateServiceListingResponse {
@@ -446,9 +446,9 @@ message CreateServiceListingResponse {
 }
 
 message GetServiceListingsRequest {
-  string category = 1;     // optional filter, empty = all
-  uint32 limit = 2;        // default 50
-  string start_after = 3;  // cursor-based pagination
+  string category = 1; // optional filter, empty = all
+  uint32 limit = 2; // default 50
+  string start_after = 3; // cursor-based pagination
 }
 
 message GetServiceListingsResponse {
@@ -458,13 +458,13 @@ message GetServiceListingsResponse {
 message UpdateServiceListingRequest {
   Token auth_token = 1;
   string listing_id = 2;
-  string title = 3;         // empty = no change
+  string title = 3; // empty = no change
   string description = 4;
   string category = 5;
-  uint64 price = 6;         // 0 = no change
+  uint64 price = 6; // 0 = no change
   uint32 delivery_days = 7; // 0 = no change
   string tags = 8;
-  bool active = 9;          // toggle active/paused
+  bool active = 9; // toggle active/paused
 }
 
 message UpdateServiceListingResponse {
