@@ -77,10 +77,16 @@ describe("QueryCache", () => {
 });
 
 describe("cacheKey", () => {
-  it("builds deterministic keys", () => {
+  it("builds deterministic keys with encoded parts", () => {
     expect(cacheKey("render", "gno.land/r/gov/dao", "42")).toBe(
-      "render:gno.land/r/gov/dao:42"
+      "render:gno.land%2Fr%2Fgov%2Fdao:42"
     );
+  });
+
+  it("prevents collision from colons in parts", () => {
+    const key1 = cacheKey("render", "a:b", "c");
+    const key2 = cacheKey("render", "a", "b:c");
+    expect(key1).not.toBe(key2);
   });
 });
 

@@ -109,9 +109,11 @@ server.registerTool(
         );
         return {
           perspective,
-          proposalData: `${system}\n\n${user}`,
+          proposalData: proposal.raw,
           daoContext,
           treasuryContext,
+          systemPrompt: system,
+          userPrompt: user,
         };
       });
 
@@ -180,9 +182,11 @@ server.registerTool(
       const response = await backend.analyze({
         perspectives: [{
           perspective: "financial",
-          proposalData: `${system}\n\n${user}`,
+          proposalData: daoContext,
           daoContext,
           treasuryContext,
+          systemPrompt: system,
+          userPrompt: user,
         }],
         tier: backend.tier,
       });
@@ -255,9 +259,11 @@ server.registerTool(
 
       const response = await backend.analyze({
         perspectives: [{
-          perspective: "governance" as Perspective,
-          proposalData: `${system}\n\n${user}`,
+          perspective: "technical",
+          proposalData: overview.raw,
           daoContext: overview.raw,
+          systemPrompt: system,
+          userPrompt: user,
         }],
         tier: backend.tier,
       });
@@ -432,8 +438,10 @@ server.registerTool(
       const response = await backend.analyze({
         perspectives: [{
           perspective: "technical",
-          proposalData: `${system}\n\n${user}`,
+          proposalData: proposal.raw,
           daoContext: overview?.raw || realm_path,
+          systemPrompt: system,
+          userPrompt: user,
         }],
         tier: backend.tier,
       });

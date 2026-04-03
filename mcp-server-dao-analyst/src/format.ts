@@ -40,7 +40,7 @@ export function formatConsensusResult(
   lines.push(`## Verdict: ${VERDICT_EMOJI[consensus.overallVerdict]} ${consensus.overallVerdict.toUpperCase()}`);
   lines.push(`- **Confidence:** ${Math.round(consensus.confidence * 100)}%`);
   lines.push(`- **Agreement:** ${AGREEMENT_INDICATOR[consensus.agreementLevel]}`);
-  lines.push(`- **Perspectives analyzed:** ${consensus.perspectives.length}/3`);
+  lines.push(`- **Perspectives analyzed:** ${consensus.perspectives.length}`);
   lines.push("");
 
   // Summary
@@ -225,7 +225,7 @@ export function formatRiskAssessment(
     lines.push("|----------|----------|-------------|------------|");
     for (const r of result.risks) {
       lines.push(
-        `| ${r.category} | ${r.severity} | ${r.description} | ${r.mitigation} |`
+        `| ${sanitizeCell(r.category)} | ${sanitizeCell(r.severity)} | ${sanitizeCell(r.description)} | ${sanitizeCell(r.mitigation)} |`
       );
     }
   }
@@ -235,6 +235,10 @@ export function formatRiskAssessment(
   lines.push("*AI-generated risk assessment. Verify against on-chain data.*");
 
   return lines.join("\n");
+}
+
+function sanitizeCell(s: string): string {
+  return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
 
 function capitalize(s: string): string {
