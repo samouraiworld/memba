@@ -21,13 +21,32 @@
 /* Toolbar (search + action button) */
 .fl-toolbar { display: flex; gap: 12px; align-items: center; }
 
+.fl-search {
+    flex: 1; padding: 12px 18px; border-radius: 10px;
+    background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #f0f0f0; font-size: 13px; font-family: "JetBrains Mono", monospace;
+    outline: none; transition: border-color 0.15s; box-sizing: border-box;
+}
+.fl-search:focus { border-color: rgba(0, 212, 170, 0.3); }
+.fl-search::placeholder { color: #444; }
+
 .fl-create-btn {
-    padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(0, 212, 170, 0.3);
-    background: rgba(0, 212, 170, 0.06); color: #00d4aa; font-size: 12px;
+    padding: 10px 18px; border-radius: 8px; border: 1px solid rgba(0, 212, 170, 0.3);
+    background: rgba(0, 212, 170, 0.06); color: #00d4aa; font-size: 12px; font-weight: 600;
     font-family: "JetBrains Mono", monospace; cursor: pointer; white-space: nowrap;
     display: flex; align-items: center; gap: 6px; transition: all 0.15s;
 }
 .fl-create-btn:hover { background: rgba(0, 212, 170, 0.12); border-color: rgba(0, 212, 170, 0.5); }
+
+/* Categories */
+.fl-categories { display: flex; gap: 6px; flex-wrap: wrap; }
+.fl-cat-pill {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);
+    background: none; color: #888; font-size: 11px; font-family: "JetBrains Mono", monospace;
+    cursor: pointer; transition: all 0.15s;
+}
+.fl-cat-pill:hover { border-color: rgba(0, 212, 170, 0.2); color: #ccc; }
+.fl-cat-pill[data-active="true"] { border-color: rgba(0, 212, 170, 0.4); color: #00d4aa; background: rgba(0, 212, 170, 0.06); }
 
 .fl-count { font-size: 11px; color: #555; font-family: "JetBrains Mono", monospace; }
 
@@ -181,6 +200,14 @@
     padding: 10px 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.06); color: #f0f0f0; font-size: 13px;
     font-family: "JetBrains Mono", monospace; outline: none; width: 100%; box-sizing: border-box;
+}
+
+/* Demo badge */
+.fl-demo-badge {
+    font-size: 9px; padding: 2px 6px; border-radius: 3px; margin-left: 6px;
+    background: rgba(245, 158, 11, 0.12); color: #f59e0b;
+    font-family: "JetBrains Mono", monospace; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle;
 }
 
 @media (max-width: 600px) {

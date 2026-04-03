@@ -43,6 +43,17 @@ const SERVICE_CATEGORIES = [
     { key: "other", label: "Other", icon: "🔧" },
 ]
 
+// ── Demo Listings (shown until real services are posted) ─────
+
+const DEMO_LISTINGS = [
+    { id: "demo-1", address: "g1samouraiworld", title: "Custom Gno Realm Development", description: "Build a production-ready Gno smart contract realm. Includes architecture design, implementation, testing, and deployment.", category: "development", price: BigInt(5000000), deliveryDays: 14, tags: "gno,realm,smart-contract", active: true, createdAt: "", updatedAt: "" },
+    { id: "demo-2", address: "g1daoexpert0001", title: "DAO Setup & Governance Configuration", description: "Set up a complete DAO with governance proposals, treasury management, member roles, and voting thresholds on Memba.", category: "consulting", price: BigInt(2000000), deliveryDays: 7, tags: "dao,governance,setup", active: true, createdAt: "", updatedAt: "" },
+    { id: "demo-3", address: "g1securegno0001", title: "Gno Realm Security Audit", description: "Comprehensive security review: reentrancy analysis, access control verification, fund safety checks, and detailed vulnerability report.", category: "consulting", price: BigInt(3000000), deliveryDays: 10, tags: "security,audit,review", active: true, createdAt: "", updatedAt: "" },
+    { id: "demo-4", address: "g1designer00001", title: "Web3 Brand & UI Design", description: "Logo, color system, component library, and full UI mockups for your Gno dApp. Delivered as Figma files.", category: "design", price: BigInt(1500000), deliveryDays: 7, tags: "design,ui,brand,figma", active: true, createdAt: "", updatedAt: "" },
+    { id: "demo-5", address: "g1contentgno001", title: "Technical Documentation & Proposals", description: "Write governance proposals, technical docs, READMEs, or blog posts for your Gno project. Clear, developer-focused writing.", category: "writing", price: BigInt(800000), deliveryDays: 5, tags: "docs,writing,proposals", active: true, createdAt: "", updatedAt: "" },
+    { id: "demo-6", address: "g1growthgno0001", title: "Gno Ecosystem Growth Strategy", description: "Marketing plan, community building roadmap, partnership outreach, and social media strategy for Gno-based projects.", category: "marketing", price: BigInt(1200000), deliveryDays: 10, tags: "marketing,growth,community", active: true, createdAt: "", updatedAt: "" },
+] as unknown as ServiceListing[]
+
 // ── Types ────────────────────────────────────────────────────
 
 interface EscrowContract {
@@ -210,6 +221,7 @@ function BrowseServicesTab({ adena, auth, onError }: {
     onError: (msg: string) => void
 }) {
     const [listings, setListings] = useState<ServiceListing[]>([])
+    const [isDemo, setIsDemo] = useState(false)
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<string>("all")
@@ -220,7 +232,16 @@ function BrowseServicesTab({ adena, auth, onError }: {
     useEffect(() => {
         document.title = "Freelance Services — Memba"
         fetchServiceListings(category === "all" ? "" : category)
-            .then(setListings)
+            .then(real => {
+                if (real.length > 0) {
+                    setListings(real)
+                    setIsDemo(false)
+                } else {
+                    const demo = category === "all" ? DEMO_LISTINGS : DEMO_LISTINGS.filter(l => l.category === category)
+                    setListings(demo)
+                    setIsDemo(true)
+                }
+            })
             .finally(() => setLoading(false))
     }, [category])
 
@@ -298,7 +319,10 @@ function BrowseServicesTab({ adena, auth, onError }: {
                                     {SERVICE_CATEGORIES.find(c => c.key === listing.category)?.icon || "💼"}
                                 </span>
                                 <div className="fl-card__header">
-                                    <div className="fl-card__title">{listing.title}</div>
+                                    <div className="fl-card__title">
+                                        {listing.title}
+                                        {isDemo && <span className="fl-demo-badge">demo</span>}
+                                    </div>
                                     <div className="fl-card__seller">by {listing.address.slice(0, 13)}...</div>
                                 </div>
                             </div>
@@ -308,7 +332,7 @@ function BrowseServicesTab({ adena, auth, onError }: {
                                 <span className="fl-card__delivery">~{listing.deliveryDays}d</span>
                                 {listing.tags && <span className="fl-card__tags">{listing.tags.split(",").slice(0, 2).join(", ")}</span>}
                             </div>
-                            {adena.connected && adena.address !== listing.address && (
+                            {!isDemo && adena.connected && adena.address !== listing.address && (
                                 <button className="fl-btn fl-btn--hire" onClick={() => setHireTarget(listing)}>
                                     Hire →
                                 </button>
