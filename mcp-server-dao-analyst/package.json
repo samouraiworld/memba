@@ -1,0 +1,32 @@
+{
+  "name": "@samouraiworld/dao-analyst-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for DAO governance analysis — multi-model LLM consensus across legal, technical, and financial perspectives",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "dao-analyst-mcp": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["mcp", "gno", "dao", "governance", "ai", "analyst", "memba"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@samouraiworld/gno-rpc": "workspace:*",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
