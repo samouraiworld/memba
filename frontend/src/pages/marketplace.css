@@ -223,6 +223,18 @@
     color: #8b5cf6;
 }
 
+.mp-ai-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+    color: #818cf8;
+    border: 1px solid rgba(129, 140, 248, 0.2);
+}
+
 /* ── Empty State ───────────────────────────────── */
 
 .mp-empty {

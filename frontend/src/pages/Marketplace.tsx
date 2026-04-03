@@ -259,6 +259,9 @@ function MarketplaceContent() {
                                 <span className="mp-pricing-badge" data-pricing={agent.pricing}>
                                     {agent.pricing === "free" ? "Free" : agent.pricing === "pay-per-use" ? "Pay-per-use" : "Subscription"}
                                 </span>
+                                {(agent.category === "governance" || agent.category === "security") && (
+                                    <span className="mp-ai-badge" title="AI-powered agent">AI</span>
+                                )}
                                 {agent.rating > 0 && (
                                     <span className="mp-card__rating">
                                         ★ {agent.rating.toFixed(1)} ({agent.ratingCount})
