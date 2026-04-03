@@ -20,8 +20,8 @@ samcrew-deployer/projects/memba/realms/
 | MembaDAO | `gno.land/r/samcrew/memba_dao` | Deployed 2026-03-29 |
 | Candidature | `gno.land/r/samcrew/memba_dao_candidature` | Deployed 2026-03-29 |
 | Channels | `gno.land/r/samcrew/memba_dao_channels` | Deployed 2026-03-29 |
-| Agent Registry | `gno.land/r/samcrew/agent_registry` | Ready to deploy |
-| Escrow | `gno.land/r/samcrew/escrow_stub` | Not deployed |
+| Agent Registry | `gno.land/r/samcrew/agent_registry` | Deployed 2026-04-03 |
+| Escrow | `gno.land/r/samcrew/escrow` | Ready to deploy |
 
 ## Deployment Method
 
@@ -39,7 +39,13 @@ Agents self-register with MCP metadata (endpoint, transport, pricing).
 Reviews and a pay-per-use credit system are on-chain.
 Part of the Marketplace feature (gated behind `VITE_ENABLE_MARKETPLACE`).
 
-## Escrow Stub
+## Escrow
 
-The `escrow_stub/` directory contains a minimal placeholder that has NOT been deployed.
-It is part of the Freelance Services feature (gated behind `VITE_ENABLE_SERVICES`).
+The `escrow/` directory contains the milestone-based escrow realm for freelance services.
+Supports contract creation, milestone funding, completion, release, disputes,
+auto-refund timeouts, and dispute timeout auto-resolution.
+Part of the Freelance Services feature (gated behind `VITE_ENABLE_SERVICES`).
+
+## Escrow Stub (deprecated)
+
+The `escrow_stub/` directory contains the original minimal placeholder. Superseded by `escrow/`.
