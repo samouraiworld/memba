@@ -8,6 +8,15 @@
 export { GnoRpcClient, type GnoRpcConfig } from "./client.js";
 export { parseQevalResponse, type QevalResult } from "./parser.js";
 export {
+  QueryCache,
+  cacheKey,
+  TTL_PROPOSAL,
+  TTL_VOTES,
+  TTL_TREASURY,
+  TTL_DAO_OVERVIEW,
+  TTL_DEFAULT,
+} from "./cache.js";
+export {
   type AbciResponse,
   type NetworkStatus,
   type NodeInfo,

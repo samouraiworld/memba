@@ -8,7 +8,13 @@
  * Works with any Gno DAO — govdao, basedao, custom implementations.
  */
 
-import { GnoRpcClient, parseQevalResponse } from "@samouraiworld/gno-rpc";
+import {
+  GnoRpcClient,
+  parseQevalResponse,
+  TTL_PROPOSAL,
+  TTL_VOTES,
+  TTL_DAO_OVERVIEW,
+} from "@samouraiworld/gno-rpc";
 import type {
   DaoCapabilities,
   DaoOverview,
@@ -44,7 +50,7 @@ export class DaoAdapter {
     // Probe in parallel
     const [propStoreSize, renderOutput] = await Promise.all([
       this.client.probeFunction(realmPath, "GetPropStore().Size()"),
-      this.client.queryRender(realmPath),
+      this.client.queryRender(realmPath, "", TTL_DAO_OVERVIEW),
     ]);
 
     if (propStoreSize !== null) {
@@ -86,7 +92,7 @@ export class DaoAdapter {
    * Fetch DAO overview (name, member count, proposal count).
    */
   async getOverview(realmPath: string): Promise<DaoOverview | null> {
-    const raw = await this.client.queryRender(realmPath);
+    const raw = await this.client.queryRender(realmPath, "", TTL_DAO_OVERVIEW);
     if (!raw) return null;
 
     // Parse member count from common patterns
@@ -163,7 +169,7 @@ export class DaoAdapter {
     }
 
     // Also get the rendered version for full context
-    const rendered = await this.client.queryRender(realmPath, proposalId);
+    const rendered = await this.client.queryRender(realmPath, proposalId, TTL_PROPOSAL);
 
     return {
       id: proposalId,
@@ -179,12 +185,12 @@ export class DaoAdapter {
     proposalId: string
   ): Promise<DaoProposal | null> {
     // Try multiple render path formats
-    let raw = await this.client.queryRender(realmPath, proposalId);
+    let raw = await this.client.queryRender(realmPath, proposalId, TTL_PROPOSAL);
     if (!raw) {
-      raw = await this.client.queryRender(realmPath, `proposal/${proposalId}`);
+      raw = await this.client.queryRender(realmPath, `proposal/${proposalId}`, TTL_PROPOSAL);
     }
     if (!raw) {
-      raw = await this.client.queryRender(realmPath, `${proposalId}`);
+      raw = await this.client.queryRender(realmPath, `${proposalId}`, TTL_PROPOSAL);
     }
     if (!raw) return null;
 

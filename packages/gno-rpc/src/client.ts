@@ -6,6 +6,7 @@
  */
 
 import type { AbciResponse, NetworkStatus, StatusResponse } from "./types.js";
+import { QueryCache, cacheKey, TTL_DEFAULT } from "./cache.js";
 
 const DEFAULT_RPC = "https://rpc.testnet12.samourai.live:443";
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -18,6 +19,10 @@ export interface GnoRpcConfig {
   timeoutMs?: number;
   /** Maximum retries per request (across all endpoints). Default: 2. */
   maxRetries?: number;
+  /** Enable query caching. Default: true. */
+  cache?: boolean;
+  /** Max cache entries. Default: 1000. */
+  maxCacheEntries?: number;
 }
 
 export class GnoRpcClient {
@@ -25,6 +30,7 @@ export class GnoRpcClient {
   private currentIndex = 0;
   private timeoutMs: number;
   private maxRetries: number;
+  private cache: QueryCache | null;
 
   constructor(config: GnoRpcConfig = {}) {
     this.endpoints = config.endpoints?.length
@@ -32,6 +38,9 @@ export class GnoRpcClient {
       : [process.env.GNO_RPC_URL || DEFAULT_RPC];
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxRetries = config.maxRetries ?? MAX_RETRIES;
+    this.cache = (config.cache ?? true)
+      ? new QueryCache(config.maxCacheEntries)
+      : null;
   }
 
   /** Get the currently active RPC URL. */
@@ -43,18 +52,24 @@ export class GnoRpcClient {
    * Query a realm's Render() output via ABCI vm/qrender.
    * Returns the decoded string, or null if the realm doesn't exist.
    */
-  async queryRender(realmPath: string, path = ""): Promise<string | null> {
-    const data = path ? `${realmPath}\n${path}` : `${realmPath}\n`;
-    return this.abciQuery("vm/qrender", data);
+  async queryRender(realmPath: string, path = "", ttlMs = TTL_DEFAULT): Promise<string | null> {
+    const key = cacheKey("render", realmPath, path);
+    return this.cachedQuery(key, ttlMs, () => {
+      const data = path ? `${realmPath}\n${path}` : `${realmPath}\n`;
+      return this.abciQuery("vm/qrender", data);
+    });
   }
 
   /**
    * Evaluate a realm function via ABCI vm/qeval.
-   * Returns the raw result string, or null on error.
+   * Results are cached with the specified TTL.
    */
-  async queryEval(realmPath: string, expression: string): Promise<string | null> {
-    const data = `${realmPath}\n${expression}`;
-    return this.abciQuery("vm/qeval", data);
+  async queryEval(realmPath: string, expression: string, ttlMs = TTL_DEFAULT): Promise<string | null> {
+    const key = cacheKey("eval", realmPath, expression);
+    return this.cachedQuery(key, ttlMs, () => {
+      const data = `${realmPath}\n${expression}`;
+      return this.abciQuery("vm/qeval", data);
+    });
   }
 
   /**
@@ -116,7 +131,31 @@ export class GnoRpcClient {
     }
   }
 
+  /** Clear the query cache. Useful when switching networks. */
+  clearCache(): void {
+    this.cache?.clear();
+  }
+
   // ── Internal ─────────────────────────────────────────────────
+
+  private async cachedQuery(
+    key: string,
+    ttlMs: number,
+    fetcher: () => Promise<string | null>
+  ): Promise<string | null> {
+    if (this.cache) {
+      const cached = this.cache.get(key);
+      if (cached !== undefined) return cached;
+    }
+
+    const result = await fetcher();
+
+    if (this.cache && result !== null) {
+      this.cache.set(key, result, ttlMs);
+    }
+
+    return result;
+  }
 
   private async abciQuery(path: string, data: string): Promise<string | null> {
     let lastError: Error | null = null;

@@ -113,16 +113,34 @@ func getProviders() []LLMProvider {
 		})
 	}
 
+	// Ollama — local fallback (lowest priority)
+	if url := os.Getenv("OLLAMA_URL"); url != "" {
+		model := os.Getenv("OLLAMA_MODEL")
+		if model == "" {
+			model = "llama3.2"
+		}
+		providers = append(providers, LLMProvider{
+			Name:    "ollama",
+			Model:   model,
+			BaseURL: url,
+			APIKey:  "", // no auth for local Ollama
+		})
+	}
+
 	return providers
 }
 
 // ── LLM Calls ─────────────────────────────────────────────────
 
 func callLLM(ctx context.Context, provider LLMProvider, systemPrompt, userPrompt string) (string, error) {
-	if provider.Name == "google" {
+	switch provider.Name {
+	case "google":
 		return callGoogleAI(ctx, provider, systemPrompt, userPrompt)
+	case "ollama":
+		return callOllama(ctx, provider, systemPrompt, userPrompt)
+	default:
+		return callOpenAICompatible(ctx, provider, systemPrompt, userPrompt)
 	}
-	return callOpenAICompatible(ctx, provider, systemPrompt, userPrompt)
 }
 
 // callOpenAICompatible works for Groq and Together.ai (OpenAI-compatible APIs).
@@ -165,6 +183,16 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		if ra := resp.Header.Get("Retry-After"); ra != "" {
+			var secs int
+			if _, err := fmt.Sscan(ra, &secs); err == nil && secs > 0 {
+				health.setRetryAfter(provider.Name, time.Now().Add(time.Duration(secs)*time.Second))
+			}
+		}
+		return "", fmt.Errorf("rate limited (429): %s", string(body))
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -269,6 +297,75 @@ func callGoogleAI(ctx context.Context, provider LLMProvider, systemPrompt, userP
 	return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 }
 
+// callOllama uses the Ollama /api/chat endpoint.
+func callOllama(ctx context.Context, provider LLMProvider, systemPrompt, userPrompt string) (string, error) {
+	type OllamaMessage struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	type OllamaReq struct {
+		Model    string          `json:"model"`
+		Messages []OllamaMessage `json:"messages"`
+		Stream   bool            `json:"stream"`
+	}
+
+	reqBody := OllamaReq{
+		Model: provider.Model,
+		Messages: []OllamaMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userPrompt},
+		},
+		Stream: false,
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Ollama can be slow
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		provider.BaseURL+"/api/chat",
+		strings.NewReader(string(bodyBytes)),
+	)
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Ollama request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Ollama returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var ollamaResp struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	}
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return "", fmt.Errorf("parse Ollama response: %w", err)
+	}
+
+	if ollamaResp.Message.Content == "" {
+		return "", fmt.Errorf("empty Ollama response")
+	}
+
+	return ollamaResp.Message.Content, nil
+}
+
 // ── Analysis Handler ──────────────────────────────────────────
 
 // HandleAnalystAnalyze handles POST /api/analyst/analyze
@@ -315,22 +412,24 @@ func HandleAnalystAnalyze() http.Handler {
 		results := make([]PerspectiveResult, len(req.Perspectives))
 		modelsUsed := make([]string, len(req.Perspectives))
 
-		// Fan out perspectives to different providers in parallel
+		// Fan out perspectives to different providers in parallel.
+		// Each perspective gets a different provider for model diversity.
+		// Circuit breaker skips unhealthy providers automatically.
 		var wg sync.WaitGroup
 		for i, perspective := range req.Perspectives {
 			wg.Add(1)
 			go func(idx int, p PerspectiveRequest) {
 				defer wg.Done()
 
-				// Round-robin assign providers for model diversity
-				provider := providers[idx%len(providers)]
+				// Select healthy provider via round-robin
+				provider, providerIdx := selectProvider(providers, idx)
 				modelsUsed[idx] = provider.Name + "/" + provider.Model
 
-				// Split proposalData into system + user prompt
 				system, user := splitPrompt(p.ProposalData)
 
 				llmOutput, err := callLLM(r.Context(), provider, system, user)
 				if err != nil {
+					health.recordFailure(provider.Name)
 					slog.Warn("LLM call failed",
 						"perspective", p.Perspective,
 						"provider", provider.Name,
@@ -338,10 +437,14 @@ func HandleAnalystAnalyze() http.Handler {
 					)
 
 					// Try fallback provider
-					if len(providers) > 1 {
-						fallback := providers[(idx+1)%len(providers)]
+					if fallback, ok := selectFallback(providers, providerIdx); ok {
 						modelsUsed[idx] = fallback.Name + "/" + fallback.Model
 						llmOutput, err = callLLM(r.Context(), fallback, system, user)
+						if err != nil {
+							health.recordFailure(fallback.Name)
+						} else {
+							health.recordSuccess(fallback.Name)
+						}
 					}
 
 					if err != nil {
@@ -355,6 +458,8 @@ func HandleAnalystAnalyze() http.Handler {
 						}
 						return
 					}
+				} else {
+					health.recordSuccess(provider.Name)
 				}
 
 				results[idx] = parseLLMOutput(llmOutput, p.Perspective, modelsUsed[idx])
