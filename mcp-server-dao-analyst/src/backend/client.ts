@@ -21,11 +21,14 @@ export interface BackendClientConfig {
   backendUrl?: string;
   /** Auth token for PRO tier. Optional — free tier if absent. */
   token?: string;
+  /** User's Gno address for on-chain credit lookup. */
+  userAddress?: string;
 }
 
 export class BackendClient {
   private backendUrl: string;
   private token?: string;
+  private userAddress?: string;
 
   constructor(config: BackendClientConfig = {}) {
     this.backendUrl =
@@ -34,6 +37,7 @@ export class BackendClient {
       process.env.MEMBA_API_URL ||
       DEFAULT_BACKEND_URL;
     this.token = config.token || process.env.DAO_ANALYST_TOKEN;
+    this.userAddress = config.userAddress || process.env.DAO_ANALYST_USER_ADDRESS;
   }
 
   /**
@@ -52,10 +56,16 @@ export class BackendClient {
         headers["Authorization"] = `Bearer ${this.token}`;
       }
 
+      // Inject user address for on-chain credit lookup
+      const payload = {
+        ...request,
+        userAddress: this.userAddress,
+      };
+
       const res = await fetch(`${this.backendUrl}/api/analyst/analyze`, {
         method: "POST",
         headers,
-        body: JSON.stringify(request),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
 
