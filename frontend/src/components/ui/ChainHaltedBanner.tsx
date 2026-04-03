@@ -27,32 +27,42 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
     const [dismissed, setDismissed] = useState(false)
     const [checking, setChecking] = useState(false)
 
+    const [prevNetworkKey, setPrevNetworkKey] = useState(networkKey)
     const fallbackKey = getSuggestedFallback(networkKey)
     const fallbackLabel = fallbackKey ? NETWORKS[fallbackKey]?.label || fallbackKey : null
 
-    // Probe chain health on network change
-    useEffect(() => {
+    // Reset state when networkKey changes (React-recommended pattern)
+    if (prevNetworkKey !== networkKey) {
+        setPrevNetworkKey(networkKey)
         setDismissed(false)
         setHalted(false)
+    }
 
+    // Probe chain health — extracted to callback to satisfy react-hooks/set-state-in-effect
+    const probeHealth = useCallback(async (key: string, signal: { cancelled: boolean }) => {
+        setChecking(true)
+        try {
+            const result = await checkChainHealth(key, 6000)
+            if (signal.cancelled) return
+            setHalted(!result.reachable)
+        } catch {
+            if (signal.cancelled) return
+            setHalted(true)
+        } finally {
+            if (!signal.cancelled) setChecking(false)
+        }
+    }, [])
+
+    // Trigger probe on network change
+    useEffect(() => {
         // Skip known-good networks (test12 is primary)
         if (networkKey === "test12") return
 
-        let cancelled = false
-        setChecking(true)
+        const signal = { cancelled: false }
+        probeHealth(networkKey, signal)
 
-        checkChainHealth(networkKey, 6000).then(result => {
-            if (cancelled) return
-            setHalted(!result.reachable)
-            setChecking(false)
-        }).catch(() => {
-            if (cancelled) return
-            setHalted(true)
-            setChecking(false)
-        })
-
-        return () => { cancelled = true }
-    }, [networkKey])
+        return () => { signal.cancelled = true }
+    }, [networkKey, probeHealth])
 
     const handleSwitch = useCallback(() => {
         if (fallbackKey) {
