@@ -21,12 +21,19 @@ const AGREEMENT_INDICATOR: Record<string, string> = {
 export function formatConsensusResult(
   consensus: ConsensusResult,
   proposalId: string,
-  realmPath: string
+  realmPath: string,
+  tier?: string,
+  downgraded?: boolean
 ): string {
   const lines: string[] = [];
 
   lines.push(`# DAO Governance Analysis — Proposal #${proposalId}`);
   lines.push(`**DAO:** \`${realmPath}\``);
+  if (downgraded) {
+    lines.push(`**Note:** PRO tier requested but insufficient credits — showing free-tier analysis (${consensus.perspectives.length} perspectives).`);
+  } else if (tier) {
+    lines.push(`**Tier:** ${tier}`);
+  }
   lines.push("");
 
   // Overall verdict

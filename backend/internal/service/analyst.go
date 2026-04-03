@@ -18,7 +18,8 @@ import (
 // AnalysisRequest from the MCP server.
 type AnalysisRequest struct {
 	Perspectives []PerspectiveRequest `json:"perspectives"`
-	Tier         string               `json:"tier"` // "free" | "pro"
+	Tier         string               `json:"tier"`       // "free" | "pro"
+	UserAddress  string               `json:"userAddress"` // g1... address for PRO credit check
 }
 
 // PerspectiveRequest is a single perspective analysis request.
@@ -34,6 +35,8 @@ type AnalysisResponse struct {
 	Results          []PerspectiveResult `json:"results"`
 	ModelsUsed       []string            `json:"modelsUsed"`
 	ProcessingTimeMs int64               `json:"processingTimeMs"`
+	Tier             string              `json:"tier"`                // effective tier used
+	Downgraded       bool                `json:"downgraded,omitempty"` // true if PRO was requested but credits insufficient
 }
 
 // PerspectiveResult is one LLM's analysis for one perspective.
@@ -45,6 +48,86 @@ type PerspectiveResult struct {
 	Reasoning       string   `json:"reasoning"`
 	Risks           []string `json:"risks"`
 	Recommendations []string `json:"recommendations"`
+}
+
+// ── Tier Enforcement ──────────────────────────────────────────
+
+const (
+	// Agent ID as registered in the on-chain agent_registry.
+	daoAnalystAgentID = "dao-analyst"
+
+	// Free tier limits.
+	freeTierMaxPerspectives = 2
+	proTierMaxPerspectives  = 5
+)
+
+// checkProCredits queries the on-chain agent_registry for a user's credit balance.
+// Returns the credit balance in ugnot, or 0 if the query fails.
+func checkProCredits(userAddr string) int64 {
+	if userAddr == "" {
+		return 0
+	}
+
+	registryPath := os.Getenv("AGENT_REGISTRY_REALM")
+	if registryPath == "" {
+		registryPath = "gno.land/r/samcrew/agent_registry"
+	}
+
+	expr := fmt.Sprintf(`GetCredits(%q, %q)`, daoAnalystAgentID, userAddr)
+	result, err := abciQuery(gnoRPCURL(), "vm/qeval", registryPath+"\n"+expr)
+	if err != nil {
+		slog.Warn("failed to check pro credits", "user", userAddr, "error", err)
+		return 0
+	}
+
+	// Parse qeval response: ("12345" int64)
+	result = strings.TrimSpace(result)
+	result = strings.TrimPrefix(result, "(")
+	result = strings.TrimSuffix(result, ")")
+
+	// Extract the quoted value
+	if idx := strings.Index(result, `"`); idx >= 0 {
+		end := strings.Index(result[idx+1:], `"`)
+		if end >= 0 {
+			valStr := result[idx+1 : idx+1+end]
+			var val int64
+			if _, err := fmt.Sscan(valStr, &val); err == nil {
+				return val
+			}
+		}
+	}
+
+	return 0
+}
+
+// enforceTier validates and adjusts the request based on the user's tier.
+// Returns the effective tier ("free" or "pro") and whether the request is allowed.
+func enforceTier(req *AnalysisRequest) (effectiveTier string, downgraded bool) {
+	if req.Tier != "pro" {
+		// Free tier — cap perspectives
+		if len(req.Perspectives) > freeTierMaxPerspectives {
+			req.Perspectives = req.Perspectives[:freeTierMaxPerspectives]
+		}
+		return "free", false
+	}
+
+	// PRO requested — check credits on-chain
+	credits := checkProCredits(req.UserAddress)
+	if credits <= 0 {
+		// No credits — downgrade to free
+		slog.Info("pro tier requested but no credits, downgrading",
+			"user", req.UserAddress, "credits", credits)
+		if len(req.Perspectives) > freeTierMaxPerspectives {
+			req.Perspectives = req.Perspectives[:freeTierMaxPerspectives]
+		}
+		return "free", true
+	}
+
+	// PRO with credits — allow full analysis
+	if len(req.Perspectives) > proTierMaxPerspectives {
+		req.Perspectives = req.Perspectives[:proTierMaxPerspectives]
+	}
+	return "pro", false
 }
 
 // ── LLM Provider Interface ────────────────────────────────────
@@ -399,6 +482,9 @@ func HandleAnalystAnalyze() http.Handler {
 			return
 		}
 
+		// Enforce tier — checks on-chain credits for PRO
+		effectiveTier, downgraded := enforceTier(&req)
+
 		providers := getProviders()
 		if len(providers) == 0 {
 			slog.Error("no LLM providers configured — set GROQ_API_KEY, GOOGLE_AI_KEY, or TOGETHER_API_KEY")
@@ -472,6 +558,8 @@ func HandleAnalystAnalyze() http.Handler {
 			Results:          results,
 			ModelsUsed:       modelsUsed,
 			ProcessingTimeMs: time.Since(start).Milliseconds(),
+			Tier:             effectiveTier,
+			Downgraded:       downgraded,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

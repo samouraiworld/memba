@@ -35,9 +35,16 @@ import type { AnalysisRequest, Perspective } from "./analysis/types.js";
 
 // ── Initialization ────────────────────────────────────────────
 
-const rpcClient = new GnoRpcClient();
-const dao = new DaoAdapter(rpcClient);
+let rpcClient = new GnoRpcClient();
+let dao = new DaoAdapter(rpcClient);
 const backend = new BackendClient();
+
+/** Reinitialize the RPC client and DAO adapter with a new endpoint. */
+function switchNetwork(rpcUrl: string): void {
+  process.env.GNO_RPC_URL = rpcUrl;
+  rpcClient = new GnoRpcClient({ endpoints: [rpcUrl] });
+  dao = new DaoAdapter(rpcClient);
+}
 
 const FREE_PERSPECTIVES: Perspective[] = ["technical", "financial"];
 const PRO_PERSPECTIVES: Perspective[] = ["legal", "technical", "financial"];
@@ -118,7 +125,10 @@ server.registerTool(
       const consensus = buildConsensus(response.results);
 
       // 5. Format output
-      const formatted = formatConsensusResult(consensus, proposal_id, realm_path);
+      const formatted = formatConsensusResult(
+        consensus, proposal_id, realm_path,
+        response.tier, response.downgraded
+      );
 
       return {
         content: [{ type: "text", text: formatted }],
@@ -496,14 +506,13 @@ server.registerTool(
       };
     }
 
-    // Update the RPC client — create a new one with the new URL
-    // Note: this modifies the module-level client for subsequent calls
-    process.env.GNO_RPC_URL = rpcUrl;
+    // Reinitialize RPC client + DAO adapter, clears all cached queries
+    switchNetwork(rpcUrl);
 
     return {
       content: [{
         type: "text",
-        text: `Switched to network: ${network}\nRPC: ${rpcUrl}`,
+        text: `Switched to network: ${network}\nRPC: ${rpcUrl}\nCache cleared.`,
       }],
     };
   }

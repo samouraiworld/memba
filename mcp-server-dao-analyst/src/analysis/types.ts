@@ -38,10 +38,13 @@ export interface AnalysisRequest {
 export interface BackendAnalysisRequest {
   perspectives: AnalysisRequest[];
   tier: "free" | "pro";
+  userAddress?: string;
 }
 
 export interface BackendAnalysisResponse {
   results: PerspectiveResult[];
   modelsUsed: string[];
   processingTimeMs: number;
+  tier: "free" | "pro";
+  downgraded?: boolean;
 }

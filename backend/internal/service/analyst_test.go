@@ -178,3 +178,72 @@ func TestHandleAnalystAnalyze_NoProviders(t *testing.T) {
 		t.Errorf("expected 503, got %d", rec.Code)
 	}
 }
+
+// ── Tier Enforcement Tests ──────────────────────────────────
+
+func TestEnforceTier_Free(t *testing.T) {
+	req := &AnalysisRequest{
+		Perspectives: make([]PerspectiveRequest, 5),
+		Tier:         "free",
+	}
+
+	tier, downgraded := enforceTier(req)
+	if tier != "free" {
+		t.Errorf("expected free tier, got %s", tier)
+	}
+	if downgraded {
+		t.Error("should not be downgraded for free tier")
+	}
+	if len(req.Perspectives) != freeTierMaxPerspectives {
+		t.Errorf("expected %d perspectives, got %d", freeTierMaxPerspectives, len(req.Perspectives))
+	}
+}
+
+func TestEnforceTier_FreeFewPerspectives(t *testing.T) {
+	req := &AnalysisRequest{
+		Perspectives: make([]PerspectiveRequest, 1),
+		Tier:         "free",
+	}
+
+	enforceTier(req)
+	if len(req.Perspectives) != 1 {
+		t.Errorf("should not truncate when under limit, got %d", len(req.Perspectives))
+	}
+}
+
+func TestEnforceTier_ProNoCredits(t *testing.T) {
+	// No user address = no credits = downgrade
+	req := &AnalysisRequest{
+		Perspectives: make([]PerspectiveRequest, 3),
+		Tier:         "pro",
+		UserAddress:  "",
+	}
+
+	tier, downgraded := enforceTier(req)
+	if tier != "free" {
+		t.Errorf("expected free (downgraded), got %s", tier)
+	}
+	if !downgraded {
+		t.Error("should be downgraded when no credits")
+	}
+	if len(req.Perspectives) != freeTierMaxPerspectives {
+		t.Errorf("expected %d perspectives after downgrade, got %d", freeTierMaxPerspectives, len(req.Perspectives))
+	}
+}
+
+func TestEnforceTier_ProWithInvalidAddress(t *testing.T) {
+	// Invalid address = checkProCredits returns 0 = downgrade
+	req := &AnalysisRequest{
+		Perspectives: make([]PerspectiveRequest, 3),
+		Tier:         "pro",
+		UserAddress:  "g1invalid",
+	}
+
+	tier, downgraded := enforceTier(req)
+	if tier != "free" {
+		t.Errorf("expected free (downgraded), got %s", tier)
+	}
+	if !downgraded {
+		t.Error("should be downgraded with invalid address")
+	}
+}
