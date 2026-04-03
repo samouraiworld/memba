@@ -1,5 +1,5 @@
 /**
- * GRC20 Token helpers for the gno.land/r/demo/defi/grc20factory realm.
+ * GRC20 Token helpers for the gno.land/r/samcrew/tokenfactory realm.
  *
  * - ABCI query helpers (list tokens, get info, balance)
  * - MsgCall builder for factory functions

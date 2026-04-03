@@ -44,8 +44,10 @@ describe("fetchTractionMetrics", () => {
     })
 
     it("parses contributor total from API response", async () => {
+        // /stats returns { users: [...] }, /repositories returns [...]
+        const mockUsers = Array.from({ length: 42 }, (_, i) => ({ login: `user${i}` }))
         vi.spyOn(globalThis, "fetch")
-            .mockResolvedValueOnce(new Response(JSON.stringify({ total: 42 }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ users: mockUsers }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify([{ name: "repo1" }, { name: "repo2" }]), { status: 200 }))
 
         const metrics = await fetchTractionMetrics()

@@ -93,14 +93,17 @@ export default function Validators() {
 
         if (isRefresh) setRefreshing(true)
         try {
-            // v2.17.2: ALL data sources in single parallel burst (was sequential for stats)
-            const [vals, monitoringMap, valoperMap, sigMap, netStats] = await Promise.all([
+            // v3.0: Fetch validators + enrichment data in parallel, then stats sequentially
+            // H-11 fix: getNetworkStats needs prefetched validators to avoid race condition
+            // where the separate /validators?per_page=1 RPC fallback returns total=0
+            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
-                getNetworkStats(GNO_RPC_URL),
             ])
+            // Sequential: stats needs validator count from prefetched data
+            const netStats = await getNetworkStats(GNO_RPC_URL, vals, controller.signal)
 
             // v2.13: Apply valopers monikers first (primary on-chain source)
             const withMonikers = mergeValoperMonikers(vals, valoperMap)

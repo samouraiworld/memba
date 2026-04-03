@@ -12,6 +12,7 @@ import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
 import { GNO_RPC_URL, getUserRegistryPath } from "./config"
 import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
+import { listFactoryTokens } from "./grc20"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -288,19 +289,28 @@ export function parseTokenRegistry(raw: string): DirectoryToken[] {
 }
 
 /**
- * Fetch token registry from GRC20 registry realm.
+ * Fetch tokens from the GRC20 factory (unified with TokenDashboard).
+ * M-14 fix: Previously queried gno.land/r/demo/grc20reg which returned
+ * different results than the Tokens page. Now uses the same factory source.
  * Uses sessionStorage cache.
  */
 export async function fetchTokens(): Promise<DirectoryToken[]> {
     const cached = getCached<DirectoryToken[]>("tokens")
     if (cached) return cached
 
-    const raw = await queryRender(GNO_RPC_URL, "gno.land/r/demo/grc20reg", "")
-    if (!raw) return []
-
-    const tokens = parseTokenRegistry(raw)
-    setCache("tokens", tokens)
-    return tokens
+    try {
+        const factoryTokens = await listFactoryTokens(GNO_RPC_URL)
+        const tokens: DirectoryToken[] = factoryTokens.map(t => ({
+            slug: t.symbol,
+            name: t.name,
+            symbol: t.symbol,
+            path: `gno.land/r/samcrew/tokenfactory:${t.symbol}`,
+        }))
+        setCache("tokens", tokens)
+        return tokens
+    } catch {
+        return []
+    }
 }
 
 // ── User Parsing ─────────────────────────────────────────────
@@ -589,7 +599,7 @@ export const SEED_REALMS: DirectoryRealm[] = [
     { name: "GRC20 Registry", path: "gno.land/r/demo/grc20reg", description: "Token registry — lists all GRC20 tokens", category: "standard" },
     { name: "User Registry", path: getUserRegistryPath(), description: "On-chain username registry", category: "standard" },
     { name: "GnoSwap", path: "gno.land/r/gnoswap/v1/router", description: "Decentralized token exchange", category: "defi" },
-    { name: "GRC20 Factory", path: "gno.land/r/demo/defi/grc20factory", description: "Deploy new GRC20 tokens", category: "defi" },
+    { name: "GRC20 Factory", path: "gno.land/r/samcrew/tokenfactory", description: "Deploy new GRC20 tokens", category: "defi" },
     { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },
     { name: "Blog", path: "gno.land/r/gnoland/blog", description: "Official gno.land blog", category: "social" },
     { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Faucet for ugnot", category: "utility" },

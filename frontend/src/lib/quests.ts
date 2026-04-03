@@ -58,12 +58,79 @@ export const TOTAL_POSSIBLE_XP = QUESTS.reduce((sum, q) => sum + q.xp, 0) // 125
 
 // ── Storage ──────────────────────────────────────────────────
 
-const STORAGE_KEY = "memba_quests"
+const STORAGE_KEY_BASE = "memba_quests"
 
-/** Load quest progress from localStorage. */
+/**
+ * H-06 fix: Per-wallet quest isolation.
+ * Module-level wallet address — set once via setQuestWalletAddress() when wallet connects.
+ * All storage keys are scoped: "memba_quests_{g1addr}", "memba_quest_pages_{g1addr}", etc.
+ * Non-connected users fall back to the global key (quests still track for anonymous).
+ */
+let _questWalletAddr: string | null = null
+
+/**
+ * Set the active wallet address for quest storage isolation.
+ * Call this when the wallet connects. Pass null on disconnect.
+ * Triggers one-time migration from global → per-wallet keys on first connect.
+ */
+export function setQuestWalletAddress(address: string | null): void {
+    const prev = _questWalletAddr
+    _questWalletAddr = address
+
+    // One-time migration: if global key exists and per-wallet doesn't → copy
+    if (address && address !== prev) {
+        _migrateGlobalToWallet(address)
+    }
+}
+
+/** Get the active wallet address (for testing/external use). */
+export function getQuestWalletAddress(): string | null {
+    return _questWalletAddr
+}
+
+/**
+ * Generate a storage key scoped to the active wallet.
+ * Returns "baseKey_g1addr" when connected, "baseKey" when not.
+ */
+function _scopedKey(baseKey: string): string {
+    return _questWalletAddr ? `${baseKey}_${_questWalletAddr}` : baseKey
+}
+
+/**
+ * One-time migration: copy global quest data to per-wallet key.
+ * Only runs if global key has data AND per-wallet key is empty.
+ * Never deletes the global key (shared machine safety).
+ */
+function _migrateGlobalToWallet(address: string): void {
+    try {
+        const walletKey = `${STORAGE_KEY_BASE}_${address}`
+        // Skip if per-wallet data already exists
+        if (localStorage.getItem(walletKey)) return
+
+        // Migrate quest progress
+        const globalData = localStorage.getItem(STORAGE_KEY_BASE)
+        if (globalData) {
+            localStorage.setItem(walletKey, globalData)
+        }
+
+        // Migrate page visits
+        const globalPages = localStorage.getItem("memba_quest_pages")
+        if (globalPages && !localStorage.getItem(`memba_quest_pages_${address}`)) {
+            localStorage.setItem(`memba_quest_pages_${address}`, globalPages)
+        }
+
+        // Migrate directory tabs
+        const globalTabs = localStorage.getItem("memba_quest_dir_tabs")
+        if (globalTabs && !localStorage.getItem(`memba_quest_dir_tabs_${address}`)) {
+            localStorage.setItem(`memba_quest_dir_tabs_${address}`, globalTabs)
+        }
+    } catch { /* migration is best-effort */ }
+}
+
+/** Load quest progress from localStorage (scoped to active wallet). */
 export function loadQuestProgress(): UserQuestState {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY)
+        const raw = localStorage.getItem(_scopedKey(STORAGE_KEY_BASE))
         if (!raw) return { completed: [], totalXP: 0 }
         const state = JSON.parse(raw) as UserQuestState
         return {
@@ -75,10 +142,10 @@ export function loadQuestProgress(): UserQuestState {
     }
 }
 
-/** Save quest progress to localStorage. */
+/** Save quest progress to localStorage (scoped to active wallet). */
 function saveQuestProgress(state: UserQuestState): void {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+        localStorage.setItem(_scopedKey(STORAGE_KEY_BASE), JSON.stringify(state))
     } catch { /* quota */ }
 }
 
@@ -191,16 +258,17 @@ export async function fetchUserQuests(address: string): Promise<UserQuestState |
 
 // ── Page Visit Tracking ──────────────────────────────────────
 
-const PAGES_KEY = "memba_quest_pages"
+const PAGES_KEY_BASE = "memba_quest_pages"
 
-/** Track a page visit for the "visit 5 pages" quest. */
+/** Track a page visit for the "visit 5 pages" quest (per-wallet scoped). */
 export function trackPageVisit(pageName: string, authToken?: Token): void {
     try {
-        const raw = localStorage.getItem(PAGES_KEY)
+        const key = _scopedKey(PAGES_KEY_BASE)
+        const raw = localStorage.getItem(key)
         const pages: string[] = raw ? JSON.parse(raw) : []
         if (!pages.includes(pageName)) {
             pages.push(pageName)
-            localStorage.setItem(PAGES_KEY, JSON.stringify(pages))
+            localStorage.setItem(key, JSON.stringify(pages))
             if (pages.length >= 5) {
                 completeQuest("visit-5-pages", authToken)
             }
@@ -208,19 +276,21 @@ export function trackPageVisit(pageName: string, authToken?: Token): void {
     } catch { /* */ }
 }
 
-const DIR_TABS_KEY = "memba_quest_dir_tabs"
+const DIR_TABS_KEY_BASE = "memba_quest_dir_tabs"
 
-/** Track directory tab visits for the "browse 3 tabs" quest. */
+/** Track directory tab visits for the "browse 3 tabs" quest (per-wallet scoped). */
 export function trackDirectoryTab(tabName: string, authToken?: Token): void {
     try {
-        const raw = localStorage.getItem(DIR_TABS_KEY)
+        const key = _scopedKey(DIR_TABS_KEY_BASE)
+        const raw = localStorage.getItem(key)
         const tabs: string[] = raw ? JSON.parse(raw) : []
         if (!tabs.includes(tabName)) {
             tabs.push(tabName)
-            localStorage.setItem(DIR_TABS_KEY, JSON.stringify(tabs))
+            localStorage.setItem(key, JSON.stringify(tabs))
             if (tabs.length >= 3) {
                 completeQuest("directory-tabs", authToken)
             }
         }
     } catch { /* */ }
 }
+

@@ -140,7 +140,7 @@ describe("generateChannelCode", () => {
         ],
         minPostInterval: 5,
         minTokenBalance: 0,
-        tokenFactoryPath: "gno.land/r/demo/defi/grc20factory",
+        tokenFactoryPath: "gno.land/r/samcrew/tokenfactory",
         tokenSymbol: "",
         editWindowBlocks: 100,
     }
@@ -236,7 +236,7 @@ describe("generateChannelCode", () => {
             tokenSymbol: "MEMBATEST",
         }
         const code = generateChannelCode(config)
-        expect(code).toContain('grc20factory "gno.land/r/demo/defi/grc20factory"')
+        expect(code).toContain('grc20factory "gno.land/r/samcrew/tokenfactory"')
     })
 
     it("generates token balance check with correct symbol", () => {

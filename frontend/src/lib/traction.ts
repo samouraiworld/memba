@@ -65,17 +65,17 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
     }
 
     const results = await Promise.allSettled([
-        // Contributor count from gnolove
-        fetch(`${GNOLOVE_API_URL}/contributors?limit=1`, {
+        // Contributor count from gnolove stats endpoint (returns { users: [...] })
+        fetch(`${GNOLOVE_API_URL}/stats`, {
             signal: AbortSignal.timeout(5000),
         }).then(async r => {
             if (!r.ok) return 0
             const data = await r.json()
-            return data?.total ?? data?.length ?? 0
+            return data?.users?.length ?? 0
         }),
 
         // Repo count from gnolove
-        fetch(`${GNOLOVE_API_URL}/repos`, {
+        fetch(`${GNOLOVE_API_URL}/repositories`, {
             signal: AbortSignal.timeout(5000),
         }).then(async r => {
             if (!r.ok) return 0
