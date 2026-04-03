@@ -30,13 +30,16 @@ frontend-dev: ## Run frontend dev server
 frontend-build: ## Build frontend for production
 	cd frontend && npm run build
 
+frontend-test: ## Run frontend unit tests
+	cd frontend && npm test
+
 frontend-lint: ## Lint frontend code
 	cd frontend && npm run lint
 
 # Combined
 lint: proto-lint backend-lint frontend-lint ## Run all linters
 
-test: backend-test ## Run all tests
+test: backend-test frontend-test ## Run all tests
 
 # Docker
 docker-build: ## Build backend Docker image
