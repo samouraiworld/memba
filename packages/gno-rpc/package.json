@@ -1,0 +1,24 @@
+{
+  "name": "@samouraiworld/gno-rpc",
+  "version": "0.1.0",
+  "description": "TypeScript ABCI query helpers for Gno blockchain — shared by Memba MCP servers",
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["gno", "abci", "rpc", "blockchain"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -119,6 +119,9 @@ func main() {
 	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy("gno.land/r/samcrew/agent_registry")))
 	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy("gno.land/r/samcrew/escrow")))
 
+	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
+	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
