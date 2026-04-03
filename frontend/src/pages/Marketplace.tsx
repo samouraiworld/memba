@@ -1,25 +1,36 @@
 /**
  * Marketplace — AI Agent Marketplace page.
  *
- * Phase 4a: Browse, search, and connect AI agents for the Gno ecosystem.
+ * Browse, search, register, and review AI agents on-chain.
  * Agents expose capabilities via MCP (Model Context Protocol).
  *
  * @module pages/Marketplace
  */
 
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react"
+import { useOutletContext } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
 import {
+    fetchAgents,
+    fetchAgentDetail,
+    invalidateAgentCache,
     searchAgents,
     generateMcpConfig,
     AGENT_CATEGORIES,
     type AgentListing,
     type AgentCategory,
+    type AgentReview,
 } from "../lib/agentRegistry"
+import { buildRegisterAgentMsg, buildReviewAgentMsg } from "../lib/agentTemplate"
+import { doContractBroadcast } from "../lib/grc20"
+import { MEMBA_DAO } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { ErrorToast } from "../components/ui/ErrorToast"
+import type { LayoutContext } from "../types/layout"
 import "./marketplace.css"
 
 const MARKETPLACE_ENABLED = import.meta.env.VITE_ENABLE_MARKETPLACE === "true"
+const REGISTRY_PATH = MEMBA_DAO.agentRegistryPath
 
 export default function Marketplace() {
     if (!MARKETPLACE_ENABLED) {
@@ -43,21 +54,42 @@ export default function Marketplace() {
 }
 
 function MarketplaceContent() {
+    const { adena } = useOutletContext<LayoutContext>()
+
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [category, setCategory] = useState<AgentCategory | "all">("all")
     const [selectedAgent, setSelectedAgent] = useState<AgentListing | null>(null)
+    const [agentReviews, setAgentReviews] = useState<AgentReview[]>([])
     const [copied, setCopied] = useState(false)
     const [showRegister, setShowRegister] = useState(false)
-    const [reviewRating, setReviewRating] = useState(5)
-    const [reviewComment, setReviewComment] = useState("")
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => { document.title = "AI Agent Marketplace — Memba" }, [])
+    // Load agents from chain on mount
+    useEffect(() => {
+        document.title = "AI Agent Marketplace — Memba"
+        fetchAgents()
+            .then(() => setLoading(false))
+            .catch(() => setLoading(false))
+    }, [])
 
     const agents = useMemo(() =>
         searchAgents(deferredSearch, category === "all" ? undefined : category),
-        [deferredSearch, category],
+        [deferredSearch, category, loading],
     )
+
+    const handleSelectAgent = useCallback(async (agent: AgentListing) => {
+        setSelectedAgent(agent)
+        setAgentReviews([])
+        // Fetch full detail to get reviews
+        try {
+            const detail = await fetchAgentDetail(agent.id)
+            if (detail) {
+                setSelectedAgent(detail)
+            }
+        } catch { /* use the listing data we already have */ }
+    }, [])
 
     const handleCopyConfig = useCallback(async (agent: AgentListing) => {
         const config = generateMcpConfig(agent)
@@ -68,162 +100,57 @@ function MarketplaceContent() {
         } catch { /* clipboard not available */ }
     }, [])
 
+    const handleAgentRegistered = useCallback(async () => {
+        setShowRegister(false)
+        invalidateAgentCache()
+        setLoading(true)
+        await fetchAgents().catch(() => {})
+        setLoading(false)
+    }, [])
+
     // ── Agent Detail Panel ────────────────────────────────────
     if (selectedAgent) {
-        const config = generateMcpConfig(selectedAgent)
         return (
-            <div className="mp-page animate-fade-in">
-                <button className="mp-back" onClick={() => setSelectedAgent(null)}>
-                    ← Back to Marketplace
-                </button>
-
-                <div className="mp-detail">
-                    <div className="mp-detail__header">
-                        <div className="mp-detail__icon">
-                            {AGENT_CATEGORIES.find(c => c.key === selectedAgent.category)?.icon || "🤖"}
-                        </div>
-                        <div>
-                            <h1 className="mp-detail__name">
-                                {selectedAgent.name}
-                                {selectedAgent.verified && <span className="mp-verified" title="Verified by Memba">✓</span>}
-                            </h1>
-                            <div className="mp-detail__meta">
-                                <span>by {selectedAgent.creatorName || selectedAgent.creator}</span>
-                                <span>v{selectedAgent.version}</span>
-                                <span className="mp-pricing-badge" data-pricing={selectedAgent.pricing}>
-                                    {selectedAgent.pricing === "free" ? "Free" : selectedAgent.pricing === "pay-per-use" ? `${selectedAgent.pricePerCall / 1000}k ugnot/call` : "Subscription"}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="mp-detail__stats">
-                        <div className="mp-stat">
-                            <span className="mp-stat__value">{selectedAgent.rating > 0 ? `${selectedAgent.rating.toFixed(1)}` : "—"}</span>
-                            <span className="mp-stat__label">Rating</span>
-                        </div>
-                        <div className="mp-stat">
-                            <span className="mp-stat__value">{selectedAgent.ratingCount}</span>
-                            <span className="mp-stat__label">Reviews</span>
-                        </div>
-                        <div className="mp-stat">
-                            <span className="mp-stat__value">{selectedAgent.totalCalls}</span>
-                            <span className="mp-stat__label">Invocations</span>
-                        </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="mp-detail__section">
-                        <h3>About</h3>
-                        <pre className="mp-detail__desc">{selectedAgent.longDescription || selectedAgent.description}</pre>
-                    </div>
-
-                    {/* Capabilities */}
-                    <div className="mp-detail__section">
-                        <h3>Capabilities</h3>
-                        <div className="mp-caps">
-                            {selectedAgent.capabilities.map(c => (
-                                <span key={c} className="mp-cap">{c}</span>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* MCP Config */}
-                    <div className="mp-detail__section">
-                        <h3>Connect Agent</h3>
-                        <p className="mp-detail__hint">
-                            Add this to your MCP client config (Claude Desktop, Cursor, etc.):
-                        </p>
-                        <div className="mp-config">
-                            <pre className="mp-config__code">{JSON.stringify(config, null, 2)}</pre>
-                            <button
-                                className="mp-config__copy"
-                                onClick={() => handleCopyConfig(selectedAgent)}
-                            >
-                                {copied ? "✓ Copied!" : "Copy Config"}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Review Form */}
-                    <div className="mp-detail__section">
-                        <h3>Leave a Review</h3>
-                        <div className="mp-review-form">
-                            <div className="mp-review-stars" role="radiogroup" aria-label="Rating">
-                                {[1, 2, 3, 4, 5].map(star => (
-                                    <button
-                                        key={star}
-                                        className={`mp-star${star <= reviewRating ? " active" : ""}`}
-                                        onClick={() => setReviewRating(star)}
-                                        onKeyDown={e => {
-                                            if (e.key === "ArrowRight" && star < 5) setReviewRating(star + 1)
-                                            if (e.key === "ArrowLeft" && star > 1) setReviewRating(star - 1)
-                                        }}
-                                        aria-label={`${star} star${star !== 1 ? "s" : ""}`}
-                                        role="radio"
-                                        aria-checked={star === reviewRating}
-                                    >
-                                        ★
-                                    </button>
-                                ))}
-                            </div>
-                            <textarea
-                                className="mp-review-input"
-                                placeholder="Share your experience with this agent..."
-                                value={reviewComment}
-                                onChange={e => setReviewComment(e.target.value)}
-                                maxLength={500}
-                                rows={3}
-                            />
-                            <div className="mp-review-actions">
-                                <span className="mp-review-hint">
-                                    Reviews are stored on-chain when registry is deployed
-                                </span>
-                                <button
-                                    className="mp-review-submit"
-                                    disabled={!reviewComment.trim()}
-                                    onClick={() => {
-                                        setReviewComment("")
-                                        setReviewRating(5)
-                                    }}
-                                >
-                                    Submit Review
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Tags */}
-                    <div className="mp-detail__tags">
-                        {selectedAgent.tags.map(t => (
-                            <span key={t} className="mp-tag">{t}</span>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            <AgentDetailView
+                agent={selectedAgent}
+                reviews={agentReviews}
+                adena={adena}
+                onBack={() => { setSelectedAgent(null); setAgentReviews([]) }}
+                onCopyConfig={() => handleCopyConfig(selectedAgent)}
+                copied={copied}
+                onError={setError}
+            />
         )
     }
 
     // ── Marketplace Grid ──────────────────────────────────────
     return (
         <div className="mp-page animate-fade-in">
+            <ErrorToast message={error} onDismiss={() => setError(null)} />
+
             <div className="mp-header">
                 <div>
                     <h1>🤖 AI Agent Marketplace</h1>
                     <p>Discover and connect AI agents for the Gno ecosystem via MCP</p>
                 </div>
-                <button
-                    className="mp-register-btn"
-                    onClick={() => setShowRegister(true)}
-                >
-                    + Register Agent
-                </button>
+                {adena.connected && (
+                    <button
+                        className="mp-register-btn"
+                        onClick={() => setShowRegister(true)}
+                    >
+                        + Register Agent
+                    </button>
+                )}
             </div>
 
             {/* Register Agent Modal */}
             {showRegister && (
-                <RegisterAgentForm onClose={() => setShowRegister(false)} />
+                <RegisterAgentForm
+                    address={adena.address}
+                    onClose={() => setShowRegister(false)}
+                    onRegistered={handleAgentRegistered}
+                    onError={setError}
+                />
             )}
 
             {/* Search */}
@@ -259,11 +186,11 @@ function MarketplaceContent() {
 
             {/* Results count */}
             <div className="mp-count">
-                {agents.length} agent{agents.length !== 1 ? "s" : ""} found
+                {loading ? "Loading agents..." : `${agents.length} agent${agents.length !== 1 ? "s" : ""} found`}
             </div>
 
             {/* Agent grid */}
-            {agents.length === 0 ? (
+            {!loading && agents.length === 0 ? (
                 <div className="mp-empty">
                     <span className="mp-empty__icon">🤖</span>
                     <p>No agents found{search ? ` matching "${search}"` : " in this category"}</p>
@@ -274,7 +201,7 @@ function MarketplaceContent() {
                         <button
                             key={agent.id}
                             className="mp-card"
-                            onClick={() => setSelectedAgent(agent)}
+                            onClick={() => handleSelectAgent(agent)}
                         >
                             <div className="mp-card__top">
                                 <span className="mp-card__icon">
@@ -310,9 +237,198 @@ function MarketplaceContent() {
     )
 }
 
+// ── Agent Detail View ───────────────────────────────────────
+
+function AgentDetailView({
+    agent, reviews, adena, onBack, onCopyConfig, copied, onError,
+}: {
+    agent: AgentListing
+    reviews: AgentReview[]
+    adena: LayoutContext["adena"]
+    onBack: () => void
+    onCopyConfig: () => void
+    copied: boolean
+    onError: (msg: string) => void
+}) {
+    const config = generateMcpConfig(agent)
+    const [reviewRating, setReviewRating] = useState(5)
+    const [reviewComment, setReviewComment] = useState("")
+    const [submittingReview, setSubmittingReview] = useState(false)
+    const [reviewSuccess, setReviewSuccess] = useState(false)
+
+    const handleSubmitReview = async () => {
+        if (!adena.connected || !reviewComment.trim()) return
+        setSubmittingReview(true)
+        try {
+            const msg = buildReviewAgentMsg(
+                adena.address,
+                REGISTRY_PATH,
+                agent.id,
+                reviewRating,
+                reviewComment.trim(),
+            )
+            await doContractBroadcast([msg], "Agent Review")
+            invalidateAgentCache()
+            setReviewComment("")
+            setReviewRating(5)
+            setReviewSuccess(true)
+            setTimeout(() => setReviewSuccess(false), 4000)
+        } catch (err) {
+            onError(err instanceof Error ? err.message : "Review submission failed")
+        } finally {
+            setSubmittingReview(false)
+        }
+    }
+
+    return (
+        <div className="mp-page animate-fade-in">
+            <button className="mp-back" onClick={onBack}>
+                ← Back to Marketplace
+            </button>
+
+            <div className="mp-detail">
+                <div className="mp-detail__header">
+                    <div className="mp-detail__icon">
+                        {AGENT_CATEGORIES.find(c => c.key === agent.category)?.icon || "🤖"}
+                    </div>
+                    <div>
+                        <h1 className="mp-detail__name">
+                            {agent.name}
+                            {agent.verified && <span className="mp-verified" title="Verified by Memba">✓</span>}
+                        </h1>
+                        <div className="mp-detail__meta">
+                            <span>by {agent.creatorName || agent.creator}</span>
+                            {agent.version && <span>v{agent.version}</span>}
+                            <span className="mp-pricing-badge" data-pricing={agent.pricing}>
+                                {agent.pricing === "free" ? "Free" : agent.pricing === "pay-per-use" ? `${agent.pricePerCall / 1000}k ugnot/call` : "Subscription"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="mp-detail__stats">
+                    <div className="mp-stat">
+                        <span className="mp-stat__value">{agent.rating > 0 ? `${agent.rating.toFixed(1)}` : "—"}</span>
+                        <span className="mp-stat__label">Rating</span>
+                    </div>
+                    <div className="mp-stat">
+                        <span className="mp-stat__value">{agent.ratingCount}</span>
+                        <span className="mp-stat__label">Reviews</span>
+                    </div>
+                    <div className="mp-stat">
+                        <span className="mp-stat__value">{agent.totalCalls}</span>
+                        <span className="mp-stat__label">Invocations</span>
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div className="mp-detail__section">
+                    <h3>About</h3>
+                    <pre className="mp-detail__desc">{agent.longDescription || agent.description}</pre>
+                </div>
+
+                {/* Capabilities */}
+                {agent.capabilities.length > 0 && (
+                    <div className="mp-detail__section">
+                        <h3>Capabilities</h3>
+                        <div className="mp-caps">
+                            {agent.capabilities.map(c => (
+                                <span key={c} className="mp-cap">{c}</span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* MCP Config */}
+                {agent.mcpEndpoint && (
+                    <div className="mp-detail__section">
+                        <h3>Connect Agent</h3>
+                        <p className="mp-detail__hint">
+                            Add this to your MCP client config (Claude Desktop, Cursor, etc.):
+                        </p>
+                        <div className="mp-config">
+                            <pre className="mp-config__code">{JSON.stringify(config, null, 2)}</pre>
+                            <button
+                                className="mp-config__copy"
+                                onClick={onCopyConfig}
+                            >
+                                {copied ? "✓ Copied!" : "Copy Config"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Review Form */}
+                <div className="mp-detail__section">
+                    <h3>Leave a Review</h3>
+                    {!adena.connected ? (
+                        <p className="mp-review-hint">Connect your wallet to leave a review.</p>
+                    ) : (
+                        <div className="mp-review-form">
+                            <div className="mp-review-stars" role="radiogroup" aria-label="Rating">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                        key={star}
+                                        className={`mp-star${star <= reviewRating ? " active" : ""}`}
+                                        onClick={() => setReviewRating(star)}
+                                        onKeyDown={e => {
+                                            if (e.key === "ArrowRight" && star < 5) setReviewRating(star + 1)
+                                            if (e.key === "ArrowLeft" && star > 1) setReviewRating(star - 1)
+                                        }}
+                                        aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+                                        role="radio"
+                                        aria-checked={star === reviewRating}
+                                    >
+                                        ★
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                className="mp-review-input"
+                                placeholder="Share your experience with this agent..."
+                                value={reviewComment}
+                                onChange={e => setReviewComment(e.target.value)}
+                                maxLength={500}
+                                rows={3}
+                            />
+                            <div className="mp-review-actions">
+                                {reviewSuccess && (
+                                    <span className="mp-review-success">✓ Review submitted on-chain</span>
+                                )}
+                                <button
+                                    className="mp-review-submit"
+                                    disabled={!reviewComment.trim() || submittingReview}
+                                    onClick={handleSubmitReview}
+                                >
+                                    {submittingReview ? "Submitting..." : "Submit Review"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Tags */}
+                {agent.tags.length > 0 && (
+                    <div className="mp-detail__tags">
+                        {agent.tags.map(t => (
+                            <span key={t} className="mp-tag">{t}</span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
 // ── Register Agent Form ──────────────────────────────────────
 
-function RegisterAgentForm({ onClose }: { onClose: () => void }) {
+function RegisterAgentForm({ address, onClose, onRegistered, onError }: {
+    address: string
+    onClose: () => void
+    onRegistered: () => void
+    onError: (msg: string) => void
+}) {
     // Close on Escape
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -320,7 +436,7 @@ function RegisterAgentForm({ onClose }: { onClose: () => void }) {
         return () => document.removeEventListener("keydown", handleKey)
     }, [onClose])
 
-    const [registerNotice, setRegisterNotice] = useState("")
+    const [submitting, setSubmitting] = useState(false)
     const [form, setForm] = useState({
         id: "",
         name: "",
@@ -340,6 +456,33 @@ function RegisterAgentForm({ onClose }: { onClose: () => void }) {
 
     const idFromName = (name: string) =>
         name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+
+    const handleRegister = async () => {
+        if (!form.name.trim() || !form.description.trim() || !form.endpoint.trim()) return
+        setSubmitting(true)
+        try {
+            const msg = buildRegisterAgentMsg(
+                address,
+                REGISTRY_PATH,
+                form.id || idFromName(form.name),
+                form.name.trim(),
+                form.description.trim(),
+                form.category,
+                form.capabilities,
+                form.endpoint.trim(),
+                form.transport,
+                form.pricing,
+                form.version,
+                form.pricePerCall,
+            )
+            await doContractBroadcast([msg], "Register Agent")
+            onRegistered()
+        } catch (err) {
+            onError(err instanceof Error ? err.message : "Agent registration failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
 
     return (
         <div className="mp-register-overlay" onClick={onClose}>
@@ -438,27 +581,16 @@ function RegisterAgentForm({ onClose }: { onClose: () => void }) {
                         </label>
                     )}
 
-                    {registerNotice && (
-                        <div className="mp-register-notice">
-                            <p>{registerNotice}</p>
-                            <button onClick={onClose} className="mp-register-notice__btn">Close</button>
-                        </div>
-                    )}
-
-                    {!registerNotice && (
-                        <div className="mp-register-actions">
-                            <button className="mp-register-cancel" onClick={onClose}>Cancel</button>
-                            <button
-                                className="mp-register-submit"
-                                disabled={!form.name.trim() || !form.description.trim() || !form.endpoint.trim()}
-                                onClick={() => {
-                                    setRegisterNotice(`Agent "${form.name}" is ready. On-chain registration will be available once the agent registry realm is deployed.`)
-                                }}
-                            >
-                                Register Agent
-                            </button>
-                        </div>
-                    )}
+                    <div className="mp-register-actions">
+                        <button className="mp-register-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
+                        <button
+                            className="mp-register-submit"
+                            disabled={!form.name.trim() || !form.description.trim() || !form.endpoint.trim() || submitting}
+                            onClick={handleRegister}
+                        >
+                            {submitting ? "Registering..." : "Register Agent"}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

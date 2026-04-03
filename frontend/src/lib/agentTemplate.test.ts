@@ -299,7 +299,7 @@ describe("MsgCall builders", () => {
 describe("getAgents / getAgent / searchAgents", () => {
     it("getAgents returns all seed agents", () => {
         const agents = getAgents()
-        expect(agents.length).toBeGreaterThanOrEqual(3)
+        expect(agents.length).toBeGreaterThanOrEqual(1)
     })
 
     it("getAgents returns a copy (not the original array)", () => {
@@ -331,12 +331,12 @@ describe("getAgents / getAgent / searchAgents", () => {
     })
 
     it("searchAgents matches by tag", () => {
-        const results = searchAgents("governance")
+        const results = searchAgents("gno")
         expect(results.length).toBeGreaterThan(0)
     })
 
     it("searchAgents matches by capability", () => {
-        const results = searchAgents("vulnerability")
+        const results = searchAgents("balances")
         expect(results.length).toBeGreaterThan(0)
     })
 
@@ -404,11 +404,11 @@ describe("generateMcpConfig", () => {
     })
 
     it("generates HTTP config for non-stdio transport", () => {
-        const agent = SEED_AGENTS.find(a => a.mcpTransport !== "stdio")!
+        const agent = { ...SEED_AGENTS[0], id: "http-agent", mcpEndpoint: "https://example.com/mcp", mcpTransport: "streamable-http" as const }
         const config = generateMcpConfig(agent)
-        const server = config.mcpServers[agent.id]
-        expect(server.url).toBe(agent.mcpEndpoint)
-        expect(server.transport).toBe(agent.mcpTransport)
+        const server = config.mcpServers["http-agent"]
+        expect(server.url).toBe("https://example.com/mcp")
+        expect(server.transport).toBe("streamable-http")
     })
 
     it("uses agent ID as server key", () => {
