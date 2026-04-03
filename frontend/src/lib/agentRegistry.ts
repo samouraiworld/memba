@@ -1,16 +1,15 @@
 /**
  * Agent Registry — data layer for the AI Agent Marketplace.
  *
- * Phase 4a: Provides types, seed agents, and on-chain registry queries
- * for discovering and connecting AI agents in the Gno ecosystem.
- *
- * Architecture:
- * - Agents are registered on-chain via a registry realm
- * - Frontend queries Render() for agent listings
- * - MCP config is generated client-side from agent metadata
+ * Queries the on-chain agent registry realm via ABCI, with seed data fallback
+ * when the realm is unreachable or not yet deployed.
  *
  * @module lib/agentRegistry
  */
+
+import { queryRender } from "./dao/shared"
+import { GNO_RPC_URL } from "./config"
+import { MEMBA_DAO } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -62,6 +61,13 @@ export interface AgentListing {
     verified: boolean
 }
 
+export interface AgentReview {
+    reviewer: string
+    rating: number
+    comment: string
+    blockHeight: number
+}
+
 // ── Categories ───────────────────────────────────────────────
 
 export const AGENT_CATEGORIES: { key: AgentCategory; label: string; icon: string; description: string }[] = [
@@ -74,14 +80,14 @@ export const AGENT_CATEGORIES: { key: AgentCategory; label: string; icon: string
     { key: "custom", label: "Custom", icon: "🔧", description: "Custom agents and integrations" },
 ]
 
-// ── Seed Agents ──────────────────────────────────────────────
+// ── Seed Agents (fallback) ──────────────────────────────────
 
 export const SEED_AGENTS: AgentListing[] = [
     {
         id: "memba-mcp",
         name: "Memba MCP Server",
         description: "Official Memba MCP server — query DAOs, proposals, validators, and contributor data from the Gno blockchain.",
-        longDescription: `The official Memba MCP server provides 9 tools for interacting with the Gno ecosystem:
+        longDescription: `The official Memba MCP server (@samouraiworld/memba-mcp) provides 9 tools for interacting with the Gno ecosystem:
 
 - **memba_query_render** — Query any realm's Render() output
 - **memba_query_eval** — Evaluate realm functions via vm/qeval
@@ -93,75 +99,327 @@ export const SEED_AGENTS: AgentListing[] = [
 - **memba_get_repositories** — Tracked Gnolove repositories
 - **memba_get_network** — Current chain status (height, validators)
 
-Works with Claude Desktop, Cursor, and any MCP-compatible client.`,
+Works with Claude Desktop, Cursor, and any MCP-compatible client.
+
+Install: npx @samouraiworld/memba-mcp
+Configure GNO_RPC_URL to point to your preferred network.`,
         category: "analytics",
-        capabilities: ["Query realm Render()", "Evaluate realm functions", "Check balances", "DAO overview", "Proposal details", "Contributor data", "Network status"],
-        creator: "g1samouraiworld",
+        capabilities: [
+            "Query realm Render()",
+            "Evaluate realm functions",
+            "Check GNOT balances",
+            "DAO overview & members",
+            "Proposal details & votes",
+            "Contributor leaderboard",
+            "Repository tracking",
+            "Network status",
+        ],
+        creator: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0",
         creatorName: "Samourai.world",
-        mcpEndpoint: "node /path/to/memba/mcp-server/build/index.js",
+        mcpEndpoint: "npx @samouraiworld/memba-mcp",
         mcpTransport: "stdio",
         pricing: "free",
         pricePerCall: 0,
-        rating: 5,
-        ratingCount: 1,
+        rating: 0,
+        ratingCount: 0,
         totalCalls: 0,
-        tags: ["official", "gno", "dao", "proposals", "validators", "gnolove"],
+        tags: ["official", "gno", "dao", "proposals", "validators", "gnolove", "mcp"],
         version: "0.1.0",
         verified: true,
     },
-    {
-        id: "gov-analyst",
-        name: "GovDAO Analyst",
-        description: "Analyzes GovDAO proposals, summarizes voting patterns, and recommends vote positions based on historical data.",
-        category: "governance",
-        capabilities: ["Proposal summarization", "Vote pattern analysis", "Risk assessment", "Historical comparison"],
-        creator: "g1example1",
-        creatorName: "GnoBuilder",
-        mcpEndpoint: "https://agents.example.com/gov-analyst",
-        mcpTransport: "streamable-http",
-        pricing: "free",
-        pricePerCall: 0,
-        rating: 4.2,
-        ratingCount: 8,
-        totalCalls: 156,
-        tags: ["governance", "proposals", "voting", "analysis"],
-        version: "1.0.0",
-        verified: false,
-    },
-    {
-        id: "realm-auditor",
-        name: "Realm Security Auditor",
-        description: "Scans Gno realm source code for common vulnerabilities, unsafe patterns, and gas optimization opportunities.",
-        category: "security",
-        capabilities: ["Source code analysis", "Vulnerability detection", "Gas optimization", "Best practice checks"],
-        creator: "g1example2",
-        creatorName: "SecureGno",
-        mcpEndpoint: "https://agents.example.com/realm-auditor",
-        mcpTransport: "streamable-http",
-        pricing: "pay-per-use",
-        pricePerCall: 100000,
-        rating: 4.8,
-        ratingCount: 3,
-        totalCalls: 42,
-        tags: ["security", "audit", "smart-contract", "vulnerabilities"],
-        version: "0.2.0",
-        verified: false,
-    },
 ]
 
-// ── Queries ──────────────────────────────────────────────────
+// ── Cache ───────────────────────────────────────────────────
 
-/** Get all agents (seed + on-chain registry when available). */
-export function getAgents(): AgentListing[] {
-    return [...SEED_AGENTS]
+const CACHE_TTL = 60_000 // 1 minute
+let agentCache: { agents: AgentListing[]; ts: number } | null = null
+
+function getCachedAgents(): AgentListing[] | null {
+    if (!agentCache) return null
+    if (Date.now() - agentCache.ts > CACHE_TTL) {
+        agentCache = null
+        return null
+    }
+    return agentCache.agents
 }
 
-/** Get agent by ID. */
+// ── On-Chain Queries ────────────────────────────────────────
+
+/**
+ * Parse agent registry Render("") table output into AgentListing[].
+ *
+ * Expected format:
+ *   | ID | Name | Category | Rating | Pricing |
+ *   | --- | --- | --- | --- | --- |
+ *   | memba-mcp | [Memba MCP Server](:agent/memba-mcp) | development | 5.0 (1) | free |
+ */
+export function parseAgentTable(raw: string): AgentListing[] {
+    const agents: AgentListing[] = []
+    const lines = raw.split("\n")
+
+    for (const line of lines) {
+        // Skip non-table lines, headers, and separator rows
+        if (!line.startsWith("|") || line.startsWith("| ID") || line.startsWith("| ---")) continue
+
+        const cols = line.split("|").map(c => c.trim()).filter(Boolean)
+        if (cols.length < 5) continue
+
+        const id = cols[0]
+        // Extract name from markdown link: [Name](:agent/id)
+        const nameMatch = cols[1].match(/\[(.+?)\]/)
+        const name = nameMatch ? nameMatch[1] : cols[1]
+        const category = cols[2] as AgentCategory
+        // Parse rating: "4.5 (3)" or "unrated"
+        const ratingMatch = cols[3].match(/^([\d.]+)\s*\((\d+)\)/)
+        const rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0
+        const ratingCount = ratingMatch ? parseInt(ratingMatch[2]) : 0
+        // Parse pricing: "free", "pay-per-use (100000 ugnot)", "subscription"
+        const pricingRaw = cols[4]
+        let pricing: "free" | "pay-per-use" | "subscription" = "free"
+        let pricePerCall = 0
+        if (pricingRaw.startsWith("pay-per-use")) {
+            pricing = "pay-per-use"
+            const priceMatch = pricingRaw.match(/\((\d+)\s*ugnot\)/)
+            pricePerCall = priceMatch ? parseInt(priceMatch[1]) : 0
+        } else if (pricingRaw === "subscription") {
+            pricing = "subscription"
+        }
+
+        agents.push({
+            id, name, description: "", category, capabilities: [],
+            creator: "", mcpEndpoint: "", mcpTransport: "stdio",
+            pricing, pricePerCall, rating, ratingCount, totalCalls: 0,
+            tags: [], version: "", verified: false,
+        })
+    }
+
+    return agents
+}
+
+/**
+ * Parse agent detail from Render("agent/{id}") output.
+ *
+ * Expected format:
+ *   # AgentName
+ *   description text
+ *
+ *   **ID:** agent-id
+ *   **Category:** development
+ *   **Creator:** g1addr...
+ *   **Endpoint:** https://...
+ *   **Transport:** stdio
+ *   **Pricing:** free
+ *   **Price:** 100000 ugnot/call
+ *   **Version:** 1.0.0
+ *   **Total Calls:** 42
+ *   **Registered:** block 12345
+ *   **Rating:** 4.5 (3 reviews)
+ *
+ *   ## Capabilities
+ *   - cap1
+ *   - cap2
+ *
+ *   ## Reviews
+ *   **g1addr...** [*****] (block 123)
+ *   comment text
+ */
+export function parseAgentDetail(raw: string): { agent: Partial<AgentListing>; reviews: AgentReview[] } | null {
+    if (!raw || raw.includes("# 404")) return null
+
+    const lines = raw.split("\n")
+    const agent: Partial<AgentListing> = {}
+    const reviews: AgentReview[] = []
+    let section = "header" // header | description | capabilities | reviews
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+
+        if (line.startsWith("# ") && !line.startsWith("## ")) {
+            agent.name = line.slice(2).trim()
+            section = "description"
+            continue
+        }
+
+        if (line === "## Capabilities") {
+            section = "capabilities"
+            agent.capabilities = []
+            continue
+        }
+
+        if (line === "## Reviews") {
+            section = "reviews"
+            continue
+        }
+
+        // Parse metadata fields
+        if (line.startsWith("**ID:**")) { agent.id = extractField(line); continue }
+        if (line.startsWith("**Category:**")) { agent.category = extractField(line) as AgentCategory; continue }
+        if (line.startsWith("**Creator:**")) { agent.creator = extractField(line); continue }
+        if (line.startsWith("**Endpoint:**")) { agent.mcpEndpoint = extractField(line); continue }
+        if (line.startsWith("**Transport:**")) {
+            agent.mcpTransport = extractField(line) as "stdio" | "sse" | "streamable-http"
+            continue
+        }
+        if (line.startsWith("**Pricing:**")) {
+            const p = extractField(line)
+            if (p === "pay-per-use") agent.pricing = "pay-per-use"
+            else if (p === "subscription") agent.pricing = "subscription"
+            else agent.pricing = "free"
+            continue
+        }
+        if (line.startsWith("**Price:**")) {
+            const m = line.match(/(\d+)\s*ugnot/)
+            agent.pricePerCall = m ? parseInt(m[1]) : 0
+            continue
+        }
+        if (line.startsWith("**Version:**")) { agent.version = extractField(line); continue }
+        if (line.startsWith("**Total Calls:**")) { agent.totalCalls = parseInt(extractField(line)) || 0; continue }
+        if (line.startsWith("**Rating:**")) {
+            const ratingMatch = line.match(/([\d.]+)\s*\((\d+)\s*reviews?\)/)
+            if (ratingMatch) {
+                agent.rating = parseFloat(ratingMatch[1])
+                agent.ratingCount = parseInt(ratingMatch[2])
+            }
+            continue
+        }
+
+        // Capabilities section
+        if (section === "capabilities" && line.startsWith("- ")) {
+            agent.capabilities!.push(line.slice(2).trim())
+            continue
+        }
+
+        // Description (lines between title and first ** field)
+        if (section === "description" && !line.startsWith("**") && line.trim()) {
+            agent.description = (agent.description || "") + (agent.description ? "\n" : "") + line
+            continue
+        }
+
+        // Reviews section: **g1addr...** [*****] (block 123)
+        if (section === "reviews" && line.startsWith("**")) {
+            const reviewMatch = line.match(/\*\*(.+?)\*\*\s*\[([*.]+)\]\s*\(block (\d+)\)/)
+            if (reviewMatch) {
+                const stars = reviewMatch[2].split("").filter(c => c === "*").length
+                // Find the comment: skip empty lines, take first non-separator content line
+                let comment = ""
+                for (let j = i + 1; j < lines.length; j++) {
+                    const nextLine = lines[j].trim()
+                    if (nextLine === "---") break
+                    if (nextLine === "") continue
+                    comment = nextLine
+                    break
+                }
+                reviews.push({
+                    reviewer: reviewMatch[1],
+                    rating: stars,
+                    comment,
+                    blockHeight: parseInt(reviewMatch[3]),
+                })
+            }
+        }
+    }
+
+    return { agent, reviews }
+}
+
+function extractField(line: string): string {
+    const idx = line.indexOf(":**")
+    if (idx === -1) return ""
+    return line.slice(idx + 3).trim()
+}
+
+/**
+ * Fetch all agents from the on-chain registry.
+ * Falls back to seed data if the realm is unreachable.
+ */
+export async function fetchAgents(): Promise<AgentListing[]> {
+    const cached = getCachedAgents()
+    if (cached) return cached
+
+    try {
+        const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, "")
+        if (!raw || raw.includes("No agents registered")) {
+            return [...SEED_AGENTS]
+        }
+
+        const onChainAgents = parseAgentTable(raw)
+        if (onChainAgents.length === 0) {
+            return [...SEED_AGENTS]
+        }
+
+        // Enrich each agent with detail data (endpoint, capabilities, etc.)
+        const enriched = await Promise.all(
+            onChainAgents.map(async (stub) => {
+                try {
+                    const detail = await fetchAgentDetail(stub.id)
+                    return detail || stub
+                } catch {
+                    return stub
+                }
+            }),
+        )
+
+        agentCache = { agents: enriched, ts: Date.now() }
+        return enriched
+    } catch {
+        return [...SEED_AGENTS]
+    }
+}
+
+/**
+ * Fetch a single agent's full detail from the chain.
+ */
+export async function fetchAgentDetail(id: string): Promise<AgentListing | null> {
+    try {
+        const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.agentRegistryPath, `agent/${id}`)
+        if (!raw) return null
+        const result = parseAgentDetail(raw)
+        if (!result) return null
+
+        const a = result.agent
+        return {
+            id: a.id || id,
+            name: a.name || "",
+            description: a.description || "",
+            category: a.category || "custom",
+            capabilities: a.capabilities || [],
+            creator: a.creator || "",
+            mcpEndpoint: a.mcpEndpoint || "",
+            mcpTransport: a.mcpTransport || "stdio",
+            pricing: a.pricing || "free",
+            pricePerCall: a.pricePerCall || 0,
+            rating: a.rating || 0,
+            ratingCount: a.ratingCount || 0,
+            totalCalls: a.totalCalls || 0,
+            tags: [], // tags are not stored on-chain in v1
+            version: a.version || "",
+            verified: false, // verification is off-chain
+        }
+    } catch {
+        return null
+    }
+}
+
+/** Invalidate the agent cache (call after registration or review). */
+export function invalidateAgentCache(): void {
+    agentCache = null
+}
+
+// ── Sync Queries (for initial render / search) ──────────────
+
+/** Get all agents synchronously (seed data only — use fetchAgents for chain). */
+export function getAgents(): AgentListing[] {
+    return getCachedAgents() || [...SEED_AGENTS]
+}
+
+/** Get agent by ID (sync, from cache or seed). */
 export function getAgent(id: string): AgentListing | undefined {
+    const cached = getCachedAgents()
+    if (cached) return cached.find(a => a.id === id)
     return SEED_AGENTS.find(a => a.id === id)
 }
 
-/** Search agents by query string. */
+/** Search agents by query string (sync). */
 export function searchAgents(query: string, category?: AgentCategory): AgentListing[] {
     let results = getAgents()
     if (category) {

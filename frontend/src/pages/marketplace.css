@@ -741,3 +741,14 @@
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
 }
+
+.mp-review-success {
+    font-size: 12px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.mp-review-submit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

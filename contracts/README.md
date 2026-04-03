@@ -20,6 +20,7 @@ samcrew-deployer/projects/memba/realms/
 | MembaDAO | `gno.land/r/samcrew/memba_dao` | Deployed 2026-03-29 |
 | Candidature | `gno.land/r/samcrew/memba_dao_candidature` | Deployed 2026-03-29 |
 | Channels | `gno.land/r/samcrew/memba_dao_channels` | Deployed 2026-03-29 |
+| Agent Registry | `gno.land/r/samcrew/agent_registry` | Ready to deploy |
 | Escrow | `gno.land/r/samcrew/escrow_stub` | Not deployed |
 
 ## Deployment Method
@@ -30,6 +31,13 @@ All realms are deployed via 2-of-2 multisig using `samcrew-deployer`:
 DEPLOY_KEY=samcrew-core-test1 MULTISIG_SIGNERS=zooma,adena-zxxma \
   ./samcrew-deploy.sh test12 memba
 ```
+
+## Agent Registry
+
+The `agent_registry/` directory contains the AI Agent Marketplace realm.
+Agents self-register with MCP metadata (endpoint, transport, pricing).
+Reviews and a pay-per-use credit system are on-chain.
+Part of the Marketplace feature (gated behind `VITE_ENABLE_MARKETPLACE`).
 
 ## Escrow Stub
 
