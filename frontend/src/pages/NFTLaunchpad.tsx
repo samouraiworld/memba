@@ -128,7 +128,7 @@ function LaunchpadContent() {
             case 3: return true // preview is read-only
             default: return false
         }
-    }, [step, name, symbol, realmSuffix])
+    }, [step, name, symbol, realmSuffix, collectionType])
 
     // ── Deploy ───────────────────────────────────────────────
     const handleDeploy = async () => {

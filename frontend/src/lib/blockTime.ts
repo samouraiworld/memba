@@ -64,6 +64,6 @@ export function formatBlockDate(
     currentBlock: number,
     avgBlockTimeMs: number = DEFAULT_AVG_BLOCK_TIME_MS,
 ): string {
-    const date = estimateBlockDate(blockHeight, currentBlock)
+    const date = estimateBlockDate(blockHeight, currentBlock, avgBlockTimeMs)
     return formatProposalDate(date)
 }
