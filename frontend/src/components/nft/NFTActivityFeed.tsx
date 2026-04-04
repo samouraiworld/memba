@@ -11,7 +11,7 @@ import { useState, useEffect } from "react"
 import { parseSalesRender, type NFTSale } from "../../lib/nftMarketplace"
 import { queryRender } from "../../lib/dao/shared"
 import { GNO_RPC_URL } from "../../lib/config"
-import { NFT_NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
 
 export function NFTActivityFeed() {
     const [sales, setSales] = useState<NFTSale[]>([])

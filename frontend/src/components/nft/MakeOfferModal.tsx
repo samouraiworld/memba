@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react"
 import type { NFTListing } from "../../lib/nftMarketplace"
 import { buildMakeOfferMsg } from "../../lib/nftMarketplace"
-import { NFT_NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
 
 interface Props {
     listing: NFTListing

@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from "react"
 import { buildListForSaleMsg } from "../../lib/nftMarketplace"
-import { NFT_NFT_MARKETPLACE_PATH, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
 
 interface Props {
     nftRealm: string

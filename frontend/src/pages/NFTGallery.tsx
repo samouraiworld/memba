@@ -16,7 +16,7 @@ import {
     type NFTCollection,
 } from "../lib/grc721"
 import { parseMarketplaceRender, type NFTListing } from "../lib/nftMarketplace"
-import { NFT_NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
