@@ -33,6 +33,8 @@ export interface AnalysisRequest {
   proposalData: string;
   daoContext: string;
   treasuryContext?: string;
+  systemPrompt?: string;
+  userPrompt?: string;
 }
 
 export interface BackendAnalysisRequest {

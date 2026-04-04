@@ -80,6 +80,7 @@ const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile
 // ── NFT Gallery (lazy — v3.0) ──
 const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTGallery })))
 const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTCollectionView })))
+const NFTLaunchpad = lazy(() => import("./pages/NFTLaunchpad"))
 
 // ── AI Agent Marketplace (lazy — v3.0) ──
 const Marketplace = lazy(() => import("./pages/Marketplace"))
@@ -189,8 +190,9 @@ function App() {
           <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
           <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
-          {/* NFT Gallery (v3.0) */}
+          {/* NFT section (v3.0 gallery, v3.1 launchpad) — ORDER MATTERS: /nft/create before /nft/:realmPath */}
           <Route path="nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
+          <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><NFTLaunchpad /></Suspense>} />
           <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
 
           {/* Freelance Services (v3.0) */}

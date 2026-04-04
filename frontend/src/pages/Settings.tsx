@@ -217,7 +217,7 @@ export function Settings() {
                 </p>
                 <button
                     id="settings-profile-link"
-                    onClick={() => navigate("/profile/me")}
+                    onClick={() => navigate("/profile")}
                     style={{ ...btnStyle, background: "rgba(0,212,170,0.1)", color: "#00d4aa", alignSelf: "flex-start" }}
                 >
                     Go to Profile →

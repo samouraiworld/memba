@@ -347,7 +347,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 \t}
 \tid := nextThreadID
 \tnextThreadID++
-\tblockHeight := int64(0)
+\tblockHeight := runtime.ChainHeight()
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tchannels[i].Threads = append(channels[i].Threads, Thread{
@@ -379,7 +379,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 \t}
 \tid := nextReplyID
 \tnextReplyID++
-\tblockHeight := int64(0)
+\tblockHeight := runtime.ChainHeight()
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -406,7 +406,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 
 func EditMessage(cur realm, channel string, threadID int, replyID int, newBody string) {
 	caller := runtime.PreviousRealm().Address()
-	blockHeight := int64(0)
+	blockHeight := runtime.ChainHeight()
 	if len(newBody) == 0 || len(newBody) > 8192 {
 		panic("body must be 1-8192 characters")
 	}

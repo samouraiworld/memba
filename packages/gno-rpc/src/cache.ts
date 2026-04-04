@@ -108,5 +108,7 @@ export const TTL_DEFAULT = 60_000;
  * Build a cache key from query parameters.
  */
 export function cacheKey(queryType: string, ...parts: string[]): string {
-  return `${queryType}:${parts.join(":")}`;
+  // Encode parts to avoid collision when parts contain the delimiter
+  const encoded = parts.map((p) => encodeURIComponent(p));
+  return `${queryType}:${encoded.join(":")}`;
 }

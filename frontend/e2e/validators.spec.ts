@@ -150,6 +150,24 @@ test.describe('Validators Page — Mobile', () => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/validators')
 
+        // Skip-on-unavailable: same guard as desktop tests — if the RPC is
+        // unreachable (test12 halted), the page stays on ConnectingLoader.
+        const loaded = page.locator('[data-testid="validators-page"]')
+        const error = page.locator('.val-error')
+
+        await Promise.race([
+            loaded.waitFor({ timeout: 25_000 }),
+            error.waitFor({ timeout: 25_000 }),
+        ]).catch(() => {})
+
+        const loading = page.locator('text=Loading validator data')
+        if (await loading.isVisible()) {
+            test.skip(true, 'Validator RPC unavailable — page stuck on loading')
+        }
+        if (await error.isVisible()) {
+            test.skip(true, 'Validator RPC returned error')
+        }
+
         const table = page.locator('[data-testid="validator-table"]')
         await expect(table).toBeVisible({ timeout: 20_000 })
 

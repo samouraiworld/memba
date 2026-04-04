@@ -28,6 +28,10 @@ type PerspectiveRequest struct {
 	ProposalData string `json:"proposalData"`
 	DaoContext   string `json:"daoContext"`
 	Treasury     string `json:"treasuryContext,omitempty"`
+	// SystemPrompt and UserPrompt are the preferred way to pass prompts.
+	// If set, ProposalData is ignored and these are used directly.
+	SystemPrompt string `json:"systemPrompt,omitempty"`
+	UserPrompt   string `json:"userPrompt,omitempty"`
 }
 
 // AnalysisResponse returned to the MCP server.
@@ -330,8 +334,8 @@ func callGoogleAI(ctx context.Context, provider LLMProvider, systemPrompt, userP
 	}
 
 	url := fmt.Sprintf(
-		"%s/models/%s:generateContent?key=%s",
-		provider.BaseURL, provider.Model, provider.APIKey,
+		"%s/models/%s:generateContent",
+		provider.BaseURL, provider.Model,
 	)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -342,6 +346,7 @@ func callGoogleAI(ctx context.Context, provider LLMProvider, systemPrompt, userP
 		return "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", provider.APIKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -511,7 +516,11 @@ func HandleAnalystAnalyze() http.Handler {
 				provider, providerIdx := selectProvider(providers, idx)
 				modelsUsed[idx] = provider.Name + "/" + provider.Model
 
-				system, user := splitPrompt(p.ProposalData)
+				// Prefer explicit system/user prompts; fall back to legacy split
+			system, user := p.SystemPrompt, p.UserPrompt
+			if system == "" && user == "" {
+				system, user = splitPrompt(p.ProposalData)
+			}
 
 				llmOutput, err := callLLM(r.Context(), provider, system, user)
 				if err != nil {
