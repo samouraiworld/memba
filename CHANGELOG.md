@@ -4,6 +4,43 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v3.1.0 (2026-04-04) — NFT Marketplace, Launchpad & GRC1155 Templates
+
+### Added
+
+- **NFT Gallery** — 3-tab layout: Gallery (browse collections), Marketplace (active listings), Activity (recent sales) (#245)
+- **NFT Launchpad** — 5-step wizard for deploying GRC721 and GRC1155 collections via Adena (Type > Info > Config > Preview > Deploy) (#245)
+- **GRC1155 Templates** — Self-contained multi-token realm code generator with per-token supply caps, URI metadata, admin/public mint toggle (#245)
+- **NFT Marketplace Data Layer** — Render() parsers (`parseMarketplaceRender`, `parseSalesRender`), 5 MsgCall builders (List, Delist, Buy, MakeOffer, CancelOffer) (#245)
+- **NFT Marketplace Realm Template** — Self-contained `nft_market.gno` code generator with CEI pattern, 2.5% platform fee, offer escrow, 7-day timeout safety valve (#245)
+- **BuyNFTModal** — Price breakdown (price + platform fee + seller receives), Adena broadcast (#245)
+- **MakeOfferModal** — Custom offer amount with escrow explanation (#245)
+- **ListForSaleModal** — Set price with fee preview, requires prior Approve() (#245)
+- **NFTActivityFeed** — Recent sales from marketplace Render("sales") (#245)
+- **NFTListingCard** — Listing display with Buy + Make Offer actions (#245)
+- **Shared NFT config** — `lib/nftConfig.ts` with `NFT_MARKETPLACE_PATH` and `PLATFORM_FEE_BPS` (#245)
+- **blockTime utility** — `estimateBlockDate()`, `formatProposalDate()`, `formatBlockDate()` with 13 tests (#245)
+- **GRC1155 template tests** — 20 tests validating code generation (#245)
+- **NFT marketplace tests** — 15 tests covering parsers and MsgCall builders (#245)
+
+### Changed
+
+- **Sidebar** — "soon" badge on Marketplace and Services links (features not yet production-ready) (#245)
+- **NFT Gallery** — Replaced `alert()` with inline `mintError` state + `role="alert"` (#245)
+- **NFT Launchpad** — GRC1155 type selection enabled (was "coming soon") (#245)
+- **All NFT modals** — Escape key to close, `role="dialog"`, `aria-label` (#245)
+
+### Fixed
+
+- **E2E validators mobile test** — Added RPC skip guard (test12 halted causes guaranteed timeout) (#245)
+- **Lint** — Fixed unused `avgBlockTimeMs` param in `blockTime.ts`, missing `collectionType` dep in useCallback (#245)
+
+### Infrastructure
+
+- Tests: 1,467 passing (67 files), up from 1,419
+- Bundle: 496 KB (within 520 KB ceiling)
+- Feature-gated: `VITE_ENABLE_NFT` (empty = ComingSoonGate)
+
 ## v2.29.0 (2026-04-02) — Quest Hub Redesign, On-Chain Integration & Hardening
 
 ### Added
