@@ -39,14 +39,14 @@ export function generateNFTMarketplaceCode(feeRecipient: string, realmPath: stri
 // Offer escrow: 7-day timeout safety valve with ClaimExpiredOffer().
 
 import (
+\t"chain"
+\t"chain/banker"
+\t"chain/runtime"
 \t"strconv"
 \t"strings"
 
 \t"gno.land/p/demo/avl"
 \t"gno.land/p/demo/ufmt"
-
-\t"chain/banker"
-\t"chain/runtime"
 )
 
 // ── Constants ────────────────────────────────────────────────
@@ -119,7 +119,7 @@ func ListNFT(cur realm, nftRealm string, tokenId string, price int64) {
 \t\tTokenID:    tokenId,
 \t\tSeller:     caller,
 \t\tPrice:      price,
-\t\tCreatedBlk: chain.GetHeight(),
+\t\tCreatedBlk: runtime.ChainHeight(),
 \t})
 \tlistingOrder = append(listingOrder, key)
 }
@@ -188,15 +188,15 @@ func BuyNFT(cur realm, nftRealm string, tokenId string) {
 \t\tsellerAmount = 0
 \t}
 
-\tbnk := banker.GetBanker(banker.RealmBanker)
+\tbnk := banker.NewBanker(banker.BankerTypeRealmSend)
 \tif fee > 0 {
-\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), address(FeeRecipient), std.Coins{{"ugnot", fee}})
+\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", fee)})
 \t}
 \tif royaltyAmount > 0 && royaltyRecipient != "" {
-\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), royaltyRecipient, std.Coins{{"ugnot", royaltyAmount}})
+\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), royaltyRecipient, chain.Coins{chain.NewCoin("ugnot", royaltyAmount)})
 \t}
 \tif sellerAmount > 0 {
-\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), seller, std.Coins{{"ugnot", sellerAmount}})
+\t\tbnk.SendCoins(runtime.CurrentRealm().Address(), seller, chain.Coins{chain.NewCoin("ugnot", sellerAmount)})
 \t}
 
 \t// 3. Transfer NFT to buyer (cross-realm call)
@@ -227,7 +227,7 @@ func MakeOffer(cur realm, nftRealm string, tokenId string) {
 \t\tTokenID:    tokenId,
 \t\tBuyer:      caller,
 \t\tAmount:     amount,
-\t\tCreatedBlk: chain.GetHeight(),
+\t\tCreatedBlk: runtime.ChainHeight(),
 \t})
 }
 
@@ -252,8 +252,8 @@ func CancelOffer(cur realm, nftRealm string, tokenId string) {
 \toffers.Remove(key)
 
 \t// Interactions: return funds
-\tbnk := banker.GetBanker(banker.RealmBanker)
-\tbnk.SendCoins(runtime.CurrentRealm().Address(), caller, std.Coins{{"ugnot", amount}})
+\tbnk := banker.NewBanker(banker.BankerTypeRealmSend)
+\tbnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", amount)})
 }
 
 // ClaimExpiredOffer allows anyone to return escrowed funds after timeout.
@@ -267,7 +267,7 @@ func ClaimExpiredOffer(cur realm, nftRealm string, tokenId string, buyerAddr str
 \t}
 \toffer := val.(*Offer)
 
-\tcurrentBlock := chain.GetHeight()
+\tcurrentBlock := runtime.ChainHeight()
 \tif currentBlock - offer.CreatedBlk < int64(OfferTimeoutBlk) {
 \t\tpanic("offer not yet expired")
 \t}
@@ -279,8 +279,8 @@ func ClaimExpiredOffer(cur realm, nftRealm string, tokenId string, buyerAddr str
 \toffers.Remove(key)
 
 \t// Interactions: return to original offerer
-\tbnk := banker.GetBanker(banker.RealmBanker)
-\tbnk.SendCoins(runtime.CurrentRealm().Address(), buyer, std.Coins{{"ugnot", amount}})
+\tbnk := banker.NewBanker(banker.BankerTypeRealmSend)
+\tbnk.SendCoins(runtime.CurrentRealm().Address(), buyer, chain.Coins{chain.NewCoin("ugnot", amount)})
 }
 
 // ── Render ───────────────────────────────────────────────────

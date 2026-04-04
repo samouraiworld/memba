@@ -16,6 +16,7 @@ import {
     type NFTCollection,
 } from "../lib/grc721"
 import { parseMarketplaceRender, type NFTListing } from "../lib/nftMarketplace"
+import { NFT_NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -58,8 +59,6 @@ export function NFTGallery() {
 
 type NFTTab = "gallery" | "marketplace" | "activity"
 
-const MARKETPLACE_PATH = "gno.land/r/samcrew/nft_market"
-
 function NFTGalleryContent() {
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
@@ -101,7 +100,7 @@ function NFTGalleryContent() {
         setListingsLoading(true)
         const load = async () => {
             try {
-                const raw = await queryRender(GNO_RPC_URL, MARKETPLACE_PATH, "")
+                const raw = await queryRender(GNO_RPC_URL, NFT_MARKETPLACE_PATH, "")
                 if (!cancelled && raw) {
                     const { listings: parsed } = parseMarketplaceRender(raw)
                     setListings(parsed)
@@ -124,7 +123,7 @@ function NFTGalleryContent() {
 
     const refreshListings = async () => {
         try {
-            const raw = await queryRender(GNO_RPC_URL, MARKETPLACE_PATH, "")
+            const raw = await queryRender(GNO_RPC_URL, NFT_MARKETPLACE_PATH, "")
             if (raw) {
                 const { listings: parsed } = parseMarketplaceRender(raw)
                 setListings(parsed)

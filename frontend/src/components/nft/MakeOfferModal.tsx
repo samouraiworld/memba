@@ -7,11 +7,10 @@
  * @module components/nft/MakeOfferModal
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { NFTListing } from "../../lib/nftMarketplace"
 import { buildMakeOfferMsg } from "../../lib/nftMarketplace"
-
-const MARKETPLACE_PATH = "gno.land/r/samcrew/nft_market"
+import { NFT_NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
 
 interface Props {
     listing: NFTListing
@@ -25,6 +24,12 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && !submitting) onClose() }
+        document.addEventListener("keydown", handler)
+        return () => document.removeEventListener("keydown", handler)
+    }, [submitting, onClose])
+
     const amountUgnot = Math.floor(parseFloat(amount || "0") * 1_000_000)
     const isValid = amountUgnot > 0
 
@@ -36,7 +41,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
             const { doContractBroadcast } = await import("../../lib/grc20")
             const msg = buildMakeOfferMsg(
                 callerAddress,
-                MARKETPLACE_PATH,
+                NFT_MARKETPLACE_PATH,
                 listing.nftRealm,
                 listing.tokenId,
                 amountUgnot,

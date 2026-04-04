@@ -11,8 +11,7 @@ import { useState, useEffect } from "react"
 import { parseSalesRender, type NFTSale } from "../../lib/nftMarketplace"
 import { queryRender } from "../../lib/dao/shared"
 import { GNO_RPC_URL } from "../../lib/config"
-
-const MARKETPLACE_PATH = "gno.land/r/samcrew/nft_market"
+import { NFT_NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
 
 export function NFTActivityFeed() {
     const [sales, setSales] = useState<NFTSale[]>([])
@@ -22,7 +21,7 @@ export function NFTActivityFeed() {
         let cancelled = false
         const load = async () => {
             try {
-                const raw = await queryRender(GNO_RPC_URL, MARKETPLACE_PATH, "sales")
+                const raw = await queryRender(GNO_RPC_URL, NFT_MARKETPLACE_PATH, "sales")
                 if (!cancelled && raw) {
                     setSales(parseSalesRender(raw))
                 }

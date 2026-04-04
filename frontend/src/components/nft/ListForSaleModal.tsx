@@ -7,11 +7,9 @@
  * @module components/nft/ListForSaleModal
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { buildListForSaleMsg } from "../../lib/nftMarketplace"
-
-const MARKETPLACE_PATH = "gno.land/r/samcrew/nft_market"
-const PLATFORM_FEE_BPS = 250
+import { NFT_NFT_MARKETPLACE_PATH, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
 
 interface Props {
     nftRealm: string
@@ -26,6 +24,12 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && !submitting) onClose() }
+        document.addEventListener("keydown", handler)
+        return () => document.removeEventListener("keydown", handler)
+    }, [submitting, onClose])
+
     const priceUgnot = Math.floor(parseFloat(price || "0") * 1_000_000)
     const isValid = priceUgnot > 0
     const fee = (priceUgnot * PLATFORM_FEE_BPS) / 10000
@@ -39,7 +43,7 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
             const { doContractBroadcast } = await import("../../lib/grc20")
             const msg = buildListForSaleMsg(
                 callerAddress,
-                MARKETPLACE_PATH,
+                NFT_MARKETPLACE_PATH,
                 nftRealm,
                 tokenId,
                 priceUgnot,
