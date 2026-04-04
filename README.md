@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-1409%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-1467%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v2.29)
+## Features (v3.1)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -91,6 +91,17 @@
 - 💎 2.5% platform fee on mints (supports Samouraï Coop)
 - 🏛️ Multisig admin governance for GRC20 tokens
 
+### NFT Marketplace & Launchpad (v3.1)
+- 🎨 **NFT Gallery** — browse GRC721 collections, view metadata, explore by realm path
+- 🏪 **NFT Marketplace** — active listings with Buy Now + Make Offer actions
+- 📊 **Activity Feed** — recent sales from on-chain marketplace Render()
+- 🚀 **NFT Launchpad** — 5-step wizard to deploy GRC721 (1-of-1) or GRC1155 (editions) collections
+- 💰 **Buy/Sell Modals** — price breakdown (price + 2.5% platform fee + seller receives)
+- 🤝 **Offer System** — escrow-backed offers with 7-day timeout safety valve
+- 📦 **GRC1155 Templates** — multi-token editions with per-token supply caps, URI metadata
+- 🔐 **Self-contained code generation** — templates deploy on any network without external dependencies
+- 🏷️ Feature-gated behind `VITE_ENABLE_NFT`
+
 ### User Profiles
 - 👤 User profiles (bio, social links, contributions, deployed packages)
 - 📛 Username registration via network-aware user registry (`getUserRegistryPath()`)
@@ -136,13 +147,13 @@
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test12 ↔ test11 ↔ staging ↔ portal-loop ↔ gnoland1) with chain mismatch detection
 - 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
-- ⚡ Code splitting (478KB main, 139KB gzip, lazy-loaded DAO/token/directory/channel chunks)
+- ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory/channel/NFT chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
 - 🐳 Docker Compose self-hosting
-- 🚀 CI/CD: GitHub Actions (Node 20+22 matrix) + Netlify + Fly.io
+- 🚀 CI/CD: GitHub Actions (Node 22) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,409+ unit tests** (Vitest, 63 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, integration tests
+- 🧪 **1,467+ unit tests** (Vitest, 67 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, integration tests
 - 🧪 **E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove
 
 ## Architecture
@@ -182,7 +193,7 @@ Each plugin follows: `index.tsx` (entry) → `*View.tsx` (UI) → `queries.ts`/`
 ### Prerequisites
 
 - Go ≥ 1.25
-- Node.js ≥ 20
+- Node.js ≥ 22
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app) browser extension
 
