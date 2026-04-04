@@ -236,6 +236,19 @@
 .nft-mint-btn:hover:not(:disabled) { opacity: 0.85; }
 .nft-mint-btn:disabled { opacity: 0.4; cursor: default; }
 
+.nft-mint-error {
+    width: 100%;
+    margin: 4px 0 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    line-height: 1.4;
+}
+
 /* ── Render Output ─────────────────────────────── */
 
 .nft-render-section {

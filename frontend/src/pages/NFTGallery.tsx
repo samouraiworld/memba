@@ -163,6 +163,7 @@ export function NFTCollectionView() {
     const [loading, setLoading] = useState(true)
     const [mintForm, setMintForm] = useState({ tokenId: "", name: "", uri: "" })
     const [minting, setMinting] = useState(false)
+    const [mintError, setMintError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!realmPath) return
@@ -190,6 +191,7 @@ export function NFTCollectionView() {
         if (!auth.isAuthenticated || !adena.address) return
         if (!mintForm.tokenId.trim() || !mintForm.name.trim()) return
         setMinting(true)
+        setMintError(null)
         try {
             const { buildMintMsg } = await import("../lib/grc721")
             const { doContractBroadcast } = await import("../lib/grc20")
@@ -202,7 +204,7 @@ export function NFTCollectionView() {
             const info = await getCollectionInfo(realmPath)
             if (info) setCollection(info)
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Mint failed")
+            setMintError(err instanceof Error ? err.message : "Mint failed")
         } finally {
             setMinting(false)
         }
@@ -285,6 +287,9 @@ export function NFTCollectionView() {
                             {minting ? "Minting..." : "Mint"}
                         </button>
                     </div>
+                    {mintError && (
+                        <p className="nft-mint-error" role="alert">{mintError}</p>
+                    )}
                 </div>
             )}
 
