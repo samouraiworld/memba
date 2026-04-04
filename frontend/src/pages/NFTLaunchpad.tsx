@@ -11,6 +11,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { generateNFTCollectionCode, type NFTCollectionConfig } from "../lib/nftTemplate"
+import { generateGRC1155Code, type GRC1155CollectionConfig } from "../lib/grc1155Template"
 import { GNO_CHAIN_ID } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import type { LayoutContext } from "../types/layout"
@@ -71,6 +72,7 @@ function LaunchpadContent() {
     const [royaltyPercent, setRoyaltyPercent] = useState("5")
     const [publicMint, setPublicMint] = useState(true)
     const [mintPrice, setMintPrice] = useState("0")
+    const [uri, setUri] = useState("")
 
     // ── Deploy State ─────────────────────────────────────────
     const [deploying, setDeploying] = useState(false)
@@ -97,10 +99,21 @@ function LaunchpadContent() {
         mintPrice: parseInt(mintPrice, 10) || 0,
     }), [realmPath, name, symbol, description, connectedAddress, maxSupply, royaltyPercent, publicMint, mintPrice])
 
+    const grc1155Config: GRC1155CollectionConfig = useMemo(() => ({
+        realmPath,
+        name: name || "My Editions",
+        uri: uri || "",
+        description: description || "A GRC1155 multi-token collection.",
+        adminAddress: connectedAddress || "g1...",
+        maxPerToken: parseInt(maxSupply, 10) || 0,
+        publicMint,
+        mintPriceUgnot: parseInt(mintPrice, 10) || 0,
+    }), [realmPath, name, uri, description, connectedAddress, maxSupply, publicMint, mintPrice])
+
     const generatedCode = useMemo(() => {
-        if (collectionType === "grc1155") return "// GRC1155 templates coming soon"
+        if (collectionType === "grc1155") return generateGRC1155Code(grc1155Config)
         return generateNFTCollectionCode(config)
-    }, [collectionType, config])
+    }, [collectionType, config, grc1155Config])
 
     const codeSizeBytes = new TextEncoder().encode(generatedCode).length
     const estimatedCostUgnot = codeSizeBytes * COST_PER_BYTE
@@ -110,7 +123,7 @@ function LaunchpadContent() {
     const canAdvance = useCallback((): boolean => {
         switch (step) {
             case 0: return true // type always selected
-            case 1: return name.trim().length > 0 && symbol.trim().length > 0 && realmSuffix.trim().length > 0
+            case 1: return name.trim().length > 0 && (collectionType === "grc1155" || symbol.trim().length > 0) && realmSuffix.trim().length > 0
             case 2: return true // config has defaults
             case 3: return true // preview is read-only
             default: return false
@@ -124,10 +137,16 @@ function LaunchpadContent() {
         setDeployError(null)
 
         try {
-            const { buildDeployNFTCollectionMsg } = await import("../lib/nftTemplate")
             const { getGasConfig } = await import("../lib/gasConfig")
 
-            const msg = buildDeployNFTCollectionMsg(connectedAddress, realmPath, generatedCode)
+            let msg: { type: string; value: { creator: string; package: { name: string; path: string; files: { name: string; body: string }[] }; deposit: string } }
+            if (collectionType === "grc1155") {
+                const { buildDeployGRC1155Msg } = await import("../lib/grc1155Template")
+                msg = buildDeployGRC1155Msg(connectedAddress, grc1155Config)
+            } else {
+                const { buildDeployNFTCollectionMsg } = await import("../lib/nftTemplate")
+                msg = buildDeployNFTCollectionMsg(connectedAddress, realmPath, generatedCode)
+            }
             // Set deposit based on code size
             msg.value.deposit = `${estimatedCostUgnot}ugnot`
 
@@ -174,14 +193,12 @@ function LaunchpadContent() {
                     <div className="nft-type-card__desc">Unique NFTs. Each token is one-of-a-kind. Ideal for art, collectibles, PFPs.</div>
                 </button>
                 <button
-                    className="nft-type-card nft-type-card--disabled"
-                    disabled
-                    title="Coming in v3.1 — GRC1155 edition support"
+                    className={`nft-type-card${collectionType === "grc1155" ? " nft-type-card--selected" : ""}`}
+                    onClick={() => setCollectionType("grc1155")}
                 >
                     <div className="nft-type-card__icon">📦</div>
                     <div className="nft-type-card__title">GRC1155 — Editions</div>
                     <div className="nft-type-card__desc">Multi-token standard. Multiple copies per token ID. For games, tickets, drops.</div>
-                    <span className="nft-type-card__badge">coming soon</span>
                 </button>
             </div>
         </div>
@@ -190,28 +207,37 @@ function LaunchpadContent() {
     const renderStepInfo = () => (
         <div className="nft-step-card" key="step-info">
             <h2>Collection Information</h2>
-            <p className="hint">Describe your NFT collection.</p>
+            <p className="hint">Describe your {collectionType === "grc1155" ? "edition" : "NFT"} collection.</p>
             <div className="nft-form-group">
                 <label className="nft-form-label" htmlFor="nft-name">Collection Name *</label>
-                <input id="nft-name" className="nft-form-input" type="text" placeholder="e.g. Gno Punks"
+                <input id="nft-name" className="nft-form-input" type="text" placeholder={collectionType === "grc1155" ? "e.g. Game Items" : "e.g. Gno Punks"}
                     value={name} onChange={e => setName(e.target.value)} maxLength={64} />
             </div>
             <div className="nft-form-row">
-                <div className="nft-form-group">
-                    <label className="nft-form-label" htmlFor="nft-symbol">Symbol *</label>
-                    <input id="nft-symbol" className="nft-form-input" type="text" placeholder="e.g. GPUNK"
-                        value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} maxLength={10} />
-                </div>
+                {collectionType === "grc721" ? (
+                    <div className="nft-form-group">
+                        <label className="nft-form-label" htmlFor="nft-symbol">Symbol *</label>
+                        <input id="nft-symbol" className="nft-form-input" type="text" placeholder="e.g. GPUNK"
+                            value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} maxLength={10} />
+                    </div>
+                ) : (
+                    <div className="nft-form-group">
+                        <label className="nft-form-label" htmlFor="nft-uri">Metadata URI</label>
+                        <input id="nft-uri" className="nft-form-input" type="text" placeholder="https://metadata.example.com/editions/"
+                            value={uri} onChange={e => setUri(e.target.value)} maxLength={200} />
+                        <span className="nft-form-hint">Base URI for token metadata (IPFS or HTTP)</span>
+                    </div>
+                )}
                 <div className="nft-form-group">
                     <label className="nft-form-label" htmlFor="nft-realm">Realm Suffix *</label>
-                    <input id="nft-realm" className="nft-form-input" type="text" placeholder="e.g. gno_punks"
+                    <input id="nft-realm" className="nft-form-input" type="text" placeholder={collectionType === "grc1155" ? "e.g. game_items" : "e.g. gno_punks"}
                         value={realmSuffix} onChange={e => setRealmSuffix(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} maxLength={32} />
                     <span className="nft-form-hint">{realmPath}</span>
                 </div>
             </div>
             <div className="nft-form-group">
                 <label className="nft-form-label" htmlFor="nft-desc">Description</label>
-                <input id="nft-desc" className="nft-form-input" type="text" placeholder="A unique art collection on gno.land"
+                <input id="nft-desc" className="nft-form-input" type="text" placeholder={collectionType === "grc1155" ? "A multi-edition collection on gno.land" : "A unique art collection on gno.land"}
                     value={description} onChange={e => setDescription(e.target.value)} maxLength={200} />
             </div>
         </div>
@@ -223,10 +249,14 @@ function LaunchpadContent() {
             <p className="hint">Set supply limits, pricing, and royalties.</p>
             <div className="nft-form-row">
                 <div className="nft-form-group">
-                    <label className="nft-form-label" htmlFor="nft-supply">Max Supply</label>
+                    <label className="nft-form-label" htmlFor="nft-supply">
+                        {collectionType === "grc1155" ? "Max per Token" : "Max Supply"}
+                    </label>
                     <input id="nft-supply" className="nft-form-input" type="number" placeholder="0 = unlimited"
                         value={maxSupply} onChange={e => setMaxSupply(e.target.value)} min={0} />
-                    <span className="nft-form-hint">0 means unlimited supply</span>
+                    <span className="nft-form-hint">
+                        {collectionType === "grc1155" ? "Max units per token ID (0 = unlimited)" : "0 means unlimited supply"}
+                    </span>
                 </div>
                 <div className="nft-form-group">
                     <label className="nft-form-label" htmlFor="nft-royalty">Royalty %</label>
@@ -280,7 +310,7 @@ function LaunchpadContent() {
                     <div className="nft-success">
                         <div className="nft-success__icon">✅</div>
                         <h3>Collection Deployed!</h3>
-                        <p>Your GRC721 collection is now live on {GNO_CHAIN_ID}.</p>
+                        <p>Your {collectionType === "grc1155" ? "GRC1155 edition" : "GRC721"} collection is now live on {GNO_CHAIN_ID}.</p>
                         <a className="nft-success__link" href="#" onClick={(e) => { e.preventDefault(); navigate(`/nft/${encodeURIComponent(realmPath)}`) }}>
                             View Collection →
                         </a>
