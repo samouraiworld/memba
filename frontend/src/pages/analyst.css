@@ -315,222 +315,259 @@
     background: rgba(0, 212, 170, 0.12);
 }
 
-/* ── DAO AI Insight ────────────────────────────── */
+/* ── AI Council Analysis Report ───────────────── */
 
-.ai-insight-wrapper {
-    position: relative;
+.ai-council {
+    margin-top: 4px;
 }
 
-.ai-insight-card {
-    min-width: 70px;
-}
-
-.ai-insight-card--loading {
-    opacity: 0.6;
-    cursor: wait;
-}
-
-.ai-insight-card--active {
-    border-color: rgba(0, 212, 170, 0.15);
-}
-
-.ai-insight-shimmer-text {
-    animation: analyst-shimmer 1.5s infinite;
-    background: linear-gradient(90deg, #444 25%, #666 50%, #444 75%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-/* ── Tooltip ──────────────────────────────────── */
-
-.ai-insight-tooltip {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: 320px;
-    padding: 14px;
-    border-radius: 10px;
-    background: rgba(16, 16, 16, 0.97);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(20px);
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.ai-insight-tooltip__header {
+.ai-council__bar {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 8px 0;
+    width: 100%;
+    background: none;
+    border: none;
+    color: inherit;
+    text-align: left;
 }
 
-.ai-insight-tooltip__grade {
-    font-size: 18px;
+.ai-council__bar--clickable {
+    cursor: pointer;
+}
+
+.ai-council__bar--clickable:hover .ai-council__label {
+    color: #aaa;
+}
+
+.ai-council__icon {
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.ai-council__label {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    transition: color 0.15s;
+}
+
+.ai-council__grade {
+    font-size: 13px;
     font-weight: 700;
     font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-tooltip__confidence {
+.ai-council__summary-text {
     font-size: 10px;
-    color: #666;
+    color: #555;
     font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-tooltip__summary {
-    font-size: 11px;
-    color: #aaa;
-    line-height: 1.5;
-    margin: 0;
-}
-
-.ai-insight-tooltip__risks {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.ai-insight-tooltip__risk {
+.ai-council__retry {
     font-size: 10px;
-    color: #888;
-    font-family: "JetBrains Mono", monospace;
-}
-
-.ai-insight-tooltip__expand {
-    align-self: flex-end;
-    padding: 4px 10px;
-    border-radius: 4px;
-    background: rgba(0, 212, 170, 0.06);
-    border: 1px solid rgba(0, 212, 170, 0.15);
     color: #00d4aa;
-    font-size: 10px;
     font-family: "JetBrains Mono", monospace;
-    cursor: pointer;
+    margin-left: auto;
 }
 
-.ai-insight-tooltip__expand:hover {
-    background: rgba(0, 212, 170, 0.12);
+.ai-council__caret {
+    font-size: 9px;
+    color: #444;
+    margin-left: auto;
+    transition: transform 0.2s;
 }
 
-/* ── Detail Panel ─────────────────────────────── */
-
-.ai-insight-detail-portal {
-    margin-top: 12px;
+.ai-council__caret.open {
+    transform: rotate(90deg);
 }
 
-.ai-insight-detail {
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 16px;
+.ai-council__shimmer {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.02) 75%);
+    background-size: 200% 100%;
+    animation: analyst-shimmer 1.5s infinite;
+}
+
+/* ── Council Detail ───────────────────────────── */
+
+.ai-council__detail {
+    padding: 12px 0 4px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.ai-insight-detail__header {
+.ai-council__detail-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
 }
 
-.ai-insight-detail__title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #ccc;
+.ai-council__detail-grade {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-detail__close {
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+.ai-council__detail-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.ai-council__detail-confidence {
+    font-size: 11px;
     color: #888;
-    font-size: 12px;
-    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-detail__summary {
-    font-size: 12px;
+.ai-council__detail-models {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.ai-council__detail-summary {
+    font-size: 11px;
     color: #999;
     line-height: 1.5;
     margin: 0;
 }
 
-.ai-insight-detail__section {
-    font-size: 11px;
-    color: #aaa;
+/* ── Columns (Risks + Recommendations) ────────── */
+
+.ai-council__columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
 }
 
-.ai-insight-detail__label {
+.ai-council__column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ai-council__column-title {
+    font-size: 10px;
     font-weight: 600;
-    color: #888;
+    color: #666;
     font-family: "JetBrains Mono", monospace;
-    display: block;
-    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
 }
 
-.ai-insight-detail__section ul {
-    margin: 0;
-    padding-left: 16px;
-    line-height: 1.5;
+.ai-council__column-item {
+    font-size: 10px;
+    line-height: 1.4;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-detail__models {
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+.ai-council__column-item--risk {
+    color: #e8a87c;
+    background: rgba(255, 152, 0, 0.04);
+}
+
+.ai-council__column-item--rec {
+    color: #7ec8a8;
+    background: rgba(0, 212, 170, 0.04);
+}
+
+/* ── Model Breakdown ──────────────────────────── */
+
+.ai-council__models {
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
     padding-top: 8px;
 }
 
-.ai-insight-detail__models-toggle {
-    font-size: 11px;
-    color: #666;
+.ai-council__models-toggle {
+    font-size: 10px;
+    color: #555;
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
 }
 
-.ai-insight-detail__models-list {
+.ai-council__models-grid {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
     margin-top: 8px;
 }
 
-.ai-insight-model-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 0;
-    font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+.ai-council__model {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.ai-insight-model-name {
-    color: #ccc;
-    min-width: 120px;
-}
-
-.ai-insight-model-role {
-    color: #555;
-    flex: 1;
-}
-
-.ai-insight-model-verdict {
-    min-width: 80px;
-    text-align: right;
-}
-
-.ai-insight-detail__footer {
+.ai-council__model-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.ai-council__model-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: #ccc;
+}
+
+.ai-council__model-verdict {
     font-size: 10px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.ai-council__model-role {
+    font-size: 9px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    display: block;
+    margin-top: 1px;
+}
+
+.ai-council__model-reasoning {
+    font-size: 10px;
+    color: #777;
+    line-height: 1.4;
+    margin: 6px 0 0;
+}
+
+/* ── Council Footer ───────────────────────────── */
+
+.ai-council__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
     color: #444;
     font-family: "JetBrains Mono", monospace;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding-top: 6px;
+}
+
+.ai-council__refresh {
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.05);
+    border: 1px solid rgba(0, 212, 170, 0.1);
+    color: #00d4aa;
+    font-size: 9px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ai-council__refresh:hover {
+    background: rgba(0, 212, 170, 0.1);
 }
 
 /* ── Responsive ───────────────────────────────── */
@@ -542,5 +579,9 @@
 
     .analyst-model-card__header {
         padding: 6px 10px;
+    }
+
+    .ai-council__columns {
+        grid-template-columns: 1fr;
     }
 }

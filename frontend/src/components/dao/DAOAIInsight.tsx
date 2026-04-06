@@ -1,14 +1,14 @@
 /**
- * DAOAIInsight — Compact AI governance health badge for the DAO overview card.
+ * DAOAIInsight — AI Council Analysis Report for DAO governance health.
  *
- * Idle: small "AI Insight" stat card in the grid.
- * Click: triggers on-demand 10-model analysis.
- * Result: shows grade + tooltip with summary. Click "Details" to expand full report.
+ * Auto-fetches cached report on mount (server caches 6h, shared across users).
+ * Shows inline inside the DAO overview card as an elegant collapsed section.
+ * Expandable for full details with risks, recommendations, model breakdown.
  *
  * @module components/dao/DAOAIInsight
  */
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { useAnalystReport } from "../../hooks/useAnalystReport"
 import type { ConsensusReport } from "../../hooks/useAnalystReport"
 import "../../pages/analyst.css"
@@ -34,94 +34,44 @@ function verdictToGrade(verdict: string, confidence: number): { grade: string; c
     return { grade: "—", color: "#666" }
 }
 
-// ── Model Card (inline) ─────────────────────────────────────
-
-function ModelRow({ p }: { p: ConsensusReport["perspectives"][0] }) {
-    const v = p.verdict === "approve" ? "#4caf50" : p.verdict === "caution" ? "#ff9800" : p.verdict === "reject" ? "#f44336" : "#666"
-    return (
-        <div className="ai-insight-model-row">
-            <span className="ai-insight-model-name">{p.displayName}</span>
-            <span className="ai-insight-model-role">{p.role}</span>
-            <span className="ai-insight-model-verdict" style={{ color: v }}>
-                {p.verdict} {Math.round(p.confidence * 100)}%
-            </span>
-        </div>
-    )
-}
-
 // ── Main Component ───────────────────────────────────────────
 
 interface DAOAIInsightProps {
     realmPath: string
-    daoSummary: string  // Pre-built text with DAO metrics
+    daoSummary: string
 }
 
 export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
     const { report, loading, error, trigger } = useAnalystReport(
         realmPath, 0, daoSummary, realmPath, "dao",
     )
-    const [showTooltip, setShowTooltip] = useState(false)
-    const [showDetail, setShowDetail] = useState(false)
-    const tooltipRef = useRef<HTMLDivElement>(null)
-
-    // Close tooltip on outside click
-    useEffect(() => {
-        if (!showTooltip) return
-        const handler = (e: MouseEvent) => {
-            if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) {
-                setShowTooltip(false)
-            }
-        }
-        document.addEventListener("mousedown", handler)
-        return () => document.removeEventListener("mousedown", handler)
-    }, [showTooltip])
+    const [expanded, setExpanded] = useState(false)
 
     if (!ANALYST_ENABLED) return null
 
-    // Idle state — clickable stat card
-    if (!report && !loading && !error) {
-        return (
-            <button
-                className="k-stat-card k-stat-card--clickable ai-insight-card"
-                title="Run AI governance health analysis (10 free models)"
-                onClick={trigger}
-            >
-                <span className="k-stat-card__icon">🤖</span>
-                <div>
-                    <div className="k-stat-card__value">AI</div>
-                    <div className="k-stat-card__label">Insight</div>
-                </div>
-            </button>
-        )
-    }
-
-    // Loading
+    // Loading — subtle shimmer bar
     if (loading) {
         return (
-            <button className="k-stat-card ai-insight-card ai-insight-card--loading" disabled>
-                <span className="k-stat-card__icon">🤖</span>
-                <div>
-                    <div className="k-stat-card__value ai-insight-shimmer-text">...</div>
-                    <div className="k-stat-card__label">Analyzing</div>
+            <div className="ai-council">
+                <div className="ai-council__bar">
+                    <span className="ai-council__icon">🤖</span>
+                    <span className="ai-council__label">AI Council analyzing...</span>
+                    <div className="ai-council__shimmer" />
                 </div>
-            </button>
+            </div>
         )
     }
 
-    // Error
-    if (error) {
+    // Error — subtle retry link, not a big red card
+    if (error && !report) {
         return (
-            <button
-                className="k-stat-card k-stat-card--clickable ai-insight-card"
-                title="Analysis failed — click to retry"
-                onClick={trigger}
-            >
-                <span className="k-stat-card__icon">🤖</span>
-                <div>
-                    <div className="k-stat-card__value" style={{ color: "#f44336" }}>!</div>
-                    <div className="k-stat-card__label">Retry</div>
-                </div>
-            </button>
+            <div className="ai-council">
+                <button className="ai-council__bar ai-council__bar--clickable" onClick={trigger}>
+                    <span className="ai-council__icon">🤖</span>
+                    <span className="ai-council__label">AI Council Analysis Report</span>
+                    <span className="ai-council__retry">Generate report</span>
+                </button>
+            </div>
         )
     }
 
@@ -129,102 +79,117 @@ export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
 
     const c = report.consensus
     const { grade, color } = verdictToGrade(c.verdict, c.confidence)
+    const respondedCount = report.perspectives.filter(p => p.verdict !== "abstain").length
 
     return (
-        <>
-            {/* Stat card with grade */}
-            <div className="ai-insight-wrapper" ref={tooltipRef}>
-                <button
-                    className="k-stat-card k-stat-card--clickable ai-insight-card ai-insight-card--active"
-                    onClick={() => setShowTooltip(!showTooltip)}
-                    title="AI Governance Health — click for details"
-                >
-                    <span className="k-stat-card__icon">🤖</span>
-                    <div>
-                        <div className="k-stat-card__value" style={{ color }}>{grade}</div>
-                        <div className="k-stat-card__label">AI Health</div>
-                    </div>
-                </button>
+        <div className="ai-council">
+            {/* Collapsed bar */}
+            <button
+                className="ai-council__bar ai-council__bar--clickable"
+                onClick={() => setExpanded(!expanded)}
+            >
+                <span className="ai-council__icon">🤖</span>
+                <span className="ai-council__label">AI Council Analysis Report</span>
+                <span className="ai-council__grade" style={{ color }}>{grade}</span>
+                <span className="ai-council__summary-text">
+                    {c.verdict === "approve" ? "Healthy" : c.verdict === "caution" ? "Caution" : c.verdict === "reject" ? "Issues" : "Pending"}
+                    {" "}· {Math.round(c.confidence * 100)}%
+                    {" "}· {respondedCount}/{c.totalCount} models
+                </span>
+                <span className={`ai-council__caret${expanded ? " open" : ""}`}>▸</span>
+            </button>
 
-                {/* Tooltip */}
-                {showTooltip && (
-                    <div className="ai-insight-tooltip">
-                        <div className="ai-insight-tooltip__header">
-                            <span className="ai-insight-tooltip__grade" style={{ color }}>{grade}</span>
-                            <span className="ai-insight-tooltip__confidence">
-                                {Math.round(c.confidence * 100)}% confidence · {c.agreeCount}/{c.totalCount} agree
-                            </span>
-                        </div>
-                        <p className="ai-insight-tooltip__summary">{c.summary}</p>
-                        {c.keyRisks && c.keyRisks.length > 0 && (
-                            <div className="ai-insight-tooltip__risks">
-                                {c.keyRisks.slice(0, 2).map((r, i) => (
-                                    <span key={i} className="ai-insight-tooltip__risk">• {r}</span>
-                                ))}
-                            </div>
-                        )}
-                        <button
-                            className="ai-insight-tooltip__expand"
-                            onClick={() => { setShowTooltip(false); setShowDetail(!showDetail) }}
-                        >
-                            {showDetail ? "Hide Details" : "View Full Report →"}
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Expanded detail panel — rendered outside the stat grid */}
-            {showDetail && (
-                <div className="ai-insight-detail-portal" data-testid="ai-dao-detail">
-                    <DAOAnalystDetail report={report} onClose={() => setShowDetail(false)} onRefresh={trigger} />
-                </div>
-            )}
-        </>
+            {/* Expanded detail */}
+            {expanded && <AICouncilDetail report={report} onRefresh={trigger} />}
+        </div>
     )
 }
 
 // ── Detail Panel ─────────────────────────────────────────────
 
-function DAOAnalystDetail({ report, onClose, onRefresh }: { report: ConsensusReport; onClose: () => void; onRefresh: () => void }) {
+function AICouncilDetail({ report, onRefresh }: { report: ConsensusReport; onRefresh: () => void }) {
     const c = report.consensus
     const { grade, color } = verdictToGrade(c.verdict, c.confidence)
+    const responded = report.perspectives.filter(p => p.verdict !== "abstain")
 
     return (
-        <div className="ai-insight-detail">
-            <div className="ai-insight-detail__header">
-                <div className="ai-insight-detail__title">
-                    <span style={{ color }}>{grade}</span> AI Governance Health Report
+        <div className="ai-council__detail">
+            {/* Header */}
+            <div className="ai-council__detail-header">
+                <span className="ai-council__detail-grade" style={{ color }}>{grade}</span>
+                <div className="ai-council__detail-meta">
+                    <span className="ai-council__detail-confidence">
+                        {Math.round(c.confidence * 100)}% confidence · {c.agreementLevel}
+                    </span>
+                    <span className="ai-council__detail-models">
+                        {responded.length} of {report.perspectives.length} models responded
+                    </span>
                 </div>
-                <button className="ai-insight-detail__close" onClick={onClose}>✕</button>
             </div>
 
-            <p className="ai-insight-detail__summary">{c.summary}</p>
+            {/* Summary */}
+            <p className="ai-council__detail-summary">{c.summary}</p>
 
-            {c.keyRisks && c.keyRisks.length > 0 && (
-                <div className="ai-insight-detail__section">
-                    <span className="ai-insight-detail__label">Risks</span>
-                    <ul>{c.keyRisks.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                </div>
-            )}
-            {c.keyRecommendations && c.keyRecommendations.length > 0 && (
-                <div className="ai-insight-detail__section">
-                    <span className="ai-insight-detail__label">Recommendations</span>
-                    <ul>{c.keyRecommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                </div>
-            )}
+            {/* Risks + Recommendations side by side */}
+            <div className="ai-council__columns">
+                {c.keyRisks && c.keyRisks.length > 0 && (
+                    <div className="ai-council__column">
+                        <span className="ai-council__column-title">Risks</span>
+                        {c.keyRisks.slice(0, 5).map((r, i) => (
+                            <span key={i} className="ai-council__column-item ai-council__column-item--risk">
+                                {r}
+                            </span>
+                        ))}
+                    </div>
+                )}
+                {c.keyRecommendations && c.keyRecommendations.length > 0 && (
+                    <div className="ai-council__column">
+                        <span className="ai-council__column-title">Recommendations</span>
+                        {c.keyRecommendations.slice(0, 5).map((r, i) => (
+                            <span key={i} className="ai-council__column-item ai-council__column-item--rec">
+                                {r}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
 
-            <details className="ai-insight-detail__models">
-                <summary className="ai-insight-detail__models-toggle">
-                    Model Breakdown ({report.perspectives.length} models)
+            {/* Model breakdown — collapsible */}
+            <details className="ai-council__models">
+                <summary className="ai-council__models-toggle">
+                    Model Breakdown
                 </summary>
-                <div className="ai-insight-detail__models-list">
-                    {report.perspectives.map((p, i) => <ModelRow key={i} p={p} />)}
+                <div className="ai-council__models-grid">
+                    {report.perspectives.map((p, i) => {
+                        const v = p.verdict === "approve" ? "#4caf50"
+                            : p.verdict === "caution" ? "#ff9800"
+                            : p.verdict === "reject" ? "#f44336" : "#444"
+                        return (
+                            <div key={i} className="ai-council__model">
+                                <div className="ai-council__model-header">
+                                    <span className="ai-council__model-name">{p.displayName}</span>
+                                    <span className="ai-council__model-verdict" style={{ color: v }}>
+                                        {p.verdict} {p.confidence > 0 ? `${Math.round(p.confidence * 100)}%` : ""}
+                                    </span>
+                                </div>
+                                <span className="ai-council__model-role">{p.role}</span>
+                                {p.reasoning && p.verdict !== "abstain" && (
+                                    <p className="ai-council__model-reasoning">{p.reasoning}</p>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             </details>
 
-            <div className="ai-insight-detail__footer">
-                <span>Powered by {report.perspectives.length} free AI models · {(report.processingTimeMs / 1000).toFixed(1)}s{report.cached ? " · cached" : ""}</span>
-                <button className="analyst-footer__refresh" onClick={onRefresh}>Refresh</button>
+            {/* Footer */}
+            <div className="ai-council__footer">
+                <span>
+                    {report.perspectives.length} AI models via OpenRouter
+                    {report.cached ? " · cached" : ""}
+                    {report.processingTimeMs > 0 && !report.cached ? ` · ${(report.processingTimeMs / 1000).toFixed(0)}s` : ""}
+                </span>
+                <button className="ai-council__refresh" onClick={onRefresh}>Refresh</button>
             </div>
         </div>
     )
