@@ -83,7 +83,10 @@ export function useAnalystReport(
         setError(null)
 
         try {
-            const resp = await fetch(`${API_URL}/api/analyst/consensus`, {
+            const url = force
+                ? `${API_URL}/api/analyst/consensus?force=1`
+                : `${API_URL}/api/analyst/consensus`
+            const resp = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
