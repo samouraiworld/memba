@@ -9,7 +9,6 @@
  */
 import { type DAOProposal, PROPOSAL_STATUS_COLORS } from "../../lib/dao/shared"
 import { useProposalDate } from "../../hooks/useProposalDate"
-import { formatRelativeTime } from "../../lib/blockTime"
 
 /**
  * SingleVoteBar — Single-line bar showing participation and vote split.

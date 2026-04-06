@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useMemo, useDeferredValue } from "react"
 import { ArrowRight } from "@phosphor-icons/react"
-import { getExplorerBaseUrl } from "../../../lib/config"
 import { fetchPackages, fetchPackagesLive } from "../../../lib/directory"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 
@@ -96,16 +95,16 @@ export function PackagesTab() {
                         </button>
                     ))}
                 </div>
+            )}
 
-                {/* Detail drawer */}
-                {drawerPath && (
-                    <RealmDetailDrawer
-                        path={drawerPath}
-                        gnowebUrl={drawerGnowebUrl}
-                        isPackage
-                        onClose={() => setDrawerPath(null)}
-                    />
-                )}
+            {/* Detail drawer */}
+            {drawerPath && (
+                <RealmDetailDrawer
+                    path={drawerPath}
+                    gnowebUrl={drawerGnowebUrl}
+                    isPackage
+                    onClose={() => setDrawerPath(null)}
+                />
             )}
         </div>
     )

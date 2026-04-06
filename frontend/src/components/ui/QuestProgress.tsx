@@ -9,9 +9,7 @@
  */
 
 import { useState, useEffect, useRef } from "react"
-import { Link } from "react-router-dom"
 import { CaretDown } from "@phosphor-icons/react"
-import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { CandidatureUnlock } from "../quests/CandidatureUnlock"
 import {
     QUESTS,
@@ -98,7 +96,6 @@ function AnimatedXP({ target }: { target: number }) {
 
 // ── Main Component ───────────────────────────────────────────────────
 export function QuestProgress({ compact, address }: QuestProgressProps) {
-    const networkKey = useNetworkKey()
     const [state, setState] = useState<UserQuestState>(() =>
         address ? { completed: [], totalXP: 0 } : loadQuestProgress()
     )
