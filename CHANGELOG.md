@@ -15,10 +15,22 @@ All notable changes to Memba are documented here.
   - Directory gnoweb integration: RealmDetailDrawer with Render/Source/Info tabs, CSS-only Gno syntax highlighting, cross-tab global search, XSS-safe markdownLite renderer, SSRF-guarded gnowebSource fetcher
   - 1,495 tests across 69 files
 
-- **Sprint 6 — Multi-Model Consensus**
+- **Sprint 6 — Multi-Model Consensus** (#248)
   - Team description field (proto + backend + frontend)
   - Token detail drawer in Directory
   - DAO Analyst: OpenRouter multi-model consensus (10 free AI models, 10 perspectives, cached reports)
+
+- **DAO-Level AI Governance Health** (#253)
+  - AI health grade stat card (A+ through F) in DAO overview
+  - Tooltip with 2-line summary + risks, expandable full report with model breakdown
+
+### Fixed
+
+- Analyst error handling — prevent console flood, guard against missing proposal data (#249)
+- OpenRouter model IDs updated to currently available free models (#250)
+- LLM timeout reduced to 20s, batch gap 3s→1s to avoid Fly.io 502 (#251)
+- Switched to smaller/faster free models, merged prompts for OpenRouter compatibility (#252)
+- AI analysis on-demand only (button click, not auto-triggered on page load) (#252)
 
 ## v3.1.0 (2026-04-04) — NFT Marketplace, Launchpad & GRC1155 Templates
 

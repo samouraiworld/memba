@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-1467%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-1495%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v3.1)
+## Features (v3.2)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -102,6 +102,23 @@
 - 🔐 **Self-contained code generation** — templates deploy on any network without external dependencies
 - 🏷️ Feature-gated behind `VITE_ENABLE_NFT`
 
+### AI Governance Analyst (v3.2)
+- 🤖 **Multi-Model Consensus** — 10 free AI models via OpenRouter analyze proposals from different perspectives (strategic, risk, technical, financial, legal, security, community, governance, reasoning, contrarian)
+- 📊 **Proposal-Level Analysis** — on-demand "Run AI Analysis" button on any proposal, shows verdict badge (APPROVE/REJECT/CAUTION) + confidence + model breakdown
+- 🏛️ **DAO-Level Health Insight** — AI health grade (A+ through F) as a stat card in the DAO overview, with tooltip summary and expandable full report
+- 💾 **SQLite-cached** — results cached 6h to preserve OpenRouter quota (200 req/day free tier)
+- 🔒 **Security** — API key backend-only, prompt injection preamble, input validation, SSRF guards
+
+### Directory & Discovery (v3.2)
+- 🌐 **RealmDetailDrawer** — slide-in panel with Render/Source/Info tabs for realms and packages
+- 💻 **Source Code Viewer** — CSS-only Gno syntax highlighting, line numbers, file tabs, copy button
+- 📄 **Markdown Renderer** — lightweight XSS-safe renderer for Gno Render() output
+- 🔍 **Cross-Tab Global Search** — aggregated results across DAOs, realms, packages
+- 🪙 **Token Detail Drawer** — inline preview with symbol, path, gnoweb link
+- 📅 **Proposal Dates** — hybrid tx-indexer + block estimation with `~` prefix
+- 🎯 **Candidature Bridge** — 3-state CandidatureUnlock linking Quest Hub to DAO membership
+- 👥 **Teams Polish** — copy invite code, confirmation dialogs, username resolution, team descriptions
+
 ### User Profiles
 - 👤 User profiles (bio, social links, contributions, deployed packages)
 - 📛 Username registration via network-aware user registry (`getUserRegistryPath()`)
@@ -153,8 +170,8 @@
 - 🚀 CI/CD: GitHub Actions (Node 22) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,467+ unit tests** (Vitest, 67 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, integration tests
-- 🧪 **E2E tests** (Playwright, Chromium, 16 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove
+- 🧪 **1,495+ unit tests** (Vitest, 69 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
+- 🧪 **E2E tests** (Playwright, Chromium, 18 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove, candidature, teams
 
 ## Architecture
 

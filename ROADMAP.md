@@ -5,18 +5,19 @@
 
 ---
 
-## Current Status (2026-04-02)
+## Current Status (2026-04-06)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v2.29.0 (Quest Hub Redesign, On-Chain Integration, Hardening) |
-| **Shipped Versions** | 35+ (v0.1.0 → v2.29.0) |
-| **Test Suite** | 1,400 unit tests (62 files) + 87 backend tests + 19 E2E spec files |
+| **Latest Release** | v3.2.0 (Multi-Model Consensus, Team Descriptions, Governance Discovery) |
+| **Shipped Versions** | 40+ (v0.1.0 → v3.2.0) |
+| **Test Suite** | 1,495 unit tests (69 files) + 87 backend tests + 18 E2E spec files |
 | **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
-| **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite |
+| **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite, OpenRouter AI |
 | **URL Format** | Network-scoped: `/:network/dao/gno.land/r/gov/dao` (v2.25+) |
-| **On-Chain** | 3 realms deployed on test12: memba_dao, candidature, channels |
-| **Next Priority** | r/sys/users migration, boards2 integration, channels parser verification |
+| **On-Chain** | 5 realms deployed on test12: memba_dao, candidature, channels, tokenfactory, escrow |
+| **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
+| **Next Priority** | Mainnet preparation, AI analyst tuning, NFT/Services/Marketplace production readiness |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
