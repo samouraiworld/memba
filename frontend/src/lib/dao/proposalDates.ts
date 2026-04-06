@@ -80,9 +80,9 @@ export async function getCurrentBlock(): Promise<number> {
     }
 
     try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await resilientRpcCall("status") as any
-        const height = parseInt(result?.sync_info?.latest_block_height || "0", 10)
+        const result = await resilientRpcCall("status") as Record<string, unknown>
+        const syncInfo = result?.sync_info as Record<string, string> | undefined
+        const height = parseInt(syncInfo?.latest_block_height || "0", 10)
         if (height > 0) {
             _currentBlockCache = { block: height, ts: Date.now() }
             return height
@@ -103,19 +103,17 @@ export async function getCurrentBlock(): Promise<number> {
  */
 async function searchProposalTx(
     realmPath: string,
-    _proposalId: number,
 ): Promise<{ date: Date; block: number } | null> {
     try {
         // Search for MsgCall transactions to this realm's Propose function
         const query = `"message.action='MsgCall' AND message.module='${realmPath}'"`
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await resilientRpcCall("tx_search", {
             query,
             per_page: "5",
             order_by: "\"desc\"",
-        }) as any
+        }) as Record<string, unknown>
 
-        const txs = result?.txs
+        const txs = (result as { txs?: Array<Record<string, string>> })?.txs
         if (!Array.isArray(txs) || txs.length === 0) return null
 
         // Take the first matching tx
@@ -124,11 +122,12 @@ async function searchProposalTx(
 
         // Get the block time from the block header
         if (height > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const blockResult = await resilientRpcCall("block", {
                 height: String(height),
-            }) as any
-            const timeStr = blockResult?.block?.header?.time
+            }) as Record<string, unknown>
+            const block = blockResult?.block as Record<string, unknown> | undefined
+            const header = block?.header as Record<string, unknown> | undefined
+            const timeStr = header?.time as string | undefined
             if (timeStr) {
                 return {
                     date: new Date(timeStr),
@@ -208,7 +207,7 @@ export async function resolveProposalTimestamp(
     }
 
     // Strategy 3: tx-indexer search (exact, best-effort)
-    const txResult = await searchProposalTx(realmPath, proposalId)
+    const txResult = await searchProposalTx(realmPath)
     if (txResult) {
         const result: ProposalTimestamp = {
             date: txResult.date,

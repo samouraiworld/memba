@@ -37,12 +37,17 @@ interface RealmDetailDrawerProps {
 export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: RealmDetailDrawerProps) {
     const [tab, setTab] = useState<DrawerTab>(isPackage ? "source" : "render")
     const [renderOutput, setRenderOutput] = useState<string | null>(null)
-    const [renderLoading, setRenderLoading] = useState(false)
+    const [renderLoading, setRenderLoading] = useState(!isPackage)
     const [source, setSource] = useState<RealmSource | null>(null)
-    const [sourceLoading, setSourceLoading] = useState(false)
+    const [sourceLoading, setSourceLoading] = useState(true)
     const [sourceActiveFile, setSourceActiveFile] = useState<string>("")
     const [visible, setVisible] = useState(false)
     const drawerRef = useRef<HTMLDivElement>(null)
+
+    const handleClose = useCallback(() => {
+        setVisible(false)
+        setTimeout(onClose, 250) // wait for animation
+    }, [onClose])
 
     // Animate in
     useEffect(() => {
@@ -56,12 +61,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
         }
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const handleClose = useCallback(() => {
-        setVisible(false)
-        setTimeout(onClose, 250) // wait for animation
-    }, [onClose])
+    }, [handleClose])
 
     // Derive gnoweb URL from chain config if not provided
     const resolvedGnowebUrl = gnowebUrl || getGnowebUrl("gnoland1") || "https://gno.land"
@@ -69,7 +69,6 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     // Fetch Render() output
     useEffect(() => {
         if (isPackage) return
-        setRenderLoading(true)
         queryRender(GNO_RPC_URL, path, "")
             .then(raw => setRenderOutput(raw || "No Render() output available."))
             .catch(() => setRenderOutput("Failed to fetch Render() output."))
@@ -78,7 +77,6 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
 
     // Fetch source code
     useEffect(() => {
-        setSourceLoading(true)
         // Convert "gno.land/r/samcrew/dao" to "/r/samcrew/dao"
         const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
         fetchRealmSource(resolvedGnowebUrl, realmPath)
@@ -170,11 +168,11 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                         <div className="drawer-source">
                             {sourceLoading ? (
                                 <div className="drawer-skeleton">
-                                    {Array.from({ length: 12 }).map((_, i) => (
+                                    {[75, 60, 90, 50, 85, 65, 80, 55, 70, 45, 88, 62].map((w, i) => (
                                         <div
                                             key={i}
                                             className="drawer-skeleton__line drawer-skeleton__code"
-                                            style={{ width: `${40 + Math.random() * 50}%` }}
+                                            style={{ width: `${w}%` }}
                                         />
                                     ))}
                                 </div>

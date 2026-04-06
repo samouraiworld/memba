@@ -15,7 +15,6 @@ import { Link } from "react-router-dom"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import {
     CANDIDATURE_XP_THRESHOLD,
-    TOTAL_POSSIBLE_XP,
     loadQuestProgress,
     canApplyForMembership,
 } from "../../lib/quests"

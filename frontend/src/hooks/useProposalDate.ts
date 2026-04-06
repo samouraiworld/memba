@@ -31,17 +31,16 @@ export function useProposalDate(
     createdAt?: string,
     createdAtBlock?: number,
 ): UseProposalDateResult {
+    const hasValidInput = !!realmPath && proposalId !== undefined && !isNaN(proposalId)
     const [timestamp, setTimestamp] = useState<ProposalTimestamp | null>(null)
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(hasValidInput)
 
     useEffect(() => {
         if (!realmPath || proposalId === undefined || isNaN(proposalId)) {
-            setTimestamp(null)
             return
         }
 
         let cancelled = false
-        setLoading(true)
 
         resolveProposalTimestamp(realmPath, proposalId, createdAt, createdAtBlock)
             .then(result => {
