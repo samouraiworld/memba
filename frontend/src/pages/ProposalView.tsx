@@ -382,13 +382,15 @@ export function ProposalView() {
                 </div>
             )}
 
-            {/* AI Analyst Consensus */}
-            <AnalystReport
-                realmPath={realmPath}
-                proposalId={proposalId}
-                proposalData={proposal?.description || proposal?.title || ""}
-                daoContext={`DAO: ${realmPath}, Proposal #${proposalId}: ${proposal?.title || ""}`}
-            />
+            {/* AI Analyst Consensus — only render when proposal is loaded */}
+            {proposal && (proposal.description || proposal.title) && (
+                <AnalystReport
+                    realmPath={realmPath}
+                    proposalId={proposalId}
+                    proposalData={proposal.description || proposal.title}
+                    daoContext={`DAO: ${realmPath}, Proposal #${proposalId}: ${proposal.title}`}
+                />
+            )}
 
             {/* v2.13: Proposal Action Metadata */}
             {(proposal.actionType || proposal.actionBody || proposal.executorRealm) && (

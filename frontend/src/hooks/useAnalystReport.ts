@@ -2,12 +2,13 @@
  * useAnalystReport — Custom hook for fetching multi-model consensus reports.
  *
  * Fetches from POST /api/analyst/consensus. Returns cached results when available.
- * Auto-triggers analysis on mount if no cached report exists.
+ * Only triggers when proposal data is available (non-empty).
+ * Gracefully handles backend unavailability without flooding console.
  *
  * @module hooks/useAnalystReport
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 
@@ -61,9 +62,22 @@ export function useAnalystReport(
     const [report, setReport] = useState<ConsensusReport | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const abortRef = useRef<AbortController | null>(null)
+    // Track if we've already attempted a fetch to avoid re-triggering on prop changes
+    const fetchedRef = useRef(false)
 
-    const fetchReport = useCallback(async () => {
-        if (!realmPath || proposalId === undefined || !proposalData) return
+    const fetchReport = useCallback(async (force = false) => {
+        // Must have valid realm, proposal ID, and non-empty proposal data
+        if (!realmPath || proposalId === undefined || !proposalData || proposalData.trim() === "") return
+
+        // Don't re-fetch unless forced (refresh button)
+        if (fetchedRef.current && !force) return
+        fetchedRef.current = true
+
+        // Cancel any in-flight request
+        abortRef.current?.abort()
+        const controller = new AbortController()
+        abortRef.current = controller
 
         setLoading(true)
         setError(null)
@@ -78,8 +92,10 @@ export function useAnalystReport(
                     proposalData,
                     daoContext: daoContext || "",
                 }),
-                signal: AbortSignal.timeout(120_000), // 2 min timeout (10 models can take a while)
+                signal: controller.signal,
             })
+
+            if (controller.signal.aborted) return
 
             if (!resp.ok) {
                 const data = await resp.json().catch(() => ({ error: "Analysis unavailable" }))
@@ -90,19 +106,34 @@ export function useAnalystReport(
             const data: ConsensusReport = await resp.json()
             setReport(data)
         } catch (err) {
-            if (err instanceof Error && err.name === "AbortError") {
-                setError("Analysis timed out")
-            } else {
-                setError(err instanceof Error ? err.message : "Analysis failed")
-            }
+            if (err instanceof Error && err.name === "AbortError") return
+            // Silently handle network errors (backend not deployed, CORS, etc.)
+            setError("Analysis unavailable")
         } finally {
-            setLoading(false)
+            if (!controller.signal.aborted) {
+                setLoading(false)
+            }
         }
     }, [realmPath, proposalId, proposalData, daoContext])
 
+    // Reset fetch guard when proposal changes (prevents stale data on navigation)
     useEffect(() => {
+        fetchedRef.current = false
+        setReport(null)
+        setError(null)
+    }, [realmPath, proposalId])
+
+    // Auto-fetch once when proposal data becomes available
+    useEffect(() => {
+        if (!proposalData || proposalData.trim() === "") return
         fetchReport()
+        return () => { abortRef.current?.abort() }
+    }, [fetchReport]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const refresh = useCallback(() => {
+        fetchedRef.current = false
+        fetchReport(true)
     }, [fetchReport])
 
-    return { report, loading, error, refresh: fetchReport }
+    return { report, loading, error, refresh }
 }
