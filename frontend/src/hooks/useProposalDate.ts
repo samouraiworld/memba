@@ -7,54 +7,52 @@
  * @module hooks/useProposalDate
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { resolveProposalTimestamp, type ProposalTimestamp } from "../lib/dao/proposalDates"
 
+type ResolveState = "idle" | "loading" | "done" | "error"
+
 interface UseProposalDateResult {
-    /** Resolved timestamp data (null while loading or if unavailable). */
     timestamp: ProposalTimestamp | null
-    /** Whether the timestamp is still being resolved. */
     loading: boolean
 }
 
-/**
- * Resolve the creation timestamp for a DAO proposal.
- *
- * @param realmPath     - The DAO realm path (e.g. "gno.land/r/gov/dao")
- * @param proposalId    - The proposal numeric ID
- * @param createdAt     - ISO string from Render parsing (if available)
- * @param createdAtBlock - Block height from Render parsing (if available)
- */
 export function useProposalDate(
     realmPath: string | undefined,
     proposalId: number | undefined,
     createdAt?: string,
     createdAtBlock?: number,
 ): UseProposalDateResult {
-    const hasValidInput = !!realmPath && proposalId !== undefined && !isNaN(proposalId)
-    const [timestamp, setTimestamp] = useState<ProposalTimestamp | null>(null)
-    const [loading, setLoading] = useState(hasValidInput)
+    const [state, setState] = useState<{ status: ResolveState; data: ProposalTimestamp | null }>({
+        status: "idle",
+        data: null,
+    })
+    const resolvedRef = useRef(false)
 
     useEffect(() => {
-        if (!realmPath || proposalId === undefined || isNaN(proposalId)) {
-            return
-        }
+        if (!realmPath || proposalId === undefined || isNaN(proposalId)) return
+        if (resolvedRef.current) return
 
         let cancelled = false
 
+        // State is set only inside async callbacks (not synchronously in effect body)
         resolveProposalTimestamp(realmPath, proposalId, createdAt, createdAtBlock)
             .then(result => {
-                if (!cancelled) setTimestamp(result)
+                if (!cancelled) {
+                    resolvedRef.current = true
+                    setState({ status: "done", data: result })
+                }
             })
             .catch(() => {
-                if (!cancelled) setTimestamp(null)
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false)
+                if (!cancelled) setState({ status: "error", data: null })
             })
 
         return () => { cancelled = true }
     }, [realmPath, proposalId, createdAt, createdAtBlock])
 
-    return { timestamp, loading }
+    // Derive loading from whether we have valid inputs but no result yet
+    const hasValidInput = !!realmPath && proposalId !== undefined && !isNaN(proposalId)
+    const loading = hasValidInput && state.status === "idle"
+
+    return { timestamp: state.data, loading }
 }
