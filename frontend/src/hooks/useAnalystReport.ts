@@ -59,6 +59,7 @@ export function useAnalystReport(
     proposalId: number | undefined,
     proposalData?: string,
     daoContext?: string,
+    analysisType: "proposal" | "dao" = "proposal",
 ): UseAnalystReportResult {
     const [report, setReport] = useState<ConsensusReport | null>(null)
     const [loading, setLoading] = useState(false)
@@ -93,6 +94,7 @@ export function useAnalystReport(
                 body: JSON.stringify({
                     realmPath,
                     proposalId,
+                    analysisType,
                     proposalData,
                     daoContext: daoContext || "",
                 }),
@@ -118,7 +120,7 @@ export function useAnalystReport(
                 setLoading(false)
             }
         }
-    }, [realmPath, proposalId, proposalData, daoContext])
+    }, [realmPath, proposalId, proposalData, daoContext, analysisType])
 
     // Reset state when proposal changes
     useEffect(() => {

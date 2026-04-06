@@ -20,7 +20,8 @@ import (
 // ConsensusRequest from the frontend.
 type ConsensusRequest struct {
 	RealmPath       string `json:"realmPath"`
-	ProposalID      int    `json:"proposalId"`
+	ProposalID      int    `json:"proposalId"`            // 0 for DAO-level analysis
+	AnalysisType    string `json:"analysisType,omitempty"` // "proposal" (default) or "dao"
 	ProposalData    string `json:"proposalData"`
 	DAOContext      string `json:"daoContext"`
 	TreasuryContext string `json:"treasuryContext,omitempty"`
@@ -67,8 +68,15 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 	if !validRealmPath.MatchString(req.RealmPath) {
 		return fmt.Errorf("invalid realm path")
 	}
-	if req.ProposalID <= 0 {
-		return fmt.Errorf("proposalId must be positive")
+	// Normalize analysis type
+	if req.AnalysisType == "" {
+		req.AnalysisType = "proposal"
+	}
+	if req.AnalysisType != "proposal" && req.AnalysisType != "dao" {
+		return fmt.Errorf("analysisType must be 'proposal' or 'dao'")
+	}
+	if req.AnalysisType == "proposal" && req.ProposalID <= 0 {
+		return fmt.Errorf("proposalId must be positive for proposal analysis")
 	}
 	if len(req.ProposalData) > 50*1024 {
 		return fmt.Errorf("proposalData exceeds 50KB limit")
@@ -77,6 +85,15 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 		return fmt.Errorf("daoContext exceeds 10KB limit")
 	}
 	return nil
+}
+
+// cacheKey returns the storage key for a consensus result.
+func consensusCacheKey(req *ConsensusRequest) (string, int) {
+	if req.AnalysisType == "dao" {
+		// Use proposalId=0 convention for DAO-level cache
+		return req.RealmPath, 0
+	}
+	return req.RealmPath, req.ProposalID
 }
 
 // ── Cache ────────────────────────────────────────────────────
@@ -309,9 +326,10 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		}
 
 		// Check cache (skip if ?force=1)
+		cacheRealm, cacheID := consensusCacheKey(&req)
 		forceRefresh := r.URL.Query().Get("force") == "1"
 		if !forceRefresh {
-			if cached, err := getCachedConsensus(db, req.RealmPath, req.ProposalID); err == nil && cached != nil {
+			if cached, err := getCachedConsensus(db, cacheRealm, cacheID); err == nil && cached != nil {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(cached)
 				return
@@ -343,12 +361,26 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		perspectives := make([]ConsensusPerspective, len(orProviders))
 
 		// Build user prompt (same for all models)
-		userPrompt := fmt.Sprintf(
-			"<proposal_data>\n%s\n</proposal_data>\n\n<dao_context>\n%s\n</dao_context>",
-			req.ProposalData, req.DAOContext,
-		)
+		var userPrompt string
+		if req.AnalysisType == "dao" {
+			userPrompt = fmt.Sprintf(
+				"<dao_health_data>\n%s\n</dao_health_data>\n\n<dao_context>\n%s\n</dao_context>",
+				req.ProposalData, req.DAOContext,
+			)
+		} else {
+			userPrompt = fmt.Sprintf(
+				"<proposal_data>\n%s\n</proposal_data>\n\n<dao_context>\n%s\n</dao_context>",
+				req.ProposalData, req.DAOContext,
+			)
+		}
 		if req.TreasuryContext != "" {
 			userPrompt += fmt.Sprintf("\n\n<treasury_context>\n%s\n</treasury_context>", req.TreasuryContext)
+		}
+
+		// Select system prompt based on analysis type
+		getSystemPrompt := perspectiveSystemPrompt
+		if req.AnalysisType == "dao" {
+			getSystemPrompt = daoHealthSystemPrompt
 		}
 
 		// Fan out in 2 batches of 5 to respect 20 req/min rate limit
@@ -365,7 +397,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 				go func(idx int, provider LLMProvider) {
 					defer wg.Done()
 
-					systemPrompt := perspectiveSystemPrompt(provider.Role)
+					systemPrompt := getSystemPrompt(provider.Role)
 					llmOutput, err := callLLM(r.Context(), provider, systemPrompt, userPrompt)
 
 					if err != nil {
@@ -431,7 +463,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			}
 		}
 		if hasRealResult {
-			cacheConsensus(db, req.RealmPath, req.ProposalID, &resp)
+			cacheConsensus(db, cacheRealm, cacheID, &resp)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
