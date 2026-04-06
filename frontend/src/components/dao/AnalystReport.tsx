@@ -85,9 +85,22 @@ interface AnalystReportProps {
 
 export function AnalystReport({ realmPath, proposalId, proposalData, daoContext }: AnalystReportProps) {
     const [expanded, setExpanded] = useState(false)
-    const { report, loading, error, refresh } = useAnalystReport(realmPath, proposalId, proposalData, daoContext)
+    const { report, loading, error, trigger } = useAnalystReport(realmPath, proposalId, proposalData, daoContext)
 
     if (!ANALYST_ENABLED) return null
+
+    // Idle state — show "Run AI Analysis" button (on-demand, not auto-triggered)
+    if (!report && !loading && !error) {
+        return (
+            <div className="analyst-panel" data-testid="analyst-idle">
+                <button className="analyst-collapsed" onClick={trigger}>
+                    <span className="analyst-icon">🤖</span>
+                    <span className="analyst-label">Run AI Analysis</span>
+                    <span className="analyst-hint">10 free models analyze this proposal</span>
+                </button>
+            </div>
+        )
+    }
 
     // Loading skeleton
     if (loading) {
@@ -109,13 +122,12 @@ export function AnalystReport({ realmPath, proposalId, proposalData, daoContext 
                 <div className="analyst-collapsed">
                     <span className="analyst-icon">🤖</span>
                     <span className="analyst-error-text">Analysis unavailable</span>
-                    <button className="analyst-retry-btn" onClick={refresh}>Retry</button>
+                    <button className="analyst-retry-btn" onClick={trigger}>Retry</button>
                 </div>
             </div>
         )
     }
 
-    // No report (no proposal data to analyze)
     if (!report) return null
 
     const c = report.consensus
@@ -138,7 +150,7 @@ export function AnalystReport({ realmPath, proposalId, proposalData, daoContext 
 
             {/* Expanded detail */}
             {expanded && (
-                <AnalystDetail report={report} onRefresh={refresh} />
+                <AnalystDetail report={report} onRefresh={trigger} />
             )}
         </div>
     )

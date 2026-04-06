@@ -68,6 +68,13 @@
     transform: rotate(90deg);
 }
 
+.analyst-hint {
+    font-size: 10px;
+    color: #444;
+    font-family: "JetBrains Mono", monospace;
+    margin-left: auto;
+}
+
 .analyst-loading-text {
     font-size: 11px;
     color: #666;

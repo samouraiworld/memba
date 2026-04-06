@@ -48,7 +48,8 @@ interface UseAnalystReportResult {
     report: ConsensusReport | null
     loading: boolean
     error: string | null
-    refresh: () => void
+    /** Manually trigger analysis (on-demand, not auto-triggered). */
+    trigger: () => void
 }
 
 // ── Hook ─────────────────────────────────────────────────────
@@ -119,24 +120,23 @@ export function useAnalystReport(
         }
     }, [realmPath, proposalId, proposalData, daoContext])
 
-    // Reset fetch guard when proposal changes (prevents stale data on navigation)
+    // Reset state when proposal changes
     useEffect(() => {
         fetchedRef.current = false
         setReport(null)
         setError(null)
+        setLoading(false)
     }, [realmPath, proposalId])
 
-    // Auto-fetch once when proposal data becomes available
+    // Cleanup on unmount
     useEffect(() => {
-        if (!proposalData || proposalData.trim() === "") return
-        fetchReport()
         return () => { abortRef.current?.abort() }
-    }, [fetchReport]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [])
 
-    const refresh = useCallback(() => {
+    const trigger = useCallback(() => {
         fetchedRef.current = false
         fetchReport(true)
     }, [fetchReport])
 
-    return { report, loading, error, refresh }
+    return { report, loading, error, trigger }
 }
