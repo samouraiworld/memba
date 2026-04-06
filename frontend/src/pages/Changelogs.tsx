@@ -26,6 +26,71 @@ interface ChangelogEntry {
 
 const ENTRIES: ChangelogEntry[] = [
     {
+        date: "2026-04-06",
+        version: "v3.2.0",
+        title: "Multi-Model AI Consensus & Governance Discovery",
+        tags: ["memba"],
+        items: [
+            "AI Governance Analyst: 10 free AI models analyze proposals from 10 perspectives (strategic, risk, technical, financial, legal, security, community, governance, reasoning, contrarian)",
+            "DAO-level AI health insight: stat card with A+ through F grade, tooltip summary, expandable report",
+            "On-demand analysis: click to trigger, cached 6 hours, never auto-fires",
+            "Directory gnoweb integration: RealmDetailDrawer with Render/Source/Info tabs, syntax-highlighted Gno source code, cross-tab global search",
+            "Token detail drawer in Directory for inline preview",
+            "Proposal dates with hybrid tx-indexer + block estimation",
+            "Candidature bridge: 3-state CandidatureUnlock linking Quest Hub to DAO membership",
+            "Teams polish: copy invite code, confirmation dialogs, username resolution, team descriptions",
+            "1,495 tests across 69 files",
+        ],
+    },
+    {
+        date: "2026-04-04",
+        version: "v3.1.0",
+        title: "NFT Marketplace, Launchpad & GRC1155",
+        tags: ["memba"],
+        items: [
+            "NFT Gallery with 3-tab layout: Gallery, Marketplace, Activity",
+            "NFT Launchpad: 5-step wizard for GRC721 and GRC1155 collections",
+            "GRC1155 templates with per-token supply caps and URI metadata",
+            "Agent Marketplace with on-chain registry + escrow realm",
+            "Freelance Services UI with search, categories, demo listings",
+        ],
+    },
+    {
+        date: "2026-04-02",
+        version: "v2.29.0",
+        title: "Quest Hub Redesign + On-Chain Integration",
+        tags: ["memba"],
+        items: [
+            "Quest Hub redesign with gamified UI and SVG radial ring",
+            "RPC fallback resilience for gnoland1",
+            "Admin Panel link in user profile",
+            "1,400 tests across 62 files",
+        ],
+    },
+    {
+        date: "2026-03-28",
+        version: "v2.26.0",
+        title: "Teams, Candidature & Quest Integration",
+        tags: ["memba"],
+        items: [
+            "Teams feature with workspace switching, invite codes, role management",
+            "Candidature page for Memba DAO membership applications",
+            "Quest system with 10 onboarding quests and XP tracking",
+            "Marketplace and escrow realm deployed on test12",
+        ],
+    },
+    {
+        date: "2026-03-22",
+        version: "v2.22.0",
+        title: "Network URL Prefix & DAO Slash URLs",
+        tags: ["memba"],
+        items: [
+            "Network-scoped URLs: /:network/dao/..., /:network/tokens/...",
+            "DAO slash URL support for cleaner navigation",
+            "Directory decomposition into 7 tab modules",
+        ],
+    },
+    {
         date: "2026-03-19",
         version: "v2.15.0",
         title: "Gnoland1 + Smooth Network Switching",

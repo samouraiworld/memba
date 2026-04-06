@@ -130,22 +130,22 @@ export function WhatsNewToast() {
                     🚀 What's New
                 </div>
 
-                {/* Network entries */}
+                {/* Feature entries */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                     <NetworkItem
                         color="#00d4aa"
-                        title="Testnet 12 — Now the default"
-                        desc="Experiment, deploy, hack freely."
+                        title="AI Governance Analyst"
+                        desc="10 free AI models analyze proposals and DAO health from different perspectives."
                     />
                     <NetworkItem
                         color="#8b5cf6"
-                        title="Betanet (gnoland1) — Now available"
-                        desc="First persistent chain. Select it in the network dropdown."
+                        title="Directory Source Explorer"
+                        desc="Browse realm source code, functions, and dependencies — all in-app."
                     />
                     <NetworkItem
                         color="#2dd4bf"
-                        title="Test11 — Active (40 validators)"
-                        desc="Community-maintained testnet, fully supported."
+                        title="Teams & Candidature"
+                        desc="Team descriptions, copy invite codes, quest-gated DAO membership."
                     />
                 </div>
 
