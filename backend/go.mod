@@ -11,7 +11,7 @@ require (
 	github.com/rs/cors v1.11.1
 	golang.org/x/net v0.52.0
 	google.golang.org/protobuf v1.36.11
-	modernc.org/sqlite v1.48.0
+	modernc.org/sqlite v1.48.1
 )
 
 require (
