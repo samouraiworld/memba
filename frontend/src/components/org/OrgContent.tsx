@@ -60,7 +60,7 @@ export default function OrgContent() {
 
     // Copy invite code
     const [copied, setCopied] = useState(false)
-    const copyTimeout = useRef<ReturnType<typeof setTimeout>>()
+    const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Confirm dialog
     const [confirmAction, setConfirmAction] = useState<{
