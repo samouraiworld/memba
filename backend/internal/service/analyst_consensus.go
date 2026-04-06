@@ -308,11 +308,14 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			return
 		}
 
-		// Check cache
-		if cached, err := getCachedConsensus(db, req.RealmPath, req.ProposalID); err == nil && cached != nil {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(cached)
-			return
+		// Check cache (skip if ?force=1)
+		forceRefresh := r.URL.Query().Get("force") == "1"
+		if !forceRefresh {
+			if cached, err := getCachedConsensus(db, req.RealmPath, req.ProposalID); err == nil && cached != nil {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(cached)
+				return
+			}
 		}
 
 		// Select OpenRouter providers
@@ -419,8 +422,17 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			Cached:       false,
 		}
 
-		// Cache the result
-		cacheConsensus(db, req.RealmPath, req.ProposalID, &resp)
+		// Only cache if at least one model returned a real verdict (not all-abstain)
+		hasRealResult := false
+		for _, p := range perspectives {
+			if p.Verdict != "abstain" {
+				hasRealResult = true
+				break
+			}
+		}
+		if hasRealResult {
+			cacheConsensus(db, req.RealmPath, req.ProposalID, &resp)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
