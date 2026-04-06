@@ -71,6 +71,14 @@ vi.mock("react-router-dom", () => ({
     }),
 }))
 
+vi.mock("../../lib/dao/shared", () => ({
+    resolveUsernames: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock("../../lib/config", () => ({
+    GNO_RPC_URL: "http://localhost:26657",
+}))
+
 // Import the mocked api to configure per-test behavior
 const { api } = await import("../../lib/api")
 const { default: OrgContent } = await import("./OrgContent")
@@ -358,7 +366,17 @@ describe("OrgContent — Leave Team", () => {
             expect(screen.getByText("Leave Team")).toBeInTheDocument()
         })
 
+        // Click Leave Team — opens ConfirmDialog
         fireEvent.click(screen.getByText("Leave Team"))
+
+        // Confirm in the dialog
+        await waitFor(() => {
+            expect(screen.getByText(/Leave "Alpha"\?/)).toBeInTheDocument()
+        })
+        const confirmBtn = screen.getAllByText("Leave Team").find(
+            el => el.closest(".confirm-dialog__btn"),
+        )!
+        fireEvent.click(confirmBtn)
 
         await waitFor(() => {
             expect(api.leaveTeam).toHaveBeenCalledOnce()

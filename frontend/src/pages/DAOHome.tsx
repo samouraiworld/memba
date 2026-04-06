@@ -207,6 +207,7 @@ export function DAOHome() {
 
             <DAOProposalsSection
                 encodedSlug={encodedSlug}
+                realmPath={realmPath}
                 isAuthenticated={auth.isAuthenticated}
                 isArchived={config?.isArchived || false}
                 isMember={!!currentMember}

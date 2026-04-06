@@ -3,6 +3,7 @@ import {
     estimateBlockDate,
     formatProposalDate,
     formatBlockDate,
+    formatRelativeTime,
     DEFAULT_AVG_BLOCK_TIME_MS,
 } from "./blockTime"
 
@@ -83,6 +84,39 @@ describe("blockTime", () => {
         it("returns empty string for invalid inputs", () => {
             expect(formatBlockDate(0, 1000)).toBe("")
             expect(formatBlockDate(1001, 1000)).toBe("")
+        })
+    })
+
+    describe("formatRelativeTime", () => {
+        it("returns 'just now' for <60s", () => {
+            expect(formatRelativeTime(new Date(NOW - 5_000), NOW)).toBe("just now")
+        })
+
+        it("returns minutes ago", () => {
+            expect(formatRelativeTime(new Date(NOW - 5 * 60_000), NOW)).toBe("5 minutes ago")
+            expect(formatRelativeTime(new Date(NOW - 1 * 60_000), NOW)).toBe("1 minute ago")
+        })
+
+        it("returns hours ago", () => {
+            expect(formatRelativeTime(new Date(NOW - 3 * 3600_000), NOW)).toBe("3 hours ago")
+            expect(formatRelativeTime(new Date(NOW - 1 * 3600_000), NOW)).toBe("1 hour ago")
+        })
+
+        it("returns days ago", () => {
+            expect(formatRelativeTime(new Date(NOW - 7 * 86400_000), NOW)).toBe("7 days ago")
+            expect(formatRelativeTime(new Date(NOW - 1 * 86400_000), NOW)).toBe("1 day ago")
+        })
+
+        it("returns months ago", () => {
+            expect(formatRelativeTime(new Date(NOW - 60 * 86400_000), NOW)).toBe("2 months ago")
+        })
+
+        it("returns empty string for null", () => {
+            expect(formatRelativeTime(null)).toBe("")
+        })
+
+        it("handles future dates gracefully", () => {
+            expect(formatRelativeTime(new Date(NOW + 60_000), NOW)).toBe("just now")
         })
     })
 })

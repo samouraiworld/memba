@@ -23,6 +23,7 @@ vi.mock("../../lib/quests", () => ({
         { id: "q3", title: "Quest Gamma", description: "Third quest", xp: 20, icon: "📋" },
     ],
     CANDIDATURE_XP_THRESHOLD: 30,
+    TOTAL_POSSIBLE_XP: 45,
     loadQuestProgress: vi.fn(() => ({
         completed: [],
         totalXP: 0,
@@ -145,13 +146,13 @@ describe("QuestProgress — Candidature CTA", () => {
         // Eligible badge should show in collapsed state
         expect(screen.getByText("✦ Eligible")).toBeInTheDocument()
 
-        // Expand and check CTA
+        // Expand and check CandidatureUnlock component (v3.2 replacement)
         fireEvent.click(screen.getByTestId("quest-hub-toggle"))
-        expect(screen.getByTestId("quest-candidature-cta")).toBeInTheDocument()
-        expect(screen.getByText("Apply for Memba DAO Membership")).toBeInTheDocument()
+        expect(screen.getByTestId("candidature-unlock-ready")).toBeInTheDocument()
+        expect(screen.getByText("🚀 Claim Candidature →")).toBeInTheDocument()
     })
 
-    it("hides CTA when not eligible", () => {
+    it("shows locked state when not eligible", () => {
         vi.mocked(questsMock.loadQuestProgress).mockReturnValue({
             completed: [],
             totalXP: 0,
@@ -160,10 +161,12 @@ describe("QuestProgress — Candidature CTA", () => {
 
         renderWithRouter(<QuestProgress />)
         fireEvent.click(screen.getByTestId("quest-hub-toggle"))
-        expect(screen.queryByTestId("quest-candidature-cta")).not.toBeInTheDocument()
+        // CandidatureUnlock renders in locked state (no ready CTA)
+        expect(screen.queryByTestId("candidature-unlock-ready")).not.toBeInTheDocument()
+        expect(screen.getByTestId("candidature-unlock-locked")).toBeInTheDocument()
     })
 
-    it("hides CTA when viewing another user's profile", () => {
+    it("hides CandidatureUnlock when viewing another user's profile", () => {
         vi.mocked(questsMock.fetchUserQuests).mockResolvedValue({
             completed: [
                 { questId: "q1", completedAt: Date.now() },
@@ -174,8 +177,9 @@ describe("QuestProgress — Candidature CTA", () => {
         })
 
         renderWithRouter(<QuestProgress address="g1other..." />)
-        // Even with enough XP, CTA should not show for other users
-        expect(screen.queryByTestId("quest-candidature-cta")).not.toBeInTheDocument()
+        // CandidatureUnlock should not render at all for other users
+        expect(screen.queryByTestId("candidature-unlock-ready")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("candidature-unlock-locked")).not.toBeInTheDocument()
     })
 })
 

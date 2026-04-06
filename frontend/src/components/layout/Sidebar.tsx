@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { canApplyForMembership } from "../../lib/quests"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -185,7 +186,14 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
-                        <SidebarLink to="/candidature" icon={<Bank size={18} />} label="Candidature" connected={connected} collapsed={collapsed} />
+                        <SidebarLink
+                            to="/candidature"
+                            icon={<Bank size={18} />}
+                            label="Candidature"
+                            connected={connected}
+                            collapsed={collapsed}
+                            badge={canApplyForMembership() ? 1 : undefined}
+                        />
                     )}
                     <SidebarLink to="/feedback" icon={<Megaphone size={18} />} label="Feedback" connected={connected} collapsed={collapsed} />
                 </div>

@@ -9,6 +9,7 @@ import { ArrowRight } from "@phosphor-icons/react"
 import { GNO_RPC_URL } from "../../../lib/config"
 import { encodeSlug } from "../../../lib/daoSlug"
 import { getDAOProposals, type DAOProposal } from "../../../lib/dao"
+import { formatRelativeTime } from "../../../lib/blockTime"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
 import type { TabProps } from "./types"
 
@@ -78,6 +79,11 @@ export function GovDAOTab({ navigate }: TabProps) {
                                     >
                                         {p.status}
                                     </span>
+                                    {p.createdAt && (
+                                        <span className="dir-govdao-date">
+                                            {formatRelativeTime(new Date(p.createdAt))}
+                                        </span>
+                                    )}
                                     {p.yesVotes + p.noVotes > 0 && (
                                         <span className="dir-govdao-votes">
                                             ✓ {p.yesVotes} / ✗ {p.noVotes}

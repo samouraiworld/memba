@@ -12,12 +12,15 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
 import { DAOsTab, TokensTab, UsersTab, PackagesTab, RealmsTab, GovDAOTab, LeaderboardTab } from "../components/directory/tabs"
 import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
+import { getDirectoryDAOs, fetchPackages, fetchRealms } from "../lib/directory"
+import type { DirectoryDAO, DirectoryPackage, DirectoryRealm } from "../lib/directory"
+import { encodeSlug } from "../lib/daoSlug"
 import "./directory.css"
 
 type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
@@ -29,6 +32,7 @@ export function Directory() {
         return "daos"
     })
     const [globalSearch, setGlobalSearch] = useState("")
+    const deferredGlobalSearch = useDeferredValue(globalSearch)
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
     const [previewLoading, setPreviewLoading] = useState(false)
 
@@ -37,6 +41,31 @@ export function Directory() {
         document.title = "Directory — Memba"
         trackPageVisit("directory")
     }, [])
+
+    // Cross-tab search data (loaded once for filtering)
+    const allDAOs = useMemo(() => getDirectoryDAOs(), [])
+    const allPackages = useMemo(() => fetchPackages(), [])
+    const allRealms = useMemo(() => fetchRealms(), [])
+
+    // Cross-tab search results
+    const crossTabResults = useMemo(() => {
+        const q = deferredGlobalSearch.toLowerCase().trim()
+        if (!q || q.startsWith("gno.land/")) return null
+
+        const matchDAO = (d: DirectoryDAO) =>
+            d.name.toLowerCase().includes(q) || d.path.toLowerCase().includes(q)
+        const matchPkg = (p: DirectoryPackage) =>
+            p.name.toLowerCase().includes(q) || p.path.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+        const matchRealm = (r: DirectoryRealm) =>
+            r.name.toLowerCase().includes(q) || r.path.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
+
+        const daos = allDAOs.filter(matchDAO).slice(0, 5)
+        const packages = allPackages.filter(matchPkg).slice(0, 5)
+        const realms = allRealms.filter(matchRealm).slice(0, 5)
+
+        if (daos.length === 0 && packages.length === 0 && realms.length === 0) return null
+        return { daos, packages, realms }
+    }, [deferredGlobalSearch, allDAOs, allPackages, allRealms])
 
     // Phase 3a: Universal search — attempt qrender for gno.land paths
     const handleGlobalSearch = useCallback(async (query: string) => {
@@ -74,6 +103,71 @@ export function Directory() {
                 className="dir-search dir-search--global"
                 data-testid="global-search"
             />
+
+            {/* Cross-tab search results */}
+            {crossTabResults && (
+                <div className="dir-cross-results">
+                    {crossTabResults.daos.length > 0 && (
+                        <div className="dir-cross-section">
+                            <div className="dir-cross-section__header">DAOs ({crossTabResults.daos.length})</div>
+                            <div className="dir-cross-section__items">
+                                {crossTabResults.daos.map(d => (
+                                    <button
+                                        key={d.path}
+                                        className="dir-cross-item"
+                                        onClick={() => navigate(`/dao/${encodeSlug(d.path)}`)}
+                                    >
+                                        <span className="dir-cross-item__icon">🏛️</span>
+                                        <span className="dir-cross-item__name">{d.name}</span>
+                                        <span className="dir-cross-item__path">{d.path}</span>
+                                    </button>
+                                ))}
+                                {crossTabResults.daos.length >= 5 && (
+                                    <button className="dir-cross-show-all" onClick={() => { setTab("daos"); setGlobalSearch("") }}>
+                                        Show all DAOs →
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {crossTabResults.realms.length > 0 && (
+                        <div className="dir-cross-section">
+                            <div className="dir-cross-section__header">Realms ({crossTabResults.realms.length})</div>
+                            <div className="dir-cross-section__items">
+                                {crossTabResults.realms.map(r => (
+                                    <button
+                                        key={r.path}
+                                        className="dir-cross-item"
+                                        onClick={() => { setTab("realms"); setGlobalSearch("") }}
+                                    >
+                                        <span className="dir-cross-item__icon">🌐</span>
+                                        <span className="dir-cross-item__name">{r.name}</span>
+                                        <span className="dir-cross-item__path">{r.path}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {crossTabResults.packages.length > 0 && (
+                        <div className="dir-cross-section">
+                            <div className="dir-cross-section__header">Packages ({crossTabResults.packages.length})</div>
+                            <div className="dir-cross-section__items">
+                                {crossTabResults.packages.map(p => (
+                                    <button
+                                        key={p.path}
+                                        className="dir-cross-item"
+                                        onClick={() => { setTab("packages"); setGlobalSearch("") }}
+                                    >
+                                        <span className="dir-cross-item__icon">📦</span>
+                                        <span className="dir-cross-item__name">{p.name}</span>
+                                        <span className="dir-cross-item__path">{p.path}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Realm path preview */}
             {previewLoading && (

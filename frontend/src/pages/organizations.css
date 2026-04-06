@@ -386,6 +386,110 @@
     user-select: all;
 }
 
+.org-invite-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.org-copy-btn {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.1);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    color: #00d4aa;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.org-copy-btn:hover {
+    background: rgba(0, 212, 170, 0.18);
+}
+
+/* ── Confirm Dialog ──────────────────────────────────────── */
+
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.confirm-dialog {
+    max-width: 380px;
+    width: 90%;
+    padding: 24px;
+    border-radius: 12px;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+}
+
+.confirm-dialog__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 8px;
+}
+
+.confirm-dialog__message {
+    font-size: 12px;
+    color: #888;
+    margin: 0 0 20px;
+    line-height: 1.5;
+}
+
+.confirm-dialog__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.confirm-dialog__btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.confirm-dialog__btn--cancel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #888;
+}
+
+.confirm-dialog__btn--cancel:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.confirm-dialog__btn--default {
+    background: rgba(0, 212, 170, 0.12);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+}
+
+.confirm-dialog__btn--default:hover {
+    background: rgba(0, 212, 170, 0.2);
+}
+
+.confirm-dialog__btn--danger {
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.confirm-dialog__btn--danger:hover {
+    background: rgba(244, 67, 54, 0.15);
+}
+
 /* ── Error ────────────────────────────────────────────── */
 
 .org-error {

@@ -77,6 +77,8 @@ export function parseProposalList(data: string): DAOProposal[] {
         const statusMatch = section.match(/Status:\s*(\w+)/i)
         // Tiers eligible to vote: T1, T2, T3
         const tiersMatch = section.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
+        // v3.2: Creation block height (if present in list format)
+        const blockMatch = section.match(/(?:Created|Block|Height|block)[:\s]+#?(\d{4,})/i)
 
         const authorName = authorMatch?.[1] ? (authorMatch[1].startsWith(BECH32_PREFIX) ? authorMatch[1] : `@${authorMatch[1]}`) : ""
 
@@ -98,6 +100,7 @@ export function parseProposalList(data: string): DAOProposal[] {
             abstainVotes: 0,
             totalVoters: 0,
             proposer: authorName,
+            createdAtBlock: blockMatch ? parseInt(blockMatch[1], 10) : undefined,
         })
     }
 
@@ -278,6 +281,14 @@ export async function getProposalDetail(
         const actionBody = executorMatch?.[1]?.trim() || actionBodyMatch?.[1]?.trim() || undefined
         const executorRealm = executorMatch?.[2]?.trim() || undefined
 
+        // v3.2: Extract creation block height from various formats
+        const createdBlockMatch = data.match(/(?:Created|Submitted|Proposed)\s+(?:at\s+)?(?:block|height)[:\s]+#?(\d{4,})/i)
+            || data.match(/\*\*Block:\*\*\s*(\d{4,})/)
+            || data.match(/block\s+#?(\d{4,})/i)
+        // v3.2: Extract ISO timestamp if realm provides it
+        const createdAtMatch = data.match(/(?:Created|Submitted)[:\s]+([\d]{4}-[\d]{2}-[\d]{2}T[^\s]+)/i)
+            || data.match(/"created_at"\s*:\s*"([^"]+)"/)
+
         return {
             id,
             title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
@@ -299,6 +310,8 @@ export async function getProposalDetail(
             actionType,
             actionBody,
             executorRealm,
+            createdAtBlock: createdBlockMatch ? parseInt(createdBlockMatch[1], 10) : undefined,
+            createdAt: createdAtMatch?.[1] || undefined,
         }
     } catch (err) {
         console.warn(`[getProposalDetail] Failed to parse proposal #${id} from ${realmPath}:`, err)

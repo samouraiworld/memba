@@ -159,13 +159,20 @@ export function isQuestCompleted(questId: string): boolean {
  * Complete a quest. Returns updated state, or null if already completed.
  * Dual-write: always writes to localStorage, fire-and-forget to backend if token available.
  */
-export function completeQuest(questId: string, authToken?: Token): UserQuestState | null {
+export interface QuestResult {
+    state: UserQuestState
+    /** True if this quest pushed XP over the candidature threshold for the first time. */
+    unlockedCandidature: boolean
+}
+
+export function completeQuest(questId: string, authToken?: Token): QuestResult | null {
     const quest = QUESTS.find(q => q.id === questId)
     if (!quest) return null
 
     const state = loadQuestProgress()
     if (state.completed.some(q => q.questId === questId)) return null // already done
 
+    const wasBelowThreshold = state.totalXP < CANDIDATURE_XP_THRESHOLD
     state.completed.push({ questId, completedAt: Date.now() })
     state.totalXP += quest.xp
     saveQuestProgress(state)
@@ -178,7 +185,10 @@ export function completeQuest(questId: string, authToken?: Token): UserQuestStat
         })).catch(() => { /* offline-first: ignore backend errors */ })
     }
 
-    return state
+    return {
+        state,
+        unlockedCandidature: wasBelowThreshold && state.totalXP >= CANDIDATURE_XP_THRESHOLD,
+    }
 }
 
 /** Check if user has enough XP for candidature. */

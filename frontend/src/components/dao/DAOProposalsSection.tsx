@@ -6,6 +6,7 @@ import type { DAOProposal } from "../../lib/dao"
 
 interface DAOProposalsSectionProps {
     encodedSlug: string
+    realmPath: string
     isAuthenticated: boolean
     isArchived: boolean
     isMember: boolean
@@ -18,7 +19,7 @@ interface DAOProposalsSectionProps {
 }
 
 export function DAOProposalsSection({
-    encodedSlug, isAuthenticated, isArchived, isMember, memberCount,
+    encodedSlug, realmPath, isAuthenticated, isArchived, isMember, memberCount,
     activeProposals, completedProposals, votedIds, enrichedIds, proposalsLoading,
 }: DAOProposalsSectionProps) {
     const navigate = useNetworkNav()
@@ -86,6 +87,7 @@ export function DAOProposalsSection({
                                     isMember={isMember}
                                     enriched={enrichedIds.has(p.id)}
                                     totalMembers={memberCount}
+                                    realmPath={realmPath}
                                     onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)}
                                 />
                             ))}
@@ -106,7 +108,7 @@ export function DAOProposalsSection({
                     {showHistory && (
                         <div className="animate-fade-in dao-list-col" style={{ marginTop: 8 }}>
                             {completedProposals.map((p) => (
-                                <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={isMember} enriched={true} totalMembers={memberCount} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
+                                <ProposalCard key={p.id} proposal={p} hasVoted={votedIds.has(p.id)} isMember={isMember} enriched={true} totalMembers={memberCount} realmPath={realmPath} onClick={() => navigate(`/dao/${encodedSlug}/proposal/${p.id}`)} />
                             ))}
                         </div>
                     )}
