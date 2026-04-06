@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "rea
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
 import { fetchRealms, fetchRealmsLive } from "../../../lib/directory"
 import { queryRender } from "../../../lib/dao/shared"
+import { RealmDetailDrawer } from "../RealmDetailDrawer"
 
 const REALM_CATEGORY_COLORS: Record<string, string> = {
     standard: "#00d4aa",
@@ -26,6 +27,9 @@ export function RealmsTab() {
     const [expandedRealm, setExpandedRealm] = useState<string | null>(null)
     const [realmRender, setRealmRender] = useState<string | null>(null)
     const [renderLoading, setRenderLoading] = useState(false)
+    // Drawer for gnoweb-grade detail view
+    const [drawerPath, setDrawerPath] = useState<string | null>(null)
+    const [drawerGnowebUrl, setDrawerGnowebUrl] = useState<string | undefined>()
 
     const handleRealmClick = useCallback(async (path: string) => {
         if (expandedRealm === path) {
@@ -159,13 +163,23 @@ export function RealmsTab() {
                                         <>
                                             <pre className="dir-render-preview__content">{realmRender}</pre>
                                             <div className="dir-render-preview__links">
+                                                <button
+                                                    className="dir-render-preview__link dir-render-preview__link--primary"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setDrawerPath(r.path)
+                                                        setDrawerGnowebUrl(r.gnowebUrl)
+                                                    }}
+                                                >
+                                                    View Details →
+                                                </button>
                                                 <a
                                                     href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="dir-render-preview__link"
                                                 >
-                                                    View on Explorer →
+                                                    Explorer →
                                                 </a>
                                                 {r.gnowebUrl && (
                                                     <a
@@ -174,7 +188,7 @@ export function RealmsTab() {
                                                         rel="noopener noreferrer"
                                                         className="dir-render-preview__link"
                                                     >
-                                                        View on gnoweb →
+                                                        gnoweb →
                                                     </a>
                                                 )}
                                             </div>
@@ -185,6 +199,15 @@ export function RealmsTab() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* Detail drawer */}
+            {drawerPath && (
+                <RealmDetailDrawer
+                    path={drawerPath}
+                    gnowebUrl={drawerGnowebUrl}
+                    onClose={() => setDrawerPath(null)}
+                />
             )}
         </div>
     )

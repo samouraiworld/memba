@@ -8,6 +8,7 @@
  * Extracted in v1.5.0 from DAOHome.tsx. Redesigned in v1.7.0.
  */
 import { type DAOProposal, PROPOSAL_STATUS_COLORS } from "../../lib/dao/shared"
+import { useProposalDate } from "../../hooks/useProposalDate"
 
 /**
  * SingleVoteBar — Single-line bar showing participation and vote split.
@@ -70,10 +71,11 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
     )
 }
 
-export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMembers, onClick }: {
-    proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; totalMembers: number; onClick: () => void
+export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMembers, realmPath, onClick }: {
+    proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; totalMembers: number; realmPath?: string; onClick: () => void
 }) {
     const sc = PROPOSAL_STATUS_COLORS[proposal.status] || PROPOSAL_STATUS_COLORS.open
+    const { timestamp } = useProposalDate(realmPath, proposal.id, proposal.createdAt, proposal.createdAtBlock)
 
     return (
         <div
@@ -94,7 +96,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                         </span>
                     </div>
 
-                    {/* Author + Tiers row */}
+                    {/* Author + Tiers + Date row */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                         {proposal.author && (
                             <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
@@ -113,6 +115,15 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                                     </span>
                                 ))}
                             </div>
+                        )}
+                        {/* v3.2: Estimated creation date */}
+                        {timestamp && (
+                            <span
+                                style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555" }}
+                                title={timestamp.block ? `Block #${timestamp.block}` : undefined}
+                            >
+                                · {timestamp.label}
+                            </span>
                         )}
                     </div>
                 </div>

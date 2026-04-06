@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useProposalDate } from "../hooks/useProposalDate"
+import { formatRelativeTime } from "../lib/blockTime"
 import { Archive } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -50,6 +52,10 @@ export function ProposalView() {
 
 
     const proposalId = parseInt(id || "", 10)
+    // v3.2: Resolve proposal creation timestamp (hybrid: ISO → block estimation → tx-indexer)
+    const { timestamp: proposalTimestamp } = useProposalDate(
+        realmPath, proposalId, proposal?.createdAt, proposal?.createdAtBlock,
+    )
 
     const loadProposal = useCallback(async (silent = false) => {
         if (isNaN(proposalId) || !realmPath) return
@@ -332,6 +338,36 @@ export function ProposalView() {
                         <div className="proposal-author-address">
                             <CopyableAddress address={proposal.proposer} />
                         </div>
+                    )}
+                </div>
+            )}
+
+            {/* v3.2: Proposal Date Metadata */}
+            {proposalTimestamp && (
+                <div className="k-card" style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 14 }}>📅</span>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#e0e0e0" }}>
+                            {proposalTimestamp.label}
+                        </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 14 }}>⏱️</span>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                            {formatRelativeTime(proposalTimestamp.date)}
+                        </span>
+                    </div>
+                    {proposalTimestamp.block && (
+                        <span style={{
+                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                            color: "#555", background: "rgba(255,255,255,0.03)",
+                            padding: "2px 6px", borderRadius: 4,
+                        }}>
+                            block #{proposalTimestamp.block.toLocaleString()}
+                        </span>
+                    )}
+                    {!proposalTimestamp.exact && (
+                        <span style={{ fontSize: 9, color: "#555", fontStyle: "italic" }}>estimated</span>
                     )}
                 </div>
             )}

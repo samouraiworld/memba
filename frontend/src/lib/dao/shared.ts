@@ -41,6 +41,9 @@ export interface DAOProposal {
     actionType?: string        // basedao Action.Type(), GovDAO executor type
     actionBody?: string        // basedao Action.String(), GovDAO ExecutorString()
     executorRealm?: string     // GovDAO ExecutorCreationRealm()
+    // v3.2: Temporal metadata for date display
+    createdAtBlock?: number    // Block height at proposal creation (if extractable)
+    createdAt?: string         // Wall-clock timestamp ISO string (from tx-indexer, if available)
 }
 
 export interface DAOConfig {

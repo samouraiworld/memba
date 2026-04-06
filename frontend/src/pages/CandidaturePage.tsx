@@ -136,6 +136,14 @@ export default function CandidaturePage() {
                         </div>
                     </div>
                     <QuestProgress />
+                    {/* v3.2: Direct link to quests */}
+                    <button
+                        onClick={() => navigate("/profile")}
+                        className="k-btn-secondary"
+                        style={{ marginTop: 10, width: "100%", fontSize: 12, padding: "10px 16px" }}
+                    >
+                        📋 Go to Quest Hub → ({questState.totalXP}/{CANDIDATURE_XP_THRESHOLD} XP)
+                    </button>
                 </div>
             )}
 

@@ -9,9 +9,8 @@
  */
 
 import { useState, useEffect, useRef } from "react"
-import { Link } from "react-router-dom"
 import { CaretDown } from "@phosphor-icons/react"
-import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { CandidatureUnlock } from "../quests/CandidatureUnlock"
 import {
     QUESTS,
     CANDIDATURE_XP_THRESHOLD,
@@ -97,7 +96,6 @@ function AnimatedXP({ target }: { target: number }) {
 
 // ── Main Component ───────────────────────────────────────────────────
 export function QuestProgress({ compact, address }: QuestProgressProps) {
-    const networkKey = useNetworkKey()
     const [state, setState] = useState<UserQuestState>(() =>
         address ? { completed: [], totalXP: 0 } : loadQuestProgress()
     )
@@ -187,18 +185,9 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
                     </div>
                 </div>
 
-                {/* Candidature CTA — only for own profile when eligible */}
-                {eligible && !address && (
-                    <Link
-                        to={`/${networkKey}/candidature`}
-                        className="quest-hub__cta"
-                        data-testid="quest-candidature-cta"
-                    >
-                        <span className="quest-hub__cta-text">
-                            Apply for Memba DAO Membership
-                        </span>
-                        <span className="quest-hub__cta-arrow">→</span>
-                    </Link>
+                {/* v3.2: Enhanced Candidature CTA — 3-state component */}
+                {!address && (
+                    <CandidatureUnlock />
                 )}
 
                 {/* Quest card grid */}

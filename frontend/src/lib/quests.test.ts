@@ -39,10 +39,11 @@ describe("loadQuestProgress", () => {
 
 describe("completeQuest", () => {
     it("completes a quest and adds XP", () => {
-        const state = completeQuest("connect-wallet")
-        expect(state).not.toBeNull()
-        expect(state!.totalXP).toBe(10)
-        expect(state!.completed).toHaveLength(1)
+        const result = completeQuest("connect-wallet")
+        expect(result).not.toBeNull()
+        expect(result!.state.totalXP).toBe(10)
+        expect(result!.state.completed).toHaveLength(1)
+        expect(result!.unlockedCandidature).toBe(false)
     })
 
     it("returns null for already completed quest", () => {
@@ -56,8 +57,21 @@ describe("completeQuest", () => {
 
     it("accumulates XP across quests", () => {
         completeQuest("connect-wallet") // 10
-        const state = completeQuest("browse-proposals") // 15
-        expect(state!.totalXP).toBe(25)
+        const result = completeQuest("browse-proposals") // 15
+        expect(result!.state.totalXP).toBe(25)
+    })
+
+    it("flags unlockedCandidature when crossing threshold", () => {
+        // Complete quests to reach exactly 100+ XP
+        completeQuest("connect-wallet")    // 10
+        completeQuest("visit-5-pages")     // 10
+        completeQuest("browse-proposals")  // 15
+        completeQuest("view-profile")      // 10
+        completeQuest("use-cmdk")          // 10
+        completeQuest("switch-network")    // 15
+        completeQuest("directory-tabs")    // 15 → 85
+        const result = completeQuest("submit-feedback") // 20 → 105
+        expect(result!.unlockedCandidature).toBe(true)
     })
 })
 

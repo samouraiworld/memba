@@ -12,7 +12,7 @@
  * @module components/org/OrgContent
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useOutletContext } from "react-router-dom"
 import { api } from "../../lib/api"
 import { create } from "@bufbuild/protobuf"
@@ -27,6 +27,10 @@ import {
 } from "../../gen/memba/v1/memba_pb"
 import type { Team, TeamMember } from "../../gen/memba/v1/memba_pb"
 import { useOrg } from "../../contexts/OrgContext"
+import { ConfirmDialog } from "../ui/ConfirmDialog"
+import { resolveUsernames } from "../../lib/dao/shared"
+import type { DAOMember } from "../../lib/dao/shared"
+import { GNO_RPC_URL } from "../../lib/config"
 import type { LayoutContext } from "../../types/layout"
 
 function roleLabel(role: TeamRole): string {
@@ -54,6 +58,19 @@ export default function OrgContent() {
     // Selected team detail
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
 
+    // Copy invite code
+    const [copied, setCopied] = useState(false)
+    const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Confirm dialog
+    const [confirmAction, setConfirmAction] = useState<{
+        title: string; message: string; confirmLabel: string
+        variant: "danger" | "default"; onConfirm: () => void
+    } | null>(null)
+
+    // Resolved usernames for team members
+    const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({})
+
     const loadTeams = useCallback(async () => {
         if (!auth.token) return
         setLoading(true)
@@ -71,6 +88,28 @@ export default function OrgContent() {
     }, [auth.token])
 
     useEffect(() => { loadTeams() }, [loadTeams])
+
+    // Resolve usernames when a team is selected
+    useEffect(() => {
+        if (!selectedTeam) return
+        const members: DAOMember[] = selectedTeam.members.map(m => ({
+            address: m.address, roles: [], tier: "", votingPower: 0, username: "",
+        }))
+        resolveUsernames(GNO_RPC_URL, members).then(() => {
+            const map: Record<string, string> = {}
+            for (const m of members) {
+                if (m.username) map[m.address] = m.username
+            }
+            setResolvedNames(map)
+        })
+    }, [selectedTeam])
+
+    const copyInviteCode = (code: string) => {
+        navigator.clipboard.writeText(code)
+        setCopied(true)
+        if (copyTimeout.current) clearTimeout(copyTimeout.current)
+        copyTimeout.current = setTimeout(() => setCopied(false), 2000)
+    }
 
     const handleCreate = async () => {
         if (!auth.token || !newName.trim()) return
@@ -185,8 +224,14 @@ export default function OrgContent() {
                 <div className="org-section">
                     <h2 className="org-section-title">{selectedTeam.name}</h2>
                     <div className="org-team-meta">
-                        <span className="org-team-meta-item">
+                        <span className="org-team-meta-item org-invite-row">
                             Invite code: <code className="org-invite-code">{selectedTeam.inviteCode}</code>
+                            <button
+                                className="org-copy-btn"
+                                onClick={() => copyInviteCode(selectedTeam.inviteCode)}
+                            >
+                                {copied ? "Copied!" : "Copy"}
+                            </button>
                         </span>
                         <span className="org-team-meta-item">
                             {selectedTeam.members.length} member{selectedTeam.members.length !== 1 ? "s" : ""}
@@ -197,43 +242,74 @@ export default function OrgContent() {
                 <div className="org-section">
                     <h2 className="org-section-title">Members</h2>
                     <div className="org-team-list">
-                        {selectedTeam.members.map((m: TeamMember) => (
-                            <div key={m.address} className="org-team-row">
-                                <div className="org-team-row-icon">
-                                    {m.address.slice(2, 4).toUpperCase()}
+                        {selectedTeam.members.map((m: TeamMember) => {
+                            const displayName = resolvedNames[m.address]
+                                || `${m.address.slice(0, 10)}...${m.address.slice(-4)}`
+                            return (
+                                <div key={m.address} className="org-team-row">
+                                    <div className="org-team-row-icon">
+                                        {resolvedNames[m.address]
+                                            ? resolvedNames[m.address].slice(1, 3).toUpperCase()
+                                            : m.address.slice(2, 4).toUpperCase()}
+                                    </div>
+                                    <div className="org-team-row-info">
+                                        <span className="org-team-row-name">{displayName}</span>
+                                        <span className="org-team-row-role">{roleLabel(m.role)}</span>
+                                    </div>
+                                    {m.role === TeamRole.ADMIN && (
+                                        <span className="org-team-row-badge">Admin</span>
+                                    )}
+                                    {isAdmin && m.address !== auth.address && (
+                                        <button
+                                            className="org-btn-secondary"
+                                            onClick={() => {
+                                                const newRole = m.role === TeamRole.ADMIN ? TeamRole.MEMBER : TeamRole.ADMIN
+                                                const action = newRole === TeamRole.ADMIN ? "Promote" : "Demote"
+                                                setConfirmAction({
+                                                    title: `${action} ${displayName}?`,
+                                                    message: newRole === TeamRole.ADMIN
+                                                        ? `Grant admin rights to ${displayName}?`
+                                                        : `Remove admin rights from ${displayName}?`,
+                                                    confirmLabel: action,
+                                                    variant: newRole === TeamRole.ADMIN ? "default" : "danger",
+                                                    onConfirm: () => {
+                                                        handleRoleChange(selectedTeam.id, m.address, newRole)
+                                                        setConfirmAction(null)
+                                                    },
+                                                })
+                                            }}
+                                        >
+                                            {m.role === TeamRole.ADMIN ? "Demote" : "Promote"}
+                                        </button>
+                                    )}
                                 </div>
-                                <div className="org-team-row-info">
-                                    <span className="org-team-row-name">
-                                        {m.address.slice(0, 10)}...{m.address.slice(-4)}
-                                    </span>
-                                    <span className="org-team-row-role">{roleLabel(m.role)}</span>
-                                </div>
-                                {m.role === TeamRole.ADMIN && (
-                                    <span className="org-team-row-badge">Admin</span>
-                                )}
-                                {isAdmin && m.address !== auth.address && (
-                                    <button
-                                        className="org-btn-secondary"
-                                        onClick={() => handleRoleChange(
-                                            selectedTeam.id,
-                                            m.address,
-                                            m.role === TeamRole.ADMIN ? TeamRole.MEMBER : TeamRole.ADMIN,
-                                        )}
-                                    >
-                                        {m.role === TeamRole.ADMIN ? "Demote" : "Promote"}
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 </div>
 
                 <button
                     className="org-btn-danger"
-                    onClick={() => handleLeave(selectedTeam.id)}
+                    onClick={() => setConfirmAction({
+                        title: `Leave "${selectedTeam.name}"?`,
+                        message: "You'll need a new invite code to rejoin. Your team data won't be deleted.",
+                        confirmLabel: "Leave Team",
+                        variant: "danger",
+                        onConfirm: () => { handleLeave(selectedTeam.id); setConfirmAction(null) },
+                    })}
                 >
                     Leave Team
                 </button>
+
+                <ConfirmDialog
+                    isOpen={!!confirmAction}
+                    title={confirmAction?.title ?? ""}
+                    message={confirmAction?.message ?? ""}
+                    confirmLabel={confirmAction?.confirmLabel}
+                    variant={confirmAction?.variant}
+                    onConfirm={() => confirmAction?.onConfirm()}
+                    onCancel={() => setConfirmAction(null)}
+                />
 
                 {error && <div className="org-error">{error}</div>}
             </div>

@@ -6,13 +6,15 @@
 
 import { useState, useEffect, useMemo, useDeferredValue } from "react"
 import { ArrowRight } from "@phosphor-icons/react"
-import { getExplorerBaseUrl } from "../../../lib/config"
 import { fetchPackages, fetchPackagesLive } from "../../../lib/directory"
+import { RealmDetailDrawer } from "../RealmDetailDrawer"
 
 export function PackagesTab() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [packages, setPackages] = useState(() => fetchPackages())
+    const [drawerPath, setDrawerPath] = useState<string | null>(null)
+    const [drawerGnowebUrl, setDrawerGnowebUrl] = useState<string | undefined>()
 
     // Phase 3c: fetch live packages on mount
     useEffect(() => {
@@ -51,13 +53,14 @@ export function PackagesTab() {
             ) : (
                 <div className="dir-grid">
                     {filtered.map(p => (
-                        <a
+                        <button
                             key={p.path}
-                            className="dir-card"
-                            href={`${getExplorerBaseUrl()}/${p.path.replace("gno.land/", "")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            className="dir-card dir-card--clickable"
                             data-testid="package-card"
+                            onClick={() => {
+                                setDrawerPath(p.path)
+                                setDrawerGnowebUrl(p.gnowebUrl)
+                            }}
                         >
                             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                                 <div className="dir-token-avatar" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
@@ -89,9 +92,19 @@ export function PackagesTab() {
                                 )}
                                 <ArrowRight size={14} className="dir-arrow" />
                             </div>
-                        </a>
+                        </button>
                     ))}
                 </div>
+            )}
+
+            {/* Detail drawer */}
+            {drawerPath && (
+                <RealmDetailDrawer
+                    path={drawerPath}
+                    gnowebUrl={drawerGnowebUrl}
+                    isPackage
+                    onClose={() => setDrawerPath(null)}
+                />
             )}
         </div>
     )

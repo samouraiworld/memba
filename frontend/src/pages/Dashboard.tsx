@@ -29,7 +29,7 @@ import { getSavedDAOsForOrg } from "../lib/daoSlug"
 import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
-import { trackPageVisit } from "../lib/quests"
+import { trackPageVisit, canApplyForMembership } from "../lib/quests"
 import {
     DashboardIdentityCard,
     ActionRequiredStrip,
@@ -76,6 +76,15 @@ export function Dashboard() {
 
     // Saved DAOs count for feature card (org-scoped)
     const savedDAOsCount = auth.isAuthenticated ? getSavedDAOsForOrg(activeOrgId).length : 0
+
+    // v3.2: Candidature eligibility banner (dismissible with localStorage)
+    const CANDIDATURE_DISMISS_KEY = `memba_${userAddress}_candidature_banner_dismissed`
+    const [candidatureBannerDismissed, setCandidatureBannerDismissed] = useState(() =>
+        !!localStorage.getItem(CANDIDATURE_DISMISS_KEY)
+    )
+    const showCandidatureBanner = auth.isAuthenticated
+        && canApplyForMembership()
+        && !candidatureBannerDismissed
 
     const fetchData = useCallback(async () => {
         if (!token || !auth.isAuthenticated) return
@@ -210,6 +219,48 @@ export function Dashboard() {
                 />
             )}
 
+            {/* v3.2: Candidature Eligibility Banner (dismissible) */}
+            {showCandidatureBanner && (
+                <div
+                    className="k-card"
+                    style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 16px",
+                        borderColor: "rgba(0,212,170,0.15)",
+                        background: "rgba(0,212,170,0.04)",
+                    }}
+                >
+                    <span style={{ fontSize: 20 }}>🏛️</span>
+                    <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
+                            You're eligible for Memba DAO!
+                        </span>
+                        <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>
+                            Your quest XP qualifies you for membership.
+                        </span>
+                    </div>
+                    <button
+                        className="k-btn-primary"
+                        style={{ fontSize: 11, padding: "6px 14px", whiteSpace: "nowrap" }}
+                        onClick={() => navigate("/candidature")}
+                    >
+                        Apply Now →
+                    </button>
+                    <button
+                        style={{
+                            background: "none", border: "none", color: "#555",
+                            cursor: "pointer", fontSize: 16, padding: "4px",
+                        }}
+                        aria-label="Dismiss"
+                        onClick={() => {
+                            localStorage.setItem(CANDIDATURE_DISMISS_KEY, "1")
+                            setCandidatureBannerDismissed(true)
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
             {/* ── Faucet Onboarding Card ────────────── */}
             {auth.isAuthenticated && (
                 <FaucetCard address={userAddress} />
