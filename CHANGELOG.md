@@ -4,6 +4,22 @@ All notable changes to Memba are documented here.
 
 ## Unreleased
 
+## v3.2.0 (2026-04-06) — Multi-Model Consensus, Team Descriptions & Governance Discovery
+
+### Added
+
+- **Sprint 5 — Governance & Discovery** (#247)
+  - Proposal dates: hybrid tx-indexer + block estimation with `~` prefix for approximations
+  - Candidature bridge: 3-state CandidatureUnlock (locked/unlocked/pending), quest-gated CTA, sidebar eligibility dot, dismissible dashboard banner
+  - Teams polish: copy invite code button, ConfirmDialog for leave/promote/demote, username resolution
+  - Directory gnoweb integration: RealmDetailDrawer with Render/Source/Info tabs, CSS-only Gno syntax highlighting, cross-tab global search, XSS-safe markdownLite renderer, SSRF-guarded gnowebSource fetcher
+  - 1,495 tests across 69 files
+
+- **Sprint 6 — Multi-Model Consensus**
+  - Team description field (proto + backend + frontend)
+  - Token detail drawer in Directory
+  - DAO Analyst: OpenRouter multi-model consensus (10 free AI models, 10 perspectives, cached reports)
+
 ## v3.1.0 (2026-04-04) — NFT Marketplace, Launchpad & GRC1155 Templates
 
 ### Added

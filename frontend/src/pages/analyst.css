@@ -1,0 +1,321 @@
+/* ── AI Analyst Report ─────────────────────────── */
+
+.analyst-panel {
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    margin-top: 16px;
+}
+
+.analyst-panel--loading,
+.analyst-panel--error {
+    opacity: 0.7;
+}
+
+/* ── Collapsed Preview ────────────────────────── */
+
+.analyst-collapsed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.analyst-collapsed:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.analyst-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.analyst-label {
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-confidence {
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-agreement {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+    margin-left: auto;
+}
+
+.analyst-caret {
+    font-size: 10px;
+    color: #444;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.analyst-caret.open {
+    transform: rotate(90deg);
+}
+
+.analyst-loading-text {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-error-text {
+    font-size: 11px;
+    color: #f44336;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-retry-btn {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #888;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+}
+
+.analyst-shimmer {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.02) 75%);
+    background-size: 200% 100%;
+    animation: analyst-shimmer 1.5s infinite;
+}
+
+@keyframes analyst-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Verdict Badge ────────────────────────────── */
+
+.analyst-verdict-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.03em;
+}
+
+/* ── Expanded Detail ──────────────────────────── */
+
+.analyst-detail {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.analyst-detail__header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.analyst-detail__verdict-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.analyst-detail__confidence {
+    font-size: 12px;
+    color: #aaa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-detail__agreement {
+    font-size: 11px;
+    color: #666;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-detail__summary {
+    font-size: 12px;
+    color: #999;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.analyst-detail__section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.analyst-detail__section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-detail__list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+.analyst-detail__list li {
+    margin-bottom: 2px;
+}
+
+/* ── Model Cards ──────────────────────────────── */
+
+.analyst-models {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.analyst-model-card {
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+}
+
+.analyst-model-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.analyst-model-card__header:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.analyst-model-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.analyst-model-card__name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #ccc;
+}
+
+.analyst-model-card__role {
+    font-size: 10px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-model-card__verdict {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analyst-model-card__confidence {
+    font-size: 11px;
+    color: #888;
+    font-family: "JetBrains Mono", monospace;
+    min-width: 32px;
+    text-align: right;
+}
+
+.analyst-model-card__detail {
+    padding: 8px 12px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.analyst-model-card__reasoning {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.5;
+    margin: 0 0 8px;
+}
+
+.analyst-model-card__risks {
+    font-size: 11px;
+    color: #999;
+}
+
+.analyst-model-card__label {
+    font-weight: 600;
+    color: #888;
+}
+
+.analyst-model-card__risks ul {
+    margin: 4px 0 0;
+    padding-left: 16px;
+}
+
+/* ── Footer ───────────────────────────────────── */
+
+.analyst-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.analyst-footer__info {
+    font-size: 10px;
+    color: #444;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.analyst-footer__refresh {
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.15);
+    color: #00d4aa;
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.analyst-footer__refresh:hover {
+    background: rgba(0, 212, 170, 0.12);
+}
+
+/* ── Responsive ───────────────────────────────── */
+
+@media (max-width: 768px) {
+    .analyst-detail {
+        padding: 12px;
+    }
+
+    .analyst-model-card__header {
+        padding: 6px 10px;
+    }
+}

@@ -121,6 +121,7 @@ func main() {
 
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))
+	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))

@@ -321,6 +321,7 @@ message Team {
   string created_by = 4; // creator address
   string created_at = 5; // RFC3339
   repeated TeamMember members = 6;
+  string description = 7; // optional, max 500 chars
 }
 
 message TeamMember {
@@ -332,6 +333,7 @@ message TeamMember {
 message CreateTeamRequest {
   Token auth_token = 1;
   string name = 2; // 1-64 chars
+  string description = 3; // optional, max 500 chars
 }
 
 message CreateTeamResponse {

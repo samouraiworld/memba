@@ -212,7 +212,7 @@ export function Directory() {
             {/* M2 audit fix: tabpanel role + aria-labelledby for complete ARIA pattern */}
             <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
                 {tab === "daos" && <DAOsTab navigate={navigate} />}
-                {tab === "tokens" && <TokensTab navigate={navigate} />}
+                {tab === "tokens" && <TokensTab />}
                 {tab === "packages" && <PackagesTab />}
                 {tab === "realms" && <RealmsTab />}
                 {tab === "users" && <UsersTab navigate={navigate} />}

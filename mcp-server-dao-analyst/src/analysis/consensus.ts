@@ -13,11 +13,18 @@ import type {
   Verdict,
 } from "./types.js";
 
-/** Perspective weights — financial and technical get a slight boost for proposal analysis. */
+/** Perspective weights — each role has a calibrated influence on the consensus. */
 const PERSPECTIVE_WEIGHTS: Record<Perspective, number> = {
   financial: 1.2,
   technical: 1.2,
   legal: 1.0,
+  strategic: 1.1,
+  risk: 1.2,
+  reasoning: 1.3,
+  community: 0.9,
+  regulatory: 1.0,
+  security: 1.2,
+  contrarian: 0.7, // dissent voice — shouldn't swing the vote, but provides balance
 };
 
 /**
@@ -96,8 +103,8 @@ function computeWeightedConfidence(results: PerspectiveResult[]): number {
     totalWeight += weight;
   }
 
-  // Scale by completeness (n/3 perspectives available)
-  const completeness = Math.min(results.length / 3, 1);
+  // Scale by completeness (n/10 perspectives available for full consensus)
+  const completeness = Math.min(results.length / 10, 1);
   const raw = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
   return Math.round(raw * completeness * 100) / 100;

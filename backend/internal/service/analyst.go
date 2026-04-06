@@ -138,10 +138,12 @@ func enforceTier(req *AnalysisRequest) (effectiveTier string, downgraded bool) {
 
 // LLMProvider represents a free-tier LLM API.
 type LLMProvider struct {
-	Name    string
-	Model   string
-	BaseURL string
-	APIKey  string
+	Name        string
+	Model       string
+	BaseURL     string
+	APIKey      string
+	DisplayName string // Human-readable name for UI (OpenRouter models)
+	Role        string // Governance perspective role (OpenRouter models)
 }
 
 // LLMRequest is the common chat completion format.
@@ -214,6 +216,20 @@ func getProviders() []LLMProvider {
 		})
 	}
 
+	// OpenRouter — 10 free models for multi-model consensus
+	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
+		for _, m := range getOpenRouterModels() {
+			providers = append(providers, LLMProvider{
+				Name:        "openrouter-" + m.ShortName,
+				Model:       m.ModelID,
+				BaseURL:     "https://openrouter.ai/api/v1",
+				APIKey:      key,
+				DisplayName: m.DisplayName,
+				Role:        m.Role,
+			})
+		}
+	}
+
 	return providers
 }
 
@@ -260,6 +276,12 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+provider.APIKey)
+
+	// OpenRouter requires additional headers
+	if strings.HasPrefix(provider.Name, "openrouter-") {
+		req.Header.Set("HTTP-Referer", "https://memba.samourai.app")
+		req.Header.Set("X-Title", "Memba DAO Analyst")
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

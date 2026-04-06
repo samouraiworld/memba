@@ -2,7 +2,17 @@
  * Types for multi-perspective governance analysis.
  */
 
-export type Perspective = "legal" | "technical" | "financial";
+export type Perspective =
+  | "legal"
+  | "technical"
+  | "financial"
+  | "strategic"
+  | "risk"
+  | "reasoning"
+  | "community"
+  | "regulatory"
+  | "security"
+  | "contrarian";
 
 export type Verdict = "approve" | "reject" | "caution" | "abstain";
 

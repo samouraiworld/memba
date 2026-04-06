@@ -1565,6 +1565,67 @@ a.dir-card {
     text-decoration: underline;
 }
 
+/* ── Token Drawer ─────────────────────────────── */
+
+.token-drawer-hero {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.token-drawer-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.token-drawer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.token-drawer-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+}
+
+.token-drawer-symbol {
+    font-size: 13px;
+    color: #00d4aa;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.token-drawer-path {
+    font-size: 11px;
+    color: #555;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.token-drawer-action {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: rgba(0, 212, 170, 0.08);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    color: #00d4aa;
+    font-size: 13px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s;
+    margin-bottom: 12px;
+}
+
+.token-drawer-action:hover {
+    background: rgba(0, 212, 170, 0.15);
+}
+
 /* ── Responsive Drawer ────────────────────────── */
 
 @media (max-width: 768px) {

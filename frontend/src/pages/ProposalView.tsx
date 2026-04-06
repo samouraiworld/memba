@@ -23,6 +23,7 @@ import {
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
+import { AnalystReport } from "../components/dao/AnalystReport"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { resolveOnChainUsername } from "../lib/profile"
 import { TierVoteBlock } from "../components/proposal"
@@ -380,6 +381,14 @@ export function ProposalView() {
                     </p>
                 </div>
             )}
+
+            {/* AI Analyst Consensus */}
+            <AnalystReport
+                realmPath={realmPath}
+                proposalId={proposalId}
+                proposalData={proposal?.description || proposal?.title || ""}
+                daoContext={`DAO: ${realmPath}, Proposal #${proposalId}: ${proposal?.title || ""}`}
+            />
 
             {/* v2.13: Proposal Action Metadata */}
             {(proposal.actionType || proposal.actionBody || proposal.executorRealm) && (
