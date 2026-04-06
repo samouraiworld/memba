@@ -263,7 +263,13 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// 20s timeout for OpenRouter free models (they should respond in <10s)
+	// 30s timeout for other providers (Groq, Together, etc.)
+	timeout := 30 * time.Second
+	if strings.HasPrefix(provider.Name, "openrouter-") {
+		timeout = 20 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
