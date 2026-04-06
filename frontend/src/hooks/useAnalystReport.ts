@@ -122,13 +122,21 @@ export function useAnalystReport(
         }
     }, [realmPath, proposalId, proposalData, daoContext, analysisType])
 
-    // Reset state when proposal changes
+    // Reset state when context changes
     useEffect(() => {
         fetchedRef.current = false
         setReport(null)
         setError(null)
         setLoading(false)
     }, [realmPath, proposalId])
+
+    // Auto-fetch for DAO-level analysis (server-cached 6h, shared across users)
+    useEffect(() => {
+        if (analysisType !== "dao") return
+        if (!proposalData || proposalData.trim() === "") return
+        fetchReport()
+        return () => { abortRef.current?.abort() }
+    }, [analysisType, fetchReport]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Cleanup on unmount
     useEffect(() => {
