@@ -409,7 +409,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 				case <-r.Context().Done():
 					http.Error(w, `{"error":"request cancelled"}`, http.StatusRequestTimeout)
 					return
-				case <-time.After(3 * time.Second):
+				case <-time.After(1 * time.Second):
 				}
 			}
 		}
