@@ -248,12 +248,24 @@ func callLLM(ctx context.Context, provider LLMProvider, systemPrompt, userPrompt
 
 // callOpenAICompatible works for Groq and Together.ai (OpenAI-compatible APIs).
 func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPrompt, userPrompt string) (string, error) {
-	reqBody := LLMRequest{
-		Model: provider.Model,
-		Messages: []LLMMessage{
+	// For OpenRouter: merge system + user into a single user message
+	// to avoid "Developer instruction is not enabled" errors on models
+	// routed through providers that don't support system prompts (e.g. Gemma via Google AI Studio).
+	var messages []LLMMessage
+	if strings.HasPrefix(provider.Name, "openrouter-") {
+		messages = []LLMMessage{
+			{Role: "user", Content: systemPrompt + "\n\n" + userPrompt},
+		}
+	} else {
+		messages = []LLMMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
-		},
+		}
+	}
+
+	reqBody := LLMRequest{
+		Model:       provider.Model,
+		Messages:    messages,
 		Temperature: 0.3,
 		MaxTokens:   1024,
 	}
