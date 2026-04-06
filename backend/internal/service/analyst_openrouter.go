@@ -13,28 +13,30 @@ type OpenRouterModel struct {
 // getOpenRouterModels returns the 10 free models used for multi-model consensus.
 // Each model is assigned a unique governance analysis perspective.
 func getOpenRouterModels() []OpenRouterModel {
+	// Curated list of fast, reliable free models that support system prompts.
+	// Prioritizes smaller/faster models over 100B+ ones that timeout frequently.
 	return []OpenRouterModel{
 		{
-			ModelID:     "qwen/qwen3.6-plus:free",
-			ShortName:   "qwen36",
-			DisplayName: "Qwen 3.6 Plus",
+			ModelID:     "nvidia/nemotron-nano-9b-v2:free",
+			ShortName:   "nemotron-nano",
+			DisplayName: "Nemotron Nano 9B",
 			Role:        "Strategic Thinker",
 		},
 		{
-			ModelID:     "nvidia/nemotron-3-super-120b-a12b:free",
-			ShortName:   "nemotron-super",
-			DisplayName: "Nemotron 3 Super 120B",
+			ModelID:     "nvidia/nemotron-3-nano-30b-a3b:free",
+			ShortName:   "nemotron-30b",
+			DisplayName: "Nemotron 3 Nano 30B",
 			Role:        "Risk Scout",
 		},
 		{
-			ModelID:     "qwen/qwen3-next-80b-a3b-instruct:free",
-			ShortName:   "qwen3-next",
-			DisplayName: "Qwen 3 Next 80B",
+			ModelID:     "openai/gpt-oss-20b:free",
+			ShortName:   "gpt-oss-20b",
+			DisplayName: "GPT-OSS 20B",
 			Role:        "Deep Reasoning",
 		},
 		{
 			ModelID:     "openai/gpt-oss-120b:free",
-			ShortName:   "gpt-oss",
+			ShortName:   "gpt-oss-120b",
 			DisplayName: "GPT-OSS 120B",
 			Role:        "Technical Analyst",
 		},
@@ -45,9 +47,9 @@ func getOpenRouterModels() []OpenRouterModel {
 			Role:        "Financial Perspective",
 		},
 		{
-			ModelID:     "google/gemma-3-27b-it:free",
-			ShortName:   "gemma3",
-			DisplayName: "Gemma 3 27B",
+			ModelID:     "google/gemma-3-12b-it:free",
+			ShortName:   "gemma3-12b",
+			DisplayName: "Gemma 3 12B",
 			Role:        "Community Impact",
 		},
 		{
@@ -57,21 +59,21 @@ func getOpenRouterModels() []OpenRouterModel {
 			Role:        "Regulatory / Legal",
 		},
 		{
-			ModelID:     "arcee-ai/trinity-large-preview:free",
-			ShortName:   "trinity",
-			DisplayName: "Arcee Trinity Large",
+			ModelID:     "arcee-ai/trinity-mini:free",
+			ShortName:   "trinity-mini",
+			DisplayName: "Arcee Trinity Mini",
 			Role:        "Security Auditor",
 		},
 		{
-			ModelID:     "meta-llama/llama-3.3-70b-instruct:free",
-			ShortName:   "llama33",
-			DisplayName: "Llama 3.3 70B",
+			ModelID:     "meta-llama/llama-3.2-3b-instruct:free",
+			ShortName:   "llama32",
+			DisplayName: "Llama 3.2 3B",
 			Role:        "Governance Expert",
 		},
 		{
-			ModelID:     "nousresearch/hermes-3-llama-3.1-405b:free",
-			ShortName:   "hermes3",
-			DisplayName: "Hermes 3 405B",
+			ModelID:     "minimax/minimax-m2.5:free",
+			ShortName:   "minimax",
+			DisplayName: "MiniMax M2.5",
 			Role:        "Devil's Advocate",
 		},
 	}
