@@ -27,7 +27,7 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.2",
     "recharts": "^2.15.4",
-    "remotion": "^4.0.441",
+    "remotion": "^4.0.446",
     "zod": "^4.3.6"
   },
   "devDependencies": {
