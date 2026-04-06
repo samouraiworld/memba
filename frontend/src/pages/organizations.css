@@ -490,6 +490,21 @@
     background: rgba(244, 67, 54, 0.15);
 }
 
+/* ── Description ─────────────────────────────────────── */
+
+.org-team-desc {
+    font-size: 12px;
+    color: #888;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.org-textarea {
+    resize: vertical;
+    min-height: 48px;
+    max-height: 120px;
+}
+
 /* ── Error ────────────────────────────────────────────── */
 
 .org-error {

@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	maxTeamNameLen  = 64
-	inviteCodeLen   = 8
-	maxTeamsPerUser = 20
+	maxTeamNameLen   = 64
+	maxTeamDescLen   = 500
+	inviteCodeLen    = 8
+	maxTeamsPerUser  = 20
 )
 
 // generateID returns a 16-byte hex string (UUID-like).
@@ -52,6 +53,11 @@ func (s *MultisigService) CreateTeam(ctx context.Context, req *connect.Request[m
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name must be 1-%d chars", maxTeamNameLen))
 	}
 
+	description := strings.TrimSpace(req.Msg.Description)
+	if len(description) > maxTeamDescLen {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("description must be ≤%d chars", maxTeamDescLen))
+	}
+
 	// Check team limit per user
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM team_members WHERE address = ?`, userAddr).Scan(&count); err != nil {
@@ -79,8 +85,8 @@ func (s *MultisigService) CreateTeam(ctx context.Context, req *connect.Request[m
 	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO teams (id, name, invite_code, created_by, created_at) VALUES (?, ?, ?, ?, ?)`,
-		teamID, name, inviteCode, userAddr, now,
+		`INSERT INTO teams (id, name, description, invite_code, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		teamID, name, description, inviteCode, userAddr, now,
 	)
 	if err != nil {
 		return nil, internalError("CreateTeam.insert", err)
@@ -358,7 +364,7 @@ func (s *MultisigService) UpdateTeamMemberRole(ctx context.Context, req *connect
 func (s *MultisigService) loadTeam(ctx context.Context, teamID string) (*membav1.Team, error) {
 	// Single query with LEFT JOIN to avoid nested queries on SQLite's single connection.
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT t.name, t.invite_code, t.created_by, t.created_at,
+		`SELECT t.name, t.description, t.invite_code, t.created_by, t.created_at,
 		        tm.address, tm.role, tm.joined_at
 		 FROM teams t
 		 LEFT JOIN team_members tm ON tm.team_id = t.id
@@ -374,13 +380,14 @@ func (s *MultisigService) loadTeam(ctx context.Context, teamID string) (*membav1
 	team := &membav1.Team{Id: teamID}
 	first := true
 	for rows.Next() {
-		var name, inviteCode, createdBy, createdAt string
+		var name, description, inviteCode, createdBy, createdAt string
 		var addr, roleStr, joinedAt *string
-		if err := rows.Scan(&name, &inviteCode, &createdBy, &createdAt, &addr, &roleStr, &joinedAt); err != nil {
+		if err := rows.Scan(&name, &description, &inviteCode, &createdBy, &createdAt, &addr, &roleStr, &joinedAt); err != nil {
 			return nil, err
 		}
 		if first {
 			team.Name = name
+			team.Description = description
 			team.InviteCode = inviteCode
 			team.CreatedBy = createdBy
 			team.CreatedAt = createdAt

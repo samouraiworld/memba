@@ -2512,6 +2512,7 @@ type Team struct {
 	CreatedBy     string                 `protobuf:"bytes,4,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`    // creator address
 	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`    // RFC3339
 	Members       []*TeamMember          `protobuf:"bytes,6,rep,name=members,proto3" json:"members,omitempty"`
+	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"` // optional, max 500 chars
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2588,6 +2589,13 @@ func (x *Team) GetMembers() []*TeamMember {
 	return nil
 }
 
+func (x *Team) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type TeamMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
@@ -2651,7 +2659,8 @@ func (x *TeamMember) GetJoinedAt() string {
 type CreateTeamRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"` // 1-64 chars
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`               // 1-64 chars
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"` // optional, max 500 chars
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2696,6 +2705,13 @@ func (x *CreateTeamRequest) GetAuthToken() *Token {
 func (x *CreateTeamRequest) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateTeamRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
 	}
 	return ""
 }
@@ -4263,7 +4279,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12;\n" +
 	"\vcompletions\x18\x02 \x03(\v2\x19.memba.v1.QuestCompletionR\vcompletions\"D\n" +
 	"\x12SyncQuestsResponse\x12.\n" +
-	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state\"\xb9\x01\n" +
+	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state\"\xdb\x01\n" +
 	"\x04Team\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
@@ -4273,16 +4289,18 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"created_by\x18\x04 \x01(\tR\tcreatedBy\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12.\n" +
-	"\amembers\x18\x06 \x03(\v2\x14.memba.v1.TeamMemberR\amembers\"k\n" +
+	"\amembers\x18\x06 \x03(\v2\x14.memba.v1.TeamMemberR\amembers\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\"k\n" +
 	"\n" +
 	"TeamMember\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12&\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x12.memba.v1.TeamRoleR\x04role\x12\x1b\n" +
-	"\tjoined_at\x18\x03 \x01(\tR\bjoinedAt\"W\n" +
+	"\tjoined_at\x18\x03 \x01(\tR\bjoinedAt\"y\n" +
 	"\x11CreateTeamRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"8\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"8\n" +
 	"\x12CreateTeamResponse\x12\"\n" +
 	"\x04team\x18\x01 \x01(\v2\x0e.memba.v1.TeamR\x04team\"Y\n" +
 	"\x0eGetTeamRequest\x12.\n" +

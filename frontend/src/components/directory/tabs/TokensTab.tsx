@@ -8,12 +8,12 @@ import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "rea
 import { ArrowRight } from "@phosphor-icons/react"
 import { fetchTokens, type DirectoryToken } from "../../../lib/directory"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
-import type { TabProps } from "./types"
-
-export function TokensTab({ navigate }: TabProps) {
+import { TokenDetailDrawer } from "../TokenDetailDrawer"
+export function TokensTab() {
     const [tokens, setTokens] = useState<DirectoryToken[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const [drawerToken, setDrawerToken] = useState<DirectoryToken | null>(null)
     const deferredSearch = useDeferredValue(search)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
@@ -78,7 +78,7 @@ export function TokensTab({ navigate }: TabProps) {
                             <button
                                 key={t.path || t.slug}
                                 className="dir-card"
-                                onClick={() => navigate(`/tokens/${t.symbol}`)}
+                                onClick={() => setDrawerToken(t)}
                                 data-testid="token-card"
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
@@ -101,6 +101,13 @@ export function TokensTab({ navigate }: TabProps) {
                         </button>
                     )}
                 </>
+            )}
+
+            {drawerToken && (
+                <TokenDetailDrawer
+                    token={drawerToken}
+                    onClose={() => setDrawerToken(null)}
+                />
             )}
         </div>
     )

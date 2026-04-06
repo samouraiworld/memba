@@ -48,6 +48,7 @@ export default function OrgContent() {
     // Create team
     const [showCreate, setShowCreate] = useState(false)
     const [newName, setNewName] = useState("")
+    const [newDescription, setNewDescription] = useState("")
     const [creating, setCreating] = useState(false)
 
     // Join team
@@ -119,8 +120,10 @@ export default function OrgContent() {
             await api.createTeam(create(CreateTeamRequestSchema, {
                 authToken: auth.token,
                 name: newName.trim(),
+                description: newDescription.trim(),
             }))
             setNewName("")
+            setNewDescription("")
             setShowCreate(false)
             loadTeams()
         } catch (err) {
@@ -223,6 +226,9 @@ export default function OrgContent() {
 
                 <div className="org-section">
                     <h2 className="org-section-title">{selectedTeam.name}</h2>
+                    {selectedTeam.description && (
+                        <p className="org-team-desc">{selectedTeam.description}</p>
+                    )}
                     <div className="org-team-meta">
                         <span className="org-team-meta-item org-invite-row">
                             Invite code: <code className="org-invite-code">{selectedTeam.inviteCode}</code>
@@ -380,6 +386,15 @@ export default function OrgContent() {
                             maxLength={64}
                             className="org-input"
                             onKeyDown={e => e.key === "Enter" && handleCreate()}
+                            disabled={creating}
+                        />
+                        <textarea
+                            value={newDescription}
+                            onChange={e => setNewDescription(e.target.value)}
+                            placeholder="Team description (optional, max 500 chars)"
+                            maxLength={500}
+                            className="org-input org-textarea"
+                            rows={2}
                             disabled={creating}
                         />
                         <div className="org-action-row">
