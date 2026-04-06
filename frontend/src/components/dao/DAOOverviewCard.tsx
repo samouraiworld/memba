@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { Bank, Archive } from "@phosphor-icons/react"
+import { DAOAIInsight } from "./DAOAIInsight"
 import { getExplorerBaseUrl, getUserRegistryPath } from "../../lib/config"
 import { derivePkgBech32Addr } from "../../lib/dao/realmAddress"
 import { PowerDonut } from "./TierPieChart"
@@ -25,6 +26,24 @@ interface DAOOverviewCardProps {
     healthScore: { grade: string; total: number; color: string; participationPts: number; execPts: number; activityPts: number } | null
     session: { daoSlug: string; channelName: string } | null
     joinRoom: (opts: { daoSlug: string; channelName: string; mode: "voice" | "video"; label: string; description?: string }) => void
+}
+
+/** Build a concise text summary of DAO metrics for AI analysis. */
+function buildDAOSummary(d: {
+    name: string; memberCount: number; activeProposals: number;
+    totalProposals: number; awaitingExecution: number;
+    nonVoterPercent: number; totalPower: number;
+    healthScore: { grade: string; total: number } | null;
+}): string {
+    return [
+        `DAO: ${d.name}`,
+        `Members: ${d.memberCount}`,
+        `Active proposals: ${d.activeProposals} of ${d.totalProposals} total`,
+        `Awaiting execution: ${d.awaitingExecution}`,
+        `Non-voter rate: ${d.nonVoterPercent}%`,
+        `Total voting power: ${d.totalPower}`,
+        d.healthScore ? `Health score: ${d.healthScore.grade} (${d.healthScore.total}/100)` : "",
+    ].filter(Boolean).join(". ")
 }
 
 function RealmAddressBadge({ realmPath }: { realmPath: string }) {
@@ -177,7 +196,7 @@ export function DAOOverviewCard({
                             { icon: "🫥", value: nonVoterPercent > 0 ? `${nonVoterPercent}%` : "—", label: "Non-Voters", tip: `~${nonVoterCount} of ${memberCount} members have never voted. Based on best turnout (${maxVoterParticipation} voters) across ${proposalsWithVotesCount} proposal(s) with votes.` },
                             ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power", tip: `Combined voting power across all ${config?.tierDistribution?.length || 1} tier(s). Voting power determines each member's influence when casting votes on proposals.` }] : []),
                             ...(healthScore ? [{ icon: healthScore.grade, value: `${healthScore.total}`, label: "Health", healthColor: healthScore.color, tip: `DAO Health Score: ${healthScore.grade} (${healthScore.total}/100)\n• Participation: ${healthScore.participationPts}/40 pts\n• Execution backlog: ${healthScore.execPts}/30 pts\n• Activity: ${healthScore.activityPts}/30 pts` }] : []),
-                        ].map(s => (
+                        ].filter(Boolean).map(s => (
                             <button
                                 key={s.label}
                                 title={(s as { tip?: string }).tip}
@@ -262,6 +281,21 @@ export function DAOOverviewCard({
                     )}
                 </div>
             </div>
+
+            {/* AI Governance Insight — stat card + expandable detail below */}
+            <DAOAIInsight
+                realmPath={realmPath}
+                daoSummary={buildDAOSummary({
+                    name: config?.name || "DAO",
+                    memberCount,
+                    activeProposals,
+                    totalProposals,
+                    awaitingExecution,
+                    nonVoterPercent,
+                    totalPower,
+                    healthScore,
+                })}
+            />
         </div>
     )
 }
