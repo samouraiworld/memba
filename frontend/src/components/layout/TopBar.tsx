@@ -66,7 +66,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 {/* Left: badges */}
                 <div className="k-topbar-left">
                     <span className="k-topbar-badge k-topbar-badge--alpha" data-testid="alpha-badge">Alpha</span>
-                    <span className="k-topbar-badge k-topbar-badge--version" data-testid="version-badge">v2</span>
+                    <span className="k-topbar-badge k-topbar-badge--version" data-testid="version-badge">v3</span>
                 </div>
 
                 {/* Right: network + wallet */}

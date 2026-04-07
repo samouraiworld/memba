@@ -49,6 +49,8 @@ export async function checkChainHealth(
 
     const controller = new AbortController()
     const start = Date.now()
+    // Proper timeout: abort if no RPC responds within timeoutMs
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     // Race: first successful /status response wins, or timeout
     try {
@@ -74,7 +76,8 @@ export async function checkChainHealth(
             }),
         )
 
-        // Cancel remaining requests
+        // Cancel remaining requests + clear timeout
+        clearTimeout(timeoutId)
         controller.abort()
 
         return {
@@ -85,7 +88,8 @@ export async function checkChainHealth(
             blockHeight: result.blockHeight,
         }
     } catch {
-        // All RPCs failed
+        // All RPCs failed or timed out
+        clearTimeout(timeoutId)
         controller.abort()
         return {
             reachable: false,
@@ -94,9 +98,6 @@ export async function checkChainHealth(
             chainId: network.chainId,
             blockHeight: 0,
         }
-    } finally {
-        // Ensure cleanup on timeout
-        setTimeout(() => controller.abort(), timeoutMs)
     }
 }
 

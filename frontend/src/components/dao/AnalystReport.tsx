@@ -13,6 +13,7 @@
 import { useState } from "react"
 import { useAnalystReport } from "../../hooks/useAnalystReport"
 import type { ConsensusReport, ConsensusPerspective } from "../../hooks/useAnalystReport"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 import "../../pages/analyst.css"
 
 const ANALYST_ENABLED = import.meta.env.VITE_ENABLE_ANALYST === "true"
@@ -85,7 +86,8 @@ interface AnalystReportProps {
 
 export function AnalystReport({ realmPath, proposalId, proposalData, daoContext }: AnalystReportProps) {
     const [expanded, setExpanded] = useState(false)
-    const { report, loading, error, trigger } = useAnalystReport(realmPath, proposalId, proposalData, daoContext)
+    const networkKey = useNetworkKey()
+    const { report, loading, error, trigger } = useAnalystReport(realmPath, proposalId, proposalData, daoContext, "proposal", networkKey)
 
     if (!ANALYST_ENABLED) return null
 

@@ -10,6 +10,7 @@
  */
 
 import { GNOLOVE_API_URL } from "./config"
+import { getGnowebUrl, fetchNamespaceRealms } from "./gnoweb"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -82,6 +83,15 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
             const data = await r.json()
             return Array.isArray(data) ? data.length : 0
         }),
+
+        // DAO count from gnoweb namespace (live on-chain query)
+        (async () => {
+            const networkKey = localStorage.getItem("memba_network") || "test12"
+            const gnowebUrl = getGnowebUrl(networkKey)
+            if (!gnowebUrl) return 0
+            const realms = await fetchNamespaceRealms(gnowebUrl, "samcrew")
+            return realms.length
+        })(),
     ])
 
     if (results[0].status === "fulfilled") {
@@ -90,10 +100,9 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
     if (results[1].status === "fulfilled") {
         metrics.repoCount = results[1].value
     }
-
-    // DAO count: hardcoded from gnoweb verification (14 realms under r/samcrew on test12)
-    // Will be replaced by live gnoweb query when fetchNamespaceRealms is used from Landing
-    metrics.daoCount = 14
+    if (results[2].status === "fulfilled" && results[2].value > 0) {
+        metrics.daoCount = results[2].value
+    }
 
     setCache(metrics)
     return metrics

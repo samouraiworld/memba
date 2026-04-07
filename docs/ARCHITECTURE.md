@@ -134,7 +134,7 @@
 
 ## Database Schema
 
-9 tables + 1 migration tracker:
+10 tables + 1 migration tracker:
 - `multisigs` — chain_id, address, pubkey_json, threshold, members_count
 - `user_multisigs` — user↔multisig membership, join state, role
 - `transactions` — proposed txs with msgs, fees, sequence, final_hash
@@ -143,9 +143,10 @@
 - `quest_completions` — per-user quest progress (quest_id, completed_at)
 - `teams` — team workspaces (name, invite_code, created_by)
 - `team_members` — user↔team membership (address, role: admin/member, joined_at)
+- `analyst_reports` — AI consensus reports (realm_path, proposal_id, chain_id, 6h TTL)
 - `_migrations` — schema version tracking
 
-### RPC Surface (v2.28.0)
+### RPC Surface (v3.2.0)
 
 | Category | RPCs | Auth? |
 |----------|------|-------|

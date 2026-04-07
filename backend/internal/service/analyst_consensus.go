@@ -22,6 +22,7 @@ type ConsensusRequest struct {
 	RealmPath       string `json:"realmPath"`
 	ProposalID      int    `json:"proposalId"`            // 0 for DAO-level analysis
 	AnalysisType    string `json:"analysisType,omitempty"` // "proposal" (default) or "dao"
+	ChainID         string `json:"chainId,omitempty"`      // network identifier for cache scoping
 	ProposalData    string `json:"proposalData"`
 	DAOContext      string `json:"daoContext"`
 	TreasuryContext string `json:"treasuryContext,omitempty"`
@@ -87,13 +88,17 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 	return nil
 }
 
-// cacheKey returns the storage key for a consensus result.
-func consensusCacheKey(req *ConsensusRequest) (string, int) {
+// cacheKey returns the storage key for a consensus result (realm, proposalId, chainId).
+func consensusCacheKey(req *ConsensusRequest) (string, int, string) {
+	chainID := req.ChainID
+	if chainID == "" {
+		chainID = "unknown"
+	}
 	if req.AnalysisType == "dao" {
 		// Use proposalId=0 convention for DAO-level cache
-		return req.RealmPath, 0
+		return req.RealmPath, 0, chainID
 	}
-	return req.RealmPath, req.ProposalID
+	return req.RealmPath, req.ProposalID, chainID
 }
 
 // ── Cache ────────────────────────────────────────────────────
@@ -107,13 +112,13 @@ func getDefaultCacheTTL() time.Duration {
 	return 6 * time.Hour
 }
 
-func getCachedConsensus(db *sql.DB, realmPath string, proposalID int) (*ConsensusResponse, error) {
+func getCachedConsensus(db *sql.DB, realmPath string, proposalID int, chainID string) (*ConsensusResponse, error) {
 	var consensusJSON string
 	var expiresAt time.Time
 
 	err := db.QueryRow(
-		`SELECT consensus, expires_at FROM analyst_reports WHERE realm_path = ? AND proposal_id = ? AND expires_at > ?`,
-		realmPath, proposalID, time.Now().UTC(),
+		`SELECT consensus, expires_at FROM analyst_reports WHERE realm_path = ? AND proposal_id = ? AND chain_id = ? AND expires_at > ?`,
+		realmPath, proposalID, chainID, time.Now().UTC(),
 	).Scan(&consensusJSON, &expiresAt)
 
 	if err == sql.ErrNoRows {
@@ -132,7 +137,7 @@ func getCachedConsensus(db *sql.DB, realmPath string, proposalID int) (*Consensu
 	return &resp, nil
 }
 
-func cacheConsensus(db *sql.DB, realmPath string, proposalID int, resp *ConsensusResponse) {
+func cacheConsensus(db *sql.DB, realmPath string, proposalID int, chainID string, resp *ConsensusResponse) {
 	ttl := getDefaultCacheTTL()
 	expiresAt := time.Now().UTC().Add(ttl)
 
@@ -143,8 +148,8 @@ func cacheConsensus(db *sql.DB, realmPath string, proposalID int, resp *Consensu
 	}
 
 	_, err = db.Exec(
-		`INSERT OR REPLACE INTO analyst_reports (realm_path, proposal_id, consensus, expires_at) VALUES (?, ?, ?, ?)`,
-		realmPath, proposalID, string(respJSON), expiresAt,
+		`INSERT OR REPLACE INTO analyst_reports (realm_path, proposal_id, chain_id, consensus, expires_at) VALUES (?, ?, ?, ?, ?)`,
+		realmPath, proposalID, chainID, string(respJSON), expiresAt,
 	)
 	if err != nil {
 		slog.Warn("failed to cache consensus", "error", err)
@@ -326,10 +331,10 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		}
 
 		// Check cache (skip if ?force=1)
-		cacheRealm, cacheID := consensusCacheKey(&req)
+		cacheRealm, cacheID, cacheChain := consensusCacheKey(&req)
 		forceRefresh := r.URL.Query().Get("force") == "1"
 		if !forceRefresh {
-			if cached, err := getCachedConsensus(db, cacheRealm, cacheID); err == nil && cached != nil {
+			if cached, err := getCachedConsensus(db, cacheRealm, cacheID, cacheChain); err == nil && cached != nil {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(cached)
 				return
@@ -360,17 +365,18 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		start := time.Now()
 		perspectives := make([]ConsensusPerspective, len(orProviders))
 
-		// Build user prompt (same for all models)
+		// Build user prompt (same for all models) with chain context metadata
+		chainMeta := buildChainContext(req.ChainID)
 		var userPrompt string
 		if req.AnalysisType == "dao" {
 			userPrompt = fmt.Sprintf(
-				"<dao_health_data>\n%s\n</dao_health_data>\n\n<dao_context>\n%s\n</dao_context>",
-				req.ProposalData, req.DAOContext,
+				"<chain_context>\n%s\n</chain_context>\n\n<dao_health_data>\n%s\n</dao_health_data>\n\n<dao_context>\n%s\n</dao_context>",
+				chainMeta, req.ProposalData, req.DAOContext,
 			)
 		} else {
 			userPrompt = fmt.Sprintf(
-				"<proposal_data>\n%s\n</proposal_data>\n\n<dao_context>\n%s\n</dao_context>",
-				req.ProposalData, req.DAOContext,
+				"<chain_context>\n%s\n</chain_context>\n\n<proposal_data>\n%s\n</proposal_data>\n\n<dao_context>\n%s\n</dao_context>",
+				chainMeta, req.ProposalData, req.DAOContext,
 			)
 		}
 		if req.TreasuryContext != "" {
@@ -463,10 +469,58 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			}
 		}
 		if hasRealResult {
-			cacheConsensus(db, cacheRealm, cacheID, &resp)
+			cacheConsensus(db, cacheRealm, cacheID, cacheChain, &resp)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	})
+}
+
+// ── Chain Context ────────────────────────────────────────────
+
+// buildChainContext returns structured metadata about the chain network.
+// This gives AI models critical context about the governance environment.
+func buildChainContext(chainID string) string {
+	type chainInfo struct {
+		name     string
+		maturity string
+		note     string
+	}
+
+	networks := map[string]chainInfo{
+		"test12": {
+			name:     "gno.land Testnet 12",
+			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
+			note:     "Governance decisions here are for testing and community coordination, not financial value.",
+		},
+		"gnoland1": {
+			name:     "gno.land Betanet (gnoland1)",
+			maturity: "BETANET — pre-production, tokens have emerging value, governance decisions carry weight",
+			note:     "This chain may experience consensus bugs. Governance impact is real but limited.",
+		},
+		"portal-loop": {
+			name:     "gno.land Portal Loop",
+			maturity: "DEVELOPMENT — rolling testnet, auto-reset, used for rapid iteration",
+			note:     "Governance here is purely experimental. No persistence guarantees.",
+		},
+		"staging": {
+			name:     "gno.land Staging",
+			maturity: "STAGING — internal testing environment",
+			note:     "Not public-facing. Governance is for internal validation only.",
+		},
+	}
+
+	info, ok := networks[chainID]
+	if !ok {
+		if chainID == "" {
+			return "Network: Unknown\nMaturity: Chain ID not provided — treat governance analysis with appropriate caution."
+		}
+		return fmt.Sprintf("Network: %s\nMaturity: Unknown network — treat governance analysis with appropriate caution.", chainID)
+	}
+
+	return fmt.Sprintf(
+		"Network: %s\nChain ID: %s\nMaturity: %s\nNote: %s",
+		info.name, chainID, info.maturity, info.note,
+	)
 }

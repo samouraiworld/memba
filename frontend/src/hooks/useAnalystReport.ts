@@ -5,10 +5,12 @@
  * Only triggers when proposal data is available (non-empty).
  * Gracefully handles backend unavailability without flooding console.
  *
+ * v3.3: Network-scoped caching (chainId in POST + sessionStorage persistence).
+ *
  * @module hooks/useAnalystReport
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 
@@ -52,6 +54,22 @@ interface UseAnalystReportResult {
     trigger: () => void
 }
 
+// ── SessionStorage Helpers ───────────────────────────────────
+
+function getSessionCache(key: string): ConsensusReport | null {
+    try {
+        const cached = sessionStorage.getItem(key)
+        if (cached) return JSON.parse(cached) as ConsensusReport
+    } catch { /* ignore parse/quota errors */ }
+    return null
+}
+
+function setSessionCache(key: string, report: ConsensusReport): void {
+    try {
+        sessionStorage.setItem(key, JSON.stringify(report))
+    } catch { /* quota exceeded — non-blocking */ }
+}
+
 // ── Hook ─────────────────────────────────────────────────────
 
 export function useAnalystReport(
@@ -60,13 +78,24 @@ export function useAnalystReport(
     proposalData?: string,
     daoContext?: string,
     analysisType: "proposal" | "dao" = "proposal",
+    networkKey?: string,
 ): UseAnalystReportResult {
-    const [report, setReport] = useState<ConsensusReport | null>(null)
+    // Network-scoped cache key to prevent cross-chain data pollution
+    const cacheKey = useMemo(
+        () => `memba_analyst_${networkKey || "default"}_${realmPath}_${proposalId}_${analysisType}`,
+        [networkKey, realmPath, proposalId, analysisType],
+    )
+
+    // Rehydrate from sessionStorage on init (prevents loading flash on re-navigation)
+    const [report, setReport] = useState<ConsensusReport | null>(() => {
+        const cached = getSessionCache(cacheKey)
+        return cached
+    })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const abortRef = useRef<AbortController | null>(null)
     // Track if we've already attempted a fetch to avoid re-triggering on prop changes
-    const fetchedRef = useRef(false)
+    const fetchedRef = useRef(!!report) // true if we rehydrated from cache
 
     const fetchReport = useCallback(async (force = false) => {
         // Must have valid realm, proposal ID, and non-empty proposal data
@@ -95,6 +124,7 @@ export function useAnalystReport(
                     realmPath,
                     proposalId,
                     analysisType,
+                    chainId: networkKey || "",
                     proposalData,
                     daoContext: daoContext || "",
                 }),
@@ -111,6 +141,7 @@ export function useAnalystReport(
 
             const data: ConsensusReport = await resp.json()
             setReport(data)
+            setSessionCache(cacheKey, data)
         } catch (err) {
             if (err instanceof Error && err.name === "AbortError") return
             // Silently handle network errors (backend not deployed, CORS, etc.)
@@ -120,15 +151,22 @@ export function useAnalystReport(
                 setLoading(false)
             }
         }
-    }, [realmPath, proposalId, proposalData, daoContext, analysisType])
+    }, [realmPath, proposalId, proposalData, daoContext, analysisType, networkKey, cacheKey])
 
-    // Reset state when context changes
+    // Reset state when context changes (realm, proposal, or network)
     useEffect(() => {
         fetchedRef.current = false
-        setReport(null)
+        // Try to rehydrate from sessionStorage for the new context
+        const cached = getSessionCache(cacheKey)
+        if (cached) {
+            setReport(cached)
+            fetchedRef.current = true
+        } else {
+            setReport(null)
+        }
         setError(null)
         setLoading(false)
-    }, [realmPath, proposalId])
+    }, [cacheKey])
 
     // Auto-fetch for DAO-level analysis (server-cached 6h, shared across users)
     useEffect(() => {

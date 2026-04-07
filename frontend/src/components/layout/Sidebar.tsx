@@ -180,7 +180,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                         <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
-                        <SidebarLink to="/organizations" icon={<UsersThree size={18} />} label="Teams" connected={connected} collapsed={collapsed} />
+                        <SidebarLink to="/organizations" icon={<UsersThree size={18} />} label="Teams" badgeText="beta" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
