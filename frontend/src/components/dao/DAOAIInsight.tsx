@@ -11,6 +11,7 @@
 import { useState } from "react"
 import { useAnalystReport } from "../../hooks/useAnalystReport"
 import type { ConsensusReport } from "../../hooks/useAnalystReport"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 import "../../pages/analyst.css"
 
 const ANALYST_ENABLED = import.meta.env.VITE_ENABLE_ANALYST === "true"
@@ -42,8 +43,9 @@ interface DAOAIInsightProps {
 }
 
 export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
+    const networkKey = useNetworkKey()
     const { report, loading, error, trigger } = useAnalystReport(
-        realmPath, 0, daoSummary, realmPath, "dao",
+        realmPath, 0, daoSummary, realmPath, "dao", networkKey,
     )
     const [expanded, setExpanded] = useState(false)
 

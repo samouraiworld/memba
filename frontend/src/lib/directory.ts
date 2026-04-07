@@ -348,7 +348,7 @@ export async function fetchUsers(): Promise<DirectoryUser[]> {
     const cached = getCached<DirectoryUser[]>("users")
     if (cached) return cached
 
-    const raw = await queryRender(GNO_RPC_URL, "gno.land/r/demo/users", "")
+    const raw = await queryRender(GNO_RPC_URL, getUserRegistryPath(), "")
     if (!raw) return []
 
     const users = parseUserRegistry(raw)
