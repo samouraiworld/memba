@@ -52,8 +52,8 @@ function computeRange(period: ReportPeriod, offset: number): { start: Date; end:
 
 export default function GnoloveReport() {
     const [period, setPeriod] = useState<ReportPeriod>("weekly")
-    const [offset, setOffset] = useState(0)
-    const [activeTab, setActiveTab] = useState<ReportTab>("merged")
+    const [offset, setOffset] = useState(-1) // Default to previous week (report of past work)
+    const [activeTab, setActiveTab] = useState<ReportTab | "all">("all")
     const [selectedTeam, setSelectedTeam] = useState("all")
     const [selectedRepo, setSelectedRepo] = useState("all")
 
@@ -65,6 +65,15 @@ export default function GnoloveReport() {
 
     const prs: TPullRequest[] = useMemo(() => {
         if (!report) return []
+        if (activeTab === "all") {
+            return [
+                ...(report.merged ?? []),
+                ...(report.in_progress ?? []),
+                ...(report.waiting_for_review ?? []),
+                ...(report.reviewed ?? []),
+                ...(report.blocked ?? []),
+            ]
+        }
         return (report[activeTab] ?? [])
     }, [report, activeTab])
 
@@ -86,13 +95,19 @@ export default function GnoloveReport() {
     }, [prs, selectedTeam, selectedRepo])
 
     const counts = useMemo(() => {
-        if (!report) return {} as Record<ReportTab, number>
+        if (!report) return {} as Record<ReportTab | "all", number>
+        const merged = report.merged?.length ?? 0
+        const inProgress = report.in_progress?.length ?? 0
+        const waitingForReview = report.waiting_for_review?.length ?? 0
+        const reviewed = report.reviewed?.length ?? 0
+        const blocked = report.blocked?.length ?? 0
         return {
-            merged: report.merged?.length ?? 0,
-            in_progress: report.in_progress?.length ?? 0,
-            waiting_for_review: report.waiting_for_review?.length ?? 0,
-            reviewed: report.reviewed?.length ?? 0,
-            blocked: report.blocked?.length ?? 0,
+            all: merged + inProgress + waitingForReview + reviewed + blocked,
+            merged,
+            in_progress: inProgress,
+            waiting_for_review: waitingForReview,
+            reviewed,
+            blocked,
         }
     }, [report])
 
@@ -117,7 +132,7 @@ export default function GnoloveReport() {
 
     function handlePeriodChange(p: ReportPeriod) {
         setPeriod(p)
-        setOffset(0)
+        setOffset(p === "weekly" ? -1 : 0) // Weekly defaults to previous week
     }
 
     return (
@@ -214,6 +229,13 @@ export default function GnoloveReport() {
 
             {/* Status Tabs */}
             <div className="gl-tabs">
+                <button
+                    className={`gl-tab ${activeTab === "all" ? "gl-tab--active" : ""}`}
+                    onClick={() => setActiveTab("all")}
+                >
+                    All
+                    {counts.all != null && <span className="gl-tab-count">{counts.all}</span>}
+                </button>
                 {(Object.entries(REPORT_TAB_LABELS) as [ReportTab, string][]).map(([key, label]) => (
                     <button
                         key={key}
@@ -262,7 +284,7 @@ export default function GnoloveReport() {
     )
 }
 
-function PRStateBadge({ state, mergedAt, tab }: { state: string; mergedAt: string | null; tab: ReportTab }) {
+function PRStateBadge({ state, mergedAt, tab }: { state: string; mergedAt: string | null; tab: ReportTab | "all" }) {
     const label =
         mergedAt ? "Merged" :
         state === "MERGED" ? "Merged" :
