@@ -207,3 +207,13 @@ export function useGnoloveGovdaoMembers() {
         staleTime: STALE_ONCHAIN,
     })
 }
+
+// ── AI Reports ──────────────────────────────────────────────────
+
+export function useGnoloveAIReports() {
+    return useQuery({
+        queryKey: ["gnolove", "aiReports"],
+        queryFn: ({ signal }) => api.getAIReports(signal),
+        staleTime: STALE_ONCHAIN, // Reports change weekly
+    })
+}
