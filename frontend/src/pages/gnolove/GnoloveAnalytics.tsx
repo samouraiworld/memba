@@ -7,7 +7,8 @@
  * @module pages/gnolove/GnoloveAnalytics
  */
 
-import { useMemo } from "react"
+import { useMemo, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import {
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
     ResponsiveContainer, Legend, CartesianGrid,
@@ -91,10 +92,17 @@ export default function GnoloveAnalytics() {
                 const no = p.votes.filter(v => v.vote === "NO").length
                 const abstain = p.votes.filter(v => v.vote === "ABSTAIN").length
                 const label = p.title || `#${p.id.slice(0, 6)}`
-                return { name: label.length > 20 ? label.slice(0, 20) + "..." : label, yes, no, abstain }
+                return { name: label.length > 20 ? label.slice(0, 20) + "..." : label, yes, no, abstain, proposalId: p.id }
             })
             .reverse()
     }, [proposals])
+
+    const navigate = useNavigate()
+    const handleVoteBarClick = useCallback((data: { proposalId?: string }) => {
+        if (data?.proposalId) {
+            navigate(`/dao/gno.land/r/gov/dao/proposal/${data.proposalId}`)
+        }
+    }, [navigate])
 
     // ── Summary stats ────────────────────────────────────────
     const stats = useMemo(() => {
@@ -271,11 +279,21 @@ export default function GnoloveAnalytics() {
                             <div className="gl-panel">
                                 <div className="gl-panel-header">
                                     <h2 className="gl-panel-title">Governance Votes</h2>
-                                    <span className="gl-panel-subtitle">Proposal vote distribution</span>
+                                    <span className="gl-panel-subtitle">Click a proposal to view details & vote</span>
                                 </div>
                                 <div className="gl-chart-container">
                                     <ResponsiveContainer width="100%" height={260}>
-                                        <BarChart data={voteData.slice(0, 10)} layout="vertical" margin={{ left: 90, right: 10, top: 10, bottom: 0 }}>
+                                        <BarChart
+                                            data={voteData.slice(0, 10)}
+                                            layout="vertical"
+                                            margin={{ left: 90, right: 10, top: 10, bottom: 0 }}
+                                            onClick={(state) => {
+                                                if (state?.activePayload?.[0]?.payload) {
+                                                    handleVoteBarClick(state.activePayload[0].payload)
+                                                }
+                                            }}
+                                            style={{ cursor: "pointer" }}
+                                        >
                                             <CartesianGrid {...GRID_STYLE} />
                                             <XAxis type="number" tick={AXIS_TICK} />
                                             <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fontSize: 9 }} width={80} />
