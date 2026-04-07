@@ -4,6 +4,8 @@
  * @module lib/gnoloveExport
  */
 
+import { jsPDF } from "jspdf"
+import autoTable from "jspdf-autotable"
 import type { TPullRequest } from "./gnoloveSchemas"
 
 /** Prevent CSV formula injection — prefix dangerous first characters with a tab. */
@@ -56,6 +58,30 @@ export function exportToCSV(prs: TPullRequest[], tab: string, weekLabel: string)
 
 export function exportToMarkdown(prs: TPullRequest[], tab: string, weekLabel: string): void {
     downloadFile(generateMarkdown(prs, tab, weekLabel), `gnolove-report-${tab}-${weekLabel}.md`, "text/markdown")
+}
+
+export function exportToPDF(prs: TPullRequest[], tab: string, weekLabel: string): void {
+    const tabLabel = tab.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+    const doc = new jsPDF()
+    doc.setFontSize(14)
+    doc.text(`Gnolove PR Report - ${weekLabel}`, 14, 15)
+    doc.setFontSize(10)
+    doc.text(`Status: ${tabLabel} | ${prs.length} PRs`, 14, 22)
+
+    autoTable(doc, {
+        startY: 28,
+        head: [["#", "Title", "Author", "State"]],
+        body: prs.map(pr => [
+            `#${pr.number}`,
+            pr.title.length > 60 ? pr.title.slice(0, 57) + "..." : pr.title,
+            pr.authorLogin ?? "unknown",
+            pr.state,
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [30, 30, 50] },
+    })
+
+    doc.save(`gnolove-report-${tab}-${weekLabel}.pdf`)
 }
 
 function downloadFile(content: string, filename: string, mimeType: string): void {

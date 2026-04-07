@@ -18,7 +18,7 @@ import { useGnoloveReport, useGnoloveRepositories } from "../../hooks/gnolove"
 import { REPORT_TAB_LABELS, TEAMS } from "../../lib/gnoloveConstants"
 import type { ReportTab } from "../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
-import { exportToCSV, exportToMarkdown } from "../../lib/gnoloveExport"
+import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
 import { extractRepoFromUrl } from "../../lib/gnoloveApi"
 
 type ReportPeriod = "weekly" | "monthly" | "yearly" | "all_time"
@@ -138,6 +138,13 @@ export default function GnoloveReport() {
                         disabled={filteredPrs.length === 0}
                     >
                         Export MD
+                    </button>
+                    <button
+                        className="gl-export-btn"
+                        onClick={() => exportToPDF(filteredPrs, activeTab, dateLabel)}
+                        disabled={filteredPrs.length === 0}
+                    >
+                        Export PDF
                     </button>
                 </div>
             </div>
