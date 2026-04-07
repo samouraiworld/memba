@@ -96,7 +96,7 @@ export default function GnoloveLayout() {
             storage: window.localStorage,
             key: CACHE_KEY,
         })
-        const unsubscribe = persistQueryClient({
+        const [unsubscribe] = persistQueryClient({
             queryClient,
             persister,
             maxAge: CACHE_MAX_AGE,
