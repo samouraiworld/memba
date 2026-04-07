@@ -11,12 +11,17 @@
  * @module layouts/GnoloveLayout
  */
 
-import { useState, Suspense, Component } from "react"
+import { useState, useEffect, Suspense, Component } from "react"
 import type { ReactNode, ErrorInfo } from "react"
 import { Outlet } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { persistQueryClient } from "@tanstack/react-query-persist-client"
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister"
 import GnoloveSubNav from "../components/gnolove/GnoloveSubNav"
 import "../pages/gnolove/gnolove.css"
+
+const CACHE_KEY = "gnolove-cache-v1"
+const CACHE_MAX_AGE = 24 * 60 * 60 * 1000 // 24h
 
 // ── Error Boundary (crash isolation) ─────────────────────────
 
@@ -79,10 +84,29 @@ export default function GnoloveLayout() {
                         staleTime: 30_000,
                         retry: 1,
                         refetchOnWindowFocus: false,
+                        gcTime: CACHE_MAX_AGE,
                     },
                 },
             }),
     )
+
+    // Persist gnolove queries to localStorage for offline resilience
+    useEffect(() => {
+        const persister = createSyncStoragePersister({
+            storage: window.localStorage,
+            key: CACHE_KEY,
+        })
+        const [unsubscribe] = persistQueryClient({
+            queryClient,
+            persister,
+            maxAge: CACHE_MAX_AGE,
+            dehydrateOptions: {
+                shouldDehydrateQuery: (query) =>
+                    Array.isArray(query.queryKey) && query.queryKey[0] === "gnolove",
+            },
+        })
+        return () => { unsubscribe() }
+    }, [queryClient])
 
     return (
         <QueryClientProvider client={queryClient}>
