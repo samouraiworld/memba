@@ -9,8 +9,8 @@
  * (badge_mints table) and processed when the chain stabilizes.
  */
 
-import { queryEval, sanitize } from "./dao/shared"
-import { getQuestById, calculateRank, RANK_TIERS } from "./gnobuilders"
+import { queryRender, queryEval, sanitize } from "./dao/shared"
+import { getQuestById, calculateRank, RANK_TIERS, type GnoQuest } from "./gnobuilders"
 
 // ── Constants ───────────────────────────────────────────────
 

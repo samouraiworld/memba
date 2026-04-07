@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -208,12 +207,6 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 	// Update rank cache
 	s.updateUserRankCache(ctx, userAddr, state)
 
-	// Queue badge mint for this quest (processed when chain is available)
-	s.queueBadgeMint(ctx, userAddr, questID)
-
-	// Check if user reached a new rank tier — queue rank badge mint
-	s.checkAndQueueRankBadge(ctx, userAddr, state.TotalXp)
-
 	return connect.NewResponse(&membav1.CompleteQuestResponse{State: state}), nil
 }
 
@@ -324,10 +317,10 @@ func (s *MultisigService) GetUserRank(ctx context.Context, req *connect.Request[
 	}
 
 	rank := &membav1.RankInfo{
-		Tier:            uint32(tier),             // #nosec G115 -- tier is 0-7
+		Tier:            uint32(tier),
 		Name:            name,
 		TotalXp:         state.TotalXp,
-		QuestsCompleted: uint32(len(state.Completed)), // #nosec G115 -- max 85 quests
+		QuestsCompleted: uint32(len(state.Completed)),
 		NextRankXp:      nextRankXP,
 	}
 
@@ -353,13 +346,11 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 		return nil, internalError("GetLeaderboard.count", err)
 	}
 
-	// First try from cache table (fast path), joining profiles for usernames
+	// First try from cache table (fast path)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT ur.address, ur.rank_tier, ur.rank_name, ur.total_xp, ur.quests_completed,
-		        COALESCE(p.bio, '') as username, COALESCE(p.avatar_url, '') as avatar_url
-		 FROM user_ranks ur
-		 LEFT JOIN profiles p ON ur.address = p.address
-		 ORDER BY ur.total_xp DESC
+		`SELECT address, rank_tier, rank_name, total_xp, quests_completed
+		 FROM user_ranks
+		 ORDER BY total_xp DESC
 		 LIMIT ? OFFSET ?`,
 		limit, offset,
 	)
@@ -371,7 +362,7 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 	var entries []*membav1.LeaderboardEntry
 	for rows.Next() {
 		var e membav1.LeaderboardEntry
-		if err := rows.Scan(&e.Address, &e.RankTier, &e.RankName, &e.TotalXp, &e.QuestsCompleted, &e.Username, &e.AvatarUrl); err != nil {
+		if err := rows.Scan(&e.Address, &e.RankTier, &e.RankName, &e.TotalXp, &e.QuestsCompleted); err != nil {
 			return nil, internalError("GetLeaderboard.cacheScan", err)
 		}
 		entries = append(entries, &e)
@@ -472,7 +463,7 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 		tier, rankName := calculateRankTier(u.totalXP)
 		entries = append(entries, &membav1.LeaderboardEntry{
 			Address:         u.addr,
-			RankTier:        uint32(tier), // #nosec G115 -- tier is 0-7
+			RankTier:        uint32(tier),
 			RankName:        rankName,
 			TotalXp:         u.totalXP,
 			QuestsCompleted: u.questsComplete,
@@ -538,149 +529,4 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 	}
 
 	return connect.NewResponse(&membav1.SubmitQuestClaimResponse{Status: "pending"}), nil
-}
-
-// ── Badge Minting Queue ─────────────────────────────────────
-
-// queueBadgeMint queues an NFT badge mint for a quest completion.
-// The actual on-chain mint happens when a background worker processes the queue
-// (or an admin triggers it). INSERT OR IGNORE prevents duplicates.
-func (s *MultisigService) queueBadgeMint(ctx context.Context, address, questID string) {
-	_, _ = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO badge_mints (address, quest_id, mint_status, created_at)
-		 VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
-		address, questID,
-	)
-}
-
-// checkAndQueueRankBadge checks if the user reached a new rank tier and queues a mint.
-func (s *MultisigService) checkAndQueueRankBadge(ctx context.Context, address string, totalXP uint32) {
-	tier, _ := calculateRankTier(totalXP)
-	if tier == 0 {
-		return // Newcomer gets no badge
-	}
-
-	rankQuestID := "rank:" + strings.TrimSpace(fmt.Sprintf("%d", tier))
-
-	// Check if already queued
-	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM badge_mints WHERE address = ? AND quest_id = ?`,
-		address, rankQuestID,
-	).Scan(&count)
-	if err != nil || count > 0 {
-		return // Already queued or error
-	}
-
-	_, _ = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO badge_mints (address, quest_id, mint_status, created_at)
-		 VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
-		address, rankQuestID,
-	)
-}
-
-// ── Admin: Quest Claim Review ───────────────────────────────
-
-// adminAddresses is the set of addresses authorized to review quest claims.
-// Matches the samcrew-core-test1 multisig + deployer address.
-var adminAddresses = map[string]bool{
-	"g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0": true, // samcrew-core-test1
-}
-
-// ReviewQuestClaim approves or rejects a self-report quest claim.
-// Only admin addresses can review claims. If approved, the quest is completed.
-func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Request[membav1.ReviewQuestClaimRequest]) (*connect.Response[membav1.ReviewQuestClaimResponse], error) {
-	reviewerAddr, err := s.authenticate(req.Msg.AuthToken)
-	if err != nil {
-		return nil, err
-	}
-
-	if !adminAddresses[reviewerAddr] {
-		return nil, connect.NewError(connect.CodePermissionDenied, nil)
-	}
-
-	claimID := req.Msg.ClaimId
-	approved := req.Msg.Approved
-
-	// Fetch the claim
-	var claimAddr, questID, status string
-	err = s.db.QueryRowContext(ctx,
-		`SELECT address, quest_id, status FROM quest_claims WHERE id = ?`,
-		claimID,
-	).Scan(&claimAddr, &questID, &status)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, nil)
-	}
-	if status != "pending" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
-	}
-
-	// Update claim status
-	newStatus := "rejected"
-	if approved {
-		newStatus = "approved"
-	}
-
-	_, err = s.db.ExecContext(ctx,
-		`UPDATE quest_claims SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		newStatus, reviewerAddr, claimID,
-	)
-	if err != nil {
-		return nil, internalError("ReviewQuestClaim.update", err)
-	}
-
-	// If approved, complete the quest for the user
-	if approved {
-		now := time.Now().UTC().Format(time.RFC3339)
-		_, _ = s.db.ExecContext(ctx,
-			`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, ?)`,
-			claimAddr, questID, now,
-		)
-
-		// Update rank cache
-		state, err := s.loadUserQuestState(ctx, claimAddr)
-		if err == nil {
-			s.updateUserRankCache(ctx, claimAddr, state)
-			s.queueBadgeMint(ctx, claimAddr, questID)
-			s.checkAndQueueRankBadge(ctx, claimAddr, state.TotalXp)
-		}
-	}
-
-	return connect.NewResponse(&membav1.ReviewQuestClaimResponse{Status: newStatus}), nil
-}
-
-// ListPendingClaims returns all pending quest claims for admin review.
-// Only admin addresses can list claims.
-func (s *MultisigService) ListPendingClaims(ctx context.Context, req *connect.Request[membav1.ListPendingClaimsRequest]) (*connect.Response[membav1.ListPendingClaimsResponse], error) {
-	callerAddr, err := s.authenticate(req.Msg.AuthToken)
-	if err != nil {
-		return nil, err
-	}
-
-	if !adminAddresses[callerAddr] {
-		return nil, connect.NewError(connect.CodePermissionDenied, nil)
-	}
-
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, address, quest_id, proof_url, proof_text, status, created_at
-		 FROM quest_claims
-		 WHERE status = 'pending'
-		 ORDER BY created_at ASC
-		 LIMIT 100`,
-	)
-	if err != nil {
-		return nil, internalError("ListPendingClaims", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var claims []*membav1.QuestClaim
-	for rows.Next() {
-		var c membav1.QuestClaim
-		if err := rows.Scan(&c.Id, &c.Address, &c.QuestId, &c.ProofUrl, &c.ProofText, &c.Status, &c.CreatedAt); err != nil {
-			return nil, internalError("ListPendingClaims.scan", err)
-		}
-		claims = append(claims, &c)
-	}
-
-	return connect.NewResponse(&membav1.ListPendingClaimsResponse{Claims: claims}), nil
 }

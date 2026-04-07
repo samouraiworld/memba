@@ -6,7 +6,6 @@
  */
 
 import { Link } from "react-router-dom"
-import { useNetworkKey } from "../../hooks/useNetworkNav"
 import type { GnoQuest } from "../../lib/gnobuilders"
 
 interface QuestCardProps {
@@ -23,12 +22,11 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 }
 
 export function QuestCard({ quest, completed, available }: QuestCardProps) {
-    const nk = useNetworkKey()
     const statusClass = completed ? "completed" : available ? "available" : "locked"
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
 
     return (
-        <Link to={`/${nk}/quests/${quest.id}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+        <div className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`}>
             <div className="k-quest-card-header">
                 <span className="k-quest-card-icon">{quest.icon}</span>
                 <span className="k-quest-card-xp">+{quest.xp} XP</span>
@@ -58,6 +56,6 @@ export function QuestCard({ quest, completed, available }: QuestCardProps) {
                     </span>
                 )}
             </div>
-        </Link>
+        </div>
     )
 }

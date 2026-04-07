@@ -33,8 +33,6 @@ service MultisigService {
   rpc GetUserRank(GetUserRankRequest) returns (GetUserRankResponse);
   rpc GetLeaderboard(GetLeaderboardRequest) returns (GetLeaderboardResponse);
   rpc SubmitQuestClaim(SubmitQuestClaimRequest) returns (SubmitQuestClaimResponse);
-  rpc ReviewQuestClaim(ReviewQuestClaimRequest) returns (ReviewQuestClaimResponse);
-  rpc ListPendingClaims(ListPendingClaimsRequest) returns (ListPendingClaimsResponse);
 
   // Teams — Collaborative workspaces for DAO management
   rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
@@ -340,7 +338,7 @@ message LeaderboardEntry {
 }
 
 message GetLeaderboardRequest {
-  uint32 limit = 1; // max entries to return (default 50, max 100)
+  uint32 limit = 1;  // max entries to return (default 50, max 100)
   uint32 offset = 2; // pagination offset
 }
 
@@ -354,42 +352,12 @@ message GetLeaderboardResponse {
 message SubmitQuestClaimRequest {
   Token auth_token = 1;
   string quest_id = 2;
-  string proof_url = 3; // screenshot, link, or repo URL
+  string proof_url = 3;  // screenshot, link, or repo URL
   string proof_text = 4; // description of what was done
 }
 
 message SubmitQuestClaimResponse {
   string status = 1; // "pending"
-}
-
-// --- Admin: Quest Claim Review Messages ---
-
-message ReviewQuestClaimRequest {
-  Token auth_token = 1;
-  int64 claim_id = 2;
-  bool approved = 3;
-}
-
-message ReviewQuestClaimResponse {
-  string status = 1; // "approved" or "rejected"
-}
-
-message QuestClaim {
-  int64 id = 1;
-  string address = 2;
-  string quest_id = 3;
-  string proof_url = 4;
-  string proof_text = 5;
-  string status = 6; // "pending", "approved", "rejected"
-  string created_at = 7; // RFC3339
-}
-
-message ListPendingClaimsRequest {
-  Token auth_token = 1;
-}
-
-message ListPendingClaimsResponse {
-  repeated QuestClaim claims = 1;
 }
 
 // --- Team Messages ---

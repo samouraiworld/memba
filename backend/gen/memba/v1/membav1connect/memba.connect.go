@@ -87,12 +87,6 @@ const (
 	// MultisigServiceSubmitQuestClaimProcedure is the fully-qualified name of the MultisigService's
 	// SubmitQuestClaim RPC.
 	MultisigServiceSubmitQuestClaimProcedure = "/memba.v1.MultisigService/SubmitQuestClaim"
-	// MultisigServiceReviewQuestClaimProcedure is the fully-qualified name of the MultisigService's
-	// ReviewQuestClaim RPC.
-	MultisigServiceReviewQuestClaimProcedure = "/memba.v1.MultisigService/ReviewQuestClaim"
-	// MultisigServiceListPendingClaimsProcedure is the fully-qualified name of the MultisigService's
-	// ListPendingClaims RPC.
-	MultisigServiceListPendingClaimsProcedure = "/memba.v1.MultisigService/ListPendingClaims"
 	// MultisigServiceCreateTeamProcedure is the fully-qualified name of the MultisigService's
 	// CreateTeam RPC.
 	MultisigServiceCreateTeamProcedure = "/memba.v1.MultisigService/CreateTeam"
@@ -155,8 +149,6 @@ type MultisigServiceClient interface {
 	GetUserRank(context.Context, *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error)
 	GetLeaderboard(context.Context, *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error)
 	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
-	ReviewQuestClaim(context.Context, *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error)
-	ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -293,18 +285,6 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("SubmitQuestClaim")),
 			connect.WithClientOptions(opts...),
 		),
-		reviewQuestClaim: connect.NewClient[v1.ReviewQuestClaimRequest, v1.ReviewQuestClaimResponse](
-			httpClient,
-			baseURL+MultisigServiceReviewQuestClaimProcedure,
-			connect.WithSchema(multisigServiceMethods.ByName("ReviewQuestClaim")),
-			connect.WithClientOptions(opts...),
-		),
-		listPendingClaims: connect.NewClient[v1.ListPendingClaimsRequest, v1.ListPendingClaimsResponse](
-			httpClient,
-			baseURL+MultisigServiceListPendingClaimsProcedure,
-			connect.WithSchema(multisigServiceMethods.ByName("ListPendingClaims")),
-			connect.WithClientOptions(opts...),
-		),
 		createTeam: connect.NewClient[v1.CreateTeamRequest, v1.CreateTeamResponse](
 			httpClient,
 			baseURL+MultisigServiceCreateTeamProcedure,
@@ -400,8 +380,6 @@ type multisigServiceClient struct {
 	getUserRank          *connect.Client[v1.GetUserRankRequest, v1.GetUserRankResponse]
 	getLeaderboard       *connect.Client[v1.GetLeaderboardRequest, v1.GetLeaderboardResponse]
 	submitQuestClaim     *connect.Client[v1.SubmitQuestClaimRequest, v1.SubmitQuestClaimResponse]
-	reviewQuestClaim     *connect.Client[v1.ReviewQuestClaimRequest, v1.ReviewQuestClaimResponse]
-	listPendingClaims    *connect.Client[v1.ListPendingClaimsRequest, v1.ListPendingClaimsResponse]
 	createTeam           *connect.Client[v1.CreateTeamRequest, v1.CreateTeamResponse]
 	getTeam              *connect.Client[v1.GetTeamRequest, v1.GetTeamResponse]
 	getMyTeams           *connect.Client[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse]
@@ -506,16 +484,6 @@ func (c *multisigServiceClient) SubmitQuestClaim(ctx context.Context, req *conne
 	return c.submitQuestClaim.CallUnary(ctx, req)
 }
 
-// ReviewQuestClaim calls memba.v1.MultisigService.ReviewQuestClaim.
-func (c *multisigServiceClient) ReviewQuestClaim(ctx context.Context, req *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error) {
-	return c.reviewQuestClaim.CallUnary(ctx, req)
-}
-
-// ListPendingClaims calls memba.v1.MultisigService.ListPendingClaims.
-func (c *multisigServiceClient) ListPendingClaims(ctx context.Context, req *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error) {
-	return c.listPendingClaims.CallUnary(ctx, req)
-}
-
 // CreateTeam calls memba.v1.MultisigService.CreateTeam.
 func (c *multisigServiceClient) CreateTeam(ctx context.Context, req *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {
 	return c.createTeam.CallUnary(ctx, req)
@@ -601,8 +569,6 @@ type MultisigServiceHandler interface {
 	GetUserRank(context.Context, *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error)
 	GetLeaderboard(context.Context, *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error)
 	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
-	ReviewQuestClaim(context.Context, *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error)
-	ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -735,18 +701,6 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("SubmitQuestClaim")),
 		connect.WithHandlerOptions(opts...),
 	)
-	multisigServiceReviewQuestClaimHandler := connect.NewUnaryHandler(
-		MultisigServiceReviewQuestClaimProcedure,
-		svc.ReviewQuestClaim,
-		connect.WithSchema(multisigServiceMethods.ByName("ReviewQuestClaim")),
-		connect.WithHandlerOptions(opts...),
-	)
-	multisigServiceListPendingClaimsHandler := connect.NewUnaryHandler(
-		MultisigServiceListPendingClaimsProcedure,
-		svc.ListPendingClaims,
-		connect.WithSchema(multisigServiceMethods.ByName("ListPendingClaims")),
-		connect.WithHandlerOptions(opts...),
-	)
 	multisigServiceCreateTeamHandler := connect.NewUnaryHandler(
 		MultisigServiceCreateTeamProcedure,
 		svc.CreateTeam,
@@ -857,10 +811,6 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetLeaderboardHandler.ServeHTTP(w, r)
 		case MultisigServiceSubmitQuestClaimProcedure:
 			multisigServiceSubmitQuestClaimHandler.ServeHTTP(w, r)
-		case MultisigServiceReviewQuestClaimProcedure:
-			multisigServiceReviewQuestClaimHandler.ServeHTTP(w, r)
-		case MultisigServiceListPendingClaimsProcedure:
-			multisigServiceListPendingClaimsHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateTeamProcedure:
 			multisigServiceCreateTeamHandler.ServeHTTP(w, r)
 		case MultisigServiceGetTeamProcedure:
@@ -964,14 +914,6 @@ func (UnimplementedMultisigServiceHandler) GetLeaderboard(context.Context, *conn
 
 func (UnimplementedMultisigServiceHandler) SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SubmitQuestClaim is not implemented"))
-}
-
-func (UnimplementedMultisigServiceHandler) ReviewQuestClaim(context.Context, *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.ReviewQuestClaim is not implemented"))
-}
-
-func (UnimplementedMultisigServiceHandler) ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.ListPendingClaims is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {

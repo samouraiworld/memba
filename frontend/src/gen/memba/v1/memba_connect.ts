@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetProfileRequest, GetProfileResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetProfileRequest, GetProfileResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -184,24 +184,6 @@ export const MultisigService = {
       name: "SubmitQuestClaim",
       I: SubmitQuestClaimRequest,
       O: SubmitQuestClaimResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc memba.v1.MultisigService.ReviewQuestClaim
-     */
-    reviewQuestClaim: {
-      name: "ReviewQuestClaim",
-      I: ReviewQuestClaimRequest,
-      O: ReviewQuestClaimResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc memba.v1.MultisigService.ListPendingClaims
-     */
-    listPendingClaims: {
-      name: "ListPendingClaims",
-      I: ListPendingClaimsRequest,
-      O: ListPendingClaimsResponse,
       kind: MethodKind.Unary,
     },
     /**

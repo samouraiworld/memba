@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import {
     verifyQuest,
+    verifyDeployment,
     trackAIReportView,
     trackDailyLogin,
     trackNetworkVisit,

@@ -11,8 +11,9 @@
  * Verification is non-blocking: if the chain is down, results are "pending".
  */
 
-import { queryRender } from "./dao/shared"
+import { queryRender, queryEval } from "./dao/shared"
 import { fetchAccountInfo } from "./account"
+import { getTokenBalance } from "./grc20"
 import { getDAOMembers } from "./dao/members"
 import { fetchBackendProfile } from "./profile"
 import { api } from "./api"
@@ -75,7 +76,7 @@ export async function verifyQuest(
             default:
                 return ERROR("Unknown verification type")
         }
-    } catch {
+    } catch (err) {
         return PENDING("Verification unavailable — will retry when chain is accessible")
     }
 }
@@ -375,7 +376,6 @@ function verifySocial(quest: GnoQuest): QuestVerificationResult {
 export async function verifyDeployment(
     rpcUrl: string,
     realmPath: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     address: string,
 ): Promise<QuestVerificationResult> {
     try {

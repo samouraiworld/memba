@@ -10,9 +10,11 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { useAdena } from "../hooks/useAdena"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import { loadQuestProgress } from "../lib/quests"
 import {
+    ALL_QUESTS,
     QUEST_COUNTS,
     getVisibleQuests,
     isQuestAvailable,
@@ -20,6 +22,7 @@ import {
     xpToNextRank,
     type QuestCategory,
     type QuestDifficulty,
+    type GnoQuest,
 } from "../lib/gnobuilders"
 import { trackPageVisit } from "../lib/quests"
 import { RankBadge } from "../components/quests/RankBadge"
@@ -31,6 +34,7 @@ type FilterDifficulty = QuestDifficulty | "all"
 type FilterStatus = "all" | "available" | "completed" | "locked"
 
 export default function QuestHub() {
+    const { address } = useAdena()
     const nk = useNetworkKey()
     const [category, setCategory] = useState<FilterCategory>("all")
     const [difficulty, setDifficulty] = useState<FilterDifficulty>("all")
