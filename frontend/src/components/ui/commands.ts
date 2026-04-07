@@ -35,6 +35,10 @@ export const COMMANDS: Command[] = [
     { id: "validators", label: "Validators", icon: "⚡", path: "/validators", section: "Explore", keywords: ["network", "staking", "nodes"] },
     { id: "extensions", label: "Extensions", icon: "🧩", path: "/extensions", section: "Explore", keywords: ["plugins", "swap", "leaderboard", "proposals", "channels", "gnoswap"] },
 
+    // GnoBuilders
+    { id: "quests", label: "Quests", icon: "🎮", path: "/quests", section: "GnoBuilders", keywords: ["gnobuilders", "quest", "xp", "game", "onboarding", "challenges"] },
+    { id: "leaderboard", label: "Leaderboard", icon: "🏆", path: "/leaderboard", section: "GnoBuilders", keywords: ["ranking", "top", "xp", "competition", "score"] },
+
     // Community
     { id: "candidature", label: "Candidature", icon: "🏛️", path: "/candidature", section: "Community", keywords: ["membership", "apply", "dao", "join", "xp"] },
     { id: "organizations", label: "Teams", icon: "👥", path: "/organizations", section: "Community", keywords: ["team", "workspace", "collaborate", "invite"] },

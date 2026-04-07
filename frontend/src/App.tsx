@@ -61,6 +61,8 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 
 // ── Feedback page (lazy — v2.10) ──
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
+const QuestHub = lazy(() => import("./pages/QuestHub"))
+const Leaderboard = lazy(() => import("./pages/Leaderboard"))
 
 // ── Alerts page (lazy — v2.18.0) ──
 const AlertsPage = lazy(() => import("./pages/AlertsPage"))
@@ -223,6 +225,10 @@ function App() {
             <Route path="reports" element={<GnoloveAIReports />} />
             <Route path="milestone" element={<GnoloveMilestone />} />
           </Route>
+
+          {/* GnoBuilders — Quest catalog and leaderboard (v4.0) */}
+          <Route path="quests" element={<Suspense fallback={<PageLoader />}><QuestHub /></Suspense>} />
+          <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><Leaderboard /></Suspense>} />
 
           {/* Candidature — Memba DAO membership application (v2.28) */}
           <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />

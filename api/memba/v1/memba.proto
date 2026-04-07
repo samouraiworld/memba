@@ -26,10 +26,13 @@ service MultisigService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
 
-  // Quests — XP tracking for Memba DAO onboarding
+  // Quests — GnoBuilders quest system (85 quests, ranks, badges)
   rpc CompleteQuest(CompleteQuestRequest) returns (CompleteQuestResponse);
   rpc GetUserQuests(GetUserQuestsRequest) returns (GetUserQuestsResponse);
   rpc SyncQuests(SyncQuestsRequest) returns (SyncQuestsResponse);
+  rpc GetUserRank(GetUserRankRequest) returns (GetUserRankResponse);
+  rpc GetLeaderboard(GetLeaderboardRequest) returns (GetLeaderboardResponse);
+  rpc SubmitQuestClaim(SubmitQuestClaimRequest) returns (SubmitQuestClaimResponse);
 
   // Teams — Collaborative workspaces for DAO management
   rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
@@ -304,6 +307,57 @@ message SyncQuestsRequest {
 
 message SyncQuestsResponse {
   UserQuestState state = 1;
+}
+
+// --- GnoBuilders Rank & Leaderboard Messages ---
+
+message RankInfo {
+  uint32 tier = 1;
+  string name = 2;
+  uint32 total_xp = 3;
+  uint32 quests_completed = 4;
+  uint32 next_rank_xp = 5;
+}
+
+message GetUserRankRequest {
+  string address = 1; // no auth required — public read
+}
+
+message GetUserRankResponse {
+  RankInfo rank = 1;
+}
+
+message LeaderboardEntry {
+  string address = 1;
+  string username = 2;
+  uint32 rank_tier = 3;
+  string rank_name = 4;
+  uint32 total_xp = 5;
+  uint32 quests_completed = 6;
+  string avatar_url = 7;
+}
+
+message GetLeaderboardRequest {
+  uint32 limit = 1;  // max entries to return (default 50, max 100)
+  uint32 offset = 2; // pagination offset
+}
+
+message GetLeaderboardResponse {
+  repeated LeaderboardEntry entries = 1;
+  uint32 total_count = 2;
+}
+
+// --- Quest Claim Messages (self-report verification) ---
+
+message SubmitQuestClaimRequest {
+  Token auth_token = 1;
+  string quest_id = 2;
+  string proof_url = 3;  // screenshot, link, or repo URL
+  string proof_text = 4; // description of what was done
+}
+
+message SubmitQuestClaimResponse {
+  string status = 1; // "pending"
 }
 
 // --- Team Messages ---

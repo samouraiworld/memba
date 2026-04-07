@@ -78,6 +78,15 @@ const (
 	// MultisigServiceSyncQuestsProcedure is the fully-qualified name of the MultisigService's
 	// SyncQuests RPC.
 	MultisigServiceSyncQuestsProcedure = "/memba.v1.MultisigService/SyncQuests"
+	// MultisigServiceGetUserRankProcedure is the fully-qualified name of the MultisigService's
+	// GetUserRank RPC.
+	MultisigServiceGetUserRankProcedure = "/memba.v1.MultisigService/GetUserRank"
+	// MultisigServiceGetLeaderboardProcedure is the fully-qualified name of the MultisigService's
+	// GetLeaderboard RPC.
+	MultisigServiceGetLeaderboardProcedure = "/memba.v1.MultisigService/GetLeaderboard"
+	// MultisigServiceSubmitQuestClaimProcedure is the fully-qualified name of the MultisigService's
+	// SubmitQuestClaim RPC.
+	MultisigServiceSubmitQuestClaimProcedure = "/memba.v1.MultisigService/SubmitQuestClaim"
 	// MultisigServiceCreateTeamProcedure is the fully-qualified name of the MultisigService's
 	// CreateTeam RPC.
 	MultisigServiceCreateTeamProcedure = "/memba.v1.MultisigService/CreateTeam"
@@ -133,10 +142,13 @@ type MultisigServiceClient interface {
 	// Profile — Read/Write user profile
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
-	// Quests — XP tracking for Memba DAO onboarding
+	// Quests — GnoBuilders quest system (85 quests, ranks, badges)
 	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
 	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
 	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
+	GetUserRank(context.Context, *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error)
+	GetLeaderboard(context.Context, *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error)
+	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -255,6 +267,24 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
 			connect.WithClientOptions(opts...),
 		),
+		getUserRank: connect.NewClient[v1.GetUserRankRequest, v1.GetUserRankResponse](
+			httpClient,
+			baseURL+MultisigServiceGetUserRankProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetUserRank")),
+			connect.WithClientOptions(opts...),
+		),
+		getLeaderboard: connect.NewClient[v1.GetLeaderboardRequest, v1.GetLeaderboardResponse](
+			httpClient,
+			baseURL+MultisigServiceGetLeaderboardProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetLeaderboard")),
+			connect.WithClientOptions(opts...),
+		),
+		submitQuestClaim: connect.NewClient[v1.SubmitQuestClaimRequest, v1.SubmitQuestClaimResponse](
+			httpClient,
+			baseURL+MultisigServiceSubmitQuestClaimProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("SubmitQuestClaim")),
+			connect.WithClientOptions(opts...),
+		),
 		createTeam: connect.NewClient[v1.CreateTeamRequest, v1.CreateTeamResponse](
 			httpClient,
 			baseURL+MultisigServiceCreateTeamProcedure,
@@ -347,6 +377,9 @@ type multisigServiceClient struct {
 	completeQuest        *connect.Client[v1.CompleteQuestRequest, v1.CompleteQuestResponse]
 	getUserQuests        *connect.Client[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse]
 	syncQuests           *connect.Client[v1.SyncQuestsRequest, v1.SyncQuestsResponse]
+	getUserRank          *connect.Client[v1.GetUserRankRequest, v1.GetUserRankResponse]
+	getLeaderboard       *connect.Client[v1.GetLeaderboardRequest, v1.GetLeaderboardResponse]
+	submitQuestClaim     *connect.Client[v1.SubmitQuestClaimRequest, v1.SubmitQuestClaimResponse]
 	createTeam           *connect.Client[v1.CreateTeamRequest, v1.CreateTeamResponse]
 	getTeam              *connect.Client[v1.GetTeamRequest, v1.GetTeamResponse]
 	getMyTeams           *connect.Client[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse]
@@ -436,6 +469,21 @@ func (c *multisigServiceClient) SyncQuests(ctx context.Context, req *connect.Req
 	return c.syncQuests.CallUnary(ctx, req)
 }
 
+// GetUserRank calls memba.v1.MultisigService.GetUserRank.
+func (c *multisigServiceClient) GetUserRank(ctx context.Context, req *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error) {
+	return c.getUserRank.CallUnary(ctx, req)
+}
+
+// GetLeaderboard calls memba.v1.MultisigService.GetLeaderboard.
+func (c *multisigServiceClient) GetLeaderboard(ctx context.Context, req *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error) {
+	return c.getLeaderboard.CallUnary(ctx, req)
+}
+
+// SubmitQuestClaim calls memba.v1.MultisigService.SubmitQuestClaim.
+func (c *multisigServiceClient) SubmitQuestClaim(ctx context.Context, req *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error) {
+	return c.submitQuestClaim.CallUnary(ctx, req)
+}
+
 // CreateTeam calls memba.v1.MultisigService.CreateTeam.
 func (c *multisigServiceClient) CreateTeam(ctx context.Context, req *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {
 	return c.createTeam.CallUnary(ctx, req)
@@ -514,10 +562,13 @@ type MultisigServiceHandler interface {
 	// Profile — Read/Write user profile
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
-	// Quests — XP tracking for Memba DAO onboarding
+	// Quests — GnoBuilders quest system (85 quests, ranks, badges)
 	CompleteQuest(context.Context, *connect.Request[v1.CompleteQuestRequest]) (*connect.Response[v1.CompleteQuestResponse], error)
 	GetUserQuests(context.Context, *connect.Request[v1.GetUserQuestsRequest]) (*connect.Response[v1.GetUserQuestsResponse], error)
 	SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error)
+	GetUserRank(context.Context, *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error)
+	GetLeaderboard(context.Context, *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error)
+	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -632,6 +683,24 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("SyncQuests")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetUserRankHandler := connect.NewUnaryHandler(
+		MultisigServiceGetUserRankProcedure,
+		svc.GetUserRank,
+		connect.WithSchema(multisigServiceMethods.ByName("GetUserRank")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetLeaderboardHandler := connect.NewUnaryHandler(
+		MultisigServiceGetLeaderboardProcedure,
+		svc.GetLeaderboard,
+		connect.WithSchema(multisigServiceMethods.ByName("GetLeaderboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceSubmitQuestClaimHandler := connect.NewUnaryHandler(
+		MultisigServiceSubmitQuestClaimProcedure,
+		svc.SubmitQuestClaim,
+		connect.WithSchema(multisigServiceMethods.ByName("SubmitQuestClaim")),
+		connect.WithHandlerOptions(opts...),
+	)
 	multisigServiceCreateTeamHandler := connect.NewUnaryHandler(
 		MultisigServiceCreateTeamProcedure,
 		svc.CreateTeam,
@@ -736,6 +805,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetUserQuestsHandler.ServeHTTP(w, r)
 		case MultisigServiceSyncQuestsProcedure:
 			multisigServiceSyncQuestsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetUserRankProcedure:
+			multisigServiceGetUserRankHandler.ServeHTTP(w, r)
+		case MultisigServiceGetLeaderboardProcedure:
+			multisigServiceGetLeaderboardHandler.ServeHTTP(w, r)
+		case MultisigServiceSubmitQuestClaimProcedure:
+			multisigServiceSubmitQuestClaimHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateTeamProcedure:
 			multisigServiceCreateTeamHandler.ServeHTTP(w, r)
 		case MultisigServiceGetTeamProcedure:
@@ -827,6 +902,18 @@ func (UnimplementedMultisigServiceHandler) GetUserQuests(context.Context, *conne
 
 func (UnimplementedMultisigServiceHandler) SyncQuests(context.Context, *connect.Request[v1.SyncQuestsRequest]) (*connect.Response[v1.SyncQuestsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SyncQuests is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetUserRank(context.Context, *connect.Request[v1.GetUserRankRequest]) (*connect.Response[v1.GetUserRankResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetUserRank is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetLeaderboard(context.Context, *connect.Request[v1.GetLeaderboardRequest]) (*connect.Response[v1.GetLeaderboardResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetLeaderboard is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SubmitQuestClaim is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {

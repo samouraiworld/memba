@@ -1,0 +1,117 @@
+/* Leaderboard page */
+
+.k-leaderboard {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.k-leaderboard-header {
+    margin-bottom: 24px;
+}
+
+.k-leaderboard-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.k-leaderboard-header p {
+    color: var(--color-text-secondary, #6b7280);
+    margin: 0 0 12px;
+}
+
+.k-leaderboard-quests-link {
+    color: var(--color-primary, #329175);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.k-leaderboard-quests-link:hover {
+    text-decoration: underline;
+}
+
+.k-leaderboard-loading,
+.k-leaderboard-error,
+.k-leaderboard-empty {
+    text-align: center;
+    padding: 48px;
+    color: var(--color-text-secondary, #6b7280);
+}
+
+.k-leaderboard-table-wrap {
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.k-leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.k-leaderboard-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text-secondary, #6b7280);
+    background: var(--color-surface-raised, #f9fafb);
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.k-leaderboard-table td {
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--color-border-light, #f3f4f6);
+}
+
+.k-leaderboard-table tr:last-child td {
+    border-bottom: none;
+}
+
+.k-leaderboard-row--me {
+    background: var(--color-primary-bg, #ecfdf5);
+}
+
+.k-leaderboard-rank {
+    font-weight: 600;
+    width: 48px;
+}
+
+.k-leaderboard-addr {
+    color: var(--color-text, #111827);
+    text-decoration: none;
+    font-family: monospace;
+    font-size: 0.813rem;
+}
+
+.k-leaderboard-addr:hover {
+    text-decoration: underline;
+}
+
+.k-leaderboard-you {
+    font-size: 0.75rem;
+    color: var(--color-primary, #329175);
+    margin-left: 4px;
+}
+
+.k-leaderboard-xp {
+    font-weight: 600;
+    color: var(--color-primary, #329175);
+}
+
+.k-leaderboard-count {
+    text-align: center;
+    padding: 12px;
+    font-size: 0.75rem;
+    color: var(--color-text-tertiary, #9ca3af);
+}
+
+@media (max-width: 640px) {
+    .k-leaderboard-table th:nth-child(3),
+    .k-leaderboard-table td:nth-child(3) {
+        display: none;
+    }
+}
