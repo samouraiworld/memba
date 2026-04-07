@@ -25,6 +25,8 @@ import {
     ProposalsSchema,
     GovdaoMembersSchema,
     ScoreFactorsSchema,
+    AIReportsSchema,
+    AIReportSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
@@ -40,6 +42,7 @@ import type {
     TProposal,
     TGovdaoMember,
     TScoreFactors,
+    TAIReport,
 } from "./gnoloveSchemas"
 import { z } from "zod"
 import { TimeFilter } from "./gnoloveConstants"
@@ -284,6 +287,34 @@ export async function getScoreFactors(signal?: AbortSignal): Promise<TScoreFacto
         return ScoreFactorsSchema.parse(data)
     } catch (err) {
         console.error("[Gnolove] getScoreFactors failed:", err)
+        return null
+    }
+}
+
+// ── AI Reports ──────────────────────────────────────────────────
+
+/**
+ * Fetch all AI-generated weekly reports.
+ */
+export async function getAIReports(signal?: AbortSignal): Promise<TAIReport[]> {
+    try {
+        const data = await fetchJson(apiUrl("/ai/reports"), signal)
+        return AIReportsSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getAIReports failed:", err)
+        return []
+    }
+}
+
+/**
+ * Fetch a single AI report by week range.
+ */
+export async function getAIReportByWeek(start: string, end: string, signal?: AbortSignal): Promise<TAIReport | null> {
+    try {
+        const data = await fetchJson(apiUrl(`/ai/report/weekly?start=${start}&end=${end}`), signal)
+        return AIReportSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getAIReportByWeek failed:", err)
         return null
     }
 }

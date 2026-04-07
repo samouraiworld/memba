@@ -364,6 +364,26 @@ export const ScoreFactorsSchema = z.object({
 })
 export type TScoreFactors = z.infer<typeof ScoreFactorsSchema>
 
+// ── AI Reports ─────────────────────────────────────────────────
+
+export const AIReportProjectSchema = z.object({
+    project_name: z.string(),
+    summary: z.string(),
+})
+
+export const AIReportDataSchema = z.object({
+    projects: z.array(AIReportProjectSchema).default([]),
+}).passthrough()
+
+export const AIReportSchema = z.object({
+    id: z.string(),
+    createdAt: z.string(),
+    data: AIReportDataSchema,
+})
+export type TAIReport = z.infer<typeof AIReportSchema>
+
+export const AIReportsSchema = z.array(AIReportSchema)
+
 // ── Composite Schemas (API responses) ────────────────────────
 
 export const ContributorsResponseSchema = z.object({

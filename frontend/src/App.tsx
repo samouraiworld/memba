@@ -76,6 +76,7 @@ const GnoloveAnalytics = lazy(() => import("./pages/gnolove/GnoloveAnalytics"))
 const GnoloveContributorProfile = lazy(() => import("./pages/gnolove/GnoloveContributorProfile"))
 const GnoloveTeams = lazy(() => import("./pages/gnolove/GnoloveTeams"))
 const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile"))
+const GnoloveAIReports = lazy(() => import("./pages/gnolove/GnoloveAIReports"))
 
 // ── NFT Gallery (lazy — v3.0) ──
 const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTGallery })))
@@ -218,6 +219,7 @@ function App() {
             <Route path="contributor/:login" element={<GnoloveContributorProfile />} />
             <Route path="teams" element={<GnoloveTeams />} />
             <Route path="teams/:teamName" element={<GnoloveTeamProfile />} />
+            <Route path="reports" element={<GnoloveAIReports />} />
           </Route>
 
           {/* Candidature — Memba DAO membership application (v2.28) */}
