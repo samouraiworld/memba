@@ -12,6 +12,7 @@ const NAV_ITEMS = [
     { to: "/gnolove/report", label: "Report", end: false },
     { to: "/gnolove/analytics", label: "Analytics", end: false },
     { to: "/gnolove/reports", label: "AI Reports", end: false },
+    { to: "/gnolove/milestone", label: "Milestone", end: false },
 ]
 
 export default function GnoloveSubNav() {

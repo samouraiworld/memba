@@ -35,7 +35,11 @@ import {
     type ValidatorInfo,
     type NetworkStats,
 } from "../lib/validators"
-import { fetchAllMonitoringData } from "../lib/gnomonitoring"
+import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip,
+    ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts"
 import {
     computeHealthStatus,
     computeNetworkHealth,
@@ -313,6 +317,42 @@ export default function Validators() {
                     )}
                 </div>
             )}
+
+            {/* ── Incidents Timeline Chart ────────────────────── */}
+            {(() => {
+                const allIncidents: MonitoringIncident[] = validators.flatMap(v => v.incidents ?? [])
+                if (allIncidents.length === 0) return null
+                const byDate = new Map<string, { date: string; critical: number; warning: number; info: number }>()
+                for (const inc of allIncidents) {
+                    const d = inc.timestamp?.slice(0, 10)
+                    if (!d) continue
+                    const entry = byDate.get(d) ?? { date: d, critical: 0, warning: 0, info: 0 }
+                    const sev = inc.severity?.toUpperCase() ?? "INFO"
+                    if (sev === "CRITICAL") entry.critical++
+                    else if (sev === "WARNING") entry.warning++
+                    else entry.info++
+                    byDate.set(d, entry)
+                }
+                const chartData = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30)
+                if (chartData.length === 0) return null
+                return (
+                    <div className="val-health-banner" style={{ marginBottom: 16 }}>
+                        <div className="val-health-banner__title">Incidents Timeline (last 30 days)</div>
+                        <ResponsiveContainer width="100%" height={180}>
+                            <BarChart data={chartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                                <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+                                <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
+                                <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
+                                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                                <Bar dataKey="critical" name="Critical" stackId="incidents" fill="#ef4444" />
+                                <Bar dataKey="warning" name="Warning" stackId="incidents" fill="#eab308" />
+                                <Bar dataKey="info" name="Info" stackId="incidents" fill="#3b82f6" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )
+            })()}
 
             {/* ── Voting Power Distribution ────────────────────── */}
             {validators.length > 0 && (
