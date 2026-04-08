@@ -53,12 +53,13 @@ export {
     buildProposeAssignRoleMsg,
     isGovDAO,
     GOVDAO_VOTE_FUNC,
+    GOVDAO_EXECUTE_FUNC,
     GOVDAO_PROPOSE_FUNC,
 } from "./builders"
 
 // ── Test Exports ──────────────────────────────────────────────
 // Internal pure functions exported with _ prefix for unit testing.
-export { normalizeStatus as _normalizeStatus, sanitize as _sanitize } from "./shared"
+export { normalizeStatus as _normalizeStatus, sanitize as _sanitize, unescapeMarkdown as _unescapeMarkdown } from "./shared"
 export { parseProposalList as _parseProposalList } from "./proposals"
 export { parseMemberstoreTiers as _parseMemberstoreTiers } from "./config"
 export { parseMembersFromRender as _parseMembersFromRender } from "./members"

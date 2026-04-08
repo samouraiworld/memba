@@ -1,7 +1,7 @@
-# Memba v2.x — Master Roadmap
+# Memba — Master Roadmap
 
 > **Status tracker for all milestones. Updated at the end of each session.**
-> Last updated: 2026-04-01 (v2.28 teams + candidature)
+> Last updated: 2026-04-07 (v4.0-beta GnoBuilders + security fixes)
 
 ## Milestone Status
 
@@ -52,21 +52,24 @@
 | 41 | **Teams Backend** | v2.28 | ✅ SHIPPED | PR #222 → `main` |
 | 42 | **Candidature UI** | v2.28 | ✅ SHIPPED | PR #223 → `main` |
 | 43 | **Teams Frontend** | v2.28 | ✅ SHIPPED | PR #224 → `main` |
+| 44 | **v3.3 AI Council** | v3.3 | ✅ SHIPPED | PR #268-273 → `main` |
+| 45 | **v4.0-beta GnoBuilders** | v4.0 | ✅ SHIPPED | feat/gnobuilders → `main` |
 | — | **Revenue & Sustainability** | v2.3 | 📋 PLANNED | — |
-| — | **Marketplace & AI** | v3.0 | 📋 PLANNED | — |
 | — | **Premium** | v3.5 | 🔮 HORIZON | — |
-| — | **Horizon** | v4.0 | 🔮 HORIZON | — |
+| — | **Horizon** | v4.0+ | 🔮 HORIZON | — |
 
-## Quality Gates (as of v2.28)
+## Quality Gates (as of v4.0-beta)
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 1,349 (59 files) |
-| E2E specs | 16 spec files |
+| Unit tests | 1,579 (72 files) |
+| Backend tests | 87 (4 packages) |
+| E2E specs | 18 spec files |
 | TypeScript errors | 0 |
 | Lint errors | 0 |
-| Build size | ~489KB (~143KB gzip) |
-| package.json | 2.28.0 |
+| Build size | ~501KB (~147KB gzip) |
+| Quest count | 85 (4 categories) |
+| Rank tiers | 8 (Newcomer → Gno Guardian) |
 
 ## v2.2b — Directory Enrichment (✅ SHIPPED — PR #77)
 

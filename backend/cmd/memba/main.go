@@ -141,7 +141,7 @@ func main() {
 		Addr:         ":" + port,
 		Handler:      c.Handler(h2c.NewHandler(mux, &http2.Server{})),
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 

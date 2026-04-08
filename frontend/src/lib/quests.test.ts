@@ -19,7 +19,7 @@ beforeEach(() => {
 describe("quest definitions", () => {
     it("has 10 quests", () => expect(QUESTS).toHaveLength(10))
     it("total XP is 125", () => expect(TOTAL_POSSIBLE_XP).toBe(125))
-    it("candidature threshold is 100", () => expect(CANDIDATURE_XP_THRESHOLD).toBe(100))
+    it("candidature threshold is 350 (Gold rank)", () => expect(CANDIDATURE_XP_THRESHOLD).toBe(350))
     it("all quests have unique IDs", () => {
         const ids = QUESTS.map(q => q.id)
         expect(new Set(ids).size).toBe(ids.length)
@@ -61,8 +61,8 @@ describe("completeQuest", () => {
         expect(result!.state.totalXP).toBe(25)
     })
 
-    it("flags unlockedCandidature when crossing threshold", () => {
-        // Complete quests to reach exactly 100+ XP
+    it("does not flag unlockedCandidature below 350 XP threshold", () => {
+        // With only 10 v1 quests (125 XP max), can't reach 350 threshold
         completeQuest("connect-wallet")    // 10
         completeQuest("visit-5-pages")     // 10
         completeQuest("browse-proposals")  // 15
@@ -71,7 +71,8 @@ describe("completeQuest", () => {
         completeQuest("switch-network")    // 15
         completeQuest("directory-tabs")    // 15 → 85
         const result = completeQuest("submit-feedback") // 20 → 105
-        expect(result!.unlockedCandidature).toBe(true)
+        // 105 XP < 350 threshold, so candidature not unlocked
+        expect(result!.unlockedCandidature).toBe(false)
     })
 })
 
@@ -85,8 +86,26 @@ describe("isQuestCompleted", () => {
 
 describe("canApplyForMembership", () => {
     it("false with 0 XP", () => expect(canApplyForMembership()).toBe(false))
-    it("true after enough quests", () => {
-        // Complete quests worth >= 100 XP
+    it("false with 125 XP (below 350 threshold)", () => {
+        // Complete all v1 quests = 125 XP, still below 350
+        completeQuest("connect-wallet")    // 10
+        completeQuest("visit-5-pages")     // 10
+        completeQuest("browse-proposals")  // 15
+        completeQuest("view-profile")      // 10
+        completeQuest("use-cmdk")          // 10
+        completeQuest("switch-network")    // 15
+        completeQuest("directory-tabs")    // 15
+        completeQuest("submit-feedback")   // 20
+        completeQuest("view-validator")    // 10
+        completeQuest("share-link")        // 10 → total 125
+        // 125 < 350, not eligible unless grandfathered
+        expect(canApplyForMembership()).toBe(false)
+    })
+
+    it("true with legacy eligibility flag", () => {
+        // Set legacy flag (simulating a user who had 100+ XP before v4.0)
+        // Use global key (no wallet connected = no scoped suffix)
+        localStorage.setItem("memba_legacy_candidature", "true")
         completeQuest("connect-wallet")    // 10
         completeQuest("visit-5-pages")     // 10
         completeQuest("browse-proposals")  // 15
@@ -95,6 +114,7 @@ describe("canApplyForMembership", () => {
         completeQuest("switch-network")    // 15
         completeQuest("directory-tabs")    // 15
         completeQuest("submit-feedback")   // 20 → total 105
+        // 105 >= 100 (legacy) AND legacy flag set → eligible
         expect(canApplyForMembership()).toBe(true)
     })
 })

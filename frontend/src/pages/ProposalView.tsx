@@ -199,7 +199,9 @@ export function ProposalView() {
         try {
             const msg = buildExecuteMsg(adena.address, realmPath, proposalId)
             await doContractBroadcast([msg], `Execute Proposal #${proposalId}`)
-            setSuccess(`Proposal #${proposalId} executed!`)
+            // With ExecuteOrRejectProposal (gno#5261), the tx succeeds but the
+            // proposal may be rejected if execution errored. Reload to get final status.
+            setSuccess(`Proposal #${proposalId} processed — reloading status...`)
             await loadProposal()
         } catch (err) {
             logChainError(`proposal:execute:${realmPath}#${proposalId}`, err, "critical", adena.address)
@@ -525,7 +527,7 @@ export function ProposalView() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadProposal() }} />
         </div>
     )
 }

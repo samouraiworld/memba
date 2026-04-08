@@ -19,6 +19,7 @@ import {
     _normalizeStatus,
     _parseProposalList,
     _sanitize,
+    _unescapeMarkdown,
     _parseMemberstoreTiers,
     _parseMembersFromRender,
 } from './index'
@@ -93,6 +94,30 @@ describe('sanitize', () => {
 
     it('allows query params with ampersands', () => {
         expect(_sanitize('members?page=1&filter=T1')).toBe('members?page=1&filter=T1')
+    })
+})
+
+// ── unescapeMarkdown (gno#5418 compatibility) ─────────────────
+
+describe('unescapeMarkdown', () => {
+    it('strips backslash escapes from markdown special chars', () => {
+        expect(_unescapeMarkdown('Upgrade to v2\\.0 \\(critical\\)')).toBe('Upgrade to v2.0 (critical)')
+    })
+
+    it('handles bracket escapes', () => {
+        expect(_unescapeMarkdown('Add \\[new\\] validators')).toBe('Add [new] validators')
+    })
+
+    it('passes through clean text unchanged', () => {
+        expect(_unescapeMarkdown('Normal title without escapes')).toBe('Normal title without escapes')
+    })
+
+    it('handles asterisk and underscore escapes', () => {
+        expect(_unescapeMarkdown('\\*bold\\* and \\_italic\\_')).toBe('*bold* and _italic_')
+    })
+
+    it('handles empty string', () => {
+        expect(_unescapeMarkdown('')).toBe('')
     })
 })
 
@@ -287,12 +312,18 @@ describe('buildVoteMsg', () => {
 })
 
 describe('buildExecuteMsg', () => {
-    it('builds execute message with correct function and args', () => {
+    it('builds execute message for Memba DAO', () => {
         const msg = buildExecuteMsg('g1caller', 'gno.land/r/samcrew/dao', 5)
         expect(msg.type).toBe('vm/MsgCall')
         expect(msg.value.func).toBe('ExecuteProposal')
         expect(msg.value.args).toEqual(['5'])
         expect(msg.value.pkg_path).toBe('gno.land/r/samcrew/dao')
+    })
+
+    it('uses ExecuteOrRejectProposal for GovDAO (gno#5261)', () => {
+        const msg = buildExecuteMsg('g1caller', 'gno.land/r/gov/dao', 3)
+        expect(msg.value.func).toBe('ExecuteOrRejectProposal')
+        expect(msg.value.args).toEqual(['3'])
     })
 })
 

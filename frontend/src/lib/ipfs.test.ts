@@ -11,6 +11,7 @@ import {
     isValidImageMime,
     isValidCid,
     getIpfsGatewayUrl,
+    getIpfsGatewayUrls,
     resolveAvatarUrl,
 } from "./ipfs"
 
@@ -80,6 +81,25 @@ describe("getIpfsGatewayUrl", () => {
     it("returns Lighthouse gateway URL", () => {
         const cid = "bafybei" + "x".repeat(52)
         expect(getIpfsGatewayUrl(cid)).toBe(`https://gateway.lighthouse.storage/ipfs/${cid}`)
+    })
+})
+
+// ── getIpfsGatewayUrls (fallback chain) ──────────────────────
+
+describe("getIpfsGatewayUrls", () => {
+    it("returns all 3 gateway URLs for a CID", () => {
+        const cid = "bafybei" + "x".repeat(52)
+        const urls = getIpfsGatewayUrls(cid)
+        expect(urls).toHaveLength(3)
+        expect(urls[0]).toContain("lighthouse.storage")
+        expect(urls[1]).toContain("ipfs.io")
+        expect(urls[2]).toContain("dweb.link")
+    })
+
+    it("primary gateway is first", () => {
+        const cid = "bafybei" + "z".repeat(52)
+        const urls = getIpfsGatewayUrls(cid)
+        expect(urls[0]).toBe(getIpfsGatewayUrl(cid))
     })
 })
 

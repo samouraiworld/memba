@@ -4,7 +4,7 @@ import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
     LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
-    Handshake, ImageSquare, Bank,
+    Handshake, ImageSquare, Bank, GameController, Trophy,
 } from "@phosphor-icons/react"
 import { useOrg } from "../../contexts/OrgContext"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
@@ -153,6 +153,8 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 <SidebarLink to="/alerts" icon={<Bell size={18} />} label="Alerts" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/multisig" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/gnolove" icon={<Heart size={18} />} label="Gnolove" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/quests" icon={<GameController size={18} />} label="Quests" connected={connected} collapsed={collapsed} />
+                <SidebarLink to="/leaderboard" icon={<Trophy size={18} />} label="Leaderboard" connected={connected} collapsed={collapsed} />
                 {!collapsed && <CmdKHint />}
             </nav>
 

@@ -26,6 +26,18 @@ import type { AminoMsg } from "./shared"
 export const GOVDAO_VOTE_FUNC = "MustVoteOnProposalSimple"
 
 /**
+ * GovDAO execute function name.
+ *
+ * gno#5261 added ExecuteOrRejectProposal which gracefully rejects
+ * proposals when execution errors occur (instead of leaving them stuck).
+ * Falls back to ExecuteProposal on older chains where the new function
+ * doesn't exist yet.
+ *
+ * Tracking: https://github.com/gnolang/gno/pull/5261
+ */
+export const GOVDAO_EXECUTE_FUNC = "ExecuteOrRejectProposal"
+
+/**
  * GovDAO propose function name.
  * Separate from Memba DAO propose (which includes category).
  */
@@ -49,12 +61,15 @@ export function buildVoteMsg(
     return buildDAOMsgCall(realmPath, "VoteOnProposal", [String(proposalId), vote], caller)
 }
 
-/** Build execute message. */
+/** Build execute message. Uses ExecuteOrRejectProposal for GovDAO (gno#5261). */
 export function buildExecuteMsg(
     caller: string,
     realmPath: string,
     proposalId: number,
 ): AminoMsg {
+    if (isGovDAO(realmPath)) {
+        return buildDAOMsgCall(realmPath, GOVDAO_EXECUTE_FUNC, [String(proposalId)], caller)
+    }
     return buildDAOMsgCall(realmPath, "ExecuteProposal", [String(proposalId)], caller)
 }
 

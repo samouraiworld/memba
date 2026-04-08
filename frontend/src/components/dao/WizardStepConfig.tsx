@@ -25,7 +25,7 @@ export function WizardStepConfig({
                     <input
                         type="range"
                         value={threshold}
-                        onChange={(e) => onThresholdChange(parseInt(e.target.value))}
+                        onChange={(e) => onThresholdChange(parseInt(e.target.value, 10))}
                         min="1"
                         max="100"
                         style={{ flex: 1 }}
@@ -45,7 +45,7 @@ export function WizardStepConfig({
                     <input
                         type="range"
                         value={quorum}
-                        onChange={(e) => onQuorumChange(parseInt(e.target.value))}
+                        onChange={(e) => onQuorumChange(parseInt(e.target.value, 10))}
                         min="0"
                         max="100"
                         style={{ flex: 1 }}

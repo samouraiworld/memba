@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -76,8 +77,8 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 	if req.AnalysisType != "proposal" && req.AnalysisType != "dao" {
 		return fmt.Errorf("analysisType must be 'proposal' or 'dao'")
 	}
-	if req.AnalysisType == "proposal" && req.ProposalID <= 0 {
-		return fmt.Errorf("proposalId must be positive for proposal analysis")
+	if req.AnalysisType == "proposal" && req.ProposalID < 0 {
+		return fmt.Errorf("proposalId must be non-negative for proposal analysis")
 	}
 	if len(req.ProposalData) > 50*1024 {
 		return fmt.Errorf("proposalData exceeds 50KB limit")
@@ -341,6 +342,10 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			}
 		}
 
+		// Bound the total handler execution to 55s (fits within 90s WriteTimeout).
+		ctx, cancel := context.WithTimeout(r.Context(), 55*time.Second)
+		defer cancel()
+
 		// Select OpenRouter providers
 		allProviders := getProviders()
 		var orProviders []LLMProvider
@@ -404,7 +409,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 					defer wg.Done()
 
 					systemPrompt := getSystemPrompt(provider.Role)
-					llmOutput, err := callLLM(r.Context(), provider, systemPrompt, userPrompt)
+					llmOutput, err := callLLM(ctx, provider, systemPrompt, userPrompt)
 
 					if err != nil {
 						health.recordFailure(provider.Name)
@@ -444,7 +449,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			// Gap between batches (only if more batches remain)
 			if batchEnd < len(orProviders) {
 				select {
-				case <-r.Context().Done():
+				case <-ctx.Done():
 					http.Error(w, `{"error":"request cancelled"}`, http.StatusRequestTimeout)
 					return
 				case <-time.After(1 * time.Second):
@@ -473,7 +478,9 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			slog.Error("failed to write consensus response", "error", err)
+		}
 	})
 }
 

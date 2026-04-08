@@ -115,4 +115,4 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | Upstream Compatibility Shield | v2.21.0 | Parser V1/V2, GovDAO constants, 63 tests |
 
 ---
-*Updated 2026-04-07 during v3.3.0 (AI Council network isolation, prompt enrichment, bug fixes).*
+*Updated 2026-04-07 during v4.0-beta (GnoBuilders quest system, security hardening, badge NFTs).*

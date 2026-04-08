@@ -5,19 +5,20 @@
 
 ---
 
-## Current Status (2026-04-06)
+## Current Status (2026-04-07)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v3.2.0 (Multi-Model Consensus, Team Descriptions, Governance Discovery) |
-| **Shipped Versions** | 40+ (v0.1.0 → v3.2.0) |
-| **Test Suite** | 1,495 unit tests (69 files) + 87 backend tests + 18 E2E spec files |
+| **Latest Release** | v4.0.0-beta (GnoBuilders Quest System, Security Hardening) |
+| **Shipped Versions** | 40+ (v0.1.0 → v4.0.0-beta) |
+| **Test Suite** | 1,579 unit tests (72 files) + 87 backend tests + 18 E2E spec files |
 | **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
 | **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite, OpenRouter AI |
 | **URL Format** | Network-scoped: `/:network/dao/gno.land/r/gov/dao` (v2.25+) |
-| **On-Chain** | 5 realms deployed on test12: memba_dao, candidature, channels, tokenfactory, escrow |
+| **On-Chain** | 6 realm codebases ready (+ gnobuilders_badges), awaiting test12 redeployment |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
-| **Next Priority** | Mainnet preparation, AI analyst tuning, NFT/Services/Marketplace production readiness |
+| **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721) |
+| **Next Priority** | test12 realm redeployment, badge minting wiring, admin review UI |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
