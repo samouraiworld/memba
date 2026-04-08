@@ -28,7 +28,7 @@ export function QuestCard({ quest, completed, available }: QuestCardProps) {
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
 
     return (
-        <Link to={`/${nk}/quests/${quest.id}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+        <Link to={`/${nk}/quests/${quest.id}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`}>
             <div className="k-quest-card-header">
                 <span className="k-quest-card-icon">{quest.icon}</span>
                 <span className="k-quest-card-xp">+{quest.xp} XP</span>
