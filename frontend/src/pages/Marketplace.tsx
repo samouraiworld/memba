@@ -82,7 +82,7 @@ function MarketplaceContent() {
     // Load agents from chain on mount + load favorites if authenticated
     useEffect(() => {
         document.title = "AI Agent Marketplace — Memba"
-        loadAgents()
+        loadAgents() // eslint-disable-line react-hooks/set-state-in-effect
     }, [loadAgents])
 
     useEffect(() => {
