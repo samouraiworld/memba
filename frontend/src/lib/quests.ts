@@ -6,7 +6,6 @@
  */
 
 import { api } from "./api"
-import { ALL_QUESTS } from "./gnobuilders"
 import { create } from "@bufbuild/protobuf"
 import {
     CompleteQuestRequestSchema,
@@ -168,20 +167,6 @@ export function isQuestCompleted(questId: string): boolean {
  * Complete a quest. Returns updated state, or null if already completed.
  * Dual-write: always writes to localStorage, fire-and-forget to backend if token available.
  */
-/**
- * Find a quest by ID in the unified registry (v1 QUESTS + v2 ALL_QUESTS).
- * Returns a Quest-compatible object or undefined.
- */
-function _findQuest(questId: string): Quest | undefined {
-    // Check v1 first (10 original quests)
-    const v1 = QUESTS.find(q => q.id === questId)
-    if (v1) return v1
-    // Check v2 GnoBuilders (85 quests)
-    const v2 = ALL_QUESTS.find(q => q.id === questId)
-    if (v2) return { id: v2.id, title: v2.title, description: v2.description, xp: v2.xp, icon: v2.icon }
-    return undefined
-}
-
 export interface QuestResult {
     state: UserQuestState
     /** True if this quest pushed XP over the candidature threshold for the first time. */
@@ -189,8 +174,7 @@ export interface QuestResult {
 }
 
 export function completeQuest(questId: string, authToken?: Token): QuestResult | null {
-    // Search unified quest registry (v1 + v2 GnoBuilders)
-    const quest = _findQuest(questId)
+    const quest = QUESTS.find(q => q.id === questId)
     if (!quest) return null
 
     const state = loadQuestProgress()
@@ -235,7 +219,7 @@ export function canApplyForMembership(): boolean {
  */
 function isLegacyEligible(): boolean {
     try {
-        return localStorage.getItem(_scopedKey("memba_legacy_candidature")) === "true"
+        return localStorage.getItem("memba_legacy_candidature_eligible") === "true"
     } catch {
         return false
     }
@@ -244,13 +228,12 @@ function isLegacyEligible(): boolean {
 /**
  * Mark the current user as legacy-eligible if they meet the old threshold.
  * Call this once during migration (e.g., on first load after v4.0 upgrade).
- * Per-wallet scoped to prevent cross-wallet leakage.
  */
 export function checkAndSetLegacyEligibility(): void {
     try {
         const state = loadQuestProgress()
         if (state.totalXP >= LEGACY_CANDIDATURE_THRESHOLD) {
-            localStorage.setItem(_scopedKey("memba_legacy_candidature"), "true")
+            localStorage.setItem("memba_legacy_candidature_eligible", "true")
         }
     } catch { /* */ }
 }

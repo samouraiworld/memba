@@ -18,8 +18,8 @@ import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
 import { QuestToast } from "../quests/QuestToast"
-import { getQuestById } from "../../lib/gnobuilders"
-import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
+import { getQuestById, calculateRank } from "../../lib/gnobuilders"
+import { setupKonamiDetector, trackDailyLogin, trackNetworkVisit } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 
@@ -45,7 +45,6 @@ export function Layout() {
     const [authError, setAuthError] = useState<string | null>(null)
     const [walletSwitchMsg, setWalletSwitchMsg] = useState<string | null>(null)
     const [questToast, setQuestToast] = useState<{ title: string; icon: string; xp: number; rankUp?: string } | null>(null)
-    const dismissQuestToast = useCallback(() => setQuestToast(null), [])
     const loginAttemptedRef = useRef(false)
 
     // ── Sidebar collapse state (persisted to localStorage) ──
@@ -338,7 +337,7 @@ export function Layout() {
                         questIcon={questToast.icon}
                         xpEarned={questToast.xp}
                         rankUp={questToast.rankUp}
-                        onDismiss={dismissQuestToast}
+                        onDismiss={() => setQuestToast(null)}
                     />
                 )}
             </div>

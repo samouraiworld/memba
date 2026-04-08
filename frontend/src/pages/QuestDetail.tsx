@@ -15,9 +15,12 @@ import { loadQuestProgress, completeQuest } from "../lib/quests"
 import {
     getQuestById,
     isQuestAvailable,
+    calculateRank,
+    ALL_QUESTS,
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, verifyDeployment, type QuestVerificationResult } from "../lib/questVerifier"
+import { RankBadge } from "../components/quests/RankBadge"
 import { GNO_RPC_URL } from "../lib/config"
 import { trackPageVisit } from "../lib/quests"
 import { useAuth } from "../hooks/useAuth"
@@ -43,7 +46,6 @@ export default function QuestDetail() {
     const [verification, setVerification] = useState<QuestVerificationResult | null>(null)
     const [verifying, setVerifying] = useState(false)
     const [realmPath, setRealmPath] = useState("")
-    const [showCelebration, setShowCelebration] = useState(false)
 
     useEffect(() => {
         document.title = quest ? `${quest.title} — GnoBuilders` : "Quest Not Found"
@@ -76,8 +78,6 @@ export default function QuestDetail() {
 
             if (result.status === "verified" && !isCompleted) {
                 completeQuest(questId, auth.token ?? undefined)
-                setShowCelebration(true)
-                setTimeout(() => setShowCelebration(false), 4000)
             }
         } catch {
             setVerification({ status: "error", message: "Verification failed" })
@@ -95,8 +95,6 @@ export default function QuestDetail() {
 
             if (result.status === "verified" && questId && !isCompleted) {
                 completeQuest(questId, auth.token ?? undefined)
-                setShowCelebration(true)
-                setTimeout(() => setShowCelebration(false), 4000)
             }
         } catch {
             setVerification({ status: "error", message: "Verification failed" })
@@ -240,17 +238,6 @@ export default function QuestDetail() {
                     Back to Quest Hub
                 </Link>
             </div>
-
-            {/* Quest completion celebration */}
-            {showCelebration && (
-                <div className="k-quest-celebration" role="status" aria-live="polite">
-                    <div className="k-quest-celebration__content">
-                        <span className="k-quest-celebration__icon">+{quest.xp} XP</span>
-                        <h3>Quest Complete!</h3>
-                        <p>{quest.title}</p>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

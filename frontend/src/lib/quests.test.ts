@@ -104,8 +104,7 @@ describe("canApplyForMembership", () => {
 
     it("true with legacy eligibility flag", () => {
         // Set legacy flag (simulating a user who had 100+ XP before v4.0)
-        // Use global key (no wallet connected = no scoped suffix)
-        localStorage.setItem("memba_legacy_candidature", "true")
+        localStorage.setItem("memba_legacy_candidature_eligible", "true")
         completeQuest("connect-wallet")    // 10
         completeQuest("visit-5-pages")     // 10
         completeQuest("browse-proposals")  // 15
