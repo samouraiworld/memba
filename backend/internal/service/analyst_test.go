@@ -341,7 +341,7 @@ func TestHandleAnalystConsensus_ProposalZeroValidation(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatal("migrate:", err)
 	}
-	t.Cleanup(func() { database.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	// Clear all LLM keys so the handler returns 503 (no providers) after validation passes.
 	t.Setenv("OPENROUTER_API_KEY", "")
