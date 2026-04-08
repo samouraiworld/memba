@@ -134,7 +134,7 @@ export default function QuestDetail() {
                     <h1>{quest.title}</h1>
                     <p className="k-questdetail-desc">{quest.description}</p>
                 </div>
-                <span className="k-quest-card-xp" style={{ fontSize: "1rem" }}>+{quest.xp} XP</span>
+                <span className="k-quest-card-xp k-questdetail-header-xp">+{quest.xp} XP</span>
             </div>
 
             {/* Meta */}
@@ -193,7 +193,7 @@ export default function QuestDetail() {
                     {isDeployQuest && quest.verification === "on_chain" && (
                         <div className="k-questdetail-deploy-form">
                             <label>Enter your deployed realm/package path:</label>
-                            <div style={{ display: "flex", gap: 8 }}>
+                            <div className="k-questdetail-deploy-row">
                                 <input
                                     type="text"
                                     className="k-questhub-search"
@@ -235,7 +235,7 @@ export default function QuestDetail() {
             )}
 
             {/* Back link */}
-            <div style={{ marginTop: 24 }}>
+            <div className="k-questdetail-back">
                 <Link to={`/${nk}/quests`} className="k-questhub-leaderboard-link">
                     Back to Quest Hub
                 </Link>

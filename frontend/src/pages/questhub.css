@@ -1,9 +1,10 @@
-/* QuestHub — GnoBuilders quest catalog page */
+/* QuestHub — GnoBuilders quest catalog page (dark-theme aligned) */
 
 .k-questhub {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 24px;
+    padding: var(--space-6);
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* Hero */
@@ -11,29 +12,30 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 32px;
-    margin-bottom: 32px;
-    padding: 32px;
-    background: linear-gradient(135deg, var(--color-surface, #f8f9fa), var(--color-surface-raised, #fff));
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 16px;
+    gap: var(--space-8);
+    margin-bottom: var(--space-8);
+    padding: var(--space-8);
+    background: linear-gradient(135deg, var(--color-k-panel), var(--color-k-elevated));
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-xl);
 }
 
 .k-questhub-hero h1 {
     font-size: 2rem;
     font-weight: 700;
     margin: 0 0 4px;
+    color: var(--color-k-text);
 }
 
 .k-questhub-subtitle {
     font-size: 1rem;
-    color: var(--color-text-secondary, #6b7280);
-    margin: 0 0 8px;
+    color: var(--color-k-dim);
+    margin: 0 0 var(--space-2);
 }
 
 .k-questhub-desc {
     font-size: 0.875rem;
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-k-muted);
     max-width: 400px;
     margin: 0;
 }
@@ -42,7 +44,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 8px;
+    gap: var(--space-2);
     min-width: 200px;
 }
 
@@ -55,127 +57,144 @@
 .k-questhub-xp-value {
     font-size: 1.5rem;
     font-weight: 700;
+    color: var(--color-k-text);
 }
 
 .k-questhub-xp-next {
     font-size: 0.75rem;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
 }
 
 .k-questhub-progress-bar {
     width: 200px;
     height: 6px;
-    background: var(--color-border, #e5e7eb);
+    background: var(--color-k-edge);
     border-radius: 3px;
     overflow: hidden;
 }
 
 .k-questhub-progress-fill {
     height: 100%;
-    background: var(--color-primary, #329175);
+    background: var(--color-k-accent);
     border-radius: 3px;
     transition: width 0.3s ease;
 }
 
 .k-questhub-progress-label {
     font-size: 0.75rem;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
 }
 
 /* Tabs */
 .k-questhub-tabs {
     display: flex;
-    gap: 4px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-k-edge);
     padding-bottom: 0;
 }
 
 .k-questhub-tab {
-    padding: 8px 16px;
+    padding: var(--space-2) var(--space-4);
     border: none;
     background: none;
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
     border-bottom: 2px solid transparent;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .k-questhub-tab:hover {
-    color: var(--color-text, #111827);
+    color: var(--color-k-text);
 }
 
 .k-questhub-tab.active {
-    color: var(--color-primary, #329175);
-    border-bottom-color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
+    border-bottom-color: var(--color-k-accent);
 }
 
 /* Filters */
 .k-questhub-filters {
     display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
 }
 
 .k-questhub-search {
     flex: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 8px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
-    background: var(--color-surface, #fff);
+    background: var(--color-k-elevated);
+    color: var(--color-k-text);
+    transition: border-color var(--transition-fast);
+}
+
+.k-questhub-search::placeholder {
+    color: var(--color-k-muted);
 }
 
 .k-questhub-search:focus {
     outline: none;
-    border-color: var(--color-primary, #329175);
+    border-color: var(--color-k-accent);
 }
 
 .k-questhub-select {
-    padding: 8px 12px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 8px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
-    background: var(--color-surface, #fff);
+    background: var(--color-k-elevated);
+    color: var(--color-k-text);
     cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.k-questhub-select:focus {
+    outline: none;
+    border-color: var(--color-k-accent);
 }
 
 /* Quest Grid */
 .k-questhub-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    margin-bottom: 32px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
 }
 
 .k-questhub-empty {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 48px;
-    color: var(--color-text-secondary, #6b7280);
+    padding: var(--space-12);
+    color: var(--color-k-dim);
 }
 
 /* Quest Card */
 .k-quest-card {
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 12px;
-    background: var(--color-surface, #fff);
-    transition: all 0.15s ease;
+    padding: var(--space-4);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    background: var(--color-k-panel);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    color: inherit;
 }
 
 .k-quest-card:hover {
-    border-color: var(--color-primary, #329175);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-color: var(--color-k-accent);
+    box-shadow: 0 2px 12px rgba(0, 212, 170, 0.06);
+    background: var(--color-k-panel-hover);
 }
 
 .k-quest-card--completed {
-    border-color: var(--color-success, #22c55e);
-    background: linear-gradient(135deg, #f0fdf4, #fff);
+    border-color: rgba(0, 212, 170, 0.3);
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.06), var(--color-k-panel));
 }
 
 .k-quest-card--locked {
@@ -186,7 +205,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
 }
 
 .k-quest-card-icon {
@@ -196,22 +215,23 @@
 .k-quest-card-xp {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-primary, #329175);
-    background: var(--color-primary-bg, #ecfdf5);
-    padding: 2px 8px;
-    border-radius: 12px;
+    color: var(--color-k-accent);
+    background: rgba(0, 212, 170, 0.1);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
 }
 
 .k-quest-card-title {
     font-size: 1rem;
     font-weight: 600;
     margin: 0 0 4px;
+    color: var(--color-k-text);
 }
 
 .k-quest-card-desc {
     font-size: 0.813rem;
-    color: var(--color-text-secondary, #6b7280);
-    margin: 0 0 12px;
+    color: var(--color-k-dim);
+    margin: 0 0 var(--space-3);
     flex: 1;
 }
 
@@ -219,7 +239,7 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
 }
 
 .k-quest-card-difficulty {
@@ -228,24 +248,24 @@
     text-transform: capitalize;
     padding: 1px 6px;
     border: 1px solid;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 .k-quest-card-category {
     font-size: 0.688rem;
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-k-dim);
     text-transform: capitalize;
     padding: 1px 6px;
-    background: var(--color-surface-raised, #f3f4f6);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
 }
 
 .k-quest-card-tag {
     font-size: 0.625rem;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
     padding: 1px 5px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 4px;
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-sm);
 }
 
 .k-quest-card-footer {
@@ -258,15 +278,15 @@
 }
 
 .k-quest-card-status--done {
-    color: var(--color-success, #22c55e);
+    color: var(--color-success, #4caf50);
 }
 
 .k-quest-card-status--available {
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
 }
 
 .k-quest-card-status--locked {
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-k-muted);
 }
 
 /* Rank Badge */
@@ -275,7 +295,7 @@
     align-items: center;
     gap: 4px;
     padding: 3px 10px;
-    border-radius: 12px;
+    border-radius: var(--radius-full);
     color: #fff;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -307,11 +327,11 @@
 /* Footer */
 .k-questhub-footer {
     text-align: center;
-    padding: 16px;
+    padding: var(--space-4);
 }
 
 .k-questhub-leaderboard-link {
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
     font-weight: 500;
     text-decoration: none;
 }
@@ -322,53 +342,55 @@
 
 /* Achievement Grid (profile section) */
 .k-achievements {
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
 }
 
 .k-achievements-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
 }
 
 .k-achievements-header h3 {
     font-size: 1rem;
     font-weight: 600;
     margin: 0;
+    color: var(--color-k-text);
 }
 
 .k-achievements-stats {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     font-size: 0.75rem;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
 }
 
 .k-achievements-xp {
     font-weight: 600;
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
 }
 
 .k-achievements-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
 }
 
 .k-achievements-badge {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 8px;
-    background: var(--color-surface-raised, #f3f4f6);
-    border-radius: 8px;
+    padding: var(--space-1) var(--space-2);
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
     font-size: 0.75rem;
+    color: var(--color-k-text);
 }
 
 .k-achievements-badge-icon {
@@ -385,14 +407,14 @@
 .k-achievements-more {
     display: flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: var(--space-1) var(--space-2);
     font-size: 0.75rem;
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
 }
 
 .k-achievements-link {
     font-size: 0.813rem;
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
     text-decoration: none;
 }
 
@@ -403,20 +425,24 @@
 /* Quest Detail Page */
 .k-questdetail-breadcrumb {
     font-size: 0.813rem;
-    color: var(--color-text-secondary, #6b7280);
-    margin-bottom: 16px;
+    color: var(--color-k-dim);
+    margin-bottom: var(--space-4);
 }
 
 .k-questdetail-breadcrumb a {
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
     text-decoration: none;
+}
+
+.k-questdetail-breadcrumb a:hover {
+    text-decoration: underline;
 }
 
 .k-questdetail-header {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
 }
 
 .k-questdetail-icon {
@@ -426,108 +452,128 @@
 .k-questdetail-header h1 {
     font-size: 1.5rem;
     margin: 0 0 4px;
+    color: var(--color-k-text);
+}
+
+.k-questdetail-header-xp {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-k-accent);
 }
 
 .k-questdetail-desc {
-    color: var(--color-text-secondary, #6b7280);
+    color: var(--color-k-dim);
     margin: 0;
 }
 
 .k-questdetail-meta {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
 }
 
 .k-questdetail-status {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
 }
 
 .k-questdetail-completed {
-    color: var(--color-success, #22c55e);
+    color: var(--color-success, #4caf50);
     font-weight: 600;
     font-size: 1.125rem;
 }
 
 .k-questdetail-available {
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
     font-weight: 600;
 }
 
 .k-questdetail-locked {
-    color: var(--color-text-tertiary, #9ca3af);
+    color: var(--color-k-muted);
 }
 
 .k-questdetail-prereqs {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
 }
 
 .k-questdetail-prereqs h3 {
     font-size: 1rem;
-    margin: 0 0 12px;
+    margin: 0 0 var(--space-3);
+    color: var(--color-k-text);
 }
 
 .k-questdetail-chain {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
 }
 
 .k-questdetail-chain-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 8px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
     text-decoration: none;
     color: inherit;
+    transition: border-color var(--transition-fast);
 }
 
 .k-questdetail-chain-item:hover {
-    border-color: var(--color-primary, #329175);
+    border-color: var(--color-k-accent);
 }
 
 .k-questdetail-chain-item--current {
-    background: var(--color-primary-bg, #ecfdf5);
-    border-color: var(--color-primary, #329175);
+    background: rgba(0, 212, 170, 0.08);
+    border-color: var(--color-k-accent);
     font-weight: 600;
 }
 
 .k-questdetail-verify {
-    padding: 16px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 12px;
-    margin-bottom: 24px;
+    padding: var(--space-4);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
 }
 
 .k-questdetail-verify h3 {
     font-size: 1rem;
-    margin: 0 0 12px;
+    margin: 0 0 var(--space-3);
+    color: var(--color-k-text);
 }
 
 .k-questdetail-deploy-form {
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
 }
 
 .k-questdetail-deploy-form label {
     display: block;
     font-size: 0.813rem;
-    color: var(--color-text-secondary, #6b7280);
-    margin-bottom: 8px;
+    color: var(--color-k-dim);
+    margin-bottom: var(--space-2);
+}
+
+.k-questdetail-deploy-row {
+    display: flex;
+    gap: var(--space-2);
 }
 
 .k-questdetail-verify-btn {
-    padding: 8px 16px;
-    background: var(--color-primary, #329175);
-    color: #fff;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-k-accent);
+    color: #000;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.k-questdetail-verify-btn:hover {
+    background: var(--color-k-accent-hover);
 }
 
 .k-questdetail-verify-btn:disabled {
@@ -537,35 +583,39 @@
 
 .k-questdetail-hint {
     font-size: 0.813rem;
-    color: var(--color-text-tertiary, #9ca3af);
-    margin-top: 8px;
+    color: var(--color-k-muted);
+    margin-top: var(--space-2);
 }
 
 .k-questdetail-result {
-    margin-top: 12px;
-    padding: 8px 12px;
-    border-radius: 8px;
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
 }
 
 .k-questdetail-result--verified {
-    background: var(--color-success-bg, #f0fdf4);
-    color: var(--color-success, #22c55e);
+    background: rgba(0, 212, 170, 0.08);
+    color: var(--color-k-accent);
 }
 
 .k-questdetail-result--not_verified {
-    background: var(--color-surface-raised, #f3f4f6);
-    color: var(--color-text-secondary, #6b7280);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-k-dim);
 }
 
 .k-questdetail-result--pending {
-    background: var(--color-warning-bg, #fefce8);
-    color: var(--color-warning, #f59e0b);
+    background: rgba(255, 165, 2, 0.1);
+    color: var(--color-k-warning);
 }
 
 .k-questdetail-result--error {
-    background: #fef2f2;
-    color: #ef4444;
+    background: rgba(255, 71, 87, 0.1);
+    color: var(--color-k-danger);
+}
+
+.k-questdetail-back {
+    margin-top: var(--space-6);
 }
 
 /* Quest Toast */
@@ -575,12 +625,12 @@
     right: 24px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--color-surface, #fff);
-    border: 1px solid var(--color-success, #22c55e);
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-k-panel);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     transform: translateY(100px);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
@@ -605,21 +655,21 @@
 }
 
 .k-quest-toast-body strong {
-    color: var(--color-success, #22c55e);
+    color: var(--color-k-accent);
 }
 
 .k-quest-toast-xp {
     font-weight: 600;
-    color: var(--color-primary, #329175);
+    color: var(--color-k-accent);
 }
 
 .k-quest-toast-rankup {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-warning, #f59e0b);
-    padding: 2px 8px;
-    background: var(--color-warning-bg, #fefce8);
-    border-radius: 8px;
+    color: var(--color-k-warning);
+    padding: 2px var(--space-2);
+    background: rgba(255, 165, 2, 0.1);
+    border-radius: var(--radius-md);
 }
 
 /* Responsive */
@@ -672,21 +722,21 @@
     display: inline-block;
     font-size: 2rem;
     font-weight: 800;
-    color: #00d4aa;
+    color: var(--color-k-accent);
     text-shadow: 0 0 32px rgba(0, 212, 170, 0.5);
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
 }
 
 .k-quest-celebration__content h3 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text);
     margin: 0 0 4px;
 }
 
 .k-quest-celebration__content p {
     font-size: 0.85rem;
-    color: #888;
+    color: var(--color-k-dim);
 }
 
 @keyframes celebration-fade-in {
