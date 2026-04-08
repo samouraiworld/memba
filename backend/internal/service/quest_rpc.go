@@ -581,12 +581,22 @@ func (s *MultisigService) checkAndQueueRankBadge(ctx context.Context, address st
 
 // ── Admin: Quest Claim Review ───────────────────────────────
 
+// adminAddresses is the set of addresses authorized to review quest claims.
+// Matches the samcrew-core-test1 multisig + deployer address.
+var adminAddresses = map[string]bool{
+	"g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0": true, // samcrew-core-test1
+}
+
 // ReviewQuestClaim approves or rejects a self-report quest claim.
-// If approved, the quest is completed and XP is awarded.
+// Only admin addresses can review claims. If approved, the quest is completed.
 func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Request[membav1.ReviewQuestClaimRequest]) (*connect.Response[membav1.ReviewQuestClaimResponse], error) {
 	reviewerAddr, err := s.authenticate(req.Msg.AuthToken)
 	if err != nil {
 		return nil, err
+	}
+
+	if !adminAddresses[reviewerAddr] {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
 	claimID := req.Msg.ClaimId
@@ -640,10 +650,15 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 }
 
 // ListPendingClaims returns all pending quest claims for admin review.
+// Only admin addresses can list claims.
 func (s *MultisigService) ListPendingClaims(ctx context.Context, req *connect.Request[membav1.ListPendingClaimsRequest]) (*connect.Response[membav1.ListPendingClaimsResponse], error) {
-	_, err := s.authenticate(req.Msg.AuthToken)
+	callerAddr, err := s.authenticate(req.Msg.AuthToken)
 	if err != nil {
 		return nil, err
+	}
+
+	if !adminAddresses[callerAddr] {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
 	rows, err := s.db.QueryContext(ctx,
