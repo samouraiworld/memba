@@ -27,7 +27,7 @@ export function WizardStepMembers({
     const updateMember = (i: number, field: "address" | "power", value: string) => {
         const next = [...members]
         if (field === "power") {
-            next[i] = { ...next[i], power: Math.max(1, parseInt(value) || 1) }
+            next[i] = { ...next[i], power: Math.max(1, parseInt(value, 10) || 1) }
         } else {
             next[i] = { ...next[i], address: value.trim() }
         }

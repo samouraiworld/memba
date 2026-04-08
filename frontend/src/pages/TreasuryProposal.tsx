@@ -99,7 +99,7 @@ export function TreasuryProposal() {
                     <label style={labelStyle}>Recipient Address</label>
                     <input
                         type="text" value={recipient} onChange={(e) => setRecipient(e.target.value)}
-                        placeholder="g1recipient..." disabled={loading}
+                        placeholder="g1abc...xyz (Gno address)" disabled={loading}
                         style={inputStyle(loading)}
                     />
                 </div>

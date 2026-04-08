@@ -667,7 +667,7 @@ function RegisterAgentForm({ address, onClose, onRegistered, onError }: {
                     {form.pricing === "pay-per-use" && (
                         <label className="mp-field">
                             <span>Price per call (ugnot)</span>
-                            <input type="number" value={form.pricePerCall} onChange={e => update("pricePerCall", parseInt(e.target.value) || 0)} min={0} />
+                            <input type="number" value={form.pricePerCall} onChange={e => update("pricePerCall", parseInt(e.target.value, 10) || 0)} min={0} />
                         </label>
                     )}
 

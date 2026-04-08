@@ -194,7 +194,7 @@ export function Settings() {
                         id="settings-gas-wanted"
                         type="number"
                         value={settings.gasWanted}
-                        onChange={e => setSettings(s => ({ ...s, gasWanted: parseInt(e.target.value) || 10000000 }))}
+                        onChange={e => setSettings(s => ({ ...s, gasWanted: parseInt(e.target.value, 10) || 10000000 }))}
                         style={inputStyle}
                     />
                 </div>
@@ -204,7 +204,7 @@ export function Settings() {
                         id="settings-gas-fee"
                         type="number"
                         value={settings.gasFee}
-                        onChange={e => setSettings(s => ({ ...s, gasFee: parseInt(e.target.value) || 1000000 }))}
+                        onChange={e => setSettings(s => ({ ...s, gasFee: parseInt(e.target.value, 10) || 1000000 }))}
                         style={inputStyle}
                     />
                 </div>
