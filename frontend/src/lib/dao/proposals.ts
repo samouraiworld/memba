@@ -4,7 +4,7 @@
  * Supports: GovDAO v3 markdown format and basedao JSON endpoint.
  */
 
-import { queryRender, queryEval, normalizeStatus, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
+import { queryRender, queryEval, normalizeStatus, unescapeMarkdown, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
 
 // ── Proposal Cache ────────────────────────────────────────────
@@ -50,7 +50,7 @@ export function parseProposalList(data: string): DAOProposal[] {
             if (!altMatch) continue
             proposals.push({
                 id: parseInt(altMatch[1], 10),
-                title: altMatch[2].trim(),
+                title: unescapeMarkdown(altMatch[2].trim()),
                 description: "",
                 category: "",
                 status: "open",
@@ -84,7 +84,7 @@ export function parseProposalList(data: string): DAOProposal[] {
 
         proposals.push({
             id: parseInt(propMatch[1], 10),
-            title: propMatch[2].trim(),
+            title: unescapeMarkdown(propMatch[2].trim()),
             description: "",
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
@@ -291,8 +291,8 @@ export async function getProposalDetail(
 
         return {
             id,
-            title: titleMatch?.[1]?.trim() || `Proposal #${id}`,
-            description: descMatch?.[1]?.trim() || "",
+            title: unescapeMarkdown(titleMatch?.[1]?.trim() || `Proposal #${id}`),
+            description: unescapeMarkdown(descMatch?.[1]?.trim() || ""),
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
             author: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",

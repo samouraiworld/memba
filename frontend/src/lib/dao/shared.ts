@@ -95,6 +95,15 @@ export async function queryEval(rpcUrl: string, pkgPath: string, expr: string): 
     return abciQuery(rpcUrl, "vm/qeval", `${pkgPath}.${expr}`)
 }
 
+/**
+ * Strip markdown escape backslashes from Render output text.
+ * gno#5418 escapes special chars in titles: `\(`, `\)`, `\[`, `\]`, `\_`, `\*`, etc.
+ * We strip these so titles display cleanly in the UI.
+ */
+export function unescapeMarkdown(str: string): string {
+    return str.replace(/\\([[\]()_*`~#>+\-.!|{}])/g, "$1")
+}
+
 /** Sanitize render path to prevent ABCI query injection.
  *  Allows query params (?key=val&key2=val2) for pagination and filtering. */
 export function sanitize(str: string): string {
