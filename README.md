@@ -15,7 +15,7 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
-## Features (v3.2)
+## Features (v4.0)
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -102,6 +102,15 @@
 - 🔐 **Self-contained code generation** — templates deploy on any network without external dependencies
 - 🏷️ Feature-gated behind `VITE_ENABLE_NFT`
 
+### GnoBuilders — Gamified Onboarding (v4.0)
+- 🎮 **85 Quests** — Developer, Everyone, Champion, and Hidden categories
+- 🏆 **8-Tier Rank System** — Newcomer → Gno Guardian (2,000 XP)
+- ✅ **Multi-Type Verification** — on-chain, off-chain, social, self-report
+- 🔗 **Prerequisite Chains** — quest dependencies with visual chain display
+- 📊 **Leaderboard** — XP rankings across all players
+- 🎉 **Completion Celebration** — animated XP overlay on quest verification
+- 🏅 **Badge NFT Infrastructure** — GRC721-based achievement badges
+
 ### AI Governance Analyst (v3.2)
 - 🤖 **Multi-Model Consensus** — 10 free AI models via OpenRouter analyze proposals from different perspectives (strategic, risk, technical, financial, legal, security, community, governance, reasoning, contrarian)
 - 📊 **Proposal-Level Analysis** — on-demand "Run AI Analysis" button on any proposal, shows verdict badge (APPROVE/REJECT/CAUTION) + confidence + model breakdown
@@ -170,7 +179,7 @@
 - 🚀 CI/CD: GitHub Actions (Node 22) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,495+ unit tests** (Vitest, 69 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
+- 🧪 **1,588 unit tests** (Vitest, 72 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
 - 🧪 **E2E tests** (Playwright, Chromium, 18 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove, candidature, teams
 
 ## Architecture
