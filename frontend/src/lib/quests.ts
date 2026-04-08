@@ -50,8 +50,16 @@ export const QUESTS: Quest[] = [
     { id: "share-link", title: "Ambassador", description: "Copy a Memba share link", xp: 10, icon: "🔗" },
 ]
 
-/** XP threshold required for Memba DAO candidature. */
-export const CANDIDATURE_XP_THRESHOLD = 100
+/**
+ * XP threshold required for Memba DAO candidature.
+ * v4.0: Raised from 100 to 350 (Gold rank) with GnoBuilders expansion.
+ * Existing users who reached 100 XP before v4.0 are grandfathered
+ * via the LEGACY_CANDIDATURE_THRESHOLD check.
+ */
+export const CANDIDATURE_XP_THRESHOLD = 350
+
+/** Legacy threshold for grandfathered users who reached 100 XP before v4.0. */
+export const LEGACY_CANDIDATURE_THRESHOLD = 100
 
 /** Total possible XP from all quests. */
 export const TOTAL_POSSIBLE_XP = QUESTS.reduce((sum, q) => sum + q.xp, 0) // 125
@@ -191,10 +199,43 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
     }
 }
 
-/** Check if user has enough XP for candidature. */
+/**
+ * Check if user has enough XP for candidature.
+ * Grandfathering: users who reached 100 XP before GnoBuilders v4.0
+ * are still eligible even if below the new 350 XP threshold.
+ */
 export function canApplyForMembership(): boolean {
     const state = loadQuestProgress()
-    return state.totalXP >= CANDIDATURE_XP_THRESHOLD
+    if (state.totalXP >= CANDIDATURE_XP_THRESHOLD) return true
+    // Grandfathering: check if user was eligible under the old threshold
+    // and has the legacy flag set (old quests completed before v4.0)
+    if (state.totalXP >= LEGACY_CANDIDATURE_THRESHOLD && isLegacyEligible()) return true
+    return false
+}
+
+/**
+ * Check if user has legacy eligibility (reached 100 XP before v4.0).
+ * Set automatically when v1 quests were completed before the threshold change.
+ */
+function isLegacyEligible(): boolean {
+    try {
+        return localStorage.getItem("memba_legacy_candidature_eligible") === "true"
+    } catch {
+        return false
+    }
+}
+
+/**
+ * Mark the current user as legacy-eligible if they meet the old threshold.
+ * Call this once during migration (e.g., on first load after v4.0 upgrade).
+ */
+export function checkAndSetLegacyEligibility(): void {
+    try {
+        const state = loadQuestProgress()
+        if (state.totalXP >= LEGACY_CANDIDATURE_THRESHOLD) {
+            localStorage.setItem("memba_legacy_candidature_eligible", "true")
+        }
+    } catch { /* */ }
 }
 
 /** Get completion percentage (0-100). */

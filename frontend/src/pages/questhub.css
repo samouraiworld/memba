@@ -400,6 +400,228 @@
     text-decoration: underline;
 }
 
+/* Quest Detail Page */
+.k-questdetail-breadcrumb {
+    font-size: 0.813rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin-bottom: 16px;
+}
+
+.k-questdetail-breadcrumb a {
+    color: var(--color-primary, #329175);
+    text-decoration: none;
+}
+
+.k-questdetail-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.k-questdetail-icon {
+    font-size: 2.5rem;
+}
+
+.k-questdetail-header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+}
+
+.k-questdetail-desc {
+    color: var(--color-text-secondary, #6b7280);
+    margin: 0;
+}
+
+.k-questdetail-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.k-questdetail-status {
+    margin-bottom: 24px;
+}
+
+.k-questdetail-completed {
+    color: var(--color-success, #22c55e);
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.k-questdetail-available {
+    color: var(--color-primary, #329175);
+    font-weight: 600;
+}
+
+.k-questdetail-locked {
+    color: var(--color-text-tertiary, #9ca3af);
+}
+
+.k-questdetail-prereqs {
+    margin-bottom: 24px;
+}
+
+.k-questdetail-prereqs h3 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+}
+
+.k-questdetail-chain {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.k-questdetail-chain-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.k-questdetail-chain-item:hover {
+    border-color: var(--color-primary, #329175);
+}
+
+.k-questdetail-chain-item--current {
+    background: var(--color-primary-bg, #ecfdf5);
+    border-color: var(--color-primary, #329175);
+    font-weight: 600;
+}
+
+.k-questdetail-verify {
+    padding: 16px;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+
+.k-questdetail-verify h3 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+}
+
+.k-questdetail-deploy-form {
+    margin-bottom: 12px;
+}
+
+.k-questdetail-deploy-form label {
+    display: block;
+    font-size: 0.813rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+.k-questdetail-verify-btn {
+    padding: 8px 16px;
+    background: var(--color-primary, #329175);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.k-questdetail-verify-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.k-questdetail-hint {
+    font-size: 0.813rem;
+    color: var(--color-text-tertiary, #9ca3af);
+    margin-top: 8px;
+}
+
+.k-questdetail-result {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.k-questdetail-result--verified {
+    background: var(--color-success-bg, #f0fdf4);
+    color: var(--color-success, #22c55e);
+}
+
+.k-questdetail-result--not_verified {
+    background: var(--color-surface-raised, #f3f4f6);
+    color: var(--color-text-secondary, #6b7280);
+}
+
+.k-questdetail-result--pending {
+    background: var(--color-warning-bg, #fefce8);
+    color: var(--color-warning, #f59e0b);
+}
+
+.k-questdetail-result--error {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+/* Quest Toast */
+.k-quest-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-success, #22c55e);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    z-index: 1000;
+    max-width: 360px;
+}
+
+.k-quest-toast--visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.k-quest-toast-icon {
+    font-size: 1.5rem;
+}
+
+.k-quest-toast-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.813rem;
+}
+
+.k-quest-toast-body strong {
+    color: var(--color-success, #22c55e);
+}
+
+.k-quest-toast-xp {
+    font-weight: 600;
+    color: var(--color-primary, #329175);
+}
+
+.k-quest-toast-rankup {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-warning, #f59e0b);
+    padding: 2px 8px;
+    background: var(--color-warning-bg, #fefce8);
+    border-radius: 8px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .k-questhub-hero {

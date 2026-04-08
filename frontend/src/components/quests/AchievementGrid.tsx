@@ -2,16 +2,18 @@
  * AchievementGrid — Badge gallery for user profiles.
  *
  * Shows earned quest badges and rank badges in a grid.
- * Displays mint status (minted vs pending).
+ * Uses both localStorage (offline-first) and on-chain badge data when available.
  * Links to the quest hub for uncompleted quests.
  */
 
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { loadQuestProgress } from "../../lib/quests"
-import { ALL_QUESTS, calculateRank, RANK_TIERS } from "../../lib/gnobuilders"
+import { ALL_QUESTS, calculateRank } from "../../lib/gnobuilders"
+import { fetchUserBadges, type BadgeSummary } from "../../lib/badges"
 import { RankBadge } from "./RankBadge"
+import { GNO_RPC_URL } from "../../lib/config"
 
 interface AchievementGridProps {
     address: string
@@ -24,11 +26,34 @@ export function AchievementGrid({ address, showLink = true }: AchievementGridPro
     const state = useMemo(() => loadQuestProgress(), [])
     const completedIds = useMemo(() => new Set(state.completed.map(c => c.questId)), [state])
     const rank = calculateRank(state.totalXP)
+    const [badgeSummary, setBadgeSummary] = useState<BadgeSummary | null>(null)
 
-    // Get completed quest details
+    // Fetch on-chain badges (non-blocking, enhances display)
+    useEffect(() => {
+        if (!address) return
+        fetchUserBadges(GNO_RPC_URL, address)
+            .then(setBadgeSummary)
+            .catch(() => { /* offline-first: use localStorage data */ })
+    }, [address])
+
+    // Get completed quest details from local state
     const completedQuests = useMemo(() =>
         ALL_QUESTS.filter(q => completedIds.has(q.id)),
     [completedIds])
+
+    // Merge: prefer on-chain badge count if available, else local
+    const totalBadges = badgeSummary?.totalBadges ?? completedQuests.length
+    const displayBadges = badgeSummary?.badges?.length
+        ? badgeSummary.badges.slice(0, 12).map(b => ({
+            icon: b.questIcon || "🏅",
+            title: b.questTitle || b.questId,
+            soulbound: b.soulbound,
+        }))
+        : completedQuests.slice(0, 12).map(q => ({
+            icon: q.icon,
+            title: q.title,
+            soulbound: false,
+        }))
 
     if (completedQuests.length === 0 && rank.tier === 0) {
         return null // Don't show section if no achievements
@@ -41,25 +66,25 @@ export function AchievementGrid({ address, showLink = true }: AchievementGridPro
                 <div className="k-achievements-stats">
                     <RankBadge tier={rank.tier} name={rank.name} color={rank.color} size="sm" />
                     <span className="k-achievements-xp">{state.totalXP} XP</span>
-                    <span className="k-achievements-count">{completedQuests.length} badges</span>
+                    <span className="k-achievements-count">{totalBadges} badges</span>
                 </div>
             </div>
 
-            {completedQuests.length > 0 && (
+            {displayBadges.length > 0 && (
                 <div className="k-achievements-grid">
-                    {completedQuests.slice(0, 12).map(quest => (
+                    {displayBadges.map((badge, i) => (
                         <div
-                            key={quest.id}
-                            className="k-achievements-badge"
-                            title={`${quest.title} (+${quest.xp} XP)`}
+                            key={i}
+                            className={`k-achievements-badge${badge.soulbound ? " k-achievements-badge--soulbound" : ""}`}
+                            title={badge.title + (badge.soulbound ? " (soulbound)" : "")}
                         >
-                            <span className="k-achievements-badge-icon">{quest.icon}</span>
-                            <span className="k-achievements-badge-name">{quest.title}</span>
+                            <span className="k-achievements-badge-icon">{badge.icon}</span>
+                            <span className="k-achievements-badge-name">{badge.title}</span>
                         </div>
                     ))}
-                    {completedQuests.length > 12 && (
+                    {totalBadges > 12 && (
                         <div className="k-achievements-more">
-                            +{completedQuests.length - 12} more
+                            +{totalBadges - 12} more
                         </div>
                     )}
                 </div>

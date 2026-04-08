@@ -7,7 +7,7 @@ import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
-import { syncQuestsToBackend, completeQuest, setQuestWalletAddress } from "../../lib/quests"
+import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
@@ -17,6 +17,9 @@ import { JitsiProvider } from "../../contexts/JitsiContext"
 import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
+import { QuestToast } from "../quests/QuestToast"
+import { getQuestById, calculateRank } from "../../lib/gnobuilders"
+import { setupKonamiDetector, trackDailyLogin, trackNetworkVisit } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 
@@ -41,6 +44,7 @@ export function Layout() {
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
     const [walletSwitchMsg, setWalletSwitchMsg] = useState<string | null>(null)
+    const [questToast, setQuestToast] = useState<{ title: string; icon: string; xp: number; rankUp?: string } | null>(null)
     const loginAttemptedRef = useRef(false)
 
     // ── Sidebar collapse state (persisted to localStorage) ──
@@ -110,10 +114,26 @@ export function Layout() {
     useEffect(() => {
         if (adena.connected && adena.address) {
             setQuestWalletAddress(adena.address)
+            // v4.0: Check if user is grandfathered for old candidature threshold
+            checkAndSetLegacyEligibility()
+            // GnoBuilders: Track daily login for streak quest
+            trackDailyLogin(adena.address)
         } else if (!adena.connected && !adena.reconnecting) {
             setQuestWalletAddress(null)
         }
     }, [adena.connected, adena.address, adena.reconnecting])
+
+    // GnoBuilders: Konami code easter egg detector
+    useEffect(() => {
+        const cleanup = setupKonamiDetector(() => {
+            const result = completeQuest("easter-egg-konami", auth.token ?? undefined)
+            if (result) {
+                const quest = getQuestById("easter-egg-konami")
+                if (quest) setQuestToast({ title: quest.title, icon: quest.icon, xp: quest.xp })
+            }
+        })
+        return cleanup
+    }, [auth.token])
 
     useEffect(() => {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {
@@ -308,6 +328,17 @@ export function Layout() {
                     >
                         {walletSwitchMsg}
                     </div>
+                )}
+
+                {/* ── GnoBuilders quest completion toast ── */}
+                {questToast && (
+                    <QuestToast
+                        questTitle={questToast.title}
+                        questIcon={questToast.icon}
+                        xpEarned={questToast.xp}
+                        rankUp={questToast.rankUp}
+                        onDismiss={() => setQuestToast(null)}
+                    />
                 )}
             </div>
         </JitsiProvider>
