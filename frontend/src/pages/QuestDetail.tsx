@@ -15,12 +15,9 @@ import { loadQuestProgress, completeQuest } from "../lib/quests"
 import {
     getQuestById,
     isQuestAvailable,
-    calculateRank,
-    ALL_QUESTS,
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, verifyDeployment, type QuestVerificationResult } from "../lib/questVerifier"
-import { RankBadge } from "../components/quests/RankBadge"
 import { GNO_RPC_URL } from "../lib/config"
 import { trackPageVisit } from "../lib/quests"
 import { useAuth } from "../hooks/useAuth"
