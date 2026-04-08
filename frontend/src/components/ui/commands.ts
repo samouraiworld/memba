@@ -37,7 +37,7 @@ export const COMMANDS: Command[] = [
 
     // GnoBuilders
     { id: "quests", label: "Quests", icon: "🎮", path: "/quests", section: "GnoBuilders", keywords: ["gnobuilders", "quest", "xp", "game", "onboarding", "challenges"] },
-    { id: "leaderboard", label: "Leaderboard", icon: "🏆", path: "/leaderboard", section: "GnoBuilders", keywords: ["ranking", "top", "xp", "competition", "score"] },
+    { id: "leaderboard", label: "Quest Leaderboard", icon: "🏆", path: "/leaderboard", section: "GnoBuilders", keywords: ["ranking", "top", "xp", "competition", "score", "leaderboard"] },
 
     // Community
     { id: "candidature", label: "Candidature", icon: "🏛️", path: "/candidature", section: "Community", keywords: ["membership", "apply", "dao", "join", "xp"] },
