@@ -5,20 +5,20 @@
 
 ---
 
-## Current Status (2026-04-07)
+## Current Status (2026-04-08)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v4.0.0-beta (GnoBuilders Quest System, Security Hardening) |
-| **Shipped Versions** | 40+ (v0.1.0 → v4.0.0-beta) |
-| **Test Suite** | 1,579 unit tests (72 files) + 87 backend tests + 18 E2E spec files |
-| **Networks** | test12 (default), test11, gnoland1, portal-loop, staging |
+| **Latest Release** | v4.0.0 (GnoBuilders, Security Hardening, GovDAO Compat) |
+| **Shipped Versions** | 40+ (v0.1.0 → v4.0.0) |
+| **Test Suite** | 1,588 unit tests (72 files) + 96 backend tests + 18 E2E spec files |
+| **Networks** | test12 (default, STALE), test11 (live, faucet blocked), gnoland1, portal-loop |
 | **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite, OpenRouter AI |
 | **URL Format** | Network-scoped: `/:network/dao/gno.land/r/gov/dao` (v2.25+) |
-| **On-Chain** | 6 realm codebases ready (+ gnobuilders_badges), awaiting test12 redeployment |
+| **On-Chain** | 6 realm codebases ready (+ gnobuilders_badges), awaiting redeployment |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721) |
-| **Next Priority** | test12 realm redeployment, badge minting wiring, admin review UI |
+| **Next Priority** | Realm redeployment (blocked), UX polish, mobile responsiveness, onboarding wizard |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
