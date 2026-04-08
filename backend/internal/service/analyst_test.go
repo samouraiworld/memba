@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/samouraiworld/memba/backend/internal/db"
+	_ "modernc.org/sqlite"
 )
 
 func TestSplitPrompt(t *testing.T) {
@@ -228,6 +231,142 @@ func TestEnforceTier_ProNoCredits(t *testing.T) {
 	}
 	if len(req.Perspectives) != freeTierMaxPerspectives {
 		t.Errorf("expected %d perspectives after downgrade, got %d", freeTierMaxPerspectives, len(req.Perspectives))
+	}
+}
+
+// ── Consensus Validation Tests ─────────────────────────────
+
+func TestValidateConsensusRequest_ProposalIDZero(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "proposal",
+		ProposalID:   0,
+		ProposalData: "test data",
+	}
+	if err := validateConsensusRequest(req); err != nil {
+		t.Errorf("proposal ID 0 should be valid, got error: %v", err)
+	}
+}
+
+func TestValidateConsensusRequest_ProposalIDPositive(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "proposal",
+		ProposalID:   15,
+		ProposalData: "test data",
+	}
+	if err := validateConsensusRequest(req); err != nil {
+		t.Errorf("proposal ID 15 should be valid, got error: %v", err)
+	}
+}
+
+func TestValidateConsensusRequest_ProposalIDNegative(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "proposal",
+		ProposalID:   -1,
+		ProposalData: "test data",
+	}
+	if err := validateConsensusRequest(req); err == nil {
+		t.Error("negative proposal ID should be rejected")
+	}
+}
+
+func TestValidateConsensusRequest_DAOAnalysisAllowsZero(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "dao",
+		ProposalID:   0,
+		ProposalData: "test data",
+	}
+	if err := validateConsensusRequest(req); err != nil {
+		t.Errorf("DAO analysis with proposalId 0 should be valid, got error: %v", err)
+	}
+}
+
+func TestValidateConsensusRequest_InvalidRealmPath(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "invalid/path",
+		AnalysisType: "proposal",
+		ProposalID:   1,
+		ProposalData: "test",
+	}
+	if err := validateConsensusRequest(req); err == nil {
+		t.Error("invalid realm path should be rejected")
+	}
+}
+
+func TestValidateConsensusRequest_ProposalDataTooLarge(t *testing.T) {
+	req := &ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "proposal",
+		ProposalID:   1,
+		ProposalData: string(make([]byte, 51*1024)),
+	}
+	if err := validateConsensusRequest(req); err == nil {
+		t.Error("oversized proposalData should be rejected")
+	}
+}
+
+func TestHandleAnalystConsensus_BadMethod(t *testing.T) {
+	handler := HandleAnalystConsensus(nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/analyst/consensus", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected 405, got %d", rec.Code)
+	}
+}
+
+func TestHandleAnalystConsensus_InvalidJSON(t *testing.T) {
+	handler := HandleAnalystConsensus(nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", bytes.NewReader([]byte("not json")))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAnalystConsensus_ProposalZeroValidation(t *testing.T) {
+	// Proposal ID 0 should pass validation (not return 400).
+	// Use in-memory DB so the handler can check cache without panicking.
+	database, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatal("open db:", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+	t.Cleanup(func() { database.Close() })
+
+	// Clear all LLM keys so the handler returns 503 (no providers) after validation passes.
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("GROQ_API_KEY", "")
+	t.Setenv("GOOGLE_AI_KEY", "")
+	t.Setenv("TOGETHER_API_KEY", "")
+
+	handler := HandleAnalystConsensus(database)
+	reqBody := ConsensusRequest{
+		RealmPath:    "gno.land/r/gov/dao",
+		AnalysisType: "proposal",
+		ProposalID:   0,
+		ProposalData: "test proposal data",
+		DAOContext:   "test context",
+		ChainID:      "test11",
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	// Should NOT be 400 — validation passes. Expect 503 (no providers configured).
+	if rec.Code == http.StatusBadRequest {
+		t.Errorf("proposal ID 0 should not cause 400 validation error, got body: %s", rec.Body.String())
 	}
 }
 
