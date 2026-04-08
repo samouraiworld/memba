@@ -22,6 +22,8 @@ import { getQuestById } from "../../lib/gnobuilders"
 import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
+import { OnboardingWizard } from "../ui/OnboardingWizard"
+import { hasSeenWizard } from "../../lib/onboarding"
 
 
 // Must exactly match backend auth.ClientMagic constant.
@@ -200,6 +202,16 @@ export function Layout() {
     const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
 
+    // ── Onboarding wizard: show once per wallet on first login ──
+    const [showWizard, setShowWizard] = useState(false)
+    useEffect(() => {
+        if (auth.isAuthenticated && auth.address && !isLoggingIn) {
+            if (!hasSeenWizard(auth.address)) {
+                setShowWizard(true)
+            }
+        }
+    }, [auth.isAuthenticated, auth.address, isLoggingIn])
+
     // Multi-DAO notification polling: poll all saved DAOs
     const savedDaoPaths = useMemo(
         () => adena.connected ? getSavedDAOs().map(d => d.realmPath) : [],
@@ -339,6 +351,14 @@ export function Layout() {
                         xpEarned={questToast.xp}
                         rankUp={questToast.rankUp}
                         onDismiss={dismissQuestToast}
+                    />
+                )}
+
+                {/* ── Onboarding wizard (first-time users) ── */}
+                {showWizard && auth.address && (
+                    <OnboardingWizard
+                        address={auth.address}
+                        onClose={() => setShowWizard(false)}
                     />
                 )}
             </div>
