@@ -45,6 +45,7 @@ export function Layout() {
     const [authError, setAuthError] = useState<string | null>(null)
     const [walletSwitchMsg, setWalletSwitchMsg] = useState<string | null>(null)
     const [questToast, setQuestToast] = useState<{ title: string; icon: string; xp: number; rankUp?: string } | null>(null)
+    const dismissQuestToast = useCallback(() => setQuestToast(null), [])
     const loginAttemptedRef = useRef(false)
 
     // ── Sidebar collapse state (persisted to localStorage) ──
@@ -337,7 +338,7 @@ export function Layout() {
                         questIcon={questToast.icon}
                         xpEarned={questToast.xp}
                         rankUp={questToast.rankUp}
-                        onDismiss={() => setQuestToast(null)}
+                        onDismiss={dismissQuestToast}
                     />
                 )}
             </div>
