@@ -832,6 +832,38 @@ body {
   color: var(--color-k-muted);
 }
 
+/* Sidebar extensions expand toggle */
+.k-sidebar-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  background: none;
+  border: none;
+  color: var(--color-k-muted);
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.k-sidebar-expand-btn:hover {
+  opacity: 1;
+}
+
+.k-sidebar-expand-caret {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 9px;
+}
+
+.k-sidebar-expand-caret[data-open="true"] {
+  transform: rotate(90deg);
+}
+
 /* Sidebar collapsed: hide labels and badges */
 .k-sidebar.collapsed .k-sidebar-label,
 .k-sidebar.collapsed .k-sidebar-badge,
@@ -1549,6 +1581,22 @@ body {
   }
 }
 
+/* Galaxy S / Pixel 5 (428px) */
+@media (max-width: 428px) {
+  .k-stat-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  /* Prevent iOS auto-zoom on input focus */
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* iPhone SE / very small screens */
 @media (max-width: 375px) {
   body {
@@ -1578,12 +1626,12 @@ body {
   }
 
   .k-stat-grid {
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: 1fr !important;
   }
 
   .k-btn-primary,
   .k-btn-secondary {
-    height: 36px;
+    min-height: 44px;
     font-size: 12px;
     padding: 0 12px;
   }
@@ -1591,7 +1639,7 @@ body {
   .k-btn-wallet {
     font-size: 10px;
     padding: 0 8px;
-    height: 30px;
+    min-height: 44px;
   }
 
   .k-card {

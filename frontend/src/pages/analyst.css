@@ -27,6 +27,8 @@
     width: 100%;
     text-align: left;
     transition: background 0.15s;
+    flex-wrap: wrap;
+    min-height: 44px;
 }
 
 .analyst-collapsed:hover {
@@ -583,5 +585,34 @@
 
     .ai-council__columns {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .analyst-collapsed {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+
+    .analyst-label,
+    .analyst-confidence,
+    .analyst-agreement {
+        font-size: 10px;
+    }
+
+    .analyst-hint {
+        font-size: 9px;
+    }
+
+    .analyst-detail__summary {
+        font-size: 12px;
+    }
+
+    .analyst-model-card__name {
+        font-size: 11px;
+    }
+
+    .analyst-model-card__reasoning {
+        font-size: 11px;
     }
 }

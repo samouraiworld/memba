@@ -106,6 +106,46 @@ function CmdKHint() {
     )
 }
 
+// ── Sidebar Extensions (collapsible) ──────────────────────────────────
+
+const SIDEBAR_EXT_KEY = "memba_sidebar_ext"
+
+function SidebarExtensions({ connected, collapsed }: { connected: boolean; collapsed: boolean }) {
+    const [expanded, setExpanded] = useState(() => {
+        try { return localStorage.getItem(SIDEBAR_EXT_KEY) === "1" } catch { return false }
+    })
+
+    const toggle = () => {
+        const next = !expanded
+        setExpanded(next)
+        try { localStorage.setItem(SIDEBAR_EXT_KEY, next ? "1" : "0") } catch { /* */ }
+    }
+
+    return (
+        <nav className="k-sidebar-section" aria-label="Extensions">
+            <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
+            {!collapsed && (
+                <button
+                    className="k-sidebar-expand-btn"
+                    onClick={toggle}
+                    aria-expanded={expanded}
+                    title={expanded ? "Hide upcoming features" : "Show upcoming features"}
+                >
+                    <span className="k-sidebar-expand-caret" data-open={expanded}>▸</span>
+                    <span>Upcoming</span>
+                </button>
+            )}
+            {expanded && (
+                <>
+                    <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Marketplace" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                </>
+            )}
+        </nav>
+    )
+}
+
 // ── Sidebar Component ──────────────────────────────────────────────────
 interface SidebarProps {
     connected: boolean
@@ -158,13 +198,8 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 {!collapsed && <CmdKHint />}
             </nav>
 
-            {/* ── Section 2: Extensions ─────────────────────────── */}
-            <nav className="k-sidebar-section" aria-label="Extensions">
-                <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Marketplace" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
-            </nav>
+            {/* ── Section 2: Extensions (collapsible "coming soon" items) ── */}
+            <SidebarExtensions connected={connected} collapsed={collapsed} />
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
             <div className="k-sidebar-user">
