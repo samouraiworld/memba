@@ -386,5 +386,12 @@
 
     .proposal-vote-btns {
         flex-direction: column;
+        gap: 8px;
+    }
+
+    .proposal-vote-btns button {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 44px;
     }
 }
