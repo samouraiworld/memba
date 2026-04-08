@@ -324,10 +324,10 @@ func (s *MultisigService) GetUserRank(ctx context.Context, req *connect.Request[
 	}
 
 	rank := &membav1.RankInfo{
-		Tier:            uint32(tier),
+		Tier:            uint32(tier),             // #nosec G115 -- tier is 0-7
 		Name:            name,
 		TotalXp:         state.TotalXp,
-		QuestsCompleted: uint32(len(state.Completed)),
+		QuestsCompleted: uint32(len(state.Completed)), // #nosec G115 -- max 85 quests
 		NextRankXp:      nextRankXP,
 	}
 
@@ -472,7 +472,7 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 		tier, rankName := calculateRankTier(u.totalXP)
 		entries = append(entries, &membav1.LeaderboardEntry{
 			Address:         u.addr,
-			RankTier:        uint32(tier),
+			RankTier:        uint32(tier), // #nosec G115 -- tier is 0-7
 			RankName:        rankName,
 			TotalXp:         u.totalXP,
 			QuestsCompleted: u.questsComplete,
