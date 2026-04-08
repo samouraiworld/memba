@@ -58,12 +58,52 @@ export function getIpfsGatewayUrl(cid: string): string {
     return `${IPFS_GATEWAYS[0]}/${cid}`
 }
 
+/** Get all gateway URLs for a CID (primary first, fallbacks after). */
+export function getIpfsGatewayUrls(cid: string): string[] {
+    return IPFS_GATEWAYS.map(gw => `${gw}/${cid}`)
+}
+
+/**
+ * Fetch from IPFS with automatic gateway fallback.
+ * Tries each gateway in order until one succeeds.
+ */
+export async function fetchFromIpfs(cid: string): Promise<Response> {
+    const urls = getIpfsGatewayUrls(cid)
+    let lastError: Error | null = null
+    for (const url of urls) {
+        try {
+            const resp = await fetch(url, { signal: AbortSignal.timeout(8000) })
+            if (resp.ok) return resp
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err))
+        }
+    }
+    throw lastError || new Error("All IPFS gateways failed")
+}
+
 /** Resolve an avatar URL — handles ipfs:// protocol and CIDs. */
 export function resolveAvatarUrl(url: string): string {
     if (!url) return ""
     if (url.startsWith("ipfs://")) return getIpfsGatewayUrl(url.replace("ipfs://", ""))
     if (isValidCid(url)) return getIpfsGatewayUrl(url)
     return url // regular HTTP URL
+}
+
+/**
+ * Handle avatar image load error by trying the next IPFS gateway.
+ * Attach to `<img onError>`. Cycles through gateways once per CID.
+ */
+export function handleAvatarError(e: React.SyntheticEvent<HTMLImageElement>): void {
+    const img = e.currentTarget
+    const src = img.src
+    // Find which gateway index we're currently on
+    const idx = IPFS_GATEWAYS.findIndex(gw => src.startsWith(gw))
+    if (idx >= 0 && idx < IPFS_GATEWAYS.length - 1) {
+        // Extract CID from current URL and try next gateway
+        const cid = src.replace(`${IPFS_GATEWAYS[idx]}/`, "")
+        img.src = `${IPFS_GATEWAYS[idx + 1]}/${cid}`
+    }
+    // If we've exhausted all gateways or URL isn't IPFS, do nothing (let it fail)
 }
 
 // ── Image Preprocessing ───────────────────────────────────────

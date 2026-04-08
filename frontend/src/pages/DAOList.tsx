@@ -294,7 +294,7 @@ export function DAOList() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadDAOs() }} />
         </div>
     )
 }

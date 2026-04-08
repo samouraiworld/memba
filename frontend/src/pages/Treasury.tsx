@@ -218,7 +218,7 @@ export function Treasury() {
                 )}
             </div>
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadTreasury() }} />
         </div>
     )
 }

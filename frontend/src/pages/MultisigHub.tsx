@@ -183,7 +183,7 @@ export default function MultisigHub() {
                 </section>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); fetchData() }} />
         </div>
     )
 }

@@ -28,6 +28,7 @@ import { buildRegisterAgentMsg, buildReviewAgentMsg } from "../lib/agentTemplate
 import { doContractBroadcast } from "../lib/grc20"
 import { MEMBA_DAO } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace.css"
@@ -70,13 +71,19 @@ function MarketplaceContent() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Load agents from chain on mount + load favorites if authenticated
-    useEffect(() => {
-        document.title = "AI Agent Marketplace — Memba"
+    const loadAgents = useCallback(() => {
+        setLoading(true)
+        setError(null)
         fetchAgents()
             .then(result => { setAllAgents(result); setLoading(false) })
             .catch(() => setLoading(false))
     }, [])
+
+    // Load agents from chain on mount + load favorites if authenticated
+    useEffect(() => {
+        document.title = "AI Agent Marketplace — Memba"
+        loadAgents()
+    }, [loadAgents])
 
     useEffect(() => {
         if (!auth.token) return
@@ -163,7 +170,7 @@ function MarketplaceContent() {
     // ── Marketplace Grid ──────────────────────────────────────
     return (
         <div className="mp-page animate-fade-in">
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={loadAgents} />
 
             <div className="mp-header">
                 <div>
@@ -227,7 +234,12 @@ function MarketplaceContent() {
             </div>
 
             {/* Agent grid */}
-            {!loading && agents.length === 0 ? (
+            {loading ? (
+                <div className="mp-grid">
+                    <SkeletonCard /><SkeletonCard /><SkeletonCard />
+                    <SkeletonCard /><SkeletonCard /><SkeletonCard />
+                </div>
+            ) : agents.length === 0 ? (
                 <div className="mp-empty">
                     <span className="mp-empty__icon">🤖</span>
                     <p>No agents found{search ? ` matching "${search}"` : " in this category"}</p>

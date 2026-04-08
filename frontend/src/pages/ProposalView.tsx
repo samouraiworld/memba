@@ -525,7 +525,7 @@ export function ProposalView() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadProposal() }} />
         </div>
     )
 }
