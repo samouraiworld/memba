@@ -233,8 +233,8 @@ export function CreateDAO() {
 
             setDeployStep("signing")
 
-            // TODO: Re-add 2 GNOT dev fee when test11 lifts bank transfer restrictions
-            // (currently blocked by std.RestrictedTransferError)
+            // TODO: Re-add 2 GNOT dev fee — test11 transfers now allowed (2026-04-09),
+            // but needs on-chain testing before enabling. Add send amount to DoContract.
             const res = await adenaWallet.DoContract({
                 messages: [{
                     type: "/vm.m_addpkg",
