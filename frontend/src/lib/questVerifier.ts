@@ -168,16 +168,29 @@ async function verifyOnChain(
             return NOT_VERIFIED("Provide the DAO path where you voted")
 
         case "post-board":
+        case "channel-active": {
+            // Check channels v2 for user's posts
+            const { MEMBA_DAO } = await import("./config")
+            const channelRender = await queryRender(rpcUrl, MEMBA_DAO.channelsPath, "general")
+            if (channelRender && channelRender.includes(address.slice(0, 10))) {
+                return VERIFIED
+            }
+            return NOT_VERIFIED("Post a thread in MembaDAO channels to verify")
+        }
         case "reply-board":
         case "10-board-posts":
-        case "channel-active":
         case "help-newcomer":
-            // Board/channel activity requires parsing Render() for user's posts
-            return NOT_VERIFIED("Provide the channel/board where you posted")
+            return NOT_VERIFIED("Post in MembaDAO channels to verify")
 
-        case "submit-candidature":
-            // Check candidature realm for user's application
+        case "submit-candidature": {
+            // Check v2 candidature realm for user's application
+            const { MEMBA_DAO } = await import("./config")
+            const appResult = await queryRender(rpcUrl, MEMBA_DAO.candidaturePath, `application/${address}`)
+            if (appResult && !appResult.includes("Not Found") && !appResult.includes("404")) {
+                return VERIFIED
+            }
             return NOT_VERIFIED("Submit a candidature application to verify")
+        }
 
         case "create-token": {
             // Check token factory for tokens created by this address

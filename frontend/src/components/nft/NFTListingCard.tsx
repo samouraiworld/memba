@@ -15,9 +15,11 @@ interface Props {
     currentAddress?: string
     onBuy: (listing: NFTListing) => void
     onMakeOffer: (listing: NFTListing) => void
+    onDelist?: (listing: NFTListing) => void
+    onCancelOffer?: (listing: NFTListing) => void
 }
 
-export function NFTListingCard({ listing, connected, currentAddress, onBuy, onMakeOffer }: Props) {
+export function NFTListingCard({ listing, connected, currentAddress, onBuy, onMakeOffer, onDelist, onCancelOffer }: Props) {
     const priceGnot = (listing.priceUgnot / 1_000_000).toFixed(2)
     const isOwnListing = currentAddress && listing.seller.startsWith(currentAddress.slice(0, 10))
 
@@ -40,8 +42,20 @@ export function NFTListingCard({ listing, connected, currentAddress, onBuy, onMa
                     </button>
                 </div>
             )}
-            {isOwnListing && (
-                <div className="nft-listing-card__badge">Your Listing</div>
+            {connected && isOwnListing && (
+                <div className="nft-listing-card__actions">
+                    <div className="nft-listing-card__badge">Your Listing</div>
+                    {onDelist && (
+                        <button className="nft-listing-card__delist" onClick={() => onDelist(listing)}>
+                            Delist
+                        </button>
+                    )}
+                </div>
+            )}
+            {connected && !isOwnListing && onCancelOffer && (
+                <button className="nft-listing-card__cancel-offer" onClick={() => onCancelOffer(listing)}>
+                    Cancel Offer
+                </button>
             )}
         </div>
     )

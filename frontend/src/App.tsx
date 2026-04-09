@@ -208,6 +208,7 @@ function App() {
 
           {/* AI Agent Marketplace (v3.0) */}
           <Route path="marketplace" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
+          <Route path="marketplace/:agentId" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
