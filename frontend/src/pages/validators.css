@@ -74,7 +74,7 @@
 }
 
 .val-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 @keyframes val-pulse {
@@ -153,7 +153,7 @@
 }
 
 .val-stat-card {
-    background: rgba(255, 255, 255, 0.015);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 16px;
@@ -226,7 +226,7 @@
     padding: 8px 14px;
     border-radius: 6px;
     border: 1px solid var(--color-border);
-    background: #0d0d0d;
+    background: var(--color-bg);
     color: var(--color-text);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
@@ -268,7 +268,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-family: "JetBrains Mono", monospace;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     cursor: pointer;
     user-select: none;
@@ -293,7 +293,7 @@
 }
 
 .val-row:hover {
-    background: rgba(255, 255, 255, 0.015);
+    background: var(--color-surface);
 }
 
 .val-td {
@@ -324,7 +324,7 @@
     font-weight: 700;
     font-family: "JetBrains Mono", monospace;
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
 }
 
 .val-top3 {
@@ -448,7 +448,7 @@
 
 .val-inactive {
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
 }
 
 /* ── Toolbar Right ────────────────────────────────────────── */
@@ -463,7 +463,7 @@
     padding: 6px 10px;
     border-radius: 6px;
     border: 1px solid var(--color-border);
-    background: #0d0d0d;
+    background: var(--color-bg);
     color: var(--color-text-secondary);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -630,7 +630,7 @@
 /* ── v2.17.0: Network Health Banner ────────────────────── */
 
 .val-health-banner {
-    background: rgba(255, 255, 255, 0.015);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 16px 20px;
@@ -768,7 +768,7 @@
 
 .val-health-unknown {
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
 }
 
 /* ── v2.17.0: Missed Blocks Badge ──────────────────────── */
@@ -827,7 +827,7 @@
 
 .val-incident-badge--info {
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-surface-active);
 }
 
 /* ── v2.17.0: Block strip sizing for 100 blocks ────────── */

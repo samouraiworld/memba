@@ -3,7 +3,7 @@
 .cmd-palette-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--color-overlay);
     backdrop-filter: blur(4px);
     z-index: 9998;
     animation: cmd-fade-in 0.15s ease-out;
@@ -36,7 +36,7 @@
     align-items: center;
     gap: 10px;
     padding: 14px 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .cmd-palette-icon {
@@ -62,8 +62,8 @@
 .cmd-palette-kbd {
     padding: 2px 8px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
     color: var(--color-k-muted, #666);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -105,7 +105,7 @@
 
 .cmd-palette-item:hover,
 .cmd-palette-item.selected {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-surface-hover);
 }
 
 .cmd-palette-item-icon {
@@ -132,7 +132,7 @@
     display: flex;
     gap: 16px;
     padding: 10px 18px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--color-border);
     font-size: 11px;
     color: var(--color-k-muted, #555);
 }
@@ -140,8 +140,8 @@
 .cmd-palette-footer kbd {
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
     font-family: "JetBrains Mono", monospace;
     font-size: 10px;
     margin-right: 4px;

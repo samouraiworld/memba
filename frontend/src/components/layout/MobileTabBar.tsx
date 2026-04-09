@@ -7,7 +7,7 @@ import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import {
     House, Buildings, Coins, FolderOpen,
     DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
-    ChartBar, LinkSimpleHorizontal, Heart,
+    ChartBar, LinkSimpleHorizontal, Heart, SunDim, Moon,
 } from "@phosphor-icons/react"
 
 interface MobileTabBarProps {
@@ -233,7 +233,8 @@ function MobileThemeToggle({ onSelect }: { onSelect: () => void }) {
                         fontWeight: current === t ? 600 : 400,
                     }}
                 >
-                    {t === "dark" ? "🌙" : "☀️"} {t.charAt(0).toUpperCase() + t.slice(1)}
+                    {t === "dark" ? <Moon size={14} weight="bold" style={{ marginRight: 4 }} /> : <SunDim size={14} weight="bold" style={{ marginRight: 4 }} />}
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
             ))}
         </div>

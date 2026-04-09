@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { SunDim, Moon } from "@phosphor-icons/react"
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { validateActiveRpcDomain } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
@@ -251,7 +252,7 @@ function ThemeToggle() {
             title={`Switch to ${theme === "dark" ? "light" : "dark"} theme (⌘K)`}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
         >
-            {theme === "dark" ? "☀️" : "🌙"}
+            {theme === "dark" ? <SunDim size={18} weight="bold" /> : <Moon size={18} weight="bold" />}
         </button>
     )
 }
