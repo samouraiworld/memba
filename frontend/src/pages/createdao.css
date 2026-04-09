@@ -50,7 +50,7 @@
 
 .cdao-draft-banner__text {
     font-size: 12px;
-    color: #ccc;
+    color: var(--color-text-secondary);
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
 
@@ -138,7 +138,7 @@
 
 .cdao-step-label {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-left: 8px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }

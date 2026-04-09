@@ -71,7 +71,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
 
             {savedDAOs.length === 0 ? (
                 <div className="k-card" style={{ textAlign: "center", padding: 32 }}>
-                    <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace", marginBottom: 12 }}>
                         No DAOs yet
                     </p>
                     <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
@@ -101,7 +101,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                     onClick={() => navigate(`/dao/${encodeSlug(dao.realmPath)}`)}
                                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}
                                 >
-                                    <span style={{ fontWeight: 600, fontSize: 14, color: "#f0f0f0" }}>
+                                    <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>
                                         {dao.name}
                                     </span>
                                     {/* Accordion toggle */}
@@ -110,7 +110,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                         aria-label={isExpanded ? "Collapse" : "Expand"}
                                         style={{
                                             background: "none", border: "none", cursor: "pointer",
-                                            color: "#555", fontSize: 12, padding: "2px 6px",
+                                            color: "var(--color-text-muted)", fontSize: 12, padding: "2px 6px",
                                             transition: "transform 0.2s, color 0.15s",
                                             transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
                                         }}
@@ -121,7 +121,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                     </button>
                                 </div>
                                 <span
-                                    style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", wordBreak: "break-all", cursor: "pointer" }}
+                                    style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)", wordBreak: "break-all", cursor: "pointer" }}
                                     onClick={() => navigate(`/dao/${encodeSlug(dao.realmPath)}`)}
                                 >
                                     {dao.realmPath}
@@ -139,7 +139,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                     {act && act.activeProposals > 0 && (
                                         <span style={{
                                             fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#00d4aa", background: "rgba(0,212,170,0.08)",
+                                            color: "var(--color-primary)", background: "rgba(0,212,170,0.08)",
                                             padding: "2px 6px", borderRadius: 3, fontWeight: 600,
                                         }}>
                                             📋 {act.activeProposals} active
@@ -148,7 +148,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                     {act && act.totalProposals > 0 && (
                                         <span style={{
                                             fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#888", background: "rgba(255,255,255,0.04)",
+                                            color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.04)",
                                             padding: "2px 6px", borderRadius: 3,
                                         }}>
                                             {act.totalProposals} total
@@ -157,7 +157,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                     {act && act.memberCount > 0 && (
                                         <span style={{
                                             fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#888", background: "rgba(255,255,255,0.04)",
+                                            color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.04)",
                                             padding: "2px 6px", borderRadius: 3,
                                         }}>
                                             👥 {act.memberCount}
@@ -167,7 +167,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
 
                                 {/* Activity summary */}
                                 {act && (
-                                    <div style={{ marginTop: 8, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555" }}>
+                                    <div style={{ marginTop: 8, fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)" }}>
                                         Threshold: {act.threshold} • {act.memberCount} members
                                     </div>
                                 )}

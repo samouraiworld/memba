@@ -39,18 +39,18 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                             opacity: hasVoted ? 0.6 : 1,
                         }}>
                             <div style={{ flex: 1, minWidth: 160 }}>
-                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#666", marginBottom: 2 }}>
+                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)", marginBottom: 2 }}>
                                     {p.daoName}
                                 </div>
                                 <div
-                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "#f0f0f0" }}
+                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "var(--color-text)" }}
                                     onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                                 >
                                     #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
                                 </div>
                             </div>
                             {hasVoted ? (
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#00d4aa" }}>
+                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-primary)" }}>
                                     ✓ Voted
                                 </span>
                             ) : (
@@ -62,7 +62,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         style={{
                                             padding: "6px 14px", borderRadius: 6, fontSize: 11,
                                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(0,212,170,0.1)", color: "#00d4aa",
+                                            background: "rgba(0,212,170,0.1)", color: "var(--color-primary)",
                                             border: "1px solid rgba(0,212,170,0.25)", cursor: isVoting ? "default" : "pointer",
                                             opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
                                         }}
@@ -76,7 +76,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         style={{
                                             padding: "6px 14px", borderRadius: 6, fontSize: 11,
                                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(255,71,87,0.08)", color: "#ff4757",
+                                            background: "rgba(255,71,87,0.08)", color: "var(--color-danger)",
                                             border: "1px solid rgba(255,71,87,0.2)", cursor: isVoting ? "default" : "pointer",
                                             opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
                                         }}
@@ -90,7 +90,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         style={{
                                             padding: "6px 14px", borderRadius: 6, fontSize: 11,
                                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(255,255,255,0.04)", color: "#888",
+                                            background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)",
                                             border: "1px solid rgba(255,255,255,0.08)", cursor: isVoting ? "default" : "pointer",
                                             opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
                                         }}

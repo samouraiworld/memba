@@ -350,27 +350,27 @@ export function ProposalView() {
                 <div className="k-card" style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 14 }}>📅</span>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#e0e0e0" }}>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)" }}>
                             {proposalTimestamp.label}
                         </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 14 }}>⏱️</span>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
                             {formatRelativeTime(proposalTimestamp.date)}
                         </span>
                     </div>
                     {proposalTimestamp.block && (
                         <span style={{
                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "#555", background: "rgba(255,255,255,0.03)",
+                            color: "var(--color-text-muted)", background: "rgba(255,255,255,0.03)",
                             padding: "2px 6px", borderRadius: 4,
                         }}>
                             block #{proposalTimestamp.block.toLocaleString()}
                         </span>
                     )}
                     {!proposalTimestamp.exact && (
-                        <span style={{ fontSize: 9, color: "#555", fontStyle: "italic" }}>estimated</span>
+                        <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontStyle: "italic" }}>estimated</span>
                     )}
                 </div>
             )}

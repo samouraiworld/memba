@@ -223,10 +223,10 @@ export function Changelogs() {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
                 <ClockCounterClockwise size={22} color="#00d4aa" />
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0 }}>Changelogs</h2>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>Changelogs</h2>
             </div>
 
-            <p style={{ fontSize: 11, color: "#777", fontFamily: "JetBrains Mono, monospace", marginBottom: 20, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 20, lineHeight: 1.5 }}>
                 Memba releases and gno.land ecosystem updates.
             </p>
 
@@ -262,7 +262,7 @@ export function Changelogs() {
                 <div key={date} style={{ marginBottom: 28 }}>
                     {/* Date separator */}
                     <div style={{
-                        fontSize: 10, color: "#555", fontWeight: 600, letterSpacing: 1,
+                        fontSize: 10, color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: 1,
                         fontFamily: "JetBrains Mono, monospace",
                         paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.04)",
                         marginBottom: 12, textTransform: "uppercase",
@@ -282,14 +282,14 @@ export function Changelogs() {
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                                 {entry.version && (
                                     <span style={{
-                                        fontSize: 10, fontWeight: 700, color: "#00d4aa",
+                                        fontSize: 10, fontWeight: 700, color: "var(--color-primary)",
                                         background: "rgba(0,212,170,0.1)", padding: "2px 8px",
                                         borderRadius: 4, fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {entry.version}
                                     </span>
                                 )}
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0" }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                                     {entry.title}
                                 </span>
                                 {entry.tags.map(tag => (
@@ -308,7 +308,7 @@ export function Changelogs() {
                             <ul style={{ margin: 0, paddingLeft: 16 }}>
                                 {entry.items.map((item, j) => (
                                     <li key={j} style={{
-                                        fontSize: 11, color: "#888", lineHeight: 1.7,
+                                        fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.7,
                                         fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {item}
@@ -321,7 +321,7 @@ export function Changelogs() {
             ))}
 
             {filtered.length === 0 && (
-                <p style={{ fontSize: 12, color: "#555", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 40 }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 40 }}>
                     No entries for this filter.
                 </p>
             )}

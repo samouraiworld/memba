@@ -185,7 +185,7 @@ export default function GnoloveAnalytics() {
                                 <CartesianGrid {...GRID_STYLE} />
                                 <XAxis dataKey="month" tick={AXIS_TICK} tickFormatter={m => m.slice(5)} />
                                 <YAxis tick={AXIS_TICK} />
-                                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
+                                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
                                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }} />
                                 <Area type="monotone" dataKey="merged" name="Merged" stroke="#00d4aa" strokeWidth={2} fill="url(#gradMerged)" />
                                 <Area type="monotone" dataKey="inReview" name="In Review" stroke="#a855f7" strokeWidth={1.5} fill="url(#gradReviewed)" />
@@ -217,7 +217,7 @@ export default function GnoloveAnalytics() {
                                             <CartesianGrid {...GRID_STYLE} />
                                             <XAxis dataKey="label" tick={AXIS_TICK} />
                                             <YAxis tick={AXIS_TICK} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
+                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
                                             <Bar dataKey="count" name="Contributors" fill="#00d4aa" radius={[3, 3, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -238,7 +238,7 @@ export default function GnoloveAnalytics() {
                                             <CartesianGrid {...GRID_STYLE} />
                                             <XAxis type="number" tick={AXIS_TICK} />
                                             <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fontSize: 9 }} width={90} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
+                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
                                             <Bar dataKey="prs" name="Merged PRs" fill="#4a9eff" radius={[0, 3, 3, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -260,7 +260,7 @@ export default function GnoloveAnalytics() {
                                         <CartesianGrid {...GRID_STYLE} />
                                         <XAxis type="number" tick={AXIS_TICK} />
                                         <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fill: "#ccc", fontSize: 11 }} width={110} />
-                                        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
+                                        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
                                         <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }} />
                                         <Bar dataKey="prs" name="PRs" fill="#4a9eff" radius={[0, 2, 2, 0]} />
                                         <Bar dataKey="commits" name="Commits" fill="#22c55e" radius={[0, 2, 2, 0]} />
@@ -297,7 +297,7 @@ export default function GnoloveAnalytics() {
                                             <CartesianGrid {...GRID_STYLE} />
                                             <XAxis type="number" tick={AXIS_TICK} />
                                             <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fontSize: 9 }} width={80} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#f0f0f0" }} />
+                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
                                             <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace" }} />
                                             <Bar dataKey="yes" name="Yes" stackId="votes" fill="#22c55e" />
                                             <Bar dataKey="no" name="No" stackId="votes" fill="#ef4444" />

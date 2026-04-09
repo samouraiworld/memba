@@ -54,12 +54,12 @@
 .dao-room-label {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-room-hint {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     margin-top: 2px;
 }
@@ -91,7 +91,7 @@
     border-radius: 14px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    background: #0a0a0a;
+    background: var(--color-bg);
     animation: roomModalIn 0.25s ease;
 }
 
@@ -109,7 +109,7 @@
     gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-room-modal-close {
@@ -121,7 +121,7 @@
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: transparent;
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 14px;
     cursor: pointer;
     transition: all 0.15s;

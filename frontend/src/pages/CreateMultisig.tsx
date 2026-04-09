@@ -161,18 +161,18 @@ export function CreateMultisig() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div>
-                <button onClick={() => navigate("/")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
                     ← Back to Dashboard
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Create Multisig</h2>
-                <p style={{ color: "#999", fontSize: 14, marginTop: 4 }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginTop: 4 }}>
                     Set up a new multisig wallet with your team
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to create a multisig
                     </p>
                 </div>
@@ -189,7 +189,7 @@ export function CreateMultisig() {
                     maxLength={256}
                     style={{
                         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+                        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
                         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
                     }}
                 />
@@ -199,7 +199,7 @@ export function CreateMultisig() {
             <div className="k-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <label className="k-label">Members ({members.length})</label>
-                    <button onClick={addMember} style={{ color: "#00d4aa", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}>
+                    <button onClick={addMember} style={{ color: "var(--color-primary)", fontSize: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}>
                         + Add Member
                     </button>
                 </div>
@@ -214,7 +214,7 @@ export function CreateMultisig() {
                                     placeholder={`g1member${i + 1}...`}
                                     style={{
                                         flex: 1, height: 36, padding: "0 12px", borderRadius: 6,
-                                        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+                                        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
                                         fontFamily: "JetBrains Mono, monospace", fontSize: 12, outline: "none",
                                     }}
                                 />
@@ -235,14 +235,14 @@ export function CreateMultisig() {
                                     {m.fetching ? "..." : m.pubkeyValue && !m.manualPubkey ? "✓ Key" : "Fetch Key"}
                                 </button>
                                 {members.length > 2 && (
-                                    <button onClick={() => removeMember(i)} style={{ width: 36, height: 36, borderRadius: 6, background: "none", border: "1px solid #222", color: "#666", cursor: "pointer", fontSize: 14 }}>
+                                    <button onClick={() => removeMember(i)} style={{ width: 36, height: 36, borderRadius: 6, background: "none", border: "1px solid #222", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 14 }}>
                                         ×
                                     </button>
                                 )}
                             </div>
                             {/* Error or manual paste */}
                             {m.fetchError && (
-                                <div style={{ fontSize: 11, color: "#f59e0b", fontFamily: "JetBrains Mono, monospace", paddingLeft: 4 }}>
+                                <div style={{ fontSize: 11, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace", paddingLeft: 4 }}>
                                     ⚠ {m.fetchError}
                                     {m.fetchError.includes("paste") && (
                                         <input
@@ -253,7 +253,7 @@ export function CreateMultisig() {
                                             style={{
                                                 display: "block", marginTop: 4,
                                                 width: "100%", height: 32, padding: "0 8px", borderRadius: 4,
-                                                background: "#0c0c0c", border: "1px solid #333", color: "#f0f0f0",
+                                                background: "#0c0c0c", border: "1px solid #333", color: "var(--color-text)",
                                                 fontFamily: "JetBrains Mono, monospace", fontSize: 11, outline: "none",
                                             }}
                                         />
@@ -262,7 +262,7 @@ export function CreateMultisig() {
                             )}
                             {/* Show pubkey if fetched or pasted */}
                             {m.pubkeyValue && !m.fetchError && (
-                                <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace", paddingLeft: 4 }}>
+                                <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", paddingLeft: 4 }}>
                                     🔑 {m.pubkeyValue.slice(0, 16)}…{m.manualPubkey ? " (manual)" : ""}
                                 </span>
                             )}
@@ -284,7 +284,7 @@ export function CreateMultisig() {
                     onChange={(e) => setThreshold(Number(e.target.value))}
                     style={{ width: "100%", accentColor: "#00d4aa" }}
                 />
-                <p style={{ color: "#666", fontSize: 12, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
                     {threshold} signature{threshold > 1 ? "s" : ""} required to execute a transaction
                 </p>
             </div>
@@ -310,7 +310,7 @@ export function CreateMultisig() {
                     padding: "12px 16px", borderRadius: 8,
                     background: "rgba(245,166,35,0.06)",
                     border: "1px solid rgba(245,166,35,0.12)",
-                    color: "#f5a623", fontSize: 11,
+                    color: "var(--color-warning)", fontSize: 11,
                     fontFamily: "JetBrains Mono, monospace",
                     lineHeight: 1.6,
                 }}>

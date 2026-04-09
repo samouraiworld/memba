@@ -14,7 +14,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #888;
+    color: var(--color-text-secondary);
     padding: 6px;
     border-radius: 6px;
     display: flex;
@@ -24,7 +24,7 @@
 }
 
 .notif-bell-btn:hover {
-    color: #00d4aa;
+    color: var(--color-primary);
     background: rgba(0, 212, 170, 0.06);
 }
 
@@ -71,8 +71,8 @@
     right: 0;
     width: 360px;
     max-height: 480px;
-    background: #111;
-    border: 1px solid #1a1a1a;
+    background: var(--color-border);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
     z-index: 1000;
@@ -99,18 +99,18 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    border-bottom: 1px solid #1a1a1a;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .notif-panel-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .notif-mark-all {
     font-size: 11px;
-    color: #00d4aa;
+    color: var(--color-primary);
     background: none;
     border: none;
     cursor: pointer;
@@ -148,7 +148,7 @@
     align-items: center;
     gap: 8px;
     padding: 40px 20px;
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 13px;
 }
 
@@ -157,7 +157,7 @@
 .notif-group-label {
     font-size: 10px;
     font-weight: 600;
-    color: #555;
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 8px 16px 4px;
@@ -222,7 +222,7 @@
 
 .notif-time {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     flex-shrink: 0;
     margin-top: 2px;
@@ -236,7 +236,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #00d4aa;
+    background: var(--color-primary);
 }
 
 /* ── Mobile ────────────────────────────────────────────────── */

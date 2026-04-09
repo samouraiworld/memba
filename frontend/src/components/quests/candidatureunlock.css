@@ -24,13 +24,13 @@
 .candidature-unlock__title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0 0 4px 0;
 }
 
 .candidature-unlock__desc {
     font-size: 11px;
-    color: #888;
+    color: var(--color-text-secondary);
     margin: 0;
     line-height: 1.4;
 }
@@ -61,7 +61,7 @@
 .candidature-unlock__xp {
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
-    color: #666;
+    color: var(--color-text-secondary);
     white-space: nowrap;
 }
 
@@ -92,7 +92,7 @@
 
 .candidature-unlock__btn--secondary {
     background: rgba(255, 255, 255, 0.06);
-    color: #00d4aa;
+    color: var(--color-primary);
     border: 1px solid rgba(0, 212, 170, 0.2);
 }
 
@@ -102,7 +102,7 @@
 
 .candidature-unlock__btn--disabled {
     background: rgba(255, 255, 255, 0.03);
-    color: #555;
+    color: var(--color-text-muted);
     cursor: not-allowed;
     pointer-events: none;
 }

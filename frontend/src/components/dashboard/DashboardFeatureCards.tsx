@@ -70,7 +70,7 @@ export function DashboardFeatureCards({ joinedMultisigCount, firstMultisigAddres
                         {f.count !== null && (
                             <span style={{
                                 marginLeft: "auto", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                                color: "#00d4aa", background: "rgba(0,212,170,0.08)",
+                                color: "var(--color-primary)", background: "rgba(0,212,170,0.08)",
                                 padding: "2px 8px", borderRadius: 4,
                             }}>
                                 {f.count} {f.unit}{f.count !== 1 ? "s" : ""}

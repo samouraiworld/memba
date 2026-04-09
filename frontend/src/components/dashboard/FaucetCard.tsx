@@ -87,7 +87,7 @@ export function FaucetCard({ address }: FaucetCardProps) {
                     Get Free Test Tokens
                     <span style={{
                         fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                        background: "rgba(245,166,35,0.1)", color: "#f5a623",
+                        background: "rgba(245,166,35,0.1)", color: "var(--color-warning)",
                         fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                         letterSpacing: "0.05em",
                     }}>
@@ -116,7 +116,7 @@ export function FaucetCard({ address }: FaucetCardProps) {
                     aria-label="Dismiss faucet card"
                     style={{
                         background: "none", border: "none", cursor: "pointer",
-                        color: "#555", padding: 4, display: "flex",
+                        color: "var(--color-text-muted)", padding: 4, display: "flex",
                         transition: "color 0.15s",
                     }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#f0f0f0")}

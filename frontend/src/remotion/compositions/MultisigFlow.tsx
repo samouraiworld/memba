@@ -76,13 +76,13 @@ export function MultisigFlow() {
                                 <span style={{
                                     padding: "1px 4px", borderRadius: 3, fontSize: 6,
                                     fontFamily: fontMono, fontWeight: 600,
-                                    background: "rgba(76,175,80,0.08)", color: "#4caf50",
+                                    background: "rgba(76,175,80,0.08)", color: "var(--color-success)",
                                     opacity: sigSpring,
                                 }}>
                                     ✓ SIGNED
                                 </span>
                             ) : (
-                                <span style={{ fontSize: 6, fontFamily: fontMono, color: "#555" }}>Pending</span>
+                                <span style={{ fontSize: 6, fontFamily: fontMono, color: "var(--color-text-muted)" }}>Pending</span>
                             )}
                         </div>
                     )

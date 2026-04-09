@@ -27,7 +27,7 @@
 }
 
 .vd-back {
-    color: #00d4aa;
+    color: var(--color-primary);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.72rem;
@@ -42,7 +42,7 @@
     margin-left: auto;
     font-size: 0.62rem;
     background: rgba(0, 212, 170, 0.08);
-    color: #00d4aa;
+    color: var(--color-primary);
     border: 1px solid rgba(0, 212, 170, 0.15);
     border-radius: 3px;
     padding: 1px 5px;
@@ -84,7 +84,7 @@
     border-radius: 6px;
     background: rgba(0, 212, 170, 0.1);
     border: 1px solid rgba(0, 212, 170, 0.25);
-    color: #00d4aa;
+    color: var(--color-primary);
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 600;
@@ -129,7 +129,7 @@
 .vd-rank-badge--top3 {
     background: rgba(0, 212, 170, 0.15);
     border-color: rgba(0, 212, 170, 0.35);
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .vd-header-card__info {
@@ -177,7 +177,7 @@ h1.vd-moniker {
     letter-spacing: 0.04em;
 }
 
-.vd-badge--active   { background: rgba(0, 212, 170, 0.12); color: #00d4aa; border: 1px solid rgba(0, 212, 170, 0.25); }
+.vd-badge--active   { background: rgba(0, 212, 170, 0.12); color: var(--color-primary); border: 1px solid rgba(0, 212, 170, 0.25); }
 .vd-badge--inactive { background: rgba(255, 80, 80, 0.09); color: rgba(255, 100, 100, 0.9); border: 1px solid rgba(255, 80, 80, 0.2); }
 .vd-badge--proposer {
     background: rgba(255, 196, 0, 0.12);
@@ -305,7 +305,7 @@ h1.vd-moniker {
 
 .vd-perf-label { font-size: 0.62rem; color: rgba(255, 255, 255, 0.35); text-transform: uppercase; letter-spacing: 0.06em; }
 .vd-perf-value { font-size: 1.4rem; font-weight: 700; }
-.vd-perf-value--ok   { color: #00d4aa; }
+.vd-perf-value--ok   { color: var(--color-primary); }
 .vd-perf-value--warn { color: rgba(255, 196, 0, 0.9); }
 .vd-perf-value--bad  { color: rgba(255, 80, 80, 0.9); }
 

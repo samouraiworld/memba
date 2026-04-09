@@ -66,7 +66,7 @@ export function TreasuryProposal() {
                 id="treasury-propose-back-btn"
                 aria-label="Back to Treasury"
                 onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to Treasury
             </button>
@@ -74,21 +74,21 @@ export function TreasuryProposal() {
             {/* Header */}
             <div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Propose Treasury Spend</h2>
-                <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Submit a proposal for the DAO to approve a treasury transfer
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to propose a treasury spend
                     </p>
                 </div>
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -172,19 +172,19 @@ export function TreasuryProposal() {
 
 const labelStyle: React.CSSProperties = {
     display: "block", marginBottom: 6, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#888",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
     textTransform: "uppercase", letterSpacing: "0.05em",
 }
 
 const hintStyle: React.CSSProperties = {
     marginTop: 4, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#555",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
 }
 
 function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }

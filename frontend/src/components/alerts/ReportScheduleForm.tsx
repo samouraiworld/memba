@@ -26,13 +26,13 @@ const COMMON_TIMEZONES = [
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(0,0,0,0.3)", color: "#f0f0f0",
+    background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace", fontSize: 12,
     boxSizing: "border-box", cursor: "pointer",
 }
 
 const labelStyle: React.CSSProperties = {
-    fontSize: 11, color: "#888",
+    fontSize: 11, color: "var(--color-text-secondary)",
     fontFamily: "JetBrains Mono, monospace",
     display: "block", marginBottom: 4,
 }
@@ -114,7 +114,7 @@ export function ReportScheduleForm({ schedule, onSave }: Props) {
                 padding: "10px 14px", borderRadius: 8,
                 background: "rgba(0,212,170,0.04)",
                 border: "1px solid rgba(0,212,170,0.1)",
-                fontSize: 11, color: "#00d4aa",
+                fontSize: 11, color: "var(--color-primary)",
                 fontFamily: "JetBrains Mono, monospace",
             }}>
                 📋 Daily report at <strong>{pad(hour)}:{pad(minute)}</strong> {timezone}
@@ -134,7 +134,7 @@ export function ReportScheduleForm({ schedule, onSave }: Props) {
                     {saving ? "Saving…" : "Save Schedule"}
                 </button>
                 {saved && (
-                    <span style={{ fontSize: 11, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 11, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace" }}>
                         ✓ Saved
                     </span>
                 )}

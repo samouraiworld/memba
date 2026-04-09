@@ -71,7 +71,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
         padding: "8px 12px",
         fontSize: 11,
         fontWeight: 600,
-        color: "#00d4aa",
+        color: "var(--color-primary)",
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "JetBrains Mono, monospace",
@@ -82,7 +82,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
     const tdStyle: React.CSSProperties = {
         padding: "10px 12px",
         fontSize: 12,
-        color: "#ccc",
+        color: "var(--color-text-secondary)",
         fontFamily: "JetBrains Mono, monospace",
         borderBottom: "1px solid rgba(255,255,255,0.03)",
     }
@@ -91,7 +91,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="k-shimmer" style={{ height: 40, borderRadius: 8, background: "#111" }} />
+                    <div key={i} className="k-shimmer" style={{ height: 40, borderRadius: 8, background: "var(--color-border)" }} />
                 ))}
             </div>
         )
@@ -101,12 +101,12 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
         <div id="leaderboard" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 20 }}>🏆</span>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                     Leaderboard
                 </h3>
                 <span style={{
                     fontSize: 9, padding: "2px 8px", borderRadius: 4,
-                    background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                    background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     All Time
@@ -114,7 +114,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                 <a
                     href="/gnolove"
                     style={{
-                        marginLeft: "auto", fontSize: 10, color: "#555",
+                        marginLeft: "auto", fontSize: 10, color: "var(--color-text-muted)",
                         textDecoration: "none", fontFamily: "JetBrains Mono, monospace",
                         transition: "color 0.15s",
                     }}
@@ -125,15 +125,15 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                 </a>
             </div>
 
-            <div style={{ fontSize: 11, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
-                Realm: <code style={{ color: "#666" }}>{realmPath}</code>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                Realm: <code style={{ color: "var(--color-text-secondary)" }}>{realmPath}</code>
             </div>
 
             {error && (
                 <div style={{
                     padding: "10px 14px", borderRadius: 8,
                     background: "rgba(255,59,48,0.03)", border: "1px solid rgba(255,59,48,0.1)",
-                    fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                 }}>
                     ⚠ {error}
                 </div>
@@ -142,7 +142,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
             {sorted.length === 0 ? (
                 <div style={{
                     padding: 24, textAlign: "center", fontSize: 12,
-                    color: "#666", fontFamily: "JetBrains Mono, monospace",
+                    color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                     borderRadius: 10, background: "rgba(255,255,255,0.02)",
                     border: "1px solid rgba(255,255,255,0.06)",
                 }}>
@@ -164,16 +164,16 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                         <tbody>
                             {sorted.map((entry, i) => (
                                 <tr key={entry.address}>
-                                    <td style={{ ...tdStyle, color: "#555", fontSize: 14 }}>
+                                    <td style={{ ...tdStyle, color: "var(--color-text-muted)", fontSize: 14 }}>
                                         {RANK_BADGES[i] || i + 1}
                                     </td>
-                                    <td style={{ ...tdStyle, color: "#f0f0f0", fontWeight: 600 }}>
+                                    <td style={{ ...tdStyle, color: "var(--color-text)", fontWeight: 600 }}>
                                         {entry.username}
                                     </td>
                                     <td style={tdStyle}>{entry.packages}</td>
                                     <td style={tdStyle}>{entry.proposals}</td>
                                     <td style={tdStyle}>{entry.votes}</td>
-                                    <td style={{ ...tdStyle, color: "#00d4aa", fontWeight: 600 }}>{entry.score}</td>
+                                    <td style={{ ...tdStyle, color: "var(--color-primary)", fontWeight: 600 }}>{entry.score}</td>
                                 </tr>
                             ))}
                         </tbody>

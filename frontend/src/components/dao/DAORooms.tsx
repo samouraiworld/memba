@@ -48,11 +48,11 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 16 }}>🎙️</span>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#f0f0f0" }}>Live Rooms</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text)" }}>Live Rooms</span>
                     {(isInPublicRoom || isInMembersRoom) && (
                         <span aria-live="polite" style={{
                             fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                            background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                            background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                         }}>
                             IN CALL
@@ -64,7 +64,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                         aria-label="Manage channels"
                         onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
                         style={{
-                            color: "#555", fontSize: 10, background: "none", border: "none",
+                            color: "var(--color-text-muted)", fontSize: 10, background: "none", border: "none",
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
                             transition: "color 0.15s",
                         }}

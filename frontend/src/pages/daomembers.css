@@ -22,7 +22,7 @@
   letter-spacing: -0.02em;
 }
 .k-members__subtitle {
-  color: #888;
+  color: var(--color-text-secondary);
   font-size: 12px;
   margin-top: 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -36,7 +36,7 @@
 .k-members__power-title {
   font-size: 13px;
   font-weight: 600;
-  color: #f0f0f0;
+  color: var(--color-text);
   margin-bottom: 14px;
 }
 .k-members__power-grid {
@@ -59,7 +59,7 @@
   padding: 12px 14px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--color-border);
 }
 .k-members__tier-header {
   display: flex;
@@ -81,11 +81,11 @@
   font-size: 18px;
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
-  color: #f0f0f0;
+  color: var(--color-text);
 }
 .k-members__tier-power {
   font-size: 10px;
-  color: #666;
+  color: var(--color-text-secondary);
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -123,7 +123,7 @@
   grid-template-columns: 1fr auto auto;
   padding: 6px 16px;
   font-size: 9px;
-  color: #555;
+  color: var(--color-text-muted);
   font-family: 'JetBrains Mono', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -154,7 +154,7 @@
 }
 .k-members__row-profile {
   font-size: 12px;
-  color: #555;
+  color: var(--color-text-muted);
   text-decoration: none;
   transition: color 0.15s;
 }
@@ -213,8 +213,8 @@
 }
 .k-members__add-role-btn {
   background: none;
-  border: 1px solid #222;
-  color: #666;
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-size: 9px;
   padding: 2px 6px;
@@ -223,8 +223,8 @@
   transition: all 0.15s;
 }
 .k-members__add-role-btn:hover {
-  border-color: #444;
-  color: #aaa;
+  border-color: var(--color-text-dim);
+  color: var(--color-text-secondary);
 }
 
 /* ── Admin Role Assignment Panel ─────────────────────────────── */
@@ -232,7 +232,7 @@
 .k-members__assign-panel {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -240,7 +240,7 @@
 }
 .k-members__assign-label {
   font-size: 9px;
-  color: #555;
+  color: var(--color-text-muted);
   font-family: 'JetBrains Mono', monospace;
   text-transform: uppercase;
 }
@@ -249,8 +249,8 @@
   border-radius: 4px;
   font-size: 9px;
   font-family: 'JetBrains Mono', monospace;
-  border: 1px solid #222;
-  background: #0c0c0c;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-card);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -258,12 +258,12 @@
 /* ── Empty + Success States ──────────────────────────────────── */
 
 .k-members__empty {
-  background: #0c0c0c;
+  background: var(--color-bg-card);
   padding: 28px;
   text-align: center;
 }
 .k-members__empty-text {
-  color: #555;
+  color: var(--color-text-muted);
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
 }

@@ -23,7 +23,7 @@ export function renderMarkdown(text: string): React.ReactNode[] {
         if (match.index > lastIdx) parts.push(text.slice(lastIdx, match.index))
         const token = match[0]
         if (token.startsWith("**")) {
-            parts.push(<strong key={key++} style={{ color: "#f0f0f0" }}>{token.slice(2, -2)}</strong>)
+            parts.push(<strong key={key++} style={{ color: "var(--color-text)" }}>{token.slice(2, -2)}</strong>)
         } else if (token.startsWith("*")) {
             parts.push(<em key={key++}>{token.slice(1, -1)}</em>)
         } else if (token.startsWith("`")) {
@@ -31,13 +31,13 @@ export function renderMarkdown(text: string): React.ReactNode[] {
         } else if (token.startsWith("[")) {
             const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/)
             if (linkMatch) {
-                parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{ color: "#00d4aa", textDecoration: "underline" }}>{linkMatch[1]}</a>)
+                parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>{linkMatch[1]}</a>)
             }
         } else if (token.startsWith("@g1")) {
             parts.push(
                 <span key={key++} style={{
                     background: "rgba(0,212,170,0.12)",
-                    color: "#00d4aa",
+                    color: "var(--color-primary)",
                     padding: "1px 4px",
                     borderRadius: 4,
                     fontSize: 12,
@@ -144,7 +144,7 @@ export const primaryBtn: React.CSSProperties = {
 export const ghostBtn: React.CSSProperties = {
     ...btnStyle,
     background: "none",
-    color: "#00d4aa",
+    color: "var(--color-primary)",
     border: "1px solid rgba(0,212,170,0.2)",
 }
 
@@ -154,7 +154,7 @@ export const inputStyle: React.CSSProperties = {
     borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(0,0,0,0.3)",
-    color: "#f0f0f0",
+    color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace",
     fontSize: 13,
     boxSizing: "border-box",

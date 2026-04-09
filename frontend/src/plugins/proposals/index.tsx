@@ -146,12 +146,12 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 20 }}>📋</span>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         Proposal Explorer
                     </h3>
                     <span style={{
                         fontSize: 9, padding: "2px 8px", borderRadius: 4,
-                        background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                        background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                     }}>
                         v2.0.0
@@ -196,7 +196,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     style={{
                         flex: 1, minWidth: 200, padding: "8px 14px",
                         borderRadius: 8, border: "1px solid #1a1a1a",
-                        background: "#0d0d0d", color: "#f0f0f0",
+                        background: "#0d0d0d", color: "var(--color-text)",
                         fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                         outline: "none", transition: "border-color 0.15s",
                     }}
@@ -209,7 +209,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     style={{
                         padding: "8px 12px", borderRadius: 8,
                         border: "1px solid #1a1a1a", background: "#0d0d0d",
-                        color: "#888", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-text-secondary)", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
                         cursor: "pointer",
                     }}
                 >
@@ -250,7 +250,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 </div>
             ) : error ? (
                 <div className="k-card" style={{ padding: 24, textAlign: "center" }}>
-                    <p style={{ color: "#ef4444", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-danger)", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                         {error}
                     </p>
                     <button className="k-btn-secondary" onClick={loadProposals} style={{ fontSize: 11, marginTop: 8 }}>
@@ -259,7 +259,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="k-dashed" style={{ padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         {search ? `No proposals matching "${search}"` : "No proposals found"}
                     </p>
                 </div>
@@ -286,7 +286,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                     {/* ID badge */}
                                     <span style={{
                                         fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                        color: "#555", fontWeight: 600, minWidth: 30,
+                                        color: "var(--color-text-muted)", fontWeight: 600, minWidth: 30,
                                     }}>
                                         #{p.id}
                                     </span>
@@ -294,14 +294,14 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                     {/* Title + author */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: 13, fontWeight: 500, color: "#f0f0f0",
+                                            fontSize: 13, fontWeight: 500, color: "var(--color-text)",
                                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                         }}>
                                             {p.title}
                                         </div>
                                         {p.author && (
                                             <div style={{
-                                                fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace",
+                                                fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
                                                 marginTop: 2,
                                             }}>
                                                 by {p.author}
@@ -313,7 +313,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                     {(p.yesVotes > 0 || p.noVotes > 0) && (
                                         <span style={{
                                             fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                                            color: "#666",
+                                            color: "var(--color-text-secondary)",
                                         }}>
                                             ✓{p.yesVotes} ✗{p.noVotes}
                                         </span>
@@ -329,7 +329,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                         {p.status}
                                     </span>
 
-                                    <span style={{ color: "#333", fontSize: 12 }}>→</span>
+                                    <span style={{ color: "var(--color-text)", fontSize: 12 }}>→</span>
                                 </button>
                             )
                         })}
@@ -346,7 +346,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                             >
                                 ← Prev
                             </button>
-                            <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+                            <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
                                 {page + 1} / {totalPages}
                             </span>
                             <button
@@ -367,7 +367,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 padding: "10px 14px", borderRadius: 8,
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.04)",
-                fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#444",
+                fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-dim)",
                 display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap",
             }}>
                 <span>{proposals.length} total</span>

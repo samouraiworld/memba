@@ -158,25 +158,25 @@ export function CreateToken() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div>
-                <button onClick={() => navigate("/")} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
                     ← Back to Dashboard
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Create a Token</h2>
-                <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Deploy a GRC20 token on {GNO_CHAIN_ID} via grc20factory
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to create a token
                     </p>
                 </div>
             )}
 
             {success && !deployResult && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -274,7 +274,7 @@ export function CreateToken() {
                     <div>
                         <label style={labelStyle}>Multisig Wallet (admin)</label>
                         {multisigs.length === 0 ? (
-                            <p style={{ ...hintStyle, color: "#f5a623" }}>
+                            <p style={{ ...hintStyle, color: "var(--color-warning)" }}>
                                 No multisigs found. Import or create one first.
                             </p>
                         ) : (
@@ -315,7 +315,7 @@ export function CreateToken() {
                 <div style={{
                     padding: "14px 18px", borderRadius: 8,
                     background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                    fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                    fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
                 }}>
                     💰 {feeDisclosure(parsedMint, symbol.trim().toUpperCase() || "TOKEN")}
                 </div>
@@ -324,21 +324,21 @@ export function CreateToken() {
             {/* Summary */}
             <div className="k-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Factory</span>
-                    <span style={{ color: "#aaa" }}>{GRC20_FACTORY_PATH}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Factory</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{GRC20_FACTORY_PATH}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Admin</span>
-                    <span style={{ color: "#aaa" }}>{adminMode === "multisig" ? (selectedMultisig || "—") : (adena.address || "—")}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Admin</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{adminMode === "multisig" ? (selectedMultisig || "—") : (adena.address || "—")}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Messages</span>
-                    <span style={{ color: "#aaa" }}>{parsedMint > 0n ? "2 (create + fee)" : "1 (create)"}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Messages</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{parsedMint > 0n ? "2 (create + fee)" : "1 (create)"}</span>
                 </div>
                 {fee > 0n && (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        <span style={{ color: "#666" }}>Platform fee (2.5%)</span>
-                        <span style={{ color: "#f5a623" }}>{String(fee)} {symbol.trim().toUpperCase() || "TOKEN"}</span>
+                        <span style={{ color: "var(--color-text-secondary)" }}>Platform fee (2.5%)</span>
+                        <span style={{ color: "var(--color-warning)" }}>{String(fee)} {symbol.trim().toUpperCase() || "TOKEN"}</span>
                     </div>
                 )}
             </div>
@@ -380,19 +380,19 @@ export function CreateToken() {
 
 const labelStyle: React.CSSProperties = {
     display: "block", marginBottom: 6, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#888",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
     textTransform: "uppercase", letterSpacing: "0.05em",
 }
 
 const hintStyle: React.CSSProperties = {
     marginTop: 4, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#555",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
 }
 
 function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }

@@ -34,7 +34,7 @@ export function TypewriterText({ text, startFrame = 0, speed = 2, style }: Typew
         <span style={style}>
             {visible}
             {showCursor && (
-                <span style={{ opacity: Math.sin(frame * 0.3) > 0 ? 1 : 0, color: "#00d4aa" }}>▏</span>
+                <span style={{ opacity: Math.sin(frame * 0.3) > 0 ? 1 : 0, color: "var(--color-primary)" }}>▏</span>
             )}
         </span>
     )

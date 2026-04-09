@@ -52,12 +52,12 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                         animation: "pulse-dot 2s ease-in-out infinite",
                         boxShadow: "0 0 8px rgba(0,212,170,0.5)",
                     }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}>
                         In Call
                     </span>
                 </div>
                 <div style={{
-                    fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                     textAlign: "center", lineHeight: 1.6, maxWidth: 320,
                 }}>
                     You're connected to {label || channelName}. Use the PiP mini-player to browse while staying in the call.
@@ -69,7 +69,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                             padding: "8px 16px", borderRadius: 8,
                             border: "1px solid rgba(0,212,170,0.3)",
                             background: "rgba(0,212,170,0.1)",
-                            color: "#00d4aa", fontSize: 12, fontWeight: 600,
+                            color: "var(--color-primary)", fontSize: 12, fontWeight: 600,
                             fontFamily: "JetBrains Mono, monospace",
                             cursor: "pointer", transition: "all 0.15s",
                         }}
@@ -82,7 +82,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                             padding: "8px 16px", borderRadius: 8,
                             border: "1px solid rgba(255,71,87,0.3)",
                             background: "rgba(255,71,87,0.08)",
-                            color: "#ff4757", fontSize: 12, fontWeight: 600,
+                            color: "var(--color-danger)", fontSize: 12, fontWeight: 600,
                             fontFamily: "JetBrains Mono, monospace",
                             cursor: "pointer", transition: "all 0.15s",
                         }}
@@ -106,11 +106,11 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
             }}
         >
             <span style={{ fontSize: 48 }}>{mode === "voice" ? "🔊" : "🎥"}</span>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)" }}>
                 {label || (mode === "voice" ? "Voice Channel" : "Video Channel")}
             </div>
             <div style={{
-                fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace",
+                fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                 maxWidth: 320, textAlign: "center", lineHeight: 1.6,
             }}>
                 {description || `Join a ${mode === "voice" ? "voice call" : "video meeting"} with other DAO members in #${channelName}.`}
@@ -124,7 +124,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                     padding: "10px 24px", borderRadius: 8,
                     border: "1px solid rgba(0, 212, 170, 0.3)",
                     background: "rgba(0, 212, 170, 0.1)",
-                    color: "#00d4aa", fontSize: 13, fontWeight: 600,
+                    color: "var(--color-primary)", fontSize: 13, fontWeight: 600,
                     fontFamily: "JetBrains Mono, monospace",
                     cursor: "pointer", transition: "all 0.15s",
                 }}
@@ -132,7 +132,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                 <span>{mode === "voice" ? "🎙️" : "📹"}</span>
                 <span>Join Room</span>
             </button>
-            <div style={{ fontSize: 9, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+            <div style={{ fontSize: 9, color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
                 Powered by Jitsi Meet • No account required
             </div>
         </div>

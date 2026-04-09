@@ -232,7 +232,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "#111" }} />
+                    <div key={i} className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "var(--color-border)" }} />
                 ))}
             </div>
         )
@@ -245,10 +245,10 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             return (
                 <div id="board-not-found" style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 32 }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
-                    <div style={{ fontSize: 13, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                         No channels deployed for this DAO.
                     </div>
-                    <div style={{ fontSize: 11, color: "#555", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
                         Channels can be deployed alongside a DAO from the Create DAO wizard.
                     </div>
                 </div>
@@ -259,12 +259,12 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             <div id="board-home" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 20 }}>💬</span>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         {boardInfo.name}
                     </h3>
                 </div>
                 {boardInfo.description && (
-                    <p style={{ fontSize: 12, color: "#888", margin: 0, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0, fontFamily: "JetBrains Mono, monospace" }}>
                         {boardInfo.description}
                     </p>
                 )}
@@ -286,13 +286,13 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     <span style={{ fontSize: 14 }}>{channelIcon(ch)}</span>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: "#00d4aa" }}>
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}>
                                         #{ch.name}
                                     </span>
                                     {ch.archived && (
                                         <span style={{
                                             fontSize: 9,
-                                            color: "#666",
+                                            color: "var(--color-text-secondary)",
                                             background: "rgba(255,255,255,0.04)",
                                             padding: "2px 6px",
                                             borderRadius: 4,
@@ -303,7 +303,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                                         </span>
                                     )}
                                 </div>
-                                <span style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {ch.threadCount} thread{ch.threadCount !== 1 ? "s" : ""}
                                 </span>
                             </div>
@@ -359,7 +359,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     }
                 />
 
-                {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
+                {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
 
                 {/* G1: Gated channel banner — shown when user lacks write access */}
                 <GatedChannelBanner
@@ -414,7 +414,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     channel={viewState.channel}
                     onBack={() => navigateTo("channel", viewState.channel)}
                     rightAction={
-                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                             {threadDetail.title}
                         </h3>
                     }
@@ -436,5 +436,5 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
     }
 
     // Fallback
-    return <div style={{ color: "#666", fontSize: 12 }}>Loading thread...</div>
+    return <div style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>Loading thread...</div>
 }

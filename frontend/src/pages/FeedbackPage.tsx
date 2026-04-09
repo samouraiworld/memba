@@ -59,10 +59,10 @@ export default function FeedbackPage() {
         <div id="feedback-page" className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 720 }}>
             {/* Header */}
             <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: "#f0f0f0", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
                     <span>📣</span> Feedback & Feature Requests
                 </h1>
-                <p style={{ fontSize: 12, color: "#666", marginTop: 8, lineHeight: 1.6, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.6, fontFamily: "JetBrains Mono, monospace" }}>
                     Help shape Memba's future. Report bugs, suggest features, or vote on community ideas.
                 </p>
             </div>
@@ -75,8 +75,8 @@ export default function FeedbackPage() {
                 border: "1px solid rgba(0, 212, 170, 0.12)",
             }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>Have an idea or found a bug?</span>
-                    <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Have an idea or found a bug?</span>
+                    <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                         Open a GitHub issue — we review every submission.
                     </span>
                 </div>
@@ -103,7 +103,7 @@ export default function FeedbackPage() {
             {/* GitHub Issues */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e0e0e0", margin: 0 }}>
+                    <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         Open Issues
                     </h2>
                     <a
@@ -111,7 +111,7 @@ export default function FeedbackPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                            fontSize: 10, color: "#00d4aa", textDecoration: "none",
+                            fontSize: 10, color: "var(--color-primary)", textDecoration: "none",
                             fontFamily: "JetBrains Mono, monospace",
                         }}
                     >
@@ -122,7 +122,7 @@ export default function FeedbackPage() {
                 {loading ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="k-shimmer" style={{ height: 52, borderRadius: 8, background: "#111" }} />
+                            <div key={i} className="k-shimmer" style={{ height: 52, borderRadius: 8, background: "var(--color-border)" }} />
                         ))}
                     </div>
                 ) : error ? (
@@ -130,13 +130,13 @@ export default function FeedbackPage() {
                         padding: "16px 20px", borderRadius: 10,
                         background: "rgba(255, 59, 48, 0.03)",
                         border: "1px solid rgba(255, 59, 48, 0.1)",
-                        fontSize: 12, color: "#888", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                     }}>
                         ⚠ Could not load GitHub issues. <a
                             href={`https://github.com/${GITHUB_REPO}/issues`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: "#00d4aa" }}
+                            style={{ color: "var(--color-primary)" }}
                         >View directly on GitHub →</a>
                     </div>
                 ) : issues.length === 0 ? (
@@ -144,7 +144,7 @@ export default function FeedbackPage() {
                         padding: "24px", textAlign: "center", borderRadius: 10,
                         background: "rgba(255,255,255,0.02)",
                         border: "1px solid rgba(255,255,255,0.06)",
-                        fontSize: 12, color: "#666", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                     }}>
                         No open issues. Be the first to submit feedback!
                     </div>
@@ -173,13 +173,13 @@ export default function FeedbackPage() {
                             }}
                         >
                             <span style={{
-                                fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace",
+                                fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
                                 minWidth: 30, textAlign: "right", paddingTop: 2,
                             }}>
                                 #{issue.number}
                             </span>
                             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", lineHeight: 1.3 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", lineHeight: 1.3 }}>
                                     {issue.title}
                                 </span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -193,7 +193,7 @@ export default function FeedbackPage() {
                                             {label.name}
                                         </span>
                                     ))}
-                                    <span style={{ fontSize: 10, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <span style={{ fontSize: 10, color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
                                         by {issue.user.login} · {formatDate(issue.created_at)}
                                         {issue.comments > 0 && ` · ${issue.comments} comment${issue.comments !== 1 ? "s" : ""}`}
                                     </span>
@@ -217,12 +217,12 @@ export default function FeedbackPage() {
                         fontWeight: 700, letterSpacing: "0.05em",
                         fontFamily: "JetBrains Mono, monospace",
                     }}>COMING ON BETANET</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                         🔮 On-Chain Feedback Board
                     </span>
                 </div>
                 <p style={{
-                    fontSize: 11, color: "#666", margin: 0, lineHeight: 1.6,
+                    fontSize: 11, color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.6,
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     A sovereign, on-chain feedback realm will be deployed on betanet, allowing fully decentralized feature voting and bug reporting directly from Memba.

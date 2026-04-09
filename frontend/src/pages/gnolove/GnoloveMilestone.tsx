@@ -62,7 +62,7 @@ export default function GnoloveMilestone() {
             {/* Description */}
             {milestone.description && (
                 <div className="gl-panel" style={{ marginBottom: 16 }}>
-                    <div style={{ padding: 16, fontSize: 13, lineHeight: 1.7, color: "#ccc" }}>
+                    <div style={{ padding: 16, fontSize: 13, lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
                         {milestone.description}
                     </div>
                 </div>
@@ -87,7 +87,7 @@ export default function GnoloveMilestone() {
                                 padding: "10px 16px",
                                 borderBottom: "1px solid rgba(255,255,255,0.04)",
                                 textDecoration: "none",
-                                color: "#e0e0e0",
+                                color: "var(--color-text)",
                                 fontSize: 13,
                             }}
                         >
@@ -101,7 +101,7 @@ export default function GnoloveMilestone() {
                             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {issue.title}
                             </span>
-                            <span style={{ color: "#666", fontSize: 11, flexShrink: 0 }}>
+                            <span style={{ color: "var(--color-text-secondary)", fontSize: 11, flexShrink: 0 }}>
                                 #{issue.number}
                             </span>
                         </a>

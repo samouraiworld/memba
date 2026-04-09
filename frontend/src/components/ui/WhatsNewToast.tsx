@@ -117,7 +117,7 @@ export function WhatsNewToast() {
                     aria-label="Close"
                     style={{
                         position: "absolute", top: 12, right: 14,
-                        background: "none", border: "none", color: "#555",
+                        background: "none", border: "none", color: "var(--color-text-muted)",
                         cursor: "pointer", fontSize: 16, padding: 4,
                         lineHeight: 1,
                     }}
@@ -126,7 +126,7 @@ export function WhatsNewToast() {
                 </button>
 
                 {/* Header */}
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#f0f0f0", marginBottom: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text)", marginBottom: 16 }}>
                     🚀 What's New
                 </div>
 
@@ -150,16 +150,16 @@ export function WhatsNewToast() {
                 </div>
 
                 {/* Links */}
-                <div style={{ fontSize: 10, color: "#666", marginBottom: 14, display: "flex", gap: 12 }}>
+                <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 14, display: "flex", gap: 12 }}>
                     <span
                         onClick={() => { handleDismiss(); navigate("/settings") }}
-                        style={{ color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
+                        style={{ color: "var(--color-text-secondary)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
                     >
                         Settings ⚙
                     </span>
                     <span
                         onClick={() => { handleDismiss(); navigate("/changelogs") }}
-                        style={{ color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
+                        style={{ color: "var(--color-text-secondary)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
                     >
                         Full changelog →
                     </span>
@@ -175,7 +175,7 @@ export function WhatsNewToast() {
                         borderRadius: 10,
                         border: "1px solid rgba(0,212,170,0.2)",
                         background: "rgba(0,212,170,0.08)",
-                        color: "#00d4aa",
+                        color: "var(--color-primary)",
                         cursor: "pointer",
                         fontFamily: "JetBrains Mono, monospace",
                         fontSize: 12, fontWeight: 600,
@@ -223,10 +223,10 @@ function NetworkItem({ color, title, desc }: { color: string; title: string; des
             background: "rgba(255,255,255,0.02)",
             borderLeft: `3px solid ${color}`,
         }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#e0e0e0", marginBottom: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text)", marginBottom: 2 }}>
                 ▸ {title}
             </div>
-            <div style={{ fontSize: 10, color: "#777", lineHeight: 1.4 }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
                 {desc}
             </div>
         </div>

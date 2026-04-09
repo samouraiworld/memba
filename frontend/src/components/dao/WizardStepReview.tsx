@@ -30,7 +30,7 @@ export function WizardStepReview({
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Summary */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 16 }}>DAO Summary</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 16 }}>DAO Summary</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <SummaryItem label="Name" value={name} />
                     <SummaryItem label="Preset" value={selectedPreset ? DAO_PRESETS.find((p) => p.id === selectedPreset)?.name || "Custom" : "Custom"} />
@@ -50,7 +50,7 @@ export function WizardStepReview({
 
                 {/* Roles distribution */}
                 <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                    <div style={{ fontSize: 9, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
                         Roles
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -72,14 +72,14 @@ export function WizardStepReview({
 
                 {/* Categories */}
                 <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                    <div style={{ fontSize: 9, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
                         Proposal Categories
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {proposalCategories.map((cat) => (
                             <span key={cat} style={{
                                 fontSize: 10, padding: "2px 8px", borderRadius: 4,
-                                background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                                background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                                 fontFamily: "JetBrains Mono, monospace", textTransform: "capitalize",
                             }}>
                                 {cat}
@@ -91,14 +91,14 @@ export function WizardStepReview({
 
             {/* Members Preview */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 12 }}>Members</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>Members</h3>
                 {validMembers.map((m, i) => (
                     <div key={i} style={{
                         display: "flex", justifyContent: "space-between", alignItems: "center",
                         padding: "8px 0", borderBottom: i < validMembers.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
                         flexWrap: "wrap", gap: 6,
                     }}>
-                        <span style={{ fontSize: 11, color: "#ccc", fontFamily: "JetBrains Mono, monospace" }}>{m.address}</span>
+                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>{m.address}</span>
                         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                             {m.roles.map((r) => (
                                 <span key={r} style={{
@@ -110,7 +110,7 @@ export function WizardStepReview({
                                     {r}
                                 </span>
                             ))}
-                            <span style={{ fontSize: 11, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", marginLeft: 4 }}>power: {m.power}</span>
+                            <span style={{ fontSize: 11, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginLeft: 4 }}>power: {m.power}</span>
                         </div>
                     </div>
                 ))}
@@ -120,7 +120,7 @@ export function WizardStepReview({
             <details style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
                 <summary style={{
                     cursor: "pointer", padding: "14px 20px", fontSize: 12,
-                    fontFamily: "JetBrains Mono, monospace", color: "#888",
+                    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
                 }}>
                     📄 View Generated Gno Code ({generatedCode.split("\n").length} lines)
                 </summary>
@@ -133,7 +133,7 @@ export function WizardStepReview({
             <div style={{
                 padding: "12px 16px", borderRadius: 8,
                 background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                fontSize: 11, color: "#f5a623", fontFamily: "JetBrains Mono, monospace",
+                fontSize: 11, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace",
             }}>
                 ⚠ This will deploy immutable code on gno.land. Review carefully before deploying.
             </div>

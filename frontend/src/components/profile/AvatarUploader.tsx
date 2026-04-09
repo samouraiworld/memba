@@ -101,7 +101,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: "#ccc" }}>Avatar</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)" }}>Avatar</span>
                 <div style={{ display: "flex", gap: 2 }}>
                     {(["file", "url"] as const).map(m => (
                         <button
@@ -123,7 +123,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                     ))}
                 </div>
                 {lighthouseKey && (
-                    <span style={{ fontSize: 9, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 9, color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
                         ✓ Lighthouse
                     </span>
                 )}
@@ -140,7 +140,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         style={{
                             flex: 1, padding: "8px 12px", borderRadius: 6,
                             border: "1px solid #1a1a1a", background: "#0d0d0d",
-                            color: "#f0f0f0", fontSize: 11,
+                            color: "var(--color-text)", fontSize: 11,
                             fontFamily: "JetBrains Mono, monospace", outline: "none",
                         }}
                     />
@@ -187,7 +187,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                 }}
                             />
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {lighthouseKey ? "Ready to pin on IPFS" : "Preview ready (no IPFS key)"}
                                 </span>
                                 <button
@@ -208,7 +208,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         <div style={{
                             marginTop: 8, padding: "6px 10px", borderRadius: 4,
                             background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.12)",
-                            fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace",
+                            fontSize: 10, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
                             wordBreak: "break-all",
                         }}>
                             ✓ Pinned: {uploadedCid.slice(0, 20)}...
@@ -219,7 +219,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
 
             {error && (
                 <div style={{
-                    fontSize: 10, color: "#ef4444", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 10, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
                     padding: "6px 10px", borderRadius: 4,
                     background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
                 }}>
@@ -239,7 +239,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         }}
                         onError={e => e.currentTarget.style.display = "none"}
                     />
-                    <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                         Current avatar
                         {currentUrl.includes("lighthouse") || currentUrl.includes("ipfs") ? " (IPFS)" : ""}
                     </span>

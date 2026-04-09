@@ -43,7 +43,7 @@
   background: none;
   border: 1px dashed #333;
   border-radius: 6px;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 11px;
   padding: 4px 10px;
   cursor: pointer;
@@ -54,7 +54,7 @@
   color: var(--color-k-accent);
 }
 .k-txview__meta {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 12px;
   margin-top: 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -86,7 +86,7 @@
 .k-txview__msg-label {
   font-size: 14px;
   font-weight: 500;
-  color: #f0f0f0;
+  color: var(--color-text);
 }
 
 /* ── Message Field Rows ──────────────────────────────────────── */
@@ -103,7 +103,7 @@
 .k-txview__field-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  color: #ccc;
+  color: var(--color-text-secondary);
   text-align: right;
   word-break: break-all;
 }
@@ -131,7 +131,7 @@
 .k-txview__detail-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  color: #ccc;
+  color: var(--color-text-secondary);
 }
 
 /* ── Section Titles ──────────────────────────────────────────── */
@@ -150,12 +150,12 @@
 }
 .k-txview__table-header {
   padding: 12px 20px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--color-border-light);
   display: grid;
   grid-template-columns: 1fr auto;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #555;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -182,7 +182,7 @@
   text-align: center;
 }
 .k-txview__empty-text {
-  color: #555;
+  color: var(--color-text-muted);
   font-size: 14px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -190,7 +190,7 @@
 /* ── Not Found State ─────────────────────────────────────────── */
 
 .k-txview__not-found {
-  background: #0c0c0c;
+  background: var(--color-bg-card);
   padding: 48px;
   text-align: center;
 }
@@ -206,7 +206,7 @@
   margin-bottom: 8px;
 }
 .k-txview__not-found-desc {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -227,7 +227,7 @@
   gap: 12px;
 }
 .k-txview__manual-desc {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -236,9 +236,9 @@
   height: 40px;
   padding: 0 12px;
   border-radius: 8px;
-  background: #0c0c0c;
-  border: 1px solid #222;
-  color: #f0f0f0;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   outline: none;

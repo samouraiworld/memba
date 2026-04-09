@@ -30,7 +30,7 @@
 }
 
 .landing-hero__title span {
-    color: #ffffff;
+    color: var(--color-text);
 }
 
 @keyframes gradient-shift {
@@ -180,7 +180,7 @@
     aspect-ratio: 16 / 10;
     border-bottom: 1px solid var(--color-k-edge);
     overflow: hidden;
-    background: #000;
+    background: var(--color-bg);
 }
 
 .landing-feature-card__body {

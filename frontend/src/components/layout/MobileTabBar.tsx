@@ -187,13 +187,13 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                 style={{
                                     width: "100%",
                                     background: "rgba(0,212,170,0.06)", border: "1px solid #1a1a1a",
-                                    color: "#888", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    color: "var(--color-text-secondary)", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                                     padding: "8px 12px", borderRadius: 6, cursor: "pointer",
                                     outline: "none",
                                 }}
                             >
                                 {Object.entries(network.networks).map(([key, net]) => (
-                                    <option key={key} value={key} style={{ background: "#111", color: "#ccc" }}>
+                                    <option key={key} value={key} style={{ background: "var(--color-border)", color: "var(--color-text-secondary)" }}>
                                         {net.label}
                                     </option>
                                 ))}

@@ -2,23 +2,30 @@
  * GnoloveReport — PR status report with team/repo filters and export.
  *
  * Two views:
- *  - Table View (default): raw PR list with filters
- *  - Report View: formatted narrative report (gno-skills style) with stats,
- *    highlights, blockers — shareable via ?view=report URL param
+ *  - Report View (default): formatted narrative report (gno-skills style) with
+ *    categorized sections, emoji indicators, stats — shareable via copy as MD
+ *  - Table View: raw PR list with filters (accessible via ?view=table)
+ *
+ * Key behaviors:
+ *  - Default view is "report" (gno-skills format)
+ *  - Repos ordered by priority: gnolang/gno > samouraiworld/* > others
+ *  - Multi-select repository filter with checkboxes
+ *  - Merged PRs displayed above other statuses
+ *  - Weekly scope shows ONLY current week activity
+ *  - Merged badge uses purple (not red)
  *
  * Period navigation (weekly/monthly/yearly/all-time) with PR status tabs.
- * Ported from gnolove report-client-page.tsx — MVP approach per F4.
  *
  * @module pages/gnolove/GnoloveReport
  */
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
     startOfWeek, endOfWeek, addWeeks,
     startOfMonth, endOfMonth, addMonths,
     startOfYear, endOfYear, addYears,
-    format, isFuture, getISOWeek,
+    format, isFuture, getISOWeek, isWithinInterval,
 } from "date-fns"
 import { useGnoloveReport, useGnoloveRepositories } from "../../hooks/gnolove"
 import { REPORT_TAB_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
@@ -37,6 +44,20 @@ const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     yearly: "Yearly",
     all_time: "All Time",
 }
+
+/** Priority order for repository display — unlisted repos appear at the end alphabetically */
+const REPO_PRIORITY_ORDER: string[] = [
+    "gnolang/gno",
+    "samouraiworld/gnomonitoring",
+    "samouraiworld/gno-docs",
+    "samouraiworld/gno-validator-tools",
+    "samouraiworld/gnodaokit",
+    "samouraiworld/memba",
+    "samouraiworld/gnolove",
+    "samouraiworld/samcrew-deployer",
+    "samouraiworld/tokenfactory",
+    "samouraiworld/gno-skills",
+]
 
 function computeRange(period: ReportPeriod, offset: number): { start: Date; end: Date } {
     const now = new Date()
@@ -58,24 +79,66 @@ function computeRange(period: ReportPeriod, offset: number): { start: Date; end:
     }
 }
 
+/** Sort repos by priority order — gnolang/gno first, then Samourai repos, then others */
+function sortReposByPriority(repos: string[]): string[] {
+    return [...repos].sort((a, b) => {
+        const ia = REPO_PRIORITY_ORDER.indexOf(a)
+        const ib = REPO_PRIORITY_ORDER.indexOf(b)
+        if (ia !== -1 && ib !== -1) return ia - ib
+        if (ia !== -1) return -1
+        if (ib !== -1) return 1
+        return a.localeCompare(b)
+    })
+}
+
+/** Check if a PR had any activity within the given date range */
+function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
+    const range = { start, end }
+    const dates = [pr.createdAt, pr.mergedAt, pr.updatedAt].filter(Boolean) as string[]
+    return dates.some(d => {
+        try { return isWithinInterval(new Date(d), range) }
+        catch { return false }
+    })
+}
+
 export default function GnoloveReport() {
     const [searchParams, setSearchParams] = useSearchParams()
     const [period, setPeriod] = useState<ReportPeriod>("weekly")
     const [offset, setOffset] = useState(-1) // Default to previous week (report of past work)
     const [activeTab, setActiveTab] = useState<ReportTab | "all">("all")
     const [selectedTeam, setSelectedTeam] = useState("all")
-    const [selectedRepo, setSelectedRepo] = useState("all")
-    const [view, setView] = useState<ViewMode>(() => searchParams.get("view") === "report" ? "report" : "table")
+    const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set())
+    const [repoDropdownOpen, setRepoDropdownOpen] = useState(false)
+    const repoDropdownRef = useRef<HTMLDivElement>(null)
+    const [view, setView] = useState<ViewMode>(() => searchParams.get("view") === "table" ? "table" : "report")
 
     const handleViewToggle = useCallback((v: ViewMode) => {
         setView(v)
         setSearchParams(prev => {
             const next = new URLSearchParams(prev)
-            if (v === "report") next.set("view", "report")
+            if (v === "table") next.set("view", "table")
             else next.delete("view")
             return next
         }, { replace: true })
     }, [setSearchParams])
+
+    // Close repo dropdown on outside click or Escape key
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (repoDropdownRef.current && !repoDropdownRef.current.contains(e.target as Node)) {
+                setRepoDropdownOpen(false)
+            }
+        }
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") setRepoDropdownOpen(false)
+        }
+        document.addEventListener("mousedown", handleClick)
+        document.addEventListener("keydown", handleKeyDown)
+        return () => {
+            document.removeEventListener("mousedown", handleClick)
+            document.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [])
 
     const { data: repos } = useGnoloveRepositories()
 
@@ -85,21 +148,20 @@ export default function GnoloveReport() {
 
     const prs: TPullRequest[] = useMemo(() => {
         if (!report) return []
-        if (activeTab === "all") {
-            return [
-                ...(report.merged ?? []),
-                ...(report.in_progress ?? []),
-                ...(report.waiting_for_review ?? []),
-                ...(report.reviewed ?? []),
-                ...(report.blocked ?? []),
-            ]
-        }
-        return (report[activeTab] ?? [])
-    }, [report, activeTab])
+        // Order: Merged first, then In Progress, Waiting, Reviewed, Blocked
+        return [
+            ...(report.merged ?? []),
+            ...(report.in_progress ?? []),
+            ...(report.waiting_for_review ?? []),
+            ...(report.reviewed ?? []),
+            ...(report.blocked ?? []),
+        ]
+    }, [report])
 
     const filteredPrs = useMemo(() => {
         let result = prs
 
+        // Team filter
         if (selectedTeam !== "all") {
             const team = TEAMS.find(t => t.name === selectedTeam)
             if (team) {
@@ -107,12 +169,28 @@ export default function GnoloveReport() {
             }
         }
 
-        if (selectedRepo !== "all") {
-            result = result.filter(pr => extractRepoFromUrl(pr.url) === selectedRepo)
+        // Multi-repo filter
+        if (selectedRepos.size > 0) {
+            result = result.filter(pr => {
+                const repo = extractRepoFromUrl(pr.url)
+                return repo ? selectedRepos.has(repo) : false
+            })
+        }
+
+        // Weekly scope: only show PRs with activity in the selected period
+        if (period === "weekly") {
+            result = result.filter(pr => hasActivityInRange(pr, start, end))
+        }
+
+        // Tab filter
+        if (activeTab !== "all") {
+            const tabPrs = report?.[activeTab] ?? []
+            const tabIds = new Set(tabPrs.map(p => p.id))
+            result = result.filter(pr => tabIds.has(pr.id))
         }
 
         return result
-    }, [prs, selectedTeam, selectedRepo])
+    }, [prs, selectedTeam, selectedRepos, period, start, end, activeTab, report])
 
     const counts = useMemo(() => {
         if (!report) return {} as Record<ReportTab | "all", number>
@@ -152,7 +230,16 @@ export default function GnoloveReport() {
 
     function handlePeriodChange(p: ReportPeriod) {
         setPeriod(p)
-        setOffset(p === "weekly" ? -1 : 0) // Weekly defaults to previous week
+        setOffset(p === "weekly" ? -1 : 0)
+    }
+
+    function toggleRepo(repo: string) {
+        setSelectedRepos(prev => {
+            const next = new Set(prev)
+            if (next.has(repo)) next.delete(repo)
+            else next.add(repo)
+            return next
+        })
     }
 
     return (
@@ -162,16 +249,16 @@ export default function GnoloveReport() {
                 <div className="gl-report-actions">
                     <div className="gl-view-toggle">
                         <button
-                            className={`gl-view-btn ${view === "table" ? "gl-view-btn--active" : ""}`}
-                            onClick={() => handleViewToggle("table")}
-                        >
-                            Table
-                        </button>
-                        <button
                             className={`gl-view-btn ${view === "report" ? "gl-view-btn--active" : ""}`}
                             onClick={() => handleViewToggle("report")}
                         >
                             Report
+                        </button>
+                        <button
+                            className={`gl-view-btn ${view === "table" ? "gl-view-btn--active" : ""}`}
+                            onClick={() => handleViewToggle("table")}
+                        >
+                            Table
                         </button>
                     </div>
                     <button
@@ -247,18 +334,45 @@ export default function GnoloveReport() {
                         <option key={team.name} value={team.name}>{team.name}</option>
                     ))}
                 </select>
-                <select
-                    className="gl-filter-select"
-                    value={selectedRepo}
-                    onChange={e => setSelectedRepo(e.target.value)}
-                >
-                    <option value="all">All Repositories</option>
-                    {repos?.map(repo => (
-                        <option key={repo.id} value={`${repo.owner}/${repo.name}`}>
-                            {repo.owner}/{repo.name}
-                        </option>
-                    ))}
-                </select>
+
+                {/* Multi-select repo filter */}
+                <div className="gl-repo-multiselect" ref={repoDropdownRef}>
+                    <button
+                        className="gl-filter-select gl-repo-multiselect-btn"
+                        onClick={() => setRepoDropdownOpen(o => !o)}
+                        type="button"
+                    >
+                        {selectedRepos.size === 0
+                            ? "All Repositories"
+                            : `${selectedRepos.size} repo${selectedRepos.size > 1 ? "s" : ""} selected`}
+                        <span className="gl-repo-multiselect-arrow">{repoDropdownOpen ? "▲" : "▼"}</span>
+                    </button>
+                    {repoDropdownOpen && (
+                        <div className="gl-repo-multiselect-dropdown">
+                            <label className="gl-repo-multiselect-option gl-repo-multiselect-option--all">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRepos.size === 0}
+                                    onChange={() => setSelectedRepos(new Set())}
+                                />
+                                <span>All Repositories</span>
+                            </label>
+                            {repos?.map(repo => {
+                                const key = `${repo.owner}/${repo.name}`
+                                return (
+                                    <label key={repo.id} className="gl-repo-multiselect-option">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedRepos.has(key)}
+                                            onChange={() => toggleRepo(key)}
+                                        />
+                                        <span>{key}</span>
+                                    </label>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Status Tabs */}
@@ -294,10 +408,11 @@ export default function GnoloveReport() {
             ) : view === "report" ? (
                 <NarrativeReportView
                     report={report}
-                    dateLabel={dateLabel}
+                    period={period}
                     start={start}
+                    end={end}
                     selectedTeam={selectedTeam}
-                    selectedRepo={selectedRepo}
+                    selectedRepos={selectedRepos}
                 />
             ) : (
                 <div className="gl-section">
@@ -340,27 +455,35 @@ interface ReportData {
     blocked?: TPullRequest[] | null
 }
 
-function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedRepo }: {
+function NarrativeReportView({ report, period, start, end, selectedTeam, selectedRepos }: {
     report: ReportData | null | undefined
-    dateLabel: string
+    period: ReportPeriod
     start: Date
+    end: Date
     selectedTeam: string
-    selectedRepo: string
+    selectedRepos: Set<string>
 }) {
     const [copied, setCopied] = useState(false)
 
-    // Apply team/repo filters to all categories
+    // Apply team/repo/scope filters to all categories
     const filterPrs = useCallback((prs: TPullRequest[] | null | undefined): TPullRequest[] => {
         let result = prs ?? []
         if (selectedTeam !== "all") {
             const team = TEAMS.find(t => t.name === selectedTeam)
             if (team) result = result.filter(pr => pr.authorLogin && team.members.includes(pr.authorLogin))
         }
-        if (selectedRepo !== "all") {
-            result = result.filter(pr => extractRepoFromUrl(pr.url) === selectedRepo)
+        if (selectedRepos.size > 0) {
+            result = result.filter(pr => {
+                const repo = extractRepoFromUrl(pr.url)
+                return repo ? selectedRepos.has(repo) : false
+            })
+        }
+        // Weekly scope: only PRs with activity in range
+        if (period === "weekly") {
+            result = result.filter(pr => hasActivityInRange(pr, start, end))
         }
         return result
-    }, [selectedTeam, selectedRepo])
+    }, [selectedTeam, selectedRepos, period, start, end])
 
     const merged = useMemo(() => filterPrs(report?.merged), [report, filterPrs])
     const inProgress = useMemo(() => filterPrs(report?.in_progress), [report, filterPrs])
@@ -370,7 +493,7 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
 
     const allPrs = useMemo(() => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked], [merged, inProgress, waitingForReview, reviewed, blocked])
 
-    // Group by repository
+    // Group by repository, sorted by priority
     const byRepo = useMemo(() => {
         const map = new Map<string, TPullRequest[]>()
         for (const pr of allPrs) {
@@ -379,7 +502,10 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
             list.push(pr)
             map.set(repo, list)
         }
-        return map
+        const sortedEntries = sortReposByPriority(Array.from(map.keys())).map(
+            repo => [repo, map.get(repo)!] as const
+        )
+        return new Map(sortedEntries)
     }, [allPrs])
 
     // Active contributors
@@ -391,7 +517,7 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
         return Array.from(set).sort()
     }, [allPrs])
 
-    // Top merged PRs (by title length as proxy for impact — simple heuristic)
+    // Top merged PRs (by title length as impact proxy)
     const topMerged = useMemo(() =>
         [...merged].sort((a, b) => b.title.length - a.title.length).slice(0, 5),
         [merged]
@@ -402,50 +528,101 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
         TEAMS.find(t => t.members.includes(login))
 
     // PR status label
-    const prStatus = (pr: TPullRequest): string =>
+    const prStatus = useCallback((pr: TPullRequest): string =>
         pr.mergedAt || pr.state === "MERGED" ? "Merged" :
         blocked.includes(pr) ? "Blocked" :
         waitingForReview.includes(pr) ? "Waiting for Review" :
         reviewed.includes(pr) ? "Reviewed" :
         "In Progress"
+    , [blocked, waitingForReview, reviewed])
 
     const weekId = `${format(start, "yyyy")}-W${String(getISOWeek(start)).padStart(2, "0")}`
 
-    // Generate shareable markdown
+    // Period header for gno-skills format
+    const periodHeader = useMemo(() => {
+        switch (period) {
+            case "weekly":
+                return `From ${format(start, "dd/MM")} to ${format(end, "dd/MM")} : Samourai crews`
+            case "monthly":
+                return `Monthly Report — ${format(start, "MMMM yyyy")} : Samourai crews`
+            case "yearly":
+                return `Annual Report — ${format(start, "yyyy")} : Samourai crews`
+            case "all_time":
+                return "All Time Report : Samourai crews"
+        }
+    }, [period, start, end])
+
+    // Generate shareable markdown (gno-skills format)
     const generateReportMd = useCallback((): string => {
         const lines: string[] = [
-            `# Weekly Report — ${dateLabel}`,
+            periodHeader,
             "",
-            `## Highlights`,
         ]
+
+        // --- Merged section first (user preference) ---
+        if (merged.length > 0) {
+            lines.push("**🎉 PR Merged**", "")
+            for (const pr of merged) {
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+            }
+            lines.push("", "---", "")
+        }
+
+        // --- Highlights ---
+        lines.push("**⭐ Highlights**", "")
         if (topMerged.length > 0) {
             for (const pr of topMerged) {
-                lines.push(`- [Merged] PR #${pr.number}: ${pr.title}${pr.authorLogin ? ` @${pr.authorLogin}` : ""}`)
+                lines.push(`- **${pr.title}** - ${pr.url} - ${pr.authorLogin || "unknown"}`)
             }
         } else {
-            lines.push("- No merged PRs this period")
+            lines.push("None this period.")
         }
+        lines.push("", "---", "")
 
-        lines.push("", `## Stats`, `- PRs Merged: ${merged.length}`, `- PRs In Progress: ${inProgress.length}`, `- Waiting for Review: ${waitingForReview.length}`, `- Reviewed: ${reviewed.length}`, `- Blocked: ${blocked.length}`, `- Contributors Active: ${contributors.length}`)
+        // --- Stats ---
+        lines.push(
+            "**📊 Stats**", "",
+            `- PRs Merged: ${merged.length}`,
+            `- PRs In Progress: ${inProgress.length}`,
+            `- Waiting for Review: ${waitingForReview.length}`,
+            `- Reviewed: ${reviewed.length}`,
+            `- Blocked: ${blocked.length}`,
+            `- Contributors Active: ${contributors.length}`,
+            "", "---", ""
+        )
 
-        lines.push("", `## By Repository`)
+        // --- By Repository (priority-ordered) ---
+        lines.push("**📂 By Repository**", "")
         for (const [repo, prs] of byRepo) {
-            lines.push(`### ${repo}`)
+            lines.push(`### ${repo}`, "")
             for (const pr of prs) {
-                lines.push(`- PR #${pr.number}: ${pr.title}${pr.authorLogin ? ` @${pr.authorLogin}` : ""} [${prStatus(pr)}]`)
+                const status = prStatus(pr)
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"} [${status}]`)
             }
+            lines.push("")
         }
 
+        // --- Blockers ---
         if (blocked.length > 0) {
-            lines.push("", `## Blockers`)
+            lines.push("---", "", "**🚧 Blockers**", "")
             for (const pr of blocked) {
-                lines.push(`- PR #${pr.number}: ${pr.title}${pr.authorLogin ? ` @${pr.authorLogin}` : ""}`)
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
             }
+            lines.push("")
         }
 
-        lines.push("", `---`, `_Generated by Gnolove · ${weekId}_`)
+        // --- In Progress ---
+        if (inProgress.length > 0) {
+            lines.push("---", "", "**🚧 In Progress**", "")
+            for (const pr of inProgress) {
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+            }
+            lines.push("")
+        }
+
+        lines.push("---", `_Generated by Gnolove · ${weekId}_`)
         return lines.join("\n")
-    }, [dateLabel, topMerged, merged, inProgress, waitingForReview, reviewed, blocked, contributors, byRepo, weekId, prStatus])
+    }, [periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed, blocked, contributors, byRepo, weekId, prStatus])
 
     const handleCopy = useCallback(() => {
         navigator.clipboard.writeText(generateReportMd()).then(() => {
@@ -459,12 +636,14 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
         const url = URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        a.download = `weekly-report-${weekId}.md`
+        const prefix = period === "monthly" ? "monthly-report" : period === "yearly" ? "annual-report" : "weekly-report"
+        const fileDateId = period === "monthly" ? format(start, "yyyy-MM") : period === "yearly" ? format(start, "yyyy") : weekId
+        a.download = `${prefix}-${fileDateId}.md`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-    }, [generateReportMd, weekId])
+    }, [generateReportMd, weekId, period, start])
 
     if (allPrs.length === 0) {
         return <div className="gl-section"><div className="gl-empty">No data for this period.</div></div>
@@ -475,7 +654,7 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
             {/* Copy / Download actions */}
             <div className="gl-report-narrative__actions">
                 <button className="gl-export-btn" onClick={handleCopy}>
-                    {copied ? "Copied!" : "Copy as Markdown"}
+                    {copied ? "✓ Copied!" : "Copy as Markdown"}
                 </button>
                 <button className="gl-export-btn" onClick={handleDownload}>
                     Download .md
@@ -483,15 +662,41 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
                 <span className="gl-report-narrative__week-id">{weekId}</span>
             </div>
 
+            {/* Period Header */}
+            <div className="gl-report-narrative__period-header">{periodHeader}</div>
+
+            {/* Merged PRs — displayed first per user preference */}
+            {merged.length > 0 && (
+                <section className="gl-report-narrative__section">
+                    <h2 className="gl-report-narrative__heading">🎉 Merged ({merged.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {merged.map(pr => {
+                            const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
+                            return (
+                                <li key={pr.id}>
+                                    <span className="gl-pr-state gl-pr-state--merged" style={{ marginRight: 6 }}>Merged</span>
+                                    <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                    {pr.authorLogin && (
+                                        <span className="gl-report-narrative__author">
+                                            {" "}@{pr.authorLogin}
+                                            {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
+                                        </span>
+                                    )}
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </section>
+            )}
+
             {/* Highlights */}
             <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">Highlights</h2>
+                <h2 className="gl-report-narrative__heading">⭐ Highlights</h2>
                 {topMerged.length > 0 ? (
                     <ul className="gl-report-narrative__list">
                         {topMerged.map(pr => (
                             <li key={pr.id}>
-                                <span className="gl-pr-state gl-pr-state--merged" style={{ marginRight: 6 }}>Merged</span>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">PR #{pr.number}</a>: {pr.title}
+                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: <strong>{pr.title}</strong>
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                             </li>
                         ))}
@@ -503,7 +708,7 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
 
             {/* Stats */}
             <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">Stats</h2>
+                <h2 className="gl-report-narrative__heading">📊 Stats</h2>
                 <div className="gl-report-narrative__stats">
                     <div className="gl-report-narrative__stat">
                         <span className="gl-report-narrative__stat-value">{merged.length}</span>
@@ -534,9 +739,9 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
                 </div>
             </section>
 
-            {/* By Repository */}
+            {/* By Repository — priority-ordered */}
             <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">By Repository</h2>
+                <h2 className="gl-report-narrative__heading">📂 By Repository</h2>
                 {Array.from(byRepo.entries()).map(([repo, prs]) => (
                     <div key={repo} className="gl-report-narrative__repo">
                         <h3 className="gl-report-narrative__repo-name">{repo}</h3>
@@ -545,7 +750,7 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
                                 const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
                                 return (
                                     <li key={pr.id}>
-                                        <a href={pr.url} target="_blank" rel="noopener noreferrer">PR #{pr.number}</a>: {pr.title}
+                                        <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
                                         {pr.authorLogin && (
                                             <span className="gl-report-narrative__author">
                                                 {" "}@{pr.authorLogin}
@@ -563,9 +768,39 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
                 ))}
             </section>
 
-            {/* Contributors */}
+            {/* In Progress */}
+            {inProgress.length > 0 && (
+                <section className="gl-report-narrative__section">
+                    <h2 className="gl-report-narrative__heading">🚧 In Progress ({inProgress.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {inProgress.map(pr => (
+                            <li key={pr.id}>
+                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {/* Blockers */}
+            {blocked.length > 0 && (
+                <section className="gl-report-narrative__section gl-report-narrative__section--blockers">
+                    <h2 className="gl-report-narrative__heading">🚧 Blockers ({blocked.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {blocked.map(pr => (
+                            <li key={pr.id}>
+                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {/* Active Contributors */}
             <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">Active Contributors ({contributors.length})</h2>
+                <h2 className="gl-report-narrative__heading">👥 Active Contributors ({contributors.length})</h2>
                 <div className="gl-report-narrative__contributors">
                     {contributors.map(login => {
                         const team = getTeamForUser(login)
@@ -579,21 +814,6 @@ function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedR
                     })}
                 </div>
             </section>
-
-            {/* Blockers */}
-            {blocked.length > 0 && (
-                <section className="gl-report-narrative__section gl-report-narrative__section--blockers">
-                    <h2 className="gl-report-narrative__heading">Blockers</h2>
-                    <ul className="gl-report-narrative__list">
-                        {blocked.map(pr => (
-                            <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">PR #{pr.number}</a>: {pr.title}
-                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            )}
         </div>
     )
 }

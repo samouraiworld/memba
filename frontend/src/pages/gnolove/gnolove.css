@@ -2071,7 +2071,7 @@
     padding: 5px 14px;
     border: none;
     background: transparent;
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -2079,12 +2079,12 @@
 }
 
 .gl-view-btn:hover {
-    color: #ccc;
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--color-text);
+    background: var(--color-bg-hover);
 }
 
 .gl-view-btn--active {
-    color: #00d4aa;
+    color: var(--color-primary);
     background: rgba(0, 212, 170, 0.08);
 }
 
@@ -2105,7 +2105,7 @@
 
 .gl-report-narrative__week-id {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     margin-left: auto;
 }
@@ -2125,7 +2125,7 @@
 .gl-report-narrative__heading {
     font-size: 13px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     font-family: "JetBrains Mono", monospace;
     margin-bottom: 10px;
     text-transform: uppercase;
@@ -2139,13 +2139,13 @@
     flex-direction: column;
     gap: 6px;
     font-size: 12px;
-    color: #ccc;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
     line-height: 1.5;
 }
 
 .gl-report-narrative__list a {
-    color: #00d4aa;
+    color: var(--color-primary);
     text-decoration: none;
 }
 
@@ -2154,14 +2154,14 @@
 }
 
 .gl-report-narrative__empty {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     margin: 0;
 }
 
 .gl-report-narrative__author {
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 11px;
 }
 
@@ -2201,7 +2201,7 @@
 .gl-report-narrative__stat-value {
     font-size: 20px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -2211,7 +2211,7 @@
 
 .gl-report-narrative__stat-label {
     font-size: 9px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2229,7 +2229,7 @@
 .gl-report-narrative__repo-name {
     font-size: 12px;
     font-weight: 600;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: "JetBrains Mono", monospace;
     margin-bottom: 6px;
 }
@@ -2251,11 +2251,11 @@
     border: 1px solid rgba(255, 255, 255, 0.06);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
-    color: #ccc;
+    color: var(--color-text-secondary);
 }
 
 .gl-report-narrative__contributor-count {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 10px;
 }
 
@@ -2272,4 +2272,79 @@
     .gl-view-toggle {
         order: -1;
     }
+}
+
+/* ── Multi-Select Repo Dropdown ────────────────── */
+
+.gl-repo-multiselect {
+    position: relative;
+    display: inline-block;
+}
+
+.gl-repo-multiselect-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    text-align: left;
+    min-width: 180px;
+}
+
+.gl-repo-multiselect-arrow {
+    margin-left: auto;
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.gl-repo-multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    min-width: 280px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-top: 4px;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.gl-repo-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--color-text);
+    transition: background 0.1s;
+}
+
+.gl-repo-multiselect-option:hover {
+    background: var(--color-bg-hover);
+}
+
+.gl-repo-multiselect-option--all {
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 600;
+}
+
+.gl-repo-multiselect-option input[type="checkbox"] {
+    accent-color: var(--color-primary);
+}
+
+/* ── Period Header ─────────────────────────────── */
+
+.gl-report-narrative__period-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-family: "JetBrains Mono", monospace;
+    padding: 12px 0 8px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 16px;
 }

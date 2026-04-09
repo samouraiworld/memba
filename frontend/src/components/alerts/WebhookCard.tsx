@@ -28,14 +28,14 @@ const cardStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-    fontSize: 10, color: "#555",
+    fontSize: 10, color: "var(--color-text-muted)",
     fontFamily: "JetBrains Mono, monospace",
     textTransform: "uppercase" as const,
     letterSpacing: "0.5px",
 }
 
 const urlStyle: React.CSSProperties = {
-    fontSize: 11, color: "#f0f0f0",
+    fontSize: 11, color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -67,13 +67,13 @@ export function WebhookCard({ webhook, kind, onEdit, onDelete, deleting }: Props
             {/* Header: type + description */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 16 }}>{typeIcon}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                     {webhook.Description || typeLabel}
                 </span>
                 {webhook.ChainID && (
                     <span style={{
                         fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                        background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                        background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         fontFamily: "JetBrains Mono, monospace",
                     }}>
                         {webhook.ChainID}
@@ -91,7 +91,7 @@ export function WebhookCard({ webhook, kind, onEdit, onDelete, deleting }: Props
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                 <button
                     onClick={() => onEdit(webhook)}
-                    style={{ ...btnStyle, background: "rgba(0,212,170,0.08)", color: "#00d4aa" }}
+                    style={{ ...btnStyle, background: "rgba(0,212,170,0.08)", color: "var(--color-primary)" }}
                 >
                     Edit
                 </button>
@@ -100,7 +100,7 @@ export function WebhookCard({ webhook, kind, onEdit, onDelete, deleting }: Props
                     disabled={deleting}
                     style={{
                         ...btnStyle,
-                        background: "rgba(255,59,48,0.08)", color: "#ff3b30",
+                        background: "rgba(255,59,48,0.08)", color: "var(--color-danger)",
                         opacity: deleting ? 0.5 : 1,
                     }}
                 >

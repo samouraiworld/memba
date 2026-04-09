@@ -32,7 +32,7 @@
 }
 
 .dao-breadcrumb-btn {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 11px;
     background: none;
     border: none;
@@ -43,7 +43,7 @@
 }
 
 .dao-breadcrumb-btn:hover {
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .dao-breadcrumb-sep {
@@ -52,7 +52,7 @@
 }
 
 .dao-breadcrumb-name {
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
 }
@@ -98,21 +98,21 @@
 }
 
 .dao-member-pill__check {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 11px;
 }
 
 .dao-member-pill__text {
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-weight: 600;
 }
 
 .dao-guest-badge {
     font-size: 9px;
     font-family: JetBrains Mono, monospace;
-    color: #555;
+    color: var(--color-text-muted);
     padding: 4px 8px;
 }
 
@@ -133,7 +133,7 @@
 }
 
 .dao-path-text {
-    color: #444;
+    color: var(--color-text-dim);
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
 }
@@ -141,19 +141,19 @@
 .dao-path-source-link {
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
-    color: #444;
+    color: var(--color-text-dim);
     text-decoration: none;
     transition: color 0.15s;
     padding: 0 3px;
 }
 
 .dao-path-source-link:hover {
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 /* ── Description ─────────────────────────────────────────── */
 .dao-description {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
     line-height: 1.6;
@@ -187,7 +187,7 @@
 
 .dao-username-cta__text {
     font-size: 10px;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -216,13 +216,13 @@
 .dao-section-title {
     font-size: 16px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-section-title--sm {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-new-proposal-btn {
@@ -243,9 +243,9 @@
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
     font-weight: 500;
-    border: 1px solid #222;
+    border: 1px solid var(--color-border-light);
     background: transparent;
-    color: #666;
+    color: var(--color-text-secondary);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -253,7 +253,7 @@
 .dao-filter-tab.active {
     border-color: rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.08);
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 /* ── List containers ─────────────────────────────────────── */
@@ -265,13 +265,13 @@
 
 /* ── Empty states ────────────────────────────────────────── */
 .dao-empty {
-    background: #0c0c0c;
+    background: var(--color-bg-card);
     padding: 28px;
     text-align: center;
 }
 
 .dao-empty p {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 13px;
     font-family: JetBrains Mono, monospace;
 }
@@ -286,14 +286,14 @@
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    color: #888;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
     padding: 8px 0;
     transition: color 0.15s;
 }
 
 .dao-history-toggle:hover {
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-history-arrow {
@@ -315,7 +315,7 @@
 
 /* ── View all link ───────────────────────────────────────── */
 .dao-view-all-btn {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 12px;
     background: none;
     border: none;
@@ -349,12 +349,12 @@
 
 .dao-treasury-desc {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
 }
 
 .dao-treasury-open-btn {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 12px;
     background: none;
     border: none;
@@ -366,7 +366,7 @@
 .dao-extensions-title {
     font-size: 16px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 16px;
 }
 
@@ -382,7 +382,7 @@
     align-items: flex-start;
     gap: 14px;
     cursor: pointer;
-    border: 1px solid #1a1a1a;
+    border: 1px solid var(--color-border);
     text-align: left;
     width: 100%;
     height: 100%;
@@ -414,7 +414,7 @@
 .dao-plugin-name {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .dao-plugin-version {
@@ -422,14 +422,14 @@
     padding: 1px 6px;
     border-radius: 3px;
     background: rgba(0, 212, 170, 0.08);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
 }
 
 .dao-plugin-desc {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
     margin-top: 3px;
     display: -webkit-box;
@@ -439,7 +439,7 @@
 }
 
 .dao-plugin-arrow {
-    color: #444;
+    color: var(--color-text-dim);
     font-size: 12px;
     margin-top: 2px;
 }

@@ -33,7 +33,7 @@
 
 .tv-empty__hint {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
     margin-bottom: 16px;
 }
@@ -110,11 +110,11 @@
 }
 
 .tv-meta-row__label {
-    color: #666;
+    color: var(--color-text-secondary);
 }
 
 .tv-meta-row__value {
-    color: #aaa;
+    color: var(--color-text-secondary);
 }
 
 .tv-meta-row__value--accent {
@@ -183,7 +183,7 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 12px;
     cursor: pointer;
@@ -270,6 +270,6 @@
 
 .tv-submit-btn:disabled {
     background: var(--color-border-light, #222);
-    color: #666;
+    color: var(--color-text-secondary);
     cursor: not-allowed;
 }

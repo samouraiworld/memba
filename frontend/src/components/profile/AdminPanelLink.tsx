@@ -19,7 +19,7 @@ function AdminPanelLinkInner() {
                 display: "inline-flex", 
                 alignItems: "center", 
                 gap: 6,
-                color: "#00d4aa",
+                color: "var(--color-primary)",
                 fontFamily: "JetBrains Mono, monospace",
                 fontSize: 12,
                 fontWeight: 600,

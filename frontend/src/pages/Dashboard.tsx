@@ -232,10 +232,10 @@ export function Dashboard() {
                 >
                     <span style={{ fontSize: 20 }}>🏛️</span>
                     <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                             You're eligible for Memba DAO!
                         </span>
-                        <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>
+                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", marginLeft: 8 }}>
                             Your quest XP qualifies you for membership.
                         </span>
                     </div>
@@ -248,7 +248,7 @@ export function Dashboard() {
                     </button>
                     <button
                         style={{
-                            background: "none", border: "none", color: "#555",
+                            background: "none", border: "none", color: "var(--color-text-muted)",
                             cursor: "pointer", fontSize: 16, padding: "4px",
                         }}
                         aria-label="Dismiss"

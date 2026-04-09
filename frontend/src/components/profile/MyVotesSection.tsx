@@ -37,7 +37,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
     if (loading) {
         return (
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 14 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 14 }}>
                     🗳️ My Votes
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -53,10 +53,10 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
         return (
             <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🗳️</div>
-                <div style={{ fontSize: 13, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     No votes yet
                 </div>
-                <div style={{ fontSize: 11, color: "#555", fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
                     Save DAOs from the DAO Hub to see your vote history
                 </div>
             </div>
@@ -66,7 +66,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
     return (
         <div className="k-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
                     🗳️ My Votes ({allVotes.length})
                 </h3>
                 {showFilters && (
@@ -98,16 +98,16 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                         <div key={`${v.proposalId}-${i}`} className="k-card" style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 {daoName && (
-                                    <span style={{ fontSize: 9, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", marginRight: 6, opacity: 0.7 }}>
+                                    <span style={{ fontSize: 9, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginRight: 6, opacity: 0.7 }}>
                                         {daoName}
                                     </span>
                                 )}
-                                <span style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                                     #{v.proposalId}
                                 </span>
-                                <span style={{ fontSize: 12, color: "#ccc", marginLeft: 8 }}>
+                                <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: 8 }}>
                                     {daoSlug ? (
-                                        <a href={`/dao/${daoSlug}/${v.proposalId}`} style={{ color: "#ccc", textDecoration: "none" }}
+                                        <a href={`/dao/${daoSlug}/${v.proposalId}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}
                                             onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
                                             onMouseLeave={e => e.currentTarget.style.color = "#ccc"}
                                         >

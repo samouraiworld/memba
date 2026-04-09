@@ -50,7 +50,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
     return (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {regSuccess ? (
-                <span style={{ fontSize: 11, color: "#4caf50", fontFamily: "JetBrains Mono, monospace" }}>
+                <span style={{ fontSize: 11, color: "var(--color-success)", fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ Username @{regInput} registered!
                 </span>
             ) : (
@@ -58,7 +58,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                         <span style={{
                             fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                            color: "#00d4aa", padding: "5px 0 5px 10px",
+                            color: "var(--color-primary)", padding: "5px 0 5px 10px",
                             background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
                             borderRight: "none", borderRadius: "6px 0 0 6px",
                         }}>@</span>
@@ -73,7 +73,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                                 fontFamily: "JetBrains Mono, monospace",
                                 background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
                                 borderLeft: "none", borderRadius: "0 6px 6px 0",
-                                color: "#f0f0f0", outline: "none",
+                                color: "var(--color-text)", outline: "none",
                             }}
                             onKeyDown={(e) => e.key === "Enter" && isValid && handleRegister()}
                             disabled={regLoading}
@@ -95,7 +95,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                     </button>
                     {regError && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace" }}>
+                            <span style={{ fontSize: 10, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace" }}>
                                 ✕ {regError}
                             </span>
                             {regError.includes("faucet") && (
@@ -103,7 +103,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                                     href="https://faucet.gno.land/"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    style={{ fontSize: 10, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                                    style={{ fontSize: 10, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
                                 >
                                     → Get test tokens at faucet.gno.land
                                 </a>
@@ -111,7 +111,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                         </div>
                     )}
                     {regInput && !isValid && (
-                        <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             6-17 chars: letters, digits, underscores (e.g. zooma_dev)
                         </span>
                     )}
@@ -120,7 +120,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             href="https://faucet.gno.land/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
+                            style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
                             onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
                         >

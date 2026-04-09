@@ -15,13 +15,13 @@
 .mp-header h1 {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0;
 }
 
 .mp-header p {
     font-size: 12px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 6px 0 0;
     font-family: "JetBrains Mono", monospace;
 }
@@ -34,7 +34,7 @@
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    color: #f0f0f0;
+    color: var(--color-text);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
     outline: none;
@@ -47,7 +47,7 @@
 }
 
 .mp-search::placeholder {
-    color: #444;
+    color: var(--color-text-dim);
 }
 
 /* ── Categories ────────────────────────────────── */
@@ -63,7 +63,7 @@
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: none;
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -72,12 +72,12 @@
 
 .mp-cat-pill:hover {
     border-color: rgba(0, 212, 170, 0.2);
-    color: #ccc;
+    color: var(--color-text-secondary);
 }
 
 .mp-cat-pill[data-active="true"] {
     border-color: rgba(0, 212, 170, 0.4);
-    color: #00d4aa;
+    color: var(--color-primary);
     background: rgba(0, 212, 170, 0.06);
 }
 
@@ -85,7 +85,7 @@
 
 .mp-count {
     font-size: 11px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -137,7 +137,7 @@
 .mp-card__name {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -145,14 +145,14 @@
 
 .mp-card__creator {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     margin-top: 2px;
 }
 
 .mp-card__desc {
     font-size: 12px;
-    color: #888;
+    color: var(--color-text-secondary);
     line-height: 1.5;
     margin: 0;
     display: -webkit-box;
@@ -176,7 +176,7 @@
 
 .mp-card__arrow {
     margin-left: auto;
-    color: #444;
+    color: var(--color-text-dim);
     flex-shrink: 0;
 }
 
@@ -190,7 +190,7 @@
     height: 16px;
     border-radius: 50%;
     background: rgba(0, 212, 170, 0.15);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 9px;
     font-weight: 700;
     flex-shrink: 0;
@@ -210,7 +210,7 @@
 
 .mp-pricing-badge[data-pricing="free"] {
     background: rgba(0, 212, 170, 0.1);
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .mp-pricing-badge[data-pricing="pay-per-use"] {
@@ -252,7 +252,7 @@
 
 .mp-empty p {
     font-size: 12px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
     margin: 0;
 }
@@ -262,7 +262,7 @@
 .mp-back {
     background: none;
     border: none;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -294,7 +294,7 @@
 .mp-detail__name {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0;
     display: flex;
     align-items: center;
@@ -307,7 +307,7 @@
     gap: 10px;
     margin-top: 4px;
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -326,12 +326,12 @@
 .mp-stat__value {
     font-size: 18px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .mp-stat__label {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -346,7 +346,7 @@
 .mp-detail__section h3 {
     font-size: 13px;
     font-weight: 600;
-    color: #aaa;
+    color: var(--color-text-secondary);
     margin: 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -354,7 +354,7 @@
 
 .mp-detail__desc {
     font-size: 13px;
-    color: #ccc;
+    color: var(--color-text-secondary);
     line-height: 1.7;
     white-space: pre-wrap;
     margin: 0;
@@ -363,7 +363,7 @@
 
 .mp-detail__hint {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0;
     font-family: "JetBrains Mono", monospace;
 }
@@ -382,7 +382,7 @@
     border-radius: 6px;
     background: rgba(0, 212, 170, 0.06);
     border: 1px solid rgba(0, 212, 170, 0.12);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -399,7 +399,7 @@
     padding: 16px;
     margin: 0;
     background: rgba(0, 0, 0, 0.3);
-    color: #ccc;
+    color: var(--color-text-secondary);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     line-height: 1.6;
@@ -414,7 +414,7 @@
     border-radius: 4px;
     border: 1px solid rgba(0, 212, 170, 0.2);
     background: rgba(0, 0, 0, 0.5);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -438,7 +438,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.04);
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -524,7 +524,7 @@
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(0, 0, 0, 0.3);
-    color: #f0f0f0;
+    color: var(--color-text);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     resize: vertical;
@@ -545,7 +545,7 @@
 
 .mp-review-hint {
     font-size: 10px;
-    color: #444;
+    color: var(--color-text-dim);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -554,7 +554,7 @@
     border-radius: 6px;
     border: 1px solid rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.08);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     font-weight: 600;
@@ -585,7 +585,7 @@
 }
 
 .mp-register-modal {
-    background: #0c0c0c;
+    background: var(--color-bg-card);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     width: 100%;
@@ -605,14 +605,14 @@
 .mp-register-header h2 {
     font-size: 16px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0;
 }
 
 .mp-register-close {
     background: none;
     border: none;
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 20px;
     cursor: pointer;
     padding: 0 4px;
@@ -633,7 +633,7 @@
 
 .mp-field span {
     font-size: 10px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -646,7 +646,7 @@
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(0, 0, 0, 0.3);
-    color: #f0f0f0;
+    color: var(--color-text);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
     outline: none;
@@ -685,7 +685,7 @@
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: none;
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -737,7 +737,7 @@
 .mp-register-notice p {
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
-    color: #aaa;
+    color: var(--color-text-secondary);
     margin-bottom: 10px;
     line-height: 1.5;
 }
@@ -746,7 +746,7 @@
     font-size: 12px;
     padding: 6px 16px;
     border-radius: 6px;
-    background: #00d4aa;
+    background: var(--color-primary);
     border: none;
     color: #000;
     font-weight: 600;
@@ -756,7 +756,7 @@
 
 .mp-review-success {
     font-size: 12px;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -766,7 +766,7 @@
 }
 
 .mp-card__fav {
-    color: #555;
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: color 0.15s;
     display: inline-flex;
@@ -783,7 +783,7 @@
     border-radius: 8px;
     padding: 6px 10px;
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-muted);
     transition: all 0.15s;
     display: flex;
     align-items: center;

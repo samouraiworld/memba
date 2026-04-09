@@ -171,7 +171,7 @@ export function Directory() {
 
             {/* Realm path preview */}
             {previewLoading && (
-                <div className="k-shimmer" style={{ height: 48, borderRadius: 8, background: "#111" }} />
+                <div className="k-shimmer" style={{ height: 48, borderRadius: 8, background: "var(--color-border)" }} />
             )}
             {realmPreview && (
                 <a

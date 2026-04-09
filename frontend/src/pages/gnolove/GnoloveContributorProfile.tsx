@@ -292,7 +292,7 @@ export default function GnoloveContributorProfile() {
                     <p>
                         No contributor with the login <strong>@{login}</strong> was found.
                     </p>
-                    <Link to="/gnolove" style={{ color: "#00d4aa", marginTop: 12, display: "inline-block" }}>
+                    <Link to="/gnolove" style={{ color: "var(--color-primary)", marginTop: 12, display: "inline-block" }}>
                         Return to Contributors Overview
                     </Link>
                 </div>
@@ -443,7 +443,7 @@ export default function GnoloveContributorProfile() {
                                         <YAxis tick={{ fill: "#888", fontSize: 11 }} />
                                         <Tooltip
                                             contentStyle={CHART_TOOLTIP_STYLE}
-                                            labelStyle={{ color: "#f0f0f0" }}
+                                            labelStyle={{ color: "var(--color-text)" }}
                                         />
                                         <Area
                                             type="monotone"
@@ -495,7 +495,7 @@ export default function GnoloveContributorProfile() {
                                         />
                                         <Tooltip
                                             contentStyle={CHART_TOOLTIP_STYLE}
-                                            labelStyle={{ color: "#f0f0f0" }}
+                                            labelStyle={{ color: "var(--color-text)" }}
                                         />
                                         <Bar
                                             dataKey="contributions"

@@ -75,10 +75,10 @@ function Section({ title, icon, defaultOpen = false, children }: {
                     alignItems: "center",
                 }}
             >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
                     {icon} {title}
                 </span>
-                <span style={{ fontSize: 12, color: "#555", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
                     ▼
                 </span>
             </button>
@@ -162,7 +162,7 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
     return (
         <div style={{ paddingTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{label}</div>
                 {!showForm && !editing && (
                     <button
                         onClick={() => setShowForm(true)}
@@ -170,7 +170,7 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
                             padding: "4px 10px", borderRadius: 6, border: "none",
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
                             fontSize: 10, fontWeight: 600,
-                            background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                            background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         }}
                     >
                         + Add
@@ -217,7 +217,7 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
                     padding: "16px 20px", borderRadius: 8,
                     background: "rgba(255,255,255,0.01)",
                     border: "1px dashed rgba(255,255,255,0.06)",
-                    fontSize: 11, color: "#555",
+                    fontSize: 11, color: "var(--color-text-muted)",
                     fontFamily: "JetBrains Mono, monospace",
                     textAlign: "center",
                 }}>
@@ -271,17 +271,17 @@ function AlertsContent() {
     if (!auth.isSignedIn) {
         return (
             <div className="alerts-page">
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                     <Bell size={22} /> Alerts
                 </h2>
 
                 <div className="alerts-auth-gate">
                     <div className="alerts-auth-card">
                         <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#f0f0f0", marginBottom: 8 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
                             Professional Blockchain Alerts
                         </h3>
-                        <p style={{ fontSize: 12, color: "#888", marginBottom: 20, lineHeight: 1.6 }}>
+                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
                             Configure GovDAO & validator monitoring alerts.
                             Receive notifications on Discord, Slack, or Telegram.
                         </p>
@@ -297,7 +297,7 @@ function AlertsContent() {
                                 Sign in to configure alerts
                             </button>
                         </SignInButton>
-                        <p style={{ fontSize: 10, color: "#555", marginTop: 12 }}>
+                        <p style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 12 }}>
                             ℹ️ Alerting auth is independent from your Gno wallet
                         </p>
                     </div>
@@ -328,12 +328,12 @@ function AlertsContent() {
         <div className="alerts-page">
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                     <Bell size={22} /> Alerts
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {auth.user && (
-                        <span style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             {auth.user.email || auth.user.fullName}
                         </span>
                     )}
@@ -343,7 +343,7 @@ function AlertsContent() {
                             padding: "4px 10px", borderRadius: 6, border: "none",
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
                             fontSize: 10, fontWeight: 600,
-                            background: "rgba(255,255,255,0.03)", color: "#888",
+                            background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)",
                         }}
                     >
                         Sign out
@@ -398,7 +398,7 @@ function AlertsContent() {
                             }}
                         />
                         <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0" }}>Daily Report</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Daily Report</div>
                         <ReportScheduleForm
                             schedule={schedule}
                             onSave={async (h, m, tz) => {

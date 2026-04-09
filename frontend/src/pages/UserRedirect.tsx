@@ -87,10 +87,10 @@ export function UserRedirect() {
             }}>
                 <div className="k-card" style={{ padding: 32 }}>
                     <div style={{ fontSize: 40, marginBottom: 16, display: 'flex', justifyContent: 'center' }}><MagnifyingGlass size={40} /></div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "#f0f0f0", marginBottom: 8 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
                         User not found
                     </h2>
-                    <p style={{ fontSize: 12, color: "#888", marginBottom: 20 }}>
+                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20 }}>
                         @{username} is not a registered gno.land username.
                     </p>
                     <button
@@ -110,7 +110,7 @@ export function UserRedirect() {
             maxWidth: 480, margin: "80px auto", padding: 32,
             fontFamily: "JetBrains Mono, monospace", textAlign: "center",
         }}>
-            <p style={{ fontSize: 12, color: "#888" }}>
+            <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                 Resolving @{username}...
             </p>
             <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid #333", borderTop: "2px solid #00d4aa", borderRadius: "50%", animation: "spin 1s linear infinite" }} />

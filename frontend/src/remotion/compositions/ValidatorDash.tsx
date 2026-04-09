@@ -43,7 +43,7 @@ export function ValidatorDash() {
                             padding: "4px 6px", display: "flex", flexDirection: "column", gap: 1,
                         }}>
                             {/* val-stat-label */}
-                            <span style={{ fontSize: 5, fontFamily: fontMono, color: "#666", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            <span style={{ fontSize: 5, fontFamily: fontMono, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                                 {s.label}
                             </span>
                             {/* val-stat-value */}
@@ -51,7 +51,7 @@ export function ValidatorDash() {
                                 {s.value}
                             </span>
                             {/* val-stat-hint */}
-                            <span style={{ fontSize: 5, fontFamily: fontMono, color: "#555" }}>
+                            <span style={{ fontSize: 5, fontFamily: fontMono, color: "var(--color-text-muted)" }}>
                                 {s.hint}
                             </span>
                         </div>
@@ -90,7 +90,7 @@ export function ValidatorDash() {
                 }}>
                     {["#", "Validator", "Power", "Share", "Status"].map(h => (
                         <span key={h} style={{
-                            fontSize: 5, fontFamily: fontMono, color: "#555",
+                            fontSize: 5, fontFamily: fontMono, color: "var(--color-text-muted)",
                             textTransform: "uppercase", letterSpacing: "0.04em",
                             textAlign: h === "Share" || h === "Status" ? "right" : "left",
                         }}>
@@ -120,7 +120,7 @@ export function ValidatorDash() {
                             {/* val-moniker */}
                             <span style={{ fontSize: 7, fontFamily: fontMono, color: COLORS.text }}>{v.moniker}</span>
                             {/* Voting Power */}
-                            <span style={{ fontSize: 7, fontFamily: fontMono, color: "#888", textAlign: "right" }}>{v.power}</span>
+                            <span style={{ fontSize: 7, fontFamily: fontMono, color: "var(--color-text-secondary)", textAlign: "right" }}>{v.power}</span>
                             {/* Share with mini bar */}
                             <span style={{ fontSize: 7, fontFamily: fontMono, color: COLORS.accent, textAlign: "right" }}>{v.share}%</span>
                             {/* Status */}

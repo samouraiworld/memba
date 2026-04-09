@@ -59,7 +59,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 borderRadius: 10,
                 background: "rgba(255,71,87,0.12)",
                 border: "1px solid rgba(255,71,87,0.25)",
-                color: "#ff4757",
+                color: "var(--color-danger)",
                 fontSize: 13,
                 fontFamily: "JetBrains Mono, monospace",
                 maxWidth: 420,
@@ -81,7 +81,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                     onClick={dismiss}
                     aria-label="Dismiss error"
                     style={{
-                        background: "none", border: "none", color: "#ff4757",
+                        background: "none", border: "none", color: "var(--color-danger)",
                         fontSize: 16, cursor: "pointer", padding: 0,
                         lineHeight: 1, flexShrink: 0, opacity: 0.6,
                     }}
@@ -92,7 +92,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
             {(mapped.action || (mapped.retry && onRetry)) && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
                     {mapped.action && (
-                        <span style={{ fontSize: 10, color: "#888", fontStyle: "italic" }}>
+                        <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontStyle: "italic" }}>
                             💡 {mapped.action}
                         </span>
                     )}
@@ -101,7 +101,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                             onClick={() => { dismiss(); onRetry() }}
                             style={{
                                 background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
-                                color: "#ff4757", fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                color: "var(--color-danger)", fontSize: 10, padding: "3px 10px", borderRadius: 4,
                                 cursor: "pointer", fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                             }}
                         >

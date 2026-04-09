@@ -44,11 +44,11 @@ export function ThreadList({
             {/* v2.5b: New messages toast */}
             <NewMessagesToast visible={hasNewContent} onDismiss={onDismissNew} />
 
-            {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
+            {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
 
             {threads.length === 0 ? (
                 <div style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 24 }}>
-                    <div style={{ fontSize: 12, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                         No threads yet. Be the first to post!
                     </div>
                 </div>
@@ -64,7 +64,7 @@ export function ThreadList({
                             tabIndex={0}
                             style={cardStyle}
                         >
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                                 {/* Unread indicator */}
                                 {getLastVisited(channel, t.id) === 0 && (
                                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa", flexShrink: 0 }} />
@@ -72,7 +72,7 @@ export function ThreadList({
                                 {t.title}
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     by {t.author} · {t.replyCount} repl{t.replyCount !== 1 ? "ies" : "y"} · block {t.blockHeight}
                                 </div>
                                 {boardPath && (
