@@ -16,7 +16,7 @@ type ProposalTemplate = "none" | "treasury" | "add-member" | "general"
 const PROPOSAL_TEMPLATES: { id: ProposalTemplate; label: string; icon: typeof FileText }[] = [
     { id: "none", label: "Blank", icon: FileText },
     { id: "treasury", label: "Treasury Transfer", icon: Vault },
-    { id: "add-member", label: "Add Member", icon: UsersThree },
+    { id: "add-member", label: "Membership", icon: UsersThree },
     { id: "general", label: "General Governance", icon: GearSix },
 ]
 
