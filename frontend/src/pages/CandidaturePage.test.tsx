@@ -47,7 +47,7 @@ vi.mock("../lib/candidatureTemplate", () => ({
 }))
 
 vi.mock("../lib/config", () => ({
-    MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature" },
+    MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature_v2" },
     GNO_RPC_URL: "https://rpc.test.gno.land",
 }))
 

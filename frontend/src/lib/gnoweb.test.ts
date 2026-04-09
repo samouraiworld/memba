@@ -23,7 +23,9 @@ const SAMPLE_REALMS_HTML = `
     <li><a href="/r/samcrew/lab/lze">/r/samcrew/lab/lze</a></li>
     <li><a href="/r/samcrew/memba_dao">/r/samcrew/memba_dao</a></li>
     <li><a href="/r/samcrew/memba_dao_candidature">/r/samcrew/memba_dao_candidature</a></li>
+    <li><a href="/r/samcrew/memba_dao_candidature_v2">/r/samcrew/memba_dao_candidature_v2</a></li>
     <li><a href="/r/samcrew/memba_dao_channels">/r/samcrew/memba_dao_channels</a></li>
+    <li><a href="/r/samcrew/memba_dao_channels_v2">/r/samcrew/memba_dao_channels_v2</a></li>
     <li><a href="/r/samcrew/tokenfactory">/r/samcrew/tokenfactory</a></li>
   </ul>
 </main>
@@ -59,11 +61,11 @@ describe("parseGnowebListing", () => {
 
     it("extracts all realm paths from real gnoweb HTML", () => {
         const items = parseGnowebListing(SAMPLE_REALMS_HTML, baseUrl, "r")
-        expect(items.length).toBe(9)
+        expect(items.length).toBe(11)
         expect(items.map(i => i.path)).toContain("/r/samcrew/memba_dao")
         expect(items.map(i => i.path)).toContain("/r/samcrew/tokenfactory")
-        expect(items.map(i => i.path)).toContain("/r/samcrew/memba_dao_candidature")
-        expect(items.map(i => i.path)).toContain("/r/samcrew/memba_dao_channels")
+        expect(items.map(i => i.path)).toContain("/r/samcrew/memba_dao_candidature_v2")
+        expect(items.map(i => i.path)).toContain("/r/samcrew/memba_dao_channels_v2")
     })
 
     it("extracts all package paths from real gnoweb HTML", () => {

@@ -107,10 +107,15 @@ export async function boardExists(rpcUrl: string, boardPath: string): Promise<bo
 }
 
 /**
- * v2.1a: Check if a channel realm exists (tries _channels suffix first, falls back to _board).
- * Returns the realm path that exists, or null if neither.
+ * v2.1a: Check if a channel realm exists.
+ * Tries the configured MEMBA_DAO.channelsPath first (v2), then falls back to
+ * suffix-based detection (_channels, _board) for compatibility.
  */
 export async function detectChannelRealm(rpcUrl: string, daoRealmPath: string): Promise<string | null> {
+    // Try the centrally-configured channels path first (supports v2 paths)
+    const { MEMBA_DAO } = await import("../../lib/config")
+    if (await boardExists(rpcUrl, MEMBA_DAO.channelsPath)) return MEMBA_DAO.channelsPath
+    // Fallback: try suffix-based detection for other DAOs
     const channelsPath = `${daoRealmPath}_channels`
     if (await boardExists(rpcUrl, channelsPath)) return channelsPath
     const boardPath = `${daoRealmPath}_board`

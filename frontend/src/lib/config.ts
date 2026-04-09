@@ -346,10 +346,12 @@ export const MEMBA_TOKEN = import.meta.env.PROD
 /** MembaDAO realm paths and deployment params. */
 export const MEMBA_DAO = {
     realmPath: "gno.land/r/samcrew/memba_dao",
-    channelsPath: "gno.land/r/samcrew/memba_dao_channels",
-    candidaturePath: "gno.land/r/samcrew/memba_dao_candidature",
+    channelsPath: import.meta.env.VITE_CHANNELS_REALM_PATH || "gno.land/r/samcrew/memba_dao_channels_v2",
+    candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v2",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
     escrowPath: "gno.land/r/samcrew/escrow",
+    nftMarketPath: "gno.land/r/samcrew/nft_market",
+    badgesPath: "gno.land/r/samcrew/gnobuilders_badges",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 
