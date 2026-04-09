@@ -9,8 +9,12 @@ The canonical source for all deployed realm code is the **samcrew-deployer** rep
 ```
 samcrew-deployer/projects/memba/realms/
 ├── memba_dao/                    → gno.land/r/samcrew/memba_dao
-├── memba_dao_candidature/        → gno.land/r/samcrew/memba_dao_candidature
-└── memba_dao_channels/           → gno.land/r/samcrew/memba_dao_channels
+├── memba_dao_candidature/        → DEPRECATED (no ACL — issue #2)
+├── memba_dao_candidature_v2/     → gno.land/r/samcrew/memba_dao_candidature_v2
+├── memba_dao_channels/           → DEPRECATED (no ACL — issue #3)
+├── memba_dao_channels_v2/        → gno.land/r/samcrew/memba_dao_channels_v2
+├── nft_market/                   → gno.land/r/samcrew/nft_market
+└── gnobuilders_badges/           → gno.land/r/samcrew/gnobuilders_badges
 ```
 
 ## Deployment Status (test12)
@@ -18,10 +22,14 @@ samcrew-deployer/projects/memba/realms/
 | Realm | Path | Status |
 |-------|------|--------|
 | MembaDAO | `gno.land/r/samcrew/memba_dao` | Deployed 2026-03-29 |
-| Candidature | `gno.land/r/samcrew/memba_dao_candidature` | Deployed 2026-03-29 |
-| Channels | `gno.land/r/samcrew/memba_dao_channels` | Deployed 2026-03-29 |
+| Candidature v1 | `gno.land/r/samcrew/memba_dao_candidature` | DEPRECATED — no ACL |
+| Candidature v2 | `gno.land/r/samcrew/memba_dao_candidature_v2` | Deployed 2026-04-09 (security fix) |
+| Channels v1 | `gno.land/r/samcrew/memba_dao_channels` | DEPRECATED — no ACL |
+| Channels v2 | `gno.land/r/samcrew/memba_dao_channels_v2` | Deployed 2026-04-09 (security fix) |
 | Agent Registry | `gno.land/r/samcrew/agent_registry` | Deployed 2026-04-03 |
-| Escrow | `gno.land/r/samcrew/escrow` | Ready to deploy |
+| Escrow | `gno.land/r/samcrew/escrow` | Deployed 2026-04-03 |
+| NFT Market | `gno.land/r/samcrew/nft_market` | Deployed 2026-04-09 |
+| GnoBuilders Badges | `gno.land/r/samcrew/gnobuilders_badges` | Deployed 2026-04-09 |
 
 ## Deployment Method
 

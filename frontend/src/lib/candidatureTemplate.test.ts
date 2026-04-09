@@ -112,7 +112,7 @@ describe("buildSubmitCandidatureMsg", () => {
 
     it("uses default candidature realm path", () => {
         const msg = buildSubmitCandidatureMsg("g1caller", "bio", "skills")
-        expect(msg.value.pkg_path).toContain("candidature")
+        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v2")
     })
 
     it("accepts custom realm path", () => {

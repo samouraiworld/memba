@@ -1,6 +1,6 @@
 /**
  * Candidature Template — types, validation, MsgCall builders, and Render parser
- * for the MembaDAO candidature realm deployed at gno.land/r/samcrew/memba_dao_candidature.
+ * for the MembaDAO candidature realm deployed at gno.land/r/samcrew/memba_dao_candidature_v2.
  *
  * The deployed realm (via samcrew-deployer) uses:
  *   - Apply(bio, skills) — with GNOT deposit (10 GNOT min, 10x per re-application)
@@ -238,7 +238,7 @@ export function parseCandidatureDetail(raw: string): Candidature | null {
  * Generate the candidature realm Gno source code.
  *
  * NOTE: The canonical MembaDAO candidature realm is deployed via samcrew-deployer
- * (projects/memba/realms/memba_dao_candidature/). This generator is kept for
+ * (projects/memba/realms/memba_dao_candidature_v2/). This generator is kept for
  * user-created DAOs that want their own candidature flow. It generates a
  * simplified version — the deployed realm uses avl trees and banker.
  */
