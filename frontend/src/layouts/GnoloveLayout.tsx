@@ -45,7 +45,7 @@ class GnoloveErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
         if (this.state.hasError) {
             return (
                 <div className="gl-empty" style={{ margin: 20 }}>
-                    <h2 style={{ color: "#ef4444", fontSize: 16, marginBottom: 8 }}>⚠️ Gnolove Error</h2>
+                    <h2 style={{ color: "var(--color-danger)", fontSize: 16, marginBottom: 8 }}>⚠️ Gnolove Error</h2>
                     <p>Something went wrong loading this section.</p>
                     <button
                         className="gl-filter-btn gl-filter-btn--active"

@@ -13,7 +13,7 @@
 .nft-launchpad h1 {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0;
 }
 
@@ -55,7 +55,7 @@
     font-family: "JetBrains Mono", monospace;
     border: 2px solid rgba(255, 255, 255, 0.08);
     background: rgba(0, 0, 0, 0.3);
-    color: #555;
+    color: var(--color-text-muted);
     transition: all 0.3s ease;
 }
 
@@ -75,7 +75,7 @@
 .nft-step__label {
     font-size: 9px;
     font-family: "JetBrains Mono", monospace;
-    color: #444;
+    color: var(--color-text-dim);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     transition: color 0.3s;
@@ -117,13 +117,13 @@
 .nft-step-card h2 {
     font-size: 16px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin: 0 0 16px;
 }
 
 .nft-step-card p.hint {
     font-size: 11px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", monospace;
     margin: 0 0 16px;
 }
@@ -173,12 +173,12 @@
 .nft-type-card__title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .nft-type-card__desc {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
     margin-top: 4px;
     line-height: 1.4;
@@ -195,7 +195,7 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
     background: rgba(255, 255, 255, 0.04);
-    color: #555;
+    color: var(--color-text-muted);
 }
 
 /* ── Form Fields ──────────────────────────────── */
@@ -212,7 +212,7 @@
 .nft-form-label {
     font-size: 11px;
     font-weight: 600;
-    color: #888;
+    color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-family: "JetBrains Mono", monospace;
@@ -223,7 +223,7 @@
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(0, 0, 0, 0.3);
-    color: #f0f0f0;
+    color: var(--color-text);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
     outline: none;
@@ -237,7 +237,7 @@
 
 .nft-form-hint {
     font-size: 10px;
-    color: #444;
+    color: var(--color-text-dim);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -291,7 +291,7 @@
 
 .nft-form-toggle__label {
     font-size: 12px;
-    color: #888;
+    color: var(--color-text-secondary);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -304,7 +304,7 @@
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    color: #aaa;
+    color: var(--color-text-secondary);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     line-height: 1.6;
@@ -325,7 +325,7 @@
     margin-top: 12px;
 }
 
-.nft-cost-estimate__label { color: #888; }
+.nft-cost-estimate__label { color: var(--color-text-secondary); }
 .nft-cost-estimate__value { color: #a78bfa; font-weight: 600; }
 
 /* ── Navigation Buttons ───────────────────────── */
@@ -349,7 +349,7 @@
 
 .nft-nav-btn--back {
     background: rgba(255, 255, 255, 0.04);
-    color: #888;
+    color: var(--color-text-secondary);
     border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -384,11 +384,11 @@
 }
 
 .nft-success__icon { font-size: 40px; animation: popIn 0.3s ease; }
-.nft-success h3 { font-size: 18px; font-weight: 700; color: #f0f0f0; margin: 0; }
-.nft-success p { font-size: 12px; color: #666; font-family: "JetBrains Mono", monospace; margin: 0; }
+.nft-success h3 { font-size: 18px; font-weight: 700; color: var(--color-text); margin: 0; }
+.nft-success p { font-size: 12px; color: var(--color-text-secondary); font-family: "JetBrains Mono", monospace; margin: 0; }
 
 .nft-success__link {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     text-decoration: none;

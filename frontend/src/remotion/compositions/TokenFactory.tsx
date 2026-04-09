@@ -48,7 +48,7 @@ export function TokenFactory() {
                                     {/* Exact label style from CreateToken.tsx */}
                                     <span style={{
                                         display: "block", marginBottom: 2, fontSize: 6,
-                                        fontFamily: fontMono, color: "#888",
+                                        fontFamily: fontMono, color: "var(--color-text-secondary)",
                                         textTransform: "uppercase", letterSpacing: "0.05em",
                                     }}>
                                         {f.label}

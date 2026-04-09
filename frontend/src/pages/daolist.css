@@ -22,11 +22,11 @@
   letter-spacing: -0.02em;
 }
 .k-daolist__title-icon {
-  color: #888;
+  color: var(--color-text-secondary);
 }
 
 .k-daolist__subtitle {
-  color: #888;
+  color: var(--color-text-secondary);
   font-size: 13px;
   margin-top: 6px;
   font-family: 'JetBrains Mono', monospace;
@@ -84,7 +84,7 @@
 .k-daolist__action-item {
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #ccc;
+  color: var(--color-text-secondary);
   cursor: pointer;
   display: flex;
   gap: 8px;
@@ -100,7 +100,7 @@
   flex-shrink: 0;
 }
 .k-daolist__action-sep {
-  color: #888;
+  color: var(--color-text-secondary);
 }
 .k-daolist__action-proposal {
   overflow: hidden;
@@ -114,7 +114,7 @@
 }
 .k-daolist__action-more {
   font-size: 10px;
-  color: #888;
+  color: var(--color-text-secondary);
   cursor: pointer;
   padding-left: 8px;
 }
@@ -126,7 +126,7 @@
   gap: 16px;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 /* ── DAO Grid ───────────────────────────────────────────────── */
@@ -172,7 +172,7 @@
 }
 .k-daolist__connect-desc {
   font-size: 11px;
-  color: #666;
+  color: var(--color-text-secondary);
   font-family: 'JetBrains Mono', monospace;
 }
 .k-daolist__connect-row {
@@ -184,9 +184,9 @@
   height: 40px;
   padding: 0 12px;
   border-radius: 8px;
-  background: #0c0c0c;
-  border: 1px solid #222;
-  color: #f0f0f0;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   outline: none;
@@ -198,7 +198,7 @@
 /* ── Empty State ────────────────────────────────────────────── */
 
 .k-daolist__empty {
-  background: #0c0c0c;
+  background: var(--color-bg-card);
   padding: 48px;
   text-align: center;
 }
@@ -219,7 +219,7 @@
   margin-bottom: 8px;
 }
 .k-daolist__empty-desc {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 13px;
   max-width: 360px;
   margin: 0 auto;
@@ -264,7 +264,7 @@
 .k-dao-card__name {
   font-weight: 600;
   font-size: 15px;
-  color: #f0f0f0;
+  color: var(--color-text);
 }
 
 /* Card badges */
@@ -289,7 +289,7 @@
 .k-dao-card__remove {
   background: none;
   border: none;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
@@ -345,18 +345,18 @@
 .k-dao-card__path {
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #555;
+  color: var(--color-text-muted);
   word-break: break-all;
 }
 .k-dao-card__source-link {
   font-size: 9px;
   font-family: 'JetBrains Mono', monospace;
-  color: #444;
+  color: var(--color-text-dim);
   text-decoration: none;
   transition: color 0.15s;
   padding: 1px 4px;
   border-radius: 3px;
-  border: 1px solid #222;
+  border: 1px solid var(--color-border-light);
   flex-shrink: 0;
 }
 .k-dao-card__source-link:hover {
@@ -374,7 +374,7 @@
   gap: 16px;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #888;
+  color: var(--color-text-secondary);
 }
 
 /* Tier badges */
@@ -402,7 +402,7 @@
 
 /* Card description */
 .k-dao-card__desc {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
   overflow: hidden;

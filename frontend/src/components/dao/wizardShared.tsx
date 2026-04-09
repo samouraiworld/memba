@@ -37,7 +37,7 @@ export const inputStyle: React.CSSProperties = {
     borderRadius: 8,
     padding: "10px 14px",
     fontSize: 13,
-    color: "#f0f0f0",
+    color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace",
     outline: "none",
     transition: "border-color 0.15s",
@@ -49,11 +49,11 @@ export const inputStyle: React.CSSProperties = {
 export function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
         <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#f0f0f0", display: "block", marginBottom: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
                 {label}
             </label>
             {hint && (
-                <p style={{ fontSize: 10, color: "#666", marginBottom: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 8, fontFamily: "JetBrains Mono, monospace" }}>
                     {hint}
                 </p>
             )}
@@ -65,7 +65,7 @@ export function FormField({ label, hint, children }: { label: string; hint?: str
 export function SummaryItem({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
     return (
         <div>
-            <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+            <div style={{ fontSize: 9, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
                 {label}
             </div>
             <div style={{

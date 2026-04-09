@@ -118,7 +118,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
     const ghostBtn: React.CSSProperties = {
         ...btnStyle,
         background: "none",
-        color: "#00d4aa",
+        color: "var(--color-primary)",
         border: "1px solid rgba(0,212,170,0.2)",
     }
 
@@ -128,7 +128,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
         borderRadius: 8,
         border: "1px solid rgba(255,255,255,0.08)",
         background: "rgba(0,0,0,0.3)",
-        color: "#f0f0f0",
+        color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace",
         fontSize: 13,
         boxSizing: "border-box",
@@ -140,7 +140,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "#111" }} />
+                    <div key={i} className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "var(--color-border)" }} />
                 ))}
             </div>
         )
@@ -154,7 +154,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 20 }}>🔄</span>
-                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                             GnoSwap Pools
                         </h3>
                     </div>
@@ -165,11 +165,11 @@ export default function SwapView({ auth, adena }: PluginProps) {
                     )}
                 </div>
 
-                {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
+                {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
 
                 {pools.length === 0 ? (
                     <div style={{ ...cardStyle, textAlign: "center", padding: 24 }}>
-                        <div style={{ fontSize: 12, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             No pools available on this chain. GnoSwap may not be deployed yet.
                         </div>
                     </div>
@@ -179,17 +179,17 @@ export default function SwapView({ auth, adena }: PluginProps) {
                             <div key={pool.path} id={`pool-${pool.path}`} style={cardStyle}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <div>
-                                        <span style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
                                             {pool.token0}/{pool.token1}
                                         </span>
                                         <span style={{
                                             fontSize: 10, marginLeft: 8, padding: "2px 6px",
-                                            borderRadius: 4, background: "rgba(0,212,170,0.08)", color: "#00d4aa",
+                                            borderRadius: 4, background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                                         }}>
                                             {(pool.feeTier / 10000).toFixed(2)}%
                                         </span>
                                     </div>
-                                    <span style={{ fontSize: 12, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                         TVL: {pool.tvl}
                                     </span>
                                 </div>
@@ -217,16 +217,16 @@ export default function SwapView({ auth, adena }: PluginProps) {
                     <button onClick={() => setView("pools")} style={ghostBtn} aria-label="Back to pools">
                         ←
                     </button>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         🔄 Swap Tokens
                     </h3>
                 </div>
 
-                {error && <div style={{ color: "#ff3b30", fontSize: 12 }}>{error}</div>}
+                {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <div>
-                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Token In</label>
+                        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Token In</label>
                         <input
                             id="swap-token-in"
                             type="text"
@@ -238,7 +238,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                         />
                     </div>
                     <div>
-                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Token Out</label>
+                        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Token Out</label>
                         <input
                             id="swap-token-out"
                             type="text"
@@ -254,7 +254,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                         {knownTokens.map(t => <option key={t} value={t} />)}
                     </datalist>
                     <div>
-                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Amount In</label>
+                        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Amount In</label>
                         <input
                             id="swap-amount-in"
                             type="text"
@@ -273,17 +273,17 @@ export default function SwapView({ auth, adena }: PluginProps) {
                             background: "rgba(0,212,170,0.04)",
                             border: "1px solid rgba(0,212,170,0.1)",
                         }}>
-                            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
+                            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4 }}>
                                 Minimum Output (after {slippage}% slippage)
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 600, color: "#00d4aa", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace" }}>
                                 {estimatedMinOut}
                             </div>
                         </div>
                     )}
 
                     <div>
-                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>
+                        <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>
                             Slippage Tolerance (%)
                         </label>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -313,7 +313,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                             />
                         </div>
                         {slippageWarning && (
-                            <div style={{ color: "#f5a623", fontSize: 11, marginTop: 4 }}>
+                            <div style={{ color: "var(--color-warning)", fontSize: 11, marginTop: 4 }}>
                                 ⚠️ High slippage — you may receive significantly less tokens
                             </div>
                         )}

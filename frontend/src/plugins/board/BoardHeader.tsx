@@ -29,16 +29,16 @@ export function BoardHeader({ channel, channelInfo, onBack, rightAction }: Board
                 {channelInfo && (
                     <span style={{ fontSize: 16 }}>{channelIcon(channelInfo)}</span>
                 )}
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                     #{channel}
                 </h3>
                 {channelInfo?.type === "announcements" && (
-                    <span style={{ fontSize: 10, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 10, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace" }}>
                         Admin only
                     </span>
                 )}
                 {channelInfo?.type === "readonly" && (
-                    <span style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                         Read only
                     </span>
                 )}

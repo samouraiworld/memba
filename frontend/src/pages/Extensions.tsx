@@ -58,9 +58,9 @@ const EXTENSIONS: ExtensionCard[] = [
 ]
 
 const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
-    "active": { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", border: "rgba(0,212,170,0.2)" },
-    "coming-soon": { bg: "rgba(245,166,35,0.08)", color: "#f5a623", border: "rgba(245,166,35,0.2)" },
-    "planned": { bg: "rgba(255,255,255,0.04)", color: "#666", border: "rgba(255,255,255,0.08)" },
+    "active": { bg: "rgba(0,212,170,0.08)", color: "var(--color-primary)", border: "rgba(0,212,170,0.2)" },
+    "coming-soon": { bg: "rgba(245,166,35,0.08)", color: "var(--color-warning)", border: "rgba(245,166,35,0.2)" },
+    "planned": { bg: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)", border: "rgba(255,255,255,0.08)" },
 }
 
 export function Extensions() {
@@ -86,21 +86,21 @@ export function Extensions() {
                     <PuzzlePiece size={24} weight="duotone" />
                     Extensions
                 </h2>
-                <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Enhance your DAO with powerful extensions — activate them per-DAO
                 </p>
             </div>
 
             {/* Stats bar */}
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
-                    <span style={{ color: "#00d4aa", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "active").length}</span> active
+                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                    <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "active").length}</span> active
                 </div>
-                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
-                    <span style={{ color: "#f5a623", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "coming-soon").length}</span> coming soon
+                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                    <span style={{ color: "var(--color-warning)", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "coming-soon").length}</span> coming soon
                 </div>
-                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#888" }}>
-                    <span style={{ color: "#f0f0f0", fontWeight: 600 }}>{EXTENSIONS.length}</span> total
+                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                    <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{EXTENSIONS.length}</span> total
                 </div>
             </div>
 
@@ -152,13 +152,13 @@ export function Extensions() {
                             </div>
 
                             {/* Name */}
-                            <div style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0" }}>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)" }}>
                                 {ext.name}
                             </div>
 
                             {/* Description */}
                             <div style={{
-                                fontSize: 12, color: "#888", lineHeight: 1.6,
+                                fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6,
                                 fontFamily: "JetBrains Mono, monospace",
                                 flex: 1,
                             }}>
@@ -176,7 +176,7 @@ export function Extensions() {
                                 </button>
                             ) : (
                                 <div style={{
-                                    fontSize: 10, color: "#555",
+                                    fontSize: 10, color: "var(--color-text-muted)",
                                     fontFamily: "JetBrains Mono, monospace",
                                     fontStyle: "italic",
                                 }}>
@@ -193,7 +193,7 @@ export function Extensions() {
                 padding: "14px 18px", borderRadius: 10,
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.04)",
-                fontSize: 11, color: "#555",
+                fontSize: 11, color: "var(--color-text-muted)",
                 fontFamily: "JetBrains Mono, monospace",
                 lineHeight: 1.6,
             }}>

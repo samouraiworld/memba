@@ -72,10 +72,10 @@ function Section({ title, icon, defaultOpen = false, children }: {
                     alignItems: "center",
                 }}
             >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#f0f0f0" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
                     {icon} {title}
                 </span>
-                <span style={{ fontSize: 12, color: "#555", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
                     ▼
                 </span>
             </button>
@@ -123,7 +123,7 @@ export function Settings() {
     }
 
     const labelStyle: React.CSSProperties = {
-        fontSize: 11, color: "#888",
+        fontSize: 11, color: "var(--color-text-secondary)",
         fontFamily: "JetBrains Mono, monospace",
         display: "block", marginBottom: 4,
     }
@@ -131,7 +131,7 @@ export function Settings() {
     const inputStyle: React.CSSProperties = {
         width: "100%", padding: "8px 12px", borderRadius: 8,
         border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(0,0,0,0.3)", color: "#f0f0f0",
+        background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
         boxSizing: "border-box",
     }
@@ -144,10 +144,10 @@ export function Settings() {
 
     return (
         <div id="settings-page" style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#f0f0f0", margin: 0, display: "flex", alignItems: "center", gap: 8 }}><Gear size={22} /> Settings</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}><Gear size={22} /> Settings</h2>
 
             {saved && (
-                <div style={{ padding: "8px 14px", borderRadius: 8, background: "rgba(0,212,170,0.08)", color: "#00d4aa", fontSize: 12 }}>
+                <div style={{ padding: "8px 14px", borderRadius: 8, background: "rgba(0,212,170,0.08)", color: "var(--color-primary)", fontSize: 12 }}>
                     ✓ Settings saved
                 </div>
             )}
@@ -193,7 +193,7 @@ export function Settings() {
                         </button>
                     ))}
                 </div>
-                <p style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
+                <p style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
                     Tip: use Cmd+K → "Toggle Theme" for quick switching
                 </p>
             </Section>
@@ -201,7 +201,7 @@ export function Settings() {
             {/* Directory — moved from main nav */}
             <Section title="Directory" icon={<FolderOpen size={18} />}>
                 <div style={{ paddingTop: 8 }}>
-                    <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", margin: "0 0 10px", lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: "0 0 10px", lineHeight: 1.5 }}>
                         Browse on-chain packages, realms, and user profiles deployed on gno.land.
                     </p>
                     <button
@@ -241,13 +241,13 @@ export function Settings() {
 
             {/* Profile */}
             <Section title="Profile" icon={<User size={18} />}>
-                <p style={{ fontSize: 12, color: "#888", margin: 0, paddingTop: 8 }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0, paddingTop: 8 }}>
                     Edit your profile, connect GitHub, and manage social links.
                 </p>
                 <button
                     id="settings-profile-link"
                     onClick={() => navigate("/profile")}
-                    style={{ ...btnStyle, background: "rgba(0,212,170,0.1)", color: "#00d4aa", alignSelf: "flex-start" }}
+                    style={{ ...btnStyle, background: "rgba(0,212,170,0.1)", color: "var(--color-primary)", alignSelf: "flex-start" }}
                 >
                     Go to Profile →
                 </button>
@@ -258,11 +258,11 @@ export function Settings() {
                 <button
                     id="settings-clear-cache"
                     onClick={handleClearCache}
-                    style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "#ff3b30", alignSelf: "flex-start", marginTop: 8 }}
+                    style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "var(--color-danger)", alignSelf: "flex-start", marginTop: 8 }}
                 >
                     Clear Cache
                 </button>
-                <div style={{ fontSize: 10, color: "#444", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: 10, color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
                     Memba v{APP_VERSION} · Chain: {GNO_CHAIN_ID}
                 </div>
             </Section>

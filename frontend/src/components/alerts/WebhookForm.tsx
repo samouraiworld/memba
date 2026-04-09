@@ -24,19 +24,19 @@ const WEBHOOK_URL_REGEX = /^https:\/\/.+/
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(0,0,0,0.3)", color: "#f0f0f0",
+    background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace", fontSize: 12,
     boxSizing: "border-box",
 }
 
 const labelStyle: React.CSSProperties = {
-    fontSize: 11, color: "#888",
+    fontSize: 11, color: "var(--color-text-secondary)",
     fontFamily: "JetBrains Mono, monospace",
     display: "block", marginBottom: 4,
 }
 
 const errorStyle: React.CSSProperties = {
-    fontSize: 10, color: "#ff3b30", marginTop: 2,
+    fontSize: 10, color: "var(--color-danger)", marginTop: 2,
     fontFamily: "JetBrains Mono, monospace",
 }
 
@@ -167,7 +167,7 @@ export function WebhookForm({ initial, onSubmit, onCancel, loading }: Props) {
                     <button
                         type="button"
                         onClick={onCancel}
-                        style={{ ...btnStyle, background: "rgba(255,255,255,0.03)", color: "#888" }}
+                        style={{ ...btnStyle, background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)" }}
                     >
                         Cancel
                     </button>

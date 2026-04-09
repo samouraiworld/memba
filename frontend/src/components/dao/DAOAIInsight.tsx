@@ -20,19 +20,19 @@ const ANALYST_ENABLED = import.meta.env.VITE_ENABLE_ANALYST === "true"
 
 function verdictToGrade(verdict: string, confidence: number): { grade: string; color: string } {
     if (verdict === "approve") {
-        if (confidence >= 0.8) return { grade: "A+", color: "#4caf50" }
-        if (confidence >= 0.6) return { grade: "A", color: "#4caf50" }
+        if (confidence >= 0.8) return { grade: "A+", color: "var(--color-success)" }
+        if (confidence >= 0.6) return { grade: "A", color: "var(--color-success)" }
         return { grade: "B+", color: "#8bc34a" }
     }
     if (verdict === "caution") {
-        if (confidence >= 0.6) return { grade: "B", color: "#ff9800" }
-        return { grade: "C+", color: "#ff9800" }
+        if (confidence >= 0.6) return { grade: "B", color: "var(--color-warning)" }
+        return { grade: "C+", color: "var(--color-warning)" }
     }
     if (verdict === "reject") {
-        if (confidence >= 0.6) return { grade: "D", color: "#f44336" }
-        return { grade: "C", color: "#f44336" }
+        if (confidence >= 0.6) return { grade: "D", color: "var(--color-danger)" }
+        return { grade: "C", color: "var(--color-danger)" }
     }
-    return { grade: "—", color: "#666" }
+    return { grade: "—", color: "var(--color-text-secondary)" }
 }
 
 // ── Main Component ───────────────────────────────────────────

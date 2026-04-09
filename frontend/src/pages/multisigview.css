@@ -47,10 +47,10 @@
   gap: 8px;
 }
 .k-msview__rename-input {
-  background: #111;
+  background: var(--color-border);
   border: 1px solid #333;
   border-radius: 6px;
-  color: #f0f0f0;
+  color: var(--color-text);
   font-size: 18px;
   font-weight: 600;
   padding: 6px 12px;
@@ -70,7 +70,7 @@
 }
 .k-msview__rename-cancel {
   background: none;
-  color: #666;
+  color: var(--color-text-secondary);
   border: 1px solid #333;
   border-radius: 6px;
   padding: 6px 12px;
@@ -84,7 +84,7 @@
   background: none;
   border: 1px dashed #333;
   border-radius: 6px;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 11px;
   padding: 4px 10px;
   cursor: pointer;
@@ -155,11 +155,11 @@
 }
 .k-msview__table-header {
   padding: 12px 20px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--color-border-light);
   display: grid;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #555;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -190,7 +190,7 @@
 .k-msview__tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--color-border-light);
   margin-bottom: 16px;
 }
 .k-msview__tab {
@@ -198,7 +198,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #666;
+  color: var(--color-text-secondary);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   cursor: pointer;
@@ -215,21 +215,21 @@
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   padding: 14px 20px;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 0.15s;
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
 }
 .k-msview__tx-row:hover {
-  background: #0c0c0c;
+  background: var(--color-bg-card);
 }
 .k-msview__tx-type {
-  color: #f0f0f0;
+  color: var(--color-text);
   text-transform: capitalize;
 }
 .k-msview__tx-date {
-  color: #555;
+  color: var(--color-text-muted);
   font-size: 11px;
 }
 
@@ -240,17 +240,17 @@
   padding: 32px;
 }
 .k-msview__empty-text {
-  color: #555;
+  color: var(--color-text-muted);
   font-size: 14px;
   font-family: 'JetBrains Mono', monospace;
 }
 .k-msview__auth-gate {
-  background: #0c0c0c;
+  background: var(--color-bg-card);
   padding: 48px;
   text-align: center;
 }
 .k-msview__auth-text {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
 }

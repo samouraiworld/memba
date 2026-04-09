@@ -126,7 +126,7 @@ const badge: CSSProperties = {
     padding: "1px 5px",
     borderRadius: 3,
     background: "rgba(255,165,2,0.12)",
-    color: "#ffa502",
+    color: "var(--color-warning)",
     border: "1px solid rgba(255,165,2,0.2)",
 }
 

@@ -47,7 +47,7 @@
 
 .pay-btn--primary:disabled {
     background: var(--color-border-light, #222);
-    color: #666;
+    color: var(--color-text-secondary);
     cursor: not-allowed;
 }
 

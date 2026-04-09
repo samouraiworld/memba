@@ -25,7 +25,7 @@ export default function BoardPlugin(props: PluginProps) {
     if (detectedPath === undefined) {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
-                <div className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "#111" }} />
+                <div className="k-shimmer" style={{ height: 60, borderRadius: 8, background: "var(--color-border)" }} />
             </div>
         )
     }
@@ -44,11 +44,11 @@ export default function BoardPlugin(props: PluginProps) {
                 }}
             >
                 <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: "0 0 6px" }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: "0 0 6px" }}>
                     No Channels Deployed
                 </h3>
                 <p style={{
-                    fontSize: 12, color: "#888", margin: 0,
+                    fontSize: 12, color: "var(--color-text-secondary)", margin: 0,
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     This DAO doesn&apos;t have discussion channels yet.

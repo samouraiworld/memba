@@ -25,13 +25,13 @@
 }
 
 .proposal-notfound p {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 14px;
     font-family: JetBrains Mono, monospace;
 }
 
 .proposal-notfound-back {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 13px;
     background: none;
     border: none;
@@ -51,7 +51,7 @@
 }
 
 .proposal-breadcrumb-btn {
-    color: #888;
+    color: var(--color-text-secondary);
     background: none;
     border: none;
     cursor: pointer;
@@ -61,7 +61,7 @@
 }
 
 .proposal-breadcrumb-btn--active {
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .proposal-breadcrumb-sep {
@@ -69,7 +69,7 @@
 }
 
 .proposal-breadcrumb-current {
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 /* ── Header meta row ─────────────────────────────────────── */
@@ -84,22 +84,22 @@
 .proposal-id-label {
     font-size: 12px;
     font-family: JetBrains Mono, monospace;
-    color: #555;
+    color: var(--color-text-muted);
 }
 
 .proposal-source-link {
     font-size: 9px;
     font-family: JetBrains Mono, monospace;
-    color: #444;
+    color: var(--color-text-dim);
     text-decoration: none;
     transition: color 0.15s;
     padding: 1px 5px;
     border-radius: 3px;
-    border: 1px solid #222;
+    border: 1px solid var(--color-border-light);
 }
 
 .proposal-source-link:hover {
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .proposal-status-badge {
@@ -113,7 +113,7 @@
 .proposal-awaiting-hint {
     font-size: 9px;
     font-family: JetBrains Mono, monospace;
-    color: #888;
+    color: var(--color-text-secondary);
 }
 
 .proposal-live-badge {
@@ -123,7 +123,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(0, 212, 170, 0.06);
-    color: #00d4aa;
+    color: var(--color-primary);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -133,7 +133,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #00d4aa;
+    background: var(--color-primary);
     display: inline-block;
 }
 
@@ -149,7 +149,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 500;
     background: rgba(255, 255, 255, 0.04);
-    color: #888;
+    color: var(--color-text-secondary);
 }
 
 .proposal-category-badge {
@@ -188,23 +188,23 @@
     justify-content: center;
     font-size: 14px;
     font-family: JetBrains Mono, monospace;
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .proposal-author-name {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .proposal-author-link {
-    color: #00d4aa;
+    color: var(--color-primary);
     text-decoration: none;
 }
 
 .proposal-author-role {
     font-size: 10px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -218,7 +218,7 @@
 }
 
 .proposal-desc-text {
-    color: #ccc;
+    color: var(--color-text-secondary);
     font-size: 14px;
     line-height: 1.7;
     font-family: JetBrains Mono, monospace;
@@ -235,7 +235,7 @@
 .proposal-action-title {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 12px;
     display: flex;
     align-items: center;
@@ -255,12 +255,12 @@
 .proposal-executor-label {
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
-    color: #888;
+    color: var(--color-text-secondary);
     margin-bottom: 10px;
 }
 
 .proposal-executor-link {
-    color: #00d4aa;
+    color: var(--color-primary);
     text-decoration: none;
 }
 
@@ -268,10 +268,10 @@
     padding: 12px 14px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.4);
-    border: 1px solid #1a1a1a;
+    border: 1px solid var(--color-border);
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
-    color: #aaa;
+    color: var(--color-text-secondary);
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
@@ -287,7 +287,7 @@
 .proposal-votes-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 16px;
 }
 
@@ -315,7 +315,7 @@
     background: rgba(0, 212, 170, 0.08);
     border-radius: 8px;
     border: 1px solid rgba(0, 212, 170, 0.2);
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 13px;
     font-family: JetBrains Mono, monospace;
 }
@@ -358,13 +358,13 @@
 
 /* ── Connect CTA ─────────────────────────────────────────── */
 .proposal-connect-cta {
-    background: #0c0c0c;
+    background: var(--color-bg-card);
     padding: 28px;
     text-align: center;
 }
 
 .proposal-connect-cta p {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 13px;
     font-family: JetBrains Mono, monospace;
 }

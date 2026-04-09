@@ -37,13 +37,13 @@ class PluginErrorBoundary extends Component<{ pluginId: string; children: ReactN
                         fontFamily: "JetBrains Mono, monospace",
                     }}
                 >
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#ff3b30", marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-danger)", marginBottom: 6 }}>
                         ⚠️ Plugin failed to load
                     </div>
-                    <div style={{ fontSize: 11, color: "#888" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
                         Plugin &quot;{this.props.pluginId}&quot; encountered an error.
                         {this.state.error?.message && (
-                            <span style={{ display: "block", marginTop: 4, color: "#555" }}>
+                            <span style={{ display: "block", marginTop: 4, color: "var(--color-text-muted)" }}>
                                 {this.state.error.message}
                             </span>
                         )}
@@ -64,7 +64,7 @@ function PluginShimmer() {
                 <div
                     key={i}
                     className="k-shimmer"
-                    style={{ height: 60, borderRadius: 8, background: "#111" }}
+                    style={{ height: 60, borderRadius: 8, background: "var(--color-border)" }}
                 />
             ))}
         </div>
@@ -84,7 +84,7 @@ function PluginNotFound({ pluginId }: { pluginId: string }) {
                 border: "1px solid rgba(245,166,35,0.15)",
                 fontFamily: "JetBrains Mono, monospace",
                 fontSize: 12,
-                color: "#f5a623",
+                color: "var(--color-warning)",
             }}
         >
             ⚠️ Plugin &quot;{pluginId}&quot; not found in registry.

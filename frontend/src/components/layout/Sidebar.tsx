@@ -3,10 +3,9 @@ import { Link, useLocation } from "react-router-dom"
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     Briefcase, User, Gear, Megaphone, PuzzlePiece,
-    LinkSimpleHorizontal, Bell, Heart, UsersThree, Robot,
+    LinkSimpleHorizontal, Bell, Heart, Robot,
     Handshake, ImageSquare, Bank, GameController,
 } from "@phosphor-icons/react"
-import { useOrg } from "../../contexts/OrgContext"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 
@@ -157,7 +156,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
-    const { activeOrgName, isOrgMode } = useOrg()
     const nk = useNetworkKey()
 
     return (
@@ -202,22 +200,12 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
             <div className="k-sidebar-user">
-                {/* Org indicator — only when in org mode */}
-                {connected && isOrgMode && (
-                    <div className="k-sidebar-org-badge" title={`Team: ${activeOrgName}`}>
-                        <Link to={`/${nk}/organizations`} className="k-sidebar-org-badge-link">
-                            <span className="k-sidebar-org-badge-dot" />
-                            {!collapsed && <span className="k-sidebar-org-badge-name">{activeOrgName}</span>}
-                        </Link>
-                    </div>
-                )}
+                {/* Org indicator — hidden until Teams feature is production-ready */}
                 <div className="k-sidebar-section">
                     {connected && address && (
                         <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
                     )}
-                    {connected && (
-                        <SidebarLink to="/organizations" icon={<UsersThree size={18} />} label="Teams" badgeText="beta" connected={connected} collapsed={collapsed} />
-                    )}
+                    {/* Teams hidden until production-ready */}
                     {connected && (
                         <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
                     )}

@@ -782,8 +782,8 @@ body {
 .net-status-toast__icon { font-size: 16px; }
 .net-status-toast__body { display: flex; flex-direction: column; gap: 2px; }
 .net-status-toast__label { font-size: 12px; font-weight: 600; }
-.net-status-toast__detail { font-size: 10px; color: #888; }
-.net-status-toast__dismiss { background: none; border: none; color: #666; font-size: 16px; cursor: pointer; padding: 0 4px; }
+.net-status-toast__detail { font-size: 10px; color: var(--color-text-secondary); }
+.net-status-toast__dismiss { background: none; border: none; color: var(--color-text-secondary); font-size: 16px; cursor: pointer; padding: 0 4px; }
 
 @media (max-width: 640px) {
   .net-status-toast { bottom: 70px; right: 12px; left: 12px; }
@@ -1075,15 +1075,15 @@ body {
 }
 .k-topbar-banner__text--error { color: #ff4757; }
 .k-topbar-banner__text--warning { color: #f5a623; }
-.k-topbar-banner__text--muted { color: #888; font-size: 10px; }
+.k-topbar-banner__text--muted { color: var(--color-text-secondary); font-size: 10px; }
 .k-topbar-banner__dismiss {
-  color: #888;
+  color: var(--color-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
   font-size: 14px;
 }
-.k-topbar-banner__dismiss:hover { color: #ccc; }
+.k-topbar-banner__dismiss:hover { color: var(--color-text); }
 
 /* ── TopBar: security warning details ────────────────────────────── */
 .k-security-banner__header {
@@ -1105,7 +1105,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 .k-security-banner__body {
-  color: #ccc;
+  color: var(--color-text-secondary);
   font-size: 11px;
   text-align: center;
   margin-top: 6px;
@@ -1271,7 +1271,7 @@ body {
   z-index: 100;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(0, 212, 170, 0.2);
-  background: #000;
+  background: var(--color-bg);
   resize: both;
   transition: box-shadow 0.2s;
   cursor: grab;

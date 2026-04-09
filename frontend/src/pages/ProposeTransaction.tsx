@@ -183,18 +183,18 @@ export function ProposeTransaction() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div>
-                <button onClick={() => navigate(`/multisig/${address}`)} style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate(`/multisig/${address}`)} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
                     ← Back to Multisig
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Propose Transaction</h2>
-                <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
                     From: {address}
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to propose a transaction
                     </p>
                 </div>
@@ -292,7 +292,7 @@ export function ProposeTransaction() {
                         disabled={loading}
                         style={formInputStyle(loading)}
                     />
-                    <p style={{ color: "#555", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
                         Optional GNOT to send with the contract call (e.g. for paid functions)
                     </p>
                 </div>
@@ -329,7 +329,7 @@ export function ProposeTransaction() {
                         <div style={{
                             padding: "10px 14px", borderRadius: 8,
                             background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                            fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                            fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
                         }}>
                             💰 {feeDisclosure(BigInt(grcAmount.trim()), grcSymbol.trim() || "TOKEN")}
                         </div>
@@ -376,7 +376,7 @@ export function ProposeTransaction() {
 function formInputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }

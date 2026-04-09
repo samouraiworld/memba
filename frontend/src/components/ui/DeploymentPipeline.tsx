@@ -130,7 +130,7 @@ export function DeploymentPipeline({
             >
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", margin: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         {isComplete ? "🎉 Deployment Complete" : isError ? "⚠️ Deployment Failed" : "🚀 Deploying..."}
                     </h3>
                     {canDismiss && onClose && (
@@ -138,7 +138,7 @@ export function DeploymentPipeline({
                             id="deploy-pipeline-close"
                             onClick={onClose}
                             style={{
-                                background: "none", border: "none", color: "#555",
+                                background: "none", border: "none", color: "var(--color-text-muted)",
                                 cursor: "pointer", fontSize: 16, padding: "2px 6px",
                             }}
                             aria-label="Close"
@@ -185,29 +185,29 @@ export function DeploymentPipeline({
                 {isComplete && result && (
                     <div className="deploy-complete-card" data-testid="deploy-complete">
                         <div className="deploy-complete-check">
-                            <span style={{ fontSize: 28, color: "#00d4aa" }}>✓</span>
+                            <span style={{ fontSize: 28, color: "var(--color-primary)" }}>✓</span>
                         </div>
-                        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#00d4aa", marginBottom: 6 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-primary)", marginBottom: 6 }}>
                             {result.entityLabel || "Entity"} deployed successfully!
                         </h2>
                         {result.entityName && (
-                            <p style={{ fontSize: 13, color: "#ccc", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
                                 {result.entityName}
                             </p>
                         )}
                         {result.realmPath && (
-                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
+                            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
                                 {result.realmPath}
                             </p>
                         )}
                         {result.txHash && (
-                            <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
+                            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
                                 TX:{" "}
                                 <a
                                     href={`${explorerBase}/tx/${result.txHash}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    style={{ color: "#00d4aa", textDecoration: "none" }}
+                                    style={{ color: "var(--color-primary)", textDecoration: "none" }}
                                     id="deploy-tx-link"
                                 >
                                     {result.txHash.slice(0, 16)}…
@@ -220,7 +220,7 @@ export function DeploymentPipeline({
                                     href={`${explorerBase}/r/${result.realmPath.replace("gno.land/r/", "")}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    style={{ fontSize: 11, color: "#00d4aa", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
+                                    style={{ fontSize: 11, color: "var(--color-primary)", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
                                     id="deploy-explorer-link"
                                 >
                                     View on Explorer →
@@ -241,10 +241,10 @@ export function DeploymentPipeline({
                 {/* Error Card */}
                 {isError && (
                     <div className="deploy-error-card" data-testid="deploy-error">
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#ff3b30", marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-danger)", marginBottom: 6 }}>
                             {error || "Deployment failed"}
                         </div>
-                        <p style={{ fontSize: 11, color: "#888", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
+                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
                             The transaction could not be completed. You can retry from the beginning.
                         </p>
                         {onRetry && (

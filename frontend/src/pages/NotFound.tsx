@@ -20,7 +20,7 @@ export function NotFound() {
             }}>
                 404
             </div>
-            <p style={{ color: "#888", fontSize: 14, fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
                 This page doesn't exist on the chain. Maybe it was never deployed, or you followed a broken link.
             </p>
             <div style={{ display: "flex", gap: 12 }}>

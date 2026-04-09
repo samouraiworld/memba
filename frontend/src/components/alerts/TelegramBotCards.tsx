@@ -23,7 +23,7 @@ const cardStyle: React.CSSProperties = {
 const cmdStyle: React.CSSProperties = {
     fontSize: 10, padding: "3px 8px", borderRadius: 4,
     background: "rgba(0,212,170,0.06)",
-    color: "#00d4aa",
+    color: "var(--color-primary)",
     fontFamily: "JetBrains Mono, monospace",
     display: "inline-block",
 }
@@ -72,7 +72,7 @@ export function TelegramBotCards() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 24 }}>✈️</span>
                         <div>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: "#f0f0f0" }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text)" }}>
                                 {bot.name}
                             </div>
                             <div style={{ fontSize: 11, color: "#0088cc", fontFamily: "JetBrains Mono, monospace" }}>
@@ -82,13 +82,13 @@ export function TelegramBotCards() {
                     </div>
 
                     {/* Description */}
-                    <p style={{ fontSize: 11, color: "#888", lineHeight: 1.5, margin: 0 }}>
+                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.5, margin: 0 }}>
                         {bot.description}
                     </p>
 
                     {/* Quick commands */}
                     <div>
-                        <div style={{ fontSize: 10, color: "#555", marginBottom: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6, fontFamily: "JetBrains Mono, monospace" }}>
                             QUICK COMMANDS
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -115,7 +115,7 @@ export function TelegramBotCards() {
             {/* Note */}
             <div style={{
                 gridColumn: "1 / -1",
-                fontSize: 10, color: "#555",
+                fontSize: 10, color: "var(--color-text-muted)",
                 fontFamily: "JetBrains Mono, monospace",
                 padding: "8px 0",
             }}>

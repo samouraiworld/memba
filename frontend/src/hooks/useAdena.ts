@@ -118,7 +118,7 @@ export function useAdena() {
         };
     }, [installed]);
 
-    const connect = useCallback(async () => {
+    const connect = useCallback(async (opts?: { silent?: boolean }) => {
         const adena = getAdena();
         if (!adena) {
             setState((s) => ({ ...s, error: "Adena wallet not installed" }));
@@ -136,10 +136,16 @@ export function useAdena() {
                 if (silentCheck.status !== "failure" && silentCheck.data?.address) {
                     accountRes = silentCheck;
                 }
-            } catch { /* silent check failed, fall through to AddEstablish */ }
+            } catch { /* silent check failed — wallet may be locked */ }
 
             if (!accountRes) {
-                // Full establish flow — shows Adena approval popup
+                // In silent mode, don't show the Adena popup — just give up.
+                // The user can browse freely and connect manually when needed.
+                if (opts?.silent) {
+                    setState((s) => ({ ...s, loading: false, reconnecting: false }));
+                    return false;
+                }
+                // Full establish flow — shows Adena approval popup (interactive only)
                 const connectRes = await adena.AddEstablish("Memba");
                 if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
                     setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
@@ -213,7 +219,9 @@ export function useAdena() {
         }
     }, []);
 
-    // Auto-reconnect: if sessionStorage flag exists and Adena is installed, reconnect.
+    // Auto-reconnect: if sessionStorage flag exists and Adena is installed,
+    // attempt silent reconnect (no popup). If wallet is locked or not
+    // whitelisted, silently give up — user can connect manually when needed.
     useEffect(() => {
         if (!installed || autoReconnectAttempted.current) return;
         if (!wasConnected()) {
@@ -221,7 +229,7 @@ export function useAdena() {
             return;
         }
         autoReconnectAttempted.current = true;
-        connect().finally(() => {
+        connect({ silent: true }).finally(() => {
             setState((s) => ({ ...s, reconnecting: false }));
         });
     }, [installed, connect]);

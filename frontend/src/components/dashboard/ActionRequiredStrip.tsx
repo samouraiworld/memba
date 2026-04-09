@@ -29,16 +29,16 @@ export function ActionRequiredStrip({ unvotedCount, unsignedCount, unvotedLoadin
                     {unvotedCount > 0 && (
                         <span
                             onClick={() => navigate("/dao")}
-                            style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", cursor: "pointer" }}
+                            style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)", cursor: "pointer" }}
                         >
                             🗳️ {unvotedCount} proposal{unvotedCount > 1 ? "s" : ""} need{unvotedCount === 1 ? "s" : ""} your vote
                         </span>
                     )}
                     {unvotedCount > 0 && unsignedCount > 0 && (
-                        <span style={{ color: "#333" }}>·</span>
+                        <span style={{ color: "var(--color-text)" }}>·</span>
                     )}
                     {unsignedCount > 0 && (
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623" }}>
+                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)" }}>
                             ✍️ {unsignedCount} signature{unsignedCount > 1 ? "s" : ""} needed
                         </span>
                     )}
@@ -46,13 +46,13 @@ export function ActionRequiredStrip({ unvotedCount, unsignedCount, unvotedLoadin
             ) : (
                 <>
                     <span style={{ fontSize: 14 }}>📋</span>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#666" }}>
+                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
                         No pending actions
                     </span>
                 </>
             )}
             {unvotedLoading && (
-                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "#555", marginLeft: "auto" }}>
+                <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)", marginLeft: "auto" }}>
                     scanning...
                 </span>
             )}

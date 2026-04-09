@@ -12,7 +12,7 @@ export function VoteStat({ label, count, color, icon }: { label: string; count: 
             <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color }}>
                 {icon} {count}
             </div>
-            <div style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>
                 {label}
             </div>
         </div>
@@ -29,7 +29,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
                 <span style={{ fontWeight: 600, fontSize: 12, color, fontFamily: "JetBrains Mono, monospace" }}>
                     {record.tier}
                 </span>
-                <span style={{ fontSize: 10, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
+                <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     VPPM {record.vppm}
                 </span>
             </div>
@@ -37,7 +37,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
             {/* YES voters */}
             {record.yesVoters.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: "#4caf50", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                    <span style={{ fontSize: 10, color: "var(--color-success)", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
                         YES ({record.yesVoters.length})
                     </span>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
@@ -50,7 +50,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
                                 style={{
                                     padding: "2px 8px", borderRadius: 4, fontSize: 10,
                                     fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(76,175,80,0.08)", color: "#4caf50",
+                                    background: "rgba(76,175,80,0.08)", color: "var(--color-success)",
                                     textDecoration: "none", transition: "background 0.15s",
                                 }}
                             >
@@ -64,7 +64,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
             {/* NO voters */}
             {record.noVoters.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: "#f44336", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                    <span style={{ fontSize: 10, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
                         NO ({record.noVoters.length})
                     </span>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
@@ -77,7 +77,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
                                 style={{
                                     padding: "2px 8px", borderRadius: 4, fontSize: 10,
                                     fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(244,67,54,0.08)", color: "#f44336",
+                                    background: "rgba(244,67,54,0.08)", color: "var(--color-danger)",
                                     textDecoration: "none",
                                 }}
                             >
@@ -91,7 +91,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
             {/* ABSTAIN voters */}
             {record.abstainVoters.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
+                    <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", fontWeight: 600 }}>
                         ABSTAIN ({record.abstainVoters.length})
                     </span>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
@@ -104,7 +104,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
                                 style={{
                                     padding: "2px 8px", borderRadius: 4, fontSize: 10,
                                     fontFamily: "JetBrains Mono, monospace",
-                                    background: "rgba(136,136,136,0.08)", color: "#888",
+                                    background: "rgba(136,136,136,0.08)", color: "var(--color-text-secondary)",
                                     textDecoration: "none",
                                 }}
                             >
@@ -116,7 +116,7 @@ export function TierVoteBlock({ record }: { record: VoteRecord }) {
             )}
 
             {record.yesVoters.length === 0 && record.noVoters.length === 0 && record.abstainVoters.length === 0 && (
-                <div style={{ fontSize: 10, color: "#555", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                     No votes from this tier
                 </div>
             )}

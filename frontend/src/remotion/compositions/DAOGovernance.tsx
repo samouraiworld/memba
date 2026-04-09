@@ -39,7 +39,7 @@ export function DAOGovernance() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
                         <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                                <span style={{ fontSize: 7, fontFamily: fontMono, color: "#555", fontWeight: 500 }}>
+                                <span style={{ fontSize: 7, fontFamily: fontMono, color: "var(--color-text-muted)", fontWeight: 500 }}>
                                     #42
                                 </span>
                                 <span style={{ fontSize: 9, fontWeight: 600, color: COLORS.text }}>
@@ -54,7 +54,7 @@ export function DAOGovernance() {
                                 <span style={{
                                     padding: "0px 3px", borderRadius: 2, fontSize: 6,
                                     fontFamily: fontMono, fontWeight: 600,
-                                    background: "rgba(255,255,255,0.04)", color: "#888",
+                                    background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)",
                                 }}>
                                     T1
                                 </span>
@@ -73,9 +73,9 @@ export function DAOGovernance() {
                     {/* SingleVoteBar — exact match: 14px height, green/red split, threshold marker */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 8 }}>
                         {/* Vote counts */}
-                        <div style={{ display: "flex", gap: 6, fontSize: 7, fontFamily: fontMono, color: "#666" }}>
-                            <span style={{ color: "#4caf50" }}>✓ {Math.round(yesVotes)}</span>
-                            <span style={{ color: "#f44336" }}>✗ {Math.round(noVotes)}</span>
+                        <div style={{ display: "flex", gap: 6, fontSize: 7, fontFamily: fontMono, color: "var(--color-text-secondary)" }}>
+                            <span style={{ color: "var(--color-success)" }}>✓ {Math.round(yesVotes)}</span>
+                            <span style={{ color: "var(--color-danger)" }}>✗ {Math.round(noVotes)}</span>
                         </div>
                         {/* SingleVoteBar */}
                         <div style={{
@@ -117,7 +117,7 @@ export function DAOGovernance() {
                         <span style={{
                             padding: "2px 6px", borderRadius: 4, fontSize: 7,
                             fontFamily: fontMono, fontWeight: 600,
-                            background: "rgba(76,175,80,0.08)", color: "#4caf50",
+                            background: "rgba(76,175,80,0.08)", color: "var(--color-success)",
                         }}>
                             ✓ VOTED
                         </span>

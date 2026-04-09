@@ -115,9 +115,9 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 14 }}>💰</span>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#f0f0f0" }}>Assets</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text)" }}>Assets</span>
                     <span style={{
-                        fontSize: 10, color: "#555",
+                        fontSize: 10, color: "var(--color-text-muted)",
                         fontFamily: "JetBrains Mono, monospace",
                     }}>
                         {loading ? "…" : `${totalAssets} token${totalAssets !== 1 ? "s" : ""}`}
@@ -126,14 +126,14 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     {!collapsed && gnotBalance && (
                         <span style={{
-                            fontSize: 12, fontWeight: 600, color: "#00d4aa",
+                            fontSize: 12, fontWeight: 600, color: "var(--color-primary)",
                             fontFamily: "JetBrains Mono, monospace",
                         }}>
                             {gnotDisplay} GNOT
                         </span>
                     )}
                     <span style={{
-                        fontSize: 10, color: "#555",
+                        fontSize: 10, color: "var(--color-text-muted)",
                         transition: "transform 0.2s",
                         transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
                         display: "inline-block",
@@ -160,14 +160,14 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                                 width: 6, height: 6, borderRadius: "50%",
                                 background: "#00d4aa", flexShrink: 0,
                             }} />
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>GNOT</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>GNOT</span>
                             <span style={{
-                                fontSize: 9, color: "#444",
+                                fontSize: 9, color: "var(--color-text-dim)",
                                 fontFamily: "JetBrains Mono, monospace",
                             }}>native</span>
                         </div>
                         <span style={{
-                            fontSize: 12, fontWeight: 500, color: "#f0f0f0",
+                            fontSize: 12, fontWeight: 500, color: "var(--color-text)",
                             fontFamily: "JetBrains Mono, monospace",
                         }}>
                             {gnotDisplay}
@@ -180,7 +180,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                             {[1, 2].map(i => (
                                 <div key={i} className="k-shimmer" style={{
                                     height: 16, borderRadius: 4,
-                                    background: "#111", marginBottom: 8,
+                                    background: "var(--color-border)", marginBottom: 8,
                                     maxWidth: i === 1 ? "60%" : "40%",
                                 }} />
                             ))}
@@ -188,7 +188,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                     ) : error ? (
                         <div style={{
                             padding: "10px 20px", fontSize: 10,
-                            color: "#555", fontFamily: "JetBrains Mono, monospace",
+                            color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
                         }}>
                             GRC20 balances unavailable
                         </div>
@@ -204,18 +204,18 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                                         width: 6, height: 6, borderRadius: "50%",
                                         background: "#7c3aed", flexShrink: 0,
                                     }} />
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                                         {token.symbol}
                                     </span>
                                     <span style={{
-                                        fontSize: 9, color: "#444",
+                                        fontSize: 9, color: "var(--color-text-dim)",
                                         fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {token.name}
                                     </span>
                                 </div>
                                 <span style={{
-                                    fontSize: 12, fontWeight: 500, color: "#f0f0f0",
+                                    fontSize: 12, fontWeight: 500, color: "var(--color-text)",
                                     fontFamily: "JetBrains Mono, monospace",
                                 }}>
                                     {token.balance}
@@ -225,7 +225,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                     ) : (
                         <div style={{
                             padding: "10px 20px", fontSize: 10,
-                            color: "#444", fontFamily: "JetBrains Mono, monospace",
+                            color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace",
                         }}>
                             No GRC20 tokens held
                         </div>

@@ -158,7 +158,7 @@ export function RealmsTab() {
                             {expandedRealm === r.path && (
                                 <div className="dir-render-preview">
                                     {renderLoading ? (
-                                        <div className="k-shimmer" style={{ height: 40, borderRadius: 6, background: "#111" }} />
+                                        <div className="k-shimmer" style={{ height: 40, borderRadius: 6, background: "var(--color-border)" }} />
                                     ) : (
                                         <>
                                             <pre className="dir-render-preview__content">{realmRender}</pre>

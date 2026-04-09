@@ -14,9 +14,9 @@ const DISMISS_KEY = "memba_net_status_dismissed"
 
 const STATUS_CONFIG: Record<NetworkHealth, { color: string; label: string; emoji: string } | null> = {
     healthy: null, // Don't show toast for healthy
-    slow: { color: "#f5a623", label: "Slow", emoji: "⚠️" },
-    halted: { color: "#f44336", label: "Halted", emoji: "🔴" },
-    unreachable: { color: "#f44336", label: "Unreachable", emoji: "❌" },
+    slow: { color: "var(--color-warning)", label: "Slow", emoji: "⚠️" },
+    halted: { color: "var(--color-danger)", label: "Halted", emoji: "🔴" },
+    unreachable: { color: "var(--color-danger)", label: "Unreachable", emoji: "❌" },
 }
 
 export function NetworkStatusToast() {

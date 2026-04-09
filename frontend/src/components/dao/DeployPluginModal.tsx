@@ -84,21 +84,21 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
         >
             <div className="k-card" style={{
                 width: 420, maxWidth: "90vw", padding: 28,
-                background: "#111", border: "1px solid rgba(0,212,170,0.15)",
+                background: "var(--color-border)", border: "1px solid rgba(0,212,170,0.15)",
                 display: "flex", flexDirection: "column", gap: 20,
             }}>
                 <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0", marginBottom: 4 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
                         💬 Deploy Discussion Board
                     </h3>
-                    <p style={{ fontSize: 11, color: "#666", fontFamily: "JetBrains Mono, monospace" }}>
-                        Deploy a companion board realm for <strong style={{ color: "#00d4aa" }}>{daoName}</strong>
+                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        Deploy a companion board realm for <strong style={{ color: "var(--color-primary)" }}>{daoName}</strong>
                     </p>
                 </div>
 
                 {/* Channel config */}
                 <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "#f0f0f0", display: "block", marginBottom: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
                         Initial Channels
                     </label>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -106,14 +106,14 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                             <span key={ch} style={{
                                 fontSize: 11, padding: "4px 10px", borderRadius: 6,
                                 background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.2)",
-                                color: "#00d4aa", fontFamily: "JetBrains Mono, monospace",
+                                color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
                                 display: "flex", alignItems: "center", gap: 6,
                             }}>
                                 #{ch}
                                 {ch !== "general" && (
                                     <button onClick={() => removeChannel(ch)} style={{
                                         background: "none", border: "none", cursor: "pointer",
-                                        color: "#888", fontSize: 12, padding: 0,
+                                        color: "var(--color-text-secondary)", fontSize: 12, padding: 0,
                                     }}>×</button>
                                 )}
                             </span>
@@ -133,7 +133,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                         </button>
                     </div>
                     {channelError && (
-                        <div style={{ fontSize: 10, color: "#ff3b30", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: 10, color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                             {channelError}
                         </div>
                     )}
@@ -142,7 +142,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                 {/* Error */}
                 {error && (
                     <div style={{
-                        fontSize: 11, color: "#ff4757", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 11, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
                         background: "rgba(255,71,87,0.08)", padding: "8px 12px", borderRadius: 6,
                     }}>
                         {error}

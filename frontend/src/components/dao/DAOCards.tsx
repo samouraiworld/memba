@@ -17,7 +17,7 @@ export function StatCard({ label, value, icon, accent }: { label: string; value:
                 }}>
                     {value}
                 </div>
-                <div style={{ fontSize: 9, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: 9, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
                     {label}
                 </div>
             </div>
@@ -42,8 +42,8 @@ export function TierBar({ tier, totalPower }: { tier: TierInfo; totalPower: numb
                         display: "inline-block", width: 8, height: 8, borderRadius: "50%",
                         background: color,
                     }} />
-                    <span style={{ color: "#ccc", fontWeight: 600 }}>{tier.tier}</span>
-                    <span style={{ color: "#666" }}>• {tier.memberCount} members</span>
+                    <span style={{ color: "var(--color-text-secondary)", fontWeight: 600 }}>{tier.tier}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>• {tier.memberCount} members</span>
                 </div>
                 <span style={{ color }}>
                     {tier.power} power ({pct}%)

@@ -39,7 +39,7 @@ export function WizardStepPreset({
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Preset Cards */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: "#f0f0f0", marginBottom: 12 }}>DAO Type</h3>
+                <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>DAO Type</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                     {DAO_PRESETS.map((preset) => (
                         <button
@@ -56,7 +56,7 @@ export function WizardStepPreset({
                             <div style={{ fontSize: 13, fontWeight: 600, color: selectedPreset === preset.id ? "#00d4aa" : "#f0f0f0", marginBottom: 4 }}>
                                 {preset.name}
                             </div>
-                            <div style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>
+                            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>
                                 {preset.description}
                             </div>
                             <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -118,7 +118,7 @@ export function WizardStepPreset({
                         )}
                     </div>
                     {realmPath && validateRealmPath(realmPath) && (
-                        <p style={{ color: "#f5a623", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-warning)", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                             ⚠ {validateRealmPath(realmPath)}
                         </p>
                     )}

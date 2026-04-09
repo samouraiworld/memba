@@ -21,9 +21,9 @@ const ANALYST_ENABLED = import.meta.env.VITE_ENABLE_ANALYST === "true"
 // ── Verdict Badge ────────────────────────────────────────────
 
 const VERDICT_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-    approve: { bg: "rgba(76,175,80,0.1)", color: "#4caf50", label: "APPROVE" },
-    reject: { bg: "rgba(244,67,54,0.1)", color: "#f44336", label: "REJECT" },
-    caution: { bg: "rgba(255,152,0,0.1)", color: "#ff9800", label: "CAUTION" },
+    approve: { bg: "rgba(76,175,80,0.1)", color: "var(--color-success)", label: "APPROVE" },
+    reject: { bg: "rgba(244,67,54,0.1)", color: "var(--color-danger)", label: "REJECT" },
+    caution: { bg: "rgba(255,152,0,0.1)", color: "var(--color-warning)", label: "CAUTION" },
     abstain: { bg: "rgba(158,158,158,0.1)", color: "#9e9e9e", label: "ABSTAIN" },
 }
 

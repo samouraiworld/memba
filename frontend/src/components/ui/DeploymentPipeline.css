@@ -48,7 +48,7 @@
     top: 42px;
     bottom: -14px;
     width: 2px;
-    background: #222;
+    background: var(--color-border-light);
     transition: background 0.4s ease;
 }
 
@@ -73,21 +73,21 @@
 
 .deploy-step-icon[data-state="waiting"] {
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid #222;
-    color: #444;
+    border: 1px solid var(--color-border-light);
+    color: var(--color-text-dim);
 }
 
 .deploy-step-icon[data-state="active"] {
     background: rgba(0, 212, 170, 0.12);
     border: 1px solid rgba(0, 212, 170, 0.3);
-    color: #00d4aa;
+    color: var(--color-primary);
     animation: stepPulse 1.5s ease-in-out infinite;
 }
 
 .deploy-step-icon[data-state="done"] {
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .deploy-step-icon[data-state="error"] {
@@ -100,22 +100,22 @@
 .deploy-step-label {
     font-size: 13px;
     font-weight: 600;
-    color: #444;
+    color: var(--color-text-dim);
     transition: color 0.3s ease;
     font-family: "JetBrains Mono", monospace;
 }
 
 .deploy-step-label[data-state="active"] {
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .deploy-step-label[data-state="done"] {
-    color: #888;
+    color: var(--color-text-secondary);
 }
 
 .deploy-step-hint {
     font-size: 11px;
-    color: #444;
+    color: var(--color-text-dim);
     font-family: "JetBrains Mono", monospace;
     margin-top: 2px;
     transition: color 0.3s ease;
@@ -123,7 +123,7 @@
 
 .deploy-step[data-done="true"] .deploy-step-hint,
 .deploy-step[data-active="true"] .deploy-step-hint {
-    color: #666;
+    color: var(--color-text-secondary);
 }
 
 /* Completion card */
@@ -138,7 +138,7 @@
     height: 64px;
     border-radius: 50%;
     background: rgba(0, 212, 170, 0.1);
-    border: 2px solid #00d4aa;
+    border: 2px solid var(--color-primary);
     display: flex;
     align-items: center;
     justify-content: center;

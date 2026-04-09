@@ -31,7 +31,7 @@ export function PluginPage() {
                     onClick={() => navigate(`/dao/${encodedSlug}`)}
                     style={{
                         background: "none", border: "none", cursor: "pointer",
-                        color: "#00d4aa", fontSize: 12,
+                        color: "var(--color-primary)", fontSize: 12,
                         fontFamily: "JetBrains Mono, monospace",
                     }}
                 >

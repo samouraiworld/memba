@@ -21,7 +21,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 <button
                     onClick={() => onProfileClick(member.address)}
                     title="View profile"
-                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, color: "#555", transition: "color 0.15s", flexShrink: 0 }}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, color: "var(--color-text-muted)", transition: "color 0.15s", flexShrink: 0 }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
                     onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
                 >
@@ -30,12 +30,12 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 {member.username && (
                     <a
                         href={`/u/${member.username.replace("@", "")}`}
-                        style={{ fontSize: 11, color: "#00d4aa", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", whiteSpace: "nowrap" }}
+                        style={{ fontSize: 11, color: "var(--color-primary)", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                         {member.username}
                     </a>
                 )}
-                <span style={{ fontSize: 9, color: "#555", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                     title={member.address}
                 >
                     {truncAddr}
@@ -44,7 +44,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                     <span style={{
                         padding: "2px 6px", borderRadius: 4, fontSize: 9,
                         fontFamily: "JetBrains Mono, monospace",
-                        background: "rgba(0,212,170,0.1)", color: "#00d4aa", flexShrink: 0,
+                        background: "rgba(0,212,170,0.1)", color: "var(--color-primary)", flexShrink: 0,
                     }}>
                         YOU
                     </span>

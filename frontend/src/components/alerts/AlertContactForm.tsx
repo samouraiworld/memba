@@ -21,13 +21,13 @@ interface Props {
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(0,0,0,0.3)", color: "#f0f0f0",
+    background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace", fontSize: 12,
     boxSizing: "border-box",
 }
 
 const labelStyle: React.CSSProperties = {
-    fontSize: 11, color: "#888",
+    fontSize: 11, color: "var(--color-text-secondary)",
     fontFamily: "JetBrains Mono, monospace",
     display: "block", marginBottom: 4,
 }
@@ -100,19 +100,19 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                             border: "1px solid rgba(255,255,255,0.04)",
                         }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#f0f0f0" }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                                     {c.NameContact}
                                 </div>
-                                <div style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {c.Moniker} · {c.MentionTag || "no tag"}
                                 </div>
                             </div>
                             <button onClick={() => startEdit(c)}
-                                style={{ ...btnStyle, background: "rgba(0,212,170,0.08)", color: "#00d4aa" }}>
+                                style={{ ...btnStyle, background: "rgba(0,212,170,0.08)", color: "var(--color-primary)" }}>
                                 Edit
                             </button>
                             <button onClick={() => handleDelete(c.ID)}
-                                style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "#ff3b30" }}>
+                                style={{ ...btnStyle, background: "rgba(255,59,48,0.08)", color: "var(--color-danger)" }}>
                                 ×
                             </button>
                         </div>
@@ -122,7 +122,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
 
             {/* Add / Edit form */}
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#f0f0f0" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                     {editing ? "Edit Contact" : "Add Contact"}
                 </div>
 
@@ -191,7 +191,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                     </button>
                     {editing && (
                         <button type="button" onClick={resetForm}
-                            style={{ ...btnStyle, background: "rgba(255,255,255,0.03)", color: "#888" }}>
+                            style={{ ...btnStyle, background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)" }}>
                             Cancel
                         </button>
                     )}

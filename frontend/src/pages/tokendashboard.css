@@ -19,7 +19,7 @@
 }
 
 .token-back-btn {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 13px;
     background: none;
     border: none;
@@ -35,7 +35,7 @@
 }
 
 .token-subtitle {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 12px;
     margin-top: 4px;
     font-family: JetBrains Mono, monospace;
@@ -62,13 +62,13 @@
 .token-stat-value {
     font-size: 18px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .token-stat-label {
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-top: 2px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -115,14 +115,14 @@
 .token-card-symbol {
     margin-left: 6px;
     font-size: 11px;
-    color: #888;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
 }
 
 .token-admin-badge {
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
-    color: #00d4aa;
+    color: var(--color-primary);
     background: rgba(0, 212, 170, 0.08);
     padding: 2px 6px;
     border-radius: 4px;
@@ -142,19 +142,19 @@
 }
 
 .token-detail-label {
-    color: #666;
+    color: var(--color-text-secondary);
 }
 
 .token-detail-value {
-    color: #aaa;
+    color: var(--color-text-secondary);
 }
 
 .token-balance-positive {
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .token-balance-zero {
-    color: #555;
+    color: var(--color-text-muted);
 }
 
 /* ── Loading / Empty ─────────────────────────────────────── */
@@ -164,13 +164,13 @@
 }
 
 .token-loading p {
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 14px;
     font-family: JetBrains Mono, monospace;
 }
 
 .token-empty {
-    background: #0c0c0c;
+    background: var(--color-bg-card);
     padding: 48px;
     text-align: center;
 }
@@ -194,7 +194,7 @@
 }
 
 .token-empty-desc {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 13px;
     max-width: 360px;
     margin: 0 auto 20px;
@@ -207,7 +207,7 @@
 }
 
 .token-refresh-btn {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 11px;
     background: none;
     border: none;

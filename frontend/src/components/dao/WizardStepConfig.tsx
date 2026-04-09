@@ -31,7 +31,7 @@ export function WizardStepConfig({
                         style={{ flex: 1 }}
                     />
                     <span style={{
-                        fontSize: 20, fontWeight: 700, color: "#00d4aa",
+                        fontSize: 20, fontWeight: 700, color: "var(--color-primary)",
                         fontFamily: "JetBrains Mono, monospace", minWidth: 50, textAlign: "center",
                     }}>
                         {threshold}%
@@ -59,7 +59,7 @@ export function WizardStepConfig({
                 </div>
                 {quorum > 0 && (
                     <div className="k-card" style={{ padding: 12, marginTop: 8, background: "rgba(123,97,255,0.04)", border: "1px solid rgba(123,97,255,0.12)" }}>
-                        <p style={{ fontSize: 11, color: "#aaa", fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             At least <strong style={{ color: "#7b61ff" }}>{Math.ceil(totalPower * quorum / 100)}</strong> voting power must participate before a proposal can pass or fail.
                         </p>
                     </div>
@@ -93,11 +93,11 @@ export function WizardStepConfig({
 
             {/* Summary card */}
             <div className="k-card" style={{ padding: 16, background: "rgba(0,212,170,0.03)", border: "1px solid rgba(0,212,170,0.1)" }}>
-                <p style={{ fontSize: 12, color: "#aaa", fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     With {validMembers.length} members and total power {totalPower}:
                 </p>
-                <p style={{ fontSize: 13, color: "#f0f0f0", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
-                    A proposal needs <strong style={{ color: "#00d4aa" }}>{Math.ceil(totalPower * threshold / 100)}</strong> YES power to pass
+                <p style={{ fontSize: 13, color: "var(--color-text)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                    A proposal needs <strong style={{ color: "var(--color-primary)" }}>{Math.ceil(totalPower * threshold / 100)}</strong> YES power to pass
                     {quorum > 0 && <> with at least <strong style={{ color: "#7b61ff" }}>{quorum}%</strong> participation</>}
                 </p>
             </div>

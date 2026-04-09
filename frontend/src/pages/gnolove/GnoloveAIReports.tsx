@@ -82,7 +82,7 @@ function ReportCard({ report }: { report: TAIReport }) {
                             <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: "#a78bfa" }}>
                                 {p.project_name}
                             </h4>
-                            <p style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: 0 }}>
+                            <p style={{ fontSize: 12, lineHeight: 1.6, color: "var(--color-text-secondary)", margin: 0 }}>
                                 {p.summary}
                             </p>
                         </div>
@@ -120,7 +120,7 @@ export default function GnoloveAIReports() {
         return (
             <div className="gl-empty">
                 <p>No AI reports available yet.</p>
-                <p style={{ fontSize: 12, color: "#666" }}>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                     Reports are generated weekly by the gnolove backend.
                 </p>
             </div>

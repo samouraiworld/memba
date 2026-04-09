@@ -108,7 +108,7 @@ export function ProposeDAO() {
                 id="propose-back-btn"
                 aria-label="Back to DAO"
                 onClick={() => navigate(`/dao/${encodedSlug}`)}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
             </button>
@@ -116,7 +116,7 @@ export function ProposeDAO() {
             {/* Header */}
             <div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>New Proposal</h2>
-                <p style={{ color: "#666", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Submit a proposal for the DAO to vote on
                 </p>
             </div>
@@ -130,7 +130,7 @@ export function ProposeDAO() {
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
                     <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
-                    <div style={{ fontSize: 12, color: "#f5a623", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: 12, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace" }}>
                         This DAO is archived — new proposals cannot be created
                     </div>
                 </div>
@@ -138,14 +138,14 @@ export function ProposeDAO() {
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "#666", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to create a proposal
                     </p>
                 </div>
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "#00d4aa", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -293,27 +293,27 @@ export function ProposeDAO() {
             {/* Summary */}
             <div className="k-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Realm</span>
-                    <span style={{ color: "#aaa" }}>{realmPath}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Realm</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{realmPath}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Function</span>
-                    <span style={{ color: "#aaa" }}>Propose(title, description{isGovDAO ? "" : ", category"})</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Function</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Propose(title, description{isGovDAO ? "" : ", category"})</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "#666" }}>Proposer</span>
-                    <span style={{ color: "#aaa" }}>{adena.address || "—"}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Proposer</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{adena.address || "—"}</span>
                 </div>
             </div>
 
             {/* Source Code Preview */}
             {auth.isAuthenticated && title.trim() && (
                 <details style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                    <summary style={{ cursor: "pointer", color: "#555", userSelect: "none" }}>
+                    <summary style={{ cursor: "pointer", color: "var(--color-text-muted)", userSelect: "none" }}>
                         📋 View Source Code (MsgCall)
                     </summary>
                     <pre style={{
-                        marginTop: 8, fontSize: 10, color: "#666", overflow: "auto",
+                        marginTop: 8, fontSize: 10, color: "var(--color-text-secondary)", overflow: "auto",
                         background: "#0c0c0c", padding: 12, borderRadius: 8,
                         border: "1px solid #1a1a1a", maxHeight: 200,
                     }}>
@@ -352,19 +352,19 @@ export function ProposeDAO() {
 
 const labelStyle: React.CSSProperties = {
     display: "block", marginBottom: 6, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#888",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
     textTransform: "uppercase", letterSpacing: "0.05em",
 }
 
 const hintStyle: React.CSSProperties = {
     marginTop: 4, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "#555",
+    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
 }
 
 function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "#f0f0f0",
+        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }

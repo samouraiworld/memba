@@ -50,7 +50,7 @@ export function ConnectingLoader({ message = "Connecting to Memba...", minHeight
             {/* Status text */}
             <span style={{
                 fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                color: "#555", letterSpacing: "0.03em",
+                color: "var(--color-text-muted)", letterSpacing: "0.03em",
             }}>
                 {message}
             </span>

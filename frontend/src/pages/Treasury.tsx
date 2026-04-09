@@ -122,7 +122,7 @@ export function Treasury() {
                 id="treasury-back-btn"
                 aria-label="Back to DAO"
                 onClick={() => navigate(`/dao/${encodedSlug}`)}
-                style={{ color: "#00d4aa", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
             </button>
@@ -132,7 +132,7 @@ export function Treasury() {
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
                     💰 Treasury
                 </h2>
-                <p style={{ color: "#888", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     {config?.name || "DAO"} treasury overview
                 </p>
             </div>
@@ -147,7 +147,7 @@ export function Treasury() {
             {/* Assets Table */}
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f0f0f0" }}>Assets</h3>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)" }}>Assets</h3>
                     {auth.isAuthenticated && isCurrentUserMember && (
                         <button
                             className="k-btn-primary"
@@ -161,10 +161,10 @@ export function Treasury() {
 
                 {assets.length === 0 ? (
                     <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                        <p style={{ color: "#555", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                             No assets found in treasury
                         </p>
-                        <p style={{ color: "#444", fontSize: 11, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-text-dim)", fontSize: 11, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
                             Assets will appear once tokens are transferred to the DAO
                         </p>
                     </div>
@@ -173,7 +173,7 @@ export function Treasury() {
                         {/* Header */}
                         <div style={{
                             display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-                            padding: "8px 20px", fontSize: 10, color: "#555",
+                            padding: "8px 20px", fontSize: 10, color: "var(--color-text-muted)",
                             fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase",
                             letterSpacing: "0.05em", borderBottom: "1px solid #1a1a1a",
                         }}>
@@ -197,7 +197,7 @@ export function Treasury() {
                                 onMouseEnter={(e) => e.currentTarget.style.borderColor = "#333"}
                                 onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
                             >
-                                <span style={{ fontSize: 13, fontWeight: 500, color: "#f0f0f0" }}>
+                                <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>
                                     {asset.name}
                                 </span>
                                 <span style={{
@@ -208,7 +208,7 @@ export function Treasury() {
                                 </span>
                                 <span style={{
                                     textAlign: "right", fontSize: 14, fontWeight: 700,
-                                    fontFamily: "JetBrains Mono, monospace", color: "#f0f0f0",
+                                    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)",
                                 }}>
                                     {formatBalance(asset.rawBalance)}
                                 </span>
@@ -237,7 +237,7 @@ function StatCard({ label, value, icon, accent }: { label: string; value: string
                 }}>
                     {value}
                 </div>
-                <div style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: 10, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
                     {label}
                 </div>
             </div>

@@ -16,7 +16,7 @@
 
 /* ── Back button ─────────────────────────────────────────── */
 .profile-back-btn {
-    color: #00d4aa;
+    color: var(--color-primary);
     font-size: 13px;
     background: none;
     border: none;
@@ -70,7 +70,7 @@
 
 .profile-avatar-fallback {
     font-size: 28px;
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 /* ── Identity section ────────────────────────────────────── */
@@ -90,7 +90,7 @@
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .profile-badge-you {
@@ -100,7 +100,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(0, 212, 170, 0.1);
-    color: #00d4aa;
+    color: var(--color-primary);
 }
 
 .profile-edit-btn {
@@ -109,15 +109,15 @@
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid #222;
-    color: #888;
+    border: 1px solid var(--color-border-light);
+    color: var(--color-text-secondary);
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s;
 }
 
 .profile-edit-btn:hover {
-    border-color: #00d4aa;
-    color: #00d4aa;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 .profile-saved-indicator {
@@ -131,7 +131,7 @@
 }
 
 .profile-bio {
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 13px;
     font-family: JetBrains Mono, monospace;
     margin-top: 10px;
@@ -154,7 +154,7 @@
 .profile-edit-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 16px;
 }
 
@@ -182,7 +182,7 @@
     font-family: JetBrains Mono, monospace;
     background: none;
     border: 1px solid #333;
-    color: #888;
+    color: var(--color-text-secondary);
     cursor: pointer;
 }
 
@@ -193,7 +193,7 @@
     font-family: JetBrains Mono, monospace;
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
-    color: #00d4aa;
+    color: var(--color-primary);
     cursor: pointer;
 }
 
@@ -243,13 +243,13 @@
 .profile-github-cta-title {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 4px;
 }
 
 .profile-github-cta-desc {
     font-size: 11px;
-    color: #666;
+    color: var(--color-text-secondary);
     font-family: JetBrains Mono, monospace;
     max-width: 400px;
 }
@@ -279,7 +279,7 @@
 .profile-unlink-btn {
     background: none;
     border: 1px solid #333;
-    color: #888;
+    color: var(--color-text-secondary);
     font-size: 11px;
     padding: 6px 14px;
     border-radius: 6px;
@@ -309,12 +309,12 @@
 .profile-contrib-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
 }
 
 .profile-contrib-link {
     font-size: 10px;
-    color: #00d4aa;
+    color: var(--color-primary);
     font-family: JetBrains Mono, monospace;
     text-decoration: none;
 }
@@ -328,7 +328,7 @@
 .profile-score-formula {
     margin-top: 12px;
     font-size: 9px;
-    color: #444;
+    color: var(--color-text-dim);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -340,7 +340,7 @@
 .profile-section-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-text);
     margin-bottom: 14px;
 }
 
@@ -366,13 +366,13 @@
 .profile-package-path {
     font-size: 12px;
     font-family: JetBrains Mono, monospace;
-    color: #00d4aa;
+    color: var(--color-primary);
     word-break: break-all;
 }
 
 .profile-package-block {
     font-size: 9px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: JetBrains Mono, monospace;
     white-space: nowrap;
     margin-left: 10px;
@@ -380,7 +380,7 @@
 
 .profile-packages-more {
     font-size: 11px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: JetBrains Mono, monospace;
     text-align: center;
     padding: 8px;
@@ -406,13 +406,13 @@
 
 .profile-vote-id {
     font-size: 10px;
-    color: #555;
+    color: var(--color-text-muted);
     font-family: JetBrains Mono, monospace;
 }
 
 .profile-vote-title {
     font-size: 12px;
-    color: #ccc;
+    color: var(--color-text-secondary);
     margin-left: 8px;
 }
 
@@ -434,7 +434,7 @@
 
 /* ── Empty State ─────────────────────────────────────────── */
 .profile-empty {
-    background: #0c0c0c;
+    background: var(--color-bg-card);
     padding: 48px;
     text-align: center;
 }
@@ -458,7 +458,7 @@
 }
 
 .profile-empty-desc {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 12px;
     max-width: 360px;
     margin: 0 auto;
@@ -472,7 +472,7 @@
 }
 
 .profile-no-address p {
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 14px;
     font-family: JetBrains Mono, monospace;
 }
