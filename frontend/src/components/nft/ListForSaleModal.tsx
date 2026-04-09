@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react"
 import { buildListForSaleMsg } from "../../lib/nftMarketplace"
+import { buildApproveMsg } from "../../lib/grc721"
 import { NFT_MARKETPLACE_PATH, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
 
 interface Props {
@@ -41,14 +42,25 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            const msg = buildListForSaleMsg(
+
+            // Step 1: Approve the marketplace to transfer this NFT
+            const approveMsg = buildApproveMsg(
+                callerAddress,
+                nftRealm,
+                NFT_MARKETPLACE_PATH,
+                tokenId,
+            )
+            await doContractBroadcast([approveMsg], `Approve marketplace for ${tokenId}`)
+
+            // Step 2: List the NFT for sale
+            const listMsg = buildListForSaleMsg(
                 callerAddress,
                 NFT_MARKETPLACE_PATH,
                 nftRealm,
                 tokenId,
                 priceUgnot,
             )
-            await doContractBroadcast([msg], `List NFT for sale: ${tokenId}`)
+            await doContractBroadcast([listMsg], `List NFT for sale: ${tokenId}`)
             onSuccess()
         } catch (err) {
             setError(err instanceof Error ? err.message : "Listing failed")

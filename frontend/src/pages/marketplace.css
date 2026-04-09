@@ -474,7 +474,7 @@
     border-radius: 6px;
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-size: 12px;
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;
@@ -504,7 +504,7 @@
     background: none;
     border: none;
     font-size: 20px;
-    color: #333;
+    color: var(--color-text-muted);
     cursor: pointer;
     padding: 0 2px;
     transition: color 0.1s;
@@ -696,7 +696,7 @@
     border-radius: 6px;
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-size: 12px;
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;
@@ -748,7 +748,7 @@
     border-radius: 6px;
     background: var(--color-primary);
     border: none;
-    color: #000;
+    color: var(--color-bg);
     font-weight: 600;
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;

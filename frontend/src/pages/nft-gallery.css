@@ -105,7 +105,7 @@
     border-radius: 8px;
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-size: 12px;
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;
@@ -364,7 +364,7 @@
     border-radius: 6px;
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-size: 11px;
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;
@@ -414,7 +414,7 @@
 }
 
 .nft-modal {
-    background: #1a1a2e;
+    background: var(--color-bg-card, var(--color-surface));
     border-radius: 14px;
     border: 1px solid var(--color-border);
     padding: 24px;
@@ -542,7 +542,7 @@
     border-radius: 8px;
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-size: 12px;
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;

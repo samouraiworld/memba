@@ -164,3 +164,49 @@ export function getMintableRankBadges(
     }
     return mintable
 }
+
+// ── Mint Message Builders (admin-only) ─────────────────────
+
+/**
+ * Build MsgCall for MintQuestBadge.
+ * Only callable by realm admins (samcrew-core-test1 multisig).
+ */
+export function buildMintQuestBadgeMsg(
+    callerAddr: string,
+    toAddr: string,
+    questId: string,
+    tokenUri: string = "",
+): { type: string; value: Record<string, unknown> } {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller: callerAddr,
+            send: "",
+            pkg_path: BADGE_REALM_PATH,
+            func: "MintQuestBadge",
+            args: [toAddr, questId, tokenUri],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for MintRankBadge.
+ * Only callable by realm admins (samcrew-core-test1 multisig).
+ */
+export function buildMintRankBadgeMsg(
+    callerAddr: string,
+    toAddr: string,
+    tier: number,
+    tokenUri: string = "",
+): { type: string; value: Record<string, unknown> } {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller: callerAddr,
+            send: "",
+            pkg_path: BADGE_REALM_PATH,
+            func: "MintRankBadge",
+            args: [toAddr, String(tier), tokenUri],
+        },
+    }
+}

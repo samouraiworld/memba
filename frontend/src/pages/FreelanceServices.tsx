@@ -233,14 +233,8 @@ function BrowseServicesTab({ adena, auth, onError }: {
         document.title = "Freelance Services — Memba"
         fetchServiceListings(category === "all" ? "" : category)
             .then(real => {
-                if (real.length > 0) {
-                    setListings(real)
-                    setIsDemo(false)
-                } else {
-                    const demo = category === "all" ? DEMO_LISTINGS : DEMO_LISTINGS.filter(l => l.category === category)
-                    setListings(demo)
-                    setIsDemo(true)
-                }
+                setListings(real)
+                setIsDemo(real.length === 0)
             })
             .finally(() => setLoading(false))
     }, [category])
