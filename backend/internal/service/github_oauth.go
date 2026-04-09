@@ -99,11 +99,11 @@ type githubUser struct {
 }
 
 // GitHubOAuthExchangeResponse is returned to the frontend.
+// v5 security: Token field removed — GitHub access token stays server-side only.
 type GitHubOAuthExchangeResponse struct {
 	Login     string `json:"login"`
 	AvatarURL string `json:"avatar_url"`
 	Name      string `json:"name"`
-	Token     string `json:"token"`
 }
 
 // ── Handlers ─────────────────────────────────────────────────────
@@ -185,7 +185,6 @@ func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
 			Login:     user.Login,
 			AvatarURL: user.AvatarURL,
 			Name:      user.Name,
-			Token:     token,
 		})
 	}
 }

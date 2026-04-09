@@ -1,0 +1,227 @@
+/**
+ * CreateMultisig.css — Extracted from inline styles in CreateMultisig.tsx.
+ * Covers form inputs, member rows, buttons, and layout patterns.
+ */
+
+/* ── Page layout ────────────────────────────────────────── */
+.cms-page {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* ── Back button ────────────────────────────────────────── */
+.cms-back-btn {
+    color: var(--color-primary);
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 16px;
+    font-family: JetBrains Mono, monospace;
+    padding: 0;
+}
+
+/* ── Page header ────────────────────────────────────────── */
+.cms-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.cms-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+/* ── Connect prompt ─────────────────────────────────────── */
+.cms-connect-prompt {
+    background: #0c0c0c;
+    padding: 32px;
+    text-align: center;
+}
+
+.cms-connect-prompt p {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+    margin: 0;
+}
+
+/* ── Form inputs (shared) ───────────────────────────────── */
+.cms-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #0c0c0c;
+    border: 1px solid #222;
+    color: var(--color-text);
+    font-family: JetBrains Mono, monospace;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.cms-input--sm {
+    height: 36px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.cms-input--xs {
+    height: 32px;
+    border-radius: 4px;
+    font-size: 11px;
+    border-color: #333;
+    margin-top: 4px;
+}
+
+/* ── Label with block display ───────────────────────────── */
+.cms-label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* ── Members section ────────────────────────────────────── */
+.cms-members-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.cms-add-member-btn {
+    color: var(--color-primary);
+    font-size: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: JetBrains Mono, monospace;
+    padding: 0;
+}
+
+.cms-members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cms-member-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cms-member-inputs {
+    display: flex;
+    gap: 8px;
+}
+
+.cms-fetch-btn {
+    padding: 0 12px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid #222;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+    background: none;
+    transition: all 0.15s;
+}
+
+.cms-fetch-btn--ok {
+    background: rgba(0, 212, 170, 0.08);
+    border-color: rgba(0, 212, 170, 0.2);
+    color: #00d4aa;
+}
+
+.cms-fetch-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.cms-remove-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: none;
+    border: 1px solid #222;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* ── Member error / pubkey display ──────────────────────── */
+.cms-member-error {
+    font-size: 11px;
+    color: var(--color-warning);
+    font-family: JetBrains Mono, monospace;
+    padding-left: 4px;
+}
+
+.cms-member-pubkey {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-family: JetBrains Mono, monospace;
+    padding-left: 4px;
+}
+
+/* ── Threshold ──────────────────────────────────────────── */
+.cms-threshold-slider {
+    width: 100%;
+    accent-color: #00d4aa;
+}
+
+.cms-threshold-hint {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 8px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Submit row ─────────────────────────────────────────── */
+.cms-submit-row {
+    display: flex;
+    gap: 12px;
+}
+
+/* ── Validation hint ────────────────────────────────────── */
+.cms-validation-hint {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(245, 166, 35, 0.06);
+    border: 1px solid rgba(245, 166, 35, 0.12);
+    color: var(--color-warning);
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    line-height: 1.6;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .cms-page {
+        gap: 20px;
+    }
+
+    .cms-member-inputs {
+        flex-wrap: wrap;
+    }
+
+    .cms-member-inputs .cms-input--sm {
+        min-width: 0;
+    }
+
+    .cms-submit-row {
+        flex-direction: column;
+    }
+
+    .cms-submit-row button {
+        width: 100%;
+    }
+}

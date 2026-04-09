@@ -262,11 +262,13 @@ export function checkAndSetLegacyEligibility(): void {
     } catch { /* */ }
 }
 
-/** Get completion percentage (0-100) across all quests (v1 + v2 GnoBuilders). */
+/** Get completion percentage (0-100) across all unique quests (v2 ALL_QUESTS is authoritative). */
 export function getCompletionPercent(): number {
     const state = loadQuestProgress()
-    const totalQuests = ALL_QUESTS.length + QUESTS.length
-    return Math.round((state.completed.length / totalQuests) * 100)
+    // ALL_QUESTS (85 GnoBuilders quests) is the complete set — QUESTS (v1) overlaps.
+    const totalQuests = ALL_QUESTS.length
+    if (totalQuests === 0) return 0
+    return Math.min(100, Math.round((state.completed.length / totalQuests) * 100))
 }
 
 // ── Backend Sync ─────────────────────────────────────────────

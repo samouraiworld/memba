@@ -9,8 +9,12 @@
  * - Admin/public mint toggle
  * - Render() gallery display
  *
+ * Uses centralized sanitizer from templates/sanitizer.ts for Go string escaping.
+ *
  * @module lib/grc1155Template
  */
+
+import { escapeGnoString } from "./templates/sanitizer"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -360,6 +364,4 @@ export function buildDeployGRC1155Msg(
     }
 }
 
-function escapeGnoString(s: string): string {
-    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")
-}
+// escapeGnoString is now imported from templates/sanitizer.ts (centralized, handles backticks + dollar signs)

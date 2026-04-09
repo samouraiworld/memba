@@ -446,6 +446,10 @@
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 600px) {
+    .dao-container {
+        gap: 14px;
+    }
+
     .dao-title {
         font-size: 18px;
     }
@@ -458,6 +462,17 @@
         flex-wrap: wrap;
     }
 
+    .dao-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .dao-new-proposal-btn {
+        width: 100%;
+        text-align: center;
+    }
+
     .dao-treasury-card {
         flex-direction: column;
         align-items: flex-start;
@@ -466,5 +481,13 @@
 
     .dao-extensions-grid {
         grid-template-columns: 1fr;
+    }
+
+    .dao-members-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dao-overview-card {
+        padding: 12px 14px;
     }
 }

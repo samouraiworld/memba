@@ -85,9 +85,14 @@ export interface DirectoryUser {
 
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
+/** P1 fix: scope cache keys by active network to prevent stale cross-network data. */
+function _cacheKey(key: string): string {
+    return `memba_dir_${_activeNetworkKey()}_${key}`
+}
+
 function getCached<T>(key: string): T | null {
     try {
-        const raw = sessionStorage.getItem(`memba_dir_${key}`)
+        const raw = sessionStorage.getItem(_cacheKey(key))
         if (!raw) return null
         const entry = JSON.parse(raw)
         // C2 audit fix: validate schema before trusting cached data
@@ -95,11 +100,11 @@ function getCached<T>(key: string): T | null {
             typeof entry !== "object" || entry === null ||
             typeof entry.ts !== "number" || !("data" in entry)
         ) {
-            sessionStorage.removeItem(`memba_dir_${key}`)
+            sessionStorage.removeItem(_cacheKey(key))
             return null
         }
         if (Date.now() - entry.ts > CACHE_TTL) {
-            sessionStorage.removeItem(`memba_dir_${key}`)
+            sessionStorage.removeItem(_cacheKey(key))
             return null
         }
         return entry.data as T
@@ -111,7 +116,7 @@ function getCached<T>(key: string): T | null {
 function setCache<T>(key: string, data: T): void {
     try {
         sessionStorage.setItem(
-            `memba_dir_${key}`,
+            _cacheKey(key),
             JSON.stringify({ data, ts: Date.now() }),
         )
     } catch { /* quota exceeded */ }

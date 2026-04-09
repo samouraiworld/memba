@@ -56,7 +56,12 @@ export function CreateToken() {
             })()
     }, [auth.isAuthenticated, auth.token])
 
-    const parsedMint = initialMint.trim() ? BigInt(initialMint.trim()) : 0n
+    let parsedMint = 0n
+    try {
+        parsedMint = initialMint.trim() ? BigInt(initialMint.trim()) : 0n
+    } catch {
+        // Non-numeric input (e.g., pasted "1,000" or "1e18") — treat as 0 until validated in handleCreate
+    }
     const fee = parsedMint > 0n ? calculateFee(parsedMint) : 0n
 
     const handleCreate = async () => {
@@ -75,7 +80,12 @@ export function CreateToken() {
         const dec = parseInt(decimals, 10)
         if (isNaN(dec) || dec < 0 || dec > 18) { setError("Decimals must be 0-18"); return }
         if (parsedMint < 0n) { setError("Initial mint must be ≥ 0"); return }
-        const faucet = BigInt(faucetAmount.trim() || "0")
+        let faucet = 0n
+        try {
+            faucet = BigInt(faucetAmount.trim() || "0")
+        } catch {
+            setError("Faucet amount must be a valid number"); return
+        }
         if (faucet < 0n) { setError("Faucet amount must be ≥ 0"); return }
 
         if (adminMode === "multisig" && !selectedMultisig) {

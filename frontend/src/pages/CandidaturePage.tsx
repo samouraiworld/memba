@@ -165,6 +165,11 @@ export default function CandidaturePage() {
                             Awaiting DAO governance vote for approval
                         </p>
                     )}
+                    {existingCandidature.status === "approved" && (
+                        <p className="candidature-status__approvals" style={{ marginTop: 8, fontSize: 13, color: "var(--color-text-secondary)" }}>
+                            Next step: A DAO admin should create a "Propose Add Member" proposal to officially add you to the DAO member list.
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -230,7 +235,7 @@ export default function CandidaturePage() {
                     <span className="candidature-success__icon">🎉</span>
                     <h3 className="candidature-success__title">Candidature Submitted!</h3>
                     <p className="candidature-success__desc">
-                        Your application is now pending review. Two existing members must approve it.
+                        Your application is now pending review. It will be submitted to a DAO governance vote (66% approval threshold).
                     </p>
                     <button
                         className="candidature-success__btn"

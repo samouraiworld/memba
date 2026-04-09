@@ -20,7 +20,7 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidChannelName } from "./templates/sanitizer"
+import { isValidChannelName, isValidIdentifier } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
 export { isValidChannelName } from "./templates/sanitizer"
 
@@ -121,15 +121,19 @@ export function generateChannelCode(config: ChannelConfig): string {
     // Generate channel init block
     const channelInit = safeChannels
         .map((ch) => {
-            const readRolesStr = ch.acl.readRoles.length > 0
-                ? `"${ch.acl.readRoles.join(",")}"`
+            const safeType = ["text", "announcements", "readonly", "voice", "video"].includes(ch.type)
+                ? ch.type : "text"
+            const safeReadRoles = ch.acl.readRoles.filter(isValidIdentifier)
+            const safeWriteRoles = ch.acl.writeRoles.filter(isValidIdentifier)
+            const readRolesStr = safeReadRoles.length > 0
+                ? `"${safeReadRoles.join(",")}"`
                 : `""`
-            const writeRolesStr = ch.acl.writeRoles.length > 0
-                ? `"${ch.acl.writeRoles.join(",")}"`
+            const writeRolesStr = safeWriteRoles.length > 0
+                ? `"${safeWriteRoles.join(",")}"`
                 : `""`
             return `\tchannels = append(channels, Channel{
 \t\tName:       "${ch.name}",
-\t\tChanType:   "${ch.type}",
+\t\tChanType:   "${safeType}",
 \t\tReadRoles:  ${readRolesStr},
 \t\tWriteRoles: ${writeRolesStr},
 \t\tThreads:    []Thread{},
@@ -161,7 +165,9 @@ func assertHasTokens(addr address) {}`
 import (
 \t"chain/runtime"
 \t"strconv"
-\t"strings"${tokenGateImport}
+\t"strings"
+
+\t"gno.land/p/demo/avl"${tokenGateImport}
 )
 
 // ── Types ─────────────────────────────────────────────────
@@ -209,14 +215,36 @@ var (
 \tlastPostBlock    map[string]int64 // address → last post block height
 \tminPostInterval  = ${config.minPostInterval}
 \tadminAddr        address
+\tmembers          *avl.Tree // address string → role string (v3 ACL)
 )
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
+\tmembers = avl.NewTree()
 \tadminAddr = runtime.PreviousRealm().Address()
+\tmembers.Set(string(adminAddr), "admin") // deployer is first member
 ${channelInit}
 \t// Set initial channel order
 ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).join("\n")}
+}
+
+// ── Member Management (v3 ACL) ──────────────────────────────
+
+// AddMember registers a DAO member. Admin only.
+func AddMember(_ realm, addr address, role string) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertIsAdmin(caller)
+\tmembers.Set(string(addr), role)
+}
+
+// RemoveMember removes a member. Admin only.
+func RemoveMember(_ realm, addr address) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertIsAdmin(caller)
+\tif addr == adminAddr {
+\t\tpanic("cannot remove admin")
+\t}
+\tmembers.Remove(string(addr))
 }
 
 // ── Queries ───────────────────────────────────────────────
@@ -277,7 +305,7 @@ func renderChannel(name string) string {
 \t\t\tfor i := len(active) - 1; i >= 0; i-- {
 \t\t\t\tt := active[i]
 \t\t\t\tout += "### [" + t.Title + "](:" + ch.Name + "/" + strconv.Itoa(t.ID) + ")\\n"
-\t\t\t\tout += "by " + string(t.Author)[:10] + "... | " + strconv.Itoa(countActiveReplies(t)) + " replies | block " + strconv.FormatInt(t.CreatedAt, 10) + "\\n\\n"
+\t\t\t\tout += "by " + truncAddr(t.Author) + " | " + strconv.Itoa(countActiveReplies(t)) + " replies | block " + strconv.FormatInt(t.CreatedAt, 10) + "\\n\\n"
 \t\t\t}
 \t\t\treturn out
 \t\t}
@@ -305,7 +333,7 @@ func renderThread(channelName string, threadID int) string {
 \t\t\t\t\tif len(active) > 0 {
 \t\t\t\t\t\tout += "## Replies (" + strconv.Itoa(len(active)) + ")\\n\\n"
 \t\t\t\t\t\tfor _, r := range active {
-\t\t\t\t\t\t\tout += "**" + string(r.Author)[:10] + "...** (block " + strconv.FormatInt(r.CreatedAt, 10) + ")"
+\t\t\t\t\t\t\tout += "**" + truncAddr(r.Author) + "** (block " + strconv.FormatInt(r.CreatedAt, 10) + ")"
 \t\t\t\t\t\t\tif r.EditedAt > 0 {
 \t\t\t\t\t\t\t\tout += " *(edited)*"
 \t\t\t\t\t\t\t}
@@ -406,6 +434,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 
 func EditMessage(cur realm, channel string, threadID int, replyID int, newBody string) {
 	caller := runtime.PreviousRealm().Address()
+	assertIsMember(caller)
 	blockHeight := runtime.ChainHeight()
 	if len(newBody) == 0 || len(newBody) > 8192 {
 		panic("body must be 1-8192 characters")
@@ -451,6 +480,7 @@ func EditMessage(cur realm, channel string, threadID int, replyID int, newBody s
 
 func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
 \tcaller := runtime.PreviousRealm().Address()
+\tassertIsMember(caller)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
@@ -560,10 +590,9 @@ func ReorderChannels(cur realm, order string) {
 // ── Guards ────────────────────────────────────────────────
 
 func assertIsMember(addr address) {
-\tif addr == adminAddr {
-\t\treturn
+\tif _, exists := members.Get(string(addr)); !exists {
+\t\tpanic("unauthorized: DAO membership required to post")
 \t}
-\t// TODO: When cross-realm imports are stable, import parent DAO and call IsMember()
 }
 
 func assertIsAdmin(addr address) {
@@ -574,12 +603,14 @@ func assertIsAdmin(addr address) {
 
 func assertCanPost(addr address) {
 \tif last, ok := lastPostBlock[string(addr)]; ok {
-\t\tcurrent := int64(0)
+\t\tcurrent := runtime.ChainHeight()
 \t\tif current-last < int64(minPostInterval) {
 \t\t\tpanic("rate limited: wait " + strconv.Itoa(minPostInterval) + " blocks between posts")
 \t\t}
 \t}
+\t// NOTE: block height recording moved to write functions (after all guards pass)
 }
+
 ${tokenGateCheck}
 
 func assertChannelWritable(channelName string, caller address) {
@@ -594,10 +625,28 @@ func assertChannelWritable(channelName string, caller address) {
 \t\t\tif ch.ChanType == "announcements" && caller != adminAddr {
 \t\t\t\tpanic("only admin can post in announcement channels")
 \t\t\t}
-\t\t\t// Check write role ACL
+\t\t\t// Check write role ACL (v3: uses local members tree)
 \t\t\tif ch.WriteRoles != "" {
-\t\t\t\t// Role check requires cross-realm query to parent DAO
-\t\t\t\t// TODO: implement role verification via DAO realm
+\t\t\t\troleVal, exists := members.Get(string(caller))
+\t\t\t\tif !exists {
+\t\t\t\t\tpanic("unauthorized: membership required")
+\t\t\t\t}
+\t\t\t\tcallerRole := roleVal.(string)
+\t\t\t\t// Admin always passes
+\t\t\t\tif callerRole == "admin" {
+\t\t\t\t\treturn
+\t\t\t\t}
+\t\t\t\t// Check if caller's role is in the write roles list
+\t\t\t\tallowed := false
+\t\t\t\tfor _, wr := range strings.Split(ch.WriteRoles, ",") {
+\t\t\t\t\tif strings.TrimSpace(wr) == callerRole {
+\t\t\t\t\t\tallowed = true
+\t\t\t\t\t\tbreak
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\tif !allowed {
+\t\t\t\t\tpanic("unauthorized: your role (" + callerRole + ") cannot write to this channel")
+\t\t\t\t}
 \t\t\t}
 \t\t\treturn
 \t\t}
@@ -606,6 +655,14 @@ func assertChannelWritable(channelName string, caller address) {
 }
 
 // ── Helpers ───────────────────────────────────────────────
+
+func truncAddr(addr address) string {
+\ts := string(addr)
+\tif len(s) > 13 {
+\t\treturn s[:10] + "..."
+\t}
+\treturn s
+}
 
 func countActiveThreads(ch Channel) int {
 \tcount := 0

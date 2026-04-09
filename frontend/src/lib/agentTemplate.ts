@@ -8,10 +8,14 @@
  * - Each registry is a standalone realm
  * - Agents register via RegisterAgent() with metadata
  * - Anyone can query via Render() for agent listings
+ *
+ * Uses centralized sanitizer from templates/sanitizer.ts for Go string escaping.
  * - Reviews are stored on-chain with 1-5 star ratings
  *
  * @module lib/agentTemplate
  */
+
+import { escapeGnoString, validateRealmPath as _validateRealmPath } from "./templates/sanitizer"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -28,16 +32,10 @@ export interface AgentRegistryConfig {
 
 // ── Code Generation ──────────────────────────────────────────
 
-/** Escape string for safe embedding in Gno string literals. */
-function escapeGnoString(s: string): string {
-    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "")
-}
-
-/** Validate realm path format. */
+/** Validate realm path format — delegates to centralized sanitizer. */
 function validateRealmPath(path: string): void {
-    if (!/^gno\.land\/r\/[a-z0-9_/]+$/.test(path)) {
-        throw new Error(`Invalid realm path: ${path}`)
-    }
+    const err = _validateRealmPath(path)
+    if (err) throw new Error(`Invalid realm path: ${err}`)
 }
 
 /** Validate Gno address format. */
@@ -297,14 +295,20 @@ func DepositCredits(cur realm, agentId string) {
 	credits.Set(key, existing+amount)
 }
 
-// UseCredit deducts one invocation credit. Called by the agent service.
+// UseCredit deducts one invocation credit. Only the agent creator can call this.
 // Returns the remaining credits.
 func UseCredit(cur realm, agentId, userAddr string) int64 {
+	caller := runtime.PreviousRealm().Address()
 	val, exists := agents.Get(agentId)
 	if !exists {
 		panic("agent not found")
 	}
 	a := val.(*Agent)
+
+	// v3 ACL: only the agent creator (or admin) can consume credits
+	if caller != a.Creator && string(caller) != AdminAddress {
+		panic("unauthorized: only agent creator or admin can use credits")
+	}
 
 	key := agentId + "/" + userAddr
 	if a.Pricing == "pay-per-use" && a.PricePerCall > 0 {
@@ -369,11 +373,12 @@ func RefundCredits(cur realm, agentId string) {
 		panic("zero balance")
 	}
 
+	// CEI: Effects before Interactions — zero balance BEFORE sending coins
+	credits.Set(key, int64(0))
+
 	// Transfer credits back via banker
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
 	bnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", balance)})
-
-	credits.Set(key, int64(0))
 }
 
 // ── Render ───────────────────────────────────────────────────

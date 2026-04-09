@@ -10,7 +10,7 @@
  * @module lib/dao/realmAddress.test
  */
 import { describe, test, expect } from "vitest"
-import { derivePkgBech32Addr } from "./realmAddress"
+import { derivePkgBech32Addr, pubkeyToAddress } from "./realmAddress"
 
 describe("derivePkgBech32Addr", () => {
     test("produces a valid g1-prefixed bech32 address", async () => {
@@ -56,5 +56,35 @@ describe("derivePkgBech32Addr", () => {
     test("empty path still produces a valid address", async () => {
         const addr = await derivePkgBech32Addr("")
         expect(addr).toMatch(/^g1/)
+    })
+})
+
+describe("pubkeyToAddress", () => {
+    test("produces a valid g1-prefixed bech32 address from base64 pubkey", async () => {
+        // A 33-byte compressed secp256k1 pubkey (base64-encoded)
+        const base64Pubkey = "A2GJHURckjmMFiXQvoSCZn7YSQ0OFblJw3MkxrHNBpCh"
+        const addr = await pubkeyToAddress(base64Pubkey)
+        expect(addr).toMatch(/^g1[a-z0-9]{38}$/)
+    })
+
+    test("address is deterministic", async () => {
+        const base64Pubkey = "A2GJHURckjmMFiXQvoSCZn7YSQ0OFblJw3MkxrHNBpCh"
+        const addr1 = await pubkeyToAddress(base64Pubkey)
+        const addr2 = await pubkeyToAddress(base64Pubkey)
+        expect(addr1).toBe(addr2)
+    })
+
+    test("different pubkeys produce different addresses", async () => {
+        const pk1 = "A2GJHURckjmMFiXQvoSCZn7YSQ0OFblJw3MkxrHNBpCh"
+        const pk2 = "AqLGFnDRDaJB+vHYDsOo28WzJGGfSNZSEEhcNGB5RQBM"
+        const addr1 = await pubkeyToAddress(pk1)
+        const addr2 = await pubkeyToAddress(pk2)
+        expect(addr1).not.toBe(addr2)
+    })
+
+    test("custom HRP works", async () => {
+        const base64Pubkey = "A2GJHURckjmMFiXQvoSCZn7YSQ0OFblJw3MkxrHNBpCh"
+        const addr = await pubkeyToAddress(base64Pubkey, "cosmos")
+        expect(addr).toMatch(/^cosmos1/)
     })
 })

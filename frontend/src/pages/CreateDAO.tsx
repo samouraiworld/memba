@@ -10,7 +10,7 @@ import { WizardStepConfig } from "../components/dao/WizardStepConfig"
 import { WizardStepReview } from "../components/dao/WizardStepReview"
 import { WizardStepExtensions } from "../components/dao/WizardStepExtensions"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
-import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
+import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, DAO_PRESETS, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
 import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig } from "../lib/boardTemplate"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
@@ -157,10 +157,12 @@ export function CreateDAO() {
     const goToStep = (s: Step) => {
         setError(null)
         if (s === 5) {
+            const preset = DAO_PRESETS.find(p => p.id === selectedPreset)
             const config: DAOCreationConfig = {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
                 members: members.filter((m) => m.address.startsWith(BECH32_PREFIX)),
+                votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
             }
             setGeneratedCode(generateDAOCode(config))
         }
@@ -217,10 +219,12 @@ export function CreateDAO() {
         setDeployStep("preparing")
         setError(null)
         try {
+            const preset = DAO_PRESETS.find(p => p.id === selectedPreset)
             const config: DAOCreationConfig = {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
                 members: members.filter((m) => m.address.startsWith(BECH32_PREFIX)),
+                votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
             }
             const code = generateDAOCode(config)
             const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")
@@ -251,7 +255,7 @@ export function CreateDAO() {
                 throw new Error(res.message || res.data?.message || "Deployment failed")
             }
 
-            addSavedDAO(realmPath)
+            addSavedDAO(realmPath, name)
 
             // ── Deploy Board companion realm if enabled ──
             if (enableBoard) {

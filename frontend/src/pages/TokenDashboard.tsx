@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
-import { listFactoryTokens, getTokenInfo, getTokenBalance, type TokenInfo } from "../lib/grc20"
+import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount, type TokenInfo } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { LayoutContext } from "../types/layout"
 import "./tokendashboard.css"
@@ -13,6 +13,7 @@ export function TokenDashboard() {
 
     const [tokens, setTokens] = useState<TokenInfo[]>([])
     const [balances, setBalances] = useState<Record<string, bigint>>({})
+    const [balancesStale, setBalancesStale] = useState(false)
     const [loading, setLoading] = useState(true)
 
     // Fetch token list (public data — independent of wallet connection)
@@ -44,14 +45,22 @@ export function TokenDashboard() {
     // Fetch user balances (wallet-specific — runs when wallet connects or token list loads)
     useEffect(() => {
         if (!adena.connected || !adena.address || tokens.length === 0) return
+        let stale = false
+        setBalancesStale(false)
         Promise.all(
             tokens.map(async (t) => {
                 const bal = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
                 return [t.symbol, bal] as const
             })
         )
-            .then(entries => setBalances(Object.fromEntries(entries)))
-            .catch(() => { /* non-blocking */ })
+            .then(entries => { if (!stale) setBalances(Object.fromEntries(entries)) })
+            .catch((err) => {
+                if (!stale) {
+                    console.warn("[TokenDashboard] Balance fetch failed:", err)
+                    setBalancesStale(true)
+                }
+            })
+        return () => { stale = true }
     }, [tokens, adena.connected, adena.address])
 
     return (
@@ -85,7 +94,7 @@ export function TokenDashboard() {
                 <StatCard label="Network" value={GNO_CHAIN_ID} />
                 {adena.connected && (
                     <StatCard
-                        label="Your Holdings"
+                        label={balancesStale ? "Your Holdings (stale)" : "Your Holdings"}
                         value={String(Object.values(balances).filter(b => b > 0n).length)}
                     />
                 )}
@@ -142,7 +151,7 @@ export function TokenDashboard() {
 
                                 {/* Details */}
                                 <div className="token-detail-list">
-                                    <DetailLine label="Supply" value={token.totalSupply} />
+                                    <DetailLine label="Supply" value={formatTokenAmount(BigInt(token.totalSupply || "0"), token.decimals)} />
                                     <DetailLine label="Decimals" value={String(token.decimals)} />
                                     {token.admin && (
                                         <div className="token-detail-row">
@@ -154,7 +163,7 @@ export function TokenDashboard() {
                                         <div className="token-detail-row">
                                             <span className="token-detail-label">Your Balance</span>
                                             <span className={bal > 0n ? "token-balance-positive" : "token-balance-zero"}>
-                                                {String(bal)}
+                                                {formatTokenAmount(bal, token.decimals)}
                                             </span>
                                         </div>
                                     )}

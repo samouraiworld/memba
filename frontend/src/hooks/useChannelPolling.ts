@@ -34,6 +34,9 @@ export interface UseChannelPollingOptions {
     enabled: boolean
 }
 
+/** Number of consecutive poll failures before signaling connection lost. */
+const CONNECTION_LOST_THRESHOLD = 3
+
 export interface UseChannelPollingResult {
     /** Current thread list for the active channel. */
     threads: BoardThread[]
@@ -47,6 +50,8 @@ export interface UseChannelPollingResult {
     loading: boolean
     /** Error message from the last fetch, or null. */
     error: string | null
+    /** True when N consecutive poll failures have occurred (connection may be lost). */
+    connectionLost: boolean
     /** Force an immediate refetch. */
     refresh: () => void
 }
@@ -62,12 +67,14 @@ export function useChannelPolling({
     const [hasNewContent, setHasNewContent] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [connectionLost, setConnectionLost] = useState(false)
 
     // Refs for polling control
     const isVisible = useRef(true)
     const isFetching = useRef(false)
     const prevCounts = useRef<{ threads: number; replies: number }>({ threads: 0, replies: 0 })
     const isInitialLoad = useRef(true)
+    const consecutiveFailures = useRef(0)
     // C2 fix: store volatile props in refs to prevent stale closures in interval
     const channelRef = useRef(channel)
     const threadIdRef = useRef(threadId)
@@ -125,11 +132,20 @@ export function useChannelPolling({
             }
 
             setError(null)
+            // Reset failure counter on success
+            if (consecutiveFailures.current > 0) {
+                consecutiveFailures.current = 0
+                setConnectionLost(false)
+            }
         } catch {
             if (isFirstLoad) {
                 setError(currentThreadId !== null ? "Failed to load thread" : "Failed to load threads")
+            } else {
+                consecutiveFailures.current++
+                if (consecutiveFailures.current >= CONNECTION_LOST_THRESHOLD) {
+                    setConnectionLost(true)
+                }
             }
-            // Silently ignore poll errors (transient network issues)
         } finally {
             if (isFirstLoad) setLoading(false)
             isFetching.current = false
@@ -141,7 +157,9 @@ export function useChannelPolling({
     useEffect(() => {
         isInitialLoad.current = true
         prevCounts.current = { threads: 0, replies: 0 }
+        consecutiveFailures.current = 0
         setHasNewContent(false)
+        setConnectionLost(false)
         setThreads([])
         setThreadDetail(null)
         // C1 fix: skip initial fetch when not enabled (home view)
@@ -180,6 +198,7 @@ export function useChannelPolling({
         dismissNew,
         loading,
         error,
+        connectionLost,
         refresh,
     }
 }

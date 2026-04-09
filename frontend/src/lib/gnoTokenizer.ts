@@ -6,8 +6,8 @@
  * react-refresh/only-export-components and enable unit testing.
  */
 
-const KEYWORD_RE = /\b(package|import|func|var|const|type|struct|interface|if|else|for|range|return|defer|go|select|switch|case|default|break|continue|chan|map|make|new|append|len|cap|nil|true|false|iota)\b/g
-const TYPE_RE = /\b(string|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float32|float64|bool|byte|rune|error|any)\b/g
+const KEYWORD_RE = /\b(package|import|func|var|const|type|struct|interface|if|else|for|range|return|defer|go|select|switch|case|default|break|continue|fallthrough|goto|chan|map|make|new|append|len|cap|nil|true|false|iota|panic|recover|print|println|delete|close|copy|real|imag|complex)\b/g
+const TYPE_RE = /\b(string|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float32|float64|bool|byte|rune|error|any|address|realm|bigint)\b/g
 const CUSTOM_TYPE_RE = /\b([A-Z][a-zA-Z0-9_]*)\b/g
 const NUMBER_RE = /\b(\d+(?:\.\d+)?)\b/g
 const STRING_RE = /"(?:[^"\\]|\\.)*"|`[^`]*`/g

@@ -102,6 +102,7 @@ export default function ValidatorDetail() {
     const [cs, setCs] = useState<HackerConsensusState | null>(null)
     const [heatmap, setHeatmap] = useState<BlockSample[]>([])
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [notFound, setNotFound] = useState(false)
 
     // Page visibility
@@ -132,15 +133,19 @@ export default function ValidatorDetail() {
         abortRef.current?.abort()
         const ctrl = new AbortController()
         abortRef.current = ctrl
+        setLoadError(null)
 
         try {
-            const [allValidators, networkStats, csData, sigMap, monitoringMap] = await Promise.all([
+            const [allValidators, csData, sigMap, monitoringMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
-                getNetworkStats(GNO_RPC_URL),
                 getConsensusState(rpcUrl, ctrl.signal),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
                 fetchAllMonitoringData(ctrl.signal),
             ])
+
+            if (ctrl.signal.aborted) return
+
+            const networkStats = await getNetworkStats(GNO_RPC_URL, allValidators)
 
             if (ctrl.signal.aborted) return
 
@@ -171,8 +176,10 @@ export default function ValidatorDetail() {
                 const blocks = await fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
                 if (!ctrl.signal.aborted) setHeatmap(blocks)
             }
-        } catch {
-            // resilient
+        } catch (err) {
+            if (!ctrl.signal.aborted) {
+                setLoadError(err instanceof Error ? err.message : "Failed to load validator data")
+            }
         } finally {
             if (!ctrl.signal.aborted) setLoading(false)
         }
@@ -227,6 +234,23 @@ export default function ValidatorDetail() {
                 <div className="vd-loading">
                     <span className="hk-pulse" />
                     <span>Loading validator data…</span>
+                </div>
+            </div>
+        )
+    }
+
+    // ── Render: error ────────────────────────────────────────
+    if (loadError && !validator) {
+        return (
+            <div className="vd-page">
+                <div className="vd-nav">
+                    <Link to="/validators" className="vd-back">← Validators</Link>
+                </div>
+                <div className="vd-notfound">
+                    <span className="vd-notfound__icon">⚠</span>
+                    <h2>Failed to load validator</h2>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>{loadError}</p>
+                    <button onClick={load} className="vd-btn-back" style={{ marginTop: 12 }}>Retry</button>
                 </div>
             </div>
         )

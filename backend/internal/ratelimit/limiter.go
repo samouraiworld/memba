@@ -24,8 +24,10 @@ func DefaultConfigs() map[string]Config {
 		"eval":   {MaxRequests: 10, Window: time.Minute},  // Eval is heavier
 		"balance": {MaxRequests: 20, Window: time.Minute}, // Balance check
 		"rpc":    {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
+		"tx":     {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"oauth":   {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
 		"analyst": {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
+		"upload":  {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
 		"default": {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }

@@ -43,7 +43,7 @@ export default function GnoloveHome() {
     // Derive logins to exclude from the set of excluded teams
     const excludeLogins = useMemo(() => deriveExcludeLogins(excludedTeams), [excludedTeams])
 
-    const { data: contributors, isLoading, isFetching } = useGnoloveContributors(
+    const { data: contributors, isLoading, isFetching, isError, refetch } = useGnoloveContributors(
         timeFilter, excludeLogins, selectedRepos.length > 0 ? selectedRepos : undefined
     )
     const { data: issues } = useGnoloveIssues()
@@ -136,6 +136,16 @@ export default function GnoloveHome() {
                     </span>
                 )}
             </div>
+
+            {/* P1 fix: error detection + retry banner when contributors fail to load */}
+            {isError && (
+                <div className="gl-error-banner" role="alert">
+                    <span>Failed to load contributors. The API may be temporarily unavailable.</span>
+                    <button className="gl-filter-btn" onClick={() => refetch()}>
+                        Retry
+                    </button>
+                </div>
+            )}
 
             {/* Milestone Progress */}
             {milestoneProgress && (
@@ -356,7 +366,11 @@ export default function GnoloveHome() {
                         <div className="gl-skeleton" /><div className="gl-skeleton" /><div className="gl-skeleton" />
                     </div>
                 ) : sorted.length === 0 ? (
-                    <div className="gl-empty">No contributors found for this time range.</div>
+                    <div className="gl-empty">
+                        {isError
+                            ? "Could not load contributors. Please try again."
+                            : "No contributors found for this time range."}
+                    </div>
                 ) : (
                     <>
                         <div className="gl-table-wrap" style={{ opacity: isFetching ? 0.6 : 1, transition: 'opacity 0.2s' }}>

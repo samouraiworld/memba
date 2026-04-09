@@ -7,6 +7,7 @@ import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
 import { fetchAccountInfo } from "../lib/account"
 import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, type AminoMsg } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
+import "./proposetransaction.css"
 
 type TxType = "send" | "call" | "grc20-transfer" | "grc20-mint" | "grc20-burn" | "grc20-approve"
 
@@ -132,7 +133,8 @@ export function ProposeTransaction() {
                     break
                 case "grc20-mint":
                     if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
-                    grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt))
+                    try { grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt)) }
+                    catch { setError("Invalid amount — must be a whole number"); return }
                     break
                 case "grc20-burn":
                     if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
@@ -181,26 +183,26 @@ export function ProposeTransaction() {
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className="animate-fade-in ptx-page">
             <div>
-                <button onClick={() => navigate(`/multisig/${address}`)} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate(`/multisig/${address}`)} className="ptx-back-btn">
                     ← Back to Multisig
                 </button>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Propose Transaction</h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
+                <h2 className="ptx-title">Propose Transaction</h2>
+                <p className="ptx-from-address">
                     From: {address}
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="k-dashed ptx-connect-prompt">
+                    <p>
                         Connect your wallet to propose a transaction
                     </p>
                 </div>
             )}
 
-            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222", flexWrap: "wrap" }}>
+            <div className="ptx-tabs">
                 {(["send", "call", "grc20-transfer", "grc20-mint", "grc20-burn", "grc20-approve"] as TxType[]).map(tab => {
                     const labels: Record<TxType, string> = {
                         send: "Send GNOT", call: "Contract Call",
@@ -211,13 +213,7 @@ export function ProposeTransaction() {
                         <button
                             key={tab}
                             onClick={() => setTxType(tab)}
-                            style={{
-                                padding: "10px 14px", background: "none", border: "none",
-                                borderBottom: txType === tab ? "2px solid #00d4aa" : "2px solid transparent",
-                                color: txType === tab ? "#00d4aa" : "#666",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 11,
-                                cursor: "pointer", transition: "all 0.15s",
-                            }}
+                            className={`ptx-tab${txType === tab ? " ptx-tab--active" : ""}`}
                         >
                             {labels[tab]}
                         </button>
@@ -227,7 +223,7 @@ export function ProposeTransaction() {
 
             {/* Send GNOT form */}
             {txType === "send" && (
-                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="k-card ptx-form-card">
                     <label className="k-label">Recipient Address</label>
                     <input
                         type="text"
@@ -235,7 +231,7 @@ export function ProposeTransaction() {
                         onChange={(e) => setRecipient(e.target.value)}
                         placeholder="g1recipient..."
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     <label className="k-label">Amount (GNOT)</label>
                     <input
@@ -246,14 +242,14 @@ export function ProposeTransaction() {
                         min="0"
                         step="0.000001"
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                 </div>
             )}
 
             {/* Contract Call form */}
             {txType === "call" && (
-                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="k-card ptx-form-card">
                     <label className="k-label">Package Path</label>
                     <input
                         type="text"
@@ -261,7 +257,7 @@ export function ProposeTransaction() {
                         onChange={(e) => setPkgPath(e.target.value)}
                         placeholder="gno.land/r/demo/boards"
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     <label className="k-label">Function Name</label>
                     <input
@@ -270,7 +266,7 @@ export function ProposeTransaction() {
                         onChange={(e) => setFuncName(e.target.value)}
                         placeholder="CreateThread"
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     <label className="k-label">Arguments (comma-separated)</label>
                     <input
@@ -279,7 +275,7 @@ export function ProposeTransaction() {
                         onChange={(e) => setArgs(e.target.value)}
                         placeholder="arg1, arg2, arg3"
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     <label className="k-label">Send Amount (optional GNOT)</label>
                     <input
@@ -290,9 +286,9 @@ export function ProposeTransaction() {
                         min="0"
                         step="0.000001"
                         disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
-                    <p style={{ color: "var(--color-text-muted)", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p className="ptx-hint">
                         Optional GNOT to send with the contract call (e.g. for paid functions)
                     </p>
                 </div>
@@ -300,13 +296,13 @@ export function ProposeTransaction() {
 
             {/* GRC20 Token form */}
             {txType.startsWith("grc20-") && (
-                <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="k-card ptx-form-card">
                     <label className="k-label">Token Symbol</label>
                     <input
                         type="text" value={grcSymbol}
                         onChange={e => setGrcSymbol(e.target.value.toUpperCase())}
                         placeholder="e.g. SAM" maxLength={10}
-                        disabled={loading} style={formInputStyle(loading)}
+                        disabled={loading} className="ptx-input"
                     />
                     <label className="k-label">
                         {txType === "grc20-approve" ? "Spender Address" : txType === "grc20-burn" ? "Burn From Address" : "Recipient Address"}
@@ -315,22 +311,18 @@ export function ProposeTransaction() {
                         type="text" value={grcTo}
                         onChange={e => setGrcTo(e.target.value)}
                         placeholder="g1..." disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     <label className="k-label">Amount (smallest unit)</label>
                     <input
                         type="text" value={grcAmount}
                         onChange={e => setGrcAmount(e.target.value.replace(/[^0-9]/g, ""))}
                         placeholder="e.g. 1000000" disabled={loading}
-                        style={formInputStyle(loading)}
+                        className="ptx-input"
                     />
                     {/* Mint fee disclosure */}
                     {txType === "grc20-mint" && grcAmount.trim() && BigInt(grcAmount.trim() || "0") > 0n && (
-                        <div style={{
-                            padding: "10px 14px", borderRadius: 8,
-                            background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                            fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
-                        }}>
+                        <div className="ptx-fee-disclosure">
                             💰 {feeDisclosure(BigInt(grcAmount.trim()), grcSymbol.trim() || "TOKEN")}
                         </div>
                     )}
@@ -338,7 +330,7 @@ export function ProposeTransaction() {
             )}
 
             {/* Memo */}
-            <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="k-card ptx-form-card">
                 <label className="k-label">Memo (optional)</label>
                 <input
                     type="text"
@@ -347,12 +339,12 @@ export function ProposeTransaction() {
                     placeholder="Optional memo..."
                     maxLength={256}
                     disabled={loading}
-                    style={formInputStyle(loading)}
+                    className="ptx-input"
                 />
             </div>
 
             {/* Submit */}
-            <div style={{ display: "flex", gap: 12 }}>
+            <div className="ptx-submit-row">
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
@@ -369,17 +361,6 @@ export function ProposeTransaction() {
             <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )
-}
-
-// ── Helpers ────────────────────────────────────────────────
-
-function formInputStyle(loading: boolean): React.CSSProperties {
-    return {
-        width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
-        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-        opacity: loading ? 0.5 : 1,
-    }
 }
 
 

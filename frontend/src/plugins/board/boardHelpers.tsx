@@ -10,6 +10,23 @@
 
 import React from "react"
 
+// ── URL Safety ────────────────────────────────────────────────
+
+/** Only allow safe URL protocols. Blocks javascript:, data:, vbscript: etc. */
+function sanitizeUrl(href: string): string {
+    const trimmed = href.trim()
+    // Allow relative paths, anchor links, gno.land paths
+    if (trimmed.startsWith("/") || trimmed.startsWith("#") || trimmed.startsWith("gno.land/")) {
+        return trimmed
+    }
+    // Allow http/https only
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed
+    }
+    // Block everything else (javascript:, data:, vbscript:, etc.)
+    return "#"
+}
+
 // ── UX-L1: Lightweight inline Markdown renderer ──────────────
 
 /** Render basic Markdown: **bold**, *italic*, `code`, [links](url), @mentions */
@@ -31,7 +48,8 @@ export function renderMarkdown(text: string): React.ReactNode[] {
         } else if (token.startsWith("[")) {
             const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/)
             if (linkMatch) {
-                parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>{linkMatch[1]}</a>)
+                const safeHref = sanitizeUrl(linkMatch[2])
+                parts.push(<a key={key++} href={safeHref} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>{linkMatch[1]}</a>)
             }
         } else if (token.startsWith("@g1")) {
             parts.push(

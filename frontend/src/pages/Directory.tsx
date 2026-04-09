@@ -12,7 +12,7 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react"
+import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
@@ -21,6 +21,7 @@ import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
 import { getDirectoryDAOs, fetchPackages, fetchRealms } from "../lib/directory"
 import type { DirectoryDAO, DirectoryPackage, DirectoryRealm } from "../lib/directory"
 import { encodeSlug } from "../lib/daoSlug"
+import { isValidRealmPath } from "../lib/gnowebSource"
 import "./directory.css"
 
 type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
@@ -68,19 +69,29 @@ export function Directory() {
     }, [deferredGlobalSearch, allDAOs, allPackages, allRealms])
 
     // Phase 3a: Universal search — attempt qrender for gno.land paths
-    const handleGlobalSearch = useCallback(async (query: string) => {
+    // P1 fix: 300ms debounce to avoid firing RPC on every keystroke
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const handleGlobalSearch = useCallback((query: string) => {
         setGlobalSearch(query)
         setRealmPreview(null)
 
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+
         if (query.startsWith("gno.land/") && query.length > 12) {
+            // P1 fix: validate realm path format before issuing RPC call
+            const realmPath = "/" + query.replace(/^gno\.land/, "").replace(/^\//, "")
+            if (!isValidRealmPath(realmPath)) return
+
             setPreviewLoading(true)
-            try {
-                const raw = await queryRender(GNO_RPC_URL, query, "")
-                if (raw && !raw.includes("404")) {
-                    setRealmPreview({ path: query, content: raw.slice(0, 500) })
-                }
-            } catch { /* not a valid realm */ }
-            setPreviewLoading(false)
+            debounceRef.current = setTimeout(async () => {
+                try {
+                    const raw = await queryRender(GNO_RPC_URL, query, "")
+                    if (raw && !raw.includes("404")) {
+                        setRealmPreview({ path: query, content: raw.slice(0, 500) })
+                    }
+                } catch { /* not a valid realm */ }
+                setPreviewLoading(false)
+            }, 300)
         }
     }, [])
 
@@ -95,6 +106,7 @@ export function Directory() {
             <ChainMetricsBanner />
 
             {/* Phase 3a: Universal search */}
+            <div role="search" aria-label="Search directory">
             <input
                 type="text"
                 placeholder="Search across all tabs or enter a gno.land/ path..."
@@ -102,11 +114,13 @@ export function Directory() {
                 onChange={e => handleGlobalSearch(e.target.value)}
                 className="dir-search dir-search--global"
                 data-testid="global-search"
+                aria-label="Search across all tabs or enter a gno.land path"
             />
+            </div>
 
             {/* Cross-tab search results */}
             {crossTabResults && (
-                <div className="dir-cross-results">
+                <div className="dir-cross-results" aria-live="polite">
                     {crossTabResults.daos.length > 0 && (
                         <div className="dir-cross-section">
                             <div className="dir-cross-section__header">DAOs ({crossTabResults.daos.length})</div>

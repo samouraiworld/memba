@@ -331,9 +331,14 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			return
 		}
 
-		// Check cache (skip if ?force=1)
+		// Check cache (skip if ?force=1 AND request has Authorization header)
 		cacheRealm, cacheID, cacheChain := consensusCacheKey(&req)
 		forceRefresh := r.URL.Query().Get("force") == "1"
+		if forceRefresh && r.Header.Get("Authorization") == "" {
+			// Unauthenticated force refresh not allowed — fall back to cached result
+			slog.Warn("unauthenticated force=1 cache bypass rejected")
+			forceRefresh = false
+		}
 		if !forceRefresh {
 			if cached, err := getCachedConsensus(db, cacheRealm, cacheID, cacheChain); err == nil && cached != nil {
 				w.Header().Set("Content-Type", "application/json")

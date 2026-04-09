@@ -81,7 +81,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
             "https://rpc.gnoland1.moul.p2p.team",
             "https://rpc.gnoland1.aeddi.org",
             "https://rpc.betanet.testnets.gno.land",
-            "http://163.172.33.181:26657",
         ],
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",

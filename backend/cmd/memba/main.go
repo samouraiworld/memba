@@ -131,6 +131,9 @@ func main() {
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))
 	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
 
+	// IPFS upload proxy — keeps Lighthouse API key server-side
+	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", service.HandleIPFSUpload()))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
@@ -208,6 +211,16 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
+
+		// Stricter per-IP limit for Sign/Complete transaction RPCs.
+		if endpoint == "rpc" && (strings.HasSuffix(r.URL.Path, "/SignTransaction") || strings.HasSuffix(r.URL.Path, "/CompleteTransaction")) {
+			if !limiter.Allow(ip, "tx") {
+				slog.Warn("rate limited", "ip", ip, "endpoint", "tx")
+				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

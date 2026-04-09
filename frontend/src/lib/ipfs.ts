@@ -131,15 +131,32 @@ export async function preprocessImage(file: File): Promise<Blob> {
         targetH = Math.round(height * scale)
     }
 
-    // Draw to canvas
-    const canvas = new OffscreenCanvas(targetW, targetH)
-    const ctx = canvas.getContext("2d")
-    if (!ctx) throw new Error("Canvas 2D context not available")
-    ctx.drawImage(bitmap, 0, 0, targetW, targetH)
-    bitmap.close()
-
-    // Convert to WebP blob
-    const blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.85 })
+    // Draw to canvas (OffscreenCanvas preferred, HTMLCanvasElement fallback for Safari < 16.4)
+    let blob: Blob
+    if (typeof OffscreenCanvas !== "undefined") {
+        const canvas = new OffscreenCanvas(targetW, targetH)
+        const ctx = canvas.getContext("2d")
+        if (!ctx) throw new Error("Canvas 2D context not available")
+        ctx.drawImage(bitmap, 0, 0, targetW, targetH)
+        bitmap.close()
+        blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.85 })
+    } else {
+        // Fallback for browsers without OffscreenCanvas (Safari < 16.4)
+        const canvas = document.createElement("canvas")
+        canvas.width = targetW
+        canvas.height = targetH
+        const ctx = canvas.getContext("2d")
+        if (!ctx) throw new Error("Canvas 2D context not available")
+        ctx.drawImage(bitmap, 0, 0, targetW, targetH)
+        bitmap.close()
+        blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+                (b) => b ? resolve(b) : reject(new Error("toBlob failed")),
+                "image/webp",
+                0.85,
+            )
+        })
+    }
 
     if (blob.size > MAX_UPLOAD_BYTES) {
         throw new Error(`Image too large after resize (${(blob.size / 1024).toFixed(0)}KB). Max: ${MAX_UPLOAD_BYTES / 1024}KB`)
@@ -151,6 +168,44 @@ export async function preprocessImage(file: File): Promise<Blob> {
 // ── Lighthouse Upload ─────────────────────────────────────────
 
 /**
+ * Upload a file to IPFS via the backend proxy.
+ * The proxy keeps the Lighthouse API key server-side.
+ *
+ * @param file - File or Blob to upload
+ * @returns Pin result with CID and gateway URL
+ */
+async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
+    const { API_BASE_URL } = await import("./config")
+    const backendUrl = API_BASE_URL || ""
+
+    const formData = new FormData()
+    const filename = file instanceof File ? file.name : "avatar.webp"
+    formData.append("file", file, filename)
+
+    const response = await fetch(`${backendUrl}/api/upload/avatar`, {
+        method: "POST",
+        body: formData,
+    })
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => "Unknown error")
+        throw new Error(`Avatar upload failed (${response.status}): ${text}`)
+    }
+
+    const data = await response.json()
+    const cid = data.cid
+
+    if (!cid) {
+        throw new Error("Upload returned no CID")
+    }
+
+    return {
+        cid,
+        url: getIpfsGatewayUrl(cid),
+    }
+}
+
+/**
  * Upload a file to IPFS via Lighthouse REST API.
  * Does NOT require the @lighthouse-web3/sdk — uses direct HTTP multipart.
  *
@@ -159,7 +214,10 @@ export async function preprocessImage(file: File): Promise<Blob> {
  * @returns Pin result with CID and gateway URL
  */
 export async function uploadToLighthouse(file: File | Blob, apiKey: string): Promise<IpfsPinResult> {
-    if (!apiKey) throw new Error("Lighthouse API key not configured")
+    // If no API key provided, use the backend proxy instead
+    if (!apiKey) {
+        return uploadViaProxy(file)
+    }
 
     const formData = new FormData()
     const filename = file instanceof File ? file.name : "avatar.webp"

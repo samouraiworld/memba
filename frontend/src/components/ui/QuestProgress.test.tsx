@@ -32,6 +32,15 @@ vi.mock("../../lib/quests", () => ({
     canApplyForMembership: vi.fn(() => false),
 }))
 
+// Mock gnobuilders module (ALL_QUESTS used for total count)
+vi.mock("../../lib/gnobuilders", () => ({
+    ALL_QUESTS: [
+        { id: "q1", title: "Quest Alpha", xp: 10 },
+        { id: "q2", title: "Quest Beta", xp: 15 },
+        { id: "q3", title: "Quest Gamma", xp: 20 },
+    ],
+}))
+
 // Mock network hook
 vi.mock("../../hooks/useNetworkNav", () => ({
     useNetworkKey: () => "test12",

@@ -89,6 +89,7 @@
 /* Tabs */
 .k-questhub-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-1);
     margin-bottom: var(--space-4);
     border-bottom: 1px solid var(--color-k-edge);
@@ -119,6 +120,7 @@
 /* Filters */
 .k-questhub-filters {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-3);
     margin-bottom: var(--space-6);
 }
@@ -695,6 +697,15 @@
 
     .k-questhub-tabs {
         overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .k-questhub-select {
+        width: 100%;
+    }
+
+    .k-questhub-search {
+        width: 100%;
     }
 }
 

@@ -24,7 +24,9 @@ import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { NFTListingCard } from "../components/nft/NFTListingCard"
 import { BuyNFTModal } from "../components/nft/BuyNFTModal"
 import { MakeOfferModal } from "../components/nft/MakeOfferModal"
+import { ListForSaleModal } from "../components/nft/ListForSaleModal"
 import { NFTActivityFeed } from "../components/nft/NFTActivityFeed"
+import DOMPurify from "dompurify"
 import type { LayoutContext } from "../types/layout"
 import "./nft-gallery.css"
 
@@ -72,6 +74,7 @@ function NFTGalleryContent() {
     const [listingsLoading, setListingsLoading] = useState(false)
     const [buyModal, setBuyModal] = useState<NFTListing | null>(null)
     const [offerModal, setOfferModal] = useState<NFTListing | null>(null)
+    const [listForSaleModal, setListForSaleModal] = useState<{ nftRealm: string; tokenId: string } | null>(null)
 
     useEffect(() => { document.title = "NFT Gallery — Memba" }, [])
 
@@ -246,7 +249,24 @@ function NFTGalleryContent() {
             {/* Marketplace Tab */}
             {tab === "marketplace" && (
                 <>
-                    <h2 className="nft-section-title">Active Listings</h2>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h2 className="nft-section-title">Active Listings</h2>
+                        {auth.isAuthenticated && (
+                            <button
+                                className="k-btn-primary"
+                                style={{ fontSize: 13, padding: "6px 14px" }}
+                                onClick={() => {
+                                    const realm = prompt("Enter NFT realm path (e.g., gno.land/r/user/my_nft):")
+                                    const tokenId = realm ? prompt("Enter Token ID:") : null
+                                    if (realm && tokenId) {
+                                        setListForSaleModal({ nftRealm: realm, tokenId })
+                                    }
+                                }}
+                            >
+                                List for Sale
+                            </button>
+                        )}
+                    </div>
 
                     {listingsLoading ? (
                         <div className="nft-grid">
@@ -299,6 +319,15 @@ function NFTGalleryContent() {
                     listing={offerModal}
                     callerAddress={adena.address}
                     onClose={() => setOfferModal(null)}
+                    onSuccess={refreshListings}
+                />
+            )}
+            {listForSaleModal && adena.address && (
+                <ListForSaleModal
+                    nftRealm={listForSaleModal.nftRealm}
+                    tokenId={listForSaleModal.tokenId}
+                    callerAddress={adena.address}
+                    onClose={() => setListForSaleModal(null)}
                     onSuccess={refreshListings}
                 />
             )}
@@ -454,7 +483,7 @@ export function NFTCollectionView() {
                 <div className="nft-render-section">
                     <h3 className="nft-section-title">On-Chain Gallery</h3>
                     <div className="nft-render-output" dangerouslySetInnerHTML={{
-                        __html: renderOutput
+                        __html: DOMPurify.sanitize(renderOutput || "")
                             .replace(/^# (.+)$/gm, '<h2>$1</h2>')
                             .replace(/^## (.+)$/gm, '<h3>$1</h3>')
                             .replace(/^\*\*(.+?)\*\*$/gm, '<strong>$1</strong>')

@@ -197,7 +197,7 @@ export function mergeWithMonitoringData(
         if (match) {
             return {
                 ...v,
-                moniker: match.moniker,
+                moniker: v.moniker || match.moniker,
                 participationRate: match.participationRate,
                 uptimePercent: match.uptime,
                 startTime: match.firstSeen ?? v.startTime,
@@ -404,6 +404,7 @@ export async function getValidatorUptime(
 export async function fetchLastBlockSignatures(
     rpcUrl: string,
     blockCount: number = 20,
+    chunkSize: number = 10,
 ): Promise<Map<string, boolean[]>> {
     const result = new Map<string, boolean[]>()
     try {
@@ -416,11 +417,17 @@ export async function fetchLastBlockSignatures(
         const heights: number[] = []
         for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
 
-        // Fetch blocks in parallel
-        const blocks = await Promise.all(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            heights.map(h => rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as Promise<any>)
-        )
+        // Chunked fetch: process chunkSize blocks concurrently, batches sequentially
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const blocks: (any | null)[] = []
+        for (let i = 0; i < heights.length; i += chunkSize) {
+            const chunk = heights.slice(i, i + chunkSize)
+            const chunkResults = await Promise.all(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                chunk.map(h => rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as Promise<any>)
+            )
+            blocks.push(...chunkResults)
+        }
 
         // Collect all unique validator addresses from precommits
         // Gno uses `precommits` field (not `signatures`), with bech32 addresses
@@ -685,16 +692,24 @@ export async function getConsensusState(
         // Count prevotes and precommits bitmask
         // Gnockpit uses the `votes` array that maps bit positions to validators
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isPrevote = (v: any) => v?.vote_type?.toLowerCase() === "prevote" || v?.vote_type === 1
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isPrecommit = (v: any) => v?.vote_type?.toLowerCase() === "precommit" || v?.vote_type === 2
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const prevotesBitmask: string = (rs.votes || []).find((v: any) =>
-            v?.round === round && v?.vote_type?.toLowerCase() === "prevote"
+            v?.round === round && isPrevote(v)
         )?.prevotes_bit_array || ""
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const precommitsBitmask: string = (rs.votes || []).find((v: any) =>
-            v?.round === round && v?.vote_type?.toLowerCase() === "precommit"
+            v?.round === round && isPrecommit(v)
         )?.precommits_bit_array || ""
 
-        // Count '1' bits: "BA{9:xxxxxxx_xx}" format
-        const countBits = (bitmask: string): number => (bitmask.match(/1/g) || []).length
+        // Count '1' bits: "BA{9:xxxxxxx_xx}" format — extract only the bit portion after ':'
+        const countBits = (bitmask: string): number => {
+            const colonIdx = bitmask.indexOf(":")
+            const bits = colonIdx >= 0 ? bitmask.slice(colonIdx + 1).replace(/[^01]/g, "") : bitmask
+            return (bits.match(/1/g) || []).length
+        }
         const prevoteCount = countBits(prevotesBitmask)
         const precommitCount = countBits(precommitsBitmask)
 

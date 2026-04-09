@@ -18,6 +18,7 @@ import {
     fetchUserQuests,
     canApplyForMembership,
 } from "../../lib/quests"
+import { ALL_QUESTS } from "../../lib/gnobuilders"
 import type { UserQuestState } from "../../lib/quests"
 import "./questprogress.css"
 
@@ -115,7 +116,8 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
 
     const completedIds = new Set(state.completed.map(c => c.questId))
     const completedCount = state.completed.length
-    const percent = Math.round((completedCount / QUESTS.length) * 100)
+    const totalQuests = ALL_QUESTS.length > 0 ? ALL_QUESTS.length : QUESTS.length // v2 authoritative, v1 fallback
+    const percent = Math.min(100, Math.round((completedCount / totalQuests) * 100))
     const eligible = address ? state.totalXP >= CANDIDATURE_XP_THRESHOLD : canApplyForMembership()
 
     if (loading) {
@@ -148,7 +150,7 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
                 <RadialRing percent={percent} />
                 <div className="quest-hub__info">
                     <span className="quest-hub__count">
-                        {completedCount} / {QUESTS.length} Quests
+                        {completedCount} / {totalQuests} Quests
                     </span>
                     <span className="quest-hub__separator">·</span>
                     <span className={`quest-hub__xp${eligible ? " quest-hub__xp--eligible" : ""}`}>
@@ -192,7 +194,7 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
 
                 {/* Quest card grid */}
                 <div className="quest-hub__grid">
-                    {QUESTS.map(q => {
+                    {ALL_QUESTS.map(q => {
                         const done = completedIds.has(q.id)
                         return (
                             <div

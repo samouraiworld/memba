@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
+import { useNetwork } from "../../hooks/useNetwork"
 import type { DirectoryToken } from "../../lib/directory"
 import { getGnowebUrl } from "../../lib/gnoweb"
 
@@ -19,6 +20,7 @@ interface TokenDetailDrawerProps {
 
 export function TokenDetailDrawer({ token, onClose }: TokenDetailDrawerProps) {
     const navigate = useNetworkNav()
+    const { networkKey } = useNetwork()
     const [visible, setVisible] = useState(false)
 
     const handleClose = useCallback(() => {
@@ -38,7 +40,8 @@ export function TokenDetailDrawer({ token, onClose }: TokenDetailDrawerProps) {
         return () => document.removeEventListener("keydown", handler)
     }, [handleClose])
 
-    const gnowebBase = getGnowebUrl("gnoland1") || "https://gno.land"
+    // P1 fix: use active network key instead of hardcoded "gnoland1"
+    const gnowebBase = getGnowebUrl(networkKey) || "https://gno.land"
     const tokenPath = token.path.replace("gno.land", "")
 
     return (

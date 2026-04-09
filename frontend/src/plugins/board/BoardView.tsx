@@ -90,6 +90,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
         dismissNew,
         loading: pollingLoading,
         error: pollingError,
+        connectionLost,
         refresh,
     } = useChannelPolling({
         boardPath,
@@ -319,8 +320,9 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
     if (viewState.view === "channel") {
         const currentChannel = boardInfo?.channels.find(ch => ch.name === viewState.channel)
         const isVoiceOrVideo = currentChannel?.type === "voice" || currentChannel?.type === "video"
+        const isAdmin = userRoles.includes("admin")
         const canWrite = !isVoiceOrVideo && currentChannel?.type !== "readonly" &&
-            currentChannel?.type !== "announcements" // NOTE: admin-only posting — blocked until Gno cross-realm role check
+            (currentChannel?.type !== "announcements" || isAdmin)
 
         // v2.5c: Voice/video channels — render Jitsi instead of threads
         if (isVoiceOrVideo) {
@@ -360,6 +362,12 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                 />
 
                 {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
+
+                {connectionLost && !error && (
+                    <div style={{ color: "#f5a623", fontSize: 11, fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
+                        Connection lost — retrying...
+                    </div>
+                )}
 
                 {/* G1: Gated channel banner — shown when user lacks write access */}
                 <GatedChannelBanner

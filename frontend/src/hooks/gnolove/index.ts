@@ -110,15 +110,31 @@ export function useGnoloveContributor(login: string) {
     })
 }
 
-// ── Repo Activity (aggregated from report) ───────────────────
+// ── Shared 1-Year PR Report (single fetch for repo + monthly activity) ──
 
-export function useGnoloveRepoActivity() {
+/**
+ * P1 fix: shared base query so useGnoloveRepoActivity and useGnoloveMonthlyActivity
+ * hit the same cache instead of independently fetching the same 1-year report.
+ */
+function useGnoloveYearReport() {
     return useQuery({
-        queryKey: ["gnolove", "repoActivity"],
+        queryKey: ["gnolove", "yearReport"],
         queryFn: async ({ signal }) => {
             const yearAgo = new Date()
             yearAgo.setFullYear(yearAgo.getFullYear() - 1)
-            const report = await api.getPullRequestsReport(yearAgo, new Date(), signal)
+            return api.getPullRequestsReport(yearAgo, new Date(), signal)
+        },
+        staleTime: STALE_ONCHAIN,
+    })
+}
+
+// ── Repo Activity (aggregated from report) ───────────────────
+
+export function useGnoloveRepoActivity() {
+    const { data: report } = useGnoloveYearReport()
+    return useQuery({
+        queryKey: ["gnolove", "repoActivity", !!report],
+        queryFn: () => {
             if (!report?.merged) return []
             const repoMap = new Map<string, number>()
             for (const pr of report.merged) {
@@ -130,6 +146,7 @@ export function useGnoloveRepoActivity() {
                 .sort((a, b) => b.prs - a.prs)
                 .slice(0, 15)
         },
+        enabled: !!report,
         staleTime: STALE_ONCHAIN,
     })
 }
@@ -137,12 +154,10 @@ export function useGnoloveRepoActivity() {
 // ── Monthly Activity Trend (from report) ─────────────────────
 
 export function useGnoloveMonthlyActivity() {
+    const { data: report } = useGnoloveYearReport()
     return useQuery({
-        queryKey: ["gnolove", "monthlyActivity"],
-        queryFn: async ({ signal }) => {
-            const yearAgo = new Date()
-            yearAgo.setFullYear(yearAgo.getFullYear() - 1)
-            const report = await api.getPullRequestsReport(yearAgo, new Date(), signal)
+        queryKey: ["gnolove", "monthlyActivity", !!report],
+        queryFn: () => {
             if (!report) return []
             // Bucket all PRs by month using creation/merge date.
             // Note: "reviewed" from the API is a snapshot (currently OPEN + APPROVED),
@@ -170,6 +185,7 @@ export function useGnoloveMonthlyActivity() {
                 .map(([month, counts]) => ({ month, ...counts }))
                 .sort((a, b) => a.month.localeCompare(b.month))
         },
+        enabled: !!report,
         staleTime: STALE_ONCHAIN,
     })
 }

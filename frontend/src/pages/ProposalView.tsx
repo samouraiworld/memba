@@ -347,30 +347,26 @@ export function ProposalView() {
 
             {/* v3.2: Proposal Date Metadata */}
             {proposalTimestamp && (
-                <div className="k-card" style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 14 }}>📅</span>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)" }}>
+                <div className="k-card proposal-date-card">
+                    <div className="proposal-date-item">
+                        <span className="proposal-date-item__icon">📅</span>
+                        <span className="proposal-date-item__label">
                             {proposalTimestamp.label}
                         </span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 14 }}>⏱️</span>
-                        <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                    <div className="proposal-date-item">
+                        <span className="proposal-date-item__icon">⏱️</span>
+                        <span className="proposal-date-item__label proposal-date-item__label--secondary">
                             {formatRelativeTime(proposalTimestamp.date)}
                         </span>
                     </div>
                     {proposalTimestamp.block && (
-                        <span style={{
-                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
-                            color: "var(--color-text-muted)", background: "rgba(255,255,255,0.03)",
-                            padding: "2px 6px", borderRadius: 4,
-                        }}>
+                        <span className="proposal-date-block">
                             block #{proposalTimestamp.block.toLocaleString()}
                         </span>
                     )}
                     {!proposalTimestamp.exact && (
-                        <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontStyle: "italic" }}>estimated</span>
+                        <span className="proposal-date-estimated">estimated</span>
                     )}
                 </div>
             )}
@@ -451,11 +447,13 @@ export function ProposalView() {
             )}
 
             {/* Success message */}
+            <div aria-live="polite">
             {success && (
                 <div className="proposal-success-msg">
                     ✓ {success}
                 </div>
             )}
+            </div>
 
             {/* Actions */}
             {auth.isAuthenticated && !isArchived && (
@@ -465,30 +463,29 @@ export function ProposalView() {
                             {/* Membership warning */}
                             {isMember === false && (
                                 <div className="proposal-warning proposal-warning--mb">
-                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
+                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote, or{" "}
+                                    <button
+                                        onClick={() => navigate(`/dao/${encodedSlug}/candidature`)}
+                                        style={{ background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", textDecoration: "underline" }}
+                                    >
+                                        apply to join this DAO
+                                    </button>.
                                 </div>
                             )}
                             {hasVoted ? (
-                                <div style={{
-                                    padding: "14px 16px", borderRadius: 8,
-                                    background: userVote === "YES" ? "rgba(76,175,80,0.08)" : "rgba(244,67,54,0.08)",
-                                    border: `1px solid ${userVote === "YES" ? "rgba(76,175,80,0.2)" : "rgba(244,67,54,0.2)"}`,
-                                    fontSize: 13, fontFamily: "JetBrains Mono, monospace",
-                                    color: userVote === "YES" ? "#4caf50" : "#f44336",
-                                    fontWeight: 600,
-                                }}>
+                                <div className={`proposal-voted-indicator proposal-voted-indicator--${userVote.toLowerCase()}`}>
                                     ✓ You voted {userVote} on this proposal
                                 </div>
                             ) : (
                                 <div className="proposal-vote-btns">
-                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✓ Vote Yes"}
                                     </button>
-                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
                                     {!govDAO && (
-                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                             {actionLoading ? "..." : "○ Abstain"}
                                         </button>
                                     )}
@@ -498,7 +495,7 @@ export function ProposalView() {
                     )}
 
                     {proposal.status === "passed" && isMember && (
-                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
+                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} aria-label={`Execute proposal ${proposalId}`} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
                     )}
