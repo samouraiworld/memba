@@ -58,7 +58,7 @@
 .k-members__tier-card {
   padding: 12px 14px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
 }
 .k-members__tier-header {

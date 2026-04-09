@@ -201,7 +201,7 @@
 /* ── Divider ─────────────────────────────────────────────── */
 .dao-divider {
     height: 1px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
     margin: 12px 0 10px;
 }
 

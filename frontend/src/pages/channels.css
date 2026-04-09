@@ -13,8 +13,8 @@
     min-height: calc(100vh - 120px);
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
 }
 
 /* ── Sidebar ───────────────────────────────────────────────── */
@@ -22,8 +22,8 @@
 .channels-sidebar {
     width: 220px;
     min-width: 220px;
-    background: rgba(0, 0, 0, 0.25);
-    border-right: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-overlay-light);
+    border-right: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -58,7 +58,7 @@
 }
 
 .channels-sidebar-item:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
     color: var(--color-text-secondary);
 }
 
@@ -93,7 +93,7 @@
     font-size: 9px;
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -173,8 +173,8 @@
     gap: 6px;
     padding: 6px 12px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-secondary);
     cursor: pointer;
     font-size: 11px;
@@ -245,7 +245,7 @@
         width: 100%;
         min-width: 100%;
         border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--color-border);
         max-height: 0;
         overflow: hidden;
         padding: 0;

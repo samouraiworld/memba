@@ -93,7 +93,7 @@
 
 /* Card */
 .msh-card {
-    background: rgba(255, 255, 255, 0.015);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 16px;
@@ -173,7 +173,7 @@
 .msh-empty {
     text-align: center;
     padding: 48px 24px;
-    background: rgba(255, 255, 255, 0.015);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     display: flex;

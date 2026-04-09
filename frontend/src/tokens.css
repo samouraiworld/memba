@@ -30,6 +30,12 @@
     --color-bg: #0a0a0a;
     --color-bg-card: #0c0c0c;
     --color-bg-hover: rgba(255, 255, 255, 0.02);
+    --color-surface: rgba(255, 255, 255, 0.03);
+    --color-surface-hover: rgba(255, 255, 255, 0.06);
+    --color-surface-active: rgba(255, 255, 255, 0.08);
+    --color-surface-input: rgba(255, 255, 255, 0.05);
+    --color-overlay: rgba(0, 0, 0, 0.6);
+    --color-overlay-light: rgba(0, 0, 0, 0.3);
     --color-border: #1a1a1a;
     --color-border-light: #222;
 
@@ -110,6 +116,12 @@
     --color-bg: #f8f9fa;
     --color-bg-card: #ffffff;
     --color-bg-hover: rgba(0, 0, 0, 0.02);
+    --color-surface: rgba(0, 0, 0, 0.025);
+    --color-surface-hover: rgba(0, 0, 0, 0.04);
+    --color-surface-active: rgba(0, 0, 0, 0.06);
+    --color-surface-input: #ffffff;
+    --color-overlay: rgba(0, 0, 0, 0.4);
+    --color-overlay-light: rgba(0, 0, 0, 0.15);
     --color-border: #e5e7eb;
     --color-border-light: #e0e2e6;
 }

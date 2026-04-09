@@ -27,9 +27,9 @@
     display: flex;
     gap: 4px;
     padding: 4px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
 }
 
 .gl-subnav-link {
@@ -45,7 +45,7 @@
 
 .gl-subnav-link:hover {
     color: var(--color-k-text, #f0f0f0);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 .gl-subnav-link:focus-visible {
@@ -87,8 +87,8 @@
 
 .gl-milestone {
     padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
 }
 
@@ -113,7 +113,7 @@
 
 .gl-milestone-bar {
     height: 6px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-surface-hover);
     border-radius: 3px;
     overflow: hidden;
 }
@@ -138,9 +138,9 @@
     display: flex;
     gap: 4px;
     padding: 3px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
 }
 
 .gl-filter-btn {
@@ -158,7 +158,7 @@
 
 .gl-filter-btn:hover {
     color: var(--color-k-text, #f0f0f0);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 .gl-filter-btn:focus-visible {
@@ -204,7 +204,7 @@
 .gl-score-badge {
     padding: 2px 8px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
     font-family: "JetBrains Mono", monospace;
     font-size: 10px;
@@ -240,8 +240,8 @@
 .gl-team-card {
     position: relative;
     padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-left: 3px solid;
     border-radius: 10px;
     cursor: pointer;
@@ -280,7 +280,7 @@
 .gl-table-wrap {
     overflow-x: auto;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
 }
 
 .gl-table {
@@ -290,7 +290,7 @@
 }
 
 .gl-table thead {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
 }
 
 .gl-table th {
@@ -301,12 +301,12 @@
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     white-space: nowrap;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .gl-table td {
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--color-border);
     color: var(--color-k-dim, #ccc);
 }
 
@@ -326,7 +326,7 @@
 }
 
 .gl-contributor-row:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
 }
 
 .gl-rank {
@@ -346,7 +346,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
 }
 
 .gl-contributor-name {
@@ -401,8 +401,8 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     text-decoration: none;
     transition: border-color 0.2s;
@@ -449,8 +449,8 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     text-decoration: none;
     transition: border-color 0.2s;
@@ -533,8 +533,8 @@
 
 .gl-repo-card {
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     text-decoration: none;
     display: flex;
@@ -570,9 +570,9 @@
 
 .gl-week-btn {
     padding: 6px 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
@@ -610,9 +610,9 @@
     gap: 4px;
     flex-wrap: wrap;
     padding: 3px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
 }
 
 .gl-tab {
@@ -633,7 +633,7 @@
 
 .gl-tab:hover {
     color: var(--color-k-text, #f0f0f0);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 .gl-tab:focus-visible {
@@ -651,7 +651,7 @@
     font-size: 10px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-surface-hover);
     font-weight: 700;
 }
 
@@ -665,8 +665,8 @@
 
 .gl-stat-card {
     padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     text-align: center;
     transition: transform 0.2s ease;
@@ -699,8 +699,8 @@
 
 .gl-chart-container {
     padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
 }
 
@@ -731,8 +731,8 @@
     color: var(--color-k-muted, #555);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
-    background: rgba(255, 255, 255, 0.01);
-    border: 1px dashed rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
     border-radius: 12px;
 }
 
@@ -755,7 +755,7 @@
 @media (prefers-reduced-motion: reduce) {
     .gl-skeleton {
         animation: none;
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--color-surface-hover);
     }
 
     .gl-team-card,
@@ -810,8 +810,8 @@
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     text-decoration: none;
     transition: border-color 0.2s;
@@ -861,8 +861,8 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 12px 16px;
     cursor: pointer;
@@ -872,7 +872,7 @@
 }
 
 .gl-section-toggle:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
 }
 
 .gl-section-toggle:focus-visible {
@@ -908,7 +908,7 @@
     margin-top: 4px;
     padding: 10px;
     background: var(--color-k-panel, #1a1a2e);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-border-light);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     display: flex;
@@ -924,7 +924,7 @@
     color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
     padding-bottom: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .gl-team-popover-member {
@@ -976,7 +976,7 @@
     margin-top: 4px;
     padding: 8px;
     background: var(--color-k-panel, #1a1a2e);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-border-light);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     min-width: 280px;
@@ -991,7 +991,7 @@
     display: flex;
     gap: 4px;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
     margin-bottom: 4px;
 }
 
@@ -1008,7 +1008,7 @@
 }
 
 .gl-repo-filter-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 .gl-repo-filter-item input[type="checkbox"] {
@@ -1031,9 +1031,9 @@
 
 .gl-filter-select {
     padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     color: var(--color-k-dim, #ccc);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -1053,7 +1053,7 @@
 
 .gl-export-btn {
     padding: 5px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     background: transparent;
     color: var(--color-k-dim, #888);
@@ -1099,8 +1099,8 @@
 }
 
 .gl-teams-panel {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-left: 3px solid;
     border-radius: 10px;
     padding: 20px;
@@ -1114,7 +1114,7 @@
     flex-wrap: wrap;
     margin-bottom: 16px;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .gl-teams-panel-title {
@@ -1154,7 +1154,7 @@
 }
 
 .gl-teams-member:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
 }
 
 .gl-teams-member-avatar {
@@ -1215,8 +1215,8 @@
     flex-direction: column;
     gap: 4px;
     padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
 }
 
@@ -1252,8 +1252,8 @@
 /* ── Dashboard Panels (Grafana-style) ──────────── */
 
 .gl-panel {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 16px;
 }
@@ -1297,7 +1297,7 @@
     align-items: center;
     gap: 10px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-radius: 6px;
 }
 
@@ -1391,7 +1391,7 @@
 }
 
 .gl-team-chip:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-hover);
 }
 
 .gl-team-chip:focus-visible {
@@ -1415,9 +1415,9 @@
     display: flex;
     gap: 4px;
     padding: 4px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
 }
 
 /* ── Section Description ───────────────────────── */
@@ -1494,7 +1494,7 @@
     width: 96px;
     height: 96px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid var(--color-border-light);
 }
 
 .gl-profile-name {
@@ -1551,7 +1551,7 @@
     align-items: center;
     gap: 4px;
     padding: 4px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     color: var(--color-k-dim, #888);
     text-decoration: none;
@@ -1567,8 +1567,8 @@
 
 .gl-profile-onchain {
     padding: 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -1593,7 +1593,7 @@
 
 .gl-profile-copy-btn {
     padding: 4px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     background: transparent;
     color: var(--color-k-dim, #888);
@@ -1613,8 +1613,8 @@
     align-items: flex-start;
     gap: 10px;
     padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     text-decoration: none;
     transition: border-color 0.2s;
@@ -1657,8 +1657,8 @@
     flex-direction: column;
     gap: 4px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     text-decoration: none;
     transition: border-color 0.2s;
@@ -1793,14 +1793,14 @@
     padding: 10px 12px;
     border-radius: 8px;
     border-left: 3px solid;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     text-decoration: none;
     color: inherit;
     transition: background 0.15s ease;
 }
 
 .gl-team-compact-card:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--color-surface-hover);
 }
 
 .gl-team-compact-top {
@@ -1879,14 +1879,14 @@
     gap: 4px;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid var(--color-border);
 }
 
 .gl-pagination-btn {
     padding: 5px 10px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     color: var(--color-k-dim, #aaa);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -1895,7 +1895,7 @@
 }
 
 .gl-pagination-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-surface-hover);
     color: var(--color-k-text, #f0f0f0);
 }
 
@@ -1926,7 +1926,7 @@
     padding: 16px 20px;
     border-radius: 10px;
     border-left: 4px solid;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface);
     margin-bottom: 16px;
 }
 
@@ -1978,8 +1978,8 @@
     gap: 8px;
     padding: 10px 14px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     text-decoration: none;
     transition: border-color 0.15s, background 0.15s;
 }
@@ -2002,7 +2002,7 @@
     font-size: 9px;
     font-family: 'JetBrains Mono', monospace;
     color: var(--color-k-muted, #555);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
     padding: 2px 6px;
     border-radius: 3px;
     flex-shrink: 0;
@@ -2062,7 +2062,7 @@
 
 .gl-view-toggle {
     display: flex;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -2111,8 +2111,8 @@
 }
 
 .gl-report-narrative__section {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 16px 20px;
 }
@@ -2188,8 +2188,8 @@
     gap: 2px;
     padding: 10px 16px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     min-width: 80px;
 }
 
@@ -2247,8 +2247,8 @@
     gap: 4px;
     padding: 3px 10px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     color: var(--color-text-secondary);

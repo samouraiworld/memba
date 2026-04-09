@@ -40,7 +40,7 @@
 .nft-tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--color-border);
     padding-bottom: 0;
 }
 
@@ -88,8 +88,8 @@
     flex: 1;
     padding: 10px 16px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    background: var(--color-overlay-light);
     color: var(--color-text);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
@@ -131,8 +131,8 @@
     gap: 12px;
     padding: 14px 16px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     cursor: pointer;
     transition: all 0.15s;
     text-align: left;
@@ -142,7 +142,7 @@
 }
 
 .nft-collection-card:hover {
-    background: rgba(255, 255, 255, 0.035);
+    background: var(--color-surface-hover);
     border-color: rgba(139, 92, 246, 0.2);
 }
 
@@ -264,8 +264,8 @@
     min-width: 150px;
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    background: var(--color-overlay-light);
     color: var(--color-text);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
@@ -315,8 +315,8 @@
 .nft-render-output {
     padding: 16px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-overlay-light);
+    border: 1px solid var(--color-border);
     color: var(--color-text-secondary);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
@@ -336,13 +336,13 @@
     gap: 10px;
     padding: 14px 16px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     transition: all 0.15s;
 }
 
 .nft-listing-card:hover {
-    background: rgba(255, 255, 255, 0.035);
+    background: var(--color-surface-hover);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -396,7 +396,7 @@
     font-family: "JetBrains Mono", monospace;
     padding: 4px 8px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface);
     text-align: center;
 }
 
@@ -405,7 +405,7 @@
 .nft-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--color-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -416,7 +416,7 @@
 .nft-modal {
     background: #1a1a2e;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     padding: 24px;
     max-width: 440px;
     width: 100%;
@@ -449,8 +449,8 @@
     gap: 6px;
     padding: 12px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-overlay-light);
+    border: 1px solid var(--color-border);
 }
 
 .nft-modal__row {
@@ -465,7 +465,7 @@
 .nft-modal__row--seller { color: var(--color-primary); font-size: 11px; }
 
 .nft-modal__row--total {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--color-border);
     padding-top: 6px;
     margin-top: 2px;
     font-weight: 700;
@@ -488,8 +488,8 @@
 .nft-modal__input {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    background: var(--color-overlay-light);
     color: var(--color-text);
     font-size: 14px;
     font-family: "JetBrains Mono", monospace;
@@ -526,7 +526,7 @@
 .nft-modal__cancel {
     padding: 10px 18px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-secondary);
     font-size: 12px;
@@ -576,8 +576,8 @@
     gap: 10px;
     padding: 10px 14px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
 }
 
 .nft-activity__icon { font-size: 16px; flex-shrink: 0; }

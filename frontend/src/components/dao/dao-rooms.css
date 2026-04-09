@@ -14,8 +14,8 @@
     min-width: 180px;
     padding: 14px 18px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
@@ -77,7 +77,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.8);
+    background: var(--color-overlay);
     backdrop-filter: blur(6px);
     animation: roomOverlayIn 0.2s ease;
 }
@@ -90,7 +90,7 @@
     flex-direction: column;
     border-radius: 14px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
     background: var(--color-bg);
     animation: roomModalIn 0.25s ease;
 }
@@ -100,7 +100,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .dao-room-modal-title {
@@ -119,7 +119,7 @@
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-secondary);
     font-size: 14px;

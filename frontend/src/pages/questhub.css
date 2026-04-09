@@ -710,7 +710,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--color-overlay);
     animation: celebration-fade-in 0.3s ease-out;
     pointer-events: none;
 }

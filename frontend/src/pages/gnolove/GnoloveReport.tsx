@@ -45,19 +45,6 @@ const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     all_time: "All Time",
 }
 
-/** Priority order for repository display — unlisted repos appear at the end alphabetically */
-const REPO_PRIORITY_ORDER: string[] = [
-    "gnolang/gno",
-    "samouraiworld/gnomonitoring",
-    "samouraiworld/gno-docs",
-    "samouraiworld/gno-validator-tools",
-    "samouraiworld/gnodaokit",
-    "samouraiworld/memba",
-    "samouraiworld/gnolove",
-    "samouraiworld/samcrew-deployer",
-    "samouraiworld/tokenfactory",
-    "samouraiworld/gno-skills",
-]
 
 function computeRange(period: ReportPeriod, offset: number): { start: Date; end: Date } {
     const now = new Date()
@@ -79,18 +66,6 @@ function computeRange(period: ReportPeriod, offset: number): { start: Date; end:
     }
 }
 
-/** Sort repos by priority order — gnolang/gno first, then Samourai repos, then others */
-function sortReposByPriority(repos: string[]): string[] {
-    return [...repos].sort((a, b) => {
-        const ia = REPO_PRIORITY_ORDER.indexOf(a)
-        const ib = REPO_PRIORITY_ORDER.indexOf(b)
-        if (ia !== -1 && ib !== -1) return ia - ib
-        if (ia !== -1) return -1
-        if (ib !== -1) return 1
-        return a.localeCompare(b)
-    })
-}
-
 /** Check if a PR had any activity within the given date range */
 function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
     const range = { start, end }
@@ -107,7 +82,7 @@ export default function GnoloveReport() {
     const [offset, setOffset] = useState(-1) // Default to previous week (report of past work)
     const [activeTab, setActiveTab] = useState<ReportTab | "all">("all")
     const [selectedTeam, setSelectedTeam] = useState("all")
-    const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set())
+    const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set(["gnolang/gno"]))
     const [repoDropdownOpen, setRepoDropdownOpen] = useState(false)
     const repoDropdownRef = useRef<HTMLDivElement>(null)
     const [view, setView] = useState<ViewMode>(() => searchParams.get("view") === "table" ? "table" : "report")
@@ -493,21 +468,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
 
     const allPrs = useMemo(() => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked], [merged, inProgress, waitingForReview, reviewed, blocked])
 
-    // Group by repository, sorted by priority
-    const byRepo = useMemo(() => {
-        const map = new Map<string, TPullRequest[]>()
-        for (const pr of allPrs) {
-            const repo = extractRepoFromUrl(pr.url) || "unknown"
-            const list = map.get(repo) || []
-            list.push(pr)
-            map.set(repo, list)
-        }
-        const sortedEntries = sortReposByPriority(Array.from(map.keys())).map(
-            repo => [repo, map.get(repo)!] as const
-        )
-        return new Map(sortedEntries)
-    }, [allPrs])
-
     // Active contributors
     const contributors = useMemo(() => {
         const set = new Set<string>()
@@ -527,15 +487,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
     const getTeamForUser = (login: string): Team | undefined =>
         TEAMS.find(t => t.members.includes(login))
 
-    // PR status label
-    const prStatus = useCallback((pr: TPullRequest): string =>
-        pr.mergedAt || pr.state === "MERGED" ? "Merged" :
-        blocked.includes(pr) ? "Blocked" :
-        waitingForReview.includes(pr) ? "Waiting for Review" :
-        reviewed.includes(pr) ? "Reviewed" :
-        "In Progress"
-    , [blocked, waitingForReview, reviewed])
-
     const weekId = `${format(start, "yyyy")}-W${String(getISOWeek(start)).padStart(2, "0")}`
 
     // Period header for gno-skills format
@@ -553,23 +504,26 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
     }, [period, start, end])
 
     // Generate shareable markdown (gno-skills format)
+    // Order: Stats → Highlights → Waiting for Review → In Progress → Blockers → Merged → Contributors
     const generateReportMd = useCallback((): string => {
         const lines: string[] = [
             periodHeader,
             "",
         ]
 
-        // --- Merged section first (user preference) ---
-        if (merged.length > 0) {
-            lines.push("**🎉 PR Merged**", "")
-            for (const pr of merged) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-            lines.push("", "---", "")
-        }
+        // --- Stats (overview first) ---
+        lines.push(
+            "## Stats", "",
+            `- PRs Merged: ${merged.length}`,
+            `- Waiting for Review: ${waitingForReview.length + reviewed.length}`,
+            `- In Progress: ${inProgress.length}`,
+            `- Blocked: ${blocked.length}`,
+            `- Contributors Active: ${contributors.length}`,
+            "", "---", ""
+        )
 
         // --- Highlights ---
-        lines.push("**⭐ Highlights**", "")
+        lines.push("## ⭐ Highlights", "")
         if (topMerged.length > 0) {
             for (const pr of topMerged) {
                 lines.push(`- **${pr.title}** - ${pr.url} - ${pr.authorLogin || "unknown"}`)
@@ -579,50 +533,49 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
         }
         lines.push("", "---", "")
 
-        // --- Stats ---
-        lines.push(
-            "**📊 Stats**", "",
-            `- PRs Merged: ${merged.length}`,
-            `- PRs In Progress: ${inProgress.length}`,
-            `- Waiting for Review: ${waitingForReview.length}`,
-            `- Reviewed: ${reviewed.length}`,
-            `- Blocked: ${blocked.length}`,
-            `- Contributors Active: ${contributors.length}`,
-            "", "---", ""
-        )
-
-        // --- By Repository (priority-ordered) ---
-        lines.push("**📂 By Repository**", "")
-        for (const [repo, prs] of byRepo) {
-            lines.push(`### ${repo}`, "")
-            for (const pr of prs) {
-                const status = prStatus(pr)
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"} [${status}]`)
-            }
-            lines.push("")
-        }
-
-        // --- Blockers ---
-        if (blocked.length > 0) {
-            lines.push("---", "", "**🚧 Blockers**", "")
-            for (const pr of blocked) {
+        // --- Waiting for Review ---
+        const allWaiting = [...waitingForReview, ...reviewed]
+        if (allWaiting.length > 0) {
+            lines.push("## 📋 Waiting for Review", "")
+            for (const pr of allWaiting) {
                 lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
             }
-            lines.push("")
+            lines.push("", "---", "")
         }
 
         // --- In Progress ---
         if (inProgress.length > 0) {
-            lines.push("---", "", "**🚧 In Progress**", "")
+            lines.push("## 🚧 In Progress", "")
             for (const pr of inProgress) {
                 lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
             }
-            lines.push("")
+            lines.push("", "---", "")
         }
 
-        lines.push("---", `_Generated by Gnolove · ${weekId}_`)
+        // --- Blockers ---
+        if (blocked.length > 0) {
+            lines.push("## 🚧 Blockers", "")
+            for (const pr of blocked) {
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+            }
+            lines.push("", "---", "")
+        }
+
+        // --- Merged (done work — reference at bottom) ---
+        if (merged.length > 0) {
+            lines.push("## 🎉 Merged", "")
+            for (const pr of merged) {
+                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
+            }
+            lines.push("", "---", "")
+        }
+
+        // --- Contributors ---
+        lines.push(`## 👥 Active Contributors (${contributors.length})`, "",
+            contributors.map(login => `@${login}`).join(" · "),
+            "", "---", `_Generated by Gnolove · ${weekId}_`)
         return lines.join("\n")
-    }, [periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed, blocked, contributors, byRepo, weekId, prStatus])
+    }, [periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed, blocked, contributors, weekId])
 
     const handleCopy = useCallback(() => {
         navigator.clipboard.writeText(generateReportMd()).then(() => {
@@ -665,31 +618,36 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
             {/* Period Header */}
             <div className="gl-report-narrative__period-header">{periodHeader}</div>
 
-            {/* Merged PRs — displayed first per user preference */}
-            {merged.length > 0 && (
-                <section className="gl-report-narrative__section">
-                    <h2 className="gl-report-narrative__heading">🎉 Merged ({merged.length})</h2>
-                    <ul className="gl-report-narrative__list">
-                        {merged.map(pr => {
-                            const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
-                            return (
-                                <li key={pr.id}>
-                                    <span className="gl-pr-state gl-pr-state--merged" style={{ marginRight: 6 }}>Merged</span>
-                                    <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                    {pr.authorLogin && (
-                                        <span className="gl-report-narrative__author">
-                                            {" "}@{pr.authorLogin}
-                                            {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
-                                        </span>
-                                    )}
-                                </li>
-                            )
-                        })}
-                    </ul>
-                </section>
-            )}
+            {/* 1. Stats — overview first */}
+            <section className="gl-report-narrative__section">
+                <h2 className="gl-report-narrative__heading">📊 Stats</h2>
+                <div className="gl-report-narrative__stats">
+                    <div className="gl-report-narrative__stat">
+                        <span className="gl-report-narrative__stat-value">{merged.length}</span>
+                        <span className="gl-report-narrative__stat-label">Merged</span>
+                    </div>
+                    <div className="gl-report-narrative__stat">
+                        <span className="gl-report-narrative__stat-value">{waitingForReview.length + reviewed.length}</span>
+                        <span className="gl-report-narrative__stat-label">Waiting</span>
+                    </div>
+                    <div className="gl-report-narrative__stat">
+                        <span className="gl-report-narrative__stat-value">{inProgress.length}</span>
+                        <span className="gl-report-narrative__stat-label">In Progress</span>
+                    </div>
+                    {blocked.length > 0 && (
+                        <div className="gl-report-narrative__stat gl-report-narrative__stat--blocked">
+                            <span className="gl-report-narrative__stat-value">{blocked.length}</span>
+                            <span className="gl-report-narrative__stat-label">Blocked</span>
+                        </div>
+                    )}
+                    <div className="gl-report-narrative__stat">
+                        <span className="gl-report-narrative__stat-value">{contributors.length}</span>
+                        <span className="gl-report-narrative__stat-label">Contributors</span>
+                    </div>
+                </div>
+            </section>
 
-            {/* Highlights */}
+            {/* 2. Highlights */}
             <section className="gl-report-narrative__section">
                 <h2 className="gl-report-narrative__heading">⭐ Highlights</h2>
                 {topMerged.length > 0 ? (
@@ -706,69 +664,27 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 )}
             </section>
 
-            {/* Stats */}
-            <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">📊 Stats</h2>
-                <div className="gl-report-narrative__stats">
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{merged.length}</span>
-                        <span className="gl-report-narrative__stat-label">Merged</span>
-                    </div>
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{inProgress.length}</span>
-                        <span className="gl-report-narrative__stat-label">In Progress</span>
-                    </div>
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{waitingForReview.length}</span>
-                        <span className="gl-report-narrative__stat-label">Waiting</span>
-                    </div>
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{reviewed.length}</span>
-                        <span className="gl-report-narrative__stat-label">Reviewed</span>
-                    </div>
-                    {blocked.length > 0 && (
-                        <div className="gl-report-narrative__stat gl-report-narrative__stat--blocked">
-                            <span className="gl-report-narrative__stat-value">{blocked.length}</span>
-                            <span className="gl-report-narrative__stat-label">Blocked</span>
-                        </div>
-                    )}
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{contributors.length}</span>
-                        <span className="gl-report-narrative__stat-label">Contributors</span>
-                    </div>
-                </div>
-            </section>
+            {/* 3. Waiting for Review */}
+            {(waitingForReview.length + reviewed.length) > 0 && (
+                <section className="gl-report-narrative__section">
+                    <h2 className="gl-report-narrative__heading">📋 Waiting for Review ({waitingForReview.length + reviewed.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {[...waitingForReview, ...reviewed].map(pr => (
+                            <li key={pr.id}>
+                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
+                                {pr.reviewDecision && (
+                                    <span className={`gl-pr-state gl-pr-state--${pr.reviewDecision === "APPROVED" ? "open" : "waiting"}`} style={{ marginLeft: 6 }}>
+                                        {pr.reviewDecision === "APPROVED" ? "Approved" : pr.reviewDecision === "CHANGES_REQUESTED" ? "Changes Requested" : "Review Required"}
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
 
-            {/* By Repository — priority-ordered */}
-            <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">📂 By Repository</h2>
-                {Array.from(byRepo.entries()).map(([repo, prs]) => (
-                    <div key={repo} className="gl-report-narrative__repo">
-                        <h3 className="gl-report-narrative__repo-name">{repo}</h3>
-                        <ul className="gl-report-narrative__list">
-                            {prs.map(pr => {
-                                const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
-                                return (
-                                    <li key={pr.id}>
-                                        <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                        {pr.authorLogin && (
-                                            <span className="gl-report-narrative__author">
-                                                {" "}@{pr.authorLogin}
-                                                {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
-                                            </span>
-                                        )}
-                                        <span className={`gl-pr-state gl-pr-state--${prStatus(pr).toLowerCase().replace(/ /g, "-")}`} style={{ marginLeft: 6 }}>
-                                            {prStatus(pr)}
-                                        </span>
-                                    </li>
-                                )
-                            })}
-                        </ul>
-                    </div>
-                ))}
-            </section>
-
-            {/* In Progress */}
+            {/* 4. In Progress */}
             {inProgress.length > 0 && (
                 <section className="gl-report-narrative__section">
                     <h2 className="gl-report-narrative__heading">🚧 In Progress ({inProgress.length})</h2>
@@ -783,7 +699,7 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </section>
             )}
 
-            {/* Blockers */}
+            {/* 5. Blockers */}
             {blocked.length > 0 && (
                 <section className="gl-report-narrative__section gl-report-narrative__section--blockers">
                     <h2 className="gl-report-narrative__heading">🚧 Blockers ({blocked.length})</h2>
@@ -794,6 +710,29 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                                 {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
                             </li>
                         ))}
+                    </ul>
+                </section>
+            )}
+
+            {/* 6. Merged — done work at bottom */}
+            {merged.length > 0 && (
+                <section className="gl-report-narrative__section">
+                    <h2 className="gl-report-narrative__heading">🎉 Merged ({merged.length})</h2>
+                    <ul className="gl-report-narrative__list">
+                        {merged.map(pr => {
+                            const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
+                            return (
+                                <li key={pr.id}>
+                                    <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
+                                    {pr.authorLogin && (
+                                        <span className="gl-report-narrative__author">
+                                            {" "}@{pr.authorLogin}
+                                            {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
+                                        </span>
+                                    )}
+                                </li>
+                            )
+                        })}
                     </ul>
                 </section>
             )}
