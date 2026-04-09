@@ -611,9 +611,6 @@ func assertCanPost(addr address) {
 \t// NOTE: block height recording moved to write functions (after all guards pass)
 }
 
-func recordPost(addr address) {
-\tlastPostBlock[string(addr)] = runtime.ChainHeight()
-}
 ${tokenGateCheck}
 
 func assertChannelWritable(channelName string, caller address) {
