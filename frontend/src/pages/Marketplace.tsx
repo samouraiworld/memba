@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from "react"
-import { useOutletContext } from "react-router-dom"
+import { useOutletContext, useParams, useNavigate } from "react-router-dom"
 import { ArrowRight } from "@phosphor-icons/react"
 import { Heart } from "@phosphor-icons/react"
 import {
@@ -59,6 +59,8 @@ export default function Marketplace() {
 
 function MarketplaceContent() {
     const { adena, auth } = useOutletContext<LayoutContext>()
+    const { agentId: agentIdParam } = useParams<{ agentId?: string }>()
+    const navigate = useNavigate()
 
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
@@ -109,6 +111,8 @@ function MarketplaceContent() {
 
     const handleSelectAgent = useCallback(async (agent: AgentListing) => {
         setSelectedAgent(agent)
+        // Update URL for deep-linking (without full page reload)
+        navigate(`/marketplace/${agent.id}`, { replace: true })
         // Fetch full detail from chain
         try {
             const detail = await fetchAgentDetail(agent.id)
@@ -116,7 +120,21 @@ function MarketplaceContent() {
                 setSelectedAgent(detail)
             }
         } catch { /* use the listing data we already have */ }
-    }, [])
+    }, [navigate])
+
+    // Deep-link: auto-select agent from URL param
+    useEffect(() => {
+        if (!agentIdParam || allAgents.length === 0) return
+        const agent = allAgents.find(a => a.id === agentIdParam)
+        if (agent) {
+            // Use queueMicrotask to avoid synchronous setState-in-effect lint rule
+            queueMicrotask(() => handleSelectAgent(agent))
+        } else {
+            fetchAgentDetail(agentIdParam).then(detail => {
+                if (detail) queueMicrotask(() => setSelectedAgent(detail))
+            }).catch(() => {})
+        }
+    }, [agentIdParam, allAgents, handleSelectAgent])
 
     const handleCopyConfig = useCallback(async (agent: AgentListing) => {
         const config = generateMcpConfig(agent)
@@ -159,7 +177,7 @@ function MarketplaceContent() {
                 auth={auth}
                 isFavorited={favoriteIds.has(selectedAgent.id)}
                 onToggleFavorite={handleToggleFavorite}
-                onBack={() => setSelectedAgent(null)}
+                onBack={() => { setSelectedAgent(null); navigate("/marketplace", { replace: true }) }}
                 onCopyConfig={() => handleCopyConfig(selectedAgent)}
                 copied={copied}
                 onError={setError}

@@ -136,9 +136,18 @@ function SidebarExtensions({ connected, collapsed }: { connected: boolean; colla
             )}
             {expanded && (
                 <>
-                    <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Marketplace" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
-                    <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
-                    <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT" badgeText="soon" badgeInactive connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Marketplace"
+                        badgeText={import.meta.env.VITE_ENABLE_MARKETPLACE === "true" ? "new" : "soon"}
+                        badgeInactive={import.meta.env.VITE_ENABLE_MARKETPLACE !== "true"}
+                        connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services"
+                        badgeText={import.meta.env.VITE_ENABLE_SERVICES === "true" ? "new" : "soon"}
+                        badgeInactive={import.meta.env.VITE_ENABLE_SERVICES !== "true"}
+                        connected={connected} collapsed={collapsed} />
+                    <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT"
+                        badgeText={import.meta.env.VITE_ENABLE_NFT === "true" ? "new" : "soon"}
+                        badgeInactive={import.meta.env.VITE_ENABLE_NFT !== "true"}
+                        connected={connected} collapsed={collapsed} />
                 </>
             )}
         </nav>

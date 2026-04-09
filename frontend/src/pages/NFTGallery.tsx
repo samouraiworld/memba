@@ -15,7 +15,7 @@ import {
     getCollectionInfo,
     type NFTCollection,
 } from "../lib/grc721"
-import { parseMarketplaceRender, type NFTListing } from "../lib/nftMarketplace"
+import { parseMarketplaceRender, buildDelistMsg, buildCancelOfferMsg, type NFTListing } from "../lib/nftMarketplace"
 import { NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
@@ -133,6 +133,30 @@ function NFTGalleryContent() {
         setOfferModal(null)
     }
 
+    const handleDelist = async (listing: NFTListing) => {
+        if (!adena.address) return
+        try {
+            const { doContractBroadcast } = await import("../lib/grc20")
+            const msg = buildDelistMsg(adena.address, NFT_MARKETPLACE_PATH, listing.nftRealm, listing.tokenId)
+            await doContractBroadcast([msg], `Delist NFT: ${listing.tokenId}`)
+            refreshListings()
+        } catch (err) {
+            console.error("Delist failed:", err)
+        }
+    }
+
+    const handleCancelOffer = async (listing: NFTListing) => {
+        if (!adena.address) return
+        try {
+            const { doContractBroadcast } = await import("../lib/grc20")
+            const msg = buildCancelOfferMsg(adena.address, NFT_MARKETPLACE_PATH, listing.nftRealm, listing.tokenId)
+            await doContractBroadcast([msg], `Cancel offer on: ${listing.tokenId}`)
+            refreshListings()
+        } catch (err) {
+            console.error("Cancel offer failed:", err)
+        }
+    }
+
     return (
         <div className="nft-page animate-fade-in">
             <div className="nft-header">
@@ -244,6 +268,8 @@ function NFTGalleryContent() {
                                     currentAddress={adena.address}
                                     onBuy={setBuyModal}
                                     onMakeOffer={setOfferModal}
+                                    onDelist={handleDelist}
+                                    onCancelOffer={handleCancelOffer}
                                 />
                             ))}
                         </div>
@@ -427,7 +453,13 @@ export function NFTCollectionView() {
             {renderOutput && (
                 <div className="nft-render-section">
                     <h3 className="nft-section-title">On-Chain Gallery</h3>
-                    <pre className="nft-render-output">{renderOutput}</pre>
+                    <div className="nft-render-output" dangerouslySetInnerHTML={{
+                        __html: renderOutput
+                            .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+                            .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+                            .replace(/^\*\*(.+?)\*\*$/gm, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br/>')
+                    }} />
                 </div>
             )}
         </div>

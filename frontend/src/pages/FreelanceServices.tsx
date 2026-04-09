@@ -217,6 +217,7 @@ function BrowseServicesTab({ adena, auth, onError }: {
     const [loading, setLoading] = useState(true)
     const [showPost, setShowPost] = useState(false)
     const [hireTarget, setHireTarget] = useState<ServiceListing | null>(null)
+    const [showMine, setShowMine] = useState(false)
 
     useEffect(() => {
         document.title = "Freelance Services — Memba"
@@ -229,14 +230,21 @@ function BrowseServicesTab({ adena, auth, onError }: {
     }, [category])
 
     const filtered = useMemo(() => {
-        if (!deferredSearch) return listings
-        const q = deferredSearch.toLowerCase()
-        return listings.filter(l =>
-            l.title.toLowerCase().includes(q) ||
-            l.description.toLowerCase().includes(q) ||
-            l.tags.toLowerCase().includes(q),
-        )
-    }, [listings, deferredSearch])
+        let result = listings
+        // "My Listings" filter
+        if (showMine && adena.address) {
+            result = result.filter(l => l.address === adena.address)
+        }
+        if (deferredSearch) {
+            const q = deferredSearch.toLowerCase()
+            result = result.filter(l =>
+                l.title.toLowerCase().includes(q) ||
+                l.description.toLowerCase().includes(q) ||
+                l.tags.toLowerCase().includes(q),
+            )
+        }
+        return result
+    }, [listings, deferredSearch, showMine, adena.address])
 
     const handlePosted = useCallback(() => {
         setShowPost(false)
@@ -265,9 +273,17 @@ function BrowseServicesTab({ adena, auth, onError }: {
                 <input type="text" placeholder="Search services..." value={search}
                     onChange={e => setSearch(e.target.value)} className="fl-search" aria-label="Search" />
                 {adena.connected && (
-                    <button className="fl-create-btn" onClick={() => setShowPost(true)}>
-                        <Plus size={14} /> Post a Service
-                    </button>
+                    <>
+                        <button
+                            className={`fl-mine-btn${showMine ? " active" : ""}`}
+                            onClick={() => setShowMine(!showMine)}
+                        >
+                            My Listings
+                        </button>
+                        <button className="fl-create-btn" onClick={() => setShowPost(true)}>
+                            <Plus size={14} /> Post a Service
+                        </button>
+                    </>
                 )}
             </div>
 
