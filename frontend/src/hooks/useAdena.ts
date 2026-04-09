@@ -149,12 +149,12 @@ export function useAdena() {
             }
 
             // Validate account
-            if (accountResFinal.status === "failure") {
+            if (!accountRes || accountRes.status === "failure") {
                 setState((s) => ({ ...s, loading: false, error: "Failed to get account" }));
                 return false;
             }
 
-            const { address, publicKey, chainId } = accountResFinal.data;
+            const { address, publicKey, chainId } = accountRes.data;
 
             // Public key may be null for accounts that haven't transacted on-chain yet.
             // In that case, connect with address-only — auth will use the direct address path.

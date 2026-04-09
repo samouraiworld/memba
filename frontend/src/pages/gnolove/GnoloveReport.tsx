@@ -23,7 +23,7 @@ import {
 import { useGnoloveReport, useGnoloveRepositories } from "../../hooks/gnolove"
 import { REPORT_TAB_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 import type { ReportTab, Team } from "../../lib/gnoloveConstants"
-import type { TPullRequest, TPullRequestReport } from "../../lib/gnoloveSchemas"
+import type { TPullRequest } from "../../lib/gnoloveSchemas"
 import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
 import { extractRepoFromUrl } from "../../lib/gnoloveApi"
 
@@ -332,8 +332,16 @@ export default function GnoloveReport() {
 
 // ── Narrative Report View ─────────────────────────────────────
 
+interface ReportData {
+    merged?: TPullRequest[] | null
+    in_progress?: TPullRequest[] | null
+    waiting_for_review?: TPullRequest[] | null
+    reviewed?: TPullRequest[] | null
+    blocked?: TPullRequest[] | null
+}
+
 function NarrativeReportView({ report, dateLabel, start, selectedTeam, selectedRepo }: {
-    report: TPullRequestReport | undefined
+    report: ReportData | null | undefined
     dateLabel: string
     start: Date
     selectedTeam: string
