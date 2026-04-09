@@ -693,7 +693,9 @@ export async function getConsensusState(
         // Gnockpit uses the `votes` array that maps bit positions to validators
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isPrevote = (v: any) => v?.vote_type?.toLowerCase() === "prevote" || v?.vote_type === 1
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isPrecommit = (v: any) => v?.vote_type?.toLowerCase() === "precommit" || v?.vote_type === 2
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const prevotesBitmask: string = (rs.votes || []).find((v: any) =>
             v?.round === round && isPrevote(v)
         )?.prevotes_bit_array || ""

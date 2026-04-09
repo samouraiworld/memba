@@ -8,14 +8,6 @@
 import { describe, it, expect } from "vitest"
 import { tokenize, TOKEN_COLORS, type GnoToken } from "./gnoTokenizer"
 
-function tokenTypes(code: string): string[] {
-    return tokenize(code).map(t => t.type)
-}
-
-function tokenTexts(code: string): string[] {
-    return tokenize(code).map(t => t.text)
-}
-
 describe("gnoTokenizer — keywords", () => {
     it("tokenizes Go keywords", () => {
         const tokens = tokenize("func main() { return }")

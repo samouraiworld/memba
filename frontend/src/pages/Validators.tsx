@@ -212,21 +212,9 @@ export default function Validators() {
         v.txContrib != null || (v.incidents && v.incidents.length > 0)
     )
 
-    if (loading) {
-        return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />
-    }
-
-    if (error) {
-        return (
-            <div className="val-error">
-                <span>⚠ {error}</span>
-                <button onClick={() => loadData()} className="val-retry-btn">Retry</button>
-            </div>
-        )
-    }
-
-    // Memoize incidents chart data to avoid re-flattening on every render
+    // Memoize incidents chart data — must be before early returns (React hooks rule)
     const incidentsChartData = useMemo(() => {
+        if (validators.length === 0) return null
         const allIncidents: MonitoringIncident[] = validators.flatMap(v => v.incidents ?? [])
         if (allIncidents.length === 0) return null
         const byDate = new Map<string, { date: string; critical: number; warning: number; info: number }>()
@@ -243,6 +231,19 @@ export default function Validators() {
         const chartData = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30)
         return chartData.length > 0 ? chartData : null
     }, [validators])
+
+    if (loading) {
+        return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />
+    }
+
+    if (error) {
+        return (
+            <div className="val-error">
+                <span>⚠ {error}</span>
+                <button onClick={() => loadData()} className="val-retry-btn">Retry</button>
+            </div>
+        )
+    }
 
     return (
         <div className="val-page" data-testid="validators-page">

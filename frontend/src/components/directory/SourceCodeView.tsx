@@ -15,7 +15,7 @@ import { useState, useMemo, useCallback } from "react"
 import DOMPurify from "dompurify"
 
 import type { SourceFile } from "../../lib/gnowebSource"
-import { tokenize, TOKEN_COLORS } from "../../lib/gnoTokenizer"
+import { tokenize } from "../../lib/gnoTokenizer"
 import type { GnoToken } from "../../lib/gnoTokenizer"
 
 // ── Gno/Go Syntax Tokenizer (delegated to lib/gnoTokenizer) ─
