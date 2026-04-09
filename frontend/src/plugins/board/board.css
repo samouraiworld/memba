@@ -10,7 +10,7 @@
 .board-sidebar {
     width: 200px;
     min-width: 200px;
-    border-right: 1px solid #1a1a1a;
+    border-right: 1px solid var(--color-k-edge, #1a1a1a);
     padding: 12px 0;
     display: flex;
     flex-direction: column;
@@ -25,7 +25,7 @@
     padding: 6px 12px;
     cursor: pointer;
     font-size: 13px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     transition: all 0.15s;
     border-radius: 4px;
     margin: 0 6px;
@@ -38,12 +38,12 @@
 
 .board-sidebar-item:hover {
     background: rgba(255, 255, 255, 0.03);
-    color: #ccc;
+    color: var(--color-k-text, #ccc);
 }
 
 .board-sidebar-item.active {
     background: rgba(0, 212, 170, 0.06);
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 /* ── Thread Cards ──────────────────────────────────────────── */
@@ -52,7 +52,7 @@
     padding: 12px 16px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.015);
-    border: 1px solid #1a1a1a;
+    border: 1px solid var(--color-k-edge, #1a1a1a);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -65,13 +65,13 @@
 .board-thread-title {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin-bottom: 4px;
 }
 
 .board-thread-meta {
     font-size: 11px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -81,24 +81,24 @@
     padding: 16px;
     font-size: 14px;
     line-height: 1.7;
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
 }
 
 .board-reply {
     padding: 12px 16px;
-    border-top: 1px solid #111;
+    border-top: 1px solid var(--color-k-edge, #111);
 }
 
 .board-reply-author {
     font-size: 11px;
     font-weight: 600;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-family: "JetBrains Mono", monospace;
 }
 
 .board-reply-body {
     font-size: 13px;
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
     margin-top: 4px;
     line-height: 1.6;
 }
@@ -109,9 +109,9 @@
     width: 100%;
     padding: 10px 14px;
     border-radius: 6px;
-    border: 1px solid #1a1a1a;
-    background: #0d0d0d;
-    color: #f0f0f0;
+    border: 1px solid var(--color-k-edge, #1a1a1a);
+    background: var(--color-k-bg, #0d0d0d);
+    color: var(--color-k-text, #f0f0f0);
     font-size: 13px;
     font-family: inherit;
     outline: none;
@@ -126,9 +126,9 @@
     width: 100%;
     padding: 10px 14px;
     border-radius: 6px;
-    border: 1px solid #1a1a1a;
-    background: #0d0d0d;
-    color: #f0f0f0;
+    border: 1px solid var(--color-k-edge, #1a1a1a);
+    background: var(--color-k-bg, #0d0d0d);
+    color: var(--color-k-text, #f0f0f0);
     font-size: 13px;
     font-family: inherit;
     outline: none;
@@ -146,20 +146,20 @@
 
 .board-edited-tag {
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-style: italic;
     font-family: "JetBrains Mono", monospace;
 }
 
 .board-deleted-tag {
     font-size: 10px;
-    color: #ef4444;
+    color: var(--color-k-danger, #ef4444);
     font-style: italic;
 }
 
 .board-mention {
     background: rgba(0, 212, 170, 0.12);
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     padding: 1px 4px;
     border-radius: 4px;
     font-size: 12px;
@@ -169,13 +169,13 @@
 .board-empty {
     text-align: center;
     padding: 40px 20px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-size: 13px;
 }
 
 .board-back-btn {
     font-size: 12px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     background: none;
     border: none;
     cursor: pointer;
@@ -185,7 +185,7 @@
 }
 
 .board-back-btn:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 /* ── G1: Gated Channel Banner ─────────────────────────────── */
@@ -199,7 +199,7 @@
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.15);
     font-size: 12px;
-    color: #aaa;
+    color: var(--color-k-dim, #aaa);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -209,7 +209,7 @@
 }
 
 .gated-channel-banner__text strong {
-    color: #f5a623;
+    color: var(--color-k-warning, #f5a623);
 }
 
 /* ── G1: Lock icon on restricted channels in sidebar ──────── */
@@ -227,7 +227,7 @@
     border: none;
     cursor: pointer;
     font-size: 13px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     padding: 2px 6px;
     border-radius: 4px;
     transition: color 0.15s, background 0.15s;
@@ -235,12 +235,12 @@
 }
 
 .flag-button:hover:not(:disabled) {
-    color: #f5a623;
+    color: var(--color-k-warning, #f5a623);
     background: rgba(245, 166, 35, 0.08);
 }
 
 .flag-button.flagged {
-    color: #ef4444;
+    color: var(--color-k-danger, #ef4444);
     cursor: default;
 }
 
@@ -252,6 +252,6 @@
 .flag-button__error {
     display: block;
     font-size: 9px;
-    color: #ef4444;
+    color: var(--color-k-danger, #ef4444);
     margin-top: 2px;
 }

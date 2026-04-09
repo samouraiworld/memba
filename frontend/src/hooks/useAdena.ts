@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain } from "../lib/config";
 import { setWalletRpcContext } from "../lib/grc20";
+import { trackEvent } from "../lib/analytics";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -155,6 +156,7 @@ export function useAdena() {
             }
 
             saveConnected();
+            trackEvent("Wallet Connected");
 
             // SECURITY: Read wallet's active RPC URL via GetNetwork()
             let rpcUrl = "";

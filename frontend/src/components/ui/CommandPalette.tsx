@@ -14,6 +14,7 @@ import "./command-palette.css"
 
 import { COMMANDS, type Command } from "./commands"
 import { completeQuest } from "../../lib/quests"
+import { toggleTheme } from "../../lib/themeStore"
 
 // ── Fuzzy search ──────────────────────────────────────────────
 
@@ -64,7 +65,15 @@ export function CommandPalette() {
 
     const handleSelect = useCallback((command: Command) => {
         completeQuest("use-cmdk")
-        navigate(command.path)
+        if (command.id === "toggle-theme") {
+            toggleTheme()
+        }
+        if (command.action) {
+            command.action()
+        }
+        if (command.path) {
+            navigate(command.path)
+        }
         setOpen(false)
     }, [navigate])
 

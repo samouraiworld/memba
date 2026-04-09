@@ -7,6 +7,7 @@ import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
+import { APP_VERSION } from "../../lib/config"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
@@ -303,7 +304,7 @@ export function Layout() {
                             ))}
                         </div>
                         <p className="k-footer-copy">
-                            memba v2 • built by samourai coop
+                            memba v{APP_VERSION} • built by samourai coop
                         </p>
                         <p className="k-footer-disclaimer">
                             ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
