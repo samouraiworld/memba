@@ -23,32 +23,37 @@ import "./leaderboard.css"
 export default function Leaderboard() {
     const { address } = useAdena()
     const nk = useNetworkKey()
+    const PAGE_SIZE = 50
     const [entries, setEntries] = useState<LeaderboardEntry[]>([])
     const [totalCount, setTotalCount] = useState(0)
+    const [page, setPage] = useState(0)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
 
     useEffect(() => {
         document.title = "Leaderboard — Memba"
         trackPageVisit("leaderboard")
-
-        async function fetchLeaderboard() {
-            try {
-                const resp = await api.getLeaderboard(create(GetLeaderboardRequestSchema, {
-                    limit: 50,
-                    offset: 0,
-                }))
-                setEntries(resp.entries || [])
-                setTotalCount(resp.totalCount)
-            } catch {
-                setError(true)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchLeaderboard()
     }, [])
+
+    useEffect(() => {
+        let cancelled = false
+        queueMicrotask(() => { if (!cancelled) setLoading(true) })
+        api.getLeaderboard(create(GetLeaderboardRequestSchema, {
+            limit: PAGE_SIZE,
+            offset: page * PAGE_SIZE,
+        }))
+            .then(resp => {
+                if (!cancelled) {
+                    setEntries(resp.entries || [])
+                    setTotalCount(resp.totalCount)
+                }
+            })
+            .catch(() => { if (!cancelled) setError(true) })
+            .finally(() => { if (!cancelled) setLoading(false) })
+        return () => { cancelled = true }
+    }, [page])
+
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
     const truncate = (addr: string) =>
         addr.length > 16 ? `${addr.slice(0, 10)}...${addr.slice(-4)}` : addr
@@ -95,7 +100,13 @@ export default function Leaderboard() {
                                         className={isMe ? "k-leaderboard-row--me" : ""}
                                     >
                                         <td className="k-leaderboard-rank">
-                                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                                            {(() => {
+                                                const pos = page * PAGE_SIZE + i
+                                                if (pos === 0) return "🥇"
+                                                if (pos === 1) return "🥈"
+                                                if (pos === 2) return "🥉"
+                                                return `#${pos + 1}`
+                                            })()}
                                         </td>
                                         <td>
                                             <Link to={`/${nk}/profile/${entry.address}`} className="k-leaderboard-addr">
@@ -118,7 +129,30 @@ export default function Leaderboard() {
                             })}
                         </tbody>
                     </table>
-                    <div className="k-leaderboard-count">{totalCount} players total</div>
+                    <div className="k-leaderboard-footer">
+                        <span className="k-leaderboard-count">{totalCount} players total</span>
+                        {totalPages > 1 && (
+                            <div className="k-leaderboard-pagination">
+                                <button
+                                    className="k-leaderboard-page-btn"
+                                    disabled={page === 0}
+                                    onClick={() => setPage(p => p - 1)}
+                                >
+                                    Previous
+                                </button>
+                                <span className="k-leaderboard-page-info">
+                                    Page {page + 1} of {totalPages}
+                                </span>
+                                <button
+                                    className="k-leaderboard-page-btn"
+                                    disabled={page >= totalPages - 1}
+                                    onClick={() => setPage(p => p + 1)}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

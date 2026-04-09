@@ -532,6 +532,28 @@ export function buildReviewAgentMsg(
     }
 }
 
+export function buildUpdateAgentMsg(
+    callerAddress: string,
+    registryPath: string,
+    agentId: string,
+    description: string,
+    capabilities: string,
+    endpoint: string,
+    version: string,
+    pricePerCall: number,
+) {
+    return {
+        type: "/vm.m_call",
+        value: {
+            caller: callerAddress,
+            send: "",
+            pkg_path: registryPath,
+            func: "UpdateAgent",
+            args: [agentId, description, capabilities, endpoint, version, String(pricePerCall)],
+        },
+    }
+}
+
 export function buildDepositCreditsMsg(
     callerAddress: string,
     registryPath: string,
