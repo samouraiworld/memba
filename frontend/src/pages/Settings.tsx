@@ -16,7 +16,9 @@
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect } from "react"
 import { NETWORKS, GNO_CHAIN_ID, APP_VERSION } from "../lib/config"
-import { Globe, FolderOpen, GasPump, User, Wrench, Gear } from "@phosphor-icons/react"
+import { Globe, FolderOpen, GasPump, User, Wrench, Gear, SunDim, Moon } from "@phosphor-icons/react"
+import { getTheme, setTheme, type Theme } from "../lib/themeStore"
+import { trackEvent } from "../lib/analytics"
 
 const SETTINGS_KEY = "memba_settings"
 
@@ -97,6 +99,7 @@ export function Settings() {
     const [settings, setSettings] = useState(loadSettings)
     const [network, setNetwork] = useState(GNO_CHAIN_ID)
     const [saved, setSaved] = useState(false)
+    const [theme, setThemeState] = useState<Theme>(getTheme)
 
     useEffect(() => {
         saveSettings(settings)
@@ -106,6 +109,7 @@ export function Settings() {
         setNetwork(key)
         localStorage.setItem("memba_network", key)
         setSaved(true)
+        trackEvent("Network Switched", { to: key })
         // Need page reload for network change to take effect
         setTimeout(() => window.location.reload(), 500)
     }
@@ -167,6 +171,31 @@ export function Settings() {
                         </button>
                     ))}
                 </div>
+            </Section>
+
+            {/* Theme */}
+            <Section title="Appearance" icon={<SunDim size={18} />}>
+                <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+                    {(["dark", "light"] as Theme[]).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => { setTheme(t); setThemeState(t); setSaved(true) }}
+                            style={{
+                                ...btnStyle,
+                                background: theme === t ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.03)",
+                                color: theme === t ? "#00d4aa" : "#888",
+                                border: `1px solid ${theme === t ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.06)"}`,
+                                display: "flex", alignItems: "center", gap: 6,
+                            }}
+                        >
+                            {t === "dark" ? <Moon size={14} /> : <SunDim size={14} />}
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </button>
+                    ))}
+                </div>
+                <p style={{ fontSize: 10, color: "#888", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
+                    Tip: use Cmd+K → "Toggle Theme" for quick switching
+                </p>
             </Section>
 
             {/* Directory — moved from main nav */}

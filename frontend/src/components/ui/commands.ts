@@ -6,7 +6,10 @@ export interface Command {
     id: string
     label: string
     icon: string
-    path: string
+    /** Navigation path. Omit for action-only commands. */
+    path?: string
+    /** Action to execute instead of (or in addition to) navigation. */
+    action?: () => void
     section: string
     keywords?: string[]
 }
@@ -46,4 +49,7 @@ export const COMMANDS: Command[] = [
     // Profile
     { id: "profile", label: "My Profile", icon: "👤", path: "/profile", section: "Profile", keywords: ["account", "bio", "votes"] },
     { id: "feedback", label: "Feedback", icon: "📣", path: "/feedback", section: "Profile", keywords: ["bug", "report", "suggest", "help"] },
+
+    // Actions
+    { id: "toggle-theme", label: "Toggle Theme", icon: "🌓", section: "Actions", keywords: ["dark", "light", "mode", "theme", "appearance"] },
 ]

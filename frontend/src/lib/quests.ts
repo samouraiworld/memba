@@ -6,6 +6,7 @@
  */
 
 import { api } from "./api"
+import { trackEvent } from "./analytics"
 import { ALL_QUESTS } from "./gnobuilders"
 import { create } from "@bufbuild/protobuf"
 import {
@@ -200,6 +201,9 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
     state.completed.push({ questId, completedAt: Date.now() })
     state.totalXP += quest.xp
     saveQuestProgress(state)
+
+    // Analytics
+    trackEvent("Quest Completed", { questId, xp: quest.xp })
 
     // Fire-and-forget backend sync
     if (authToken) {

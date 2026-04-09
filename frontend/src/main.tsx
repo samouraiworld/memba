@@ -2,9 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { initTheme } from './lib/themeStore'
 import './tokens.css'
 import './index.css'
 import App from './App.tsx'
+
+// Apply theme before first paint (avoids flash)
+initTheme()
 
 // ── Sentry initialization ─────────────────────────────────────
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN
