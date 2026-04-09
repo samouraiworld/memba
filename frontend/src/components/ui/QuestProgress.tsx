@@ -116,7 +116,7 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
 
     const completedIds = new Set(state.completed.map(c => c.questId))
     const completedCount = state.completed.length
-    const totalQuests = ALL_QUESTS.length || QUESTS.length // v2 authoritative, v1 fallback
+    const totalQuests = ALL_QUESTS.length > 0 ? ALL_QUESTS.length : QUESTS.length // v2 authoritative, v1 fallback
     const percent = Math.min(100, Math.round((completedCount / totalQuests) * 100))
     const eligible = address ? state.totalXP >= CANDIDATURE_XP_THRESHOLD : canApplyForMembership()
 

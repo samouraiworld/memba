@@ -230,6 +230,10 @@ export function ProposeDAO() {
                                 type="button"
                                 disabled={loading}
                                 onClick={() => {
+                                    // Warn before overwriting user's custom input
+                                    if ((title.trim() || description.trim()) && selectedTemplate !== t.id) {
+                                        if (!confirm("This will replace your current title and description. Continue?")) return
+                                    }
                                     setSelectedTemplate(t.id)
                                     const { title: tTitle, description: tDesc } = applyTemplate(t.id)
                                     setTitle(tTitle)

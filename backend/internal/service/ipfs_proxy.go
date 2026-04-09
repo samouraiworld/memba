@@ -76,7 +76,7 @@ func HandleIPFSUpload() http.Handler {
 
 		go func() {
 			defer func() { _ = pw.Close() }()
-			part, err := mw.CreateFormFile("file", header.Filename)
+			part, err := mw.CreateFormFile("file", "avatar.img") // sanitized filename — don't forward user input
 			if err != nil {
 				_ = pw.CloseWithError(err)
 				return
@@ -106,7 +106,7 @@ func HandleIPFSUpload() http.Handler {
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		body, err := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1*1024*1024)) // 1MB max response
 		if err != nil {
 			slog.Error("failed to read lighthouse response", "error", err)
 			http.Error(w, `{"error":"IPFS upload failed"}`, http.StatusBadGateway)
