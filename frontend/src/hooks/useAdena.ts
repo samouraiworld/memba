@@ -128,22 +128,33 @@ export function useAdena() {
         setState((s) => ({ ...s, loading: true, error: null }));
 
         try {
-            // Request connection — Adena returns status:"failure" + type:"ALREADY_CONNECTED"
-            // when the site was previously established. This is actually a success case.
-            const connectRes = await adena.AddEstablish("Memba");
-            if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
-                setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
-                return false;
+            // Silent reconnect: try GetAccount() first — if the user already
+            // whitelisted Memba, this succeeds without showing a popup.
+            let accountRes: AdenaAccount | null = null;
+            try {
+                const silentCheck: AdenaAccount = await adena.GetAccount();
+                if (silentCheck.status !== "failure" && silentCheck.data?.address) {
+                    accountRes = silentCheck;
+                }
+            } catch { /* silent check failed, fall through to AddEstablish */ }
+
+            if (!accountRes) {
+                // Full establish flow — shows Adena approval popup
+                const connectRes = await adena.AddEstablish("Memba");
+                if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
+                    setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
+                    return false;
+                }
+                accountRes = await adena.GetAccount();
             }
 
-            // Get account info
-            const accountRes: AdenaAccount = await adena.GetAccount();
-            if (accountRes.status === "failure") {
+            // Validate account
+            if (accountResFinal.status === "failure") {
                 setState((s) => ({ ...s, loading: false, error: "Failed to get account" }));
                 return false;
             }
 
-            const { address, publicKey, chainId } = accountRes.data;
+            const { address, publicKey, chainId } = accountResFinal.data;
 
             // Public key may be null for accounts that haven't transacted on-chain yet.
             // In that case, connect with address-only — auth will use the direct address path.
