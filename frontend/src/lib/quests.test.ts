@@ -121,9 +121,9 @@ describe("canApplyForMembership", () => {
 
 describe("getCompletionPercent", () => {
     it("0% initially", () => expect(getCompletionPercent()).toBe(0))
-    it("10% after 1 quest", () => {
+    it("~1% after 1 quest (1 of 95 total)", () => {
         completeQuest("connect-wallet")
-        expect(getCompletionPercent()).toBe(10)
+        expect(getCompletionPercent()).toBe(1) // 1/95 = 1.05% → rounds to 1
     })
 })
 

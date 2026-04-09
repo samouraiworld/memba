@@ -63,8 +63,8 @@ export const CANDIDATURE_XP_THRESHOLD = 350
 /** Legacy threshold for grandfathered users who reached 100 XP before v4.0. */
 export const LEGACY_CANDIDATURE_THRESHOLD = 100
 
-/** Total possible XP from all quests. */
-export const TOTAL_POSSIBLE_XP = QUESTS.reduce((sum, q) => sum + q.xp, 0) // 125
+/** Total possible XP from v1 quests only. See TOTAL_POSSIBLE_XP_V2 in gnobuilders.ts for full total. */
+export const TOTAL_POSSIBLE_XP = QUESTS.reduce((sum, q) => sum + q.xp, 0)
 
 // ── Storage ──────────────────────────────────────────────────
 
@@ -202,6 +202,9 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
     state.totalXP += quest.xp
     saveQuestProgress(state)
 
+    // Notify UI components (QuestHub, QuestProgress) to refresh
+    window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
+
     // Analytics
     trackEvent("Quest Completed", { questId, xp: quest.xp })
 
@@ -259,10 +262,11 @@ export function checkAndSetLegacyEligibility(): void {
     } catch { /* */ }
 }
 
-/** Get completion percentage (0-100). */
+/** Get completion percentage (0-100) across all quests (v1 + v2 GnoBuilders). */
 export function getCompletionPercent(): number {
     const state = loadQuestProgress()
-    return Math.round((state.completed.length / QUESTS.length) * 100)
+    const totalQuests = ALL_QUESTS.length + QUESTS.length
+    return Math.round((state.completed.length / totalQuests) * 100)
 }
 
 // ── Backend Sync ─────────────────────────────────────────────

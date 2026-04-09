@@ -565,7 +565,7 @@
 .k-questdetail-verify-btn {
     padding: var(--space-2) var(--space-4);
     background: var(--color-k-accent);
-    color: #000;
+    color: var(--color-bg);
     border: none;
     border-radius: var(--radius-md);
     font-size: 0.875rem;

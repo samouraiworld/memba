@@ -231,3 +231,23 @@ export function buildCancelOfferMsg(
         },
     }
 }
+
+/** Build MsgCall to accept an offer on a listed NFT (seller action). */
+export function buildAcceptOfferMsg(
+    caller: string,
+    marketplacePath: string,
+    nftRealm: string,
+    tokenId: string,
+    buyerAddr: string,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: marketplacePath,
+            func: "AcceptOffer",
+            args: [nftRealm, tokenId, buyerAddr],
+        },
+    }
+}

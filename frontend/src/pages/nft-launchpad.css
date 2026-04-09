@@ -233,7 +233,7 @@
 }
 
 .nft-form-input:focus { border-color: rgba(139, 92, 246, 0.3); }
-.nft-form-input::placeholder { color: #333; }
+.nft-form-input::placeholder { color: var(--color-text-muted); }
 
 .nft-form-hint {
     font-size: 10px;
@@ -365,7 +365,7 @@
 
 .nft-nav-btn--deploy {
     background: linear-gradient(135deg, #00d4aa, #00b894);
-    color: #000;
+    color: var(--color-bg);
     font-weight: 700;
 }
 

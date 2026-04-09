@@ -116,8 +116,16 @@ func main() {
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
-	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy("gno.land/r/samcrew/agent_registry")))
-	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy("gno.land/r/samcrew/escrow")))
+	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")
+	if agentRegistryPath == "" {
+		agentRegistryPath = "gno.land/r/samcrew/agent_registry"
+	}
+	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
+	if escrowRealmPath == "" {
+		escrowRealmPath = "gno.land/r/samcrew/escrow"
+	}
+	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(agentRegistryPath)))
+	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(escrowRealmPath)))
 
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))

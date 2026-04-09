@@ -22,6 +22,9 @@ import {
     type QuestDifficulty,
 } from "../lib/gnobuilders"
 import { trackPageVisit } from "../lib/quests"
+import { fetchUserBadges, getMintableBadges, getMintableRankBadges } from "../lib/badges"
+import { GNO_RPC_URL } from "../lib/config"
+import { useAdena } from "../hooks/useAdena"
 import { RankBadge } from "../components/quests/RankBadge"
 import { QuestCard } from "../components/quests/QuestCard"
 import "./questhub.css"
@@ -37,12 +40,17 @@ export default function QuestHub() {
     const [status, setStatus] = useState<FilterStatus>("all")
     const [search, setSearch] = useState("")
 
+    const [questState, setQuestState] = useState(() => loadQuestProgress())
+
     useEffect(() => {
         document.title = "GnoBuilders — Memba"
         trackPageVisit("quests")
-    }, [])
 
-    const questState = useMemo(() => loadQuestProgress(), [])
+        // Listen for quest completion events to refresh state
+        const onQuestComplete = () => setQuestState(loadQuestProgress())
+        window.addEventListener("quest-completed", onQuestComplete)
+        return () => window.removeEventListener("quest-completed", onQuestComplete)
+    }, [])
     const completedIds = useMemo(() => new Set(questState.completed.map(c => c.questId)), [questState])
     const rank = calculateRank(questState.totalXP)
     const toNext = xpToNextRank(questState.totalXP)
@@ -80,6 +88,19 @@ export default function QuestHub() {
     const completedCount = questState.completed.length
     const totalVisible = visibleQuests.length
 
+    // Badge claim tracking
+    const adena = useAdena()
+    const [claimableBadges, setClaimableBadges] = useState(0)
+
+    useEffect(() => {
+        if (!adena.address) return
+        fetchUserBadges(GNO_RPC_URL, adena.address).then(summary => {
+            const questMintable = getMintableBadges(completedIds, summary.badges)
+            const rankMintable = getMintableRankBadges(questState.totalXP, summary.badges)
+            setClaimableBadges(questMintable.length + rankMintable.length)
+        }).catch(() => { /* chain unavailable */ })
+    }, [adena.address, completedIds, questState.totalXP])
+
     return (
         <div className="k-questhub">
             {/* Hero Section */}
@@ -106,6 +127,11 @@ export default function QuestHub() {
                         />
                     </div>
                     <span className="k-questhub-progress-label">{completedCount} / {totalVisible} quests</span>
+                    {claimableBadges > 0 && (
+                        <div className="k-questhub-claimable">
+                            {claimableBadges} badge{claimableBadges > 1 ? "s" : ""} ready to mint
+                        </div>
+                    )}
                 </div>
             </div>
 
