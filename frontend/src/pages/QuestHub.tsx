@@ -40,19 +40,17 @@ export default function QuestHub() {
     const [status, setStatus] = useState<FilterStatus>("all")
     const [search, setSearch] = useState("")
 
-    const [refreshKey, setRefreshKey] = useState(0)
+    const [questState, setQuestState] = useState(() => loadQuestProgress())
 
     useEffect(() => {
         document.title = "GnoBuilders — Memba"
         trackPageVisit("quests")
 
         // Listen for quest completion events to refresh state
-        const onQuestComplete = () => setRefreshKey(k => k + 1)
+        const onQuestComplete = () => setQuestState(loadQuestProgress())
         window.addEventListener("quest-completed", onQuestComplete)
         return () => window.removeEventListener("quest-completed", onQuestComplete)
     }, [])
-
-    const questState = useMemo(() => loadQuestProgress(), [refreshKey])
     const completedIds = useMemo(() => new Set(questState.completed.map(c => c.questId)), [questState])
     const rank = calculateRank(questState.totalXP)
     const toNext = xpToNextRank(questState.totalXP)
