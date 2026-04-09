@@ -337,6 +337,7 @@ function AgentDetailView({
     const [submittingReview, setSubmittingReview] = useState(false)
     const [reviewSuccess, setReviewSuccess] = useState(false)
     const [stats, setStats] = useState<AgentStats | null>(null)
+    const isCreator = adena.address && agent.creator.startsWith(adena.address.slice(0, 10))
 
     // Load stats on mount
     useEffect(() => {
@@ -391,15 +392,20 @@ function AgentDetailView({
                             </span>
                         </div>
                     </div>
-                    {auth.token && (
-                        <button
-                            className={`mp-detail__fav${isFavorited ? " active" : ""}`}
-                            onClick={e => onToggleFavorite(e, agent.id)}
-                            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-                        >
-                            <Heart size={20} weight={isFavorited ? "fill" : "regular"} />
-                        </button>
-                    )}
+                    <div className="mp-detail__actions">
+                        {isCreator && (
+                            <span className="mp-detail__creator-badge">Your Agent</span>
+                        )}
+                        {auth.token && (
+                            <button
+                                className={`mp-detail__fav${isFavorited ? " active" : ""}`}
+                                onClick={e => onToggleFavorite(e, agent.id)}
+                                title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                            >
+                                <Heart size={20} weight={isFavorited ? "fill" : "regular"} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Stats row */}
@@ -446,6 +452,11 @@ function AgentDetailView({
                             ))}
                         </div>
                     </div>
+                )}
+
+                {/* Credits (pay-per-use agents) */}
+                {agent.pricing === "pay-per-use" && adena.connected && (
+                    <CreditSection agentId={agent.id} address={adena.address} onError={onError} />
                 )}
 
                 {/* MCP Config */}
@@ -700,6 +711,83 @@ function RegisterAgentForm({ address, onClose, onRegistered, onError }: {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    )
+}
+
+// ── Credit Management (pay-per-use agents) ──────────────────
+
+function CreditSection({ agentId, address, onError }: {
+    agentId: string
+    address: string
+    onError: (msg: string) => void
+}) {
+    const [depositAmount, setDepositAmount] = useState("")
+    const [submitting, setSubmitting] = useState(false)
+
+    const handleDeposit = async () => {
+        const ugnot = Math.floor(parseFloat(depositAmount || "0") * 1_000_000)
+        if (ugnot <= 0) return
+        setSubmitting(true)
+        try {
+            const { buildDepositCreditsMsg } = await import("../lib/agentTemplate")
+            const msg = buildDepositCreditsMsg(address, REGISTRY_PATH, agentId, ugnot)
+            await doContractBroadcast([msg], `Deposit ${depositAmount} GNOT credits`)
+            setDepositAmount("")
+        } catch (err) {
+            onError(err instanceof Error ? err.message : "Deposit failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    const handleRefund = async () => {
+        setSubmitting(true)
+        try {
+            const { buildRefundCreditsMsg } = await import("../lib/agentTemplate")
+            const msg = buildRefundCreditsMsg(address, REGISTRY_PATH, agentId)
+            await doContractBroadcast([msg], "Refund remaining credits")
+        } catch (err) {
+            onError(err instanceof Error ? err.message : "Refund failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    return (
+        <div className="mp-detail__section">
+            <h3>Credits</h3>
+            <p className="mp-detail__hint">
+                Deposit GNOT to use this agent. Credits are consumed per invocation.
+            </p>
+            <div className="mp-credit-actions">
+                <div className="mp-credit-deposit">
+                    <input
+                        type="number"
+                        min="0.001"
+                        step="0.1"
+                        placeholder="Amount (GNOT)"
+                        value={depositAmount}
+                        onChange={e => setDepositAmount(e.target.value)}
+                        className="mp-credit-input"
+                        disabled={submitting}
+                    />
+                    <button
+                        className="mp-credit-btn mp-credit-btn--deposit"
+                        onClick={handleDeposit}
+                        disabled={submitting || !depositAmount}
+                    >
+                        {submitting ? "..." : "Deposit"}
+                    </button>
+                </div>
+                <button
+                    className="mp-credit-btn mp-credit-btn--refund"
+                    onClick={handleRefund}
+                    disabled={submitting}
+                >
+                    Refund All Credits
+                </button>
             </div>
         </div>
     )
