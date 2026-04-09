@@ -6,8 +6,8 @@
     gap: 14px;
     padding: 16px 20px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-hover);
     transition: border-color 0.2s, background 0.2s;
 }
 
@@ -47,14 +47,14 @@
     flex: 1;
     height: 6px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-bg-hover);
     overflow: hidden;
 }
 
 .candidature-unlock__bar-fill {
     height: 100%;
     border-radius: 3px;
-    background: linear-gradient(90deg, #555 0%, #888 100%);
+    background: linear-gradient(90deg, var(--color-text-muted) 0%, var(--color-text-secondary) 100%);
     transition: width 0.5s ease;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .candidature-unlock__btn--secondary {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--color-bg-hover);
     color: var(--color-primary);
     border: 1px solid rgba(0, 212, 170, 0.2);
 }
@@ -101,7 +101,7 @@
 }
 
 .candidature-unlock__btn--disabled {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-bg-hover);
     color: var(--color-text-muted);
     cursor: not-allowed;
     pointer-events: none;

@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import {
     House, Buildings, Coins, FolderOpen,
     DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
@@ -176,6 +177,12 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                         ))}
                     </div>
 
+                    {/* Theme section */}
+                    <div className="k-sidebar-section">
+                        <div className="k-sidebar-section-label">Theme</div>
+                        <MobileThemeToggle onSelect={() => setSheetOpen(false)} />
+                    </div>
+
                     {/* Network section */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Network</div>
@@ -202,6 +209,33 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     </div>
                 </div>
             </BottomSheet>
+        </div>
+    )
+}
+
+function MobileThemeToggle({ onSelect }: { onSelect: () => void }) {
+    const [current, setCurrent] = useState<Theme>(getTheme)
+
+    return (
+        <div style={{ display: "flex", gap: 8, padding: "4px 16px" }}>
+            {(["dark", "light"] as const).map(t => (
+                <button
+                    key={t}
+                    onClick={() => { setTheme(t); setCurrent(t); onSelect() }}
+                    style={{
+                        flex: 1, padding: "8px 12px", borderRadius: 6,
+                        fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                        cursor: "pointer", border: "1px solid",
+                        transition: "all 0.15s",
+                        background: current === t ? "rgba(0,212,170,0.12)" : "var(--color-bg-hover)",
+                        color: current === t ? "var(--color-primary)" : "var(--color-text-secondary)",
+                        borderColor: current === t ? "rgba(0,212,170,0.25)" : "var(--color-border)",
+                        fontWeight: current === t ? 600 : 400,
+                    }}
+                >
+                    {t === "dark" ? "🌙" : "☀️"} {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+            ))}
         </div>
     )
 }
