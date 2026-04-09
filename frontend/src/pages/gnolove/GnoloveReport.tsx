@@ -408,7 +408,6 @@ export default function GnoloveReport() {
             ) : view === "report" ? (
                 <NarrativeReportView
                     report={report}
-                    dateLabel={dateLabel}
                     period={period}
                     start={start}
                     end={end}
@@ -456,9 +455,8 @@ interface ReportData {
     blocked?: TPullRequest[] | null
 }
 
-function NarrativeReportView({ report, dateLabel, period, start, end, selectedTeam, selectedRepos }: {
+function NarrativeReportView({ report, period, start, end, selectedTeam, selectedRepos }: {
     report: ReportData | null | undefined
-    dateLabel: string
     period: ReportPeriod
     start: Date
     end: Date
@@ -645,7 +643,7 @@ function NarrativeReportView({ report, dateLabel, period, start, end, selectedTe
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-    }, [generateReportMd, weekId, period])
+    }, [generateReportMd, weekId, period, start])
 
     if (allPrs.length === 0) {
         return <div className="gl-section"><div className="gl-empty">No data for this period.</div></div>
