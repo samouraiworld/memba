@@ -973,6 +973,26 @@ body {
   background: rgba(0, 212, 170, 0.08);
 }
 
+/* ── TopBar: theme toggle ────────────────────────────────────────── */
+.k-topbar-theme-toggle {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+.k-topbar-theme-toggle:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+.k-topbar-theme-toggle:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.15);
+}
+
 /* ── TopBar: network selector ────────────────────────────────────── */
 .k-topbar-network-select {
   background: rgba(0, 212, 170, 0.06);

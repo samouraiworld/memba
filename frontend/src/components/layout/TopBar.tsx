@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react"
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { validateActiveRpcDomain } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
 import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
 import { trackNetworkVisit } from "../../lib/questVerifier"
+import { getTheme, toggleTheme, type Theme } from "../../lib/themeStore"
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface TopBarProps {
@@ -72,6 +74,9 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
 
                 {/* Right: network + wallet */}
                 <div className="k-topbar-right">
+                    {/* Theme toggle */}
+                    <ThemeToggle />
+
                     {/* Network selector */}
                     <select
                         className="k-topbar-network-select"
@@ -222,8 +227,36 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
     )
 }
 
+// ── Theme Toggle ──────────────────────────────────────────────────────
+
+function ThemeToggle() {
+    const [theme, setThemeState] = useState<Theme>(getTheme)
+
+    // Sync with external changes (Settings page, Cmd+K)
+    useEffect(() => {
+        const observer = new MutationObserver(() => {
+            setThemeState(getTheme())
+        })
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
+        return () => observer.disconnect()
+    }, [])
+
+    return (
+        <button
+            className="k-topbar-theme-toggle"
+            onClick={() => {
+                const next = toggleTheme()
+                setThemeState(next)
+            }}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme (⌘K)`}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        >
+            {theme === "dark" ? "☀️" : "🌙"}
+        </button>
+    )
+}
+
 // ── Chain Mismatch Banner ─────────────────────────────────────────────
-import { useState } from "react"
 
 function ChainMismatchBanner({
     walletChainId,

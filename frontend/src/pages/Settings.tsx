@@ -194,7 +194,7 @@ export function Settings() {
                     ))}
                 </div>
                 <p style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
-                    Tip: use Cmd+K → "Toggle Theme" for quick switching
+                    Tip: click ☀️/🌙 in the top bar, or use ⌘K → "Toggle Theme"
                 </p>
             </Section>
 

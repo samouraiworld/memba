@@ -16,10 +16,10 @@ interface QuestCardProps {
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-    beginner: "#22c55e",
-    intermediate: "#3b82f6",
-    advanced: "#f59e0b",
-    expert: "#ef4444",
+    beginner: "var(--color-success)",
+    intermediate: "var(--color-info)",
+    advanced: "var(--color-warning)",
+    expert: "var(--color-danger)",
 }
 
 export function QuestCard({ quest, completed, available }: QuestCardProps) {
@@ -54,7 +54,7 @@ export function QuestCard({ quest, completed, available }: QuestCardProps) {
                     <span className="k-quest-card-status k-quest-card-status--available">Available</span>
                 ) : (
                     <span className="k-quest-card-status k-quest-card-status--locked">
-                        {quest.prerequisite ? `Requires: ${quest.prerequisite}` : "Locked"}
+                        🔒 {quest.prerequisite ? `Requires: ${quest.prerequisite}` : "Locked"}
                     </span>
                 )}
             </div>
