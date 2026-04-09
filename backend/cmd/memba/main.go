@@ -131,6 +131,9 @@ func main() {
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))
 	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
 
+	// IPFS upload proxy — keeps Lighthouse API key server-side
+	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", service.HandleIPFSUpload()))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))

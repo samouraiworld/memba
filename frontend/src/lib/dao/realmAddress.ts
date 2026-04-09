@@ -94,6 +94,19 @@ export function bech32Encode(hrp: string, data: Uint8Array): string {
 }
 
 /**
+ * Derive a bech32 address from a base64-encoded secp256k1 public key.
+ *
+ * Gno address derivation: SHA256(pubkey_bytes) → first 20 bytes → bech32 encode.
+ * This matches Gno's tm2 crypto (truncated SHA256, no RIPEMD160).
+ */
+export async function pubkeyToAddress(base64Pubkey: string, hrp = "g"): Promise<string> {
+    const pubkeyBytes = Uint8Array.from(atob(base64Pubkey), c => c.charCodeAt(0))
+    const hashBuffer = await crypto.subtle.digest("SHA-256", pubkeyBytes)
+    const addressBytes = new Uint8Array(hashBuffer).slice(0, 20)
+    return bech32Encode(hrp, addressBytes)
+}
+
+/**
  * Convert a hex address (20 bytes) to bech32.
  * Used to convert Tendermint consensus hex addresses to g1... addresses
  * for matching against gnomonitoring data.

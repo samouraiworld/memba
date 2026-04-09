@@ -1,0 +1,152 @@
+/**
+ * ProposeTransaction.css — Extracted from inline styles in ProposeTransaction.tsx.
+ * Covers tab buttons, form layout, and action buttons.
+ */
+
+/* ── Page layout ────────────────────────────────────────── */
+.ptx-page {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* ── Back button ────────────────────────────────────────── */
+.ptx-back-btn {
+    color: var(--color-primary);
+    font-size: 13px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 16px;
+    font-family: JetBrains Mono, monospace;
+    padding: 0;
+}
+
+/* ── Page header ────────────────────────────────────────── */
+.ptx-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.ptx-from-address {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+    font-family: JetBrains Mono, monospace;
+    word-break: break-all;
+}
+
+/* ── Connect prompt ─────────────────────────────────────── */
+.ptx-connect-prompt {
+    background: #0c0c0c;
+    padding: 32px;
+    text-align: center;
+}
+
+.ptx-connect-prompt p {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-family: JetBrains Mono, monospace;
+    margin: 0;
+}
+
+/* ── Tab bar ────────────────────────────────────────────── */
+.ptx-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #222;
+    flex-wrap: wrap;
+}
+
+.ptx-tab {
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #666;
+    font-family: JetBrains Mono, monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ptx-tab--active {
+    border-bottom-color: #00d4aa;
+    color: #00d4aa;
+}
+
+/* ── Form card layout ───────────────────────────────────── */
+.ptx-form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Form input (shared) ────────────────────────────────── */
+.ptx-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #0c0c0c;
+    border: 1px solid #222;
+    color: var(--color-text);
+    font-family: JetBrains Mono, monospace;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ptx-input:disabled {
+    opacity: 0.5;
+}
+
+/* ── Hint text ──────────────────────────────────────────── */
+.ptx-hint {
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+}
+
+/* ── Fee disclosure ─────────────────────────────────────── */
+.ptx-fee-disclosure {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(245, 166, 35, 0.06);
+    border: 1px solid rgba(245, 166, 35, 0.15);
+    font-size: 11px;
+    font-family: JetBrains Mono, monospace;
+    color: var(--color-warning);
+}
+
+/* ── Submit row ─────────────────────────────────────────── */
+.ptx-submit-row {
+    display: flex;
+    gap: 12px;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .ptx-page {
+        gap: 20px;
+    }
+
+    .ptx-tabs {
+        gap: 0;
+    }
+
+    .ptx-tab {
+        padding: 8px 10px;
+        font-size: 10px;
+    }
+
+    .ptx-submit-row {
+        flex-direction: column;
+    }
+
+    .ptx-submit-row button {
+        width: 100%;
+    }
+}

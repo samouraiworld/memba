@@ -194,7 +194,7 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
 
                 {/* Quest card grid */}
                 <div className="quest-hub__grid">
-                    {QUESTS.map(q => {
+                    {ALL_QUESTS.map(q => {
                         const done = completedIds.has(q.id)
                         return (
                             <div

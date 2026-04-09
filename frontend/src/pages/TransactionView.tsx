@@ -11,7 +11,8 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, GNO_BECH32_HRP } from "../lib/config"
+import { pubkeyToAddress } from "../lib/dao/realmAddress"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
@@ -258,7 +259,7 @@ export function TransactionView() {
 
                                     // Fallback: broadcast via RPC POST (Amino JSON)
                                     if (!hash) {
-                                        const broadcastTx = buildBroadcastTx(tx)
+                                        const broadcastTx = await buildBroadcastTx(tx)
                                         const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
@@ -404,11 +405,11 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
  *
  * v5 fix: Replaces broken comma-joined signature format.
  */
-function buildMultisigSignatureData(tx: Transaction): {
+async function buildMultisigSignatureData(tx: Transaction): Promise<{
     pubkey: Record<string, unknown>;
     sigs: string[];
     bitArray: string;
-} | null {
+} | null> {
     let multisigPubkey: {
         type?: string;
         "@type"?: string;
@@ -429,41 +430,38 @@ function buildMultisigSignatureData(tx: Transaction): {
     const pubkeys = multisigPubkey.value?.pubkeys || multisigPubkey.pubkeys || []
     if (pubkeys.length === 0) return null
 
-    // Map each signature to its pubkey position by matching addresses.
-    // tx.signatures contains { userAddress, value (base64 sig) }.
-    // We need to determine which pubkey index each signer corresponds to.
-    // Since we store userAddress with each sig, and the multisig pubkeys
-    // are ordered, we build a positional mapping.
-    //
-    // NOTE: Ideally the backend stores the pubkey index per signature.
-    // For now, we use the order from tx.signatures and assume they
-    // are already associated with the correct pubkey positions.
-    // The backend should be updated to store signer_pubkey_index.
+    // Derive the bech32 address for each pubkey in the multisig so we can
+    // map each signature to its correct positional index.
+    const pubkeyAddresses = await Promise.all(
+        pubkeys.map(pk => pubkeyToAddress(pk.value, GNO_BECH32_HRP))
+    )
 
-    // Build CompactBitArray string: "x" for signed positions, "_" for unsigned
-    // For now, use the first N positions (where N = number of signatures)
-    // since we don't have the index mapping yet.
+    // Build a lookup: signer address → pubkey index
+    const addressToIndex = new Map<string, number>()
+    for (let i = 0; i < pubkeyAddresses.length; i++) {
+        addressToIndex.set(pubkeyAddresses[i], i)
+    }
+
+    // Build CompactBitArray: "x" for signed positions, "_" for unsigned.
+    // Signatures must be ordered by their pubkey index (ascending).
     const signerCount = pubkeys.length
     const bits: string[] = new Array(signerCount).fill("_")
-    const orderedSigs: string[] = []
+    const indexedSigs: { index: number; value: string }[] = []
 
-    // Attempt to match by address if we have address info
     for (const sig of tx.signatures) {
-        // For now, assign signatures sequentially to first available positions.
-        // TODO: Match sig.userAddress to pubkey-derived address for correct positioning.
-        // This requires deriving addresses from secp256k1 pubkeys in JS.
-        for (let i = 0; i < signerCount; i++) {
-            if (bits[i] === "_") {
-                bits[i] = "x"
-                orderedSigs.push(sig.value)
-                break
-            }
+        const idx = addressToIndex.get(sig.userAddress)
+        if (idx !== undefined && bits[idx] === "_") {
+            bits[idx] = "x"
+            indexedSigs.push({ index: idx, value: sig.value })
         }
     }
 
+    // Sort by pubkey index so signatures are in positional order
+    indexedSigs.sort((a, b) => a.index - b.index)
+
     return {
         pubkey: multisigPubkey,
-        sigs: orderedSigs,
+        sigs: indexedSigs.map(s => s.value),
         bitArray: bits.join(""),
     }
 }
@@ -472,8 +470,8 @@ function buildMultisigSignatureData(tx: Transaction): {
  * Build a hex-encoded Amino JSON broadcast TX from multi-sig data.
  * Uses the proper Multisignature structure with CompactBitArray.
  */
-function buildBroadcastTx(tx: Transaction): string {
-    const sigData = buildMultisigSignatureData(tx)
+async function buildBroadcastTx(tx: Transaction): Promise<string> {
+    const sigData = await buildMultisigSignatureData(tx)
     if (!sigData) {
         throw new Error("Failed to build multisig signature data — check multisig pubkey JSON")
     }
@@ -515,7 +513,7 @@ async function tryAdenaBroadcast(tx: Transaction): Promise<string | null> {
     }
 
     try {
-        const sigData = buildMultisigSignatureData(tx)
+        const sigData = await buildMultisigSignatureData(tx)
         if (!sigData) return null
 
         const result = await (adena.BroadcastMultisigTransaction as (arg: unknown) => Promise<{

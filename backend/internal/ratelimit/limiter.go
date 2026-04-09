@@ -27,6 +27,7 @@ func DefaultConfigs() map[string]Config {
 		"tx":     {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"oauth":   {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
 		"analyst": {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
+		"upload":  {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
 		"default": {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }

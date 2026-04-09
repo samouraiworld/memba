@@ -168,6 +168,44 @@ export async function preprocessImage(file: File): Promise<Blob> {
 // ── Lighthouse Upload ─────────────────────────────────────────
 
 /**
+ * Upload a file to IPFS via the backend proxy.
+ * The proxy keeps the Lighthouse API key server-side.
+ *
+ * @param file - File or Blob to upload
+ * @returns Pin result with CID and gateway URL
+ */
+async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
+    const { API_BASE_URL } = await import("./config")
+    const backendUrl = API_BASE_URL || ""
+
+    const formData = new FormData()
+    const filename = file instanceof File ? file.name : "avatar.webp"
+    formData.append("file", file, filename)
+
+    const response = await fetch(`${backendUrl}/api/upload/avatar`, {
+        method: "POST",
+        body: formData,
+    })
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => "Unknown error")
+        throw new Error(`Avatar upload failed (${response.status}): ${text}`)
+    }
+
+    const data = await response.json()
+    const cid = data.cid
+
+    if (!cid) {
+        throw new Error("Upload returned no CID")
+    }
+
+    return {
+        cid,
+        url: getIpfsGatewayUrl(cid),
+    }
+}
+
+/**
  * Upload a file to IPFS via Lighthouse REST API.
  * Does NOT require the @lighthouse-web3/sdk — uses direct HTTP multipart.
  *
@@ -176,7 +214,10 @@ export async function preprocessImage(file: File): Promise<Blob> {
  * @returns Pin result with CID and gateway URL
  */
 export async function uploadToLighthouse(file: File | Blob, apiKey: string): Promise<IpfsPinResult> {
-    if (!apiKey) throw new Error("Lighthouse API key not configured")
+    // If no API key provided, use the backend proxy instead
+    if (!apiKey) {
+        return uploadViaProxy(file)
+    }
 
     const formData = new FormData()
     const filename = file instanceof File ? file.name : "avatar.webp"

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { NotePencil, UsersThree, Vault, GearSix, Archive } from "@phosphor-icons/react"
+import { NotePencil, UsersThree, Vault, GearSix, Archive, FileText } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
@@ -9,12 +9,75 @@ import { GNO_RPC_URL } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
+// ── Proposal Templates ───────────────────────────────────────
+
+type ProposalTemplate = "none" | "treasury" | "add-member" | "general"
+
+const PROPOSAL_TEMPLATES: { id: ProposalTemplate; label: string; icon: typeof FileText }[] = [
+    { id: "none", label: "Blank", icon: FileText },
+    { id: "treasury", label: "Treasury Transfer", icon: Vault },
+    { id: "add-member", label: "Add Member", icon: UsersThree },
+    { id: "general", label: "General Governance", icon: GearSix },
+]
+
+function applyTemplate(template: ProposalTemplate): { title: string; description: string } {
+    switch (template) {
+        case "treasury":
+            return {
+                title: "Treasury Transfer Request",
+                description: [
+                    "## Treasury Transfer Request",
+                    "",
+                    "**Recipient Address:** g1...",
+                    "**Amount:** ___ GNOT",
+                    "",
+                    "### Justification",
+                    "",
+                    "_Explain why this transfer is needed and how the funds will be used._",
+                ].join("\n"),
+            }
+        case "add-member":
+            return {
+                title: "Membership Proposal",
+                description: [
+                    "## Membership Proposal",
+                    "",
+                    "**Candidate Address:** g1...",
+                    "**Proposed Role:** member",
+                    "",
+                    "### Reason",
+                    "",
+                    "_Describe the candidate's background and why they should be added._",
+                ].join("\n"),
+            }
+        case "general":
+            return {
+                title: "",
+                description: [
+                    "## Proposal Summary",
+                    "",
+                    "_Briefly describe what this proposal aims to achieve._",
+                    "",
+                    "## Details",
+                    "",
+                    "_Provide full context, rationale, and any relevant links._",
+                    "",
+                    "## Expected Outcome",
+                    "",
+                    "_What changes if this proposal passes?_",
+                ].join("\n"),
+            }
+        default:
+            return { title: "", description: "" }
+    }
+}
+
 export function ProposeDAO() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-
+    const [selectedTemplate, setSelectedTemplate] = useState<ProposalTemplate>("none")
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
     const [category, setCategory] = useState("governance")
@@ -157,6 +220,39 @@ export function ProposeDAO() {
 
             {/* Form */}
             <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
+                {/* Template Selector */}
+                <div>
+                    <label style={labelStyle}>Template</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {PROPOSAL_TEMPLATES.map(t => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                disabled={loading}
+                                onClick={() => {
+                                    setSelectedTemplate(t.id)
+                                    const { title: tTitle, description: tDesc } = applyTemplate(t.id)
+                                    setTitle(tTitle)
+                                    setDescription(tDesc)
+                                }}
+                                style={{
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12,
+                                    fontFamily: "JetBrains Mono, monospace",
+                                    border: "1px solid",
+                                    borderColor: selectedTemplate === t.id ? "rgba(0,212,170,0.3)" : "#222",
+                                    background: selectedTemplate === t.id ? "rgba(0,212,170,0.08)" : "#0c0c0c",
+                                    color: selectedTemplate === t.id ? "#00d4aa" : "#888",
+                                    cursor: loading ? "default" : "pointer",
+                                    transition: "all 0.15s",
+                                }}
+                            >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><t.icon size={14} /> {t.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <p style={hintStyle}>Pre-fill title and description with a structured template</p>
+                </div>
+
                 {/* Proposal Type Selector */}
                 <div>
                     <label style={labelStyle}>Proposal Type</label>
