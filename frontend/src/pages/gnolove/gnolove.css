@@ -37,25 +37,25 @@
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: #888;
+    color: var(--color-k-dim, #888);
     text-decoration: none;
     transition: all 0.2s ease;
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-subnav-link:hover {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     background: rgba(255, 255, 255, 0.04);
 }
 
 .gl-subnav-link:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 2px;
     border-radius: 8px;
 }
 
 .gl-subnav-link--active {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -73,13 +73,13 @@
 .gl-title {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin: 0;
 }
 
 .gl-sync-time {
     font-size: 10px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -102,12 +102,12 @@
 .gl-milestone-title {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
 }
 
 .gl-milestone-count {
     font-size: 11px;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -150,24 +150,24 @@
     font-size: 11px;
     font-weight: 500;
     font-family: "JetBrains Mono", monospace;
-    color: #888;
+    color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .gl-filter-btn:hover {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     background: rgba(255, 255, 255, 0.04);
 }
 
 .gl-filter-btn:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
 .gl-filter-btn--active {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -177,13 +177,13 @@
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-checkbox input[type="checkbox"] {
-    accent-color: #00d4aa;
+    accent-color: var(--color-k-accent, #00d4aa);
 }
 
 /* ── Score Factors ───────────────────────────── */
@@ -197,7 +197,7 @@
 }
 
 .gl-score-label {
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -205,7 +205,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.03);
-    color: #aaa;
+    color: var(--color-k-dim, #aaa);
     font-family: "JetBrains Mono", monospace;
     font-size: 10px;
 }
@@ -221,7 +221,7 @@
 .gl-section-title {
     font-size: 16px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin: 0;
 }
 
@@ -255,7 +255,7 @@
 
 .gl-team-rank {
     font-size: 11px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
     margin-bottom: 4px;
 }
@@ -271,7 +271,7 @@
     flex-direction: column;
     gap: 4px;
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -296,7 +296,7 @@
 .gl-table th {
     padding: 10px 12px;
     text-align: left;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-weight: 600;
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -307,7 +307,7 @@
 .gl-table td {
     padding: 10px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
 }
 
 .gl-sortable {
@@ -317,11 +317,11 @@
 }
 
 .gl-sortable:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-sortable:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 2px;
 }
 
@@ -331,7 +331,7 @@
 
 .gl-rank {
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     text-align: center;
     width: 40px;
 }
@@ -350,7 +350,7 @@
 }
 
 .gl-contributor-name {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     text-decoration: none;
     font-weight: 600;
     font-size: 12px;
@@ -358,13 +358,13 @@
 }
 
 .gl-contributor-name:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-contributor-login {
     display: block;
     font-size: 10px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -379,11 +379,11 @@
 .gl-stat-cell {
     font-family: "JetBrains Mono", monospace;
     text-align: right;
-    color: #aaa;
+    color: var(--color-k-dim, #aaa);
 }
 
 .gl-stat-highlight {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-weight: 700;
 }
 
@@ -414,7 +414,7 @@
 
 .gl-issue-title {
     font-size: 12px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -477,7 +477,7 @@
 
 .gl-pr-title {
     font-size: 12px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -485,7 +485,7 @@
 
 .gl-pr-meta {
     font-size: 10px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -510,12 +510,12 @@
 
 .gl-pr-state--closed {
     background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
+    color: var(--color-k-danger, #ef4444);
 }
 
 .gl-pr-state--blocked {
     background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
+    color: var(--color-k-danger, #ef4444);
 }
 
 .gl-pr-state--waiting {
@@ -549,13 +549,13 @@
 
 .gl-repo-name {
     font-size: 12px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-repo-branch {
     font-size: 10px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -573,7 +573,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.02);
-    color: #aaa;
+    color: var(--color-k-dim, #aaa);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -581,12 +581,12 @@
 }
 
 .gl-week-btn:hover:not(:disabled) {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
 .gl-week-btn:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 2px;
 }
 
@@ -598,7 +598,7 @@
 .gl-week-label {
     font-size: 14px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     min-width: 200px;
     text-align: center;
 }
@@ -622,7 +622,7 @@
     font-size: 11px;
     font-weight: 500;
     font-family: "JetBrains Mono", monospace;
-    color: #888;
+    color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
     display: flex;
@@ -632,17 +632,17 @@
 }
 
 .gl-tab:hover {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     background: rgba(255, 255, 255, 0.04);
 }
 
 .gl-tab:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
 .gl-tab--active {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -684,13 +684,13 @@
 .gl-stat-value {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-stat-label {
     font-size: 10px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     margin-top: 4px;
     font-family: "JetBrains Mono", monospace;
 }
@@ -728,7 +728,7 @@
 .gl-empty {
     padding: 40px 20px;
     text-align: center;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
     background: rgba(255, 255, 255, 0.01);
@@ -794,7 +794,7 @@
 .gl-activity-title {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin: 0 0 4px 0;
 }
 
@@ -822,13 +822,13 @@
 }
 
 .gl-activity-item:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
 .gl-activity-item-title {
     font-size: 11px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -838,7 +838,7 @@
 
 .gl-activity-item-meta {
     font-size: 10px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
     flex-shrink: 0;
 }
@@ -876,20 +876,20 @@
 }
 
 .gl-section-toggle:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
 .gl-section-summary {
     font-size: 11px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
     margin-left: auto;
 }
 
 .gl-chevron {
     font-size: 14px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     transition: transform 0.2s;
 }
 
@@ -907,7 +907,7 @@
     z-index: 10;
     margin-top: 4px;
     padding: 10px;
-    background: #1a1a2e;
+    background: var(--color-k-panel, #1a1a2e);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -921,7 +921,7 @@
 .gl-team-popover-title {
     font-size: 10px;
     font-weight: 600;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
     padding-bottom: 4px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -941,7 +941,7 @@
 }
 
 .gl-team-popover-name {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -951,13 +951,13 @@
 
 .gl-team-popover-login {
     font-size: 9px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-team-popover-score {
     font-size: 10px;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-family: "JetBrains Mono", monospace;
     flex-shrink: 0;
 }
@@ -975,7 +975,7 @@
     z-index: 20;
     margin-top: 4px;
     padding: 8px;
-    background: #1a1a2e;
+    background: var(--color-k-panel, #1a1a2e);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -1002,7 +1002,7 @@
     padding: 4px 6px;
     border-radius: 4px;
     font-size: 11px;
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
 }
@@ -1012,7 +1012,7 @@
 }
 
 .gl-repo-filter-item input[type="checkbox"] {
-    accent-color: #00d4aa;
+    accent-color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-filter-btn--sm {
@@ -1034,7 +1034,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.02);
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -1042,7 +1042,7 @@
 }
 
 .gl-filter-select:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
@@ -1056,7 +1056,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     background: transparent;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -1064,12 +1064,12 @@
 }
 
 .gl-export-btn:hover:not(:disabled) {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
 .gl-export-btn:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
@@ -1081,7 +1081,7 @@
 /* ── Section Summary Link ──────────────────────── */
 
 .gl-section-summary-link {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     text-decoration: none;
     font-size: 11px;
 }
@@ -1125,7 +1125,7 @@
 
 .gl-teams-panel-rank {
     font-size: 13px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1133,7 +1133,7 @@
     display: flex;
     gap: 14px;
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1172,13 +1172,13 @@
 
 .gl-teams-member-name {
     font-size: 13px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     font-weight: 500;
 }
 
 .gl-teams-member-login {
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1191,14 +1191,14 @@
 
 .gl-teams-member-score {
     font-size: 13px;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-weight: 600;
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-teams-member-detail {
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1232,7 +1232,7 @@
 
 .gl-dash-card-label {
     font-size: 10px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1241,7 +1241,7 @@
 .gl-dash-card-value {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     line-height: 1;
 }
 
@@ -1268,13 +1268,13 @@
 .gl-panel-title {
     font-size: 13px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin: 0;
 }
 
 .gl-panel-subtitle {
     font-size: 10px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1308,12 +1308,12 @@
 .gl-onchain-metric-value {
     font-size: 18px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
 }
 
 .gl-onchain-metric-label {
     font-size: 10px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1348,7 +1348,7 @@
 
 .gl-heatmap-legend-label {
     font-size: 9px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
     margin: 0 2px;
 }
@@ -1371,7 +1371,7 @@
 
 .gl-team-filters-label {
     font-size: 11px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
     margin-right: 2px;
 }
@@ -1395,7 +1395,7 @@
 }
 
 .gl-team-chip:focus-visible {
-    outline: 2px solid #00d4aa;
+    outline: 2px solid var(--color-k-accent, #00d4aa);
     outline-offset: 1px;
 }
 
@@ -1424,7 +1424,7 @@
 
 .gl-section-desc {
     font-size: 12px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     margin: -12px 0 8px;
     font-family: "JetBrains Mono", monospace;
 }
@@ -1434,14 +1434,14 @@
 .gl-github-link {
     display: inline-flex;
     align-items: center;
-    color: #555;
+    color: var(--color-k-muted, #555);
     margin-left: 4px;
     vertical-align: middle;
     transition: color 0.2s;
 }
 
 .gl-github-link:hover {
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
 }
 
 /* ── Contributor Profile Page ──────────────────── */
@@ -1450,7 +1450,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     text-decoration: none;
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
@@ -1459,7 +1459,7 @@
 }
 
 .gl-profile-back:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-profile-header {
@@ -1500,13 +1500,13 @@
 .gl-profile-name {
     font-size: 22px;
     font-weight: 700;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     margin: 0;
 }
 
 .gl-profile-login {
     font-size: 13px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1522,7 +1522,7 @@
 
 .gl-profile-bio {
     font-size: 13px;
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
     line-height: 1.5;
 }
 
@@ -1531,7 +1531,7 @@
     flex-direction: column;
     gap: 6px;
     font-size: 12px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1553,7 +1553,7 @@
     padding: 4px 10px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     text-decoration: none;
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
@@ -1561,7 +1561,7 @@
 }
 
 .gl-profile-link:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1575,13 +1575,13 @@
 }
 
 .gl-profile-onchain-label {
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-size: 10px;
     margin-bottom: 4px;
 }
 
 .gl-profile-onchain-value {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     word-break: break-all;
 }
 
@@ -1596,7 +1596,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     background: transparent;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -1604,7 +1604,7 @@
 }
 
 .gl-profile-copy-btn:hover {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1637,7 +1637,7 @@
 
 .gl-activity-row-title {
     font-size: 12px;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1646,7 +1646,7 @@
 
 .gl-activity-row-meta {
     font-size: 10px;
-    color: #777;
+    color: var(--color-k-dim, #777);
     font-family: "JetBrains Mono", monospace;
     display: block;
     margin-top: 2px;
@@ -1670,13 +1670,13 @@
 
 .gl-repo-card-profile-name {
     font-size: 13px;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-repo-card-profile-desc {
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1686,7 +1686,7 @@
     display: flex;
     gap: 12px;
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1811,7 +1811,7 @@
 
 .gl-team-compact-rank {
     font-size: 11px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
     min-width: 18px;
 }
@@ -1823,7 +1823,7 @@
 
 .gl-team-compact-desc {
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1835,7 +1835,7 @@
     display: flex;
     gap: 8px;
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     font-family: "JetBrains Mono", monospace;
     margin-top: 2px;
 }
@@ -1855,7 +1855,7 @@
 
 .gl-section-link {
     font-size: 11px;
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
     text-decoration: none;
     font-family: "JetBrains Mono", monospace;
 }
@@ -1866,7 +1866,7 @@
 
 .gl-section-count {
     font-size: 11px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1887,7 +1887,7 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    color: #aaa;
+    color: var(--color-k-dim, #aaa);
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -1896,7 +1896,7 @@
 
 .gl-pagination-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
 }
 
 .gl-pagination-btn:disabled {
@@ -1907,11 +1907,11 @@
 .gl-pagination-btn--active {
     background: rgba(0, 212, 170, 0.12);
     border-color: rgba(0, 212, 170, 0.3);
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-pagination-ellipsis {
-    color: #555;
+    color: var(--color-k-muted, #555);
     padding: 0 4px;
     font-size: 11px;
 }
@@ -1932,7 +1932,7 @@
 
 .gl-team-profile-desc {
     font-size: 12px;
-    color: #888;
+    color: var(--color-k-dim, #888);
     margin: 0;
     line-height: 1.4;
 }
@@ -1953,13 +1953,13 @@
 .gl-team-profile-stat-value {
     font-size: 16px;
     font-weight: 600;
-    color: #f0f0f0;
+    color: var(--color-k-text, #f0f0f0);
     font-family: "JetBrains Mono", monospace;
 }
 
 .gl-team-profile-stat-label {
     font-size: 10px;
-    color: #666;
+    color: var(--color-k-muted, #666);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1990,18 +1990,18 @@
 .gl-team-repo-name {
     font-size: 12px;
     font-family: 'JetBrains Mono', monospace;
-    color: #ccc;
+    color: var(--color-k-dim, #ccc);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .gl-team-repo:hover .gl-team-repo-name {
-    color: #00d4aa;
+    color: var(--color-k-accent, #00d4aa);
 }
 .gl-team-repo-branch {
     font-size: 9px;
     font-family: 'JetBrains Mono', monospace;
-    color: #555;
+    color: var(--color-k-muted, #555);
     background: rgba(255, 255, 255, 0.03);
     padding: 2px 6px;
     border-radius: 3px;
@@ -2010,7 +2010,7 @@
 
 .gl-team-member-rank {
     font-size: 11px;
-    color: #555;
+    color: var(--color-k-muted, #555);
     font-family: "JetBrains Mono", monospace;
     min-width: 24px;
     text-align: right;
@@ -2035,7 +2035,7 @@
 .gl-error-retry {
     background: rgba(255, 71, 87, 0.1);
     border: 1px solid rgba(255, 71, 87, 0.25);
-    color: #ff4757;
+    color: var(--color-k-danger, #ff4757);
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
     padding: 4px 12px;
