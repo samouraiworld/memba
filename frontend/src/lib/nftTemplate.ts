@@ -8,6 +8,8 @@
  * @module lib/nftTemplate
  */
 
+import { escapeGnoString } from "./templates/sanitizer"
+
 // ── Types ────────────────────────────────────────────────────
 
 export interface NFTCollectionConfig {
@@ -29,11 +31,6 @@ export interface NFTCollectionConfig {
     publicMint: boolean
     /** Mint price in ugnot (0 = free) */
     mintPrice: number
-}
-
-/** Escape string for safe embedding in Gno string literals. */
-function escapeGnoString(s: string): string {
-    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "")
 }
 
 // ── Code Generation ──────────────────────────────────────────

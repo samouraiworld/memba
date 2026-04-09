@@ -36,7 +36,7 @@ export interface RealmSource {
 
 // ── Validation ──────────────────────────────────────────────
 
-const VALID_PATH_RE = /^\/[rp]\/[a-z0-9_/]+$/
+const VALID_PATH_RE = /^\/[rp]\/[a-z0-9_\-/]+$/
 
 /** Validate realm/package paths to prevent SSRF. */
 export function isValidRealmPath(path: string): boolean {

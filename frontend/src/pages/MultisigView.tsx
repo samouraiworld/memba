@@ -153,7 +153,7 @@ export function MultisigView() {
                         </button>
                     </div>
                     <div className="k-msview__actions">
-                        <button className="k-btn-primary" onClick={() => navigate(`/multisig/${address}/propose`)}>
+                        <button className="k-btn-primary" onClick={() => navigate(`/multisig/${address}/propose`)} aria-label="Propose a new transaction">
                             Propose Transaction
                         </button>
                         {multisig && (
@@ -216,7 +216,7 @@ export function MultisigView() {
                         {multisig ? `${multisig.threshold} of ${multisig.membersCount}` : "—"}
                     </p>
                 </div>
-                <div className="k-card">
+                <div className="k-card" aria-live="polite">
                     <p className="k-label">Balance</p>
                     <p className="k-value">{balance}</p>
                 </div>
@@ -251,15 +251,19 @@ export function MultisigView() {
 
             {/* Transactions — Tabbed */}
             <div>
-                <div className="k-msview__tabs">
+                <div className="k-msview__tabs" role="tablist" aria-label="Transaction status">
                     <button
                         className={`k-msview__tab ${txTab === "pending" ? "k-msview__tab--active" : ""}`}
+                        role="tab"
+                        aria-selected={txTab === "pending"}
                         onClick={() => setTxTab("pending")}
                     >
                         Pending ({pendingTxs.length})
                     </button>
                     <button
                         className={`k-msview__tab ${txTab === "executed" ? "k-msview__tab--active" : ""}`}
+                        role="tab"
+                        aria-selected={txTab === "executed"}
                         onClick={() => setTxTab("executed")}
                     >
                         Completed ({executedTxs.length})

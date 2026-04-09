@@ -93,7 +93,6 @@ export function ProposeDAO() {
             }
             await doContractBroadcast([msg], `Propose: ${finalTitle}`)
             setSuccess("Proposal created!")
-            setTimeout(() => navigate(`/dao/${encodedSlug}`), 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create proposal")
         } finally {
@@ -145,8 +144,14 @@ export function ProposeDAO() {
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                    ✓ {success}
+                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span>✓ {success}</span>
+                    <button
+                        onClick={() => navigate(`/dao/${encodedSlug}`)}
+                        style={{ background: "rgba(0,212,170,0.12)", border: "1px solid rgba(0,212,170,0.3)", borderRadius: 6, padding: "6px 14px", color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace", cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                        Go to DAO →
+                    </button>
                 </div>
             )}
 

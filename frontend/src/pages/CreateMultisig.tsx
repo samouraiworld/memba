@@ -13,6 +13,7 @@ interface MemberEntry {
     manualPubkey: boolean  // if true, user pasted it manually
     fetchError: string     // error from on-chain fetch
     fetching: boolean
+    showManualInput: boolean // show manual pubkey paste input
 }
 
 export function CreateMultisig() {
@@ -37,7 +38,7 @@ export function CreateMultisig() {
     }
     const updateAddress = (i: number, val: string) => {
         const copy = [...members]
-        copy[i] = { ...copy[i], address: val, pubkeyValue: "", fetchError: "", manualPubkey: false }
+        copy[i] = { ...copy[i], address: val, pubkeyValue: "", fetchError: "", manualPubkey: false, showManualInput: false }
         setMembers(copy)
     }
     const updatePubkey = (i: number, val: string) => {
@@ -76,7 +77,7 @@ export function CreateMultisig() {
             const pubkey = account?.pub_key || account?.PubKey || account?.public_key
 
             if (!pubkey || !pubkey.value) {
-                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "No pubkey on chain — member must send 1 TX first, or paste pubkey manually" }; return c })
+                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "No pubkey on chain — member must send 1 TX first, or paste pubkey manually", showManualInput: true }; return c })
                 return
             }
 
@@ -244,7 +245,7 @@ export function CreateMultisig() {
                             {m.fetchError && (
                                 <div style={{ fontSize: 11, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace", paddingLeft: 4 }}>
                                     ⚠ {m.fetchError}
-                                    {m.fetchError.includes("paste") && (
+                                    {m.showManualInput && (
                                         <input
                                             type="text"
                                             value={m.manualPubkey ? m.pubkeyValue : ""}
@@ -337,5 +338,5 @@ export function CreateMultisig() {
 }
 
 function emptyMember(): MemberEntry {
-    return { address: "", pubkeyValue: "", manualPubkey: false, fetchError: "", fetching: false }
+    return { address: "", pubkeyValue: "", manualPubkey: false, fetchError: "", fetching: false, showManualInput: false }
 }

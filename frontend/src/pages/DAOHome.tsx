@@ -103,42 +103,47 @@ export function DAOHome() {
                 .catch(() => { })
         }
         const enrichable = proposals.filter(p => p.status === "open" || p.status === "passed")
-        enrichable.slice(0, 10).forEach(p => {
-            if (enrichedIds.has(p.id)) return
-            setEnrichedIds(prev => new Set([...prev, p.id]))
-            Promise.all([
-                getProposalDetail(GNO_RPC_URL, realmPath, p.id).catch(() => null),
-                getProposalVotes(GNO_RPC_URL, realmPath, p.id).catch(() => []),
-            ]).then(([detail, votes]) => {
-                const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
-                const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
-                const totalCount = yesCount + noCount
-                const yesPercent = detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0)
-                const noPercent = detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0)
-                const yesVotes = detail?.yesVotes || yesCount
-                const noVotes = detail?.noVotes || noCount
+        const toEnrich = enrichable.slice(0, 10).filter(p => !enrichedIds.has(p.id))
+        if (toEnrich.length === 0) return
+        setEnrichedIds(prev => new Set([...prev, ...toEnrich.map(p => p.id)]))
 
-                setProposals(prev => prev.map(pp => pp.id === p.id ? {
-                    ...pp, yesPercent, noPercent, yesVotes, noVotes,
-                    abstainVotes: detail?.abstainVotes || 0,
-                    totalVoters: totalCount || detail?.totalVoters || 0,
-                } : pp))
+        // Enrich all proposals in parallel (each needs 2 ABCI calls)
+        Promise.allSettled(
+            toEnrich.map(p =>
+                Promise.all([
+                    getProposalDetail(GNO_RPC_URL, realmPath, p.id).catch(() => null),
+                    getProposalVotes(GNO_RPC_URL, realmPath, p.id).catch(() => []),
+                ]).then(([detail, votes]) => {
+                    const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
+                    const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
+                    const totalCount = yesCount + noCount
+                    const yesPercent = detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0)
+                    const noPercent = detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0)
+                    const yesVotes = detail?.yesVotes || yesCount
+                    const noVotes = detail?.noVotes || noCount
 
-                if (adena.address && votes.length > 0) {
-                    const addr = adena.address.toLowerCase()
-                    const uname = usernameRef.current?.toLowerCase() || ""
-                    const allVoters = votes.flatMap(v => [
-                        ...v.yesVoters.map(ve => ve.username.toLowerCase()),
-                        ...v.noVoters.map(ve => ve.username.toLowerCase()),
-                        ...v.abstainVoters.map(ve => ve.username.toLowerCase()),
-                    ])
-                    const voted = allVoters.some(v =>
-                        v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
-                    )
-                    if (voted) setVotedIds(prev => new Set([...prev, p.id]))
-                }
-            })
-        })
+                    setProposals(prev => prev.map(pp => pp.id === p.id ? {
+                        ...pp, yesPercent, noPercent, yesVotes, noVotes,
+                        abstainVotes: detail?.abstainVotes || 0,
+                        totalVoters: totalCount || detail?.totalVoters || 0,
+                    } : pp))
+
+                    if (adena.address && votes.length > 0) {
+                        const addr = adena.address.toLowerCase()
+                        const uname = usernameRef.current?.toLowerCase() || ""
+                        const allVoters = votes.flatMap(v => [
+                            ...v.yesVoters.map(ve => ve.username.toLowerCase()),
+                            ...v.noVoters.map(ve => ve.username.toLowerCase()),
+                            ...v.abstainVoters.map(ve => ve.username.toLowerCase()),
+                        ])
+                        const voted = allVoters.some(v =>
+                            v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
+                        )
+                        if (voted) setVotedIds(prev => new Set([...prev, p.id]))
+                    }
+                })
+            )
+        )
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [proposalsLoading, proposals.length, adena.address, realmPath])
 
@@ -183,7 +188,7 @@ export function DAOHome() {
 
     // ── Render ────────────────────────────────────────────────────
     return (
-        <div className="animate-fade-in dao-container">
+        <div className="animate-fade-in dao-container" aria-label="DAO dashboard">
             <DAOOverviewCard
                 config={config}
                 realmPath={realmPath}
@@ -205,6 +210,7 @@ export function DAOHome() {
                 joinRoom={joinRoom}
             />
 
+            <div aria-live="polite">
             <DAOProposalsSection
                 encodedSlug={encodedSlug}
                 realmPath={realmPath}
@@ -218,6 +224,7 @@ export function DAOHome() {
                 enrichedIds={enrichedIds}
                 proposalsLoading={proposalsLoading}
             />
+            </div>
 
             <DAOMembersPreview
                 encodedSlug={encodedSlug}

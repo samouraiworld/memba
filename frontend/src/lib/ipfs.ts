@@ -131,15 +131,32 @@ export async function preprocessImage(file: File): Promise<Blob> {
         targetH = Math.round(height * scale)
     }
 
-    // Draw to canvas
-    const canvas = new OffscreenCanvas(targetW, targetH)
-    const ctx = canvas.getContext("2d")
-    if (!ctx) throw new Error("Canvas 2D context not available")
-    ctx.drawImage(bitmap, 0, 0, targetW, targetH)
-    bitmap.close()
-
-    // Convert to WebP blob
-    const blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.85 })
+    // Draw to canvas (OffscreenCanvas preferred, HTMLCanvasElement fallback for Safari < 16.4)
+    let blob: Blob
+    if (typeof OffscreenCanvas !== "undefined") {
+        const canvas = new OffscreenCanvas(targetW, targetH)
+        const ctx = canvas.getContext("2d")
+        if (!ctx) throw new Error("Canvas 2D context not available")
+        ctx.drawImage(bitmap, 0, 0, targetW, targetH)
+        bitmap.close()
+        blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.85 })
+    } else {
+        // Fallback for browsers without OffscreenCanvas (Safari < 16.4)
+        const canvas = document.createElement("canvas")
+        canvas.width = targetW
+        canvas.height = targetH
+        const ctx = canvas.getContext("2d")
+        if (!ctx) throw new Error("Canvas 2D context not available")
+        ctx.drawImage(bitmap, 0, 0, targetW, targetH)
+        bitmap.close()
+        blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+                (b) => b ? resolve(b) : reject(new Error("toBlob failed")),
+                "image/webp",
+                0.85,
+            )
+        })
+    }
 
     if (blob.size > MAX_UPLOAD_BYTES) {
         throw new Error(`Image too large after resize (${(blob.size / 1024).toFixed(0)}KB). Max: ${MAX_UPLOAD_BYTES / 1024}KB`)

@@ -44,7 +44,7 @@ export function FlagButton({ boardPath, channel, threadId, isMember, isAuthentic
         setError(null)
         try {
             const msg = {
-                type: "/vm.m_call",
+                type: "vm/MsgCall",
                 value: {
                     caller: callerAddress,
                     send: "",

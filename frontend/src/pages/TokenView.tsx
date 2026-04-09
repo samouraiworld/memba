@@ -6,7 +6,7 @@ import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
     buildMintMsgs, buildBurnMsg, calculateFee, feeDisclosure,
-    doContractBroadcast,
+    doContractBroadcast, formatTokenAmount,
     type TokenInfo, type AminoMsg,
 } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -23,6 +23,7 @@ export function TokenView() {
 
     const [token, setToken] = useState<TokenInfo | null>(null)
     const [balance, setBalance] = useState(0n)
+    const [balanceStale, setBalanceStale] = useState(false)
     const [loading, setLoading] = useState(true)
     const [actionTab, setActionTab] = useState<ActionTab>("transfer")
     const [txLoading, setTxLoading] = useState(false)
@@ -60,9 +61,13 @@ export function TokenView() {
     // Fetch user balance (wallet-specific — runs when wallet connects or token loads)
     useEffect(() => {
         if (!symbol || !adena.connected || !adena.address || !token) return
+        setBalanceStale(false)
         getTokenBalance(GNO_RPC_URL, symbol, adena.address)
             .then(setBalance)
-            .catch(() => { /* non-blocking */ })
+            .catch((err) => {
+                console.warn("[TokenView] Balance fetch failed:", err)
+                setBalanceStale(true)
+            })
     }, [symbol, adena.connected, adena.address, token])
 
     const isAdmin = auth.isAuthenticated && token?.admin === adena.address
@@ -166,7 +171,7 @@ export function TokenView() {
                 <div className="tv-meta-card__rows">
                     <MetaRow label="Symbol" value={`$${token.symbol}`} />
                     <MetaRow label="Decimals" value={String(token.decimals)} />
-                    <MetaRow label="Total Supply" value={token.totalSupply} accent />
+                    <MetaRow label="Total Supply" value={formatTokenAmount(BigInt(token.totalSupply || "0"), token.decimals)} accent />
                     {token.admin && (
                         <div className="tv-meta-row">
                             <span className="tv-meta-row__label">Admin</span>
@@ -184,9 +189,14 @@ export function TokenView() {
                     <div className="tv-balance-card__inner">
                         <span className="tv-balance-card__label">Your Balance</span>
                         <span className={`tv-balance-card__amount ${balance > 0n ? "tv-balance-card__amount--positive" : "tv-balance-card__amount--zero"}`}>
-                            {String(balance)} <span className="tv-balance-card__symbol">${token.symbol}</span>
+                            {formatTokenAmount(balance, token.decimals)} <span className="tv-balance-card__symbol">${token.symbol}</span>
                         </span>
                     </div>
+                    {balanceStale && (
+                        <div style={{ fontSize: 11, color: "#f5a623", fontFamily: "JetBrains Mono, monospace", marginTop: 6, opacity: 0.85 }}>
+                            Balance may be stale — fetch failed
+                        </div>
+                    )}
                 </div>
             )}
 

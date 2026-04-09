@@ -1,0 +1,66 @@
+{
+  "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment.",
+  "test12": {
+    "memba_dao": {
+      "path": "gno.land/r/samcrew/memba_dao",
+      "version": "v1",
+      "block": 150069,
+      "date": "2026-03-29",
+      "txHash": "9TqViv0c..."
+    },
+    "memba_dao_candidature": {
+      "path": "gno.land/r/samcrew/memba_dao_candidature_v2",
+      "version": "v2",
+      "block": 237938,
+      "date": "2026-04-09",
+      "txHash": "UBuoMqUe...",
+      "note": "v2 security fix — ACL needs verification"
+    },
+    "memba_dao_channels": {
+      "path": "gno.land/r/samcrew/memba_dao_channels_v2",
+      "version": "v2",
+      "block": 237939,
+      "date": "2026-04-09",
+      "txHash": "FVK+yC9z...",
+      "note": "CRITICAL: v2 still has zero ACL on all write functions — v3 fix pending"
+    },
+    "tokenfactory": {
+      "path": "gno.land/r/samcrew/tokenfactory",
+      "version": "v1",
+      "note": "Realm code not in repo — deployed externally"
+    },
+    "agent_registry": {
+      "path": "gno.land/r/samcrew/agent_registry",
+      "version": "v1",
+      "block": 231189,
+      "date": "2026-04-03",
+      "txHash": "pfTol4PB...",
+      "note": "UseCredit has no ACL — v2 fix pending"
+    },
+    "escrow": {
+      "path": "gno.land/r/samcrew/escrow",
+      "version": "v1",
+      "block": 232733,
+      "date": "2026-04-03",
+      "txHash": "gAJ87Cbi..."
+    },
+    "nft_market": {
+      "path": "gno.land/r/samcrew/nft_market",
+      "version": "v1",
+      "block": 237929,
+      "date": "2026-04-09",
+      "note": "BuyNFT missing TransferFrom — feature-gated"
+    },
+    "gnobuilders_badges": {
+      "path": "gno.land/r/samcrew/gnobuilders_badges",
+      "version": "v1",
+      "block": 237936,
+      "date": "2026-04-09",
+      "txHash": "9ViPkv5L..."
+    }
+  },
+  "gnoland1": {},
+  "test11": {},
+  "portal-loop": {},
+  "staging": {}
+}

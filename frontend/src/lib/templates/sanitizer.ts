@@ -80,6 +80,8 @@ export function escapeGnoString(s: string): string {
         .replace(/"/g, '\\"')      // double quotes
         .replace(/`/g, "\\`")      // backticks (Go raw string escape)
         .replace(/\$/g, "\\$")     // dollar sign (TS template literal defense)
+        .replace(/\n/g, "\\n")     // newlines (Go string literal safety)
+        .replace(/\r/g, "")        // strip carriage returns
 }
 
 /**

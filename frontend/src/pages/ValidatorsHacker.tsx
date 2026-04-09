@@ -88,6 +88,7 @@ export default function ValidatorsHacker() {
     const [mempoolCount, setMempoolCount] = useState<number | null>(null)
     const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [monitoringLoading, setMonitoringLoading] = useState(true)
     const [monitoringReachable, setMonitoringReachable] = useState<boolean | null>(null)
     const [sessionStart] = useState(Date.now())
@@ -124,6 +125,7 @@ export default function ValidatorsHacker() {
         mainAbort.current?.abort()
         const ctrl = new AbortController()
         mainAbort.current = ctrl
+        setLoadError(null)
 
         try {
             // Phase 1: ALL data sources in single parallel burst (was sequential)
@@ -172,8 +174,10 @@ export default function ValidatorsHacker() {
                 const hasMonData = merged.some(v => v.participationRate != null || v.uptimePercent != null)
                 setMonitoringReachable(hasMonData)
             }
-        } catch {
-            // Resilient — show partial data
+        } catch (err) {
+            if (!ctrl.signal.aborted) {
+                setLoadError(err instanceof Error ? err.message : "Failed to load validator data")
+            }
         } finally {
             if (!ctrl.signal.aborted) setLoading(false)
         }
@@ -289,6 +293,21 @@ export default function ValidatorsHacker() {
                 lastUpdated={lastUpdated}
                 monitoringReachable={monitoringReachable}
             />
+
+            {/* ── Error state ───────────────────────────── */}
+            {loadError && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.2)", borderRadius: 8, marginBottom: 12 }}>
+                    <span style={{ color: "#f44336", fontSize: 13, fontFamily: "JetBrains Mono, monospace", flex: 1 }}>
+                        {loadError}
+                    </span>
+                    <button
+                        onClick={loadAll}
+                        style={{ color: "#00d4aa", background: "none", border: "1px solid #00d4aa", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
 
             {/* ── Main Hacker Layout ──────────────────────── */}
             <div className="hk-layout">

@@ -24,8 +24,10 @@ const OFFER_TIMEOUT_BLOCKS = 302_400
  *
  * @param feeRecipient - Address to receive platform fees (multisig recommended)
  * @param realmPath - Full realm path (e.g. "gno.land/r/samcrew/nft_market")
+ * @param nftRealmPath - Full path to the NFT collection realm (for cross-realm TransferFrom).
+ *                       Gno requires static imports — each marketplace serves one collection.
  */
-export function generateNFTMarketplaceCode(feeRecipient: string, realmPath: string): string {
+export function generateNFTMarketplaceCode(feeRecipient: string, realmPath: string, nftRealmPath?: string): string {
     const pkgName = realmPath.split("/").pop() || "nft_market"
 
     return `package ${pkgName}
@@ -47,6 +49,7 @@ import (
 
 \t"gno.land/p/demo/avl"
 \t"gno.land/p/demo/ufmt"
+${nftRealmPath ? `\tnftcollection "${nftRealmPath}" // cross-realm: NFT TransferFrom` : "\t// NOTE: No NFT realm bound — TransferFrom must be done client-side (2-TX flow)"}
 )
 
 // ── Constants ────────────────────────────────────────────────
@@ -200,8 +203,13 @@ func BuyNFT(cur realm, nftRealm string, tokenId string) {
 \t}
 
 \t// 3. Transfer NFT to buyer (cross-realm call)
-\t// NOTE: This requires the marketplace to be Approved on the NFT realm
-\t// The TransferFrom call happens last (Interactions phase of CEI)
+\t// Requires: seller called nftRealm.Approve(cross, marketplaceAddr, tokenId) before listing.
+${nftRealmPath
+    ? `\tnftcollection.TransferFrom(cross, seller, caller, tokenId)`
+    : `\t// No NFT realm bound — caller must execute TransferFrom in a separate TX.
+\t// This is the 2-TX pattern: (1) BuyNFT pays seller, (2) client calls nftRealm.TransferFrom.
+\t// For atomic safety, prefer binding an NFT realm at deploy time.`
+}
 }
 
 // ── Offers ───────────────────────────────────────────────────

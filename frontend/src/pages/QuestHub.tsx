@@ -136,7 +136,7 @@ export default function QuestHub() {
             </div>
 
             {/* Category Tabs */}
-            <div className="k-questhub-tabs">
+            <div className="k-questhub-tabs" role="tablist" aria-label="Quest categories">
                 {([
                     ["all", `All (${totalVisible})`],
                     ["developer", `Developers (${QUEST_COUNTS.developer})`],
@@ -146,6 +146,8 @@ export default function QuestHub() {
                     <button
                         key={key}
                         className={`k-questhub-tab${category === key ? " active" : ""}`}
+                        role="tab"
+                        aria-selected={category === key}
                         onClick={() => setCategory(key)}
                     >
                         {label}
@@ -166,6 +168,7 @@ export default function QuestHub() {
                     className="k-questhub-select"
                     value={difficulty}
                     onChange={e => setDifficulty(e.target.value as FilterDifficulty)}
+                    aria-label="Filter by difficulty"
                 >
                     <option value="all">All difficulties</option>
                     <option value="beginner">Beginner</option>
@@ -177,6 +180,7 @@ export default function QuestHub() {
                     className="k-questhub-select"
                     value={status}
                     onChange={e => setStatus(e.target.value as FilterStatus)}
+                    aria-label="Filter by status"
                 >
                     <option value="all">All statuses</option>
                     <option value="available">Available</option>

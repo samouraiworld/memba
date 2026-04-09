@@ -65,7 +65,7 @@ function CopyButton({ text }: { text: string }) {
                 e.stopPropagation()
                 navigator.clipboard.writeText(text)
                     .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })
-                    .catch(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })
+                    .catch(() => { setCopied(false) })
             }}
         >
             {copied ? <CheckCircle size={13} weight="fill" className="val-copy-ok" /> : <Copy size={13} />}
@@ -225,6 +225,25 @@ export default function Validators() {
         )
     }
 
+    // Memoize incidents chart data to avoid re-flattening on every render
+    const incidentsChartData = useMemo(() => {
+        const allIncidents: MonitoringIncident[] = validators.flatMap(v => v.incidents ?? [])
+        if (allIncidents.length === 0) return null
+        const byDate = new Map<string, { date: string; critical: number; warning: number; info: number }>()
+        for (const inc of allIncidents) {
+            const d = inc.timestamp?.slice(0, 10)
+            if (!d) continue
+            const entry = byDate.get(d) ?? { date: d, critical: 0, warning: 0, info: 0 }
+            const sev = inc.severity?.toUpperCase() ?? "INFO"
+            if (sev === "CRITICAL") entry.critical++
+            else if (sev === "WARNING") entry.warning++
+            else entry.info++
+            byDate.set(d, entry)
+        }
+        const chartData = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30)
+        return chartData.length > 0 ? chartData : null
+    }, [validators])
+
     return (
         <div className="val-page" data-testid="validators-page">
             <div className="val-header">
@@ -319,27 +338,11 @@ export default function Validators() {
             )}
 
             {/* ── Incidents Timeline Chart ────────────────────── */}
-            {(() => {
-                const allIncidents: MonitoringIncident[] = validators.flatMap(v => v.incidents ?? [])
-                if (allIncidents.length === 0) return null
-                const byDate = new Map<string, { date: string; critical: number; warning: number; info: number }>()
-                for (const inc of allIncidents) {
-                    const d = inc.timestamp?.slice(0, 10)
-                    if (!d) continue
-                    const entry = byDate.get(d) ?? { date: d, critical: 0, warning: 0, info: 0 }
-                    const sev = inc.severity?.toUpperCase() ?? "INFO"
-                    if (sev === "CRITICAL") entry.critical++
-                    else if (sev === "WARNING") entry.warning++
-                    else entry.info++
-                    byDate.set(d, entry)
-                }
-                const chartData = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30)
-                if (chartData.length === 0) return null
-                return (
+            {incidentsChartData && incidentsChartData.length > 0 && (
                     <div className="val-health-banner" style={{ marginBottom: 16 }}>
                         <div className="val-health-banner__title">Incidents Timeline (last 30 days)</div>
                         <ResponsiveContainer width="100%" height={180}>
-                            <BarChart data={chartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                            <BarChart data={incidentsChartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
                                 <CartesianGrid stroke="rgba(255,255,255,0.04)" />
                                 <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
                                 <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
@@ -351,8 +354,7 @@ export default function Validators() {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                )
-            })()}
+            )}
 
             {/* ── Voting Power Distribution ────────────────────── */}
             {validators.length > 0 && (

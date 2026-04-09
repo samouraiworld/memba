@@ -12,6 +12,7 @@
  */
 
 import { useState, useMemo, useCallback } from "react"
+import DOMPurify from "dompurify"
 
 import type { SourceFile } from "../../lib/gnowebSource"
 
@@ -175,7 +176,7 @@ export function SourceCodeView({ files, activeFile: initialActive }: SourceCodeV
                             <div
                                 key={i}
                                 className="source-line"
-                                dangerouslySetInnerHTML={{ __html: html || "&nbsp;" }}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html || "&nbsp;") }}
                             />
                         ))}
                     </code>

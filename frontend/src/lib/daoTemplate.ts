@@ -36,6 +36,8 @@ export interface DAOCreationConfig {
     quorum: number
     /** Allowed proposal categories. */
     proposalCategories: string[]
+    /** Voting period in blocks (0 = no expiration). ~2s/block on Gno. Default: 151200 (~3.5 days). */
+    votingPeriodBlocks: number
 }
 
 // ── Presets ────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ export interface DAOPreset {
     threshold: number
     quorum: number
     categories: string[]
+    votingPeriodBlocks: number
 }
 
 export const DAO_PRESETS: DAOPreset[] = [
@@ -61,6 +64,7 @@ export const DAO_PRESETS: DAOPreset[] = [
         threshold: 51,
         quorum: 0,
         categories: ["governance"],
+        votingPeriodBlocks: 151200, // ~3.5 days at 2s/block
     },
     {
         id: "team",
@@ -71,6 +75,7 @@ export const DAO_PRESETS: DAOPreset[] = [
         threshold: 51,
         quorum: 33,
         categories: ["governance", "membership"],
+        votingPeriodBlocks: 151200, // ~3.5 days
     },
     {
         id: "treasury",
@@ -81,6 +86,7 @@ export const DAO_PRESETS: DAOPreset[] = [
         threshold: 66,
         quorum: 50,
         categories: ["governance", "treasury"],
+        votingPeriodBlocks: 302400, // ~7 days (longer for treasury decisions)
     },
     {
         id: "enterprise",
@@ -91,6 +97,7 @@ export const DAO_PRESETS: DAOPreset[] = [
         threshold: 66,
         quorum: 50,
         categories: ["governance", "treasury", "membership", "operations"],
+        votingPeriodBlocks: 302400, // ~7 days
     },
 ]
 
@@ -165,7 +172,7 @@ type Proposal struct {
 \tDescription string
 \tCategory    string
 \tAuthor      address
-\tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED"
+\tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED"
 \tVotes       []Vote
 \tYesVotes    int
 \tNoVotes     int
@@ -173,6 +180,8 @@ type Proposal struct {
 \tTotalPower  int
 \tActionType  string // "none", "add_member", "remove_member", "assign_role"
 \tActionData  string // serialized action params (e.g. "addr|power|role1,role2")
+\tCreatedAt   int64  // block height when proposed
+\tExpiresAt   int64  // block height when voting closes (0 = never)
 }
 
 // ── State ─────────────────────────────────────────────────
@@ -182,6 +191,7 @@ var (
 \tdescription       = ${JSON.stringify(config.description)}
 \tthreshold         = ${config.threshold} // percentage required to pass
 \tquorum            = ${config.quorum}  // minimum participation % (0 = disabled)
+\tvotingPeriod      = int64(${config.votingPeriodBlocks || 151200}) // blocks until proposal expires (0 = never)
 \tmembers           []Member
 \tproposals         []Proposal
 \tnextID            = 0
@@ -247,6 +257,12 @@ func renderProposal(id int) string {
 \tout += "Status: " + p.Status + "\\n\\n"
 \tout += "YES: " + strconv.Itoa(p.YesVotes) + " | NO: " + strconv.Itoa(p.NoVotes) + " | ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
 \tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(totalPower()) + "\\n"
+\tif p.ExpiresAt > 0 {
+\t\tout += "Voting closes at block: " + strconv.FormatInt(p.ExpiresAt, 10) + "\\n"
+\t\tif runtime.ChainHeight() > p.ExpiresAt && p.Status == "ACTIVE" {
+\t\t\tout += "**EXPIRED** — voting period has ended.\\n"
+\t\t}
+\t}
 \treturn out
 }
 
@@ -283,6 +299,11 @@ func Propose(cur realm, title, desc, category string) int {
 \tassertCategory(category)
 \tid := nextID
 \tnextID++
+\tnow := runtime.ChainHeight()
+\texpires := int64(0)
+\tif votingPeriod > 0 {
+\t\texpires = now + votingPeriod
+\t}
 \tproposals = append(proposals, Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
@@ -291,6 +312,8 @@ func Propose(cur realm, title, desc, category string) int {
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
 \t\tActionType:  "none",
+\t\tCreatedAt:   now,
+\t\tExpiresAt:   expires,
 \t})
 \treturn id
 }
@@ -303,6 +326,11 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \t\tpanic("invalid proposal ID")
 \t}
 \tp := &proposals[id]
+\t// Check expiration first
+\tif p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
+\t\tp.Status = "EXPIRED"
+\t\tpanic("proposal has expired (voting period ended at block " + strconv.FormatInt(p.ExpiresAt, 10) + ")")
+\t}
 \tif p.Status != "ACTIVE" {
 \t\tpanic("proposal is not active")
 \t}
@@ -381,6 +409,9 @@ func ProposeAddMember(cur realm, targetAddr address, power int, roles string) in
 \ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
 \tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
 \tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
+\tnow := runtime.ChainHeight()
+\texp := int64(0)
+\tif votingPeriod > 0 { exp = now + votingPeriod }
 \tproposals = append(proposals, Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
@@ -390,6 +421,8 @@ func ProposeAddMember(cur realm, targetAddr address, power int, roles string) in
 \t\tStatus:      "ACTIVE",
 \t\tActionType:  "add_member",
 \t\tActionData:  data,
+\t\tCreatedAt:   now,
+\t\tExpiresAt:   exp,
 \t})
 \treturn id
 }
@@ -403,6 +436,9 @@ func ProposeRemoveMember(cur realm, targetAddr address) int {
 \tnextID++
 \ttitle := "Remove member " + string(targetAddr)[:10] + "..."
 \tdesc := "**Action**: Remove Member\\n**Address**: " + string(targetAddr)
+\tnow := runtime.ChainHeight()
+\texp := int64(0)
+\tif votingPeriod > 0 { exp = now + votingPeriod }
 \tproposals = append(proposals, Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
@@ -412,6 +448,8 @@ func ProposeRemoveMember(cur realm, targetAddr address) int {
 \t\tStatus:      "ACTIVE",
 \t\tActionType:  "remove_member",
 \t\tActionData:  string(targetAddr),
+\t\tCreatedAt:   now,
+\t\tExpiresAt:   exp,
 \t})
 \treturn id
 }
@@ -426,6 +464,9 @@ func ProposeAssignRole(cur realm, targetAddr address, role string) int {
 \tnextID++
 \ttitle := "Assign role " + strconv.Quote(role) + " to " + string(targetAddr)[:10] + "..."
 \tdesc := "**Action**: Assign Role\\n**Address**: " + string(targetAddr) + "\\n**Role**: " + role
+\tnow := runtime.ChainHeight()
+\texp := int64(0)
+\tif votingPeriod > 0 { exp = now + votingPeriod }
 \tproposals = append(proposals, Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
@@ -435,6 +476,8 @@ func ProposeAssignRole(cur realm, targetAddr address, role string) int {
 \t\tStatus:      "ACTIVE",
 \t\tActionType:  "assign_role",
 \t\tActionData:  string(targetAddr) + "|" + role,
+\t\tCreatedAt:   now,
+\t\tExpiresAt:   exp,
 \t})
 \treturn id
 }

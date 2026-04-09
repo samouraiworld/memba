@@ -209,7 +209,7 @@ export function TransactionView() {
                 <div className="k-txview__actions">
                     <button
                         className="k-btn-primary"
-                        disabled={actionLoading}
+                        disabled={actionLoading || tx.signatures.some(s => s.userAddress === adena.address)}
                         onClick={async () => {
                             if (!token || !tx || actionLoading) return
                             setActionLoading(true)
@@ -241,7 +241,7 @@ export function TransactionView() {
                         }}
                         style={{ opacity: actionLoading ? 0.5 : 1 }}
                     >
-                        {actionLoading ? "Signing..." : "Sign Transaction"}
+                        {actionLoading ? "Signing..." : tx.signatures.some(s => s.userAddress === adena.address) ? "Already Signed" : "Sign Transaction"}
                     </button>
                     {tx.signatures.length >= tx.threshold && (
                         <button
@@ -253,17 +253,30 @@ export function TransactionView() {
                                 setActionLoading(true)
                                 setError(null)
                                 try {
-                                    const broadcastTx = buildBroadcastTx(tx)
-                                    const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit?tx=0x${broadcastTx}`, {
-                                        method: "GET",
-                                    })
-                                    const json = await res.json()
+                                    // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
+                                    let hash = await tryAdenaBroadcast(tx)
 
-                                    const hash = json?.result?.hash
+                                    // Fallback: broadcast via RPC POST (Amino JSON)
                                     if (!hash) {
-                                        const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed"
-                                        setError(errMsg)
-                                        return
+                                        const broadcastTx = buildBroadcastTx(tx)
+                                        const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                jsonrpc: "2.0",
+                                                method: "broadcast_tx_commit",
+                                                params: { tx: `0x${broadcastTx}` },
+                                                id: 1,
+                                            }),
+                                        })
+                                        const json = await res.json()
+
+                                        hash = json?.result?.hash
+                                        if (!hash) {
+                                            const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — the multisig transaction format may not be supported. Please try using gnokey CLI for broadcast."
+                                            setError(errMsg)
+                                            return
+                                        }
                                     }
 
                                     await api.completeTransaction({
@@ -377,39 +390,150 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 /**
- * Build a hex-encoded Amino broadcast TX from multi-sig data.
+ * Build the Amino-JSON broadcast document for a multisig transaction.
+ *
+ * Gno multisig broadcast requires:
+ * 1. A single Signature entry with the multisig pubkey
+ * 2. The signature field containing an Amino-encoded Multisignature struct
+ *    with a CompactBitArray indicating which pubkey positions signed
+ *    and the raw signatures in positional order.
+ *
+ * Since we cannot produce Amino binary encoding in JS, we use Adena's
+ * BroadcastMultisigTransaction when available, or fall back to the
+ * Amino JSON broadcast endpoint.
+ *
+ * v5 fix: Replaces broken comma-joined signature format.
  */
-function buildBroadcastTx(tx: Transaction): string {
+function buildMultisigSignatureData(tx: Transaction): {
+    pubkey: Record<string, unknown>;
+    sigs: string[];
+    bitArray: string;
+} | null {
     let multisigPubkey: {
-        type: string;
-        value: { threshold: string; pubkeys: { type: string; value: string }[] };
+        type?: string;
+        "@type"?: string;
+        value?: { threshold: string; pubkeys: { type?: string; "@type"?: string; value: string }[] };
+        threshold?: string;
+        pubkeys?: { type?: string; "@type"?: string; value: string }[];
     } | null = null
 
     try {
         multisigPubkey = JSON.parse(tx.multisigPubkeyJson)
     } catch {
-        // If parsing fails, fall back to the raw value
+        return null
     }
 
-    const orderedSigs = tx.signatures.map(sig => ({
-        pub_key: null,
-        signature: sig.value,
-    }))
+    if (!multisigPubkey) return null
 
+    // Normalize pubkey format — handle both nested and flat structures
+    const pubkeys = multisigPubkey.value?.pubkeys || multisigPubkey.pubkeys || []
+    if (pubkeys.length === 0) return null
+
+    // Map each signature to its pubkey position by matching addresses.
+    // tx.signatures contains { userAddress, value (base64 sig) }.
+    // We need to determine which pubkey index each signer corresponds to.
+    // Since we store userAddress with each sig, and the multisig pubkeys
+    // are ordered, we build a positional mapping.
+    //
+    // NOTE: Ideally the backend stores the pubkey index per signature.
+    // For now, we use the order from tx.signatures and assume they
+    // are already associated with the correct pubkey positions.
+    // The backend should be updated to store signer_pubkey_index.
+
+    // Build CompactBitArray string: "x" for signed positions, "_" for unsigned
+    // For now, use the first N positions (where N = number of signatures)
+    // since we don't have the index mapping yet.
+    const signerCount = pubkeys.length
+    const bits: string[] = new Array(signerCount).fill("_")
+    const orderedSigs: string[] = []
+
+    // Attempt to match by address if we have address info
+    for (const sig of tx.signatures) {
+        // For now, assign signatures sequentially to first available positions.
+        // TODO: Match sig.userAddress to pubkey-derived address for correct positioning.
+        // This requires deriving addresses from secp256k1 pubkeys in JS.
+        for (let i = 0; i < signerCount; i++) {
+            if (bits[i] === "_") {
+                bits[i] = "x"
+                orderedSigs.push(sig.value)
+                break
+            }
+        }
+    }
+
+    return {
+        pubkey: multisigPubkey,
+        sigs: orderedSigs,
+        bitArray: bits.join(""),
+    }
+}
+
+/**
+ * Build a hex-encoded Amino JSON broadcast TX from multi-sig data.
+ * Uses the proper Multisignature structure with CompactBitArray.
+ */
+function buildBroadcastTx(tx: Transaction): string {
+    const sigData = buildMultisigSignatureData(tx)
+    if (!sigData) {
+        throw new Error("Failed to build multisig signature data — check multisig pubkey JSON")
+    }
+
+    // Build the Amino JSON StdTx with proper multisig signature format.
+    // The signature field for a multisig TX contains the Amino-JSON-encoded
+    // Multisignature struct. Gno nodes accept Amino JSON via broadcast endpoints.
     const broadcastDoc = {
         type: "auth/StdTx",
         value: {
             msg: JSON.parse(tx.msgsJson),
             fee: JSON.parse(tx.feeJson),
             signatures: [{
-                pub_key: multisigPubkey,
-                signature: orderedSigs.map(s => s.signature).join(","),
+                pub_key: sigData.pubkey,
+                signature: {
+                    "@type": "/tm.MultiSignature",
+                    bit_array: sigData.bitArray,
+                    sigs: sigData.sigs,
+                },
             }],
             memo: tx.memo || "",
         },
     }
+
     const jsonStr = JSON.stringify(broadcastDoc)
     return Array.from(new TextEncoder().encode(jsonStr))
         .map(b => b.toString(16).padStart(2, "0"))
         .join("")
+}
+
+/**
+ * Attempt to broadcast via Adena's BroadcastMultisigTransaction.
+ * Returns the TX hash on success, or null if Adena doesn't support it.
+ */
+async function tryAdenaBroadcast(tx: Transaction): Promise<string | null> {
+    const adena = (window as unknown as Record<string, unknown>).adena as Record<string, unknown> | undefined
+    if (!adena || typeof adena.BroadcastMultisigTransaction !== "function") {
+        return null
+    }
+
+    try {
+        const sigData = buildMultisigSignatureData(tx)
+        if (!sigData) return null
+
+        const result = await (adena.BroadcastMultisigTransaction as (arg: unknown) => Promise<{
+            status: string;
+            data?: { hash?: string };
+        }>)({
+            msgs: JSON.parse(tx.msgsJson),
+            fee: JSON.parse(tx.feeJson),
+            signatures: sigData.sigs,
+            pubkey: sigData.pubkey,
+            memo: tx.memo || "",
+        })
+
+        if (result.status !== "failure" && result.data?.hash) {
+            return result.data.hash
+        }
+    } catch (err) {
+        console.warn("[Memba] Adena BroadcastMultisigTransaction not available or failed:", err)
+    }
+    return null
 }

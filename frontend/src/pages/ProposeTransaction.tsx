@@ -132,7 +132,8 @@ export function ProposeTransaction() {
                     break
                 case "grc20-mint":
                     if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
-                    grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt))
+                    try { grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt)) }
+                    catch { setError("Invalid amount — must be a whole number"); return }
                     break
                 case "grc20-burn":
                     if (!trimTo || !trimAmt) { setError("Address and amount required"); return }

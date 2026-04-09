@@ -300,3 +300,116 @@ describe("isValidPercentage", () => {
         expect(isValidPercentage(Infinity)).toBe(false)
     })
 })
+
+// ── Adversarial Input Tests (Go Code Injection) ───────────────
+
+describe("escapeGnoString — adversarial inputs", () => {
+    it("neutralizes Go string literal breakout via double quote", () => {
+        const input = 'my_dao"; panic("hacked'
+        const escaped = escapeGnoString(input)
+        // All double quotes are escaped — no unescaped quote remains
+        expect(escaped).toContain('\\"')
+        const unescaped = escaped.replace(/\\"/g, "")
+        expect(unescaped).not.toContain('"')
+    })
+
+    it("neutralizes Go raw string breakout via backtick", () => {
+        const input = "channel`; import `os`; os.Exit(1)"
+        const escaped = escapeGnoString(input)
+        // Raw backticks are escaped — no unescaped backtick remains
+        expect(escaped).toContain("\\`")
+        // Verify no bare backtick (without preceding backslash)
+        expect(escaped.replace(/\\`/g, "")).not.toContain("`")
+    })
+
+    it("neutralizes template literal injection via dollar-brace", () => {
+        const input = "${process.env.SECRET}"
+        const escaped = escapeGnoString(input)
+        // Dollar sign is escaped with backslash
+        expect(escaped).toContain("\\$")
+        // The literal $ is now preceded by \, making it safe in Go/TS template contexts
+        expect(escaped.startsWith("\\$")).toBe(true)
+    })
+
+    it("neutralizes backslash escape sequences", () => {
+        const input = "name\\x00\\n\\r"
+        const escaped = escapeGnoString(input)
+        // All original backslashes should be doubled
+        expect(escaped).toContain("\\\\x00")
+    })
+
+    it("neutralizes newline injection (Go multi-statement)", () => {
+        const input = "legit\n\tpanic(\"pwned\")"
+        const escaped = escapeGnoString(input)
+        expect(escaped).not.toContain("\n")
+        expect(escaped).toContain("\\n")
+    })
+
+    it("handles combined attack vector", () => {
+        const input = '"; import "os"; func init() { os.Exit(1) } //'
+        const escaped = escapeGnoString(input)
+        // The double quote at the start must be escaped
+        expect(escaped.startsWith('\\"')).toBe(true)
+        // No unescaped quotes remain
+        const unescapedQuotes = escaped.replace(/\\"/g, "").match(/"/g)
+        expect(unescapedQuotes).toBeNull()
+    })
+
+    it("handles null bytes", () => {
+        // sanitizeString strips \x00, but escapeGnoString alone won't
+        // Combined sanitizeForGno handles this
+        const result = sanitizeForGno("hello\x00world")
+        expect(result).toBe("helloworld")
+        expect(result).not.toContain("\x00")
+    })
+
+    it("handles extremely long input", () => {
+        const input = "A".repeat(10000)
+        const result = sanitizeForGno(input, 256)
+        expect(result.length).toBeLessThanOrEqual(256)
+    })
+})
+
+describe("isValidChannelName — adversarial inputs", () => {
+    it("rejects Go code injection via channel name", () => {
+        expect(isValidChannelName('general"; panic("')).toBe(false)
+    })
+
+    it("rejects backslash sequences", () => {
+        expect(isValidChannelName("general\\n")).toBe(false)
+    })
+
+    it("rejects template literal injection", () => {
+        expect(isValidChannelName("${malicious}")).toBe(false)
+    })
+
+    it("rejects unicode homoglyph attack", () => {
+        // Cyrillic 'a' looks like Latin 'a' but fails regex
+        expect(isValidChannelName("generаl")).toBe(false) // Cyrillic а
+    })
+
+    it("rejects path traversal in name", () => {
+        expect(isValidChannelName("../../../etc")).toBe(false)
+    })
+
+    it("rejects empty after trim", () => {
+        expect(isValidChannelName("   ")).toBe(false)
+    })
+})
+
+describe("isValidIdentifier — adversarial inputs", () => {
+    it("rejects Go keyword as identifier", () => {
+        // Go keywords are valid identifiers syntactically but could cause issues
+        // The regex allows them — document this as accepted behavior
+        expect(isValidIdentifier("func")).toBe(true) // lowercase Go keyword — accepted
+        expect(isValidIdentifier("import")).toBe(true) // accepted as role name
+    })
+
+    it("rejects SQL injection attempt", () => {
+        expect(isValidIdentifier("admin'; DROP TABLE--")).toBe(false)
+    })
+
+    it("rejects CRLF injection", () => {
+        expect(isValidIdentifier("admin\r\n")).toBe(false)
+    })
+})

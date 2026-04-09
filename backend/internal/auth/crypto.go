@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -218,19 +219,18 @@ func MakeToken(
 			return nil, errors.Wrap(err, "failed to encode universal address")
 		}
 	} else if info.UserAddress != "" {
-		// Address-only path: wallet didn't provide pubkey (e.g. Adena for
-		// accounts that haven't transacted on-chain yet).
-		// chainUserAddress is only needed for ADR-036 verification (pubkey path).
-
-		// Re-encode to universal prefix for storage.
-		_, addressBytes, err := bech32.DecodeAndConvert(info.UserAddress)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode user address")
-		}
-		universalAddress, err = bech32.ConvertAndEncode(UniversalBech32Prefix, addressBytes)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to encode universal address")
-		}
+		// Address-only path REJECTED (v5 security hardening).
+		// Previously allowed wallets that hadn't transacted on-chain to authenticate
+		// with just an address (no cryptographic proof of ownership). This is an
+		// impersonation risk: any caller with a valid challenge could claim any address.
+		//
+		// Users must now have a pubkey (i.e., have made at least one on-chain TX or
+		// used a wallet that exposes the pubkey). The faucet flow provides this for
+		// new accounts.
+		slog.Warn("address-only auth attempt rejected",
+			"address", info.UserAddress,
+			"reason", "pubkey required for authentication (v5 security policy)")
+		return nil, errors.New("pubkey is required for authentication — please ensure your wallet has transacted on-chain at least once (e.g., use the faucet)")
 	} else {
 		return nil, errors.New("either user_pubkey_json or user_address must be provided")
 	}

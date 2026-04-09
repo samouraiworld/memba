@@ -6,6 +6,7 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember } from "../lib/dao"
 import { getTokenBalance, listFactoryTokens, type TokenInfo } from "../lib/grc20"
+import { resilientFetch } from "../lib/rpcFallback"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
@@ -43,12 +44,28 @@ export function Treasury() {
 
             const treasuryAssets: TreasuryAsset[] = []
 
-            // 1. Fetch GNOT balance via bank/balances ABCI query
+            // 1. Fetch GNOT balance via bank/balances ABCI query (resilient RPC failover)
             try {
-                const balanceUrl = `${GNO_RPC_URL}/abci_query?path=%22bank/balances/${realmPath}%22`
-                const balRes = await fetch(balanceUrl)
+                const balRes = await resilientFetch((rpcUrl) => ({
+                    url: rpcUrl,
+                    init: {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: "memba-treasury-balance",
+                            method: "abci_query",
+                            params: {
+                                path: `bank/balances/${realmPath}`,
+                                data: "",
+                            },
+                        }),
+                    },
+                }))
                 const balJson = await balRes.json()
                 const rawValue = balJson?.result?.response?.ResponseBase?.Value
+                    || balJson?.result?.response?.ResponseBase?.Data
+                    || balJson?.result?.response?.value
                 if (rawValue) {
                     const decoded = atob(rawValue)
                     const match = decoded.match(/(\d+)ugnot/)

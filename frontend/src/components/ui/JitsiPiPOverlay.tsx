@@ -146,7 +146,7 @@ export function JitsiPiPOverlay() {
                 }
                 style={isPiP
                     ? {
-                        transform: `translate(${-dragOffset.x}px, ${-dragOffset.y}px)`,
+                        transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
                         touchAction: "none",
                     }
                     : {

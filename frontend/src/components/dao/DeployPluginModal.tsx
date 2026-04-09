@@ -5,7 +5,7 @@
  * Used from DAOHome when a plugin hasn't been deployed yet.
  */
 import { useState } from "react"
-import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig, isValidChannel } from "../../lib/boardTemplate"
+import { generateChannelCode, buildDeployChannelMsg, defaultChannelConfig, isValidChannelName } from "../../lib/channelTemplate"
 import { getGasConfig } from "../../lib/gasConfig"
 import { inputStyle } from "../dao/wizardShared"
 
@@ -27,7 +27,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
     const addChannel = () => {
         const name = newChannel.trim().toLowerCase()
         if (!name) return
-        if (!isValidChannel(name)) { setChannelError("a-z, 0-9, _, - only"); return }
+        if (!isValidChannelName(name)) { setChannelError("a-z, 0-9, _, - only"); return }
         if (channels.includes(name)) { setChannelError("Already exists"); return }
         if (channels.length >= 5) { setChannelError("Max 5 channels"); return }
         setChannels([...channels, name])
@@ -48,10 +48,10 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
             const adenaWallet = (window as any).adena
             if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
 
-            const config = defaultBoardConfig(daoRealmPath, daoName)
-            config.channels = channels
-            const code = generateBoardCode(config)
-            const msg = buildDeployBoardMsg(callerAddress, config.boardRealmPath, code, "10000000ugnot")
+            const config = defaultChannelConfig(daoRealmPath, daoName)
+            config.channels = channels.map(name => ({ name, type: "text" as const, acl: { readRoles: [], writeRoles: [] } }))
+            const code = generateChannelCode(config)
+            const msg = buildDeployChannelMsg(callerAddress, config.channelRealmPath, code, "10000000ugnot")
             const gas = getGasConfig()
 
             const res = await adenaWallet.DoContract({

@@ -21,9 +21,13 @@ describe("gnowebSource", () => {
             expect(isValidRealmPath("javascript:alert(1)")).toBe(false)
         })
 
+        it("accepts paths with hyphens", () => {
+            expect(isValidRealmPath("/r/demo/boards-v2")).toBe(true)
+            expect(isValidRealmPath("/r/foo-bar")).toBe(true)
+        })
+
         it("rejects paths with uppercase or special chars", () => {
             expect(isValidRealmPath("/r/FOO/bar")).toBe(false)
-            expect(isValidRealmPath("/r/foo-bar")).toBe(false)
         })
     })
 })

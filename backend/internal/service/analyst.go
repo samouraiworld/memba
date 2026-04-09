@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -65,10 +66,13 @@ const (
 	proTierMaxPerspectives  = 5
 )
 
+// validGnoAddress matches a bech32 Gno address: g1 followed by 38 alphanumeric chars.
+var validGnoAddress = regexp.MustCompile(`^g1[0-9a-z]{38}$`)
+
 // checkProCredits queries the on-chain agent_registry for a user's credit balance.
 // Returns the credit balance in ugnot, or 0 if the query fails.
 func checkProCredits(userAddr string) int64 {
-	if userAddr == "" {
+	if userAddr == "" || !validGnoAddress.MatchString(userAddr) {
 		return 0
 	}
 

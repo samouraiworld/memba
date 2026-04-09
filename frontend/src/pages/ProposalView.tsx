@@ -451,11 +451,13 @@ export function ProposalView() {
             )}
 
             {/* Success message */}
+            <div aria-live="polite">
             {success && (
                 <div className="proposal-success-msg">
                     ✓ {success}
                 </div>
             )}
+            </div>
 
             {/* Actions */}
             {auth.isAuthenticated && !isArchived && (
@@ -465,7 +467,13 @@ export function ProposalView() {
                             {/* Membership warning */}
                             {isMember === false && (
                                 <div className="proposal-warning proposal-warning--mb">
-                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
+                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote, or{" "}
+                                    <button
+                                        onClick={() => navigate(`/dao/${encodedSlug}/candidature`)}
+                                        style={{ background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", textDecoration: "underline" }}
+                                    >
+                                        apply to join this DAO
+                                    </button>.
                                 </div>
                             )}
                             {hasVoted ? (
@@ -481,14 +489,14 @@ export function ProposalView() {
                                 </div>
                             ) : (
                                 <div className="proposal-vote-btns">
-                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✓ Vote Yes"}
                                     </button>
-                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
                                     {!govDAO && (
-                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                             {actionLoading ? "..." : "○ Abstain"}
                                         </button>
                                     )}
@@ -498,7 +506,7 @@ export function ProposalView() {
                     )}
 
                     {proposal.status === "passed" && isMember && (
-                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
+                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} aria-label={`Execute proposal ${proposalId}`} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
                     )}

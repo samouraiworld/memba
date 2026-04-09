@@ -208,6 +208,16 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
+
+		// Stricter per-IP limit for Sign/Complete transaction RPCs.
+		if endpoint == "rpc" && (strings.HasSuffix(r.URL.Path, "/SignTransaction") || strings.HasSuffix(r.URL.Path, "/CompleteTransaction")) {
+			if !limiter.Allow(ip, "tx") {
+				slog.Warn("rate limited", "ip", ip, "endpoint", "tx")
+				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

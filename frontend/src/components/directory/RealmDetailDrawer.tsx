@@ -12,9 +12,11 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import DOMPurify from "dompurify"
 import { GNO_RPC_URL } from "../../lib/config"
 import { queryRender } from "../../lib/dao/shared"
 import { getGnowebUrl } from "../../lib/gnoweb"
+import { useNetwork } from "../../hooks/useNetwork"
 import { fetchRealmSource } from "../../lib/gnowebSource"
 import type { RealmSource } from "../../lib/gnowebSource"
 import { renderMarkdown } from "../../lib/markdownLite"
@@ -35,6 +37,7 @@ interface RealmDetailDrawerProps {
 }
 
 export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: RealmDetailDrawerProps) {
+    const { networkKey } = useNetwork()
     const [tab, setTab] = useState<DrawerTab>(isPackage ? "source" : "render")
     const [renderOutput, setRenderOutput] = useState<string | null>(null)
     const [renderLoading, setRenderLoading] = useState(!isPackage)
@@ -64,7 +67,8 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     }, [handleClose])
 
     // Derive gnoweb URL from chain config if not provided
-    const resolvedGnowebUrl = gnowebUrl || getGnowebUrl("gnoland1") || "https://gno.land"
+    // P1 fix: use active network key instead of hardcoded "gnoland1"
+    const resolvedGnowebUrl = gnowebUrl || getGnowebUrl(networkKey) || "https://gno.land"
 
     // Fetch Render() output
     useEffect(() => {
@@ -157,7 +161,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                             ) : (
                                 <div
                                     className="drawer-render__content"
-                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(renderOutput || "") }}
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(renderOutput || "")) }}
                                 />
                             )}
                         </div>

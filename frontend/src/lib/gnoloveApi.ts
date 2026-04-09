@@ -116,7 +116,10 @@ export async function getContributors(
         const url = new URL("/stats", GNOLOVE_API_URL)
         if (timeFilter !== TimeFilter.ALL_TIME) url.searchParams.set("time", timeFilter)
         if (excludeLogins?.length) {
-            for (const login of excludeLogins) url.searchParams.append("exclude", login)
+            for (const login of excludeLogins) {
+                const sanitized = login.trim()
+                if (sanitized) url.searchParams.append("exclude", sanitized)
+            }
         }
         if (repositories?.length) url.searchParams.set("repositories", repositories.join(","))
         const data = await fetchJson(url.toString(), signal)

@@ -356,7 +356,7 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 	// First try from cache table (fast path), joining profiles for usernames
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT ur.address, ur.rank_tier, ur.rank_name, ur.total_xp, ur.quests_completed,
-		        COALESCE(p.bio, '') as username, COALESCE(p.avatar_url, '') as avatar_url
+		        COALESCE(p.title, '') as username, COALESCE(p.avatar_url, '') as avatar_url
 		 FROM user_ranks ur
 		 LEFT JOIN profiles p ON ur.address = p.address
 		 ORDER BY ur.total_xp DESC
