@@ -44,11 +44,12 @@ describe("fetchTractionMetrics", () => {
     })
 
     it("parses contributor total from API response", async () => {
-        // /stats returns { users: [...] }, /repositories returns [...]
+        // /stats returns { users: [...] }, /repositories returns [...], gnoweb returns HTML
         const mockUsers = Array.from({ length: 42 }, (_, i) => ({ login: `user${i}` }))
         vi.spyOn(globalThis, "fetch")
             .mockResolvedValueOnce(new Response(JSON.stringify({ users: mockUsers }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify([{ name: "repo1" }, { name: "repo2" }]), { status: 200 }))
+            .mockResolvedValueOnce(new Response("", { status: 200 })) // gnoweb namespace query
 
         const metrics = await fetchTractionMetrics()
         expect(metrics.contributorCount).toBe(42)
