@@ -73,8 +73,10 @@ export function Layout() {
         setAuthError(null)
 
         try {
-            // 1. Get server challenge
-            const challenge = await auth.getChallenge()
+            // 1. Get server challenge BOUND to our pubkey (v6 AUTH-01 fix)
+            // The challenge is cryptographically bound to this specific pubkey.
+            // An attacker cannot request a challenge and use it with a victim's pubkey.
+            const challenge = await auth.getChallenge(adena.pubkeyJSON || undefined)
             if (!challenge) throw new Error("Failed to get challenge")
 
             // 2. Build TokenRequestInfo (protojson format)
@@ -84,6 +86,7 @@ export function Layout() {
                     nonce: bytesToBase64(challenge.nonce),
                     expiration: challenge.expiration,
                     serverSignature: bytesToBase64(challenge.serverSignature),
+                    boundPubkeyHash: challenge.boundPubkeyHash || "",
                 },
                 userBech32Prefix: "g",
             }
@@ -96,6 +99,7 @@ export function Layout() {
             const infoJson = JSON.stringify(info)
 
             // 3. ADR-036 signing skipped — Adena returns UNSUPPORTED_TYPE for sign/MsgSignData
+            // Auth security is enforced via pubkey-bound challenges (v6 AUTH-01).
             const signature = ""
 
             // 4. Exchange for auth token

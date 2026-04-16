@@ -14,10 +14,11 @@ import (
 
 func (s *MultisigService) GetChallenge(
 	_ context.Context,
-	_ *connect.Request[membav1.GetChallengeRequest],
+	req *connect.Request[membav1.GetChallengeRequest],
 ) (*connect.Response[membav1.GetChallengeResponse], error) {
-	slog.Info("GetChallenge called")
-	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration)
+	pubkeyJSON := req.Msg.GetUserPubkeyJson()
+	slog.Info("GetChallenge called", "has_pubkey", pubkeyJSON != "")
+	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration, pubkeyJSON)
 	if err != nil {
 		return nil, internalError("internal", err)
 	}

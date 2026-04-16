@@ -21,7 +21,7 @@ type Config struct {
 func DefaultConfigs() map[string]Config {
 	return map[string]Config{
 		"render": {MaxRequests: 30, Window: time.Minute},  // SPA makes 3-6 ABCI calls on page load
-		"eval":   {MaxRequests: 10, Window: time.Minute},  // Eval is heavier
+		// "eval" removed in v6 (SEC-01) — /api/eval endpoint was removed
 		"balance": {MaxRequests: 20, Window: time.Minute}, // Balance check
 		"rpc":    {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
 		"tx":     {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
@@ -127,12 +127,26 @@ func subnetKey(ip string) string {
 	return ip
 }
 
-// ExtractIP extracts the client IP from an HTTP request,
-// using X-Forwarded-For if available (first entry, trimmed).
-func ExtractIP(remoteAddr, xForwardedFor string) string {
+// ExtractIP extracts the client IP from an HTTP request.
+// Priority: Fly-Client-IP (trusted, set by Fly.io proxy) → last X-Forwarded-For
+// entry (added by the reverse proxy, not attacker-controlled) → X-Real-IP → RemoteAddr.
+//
+// Security: The FIRST X-Forwarded-For entry is attacker-controlled and MUST NOT
+// be trusted. Behind Fly.io, the last entry is added by the Fly proxy.
+func ExtractIP(remoteAddr, xForwardedFor string, headers ...string) string {
+	// 1. Fly-Client-IP — set by Fly.io proxy, not spoofable
+	for _, h := range headers {
+		if h != "" {
+			return strings.TrimSpace(h)
+		}
+	}
+
+	// 2. Last X-Forwarded-For entry — added by the reverse proxy
 	if xForwardedFor != "" {
 		parts := strings.Split(xForwardedFor, ",")
-		return strings.TrimSpace(parts[0])
+		return strings.TrimSpace(parts[len(parts)-1])
 	}
+
+	// 3. Direct connection
 	return strings.TrimSpace(remoteAddr)
 }

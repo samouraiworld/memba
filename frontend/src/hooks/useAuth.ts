@@ -77,8 +77,8 @@ export function useAuth() {
         return () => clearInterval(timer);
     }, [state.token]);
 
-    const getChallenge = useCallback(async () => {
-        const res = await api.getChallenge({});
+    const getChallenge = useCallback(async (userPubkeyJson?: string) => {
+        const res = await api.getChallenge({ userPubkeyJson: userPubkeyJson || "" });
         return res.challenge;
     }, []);
 

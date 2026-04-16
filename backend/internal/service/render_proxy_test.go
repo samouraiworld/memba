@@ -39,34 +39,28 @@ func TestHandleRenderProxy_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestHandleEvalProxy_MissingParams(t *testing.T) {
-	handler := HandleEvalProxy()
+// HandleEvalProxy tests removed — endpoint removed in v6 (SEC-01).
 
-	// Missing both
-	req := httptest.NewRequest(http.MethodGet, "/api/eval", nil)
+func TestHandleRenderProxy_InvalidPathChars(t *testing.T) {
+	handler := HandleRenderProxy()
+	// Path with quotes should be rejected
+	req := httptest.NewRequest(http.MethodGet, `/api/render?realm=gno.land/r/test&path=foo"bar`, nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
-	}
-
-	// Missing expr
-	req = httptest.NewRequest(http.MethodGet, "/api/eval?realm=gno.land/r/test", nil)
-	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for missing expr, got %d", rec.Code)
+		t.Errorf("expected 400 for path with quotes, got %d", rec.Code)
 	}
 }
 
-func TestHandleEvalProxy_InvalidRealm(t *testing.T) {
-	handler := HandleEvalProxy()
-	req := httptest.NewRequest(http.MethodGet, "/api/eval?realm=evil.com&expr=Foo()", nil)
+func TestHandleRenderProxy_ValidPath(t *testing.T) {
+	handler := HandleRenderProxy()
+	// Path with colons (for pagination: page:1) should be accepted
+	req := httptest.NewRequest(http.MethodGet, "/api/render?realm=gno.land/r/test&path=page:1", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
+	// Will fail with 502 (no RPC) but should NOT be 400
+	if rec.Code == http.StatusBadRequest {
+		t.Errorf("path with colons should be accepted, got 400")
 	}
 }
 

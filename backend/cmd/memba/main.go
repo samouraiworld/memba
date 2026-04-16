@@ -78,6 +78,13 @@ func main() {
 		}
 	}
 
+	// v6 SEC-13: Fail loudly if ED25519_SEED is not set in production.
+	// Without a persistent seed, server restarts invalidate all auth tokens.
+	if os.Getenv("ED25519_SEED") == "" && os.Getenv("FLY_APP_NAME") != "" {
+		slog.Error("ED25519_SEED is required in production — auth tokens will not survive restarts")
+		os.Exit(1)
+	}
+
 	// Create service
 	svc, err := service.NewMultisigService(database)
 	if err != nil {
@@ -105,14 +112,15 @@ func main() {
 	oauthStore := service.NewOAuthStateStore(ctx)
 
 	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
-	mux.Handle(path, rateLimitMiddleware("rpc", handler))
+	mux.Handle(path, rateLimitMiddleware("rpc", maxBodySize(1<<20, handler))) // 1MB max body
 
 	// Health check — enhanced with DB, uptime, memory diagnostics
 	mux.HandleFunc("/health", healthHandler(database, dbPath))
 
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
+	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
+	// Use /api/render for legitimate read-only queries.
 	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy()))
-	mux.Handle("/api/eval", rateLimitMiddleware("eval", service.HandleEvalProxy()))
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
@@ -128,11 +136,13 @@ func main() {
 	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(escrowRealmPath)))
 
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
-	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", service.HandleAnalystAnalyze()))
+	// v6 SEC-03: auth required to prevent API key abuse
+	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthMiddleware(svc, service.HandleAnalystAnalyze())))
 	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
 
 	// IPFS upload proxy — keeps Lighthouse API key server-side
-	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", service.HandleIPFSUpload()))
+	// v6 SEC-02: auth required to prevent API key abuse
+	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", requireAuthMiddleware(svc, service.HandleIPFSUpload())))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
@@ -197,6 +207,38 @@ func splitOrigins(s string) []string {
 	return origins
 }
 
+// ── Body size limiter ────────────────────────────────────────────
+
+// maxBodySize wraps a handler with a request body size limit.
+func maxBodySize(maxBytes int64, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ── REST auth middleware ─────────────────────────────────────────
+
+// requireAuthMiddleware wraps a REST handler with token validation.
+// The client must send: Authorization: Bearer <base64-encoded-protobuf-token>
+// This reuses the same server-signed token that ConnectRPC endpoints validate.
+func requireAuthMiddleware(svc *service.MultisigService, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, `{"error":"authorization required"}`, http.StatusUnauthorized)
+			return
+		}
+		tokenJSON := strings.TrimPrefix(authHeader, "Bearer ")
+		if err := svc.ValidateRESTToken(tokenJSON); err != nil {
+			slog.Warn("REST auth failed", "error", err)
+			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // ── Rate limiter ─────────────────────────────────────────────────
 
 // limiter is initialized in main() with a cancellable context.
@@ -204,7 +246,7 @@ var limiter *ratelimit.Limiter
 
 func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := ratelimit.ExtractIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"))
+		ip := ratelimit.ExtractIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"), r.Header.Get("Fly-Client-IP"))
 
 		if !limiter.Allow(ip, endpoint) {
 			slog.Warn("rate limited", "ip", ip, "endpoint", endpoint)

@@ -29,8 +29,28 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Test
-        run: go test -race -count=1 -cover ./...
+      - name: Test with coverage
+        run: go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Backend coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 20" | bc -l) )); then
+            echo "::error::Backend coverage ${COVERAGE}% is below 20% threshold"
+            exit 1
+          fi
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            echo "::warning::Backend coverage ${COVERAGE}% is below 50% target — improve gradually"
+          fi
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+          retention-days: 14
 
       - name: Vulnerability check
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
@@ -70,8 +90,34 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        run: npm test -- --coverage
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-node${{ matrix.node-version }}
+          path: frontend/coverage/
+          retention-days: 14
+
+      - name: Check bundle size
+        run: |
+          # Measure the main entry chunk (index-*.js), not all lazy-loaded chunks
+          MAIN_CHUNK=$(find dist/assets -name 'index-*.js' ! -name '*.map' -exec wc -c {} + | tail -1 | awk '{print $1}')
+          MAIN_KB=$((MAIN_CHUNK / 1024))
+          TOTAL_SIZE=$(find dist/assets -name '*.js' ! -name '*.map' -exec wc -c {} + | tail -1 | awk '{print $1}')
+          TOTAL_KB=$((TOTAL_SIZE / 1024))
+          echo "Main chunk: ${MAIN_KB}KB | Total JS (all chunks): ${TOTAL_KB}KB"
+          # Fail if main entry chunk exceeds 600KB (uncompressed)
+          if [ "$MAIN_KB" -gt 600 ]; then
+            echo "::error::Main chunk ${MAIN_KB}KB exceeds 600KB budget"
+            exit 1
+          fi
+          # Warn if total JS exceeds 3MB
+          if [ "$TOTAL_KB" -gt 3072 ]; then
+            echo "::warning::Total JS ${TOTAL_KB}KB exceeds 3MB — review lazy loading"
+          fi
 
       - name: Install Playwright
         run: npx playwright install chromium --with-deps

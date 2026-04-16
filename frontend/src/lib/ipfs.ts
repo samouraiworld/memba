@@ -182,8 +182,16 @@ async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
     const filename = file instanceof File ? file.name : "avatar.webp"
     formData.append("file", file, filename)
 
+    // v6 SEC-02: auth required to prevent API key abuse
+    const tokenRaw = localStorage.getItem("memba_auth_token")
+    const headers: Record<string, string> = {}
+    if (tokenRaw) {
+        headers["Authorization"] = `Bearer ${tokenRaw}`
+    }
+
     const response = await fetch(`${backendUrl}/api/upload/avatar`, {
         method: "POST",
+        headers,
         body: formData,
     })
 
