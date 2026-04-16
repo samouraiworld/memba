@@ -127,14 +127,6 @@ export function generateDAOCode(config: DAOCreationConfig): string {
         return true
     })
 
-    const memberInit = validMembers
-        .map((m) => {
-            const safeRoles = m.roles.filter(isValidIdentifier)
-            const rolesStr = safeRoles.map((r) => `"${r}"`).join(", ")
-            return `\tmembers = append(members, Member{Address: address("${m.address}"), Power: ${Math.max(0, Math.floor(m.power))}, Roles: []string{${rolesStr}}})`
-        })
-        .join("\n")
-
     const safeCategories = config.proposalCategories.filter(isValidIdentifier)
     const categoriesInit = safeCategories
         .map((c) => `\tallowedCategories = append(allowedCategories, "${c}")`)
