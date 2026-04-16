@@ -482,12 +482,17 @@ export function NFTCollectionView() {
             {renderOutput && (
                 <div className="nft-render-section">
                     <h3 className="nft-section-title">On-Chain Gallery</h3>
+                    {/* v6 SEC-05: DOMPurify runs AFTER markdown→HTML conversion.
+                        Previously ran before, meaning regex replacements could
+                        reintroduce HTML from DOMPurify's escaped output. */}
                     <div className="nft-render-output" dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(renderOutput || "")
-                            .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-                            .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-                            .replace(/^\*\*(.+?)\*\*$/gm, '<strong>$1</strong>')
-                            .replace(/\n/g, '<br/>')
+                        __html: DOMPurify.sanitize(
+                            (renderOutput || "")
+                                .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+                                .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+                                .replace(/^\*\*(.+?)\*\*$/gm, '<strong>$1</strong>')
+                                .replace(/\n/g, '<br/>')
+                        )
                     }} />
                 </div>
             )}

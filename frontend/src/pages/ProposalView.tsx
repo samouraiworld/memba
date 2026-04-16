@@ -160,7 +160,19 @@ export function ProposalView() {
         return { hasVoted: false, userVote: "" }
     }, [voteRecords, adena.address, myUsername])
 
+    // v6 UX-04: Confirmation dialog before irreversible on-chain vote
+    const [pendingVote, setPendingVote] = useState<"YES" | "NO" | "ABSTAIN" | null>(null)
+
+    const confirmVote = (vote: "YES" | "NO" | "ABSTAIN") => {
+        setPendingVote(vote)
+    }
+
+    const cancelVote = () => {
+        setPendingVote(null)
+    }
+
     const handleVote = async (vote: "YES" | "NO" | "ABSTAIN") => {
+        setPendingVote(null)
         if (!auth.isAuthenticated || !adena.address) {
             setError("Connect your wallet to vote")
             return
@@ -477,19 +489,38 @@ export function ProposalView() {
                                     ✓ You voted {userVote} on this proposal
                                 </div>
                             ) : (
+                                <>
+                                {/* v6 UX-04: Vote confirmation dialog */}
+                                {pendingVote && (
+                                    <div className="proposal-confirm-dialog" role="alertdialog" aria-label="Confirm vote" style={{ background: "var(--color-k-panel)", border: "1px solid var(--color-k-edge)", borderRadius: 10, padding: 20, marginBottom: 16, textAlign: "center" }}>
+                                        <p style={{ marginBottom: 12, fontSize: 15 }}>
+                                            Vote <strong>{pendingVote}</strong> on Proposal #{proposalId}?
+                                        </p>
+                                        <p style={{ color: "var(--color-k-dim)", fontSize: 13, marginBottom: 16 }}>
+                                            This is an on-chain action that costs gas and cannot be undone.
+                                        </p>
+                                        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                                            <button className="k-btn-secondary" onClick={cancelVote} style={{ minWidth: 100 }}>Cancel</button>
+                                            <button className="k-btn-primary" onClick={() => handleVote(pendingVote)} style={{ minWidth: 100, background: pendingVote === "YES" ? "#4caf50" : pendingVote === "NO" ? "#f44336" : "var(--color-k-accent)" }}>
+                                                Confirm {pendingVote}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="proposal-vote-btns">
-                                    <button className="k-btn-primary" onClick={() => handleVote("YES")} disabled={actionLoading || isMember === false} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => confirmVote("YES")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✓ Vote Yes"}
                                     </button>
-                                    <button className="k-btn-primary" onClick={() => handleVote("NO")} disabled={actionLoading || isMember === false} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => confirmVote("NO")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
                                     {!govDAO && (
-                                        <button className="k-btn-secondary" onClick={() => handleVote("ABSTAIN")} disabled={actionLoading || isMember === false} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        <button className="k-btn-secondary" onClick={() => confirmVote("ABSTAIN")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                             {actionLoading ? "..." : "○ Abstain"}
                                         </button>
                                     )}
                                 </div>
+                                </>
                             )}
                         </>
                     )}

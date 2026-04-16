@@ -40,7 +40,7 @@
 
 /* ── Connect prompt ─────────────────────────────────────── */
 .ptx-connect-prompt {
-    background: #0c0c0c;
+    background: var(--color-k-elevated);
     padding: 32px;
     text-align: center;
 }
@@ -56,7 +56,7 @@
 .ptx-tabs {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid var(--color-k-edge);
     flex-wrap: wrap;
 }
 
@@ -65,7 +65,7 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #666;
+    color: var(--color-k-muted);
     font-family: JetBrains Mono, monospace;
     font-size: 11px;
     cursor: pointer;
@@ -73,8 +73,8 @@
 }
 
 .ptx-tab--active {
-    border-bottom-color: #00d4aa;
-    color: #00d4aa;
+    border-bottom-color: var(--color-k-accent);
+    color: var(--color-k-accent);
 }
 
 /* ── Form card layout ───────────────────────────────────── */
@@ -90,8 +90,8 @@
     height: 40px;
     padding: 0 12px;
     border-radius: 8px;
-    background: #0c0c0c;
-    border: 1px solid #222;
+    background: var(--color-k-elevated);
+    border: 1px solid var(--color-k-edge);
     color: var(--color-text);
     font-family: JetBrains Mono, monospace;
     font-size: 13px;

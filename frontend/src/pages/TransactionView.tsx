@@ -247,7 +247,7 @@ export function TransactionView() {
                     {tx.signatures.length >= tx.threshold && (
                         <button
                             className="k-btn-primary"
-                            style={{ background: "#00e6bb", opacity: actionLoading ? 0.5 : 1 }}
+                            style={{ background: "var(--color-k-accent-hover)", opacity: actionLoading ? 0.5 : 1 }}
                             disabled={actionLoading}
                             onClick={async () => {
                                 if (!token || !tx || actionLoading) return
