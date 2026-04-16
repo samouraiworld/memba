@@ -8,6 +8,7 @@ import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
+import "./proposedao.css"
 
 // ── Proposal Templates ───────────────────────────────────────
 
@@ -164,54 +165,47 @@ export function ProposeDAO() {
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="animate-fade-in pdao-page">
             {/* Nav */}
             <button
                 id="propose-back-btn"
+                className="pdao-back-btn"
                 aria-label="Back to DAO"
                 onClick={() => navigate(`/dao/${encodedSlug}`)}
-                style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to DAO
             </button>
 
             {/* Header */}
             <div>
-                <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>New Proposal</h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <h2 className="pdao-header-title">New Proposal</h2>
+                <p className="pdao-header-subtitle">
                     Submit a proposal for the DAO to vote on
                 </p>
             </div>
 
             {/* Archive warning */}
             {isArchived && (
-                <div style={{
-                    padding: "12px 18px", borderRadius: 10,
-                    background: "rgba(245,166,35,0.05)",
-                    border: "1px solid rgba(245,166,35,0.15)",
-                    display: "flex", alignItems: "center", gap: 10,
-                }}>
-                    <span style={{ fontSize: 16, display: 'flex' }}><Archive size={16} /></span>
-                    <div style={{ fontSize: 12, color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace" }}>
+                <div className="pdao-archive-banner">
+                    <span className="pdao-archive-icon"><Archive size={16} /></span>
+                    <div className="pdao-archive-text">
                         This DAO is archived — new proposals cannot be created
                     </div>
                 </div>
             )}
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
-                        Connect your wallet to create a proposal
-                    </p>
+                <div className="k-dashed pdao-connect-prompt">
+                    <p>Connect your wallet to create a proposal</p>
                 </div>
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div className="pdao-success-bar">
                     <span>✓ {success}</span>
                     <button
+                        className="pdao-success-goto"
                         onClick={() => navigate(`/dao/${encodedSlug}`)}
-                        style={{ background: "rgba(0,212,170,0.12)", border: "1px solid rgba(0,212,170,0.3)", borderRadius: 6, padding: "6px 14px", color: "#00d4aa", fontSize: 12, fontFamily: "JetBrains Mono, monospace", cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                         Go to DAO →
                     </button>
@@ -219,16 +213,17 @@ export function ProposeDAO() {
             )}
 
             {/* Form */}
-            <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
+            <div className="k-card pdao-form">
                 {/* Template Selector */}
                 <div>
-                    <label style={labelStyle}>Template</label>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <label className="pdao-label">Template</label>
+                    <div className="pdao-chip-row">
                         {PROPOSAL_TEMPLATES.map(t => (
                             <button
                                 key={t.id}
                                 type="button"
                                 disabled={loading}
+                                className={`pdao-chip ${selectedTemplate === t.id ? "active" : ""}`}
                                 onClick={() => {
                                     // Warn before overwriting user's custom input
                                     if ((title.trim() || description.trim()) && selectedTemplate !== t.id) {
@@ -239,28 +234,18 @@ export function ProposeDAO() {
                                     setTitle(tTitle)
                                     setDescription(tDesc)
                                 }}
-                                style={{
-                                    padding: "6px 14px", borderRadius: 6, fontSize: 12,
-                                    fontFamily: "JetBrains Mono, monospace",
-                                    border: "1px solid",
-                                    borderColor: selectedTemplate === t.id ? "rgba(0,212,170,0.3)" : "#222",
-                                    background: selectedTemplate === t.id ? "rgba(0,212,170,0.08)" : "#0c0c0c",
-                                    color: selectedTemplate === t.id ? "#00d4aa" : "#888",
-                                    cursor: loading ? "default" : "pointer",
-                                    transition: "all 0.15s",
-                                }}
                             >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><t.icon size={14} /> {t.label}</span>
+                                <span className="pdao-chip-icon"><t.icon size={14} /> {t.label}</span>
                             </button>
                         ))}
                     </div>
-                    <p style={hintStyle}>Pre-fill title and description with a structured template</p>
+                    <p className="pdao-hint">Pre-fill title and description with a structured template</p>
                 </div>
 
                 {/* Proposal Type Selector */}
                 <div>
-                    <label style={labelStyle}>Proposal Type</label>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <label className="pdao-label">Proposal Type</label>
+                    <div className="pdao-chip-row">
                         {[
                             { id: "text" as const, label: "Text / Sentiment", icon: NotePencil, enabled: true },
                             { id: "member" as const, label: "Add Member", icon: UsersThree, enabled: true },
@@ -273,19 +258,9 @@ export function ProposeDAO() {
                                 disabled={!t.enabled || loading}
                                 title={t.enabled ? undefined : t.hint}
                                 onClick={() => t.enabled && (t.id === "text" || t.id === "member") && setProposalType(t.id)}
-                                style={{
-                                    padding: "6px 14px", borderRadius: 6, fontSize: 12,
-                                    fontFamily: "JetBrains Mono, monospace",
-                                    border: "1px solid",
-                                    borderColor: t.enabled && proposalType === t.id ? "rgba(0,212,170,0.3)" : t.enabled ? "#222" : "#1a1a1a",
-                                    background: t.enabled && proposalType === t.id ? "rgba(0,212,170,0.08)" : t.enabled ? "#0c0c0c" : "#0a0a0a",
-                                    color: t.enabled && proposalType === t.id ? "#00d4aa" : t.enabled ? "#888" : "#444",
-                                    cursor: t.enabled ? "pointer" : "not-allowed",
-                                    opacity: t.enabled ? 1 : 0.5,
-                                    transition: "all 0.15s",
-                                }}
+                                className={`pdao-chip ${t.enabled && proposalType === t.id ? "active" : ""} ${!t.enabled ? "pdao-chip-disabled" : ""}`}
                             >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><t.icon size={14} /> {t.label}</span>
+                                <span className="pdao-chip-icon"><t.icon size={14} /> {t.label}</span>
                             </button>
                         ))}
                     </div>
@@ -295,19 +270,20 @@ export function ProposeDAO() {
                 {proposalType === "member" && (
                     <>
                         <div>
-                            <label style={labelStyle}>Target Address</label>
+                            <label className="pdao-label">Target Address</label>
                             <input
                                 id="member-address-input"
+                                className="pdao-input"
                                 type="text" value={memberAddress}
                                 onChange={(e) => setMemberAddress(e.target.value)}
                                 placeholder="g1..." maxLength={42}
-                                style={inputStyle(loading)} disabled={loading}
+                                disabled={loading}
                             />
-                            <p style={hintStyle}>The address of the member to add</p>
+                            <p className="pdao-hint">The address of the member to add</p>
                         </div>
                         <div>
-                            <label style={labelStyle}>Roles</label>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <label className="pdao-label">Roles</label>
+                            <div className="pdao-chip-row">
                                 {["admin", "dev", "finance", "ops", "member"].map(role => (
                                     <button
                                         key={role}
@@ -316,76 +292,53 @@ export function ProposeDAO() {
                                             prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
                                         )}
                                         disabled={loading}
-                                        style={{
-                                            padding: "4px 12px", borderRadius: 6, fontSize: 11,
-                                            fontFamily: "JetBrains Mono, monospace",
-                                            border: "1px solid",
-                                            borderColor: memberRoles.includes(role) ? "rgba(0,212,170,0.3)" : "#222",
-                                            background: memberRoles.includes(role) ? "rgba(0,212,170,0.08)" : "#0c0c0c",
-                                            color: memberRoles.includes(role) ? "#00d4aa" : "#666",
-                                            cursor: loading ? "default" : "pointer",
-                                            transition: "all 0.15s",
-                                        }}
+                                        className={`pdao-role-chip ${memberRoles.includes(role) ? "active" : ""}`}
                                     >
                                         {role}
                                     </button>
                                 ))}
                             </div>
-                            <p style={hintStyle}>Selected: {memberRoles.join(", ") || "none"}</p>
+                            <p className="pdao-hint">Selected: {memberRoles.join(", ") || "none"}</p>
                         </div>
                     </>
                 )}
 
                 <div>
-                    <label style={labelStyle}>{proposalType === "member" ? "Title (optional)" : "Title"}</label>
+                    <label className="pdao-label">{proposalType === "member" ? "Title (optional)" : "Title"}</label>
                     <input
+                        className="pdao-input"
                         type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                         placeholder={proposalType === "member" ? "Auto-generated if empty" : "e.g. Add new member to DAO"}
                         maxLength={128}
-                        style={inputStyle(loading)} disabled={loading}
+                        disabled={loading}
                     />
-                    <p style={hintStyle}>{title.length}/128 characters</p>
+                    <p className="pdao-hint">{title.length}/128 characters</p>
                 </div>
 
                 <div>
-                    <label style={labelStyle}>Description (optional)</label>
+                    <label className="pdao-label">Description (optional)</label>
                     <textarea
+                        className="pdao-textarea"
                         value={description} onChange={(e) => setDescription(e.target.value)}
                         placeholder="Describe the proposal in detail..."
                         maxLength={4096} rows={6}
-                        style={{
-                            ...inputStyle(loading),
-                            height: "auto",
-                            padding: "12px",
-                            resize: "vertical",
-                            minHeight: 120,
-                        }}
                         disabled={loading}
                     />
-                    <p style={hintStyle}>{description.length}/4096 characters</p>
+                    <p className="pdao-hint">{description.length}/4096 characters</p>
                 </div>
 
                 {/* Category — not supported by GovDAO */}
                 {!isGovDAO && (
                     <div>
-                        <label style={labelStyle}>Category</label>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <label className="pdao-label">Category</label>
+                        <div className="pdao-chip-row">
                             {categories.map(c => (
                                 <button
                                     key={c.value}
                                     type="button"
                                     onClick={() => setCategory(c.value)}
                                     disabled={loading}
-                                    style={{
-                                        padding: "6px 14px", borderRadius: 6, fontSize: 12,
-                                        fontFamily: "JetBrains Mono, monospace",
-                                        border: "1px solid",
-                                        borderColor: category === c.value ? "rgba(0,212,170,0.3)" : "#222",
-                                        background: category === c.value ? "rgba(0,212,170,0.08)" : "#0c0c0c",
-                                        color: category === c.value ? "#00d4aa" : "#888",
-                                        cursor: loading ? "default" : "pointer",
-                                        transition: "all 0.15s",
-                                    }}
+                                    className={`pdao-chip ${category === c.value ? "active" : ""}`}
                                 >
                                     {c.label}
                                 </button>
@@ -396,32 +349,28 @@ export function ProposeDAO() {
             </div>
 
             {/* Summary */}
-            <div className="k-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Realm</span>
-                    <span style={{ color: "var(--color-text-secondary)" }}>{realmPath}</span>
+            <div className="k-card pdao-summary">
+                <div className="pdao-summary-row">
+                    <span>Realm</span>
+                    <span>{realmPath}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Function</span>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Propose(title, description{isGovDAO ? "" : ", category"})</span>
+                <div className="pdao-summary-row">
+                    <span>Function</span>
+                    <span>Propose(title, description{isGovDAO ? "" : ", category"})</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Proposer</span>
-                    <span style={{ color: "var(--color-text-secondary)" }}>{adena.address || "—"}</span>
+                <div className="pdao-summary-row">
+                    <span>Proposer</span>
+                    <span>{adena.address || "—"}</span>
                 </div>
             </div>
 
             {/* Source Code Preview */}
             {auth.isAuthenticated && title.trim() && (
-                <details style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
-                    <summary style={{ cursor: "pointer", color: "var(--color-text-muted)", userSelect: "none" }}>
+                <details className="pdao-source-details">
+                    <summary className="pdao-source-summary">
                         📋 View Source Code (MsgCall)
                     </summary>
-                    <pre style={{
-                        marginTop: 8, fontSize: 10, color: "var(--color-text-secondary)", overflow: "auto",
-                        background: "#0c0c0c", padding: 12, borderRadius: 8,
-                        border: "1px solid #1a1a1a", maxHeight: 200,
-                    }}>
+                    <pre className="pdao-source-pre">
                         {JSON.stringify(
                             buildProposeMsg(adena.address || "", realmPath, title.trim(), description.trim(), isGovDAO ? undefined : category),
                             null, 2,
@@ -431,7 +380,7 @@ export function ProposeDAO() {
             )}
 
             {/* Submit */}
-            <div style={{ display: "flex", gap: 12 }}>
+            <div className="pdao-actions">
                 <button
                     className="k-btn-primary"
                     onClick={handlePropose}
@@ -453,24 +402,3 @@ export function ProposeDAO() {
     )
 }
 
-// ── Styles ────────────────────────────────────────────────
-
-const labelStyle: React.CSSProperties = {
-    display: "block", marginBottom: 6, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
-    textTransform: "uppercase", letterSpacing: "0.05em",
-}
-
-const hintStyle: React.CSSProperties = {
-    marginTop: 4, fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
-}
-
-function inputStyle(loading: boolean): React.CSSProperties {
-    return {
-        width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
-        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
-        opacity: loading ? 0.5 : 1,
-    }
-}

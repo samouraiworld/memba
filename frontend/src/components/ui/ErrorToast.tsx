@@ -49,8 +49,8 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
             style={{
                 position: "fixed",
                 bottom: undefined,
-                top: 80,
-                right: 24,
+                top: "calc(var(--topbar-height, 56px) + 16px)",
+                right: 16,
                 zIndex: 1000,
                 display: "flex",
                 flexDirection: "column",
@@ -73,7 +73,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
                 <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{mapped.title}</div>
-                    <div style={{ fontSize: 11, color: "#cc3d4a", marginTop: 2, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-k-danger)", marginTop: 2, lineHeight: 1.4, opacity: 0.85 }}>
                         {mapped.message}
                     </div>
                 </div>

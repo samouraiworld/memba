@@ -41,7 +41,7 @@ export function ConnectingLoader({ message = "Connecting to Memba...", minHeight
                 <div
                     style={{
                         width: "40%", height: "100%", borderRadius: 2,
-                        background: "linear-gradient(90deg, transparent, #00d4aa, transparent)",
+                        background: "linear-gradient(90deg, transparent, var(--color-k-accent), transparent)",
                         animation: "slideProgress 1.5s ease-in-out infinite",
                     }}
                 />
