@@ -29,10 +29,9 @@ type PerspectiveRequest struct {
 	ProposalData string `json:"proposalData"`
 	DaoContext   string `json:"daoContext"`
 	Treasury     string `json:"treasuryContext,omitempty"`
-	// SystemPrompt and UserPrompt are the preferred way to pass prompts.
-	// If set, ProposalData is ignored and these are used directly.
-	SystemPrompt string `json:"systemPrompt,omitempty"`
-	UserPrompt   string `json:"userPrompt,omitempty"`
+	// v6 SEC-NEW-04: SystemPrompt and UserPrompt removed — user-controlled prompts
+	// enabled LLM prompt injection and general-purpose LLM proxy abuse.
+	// Prompts are now always generated server-side from ProposalData via splitPrompt().
 }
 
 // AnalysisResponse returned to the MCP server.
@@ -560,11 +559,9 @@ func HandleAnalystAnalyze() http.Handler {
 				provider, providerIdx := selectProvider(providers, idx)
 				modelsUsed[idx] = provider.Name + "/" + provider.Model
 
-				// Prefer explicit system/user prompts; fall back to legacy split
-			system, user := p.SystemPrompt, p.UserPrompt
-			if system == "" && user == "" {
-				system, user = splitPrompt(p.ProposalData)
-			}
+				// v6 SEC-NEW-04: Always generate prompts server-side from structured data.
+				// User-controlled prompts are no longer accepted (prevents LLM prompt injection).
+				system, user := splitPrompt(p.ProposalData)
 
 				llmOutput, err := callLLM(r.Context(), provider, system, user)
 				if err != nil {
