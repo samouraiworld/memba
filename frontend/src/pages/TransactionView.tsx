@@ -274,7 +274,7 @@ export function TransactionView() {
 
                                         hash = json?.result?.hash
                                         if (!hash) {
-                                            const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — the multisig transaction format may not be supported. Please try using gnokey CLI for broadcast."
+                                            const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — try using gnokey CLI: gnokey broadcast <tx-file> --remote <rpc-url> (see docs.gno.land for details)"
                                             setError(errMsg)
                                             return
                                         }
