@@ -47,8 +47,8 @@ import (
 \t"strconv"
 \t"strings"
 
-\t"gno.land/p/demo/avl"
-\t"gno.land/p/demo/ufmt"
+\t"gno.land/p/nt/avl/v0"
+\t"gno.land/p/nt/ufmt/v0"
 ${nftRealmPath ? `\tnftcollection "${nftRealmPath}" // cross-realm: NFT TransferFrom` : "\t// NOTE: No NFT realm bound — TransferFrom must be done client-side (2-TX flow)"}
 )
 

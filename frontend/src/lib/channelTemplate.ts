@@ -167,7 +167,7 @@ import (
 \t"strconv"
 \t"strings"
 
-\t"gno.land/p/demo/avl"${tokenGateImport}
+\t"gno.land/p/nt/avl/v0"${tokenGateImport}
 )
 
 // ── Types ─────────────────────────────────────────────────
