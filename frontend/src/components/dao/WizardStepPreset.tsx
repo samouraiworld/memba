@@ -4,6 +4,7 @@
  * Lets the user choose a DAO preset (Community, Team, Treasury, Enterprise),
  * set name/description, and auto-generate a realm path.
  */
+import { useEffect, useRef } from "react"
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
 import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS } from "./wizardShared"
 import { House, UsersThree, Vault, Buildings } from "@phosphor-icons/react"
@@ -35,8 +36,26 @@ export function WizardStepPreset({
     name, description, realmPath, selectedPreset, walletAddress,
     onNameChange, onDescriptionChange, onRealmPathChange, onApplyPreset, onAutoFill, onNext,
 }: Props) {
+    // UX-21: Auto-generate realm path as the user types the DAO name
+    const userEditedPath = useRef(false)
+    useEffect(() => {
+        if (name && walletAddress && !userEditedPath.current) {
+            onAutoFill()
+        }
+    }, [name, walletAddress, onAutoFill])
+
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* UX-22: What is a DAO? — explanation for non-technical users */}
+            <details style={{ background: "var(--color-k-panel)", borderRadius: 10, border: "1px solid var(--color-k-edge)" }}>
+                <summary style={{ cursor: "pointer", padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "var(--color-k-text)" }}>
+                    What is a DAO?
+                </summary>
+                <div style={{ padding: "0 16px 14px", fontSize: 12, lineHeight: 1.6, color: "var(--color-k-dim)" }}>
+                    A <strong>DAO</strong> (Decentralized Autonomous Organization) is a community-owned organization where decisions are made by member votes instead of a single authority. Members propose ideas, vote on them, and the results are automatically enforced on the blockchain. Think of it as a transparent, democratic team where every decision is recorded and verifiable.
+                </div>
+            </details>
+
             {/* Preset Cards */}
             <div className="k-card" style={{ padding: 20 }}>
                 <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>DAO Type</h3>
@@ -107,7 +126,7 @@ export function WizardStepPreset({
                             id="dao-path-input"
                             type="text"
                             value={realmPath}
-                            onChange={(e) => onRealmPathChange(e.target.value)}
+                            onChange={(e) => { userEditedPath.current = true; onRealmPathChange(e.target.value) }}
                             placeholder="gno.land/r/username/mydao"
                             style={{ ...inputStyle, flex: 1 }}
                         />
