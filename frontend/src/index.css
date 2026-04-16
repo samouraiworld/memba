@@ -105,6 +105,19 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
+/* ── Focus Visibility (WCAG 2.1 AA §2.4.7) ──────────────────────── */
+/* Global focus-visible outlines for keyboard navigation.
+   Uses :focus-visible (not :focus) so mouse clicks don't show outlines. */
+:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* Remove default outline for mouse users (only show for keyboard nav) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 body {
   background: var(--color-k-bg, #000);
   color: var(--color-k-text, #f0f0f0);
@@ -1699,5 +1712,32 @@ body {
   .k-card {
     padding: 12px;
     border-radius: 8px;
+  }
+}
+
+/* Very small screens (320px — older iPhones in landscape, some Android) */
+@media (max-width: 320px) {
+  body {
+    font-size: 12px;
+    overflow-x: hidden;
+  }
+
+  .k-main {
+    padding: 10px 8px !important;
+    overflow-x: hidden;
+  }
+
+  .k-sidebar {
+    display: none !important;
+  }
+
+  .k-topbar {
+    padding: 0 8px;
+  }
+
+  .k-btn-primary,
+  .k-btn-secondary {
+    font-size: 11px;
+    padding: 0 8px;
   }
 }
