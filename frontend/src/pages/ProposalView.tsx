@@ -489,6 +489,7 @@ export function ProposalView() {
                                     ✓ You voted {userVote} on this proposal
                                 </div>
                             ) : (
+                                <>
                                 {/* v6 UX-04: Vote confirmation dialog */}
                                 {pendingVote && (
                                     <div className="proposal-confirm-dialog" role="alertdialog" aria-label="Confirm vote" style={{ background: "var(--color-k-panel)", border: "1px solid var(--color-k-edge)", borderRadius: 10, padding: 20, marginBottom: 16, textAlign: "center" }}>
@@ -519,6 +520,7 @@ export function ProposalView() {
                                         </button>
                                     )}
                                 </div>
+                                </>
                             )}
                         </>
                     )}
