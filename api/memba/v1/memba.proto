@@ -61,6 +61,7 @@ message Challenge {
   bytes nonce = 1;
   string expiration = 2;
   bytes server_signature = 3; // ed25519 signature by server (of protobuf encoding with this field zeroed)
+  string bound_pubkey_hash = 4; // SHA256 of the pubkey this challenge is bound to (v6 AUTH-01 fix)
 }
 
 // Token is the auth credential passed with authenticated requests.
@@ -80,7 +81,9 @@ message TokenRequestInfo {
   string user_address = 5; // Direct address — used when pubkey unavailable from wallet
 }
 
-message GetChallengeRequest {}
+message GetChallengeRequest {
+  string user_pubkey_json = 1; // Amino JSON pubkey — binds the challenge to this key (v6 AUTH-01 fix)
+}
 
 message GetChallengeResponse {
   Challenge challenge = 1;

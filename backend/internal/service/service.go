@@ -5,6 +5,7 @@ import (
 	srand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -60,6 +61,16 @@ func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
 		return "", connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	return token.UserAddress, nil
+}
+
+// ValidateRESTToken validates a JSON-encoded auth token from an Authorization header.
+// Used by REST endpoints (IPFS upload, analyst) that can't use ConnectRPC's token field.
+func (s *MultisigService) ValidateRESTToken(tokenJSON string) error {
+	var token membav1.Token
+	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
+		return fmt.Errorf("invalid token format: %w", err)
+	}
+	return auth.ValidateToken(s.publicKey, &token)
 }
 
 // internalError logs the real error and returns a sanitized connect error.

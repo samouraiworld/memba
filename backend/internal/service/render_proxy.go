@@ -8,10 +8,15 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
+
+// safePathRe validates render path and agent ID parameters.
+// Only allows alphanumeric, slashes, dashes, underscores, dots, colons, and equals.
+var safePathRe = regexp.MustCompile(`^[a-zA-Z0-9/_\-.:=?&]*$`)
 
 // Default Gno RPC endpoint — overridable via GNO_RPC_URL env var.
 func gnoRPCURL() string {
@@ -36,15 +41,36 @@ type abciResponse struct {
 	} `json:"error,omitempty"`
 }
 
+// abciQueryRequest is the JSON-RPC request for ABCI queries.
+// Using struct serialization instead of fmt.Sprintf prevents JSON injection
+// via user-controlled data containing quotes or special characters.
+type abciQueryRequest struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      int             `json:"id"`
+	Method  string          `json:"method"`
+	Params  abciQueryParams `json:"params"`
+}
+
+type abciQueryParams struct {
+	Path string `json:"path"`
+	Data string `json:"data"`
+}
+
 // abciQuery sends a JSON-RPC ABCI query to the Gno RPC and returns the decoded result.
 func abciQuery(rpcURL, path, data string) (string, error) {
-	payload := fmt.Sprintf(
-		`{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"%s","data":"%s"}}`,
-		path, data,
-	)
+	reqBody := abciQueryRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "abci_query",
+		Params:  abciQueryParams{Path: path, Data: data},
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(payload))
+	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
@@ -108,6 +134,10 @@ func HandleRenderProxy() http.Handler {
 		}
 
 		renderPath := r.URL.Query().Get("path")
+		if renderPath != "" && !safePathRe.MatchString(renderPath) {
+			http.Error(w, `{"error":"invalid path characters"}`, http.StatusBadRequest)
+			return
+		}
 		data := realm + "\n" + renderPath
 
 		result, err := abciQuery(gnoRPCURL(), "vm/qrender", data)
@@ -125,47 +155,9 @@ func HandleRenderProxy() http.Handler {
 	})
 }
 
-// HandleEvalProxy handles GET /api/eval?realm=...&expr=...
-// Proxies vm/qeval ABCI queries to the Gno RPC.
-//
-// Query params:
-//   - realm: The realm path (required)
-//   - expr: The expression to evaluate (required, e.g., "IsArchived()")
-func HandleEvalProxy() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
-
-		realm := r.URL.Query().Get("realm")
-		expr := r.URL.Query().Get("expr")
-		if realm == "" || expr == "" {
-			http.Error(w, `{"error":"realm and expr parameters are required"}`, http.StatusBadRequest)
-			return
-		}
-
-		if !strings.HasPrefix(realm, "gno.land/") {
-			http.Error(w, `{"error":"realm must start with gno.land/"}`, http.StatusBadRequest)
-			return
-		}
-
-		data := realm + "\n" + expr
-
-		result, err := abciQuery(gnoRPCURL(), "vm/qeval", data)
-		if err != nil {
-			slog.Warn("eval proxy failed", "realm", realm, "expr", expr, "error", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = fmt.Fprintf(w, `{"error":%q}`, err.Error())
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=5")
-		_, _ = fmt.Fprint(w, result)
-	})
-}
+// HandleEvalProxy was removed in v6 (SEC-01) — it allowed arbitrary vm/qeval
+// queries on any realm without authentication. Use HandleRenderProxy for
+// legitimate read-only queries via vm/qrender.
 
 // HandleBalanceProxy handles GET /api/balance?address=...
 // Proxies bank/balances ABCI queries to the Gno RPC.
@@ -226,6 +218,10 @@ func HandleMarketplaceAgentsProxy(registryPath string) http.Handler {
 
 		// Single agent detail — not cached, pass through
 		if agentID != "" {
+			if !safePathRe.MatchString(agentID) {
+				http.Error(w, `{"error":"invalid agent ID characters"}`, http.StatusBadRequest)
+				return
+			}
 			data := registryPath + "\nagent/" + agentID
 			result, err := abciQuery(gnoRPCURL(), "vm/qrender", data)
 			if err != nil {

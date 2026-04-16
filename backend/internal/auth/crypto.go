@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/ed25519"
 	srand "crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -102,8 +104,17 @@ func markNonceUsed(nonce []byte, ttl time.Duration) bool {
 // Challenge
 // ------------------------------------------------------------------
 
+// hashPubkey computes SHA256 of a pubkey JSON string for challenge binding.
+func hashPubkey(pubkeyJSON string) string {
+	h := sha256.Sum256([]byte(pubkeyJSON))
+	return hex.EncodeToString(h[:])
+}
+
 // MakeChallenge creates a server-signed challenge with an expiry.
-func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration) (*membav1.Challenge, error) {
+// If pubkeyJSON is non-empty, the challenge is cryptographically bound to that
+// pubkey — only the holder of that key can use this challenge to obtain a token.
+// This prevents AUTH-01: attackers cannot reuse a challenge with a different pubkey.
+func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration, pubkeyJSON string) (*membav1.Challenge, error) {
 	nonce, err := makeNonce()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to make nonce")
@@ -111,6 +122,9 @@ func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration) (*memb
 	challenge := &membav1.Challenge{
 		Nonce:      nonce,
 		Expiration: encodeTime(time.Now().Add(duration)),
+	}
+	if pubkeyJSON != "" {
+		challenge.BoundPubkeyHash = hashPubkey(pubkeyJSON)
 	}
 	data, err := proto.Marshal(challenge)
 	if err != nil {
@@ -186,7 +200,7 @@ func MakeToken(
 		return nil, errors.Wrap(err, "invalid challenge")
 	}
 
-	// Derive the user's address — either from pubkey or direct address field.
+	// Derive the user's address — pubkey is REQUIRED (v5: address-only rejected, v6: pubkey binding enforced).
 	var chainUserAddress, universalAddress string
 
 	if info.UserPubkeyJson != "" {
@@ -202,7 +216,26 @@ func MakeToken(
 			return nil, errors.Wrap(err, "failed to encode bech32 address")
 		}
 
-		// Verify ADR-036 signature when provided.
+		// v6 AUTH-01: Verify the challenge was issued for THIS specific pubkey.
+		// This prevents an attacker from requesting a challenge and using it
+		// with a victim's pubkey (pubkeys are public on-chain data).
+		if info.Challenge != nil && info.Challenge.BoundPubkeyHash != "" {
+			expectedHash := hashPubkey(info.UserPubkeyJson)
+			if info.Challenge.BoundPubkeyHash != expectedHash {
+				slog.Warn("pubkey-bound challenge mismatch",
+					"expected_hash", info.Challenge.BoundPubkeyHash,
+					"provided_hash", expectedHash)
+				return nil, errors.New("challenge was issued for a different pubkey — request a new challenge")
+			}
+		} else {
+			// Challenge without pubkey binding — reject.
+			// Old clients must update to send pubkey in GetChallenge.
+			slog.Warn("challenge without pubkey binding rejected",
+				"address", chainUserAddress)
+			return nil, errors.New("challenge must be bound to a pubkey — please update your client")
+		}
+
+		// Verify ADR-036 signature when provided (optional — Adena may not support it yet).
 		if signatureBase64 != "" {
 			signature, err := base64.StdEncoding.DecodeString(signatureBase64)
 			if err != nil {

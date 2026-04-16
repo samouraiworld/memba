@@ -11,7 +11,7 @@ primary_region = 'cdg'
 
 [env]
   BACKUP_INTERVAL = '24h'
-  CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173,https://*--memba-multisig.netlify.app'
+  CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
   GNO_CHAIN_ID = 'test12'
   GNO_RPC_URL = 'https://rpc.testnet12.samourai.live:443'

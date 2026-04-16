@@ -172,7 +172,8 @@ type Challenge struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Nonce           []byte                 `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	Expiration      string                 `protobuf:"bytes,2,opt,name=expiration,proto3" json:"expiration,omitempty"`
-	ServerSignature []byte                 `protobuf:"bytes,3,opt,name=server_signature,json=serverSignature,proto3" json:"server_signature,omitempty"` // ed25519 signature by server (of protobuf encoding with this field zeroed)
+	ServerSignature []byte                 `protobuf:"bytes,3,opt,name=server_signature,json=serverSignature,proto3" json:"server_signature,omitempty"`   // ed25519 signature by server (of protobuf encoding with this field zeroed)
+	BoundPubkeyHash string                 `protobuf:"bytes,4,opt,name=bound_pubkey_hash,json=boundPubkeyHash,proto3" json:"bound_pubkey_hash,omitempty"` // SHA256 of the pubkey this challenge is bound to (v6 AUTH-01 fix)
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -226,6 +227,13 @@ func (x *Challenge) GetServerSignature() []byte {
 		return x.ServerSignature
 	}
 	return nil
+}
+
+func (x *Challenge) GetBoundPubkeyHash() string {
+	if x != nil {
+		return x.BoundPubkeyHash
+	}
+	return ""
 }
 
 // Token is the auth credential passed with authenticated requests.
@@ -375,9 +383,10 @@ func (x *TokenRequestInfo) GetUserAddress() string {
 }
 
 type GetChallengeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserPubkeyJson string                 `protobuf:"bytes,1,opt,name=user_pubkey_json,json=userPubkeyJson,proto3" json:"user_pubkey_json,omitempty"` // Amino JSON pubkey — binds the challenge to this key (v6 AUTH-01 fix)
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetChallengeRequest) Reset() {
@@ -408,6 +417,13 @@ func (x *GetChallengeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetChallengeRequest.ProtoReflect.Descriptor instead.
 func (*GetChallengeRequest) Descriptor() ([]byte, []int) {
 	return file_memba_v1_memba_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetChallengeRequest) GetUserPubkeyJson() string {
+	if x != nil {
+		return x.UserPubkeyJson
+	}
+	return ""
 }
 
 type GetChallengeResponse struct {
@@ -4848,13 +4864,14 @@ var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
 	"\n" +
-	"\x14memba/v1/memba.proto\x12\bmemba.v1\"l\n" +
+	"\x14memba/v1/memba.proto\x12\bmemba.v1\"\x98\x01\n" +
 	"\tChallenge\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x1e\n" +
 	"\n" +
 	"expiration\x18\x02 \x01(\tR\n" +
 	"expiration\x12)\n" +
-	"\x10server_signature\x18\x03 \x01(\fR\x0fserverSignature\"\x8b\x01\n" +
+	"\x10server_signature\x18\x03 \x01(\fR\x0fserverSignature\x12*\n" +
+	"\x11bound_pubkey_hash\x18\x04 \x01(\tR\x0fboundPubkeyHash\"\x8b\x01\n" +
 	"\x05Token\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\tR\x05nonce\x12\x1e\n" +
 	"\n" +
@@ -4867,8 +4884,9 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\tchallenge\x18\x02 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\x12,\n" +
 	"\x12user_bech32_prefix\x18\x03 \x01(\tR\x10userBech32Prefix\x12(\n" +
 	"\x10user_pubkey_json\x18\x04 \x01(\tR\x0euserPubkeyJson\x12!\n" +
-	"\fuser_address\x18\x05 \x01(\tR\vuserAddress\"\x15\n" +
-	"\x13GetChallengeRequest\"I\n" +
+	"\fuser_address\x18\x05 \x01(\tR\vuserAddress\"?\n" +
+	"\x13GetChallengeRequest\x12(\n" +
+	"\x10user_pubkey_json\x18\x01 \x01(\tR\x0euserPubkeyJson\"I\n" +
 	"\x14GetChallengeResponse\x121\n" +
 	"\tchallenge\x18\x01 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\"U\n" +
 	"\x0fGetTokenRequest\x12\x1b\n" +

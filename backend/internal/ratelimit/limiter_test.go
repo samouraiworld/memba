@@ -44,18 +44,32 @@ func TestSubnetKey_Unparseable(t *testing.T) {
 
 func TestExtractIP(t *testing.T) {
 	tests := []struct {
-		remote, xff, want string
+		name           string
+		remote, xff    string
+		flyClientIP    string
+		want           string
 	}{
-		{"1.2.3.4:55555", "", "1.2.3.4:55555"},
-		{"1.2.3.4:55555", "5.6.7.8", "5.6.7.8"},
-		{"1.2.3.4:55555", "5.6.7.8, 9.10.11.12", "5.6.7.8"},
-		{"1.2.3.4:55555", " 5.6.7.8 , 9.10.11.12 ", "5.6.7.8"},
+		{"remote only", "1.2.3.4:55555", "", "", "1.2.3.4:55555"},
+		{"xff single", "1.2.3.4:55555", "5.6.7.8", "", "5.6.7.8"},
+		// Last XFF entry (proxy-added), not first (attacker-controlled)
+		{"xff multi uses last", "1.2.3.4:55555", "5.6.7.8, 9.10.11.12", "", "9.10.11.12"},
+		{"xff multi trimmed", "1.2.3.4:55555", " 5.6.7.8 , 9.10.11.12 ", "", "9.10.11.12"},
+		// Fly-Client-IP takes priority over XFF
+		{"fly-client-ip priority", "1.2.3.4:55555", "5.6.7.8", "99.99.99.99", "99.99.99.99"},
+		// Spoofed XFF with Fly-Client-IP present — Fly-Client-IP wins
+		{"spoofed xff ignored", "1.2.3.4:55555", "spoofed.ip, real.proxy", "99.99.99.99", "99.99.99.99"},
 	}
 	for _, tt := range tests {
-		got := ExtractIP(tt.remote, tt.xff)
-		if got != tt.want {
-			t.Errorf("ExtractIP(%q, %q) = %q, want %q", tt.remote, tt.xff, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			var headers []string
+			if tt.flyClientIP != "" {
+				headers = append(headers, tt.flyClientIP)
+			}
+			got := ExtractIP(tt.remote, tt.xff, headers...)
+			if got != tt.want {
+				t.Errorf("ExtractIP(%q, %q, %v) = %q, want %q", tt.remote, tt.xff, headers, got, tt.want)
+			}
+		})
 	}
 }
 

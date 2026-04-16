@@ -22,7 +22,7 @@ func generateTestKeypair(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
 func TestMakeAndValidateChallenge(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute)
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -47,7 +47,7 @@ func TestMakeAndValidateChallenge(t *testing.T) {
 func TestExpiredChallengeRejected(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, -1*time.Second)
+	challenge, err := MakeChallenge(priv, -1*time.Second, "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -60,7 +60,7 @@ func TestExpiredChallengeRejected(t *testing.T) {
 func TestTamperedChallengeRejected(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute)
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -76,7 +76,7 @@ func TestWrongKeyChallengeRejected(t *testing.T) {
 	_, priv := generateTestKeypair(t)
 	otherPub, _ := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute)
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -116,6 +116,53 @@ func TestNilTokenRejected(t *testing.T) {
 	pub, _ := generateTestKeypair(t)
 	if err := ValidateToken(pub, nil); err == nil {
 		t.Fatal("expected error for nil token")
+	}
+}
+
+func TestPubkeyBoundChallenge(t *testing.T) {
+	pub, priv := generateTestKeypair(t)
+
+	testPubkey := `{"type":"tendermint/PubKeySecp256k1","value":"A1B2C3=="}`
+
+	challenge, err := MakeChallenge(priv, 5*time.Minute, testPubkey)
+	if err != nil {
+		t.Fatal("MakeChallenge:", err)
+	}
+	if challenge.BoundPubkeyHash == "" {
+		t.Fatal("expected bound_pubkey_hash to be set")
+	}
+
+	// Should validate normally
+	if err := ValidateChallenge(pub, challenge); err != nil {
+		t.Fatal("ValidateChallenge:", err)
+	}
+
+	// Verify hash matches expected
+	expectedHash := hashPubkey(testPubkey)
+	if challenge.BoundPubkeyHash != expectedHash {
+		t.Fatalf("hash mismatch: got %s, want %s", challenge.BoundPubkeyHash, expectedHash)
+	}
+
+	// Different pubkey should produce different hash
+	differentHash := hashPubkey(`{"type":"tendermint/PubKeySecp256k1","value":"X9Y8Z7=="}`)
+	if challenge.BoundPubkeyHash == differentHash {
+		t.Fatal("different pubkeys should produce different hashes")
+	}
+}
+
+func TestUnboundChallengeStillWorks(t *testing.T) {
+	pub, priv := generateTestKeypair(t)
+
+	// Empty pubkey = no binding (backward compat for challenge validation itself)
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
+	if err != nil {
+		t.Fatal("MakeChallenge:", err)
+	}
+	if challenge.BoundPubkeyHash != "" {
+		t.Fatal("expected empty bound_pubkey_hash for unbound challenge")
+	}
+	if err := ValidateChallenge(pub, challenge); err != nil {
+		t.Fatal("ValidateChallenge:", err)
 	}
 }
 
