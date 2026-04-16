@@ -234,9 +234,18 @@ func getProposal(id int) *Proposal {
 \treturn val.(*Proposal)
 }
 
+const renderPageSize = 20
+
 func Render(path string) string {
 \tif path == "" {
-\t\treturn renderHome()
+\t\treturn renderHome(0)
+\t}
+\t// Pagination: "page:N"
+\tif strings.HasPrefix(path, "page:") {
+\t\tpage, err := strconv.Atoi(strings.TrimPrefix(path, "page:"))
+\t\tif err == nil && page >= 0 {
+\t\t\treturn renderHome(page)
+\t\t}
 \t}
 \t// Parse proposal ID from path
 \tparts := strings.Split(path, "/")
@@ -255,7 +264,7 @@ func Render(path string) string {
 \treturn "# Not Found"
 }
 
-func renderHome() string {
+func renderHome(page int) string {
 \tout := "# " + name + "\\n"
 \tout += description + "\\n\\n"
 \tout += "Threshold: " + strconv.Itoa(threshold) + "% | Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
@@ -266,17 +275,33 @@ func renderHome() string {
 \t\treturn false
 \t})
 \tout += "\\n## Proposals\\n"
-\t// Reverse iterate (newest first) using ReverseIterate
+\t// Paginated reverse iterate (newest first)
+\tskip := page * renderPageSize
+\tshown := 0
+\tskipped := 0
 \tproposals.ReverseIterate("", "", func(key string, value interface{}) bool {
+\t\tif skipped < skip {
+\t\t\tskipped++
+\t\t\treturn false
+\t\t}
+\t\tif shown >= renderPageSize {
+\t\t\treturn true // stop
+\t\t}
 \t\tp := value.(*Proposal)
 \t\tout += "### [Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "](:" + strconv.Itoa(p.ID) + ")\\n"
 \t\tout += "Author: " + string(p.Author) + "\\n\\n"
 \t\tout += "Category: " + p.Category + "\\n\\n"
 \t\tout += "Status: " + p.Status + "\\n\\n---\\n\\n"
+\t\tshown++
 \t\treturn false
 \t})
 \tif proposals.Size() == 0 {
 \t\tout += "No proposals yet.\\n"
+\t}
+\t// Pagination footer
+\ttotalPages := (proposals.Size() + renderPageSize - 1) / renderPageSize
+\tif totalPages > 1 {
+\t\tout += "\\n---\\nPage " + strconv.Itoa(page+1) + "/" + strconv.Itoa(totalPages) + "\\n"
 \t}
 \treturn out
 }

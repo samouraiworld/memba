@@ -357,9 +357,17 @@ func RefundCredits(cur realm, agentId string) {
 
 // ── Render ───────────────────────────────────────────────────
 
+const renderPageSize = 20
+
 func Render(path string) string {
 	if path == "" {
-		return renderHome()
+		return renderHome(0)
+	}
+	if strings.HasPrefix(path, "page:") {
+		page, err := strconv.Atoi(strings.TrimPrefix(path, "page:"))
+		if err == nil && page >= 0 {
+			return renderHome(page)
+		}
 	}
 	if path == "stats" {
 		return renderStats()
@@ -371,7 +379,7 @@ func Render(path string) string {
 	return "# 404\nNot found: " + path
 }
 
-func renderHome() string {
+func renderHome(page int) string {
 	var sb strings.Builder
 	sb.WriteString("# Memba Agent Registry\n\n")
 	sb.WriteString("On-chain AI Agent Marketplace for the Gno ecosystem.\n\n")
@@ -385,7 +393,17 @@ func renderHome() string {
 	sb.WriteString("| ID | Name | Category | Rating | Pricing |\n")
 	sb.WriteString("| --- | --- | --- | --- | --- |\n")
 
+	skip := page * renderPageSize
+	shown := 0
+	skipped := 0
 	agents.Iterate("", "", func(key string, value interface{}) bool {
+		if skipped < skip {
+			skipped++
+			return false
+		}
+		if shown >= renderPageSize {
+			return true // stop
+		}
 		a := value.(*Agent)
 		rating := "unrated"
 		if a.RatingCount > 0 {
@@ -397,8 +415,15 @@ func renderHome() string {
 		}
 		sb.WriteString(ufmt.Sprintf("| %s | [%s](:agent/%s) | %s | %s | %s |\n",
 			a.ID, a.Name, a.ID, a.Category, rating, pricing))
+		shown++
 		return false
 	})
+
+	// Pagination footer
+	totalPages := (agents.Size() + renderPageSize - 1) / renderPageSize
+	if totalPages > 1 {
+		sb.WriteString(ufmt.Sprintf("\n---\nPage %d/%d\n", page+1, totalPages))
+	}
 
 	return sb.String()
 }

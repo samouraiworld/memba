@@ -460,11 +460,11 @@ func ClaimDisputeTimeout(cur realm, contractId string, milestoneIdx int) {
 		panic(ufmt.Sprintf("too early: %d blocks remaining", AutoResolveBlks-elapsed))
 	}
 
-	// STATE-BEFORE-SEND: auto-resolve in favor of freelancer
-	platformAmount := (ms.Amount * int64(PlatformFeePct)) / 100
-	freelancerAmount := ms.Amount - platformAmount
-
-	ms.Status = MsReleased
+	// v6 DEFI-01: STATE-BEFORE-SEND: auto-resolve in favor of CLIENT (protective default).
+	// Previously released to freelancer — this created a perverse incentive where
+	// malicious freelancers could deliver nothing and wait for the timeout to drain escrow.
+	// The person who paid should be protected by default.
+	ms.Status = MsRefunded
 	// Reset contract status
 	c.Status = StatusActive
 	for _, m := range c.Milestones {
@@ -473,25 +473,28 @@ func ClaimDisputeTimeout(cur realm, contractId string, milestoneIdx int) {
 			break
 		}
 	}
-	if allMilestonesReleased(c) {
-		c.Status = StatusCompleted
-	}
 	contracts.Set(contractId, c)
 
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
 	realmAddr := runtime.CurrentRealm().Address()
 
-	bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
-	if platformAmount > 0 {
-		bnk.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
-	}
+	// Full refund to client — no platform fee on dispute-timeout refunds
+	bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", ms.Amount)})
 }
 
 // ── Render ───────────────────────────────────────────────────
 
+const renderPageSize = 20
+
 func Render(path string) string {
 	if path == "" {
-		return renderHome()
+		return renderHome(0)
+	}
+	if strings.HasPrefix(path, "page:") {
+		page, err := strconv.Atoi(strings.TrimPrefix(path, "page:"))
+		if err == nil && page >= 0 {
+			return renderHome(page)
+		}
 	}
 	if strings.HasPrefix(path, "contract/") {
 		id := strings.TrimPrefix(path, "contract/")
@@ -503,7 +506,7 @@ func Render(path string) string {
 	return "# 404\nNot found: " + path
 }
 
-func renderHome() string {
+func renderHome(page int) string {
 	var sb strings.Builder
 	sb.WriteString("# Escrow Contracts\n\n")
 	sb.WriteString("Milestone-based escrow for freelance services on Gno.\n\n")
@@ -516,7 +519,17 @@ func renderHome() string {
 	sb.WriteString("| ID | Title | Client | Freelancer | Status | Total |\n")
 	sb.WriteString("| --- | --- | --- | --- | --- | --- |\n")
 
+	skip := page * renderPageSize
+	shown := 0
+	skipped := 0
 	contracts.Iterate("", "", func(key string, value interface{}) bool {
+		if skipped < skip {
+			skipped++
+			return false
+		}
+		if shown >= renderPageSize {
+			return true // stop
+		}
 		c := value.(*Contract)
 		total := int64(0)
 		for _, ms := range c.Milestones {
@@ -525,8 +538,15 @@ func renderHome() string {
 		sb.WriteString(ufmt.Sprintf("| %s | [%s](:contract/%s) | %s | %s | %s | %d ugnot |\n",
 			c.ID, c.Title, c.ID, truncAddr(c.Client), truncAddr(c.Freelancer),
 			string(c.Status), total))
+		shown++
 		return false
 	})
+
+	// Pagination footer
+	totalPages := (contracts.Size() + renderPageSize - 1) / renderPageSize
+	if totalPages > 1 {
+		sb.WriteString(ufmt.Sprintf("\n---\nPage %d/%d\n", page+1, totalPages))
+	}
 
 	return sb.String()
 }
