@@ -490,18 +490,19 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
     const weekId = `${format(start, "yyyy")}-W${String(getISOWeek(start)).padStart(2, "0")}`
 
     // Period header for gno-skills format
+    const teamLabel = selectedTeam === "all" ? "All contributors" : selectedTeam
     const periodHeader = useMemo(() => {
         switch (period) {
             case "weekly":
-                return `From ${format(start, "dd/MM")} to ${format(end, "dd/MM")} : Samourai crews`
+                return `From ${format(start, "dd/MM")} to ${format(end, "dd/MM")} : ${teamLabel}`
             case "monthly":
-                return `Monthly Report — ${format(start, "MMMM yyyy")} : Samourai crews`
+                return `Monthly Report — ${format(start, "MMMM yyyy")} : ${teamLabel}`
             case "yearly":
-                return `Annual Report — ${format(start, "yyyy")} : Samourai crews`
+                return `Annual Report — ${format(start, "yyyy")} : ${teamLabel}`
             case "all_time":
-                return "All Time Report : Samourai crews"
+                return `All Time Report : ${teamLabel}`
         }
-    }, [period, start, end])
+    }, [period, start, end, teamLabel])
 
     // Generate shareable markdown (gno-skills format)
     // Order: Stats → Highlights → Waiting for Review → In Progress → Blockers → Merged → Contributors
