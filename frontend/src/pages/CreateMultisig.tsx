@@ -78,7 +78,7 @@ export function CreateMultisig() {
             const pubkey = account?.pub_key || account?.PubKey || account?.public_key
 
             if (!pubkey || !pubkey.value) {
-                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "No pubkey on chain — member must send 1 TX first, or paste pubkey manually", showManualInput: true }; return c })
+                setMembers(prev => { const c = [...prev]; c[i] = { ...c[i], fetching: false, fetchError: "No public key found — this account hasn't made any transaction yet. Ask the member to send any TX (e.g., use the faucet) to activate their key, or paste their pubkey below.", showManualInput: true }; return c })
                 return
             }
 
