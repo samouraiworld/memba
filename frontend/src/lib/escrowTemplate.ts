@@ -157,8 +157,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"chain"
 	"chain/banker"

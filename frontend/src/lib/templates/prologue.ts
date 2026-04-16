@@ -22,8 +22,11 @@ export type GnoImport =
     | "chain"           // Coins, NewCoin
     | "strconv"         // Atoi, Itoa, FormatInt, etc.
     | "strings"         // Split, Join, TrimSpace, etc.
-    | "gno.land/p/demo/avl"    // AVL tree
-    | "gno.land/p/demo/ufmt"   // Sprintf formatting
+    | "gno.land/p/nt/avl/v0"   // AVL tree (matches deployed contracts on test12)
+    | "gno.land/p/nt/ufmt/v0"  // Sprintf formatting (matches deployed contracts)
+    // Legacy aliases (DO NOT USE — kept only so old code doesn't break during migration):
+    | "gno.land/p/demo/avl"
+    | "gno.land/p/demo/ufmt"
 
 /**
  * Generate a Gno import block from a list of imports.

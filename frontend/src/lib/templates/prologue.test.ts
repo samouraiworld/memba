@@ -18,11 +18,11 @@ describe("generateImportBlock", () => {
     })
 
     it("separates stdlib and external imports", () => {
-        const result = generateImportBlock(["strconv", "gno.land/p/demo/avl"])
+        const result = generateImportBlock(["strconv", "gno.land/p/nt/avl/v0"])
         // stdlib first, then a blank line, then external
         const lines = result.split("\n")
         const strconvIdx = lines.findIndex(l => l.includes('"strconv"'))
-        const avlIdx = lines.findIndex(l => l.includes('"gno.land/p/demo/avl"'))
+        const avlIdx = lines.findIndex(l => l.includes('"gno.land/p/nt/avl/v0"'))
         expect(strconvIdx).toBeLessThan(avlIdx)
     })
 
@@ -34,9 +34,9 @@ describe("generateImportBlock", () => {
     })
 
     it("groups multiple external imports together", () => {
-        const result = generateImportBlock(["gno.land/p/demo/avl", "gno.land/p/demo/ufmt"])
-        expect(result).toContain('"gno.land/p/demo/avl"')
-        expect(result).toContain('"gno.land/p/demo/ufmt"')
+        const result = generateImportBlock(["gno.land/p/nt/avl/v0", "gno.land/p/nt/ufmt/v0"])
+        expect(result).toContain('"gno.land/p/nt/avl/v0"')
+        expect(result).toContain('"gno.land/p/nt/ufmt/v0"')
     })
 })
 
