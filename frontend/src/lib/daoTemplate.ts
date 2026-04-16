@@ -145,12 +145,25 @@ export function generateDAOCode(config: DAOCreationConfig): string {
         .map((r) => `\tallowedRoles = append(allowedRoles, "${r}")`)
         .join("\n")
 
+    // v6 GNO-01: members and proposals use AVL trees instead of slices.
+    // This gives O(log n) lookups instead of O(n), preventing gas DoS at scale.
+    const memberInitAVL = validMembers
+        .map((m) => {
+            const safeRoles = m.roles.filter(isValidIdentifier)
+            const rolesStr = safeRoles.map((r) => `"${r}"`).join(", ")
+            return `\tmembers.Set("${m.address}", &Member{Address: address("${m.address}"), Power: ${Math.max(0, Math.floor(m.power))}, Roles: []string{${rolesStr}}})`
+        })
+        .join("\n")
+
     return `package ${pkgName}
 
 import (
 \t"chain/runtime"
 \t"strings"
 \t"strconv"
+
+\t"gno.land/p/nt/avl/v0"
+\t"gno.land/p/nt/ufmt/v0"
 )
 
 // ── Types ─────────────────────────────────────────────────
@@ -173,7 +186,7 @@ type Proposal struct {
 \tCategory    string
 \tAuthor      address
 \tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED"
-\tVotes       []Vote
+\tVotes       *avl.Tree // voter address → *Vote (prevents O(n) dedup scan)
 \tYesVotes    int
 \tNoVotes     int
 \tAbstain     int
@@ -192,21 +205,34 @@ var (
 \tthreshold         = ${config.threshold} // percentage required to pass
 \tquorum            = ${config.quorum}  // minimum participation % (0 = disabled)
 \tvotingPeriod      = int64(${config.votingPeriodBlocks || 151200}) // blocks until proposal expires (0 = never)
-\tmembers           []Member
-\tproposals         []Proposal
+\tmembers           = avl.NewTree() // address → *Member (O(log n) lookup)
+\tproposals         = avl.NewTree() // zero-padded ID → *Proposal (ordered iteration)
 \tnextID            = 0
 \tallowedCategories []string
 \tallowedRoles      []string
 \tarchived          = false
 )
 
+// padID returns a zero-padded proposal ID key for ordered AVL iteration.
+func padID(id int) string {
+\treturn ufmt.Sprintf("%010d", id)
+}
+
 func init() {
-${memberInit}
+${memberInitAVL}
 ${categoriesInit}
 ${rolesInit}
 }
 
 // ── Queries ───────────────────────────────────────────────
+
+func getProposal(id int) *Proposal {
+\tval, exists := proposals.Get(padID(id))
+\tif !exists {
+\t\treturn nil
+\t}
+\treturn val.(*Proposal)
+}
 
 func Render(path string) string {
 \tif path == "" {
@@ -216,11 +242,14 @@ func Render(path string) string {
 \tparts := strings.Split(path, "/")
 \tif len(parts) >= 1 {
 \t\tid, err := strconv.Atoi(parts[0])
-\t\tif err == nil && id >= 0 && id < len(proposals) {
-\t\t\tif len(parts) >= 2 && parts[1] == "votes" {
-\t\t\t\treturn renderVotes(id)
+\t\tif err == nil {
+\t\t\tp := getProposal(id)
+\t\t\tif p != nil {
+\t\t\t\tif len(parts) >= 2 && parts[1] == "votes" {
+\t\t\t\t\treturn renderVotes(p)
+\t\t\t\t}
+\t\t\t\treturn renderProposal(p)
 \t\t\t}
-\t\t\treturn renderProposal(id)
 \t\t}
 \t}
 \treturn "# Not Found"
@@ -230,26 +259,29 @@ func renderHome() string {
 \tout := "# " + name + "\\n"
 \tout += description + "\\n\\n"
 \tout += "Threshold: " + strconv.Itoa(threshold) + "% | Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
-\tout += "## Members (" + strconv.Itoa(len(members)) + ")\\n"
-\tfor _, m := range members {
+\tout += "## Members (" + strconv.Itoa(members.Size()) + ")\\n"
+\tmembers.Iterate("", "", func(key string, value interface{}) bool {
+\t\tm := value.(*Member)
 \t\tout += "- " + string(m.Address) + " (roles: " + strings.Join(m.Roles, ", ") + ") | power: " + strconv.Itoa(m.Power) + "\\n"
-\t}
+\t\treturn false
+\t})
 \tout += "\\n## Proposals\\n"
-\tfor i := len(proposals) - 1; i >= 0; i-- {
-\t\tp := proposals[i]
+\t// Reverse iterate (newest first) using ReverseIterate
+\tproposals.ReverseIterate("", "", func(key string, value interface{}) bool {
+\t\tp := value.(*Proposal)
 \t\tout += "### [Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "](:" + strconv.Itoa(p.ID) + ")\\n"
 \t\tout += "Author: " + string(p.Author) + "\\n\\n"
 \t\tout += "Category: " + p.Category + "\\n\\n"
 \t\tout += "Status: " + p.Status + "\\n\\n---\\n\\n"
-\t}
-\tif len(proposals) == 0 {
+\t\treturn false
+\t})
+\tif proposals.Size() == 0 {
 \t\tout += "No proposals yet.\\n"
 \t}
 \treturn out
 }
 
-func renderProposal(id int) string {
-\tp := proposals[id]
+func renderProposal(p *Proposal) string {
 \tout := "# Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "\\n"
 \tout += p.Description + "\\n\\n"
 \tout += "Author: " + string(p.Author) + "\\n\\n"
@@ -266,27 +298,32 @@ func renderProposal(id int) string {
 \treturn out
 }
 
-func renderVotes(id int) string {
-\tp := proposals[id]
+func renderVotes(p *Proposal) string {
 \tout := "# Proposal #" + strconv.Itoa(p.ID) + " - Vote List\\n\\n"
 \tout += "YES:\\n"
-\tfor _, v := range p.Votes {
+\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
+\t\tv := value.(*Vote)
 \t\tif v.Value == "YES" {
 \t\t\tout += "- " + string(v.Voter) + "\\n"
 \t\t}
-\t}
+\t\treturn false
+\t})
 \tout += "\\nNO:\\n"
-\tfor _, v := range p.Votes {
+\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
+\t\tv := value.(*Vote)
 \t\tif v.Value == "NO" {
 \t\t\tout += "- " + string(v.Voter) + "\\n"
 \t\t}
-\t}
+\t\treturn false
+\t})
 \tout += "\\nABSTAIN:\\n"
-\tfor _, v := range p.Votes {
+\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
+\t\tv := value.(*Vote)
 \t\tif v.Value == "ABSTAIN" {
 \t\t\tout += "- " + string(v.Voter) + "\\n"
 \t\t}
-\t}
+\t\treturn false
+\t})
 \treturn out
 }
 
@@ -304,13 +341,14 @@ func Propose(cur realm, title, desc, category string) int {
 \tif votingPeriod > 0 {
 \t\texpires = now + votingPeriod
 \t}
-\tproposals = append(proposals, Proposal{
+\tproposals.Set(padID(id), &Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
 \t\tDescription: desc,
 \t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
+\t\tVotes:       avl.NewTree(),
 \t\tActionType:  "none",
 \t\tCreatedAt:   now,
 \t\tExpiresAt:   expires,
@@ -322,10 +360,10 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
-\tif id < 0 || id >= len(proposals) {
+\tp := getProposal(id)
+\tif p == nil {
 \t\tpanic("invalid proposal ID")
 \t}
-\tp := &proposals[id]
 \t// Check expiration first
 \tif p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
 \t\tp.Status = "EXPIRED"
@@ -334,14 +372,13 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \tif p.Status != "ACTIVE" {
 \t\tpanic("proposal is not active")
 \t}
-\t// Check for duplicate votes
-\tfor _, v := range p.Votes {
-\t\tif v.Voter == caller {
-\t\t\tpanic("already voted")
-\t\t}
+\t// Check for duplicate votes — O(log n) AVL lookup instead of O(n) scan
+\tvoterKey := string(caller)
+\tif _, exists := p.Votes.Get(voterKey); exists {
+\t\tpanic("already voted")
 \t}
 \tpower := getMemberPower(caller)
-\tp.Votes = append(p.Votes, Vote{Voter: caller, Value: vote})
+\tp.Votes.Set(voterKey, &Vote{Voter: caller, Value: vote})
 \tswitch vote {
 \tcase "YES":
 \t\tp.YesVotes += power
@@ -369,10 +406,10 @@ func VoteOnProposal(cur realm, id int, vote string) {
 func ExecuteProposal(cur realm, id int) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertMember(caller)
-\tif id < 0 || id >= len(proposals) {
+\tp := getProposal(id)
+\tif p == nil {
 \t\tpanic("invalid proposal ID")
 \t}
-\tp := &proposals[id]
 \tif p.Status != "ACCEPTED" {
 \t\tpanic("proposal must be ACCEPTED to execute")
 \t}
@@ -394,92 +431,60 @@ func ExecuteProposal(cur realm, id int) {
 
 // ── Member Proposals (governance-gated) ───────────────────
 
-func ProposeAddMember(cur realm, targetAddr address, power int, roles string) int {
-\tcaller := runtime.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\t// Validate target is not already a member
-\tfor _, m := range members {
-\t\tif m.Address == targetAddr {
-\t\t\tpanic("address is already a member")
-\t\t}
-\t}
+func newProposal(caller address, title, desc, category, actionType, actionData string) int {
 \tid := nextID
 \tnextID++
-\ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
-\tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
-\tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
 \tnow := runtime.ChainHeight()
 \texp := int64(0)
 \tif votingPeriod > 0 { exp = now + votingPeriod }
-\tproposals = append(proposals, Proposal{
+\tproposals.Set(padID(id), &Proposal{
 \t\tID:          id,
 \t\tTitle:       title,
 \t\tDescription: desc,
-\t\tCategory:    "membership",
+\t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
-\t\tActionType:  "add_member",
-\t\tActionData:  data,
+\t\tVotes:       avl.NewTree(),
+\t\tActionType:  actionType,
+\t\tActionData:  actionData,
 \t\tCreatedAt:   now,
 \t\tExpiresAt:   exp,
 \t})
 \treturn id
+}
+
+func ProposeAddMember(cur realm, targetAddr address, power int, roles string) int {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertNotArchived()
+\tassertMember(caller)
+\tif _, exists := members.Get(string(targetAddr)); exists {
+\t\tpanic("address is already a member")
+\t}
+\ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
+\tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
+\tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
+\treturn newProposal(caller, title, desc, "membership", "add_member", data)
 }
 
 func ProposeRemoveMember(cur realm, targetAddr address) int {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
-\tassertMember(targetAddr) // target must be a member
-\tid := nextID
-\tnextID++
+\tassertMember(targetAddr)
 \ttitle := "Remove member " + string(targetAddr)[:10] + "..."
 \tdesc := "**Action**: Remove Member\\n**Address**: " + string(targetAddr)
-\tnow := runtime.ChainHeight()
-\texp := int64(0)
-\tif votingPeriod > 0 { exp = now + votingPeriod }
-\tproposals = append(proposals, Proposal{
-\t\tID:          id,
-\t\tTitle:       title,
-\t\tDescription: desc,
-\t\tCategory:    "membership",
-\t\tAuthor:      caller,
-\t\tStatus:      "ACTIVE",
-\t\tActionType:  "remove_member",
-\t\tActionData:  string(targetAddr),
-\t\tCreatedAt:   now,
-\t\tExpiresAt:   exp,
-\t})
-\treturn id
+\treturn newProposal(caller, title, desc, "membership", "remove_member", string(targetAddr))
 }
 
 func ProposeAssignRole(cur realm, targetAddr address, role string) int {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
-\tassertMember(targetAddr) // target must be a member
+\tassertMember(targetAddr)
 \tassertRole(role)
-\tid := nextID
-\tnextID++
 \ttitle := "Assign role " + strconv.Quote(role) + " to " + string(targetAddr)[:10] + "..."
 \tdesc := "**Action**: Assign Role\\n**Address**: " + string(targetAddr) + "\\n**Role**: " + role
-\tnow := runtime.ChainHeight()
-\texp := int64(0)
-\tif votingPeriod > 0 { exp = now + votingPeriod }
-\tproposals = append(proposals, Proposal{
-\t\tID:          id,
-\t\tTitle:       title,
-\t\tDescription: desc,
-\t\tCategory:    "membership",
-\t\tAuthor:      caller,
-\t\tStatus:      "ACTIVE",
-\t\tActionType:  "assign_role",
-\t\tActionData:  string(targetAddr) + "|" + role,
-\t\tCreatedAt:   now,
-\t\tExpiresAt:   exp,
-\t})
-\treturn id
+\treturn newProposal(caller, title, desc, "membership", "assign_role", string(targetAddr) + "|" + role)
 }
 
 // ── Action Executors (internal) ───────────────────────────
@@ -495,42 +500,31 @@ func executeAddMember(data string) {
 \t\tpanic("invalid power in action data")
 \t}
 \troles := strings.Split(parts[2], ",")
-\t// Check not already a member
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\tpanic("address is already a member")
-\t\t}
+\tif _, exists := members.Get(string(addr)); exists {
+\t\tpanic("address is already a member")
 \t}
-\tmembers = append(members, Member{Address: addr, Power: power, Roles: roles})
+\tmembers.Set(string(addr), &Member{Address: addr, Power: power, Roles: roles})
 }
 
 func executeRemoveMember(data string) {
 \taddr := address(data)
-\t// Prevent removing last admin
 \tif hasRole(addr, "admin") {
 \t\tadminCount := 0
-\t\tfor _, m := range members {
+\t\tmembers.Iterate("", "", func(key string, value interface{}) bool {
+\t\t\tm := value.(*Member)
 \t\t\tif hasRoleInternal(m, "admin") {
 \t\t\t\tadminCount++
 \t\t\t}
-\t\t}
+\t\t\treturn false
+\t\t})
 \t\tif adminCount <= 1 {
 \t\t\tpanic("cannot remove the last admin")
 \t\t}
 \t}
-\tnewMembers := []Member{}
-\tfound := false
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\tfound = true
-\t\t\tcontinue
-\t\t}
-\t\tnewMembers = append(newMembers, m)
-\t}
-\tif !found {
+\tif _, exists := members.Get(string(addr)); !exists {
 \t\tpanic("member not found")
 \t}
-\tmembers = newMembers
+\tmembers.Remove(string(addr))
 }
 
 func executeAssignRole(data string) {
@@ -541,18 +535,17 @@ func executeAssignRole(data string) {
 \taddr := address(parts[0])
 \trole := parts[1]
 \tassertRole(role)
-\tfor i, m := range members {
-\t\tif m.Address == addr {
-\t\t\tfor _, r := range m.Roles {
-\t\t\t\tif r == role {
-\t\t\t\t\tpanic("role already assigned")
-\t\t\t\t}
-\t\t\t}
-\t\t\tmembers[i].Roles = append(members[i].Roles, role)
-\t\t\treturn
+\tval, exists := members.Get(string(addr))
+\tif !exists {
+\t\tpanic("member not found")
+\t}
+\tm := val.(*Member)
+\tfor _, r := range m.Roles {
+\t\tif r == role {
+\t\t\tpanic("role already assigned")
 \t\t}
 \t}
-\tpanic("member not found")
+\tm.Roles = append(m.Roles, role)
 }
 
 // ── Role Management (admin-only) ──────────────────────────
@@ -561,49 +554,47 @@ func AssignRole(cur realm, target address, role string) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tassertRole(role)
-\tfor i, m := range members {
-\t\tif m.Address == target {
-\t\t\t// Check role not already assigned
-\t\t\tfor _, r := range m.Roles {
-\t\t\t\tif r == role {
-\t\t\t\t\tpanic("role already assigned")
-\t\t\t\t}
-\t\t\t}
-\t\t\tmembers[i].Roles = append(members[i].Roles, role)
-\t\t\treturn
+\tval, exists := members.Get(string(target))
+\tif !exists {
+\t\tpanic("target is not a member")
+\t}
+\tm := val.(*Member)
+\tfor _, r := range m.Roles {
+\t\tif r == role {
+\t\t\tpanic("role already assigned")
 \t\t}
 \t}
-\tpanic("target is not a member")
+\tm.Roles = append(m.Roles, role)
 }
 
 func RemoveRole(cur realm, target address, role string) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertAdmin(caller)
-\t// Prevent removing last admin
 \tif role == "admin" {
 \t\tadminCount := 0
-\t\tfor _, m := range members {
+\t\tmembers.Iterate("", "", func(key string, value interface{}) bool {
+\t\t\tm := value.(*Member)
 \t\t\tif hasRoleInternal(m, "admin") {
 \t\t\t\tadminCount++
 \t\t\t}
-\t\t}
+\t\t\treturn false
+\t\t})
 \t\tif adminCount <= 1 {
 \t\t\tpanic("cannot remove the last admin")
 \t\t}
 \t}
-\tfor i, m := range members {
-\t\tif m.Address == target {
-\t\t\tnewRoles := []string{}
-\t\t\tfor _, r := range m.Roles {
-\t\t\t\tif r != role {
-\t\t\t\t\tnewRoles = append(newRoles, r)
-\t\t\t\t}
-\t\t\t}
-\t\t\tmembers[i].Roles = newRoles
-\t\t\treturn
+\tval, exists := members.Get(string(target))
+\tif !exists {
+\t\tpanic("target is not a member")
+\t}
+\tm := val.(*Member)
+\tnewRoles := []string{}
+\tfor _, r := range m.Roles {
+\t\tif r != role {
+\t\t\tnewRoles = append(newRoles, r)
 \t\t}
 \t}
-\tpanic("target is not a member")
+\tm.Roles = newRoles
 }
 
 // ── Archive Management ────────────────────────────────────
@@ -627,37 +618,31 @@ func assertNotArchived() {
 }
 
 func assertMember(addr address) {
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\treturn
-\t\t}
+\tif _, exists := members.Get(string(addr)); !exists {
+\t\tpanic("not a member")
 \t}
-\tpanic("not a member")
 }
 
 func assertAdmin(addr address) {
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\tfor _, r := range m.Roles {
-\t\t\t\tif r == "admin" {
-\t\t\t\t\treturn
-\t\t\t\t}
-\t\t\t}
-\t\t}
+\tval, exists := members.Get(string(addr))
+\tif !exists {
+\t\tpanic("admin role required")
 \t}
-\tpanic("admin role required")
+\tm := val.(*Member)
+\tif !hasRoleInternal(m, "admin") {
+\t\tpanic("admin role required")
+\t}
 }
 
 func hasRole(addr address, role string) bool {
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\treturn hasRoleInternal(m, role)
-\t\t}
+\tval, exists := members.Get(string(addr))
+\tif !exists {
+\t\treturn false
 \t}
-\treturn false
+\treturn hasRoleInternal(val.(*Member), role)
 }
 
-func hasRoleInternal(m Member, role string) bool {
+func hasRoleInternal(m *Member, role string) bool {
 \tfor _, r := range m.Roles {
 \t\tif r == role {
 \t\t\treturn true
@@ -667,19 +652,19 @@ func hasRoleInternal(m Member, role string) bool {
 }
 
 func getMemberPower(addr address) int {
-\tfor _, m := range members {
-\t\tif m.Address == addr {
-\t\t\treturn m.Power
-\t\t}
+\tval, exists := members.Get(string(addr))
+\tif !exists {
+\t\treturn 0
 \t}
-\treturn 0
+\treturn val.(*Member).Power
 }
 
 func totalPower() int {
 \ttotal := 0
-\tfor _, m := range members {
-\t\ttotal += m.Power
-\t}
+\tmembers.Iterate("", "", func(key string, value interface{}) bool {
+\t\ttotal += value.(*Member).Power
+\t\treturn false
+\t})
 \treturn total
 }
 
