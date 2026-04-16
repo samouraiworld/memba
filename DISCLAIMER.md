@@ -11,7 +11,7 @@ By using Memba, you acknowledge that:
 - You are solely responsible for your wallet keys and transactions
 - The developers are not liable for any loss of funds or data
 
-We conduct rigorous internal testing (285 automated tests, CI/CD pipeline, security scanning), but no software is bug-free. Use Memba cautiously and always verify transactions before signing.
+We conduct rigorous internal testing (1,777+ automated tests across frontend, backend, and Gno contracts, CI/CD pipeline, coverage reporting, security scanning), but no software is bug-free. Use Memba cautiously and always verify transactions before signing.
 
 If you enjoy using Memba, GitHub Sponsorships and contributions are warmly welcomed:
 

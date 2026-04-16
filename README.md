@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-1495%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-1777%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -166,21 +166,27 @@
 - ♿ **Skip-to-content** — Accessibility link (focus-only)
 
 ### Security & Infrastructure
-- 🔐 Challenge-response auth (ed25519, ADR-036)
+- 🔐 **Pubkey-bound challenge-response auth** (ed25519, secp256k1 — v6 hardened)
 - 🛡️ RPC domain validation — blocks writes through untrusted RPCs
 - 🔒 **Content Security Policy** — CSP meta tag restricting script/style/connect/frame origins
+- 🔒 **Endpoint auth** — IPFS upload and AI analyst require auth tokens (v6)
+- 🛡️ **Input sanitization** — JSON-safe ABCI queries, realm content sanitization, template sanitizer
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
 - 🌐 Network selector (test12 ↔ test11 ↔ staging ↔ portal-loop ↔ gnoland1) with chain mismatch detection
-- 📱 Mobile responsive (375px+) with sidebar collapse at 1024px, tab bar below 768px
+- 📱 Mobile responsive (320px+) with sidebar collapse at 1024px, tab bar below 768px
+- ♿ **Keyboard navigation** — `:focus-visible` outlines on all interactive elements (WCAG 2.1 AA)
 - ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory/channel/NFT chunks)
 - 🪲 **Sentry** — Error monitoring with PII scrubbing (self-hosted at sentry.samourai.pro)
+- 📊 **CI quality gates** — coverage reporting, bundle size budget, gno lint enforcement
 - 🐳 Docker Compose self-hosting
 - 🚀 CI/CD: GitHub Actions (Node 22) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,588 unit tests** (Vitest, 72 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
+- 🧪 **1,628 unit tests** (Vitest, 73 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
+- 🧪 **149 backend tests** (Go, 4 packages) — auth crypto, rate limiting, profiles, teams, quests, marketplace, analyst, service listings
 - 🧪 **E2E tests** (Playwright, Chromium, 18 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove, candidature, teams
+- 🧪 **Gno realm tests** (6 test files) — agent registry, escrow, candidature, channels, DAO stubs
 
 ## Architecture
 
