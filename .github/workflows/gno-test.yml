@@ -55,6 +55,6 @@ jobs:
           for dir in contracts/*/; do
             if [ -f "$dir/gnomod.toml" ]; then
               echo "=== Linting $dir ==="
-              (cd "$dir" && gno lint .) || true
+              (cd "$dir" && gno lint .) || exit 1
             fi
           done

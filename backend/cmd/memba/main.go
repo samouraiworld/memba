@@ -78,6 +78,13 @@ func main() {
 		}
 	}
 
+	// v6 SEC-13: Fail loudly if ED25519_SEED is not set in production.
+	// Without a persistent seed, server restarts invalidate all auth tokens.
+	if os.Getenv("ED25519_SEED") == "" && os.Getenv("FLY_APP_NAME") != "" {
+		slog.Error("ED25519_SEED is required in production — auth tokens will not survive restarts")
+		os.Exit(1)
+	}
+
 	// Create service
 	svc, err := service.NewMultisigService(database)
 	if err != nil {
