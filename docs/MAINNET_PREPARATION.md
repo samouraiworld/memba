@@ -2,13 +2,26 @@
 
 This document tracks items to be addressed before the mainnet release.
 
-## Chain Status (2026-03-31)
+## Chain Status (2026-05-11)
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **testnet12** | ✅ Active | Primary development target. gnoweb: [gnoweb.test12.moul.p2p.team](https://gnoweb.test12.moul.p2p.team/r/samcrew) |
-| **gnoland1 (betanet)** | 🔴 HALTED | Consensus bug under investigation by Gno core team. Continue dev on testnet12 independently. |
+| **testnet12** | ✅ Active | Primary development target. All 9 samcrew realms deployed (Phase B v2 ACL fixes live 2026-04-09, multisig seq 57-61). gnoweb: [gnoweb.test12.moul.p2p.team](https://gnoweb.test12.moul.p2p.team/r/samcrew). |
+| **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5 (`MEMBA_V7_1_IMPLEMENTATION_PLAN.md` §9). |
 | **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |
+
+## v7.1 progress
+
+| Phase | Status | Anchor |
+|-------|--------|--------|
+| Phase 0 — Audit unblock + AUTH-CHAINID-01 | ✅ Closed 2026-05-11 | [`docs/reports/v7.1-phase0-signoff.md`](reports/v7.1-phase0-signoff.md) |
+| Phase 1 — Auth hardening + Custody spec + stale-doc refresh | 🚧 In progress | [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §5 |
+| Phases 2–6 — Channels v3, RQ migration, betanet activation, release polish | ⏳ Pending Phase 1 close | Plan §§6-10 |
+
+### Phase 1 deliverables touching this doc
+- **AUTH-SESSION-REJECT-01** — defensive rejection of Adena 1.20+ session subaccounts in `backend/internal/auth/crypto.go`. Must ship before Adena 1.20 reaches production.
+- **Custody section** (to be added below by PR1.3) — signers, M-of-N policy, hardware wallet class, geographic distribution, recovery, rotation, dry-run. Hard prerequisite for Phase 2 (channels_v3 two-tier pause). Must be signed by ≥ 2 Samourai Coop principals.
+- **chainHealth fallback + transfer-lock probe** — corrected gnoland1 probe path (`params/bank:p:restricted_denoms`).
 
 ## ✅ Frontend Observability — Sentry (DONE)
 
@@ -88,7 +101,7 @@ Adena wallet uses WebAssembly for secp256k1 elliptic curve operations. Without `
 | **ADR-036 signature verification** | Blocked | Re-enable when Adena supports it |
 | **boards2 safe functions** | Monitor ([gno#5037](https://github.com/gnolang/gno/pull/5037)) | V2 parser skeleton ready (v2.21.0) |
 | **govdao T1 multisig** | Monitor ([gno#5222](https://github.com/gnolang/gno/pull/5222)) | Vote function name configurable (v2.21.0) |
-| **gnoland1 relaunch** | Blocked (chain halted) | Continue on testnet12, update when chain resumes |
+| **gnoland1 transfer-lock lift** | Pending upstream (params/bank) | Chain is live but transfers are restricted via `params/bank:p:restricted_denoms` (gno #5629). Memba activates gnoland1 in v7.1 Phase 5 after the lift, after Custody section is signed, and after testnet12 channels_v3 burn-in. |
 
 ## 🟡 Deferred Security Items
 
@@ -115,4 +128,4 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | Upstream Compatibility Shield | v2.21.0 | Parser V1/V2, GovDAO constants, 63 tests |
 
 ---
-*Updated 2026-04-07 during v4.0-beta (GnoBuilders quest system, security hardening, badge NFTs).*
+*Updated 2026-05-11 during v7.1 Phase 1 stale-doc refresh (PR1.6). gnoland1 status corrected (HALTED → transfer-locked), v7.1 progress section added. Custody section will be added in PR1.3 — placeholder above. Last substantive update was 2026-04-07 during v4.0-beta.*
