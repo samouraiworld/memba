@@ -526,7 +526,7 @@ export function ProposalView() {
                     )}
 
                     {proposal.status === "passed" && isMember && (
-                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} aria-label={`Execute proposal ${proposalId}`} style={{ width: "100%", background: "#2196f3", opacity: actionLoading ? 0.5 : 1 }}>
+                        <button className="k-btn-primary" onClick={handleExecute} disabled={actionLoading} aria-label={`Execute proposal ${proposalId}`} style={{ width: "100%", background: "var(--color-k-accent)", opacity: actionLoading ? 0.5 : 1 }}>
                             {actionLoading ? "Executing..." : "⚡ Execute Proposal"}
                         </button>
                     )}
