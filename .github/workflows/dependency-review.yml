@@ -1,0 +1,30 @@
+name: Dependency Review
+
+# Blocks PRs that introduce dependencies with known vulnerabilities.
+# Free, runs on every PR, complements the heavier npm-audit + govulncheck
+# already in ci.yml. See docs/DEPENDENCY_POLICY.md §11.
+
+on:
+  pull_request:
+    branches: [main, dev/v2]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          # Allow common permissive licenses. Reject everything else (unknown
+          # OSS license = manual review). Add new licenses here only after a
+          # case-by-case sign-off.
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, Unlicense, CC0-1.0
+          comment-summary-in-pr: on-failure
