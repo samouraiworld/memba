@@ -5,9 +5,10 @@
 > **Audit trail:** [`MEMBA_V7_1_EXPERT_REVIEW.md`](MEMBA_V7_1_EXPERT_REVIEW.md) (Rev0→Rev1) and [`MEMBA_V7_1_EXPERT_REVIEW_REV2.md`](MEMBA_V7_1_EXPERT_REVIEW_REV2.md) (Rev1→Rev2).
 > **PR triage runbook:** [`MEMBA_V7_1_PR_TRIAGE.md`](MEMBA_V7_1_PR_TRIAGE.md).
 > **Predecessor:** [`MEMBA_V7_IMPLEMENTATION_PLAN.md`](MEMBA_V7_IMPLEMENTATION_PLAN.md) (Rev7 FINAL, 2026-04-20). Superseded for sprint scheduling.
-> **Status:** Proposal — do **NOT** implement before zooma approval (§19 questions, now Q1–Q18).
-> **Scope:** Unblock 15-PR backlog, ship channels_v3, complete React Query migration, prep betanet rollout, cut v7.1 release.
-> **Duration:** **~38 calendar days** (32 working days + 5-day float reserve, over a 6-week window) at ~1 FTE.
+> **Status (as of 2026-05-11):** **Phase 0 ✅ COMPLETE** — see [`docs/reports/v7.1-phase0-signoff.md`](../reports/v7.1-phase0-signoff.md). Phases 1–6 pending operator go-ahead.
+> **Phase 0 outcome:** 15-PR backlog cleared, 14 advisories closed, 1 advisory filed (MEMBA-2026-001 AUTH-CHAINID-01), production audit-green. v6.0.2 + v6.0.3 deployed (`d37cd72` and `0696fcd`); workflow hotfix at `a4f6eb9`; 3 carry-over PRs merged (#314, #329, #330).
+> **Scope (remaining):** ship channels_v3 (Phase 2), complete React Query migration (Phase 3), prep betanet rollout (Phase 5), cut v7.1 release (Phase 6).
+> **Duration:** **~38 calendar days** total program (~3 calendar days consumed by Phase 0; ~35 remaining at ~1 FTE).
 
 ---
 
