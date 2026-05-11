@@ -75,20 +75,31 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_GNOLOVE_API_URL: https://backend.gnolove.world
           VITE_GNO_MONITORING_API_URL: https://monitoring.gnolove.world
-          # Sentry release + source-map upload (Phase 0a CR2-07 fix)
+          # Sentry release + source-map upload (Phase 0a CR2-07 fix).
+          # If this env is empty the @sentry/vite-plugin no-ops gracefully
+          # (see frontend/vite.config.ts conditional). If it's set, the
+          # plugin uploads maps to Sentry and deletes them from dist via
+          # `filesToDeleteAfterUpload`. Build success with token set =
+          # successful upload (the plugin throws on upload errors).
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      # Verify source maps were actually uploaded — guards against silent
-      # SM-upload failure (R-09 in v7.1 plan).
-      - name: Verify Sentry source maps uploaded
+      # Sanity-log the upload intent so a missing/expired secret is
+      # noticed early. We deliberately do not assert on local *.map
+      # files: the Sentry plugin cleans them up after upload (privacy
+      # hardening — maps must not ship to Netlify). Verify uploads via
+      # Sentry UI: https://sentry.samourai.pro → memba → Releases.
+      # TODO(v7.2): replace this with a Sentry API check that the release
+      # has artifacts attached.
+      - name: Sentry release intent
         run: |
-          set -euo pipefail
-          MAP_COUNT=$(find dist/assets -name '*.js.map' | wc -l | tr -d ' ')
-          echo "Generated $MAP_COUNT source map files in build."
-          if [ "$MAP_COUNT" -eq 0 ]; then
-            echo "::error::No source maps generated — Sentry upload would be empty."
-            exit 1
+          set -u
+          if [ -z "${SENTRY_TOKEN_SET:-}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN was empty — Sentry release for this build has no source maps. Verify the secret in repo settings."
+          else
+            echo "SENTRY_AUTH_TOKEN was set — @sentry/vite-plugin should have uploaded maps for memba@$(node -p "require('./package.json').version")."
           fi
+        env:
+          SENTRY_TOKEN_SET: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'yes' || '' }}
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3
