@@ -62,6 +62,7 @@ message Challenge {
   string expiration = 2;
   bytes server_signature = 3; // ed25519 signature by server (of protobuf encoding with this field zeroed)
   string bound_pubkey_hash = 4; // SHA256 of the pubkey this challenge is bound to (v6 AUTH-01 fix)
+  string chain_id = 5; // v7.1 AUTH-CHAINID-01: chain this challenge is bound to
 }
 
 // Token is the auth credential passed with authenticated requests.
@@ -71,6 +72,7 @@ message Token {
   string expiration = 2;
   string user_address = 3;
   string server_signature = 4; // base64 ed25519 signature by server
+  string chain_id = 5; // v7.1 AUTH-CHAINID-01: chain this token is valid for
 }
 
 message TokenRequestInfo {
@@ -79,10 +81,12 @@ message TokenRequestInfo {
   string user_bech32_prefix = 3;
   string user_pubkey_json = 4; // Amino JSON pubkey — optional if user_address is set
   string user_address = 5; // Direct address — used when pubkey unavailable from wallet
+  string chain_id = 6; // v7.1 AUTH-CHAINID-01: chain the client is authenticating for
 }
 
 message GetChallengeRequest {
   string user_pubkey_json = 1; // Amino JSON pubkey — binds the challenge to this key (v6 AUTH-01 fix)
+  string chain_id = 2; // v7.1 AUTH-CHAINID-01: chain to bind the challenge to
 }
 
 message GetChallengeResponse {

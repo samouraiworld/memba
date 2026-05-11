@@ -20,6 +20,9 @@ type MultisigService struct {
 	db         *sql.DB
 	publicKey  ed25519.PublicKey
 	privateKey ed25519.PrivateKey
+	// chainID is the Gno chain this server is configured for (env GNO_CHAIN_ID).
+	// Used to bind auth tokens to a specific chain (v7.1 AUTH-CHAINID-01).
+	chainID string
 }
 
 // NewMultisigService creates a MultisigService.
@@ -48,16 +51,22 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 			"seed", hex.EncodeToString(privateKey.Seed()))
 	}
 
+	chainID := os.Getenv("GNO_CHAIN_ID")
+	if chainID == "" {
+		slog.Warn("GNO_CHAIN_ID not set — auth tokens will be issued in legacy chainless mode (24h grace, then required)")
+	}
+
 	return &MultisigService{
 		db:         db,
 		publicKey:  publicKey,
 		privateKey: privateKey,
+		chainID:    chainID,
 	}, nil
 }
 
 // authenticate validates a token and returns the user address.
 func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
-	if err := auth.ValidateToken(s.publicKey, token); err != nil {
+	if err := auth.ValidateToken(s.publicKey, token, s.chainID); err != nil {
 		return "", connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	return token.UserAddress, nil
@@ -70,7 +79,7 @@ func (s *MultisigService) ValidateRESTToken(tokenJSON string) error {
 	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
 		return fmt.Errorf("invalid token format: %w", err)
 	}
-	return auth.ValidateToken(s.publicKey, &token)
+	return auth.ValidateToken(s.publicKey, &token, s.chainID)
 }
 
 // internalError logs the real error and returns a sanitized connect error.

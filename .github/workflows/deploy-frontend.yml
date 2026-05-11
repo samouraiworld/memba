@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: deploy-frontend
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   ci-frontend:
@@ -28,7 +28,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Type check
         run: npx tsc --noEmit
@@ -43,7 +43,7 @@ jobs:
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high --omit=dev
 
   deploy:
     name: Deploy to Netlify
@@ -62,7 +62,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build
         run: npm run build
@@ -75,6 +75,20 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_GNOLOVE_API_URL: https://backend.gnolove.world
           VITE_GNO_MONITORING_API_URL: https://monitoring.gnolove.world
+          # Sentry release + source-map upload (Phase 0a CR2-07 fix)
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Verify source maps were actually uploaded — guards against silent
+      # SM-upload failure (R-09 in v7.1 plan).
+      - name: Verify Sentry source maps uploaded
+        run: |
+          set -euo pipefail
+          MAP_COUNT=$(find dist/assets -name '*.js.map' | wc -l | tr -d ' ')
+          echo "Generated $MAP_COUNT source map files in build."
+          if [ "$MAP_COUNT" -eq 0 ]; then
+            echo "::error::No source maps generated — Sentry upload would be empty."
+            exit 1
+          fi
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

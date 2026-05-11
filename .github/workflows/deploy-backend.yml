@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: deploy-backend
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   ci-backend:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.9'
+          go-version: '1.25.10'
           cache-dependency-path: backend/go.sum
 
       - name: Build
@@ -33,12 +33,15 @@ jobs:
         run: go test -race -count=1 ./...
 
       - name: Vulnerability check
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.3.0 && govulncheck ./...
 
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
     needs: [ci-backend]
+    permissions:
+      contents: read
+      packages: write
     defaults:
       run:
         working-directory: backend
@@ -47,7 +50,42 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Compute release tag
+        id: tag
+        run: echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy
-        run: flyctl deploy --remote-only --build-arg APP_VERSION=$(git describe --tags --always)
+        run: flyctl deploy --remote-only --build-arg APP_VERSION=${{ steps.tag.outputs.version }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # GHCR image mirror — authoritative rollback source when Fly registry expires.
+      # See docs/OPS_RUNBOOK.md §rollback.
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror Fly image to GHCR
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Fly registry image for the just-deployed release
+          FLY_IMAGE=$(flyctl image show -a memba-backend --json | jq -r '.[0].Ref // .Ref')
+          if [ -z "$FLY_IMAGE" ] || [ "$FLY_IMAGE" = "null" ]; then
+            echo "::warning::Could not resolve Fly image ref; skipping GHCR mirror"
+            exit 0
+          fi
+          echo "Mirroring $FLY_IMAGE → ghcr.io"
+          # Pull from Fly (requires FLY_API_TOKEN), retag, push to GHCR
+          docker login registry.fly.io -u x -p "$FLY_API_TOKEN"
+          docker pull "$FLY_IMAGE"
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          GHCR_REF="ghcr.io/${OWNER_LC}/memba-backend:${VERSION}"
+          docker tag "$FLY_IMAGE" "$GHCR_REF"
+          docker push "$GHCR_REF"
+          echo "Mirrored to $GHCR_REF"

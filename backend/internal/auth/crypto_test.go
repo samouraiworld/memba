@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/ed25519"
 	srand "crypto/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func generateTestKeypair(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
 func TestMakeAndValidateChallenge(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "", "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -47,7 +48,7 @@ func TestMakeAndValidateChallenge(t *testing.T) {
 func TestExpiredChallengeRejected(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, -1*time.Second, "")
+	challenge, err := MakeChallenge(priv, -1*time.Second, "", "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -60,7 +61,7 @@ func TestExpiredChallengeRejected(t *testing.T) {
 func TestTamperedChallengeRejected(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "", "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -76,7 +77,7 @@ func TestWrongKeyChallengeRejected(t *testing.T) {
 	_, priv := generateTestKeypair(t)
 	otherPub, _ := generateTestKeypair(t)
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "", "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -89,12 +90,12 @@ func TestWrongKeyChallengeRejected(t *testing.T) {
 func TestMakeAndValidateToken(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	token, err := makeTestToken(priv, 24*time.Hour)
+	token, err := makeTestToken(priv, 24*time.Hour, "test12")
 	if err != nil {
 		t.Fatal("makeTestToken:", err)
 	}
 
-	if err := ValidateToken(pub, token); err != nil {
+	if err := ValidateToken(pub, token, "test12"); err != nil {
 		t.Fatal("ValidateToken:", err)
 	}
 }
@@ -102,19 +103,19 @@ func TestMakeAndValidateToken(t *testing.T) {
 func TestExpiredTokenRejected(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
-	token, err := makeTestToken(priv, -1*time.Second)
+	token, err := makeTestToken(priv, -1*time.Second, "test12")
 	if err != nil {
 		t.Fatal("makeTestToken:", err)
 	}
 
-	if err := ValidateToken(pub, token); err == nil {
+	if err := ValidateToken(pub, token, "test12"); err == nil {
 		t.Fatal("expected error for expired token")
 	}
 }
 
 func TestNilTokenRejected(t *testing.T) {
 	pub, _ := generateTestKeypair(t)
-	if err := ValidateToken(pub, nil); err == nil {
+	if err := ValidateToken(pub, nil, ""); err == nil {
 		t.Fatal("expected error for nil token")
 	}
 }
@@ -124,7 +125,7 @@ func TestPubkeyBoundChallenge(t *testing.T) {
 
 	testPubkey := `{"type":"tendermint/PubKeySecp256k1","value":"A1B2C3=="}`
 
-	challenge, err := MakeChallenge(priv, 5*time.Minute, testPubkey)
+	challenge, err := MakeChallenge(priv, 5*time.Minute, testPubkey, "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -154,7 +155,7 @@ func TestUnboundChallengeStillWorks(t *testing.T) {
 	pub, priv := generateTestKeypair(t)
 
 	// Empty pubkey = no binding (backward compat for challenge validation itself)
-	challenge, err := MakeChallenge(priv, 5*time.Minute, "")
+	challenge, err := MakeChallenge(priv, 5*time.Minute, "", "")
 	if err != nil {
 		t.Fatal("MakeChallenge:", err)
 	}
@@ -167,7 +168,7 @@ func TestUnboundChallengeStillWorks(t *testing.T) {
 }
 
 func TestADR36SignDoc(t *testing.T) {
-	doc := MakeADR36SignDoc([]byte("hello"), "g1abc123")
+	doc := MakeADR36SignDoc([]byte("hello"), "g1abc123", "test12")
 	if len(doc) == 0 {
 		t.Fatal("empty sign doc")
 	}
@@ -176,8 +177,115 @@ func TestADR36SignDoc(t *testing.T) {
 	}
 }
 
+// ─── v7.1 AUTH-CHAINID-01 regression tests (MEMBA-2026-001) ─────────
+
+// TestADR36SignDocEmbedsChainID is the canary for AUTH-CHAINID-01: the same
+// payload signed under two different chains must produce two different
+// signDocs. Prior to v7.1 the chain_id field was hardcoded to "" making
+// signatures bit-identical across chains.
+func TestADR36SignDocEmbedsChainID(t *testing.T) {
+	payload := []byte(`{"kind":"Login to Memba Multisig Service"}`)
+	signer := "g1abc123"
+
+	test12Doc := MakeADR36SignDoc(payload, signer, "test12")
+	gnoland1Doc := MakeADR36SignDoc(payload, signer, "gnoland1")
+	legacyDoc := MakeADR36SignDoc(payload, signer, "")
+
+	if string(test12Doc) == string(gnoland1Doc) {
+		t.Fatal("AUTH-CHAINID-01 regression: signDoc for test12 == signDoc for gnoland1")
+	}
+	if string(test12Doc) == string(legacyDoc) {
+		t.Fatal("AUTH-CHAINID-01 regression: signDoc for test12 == signDoc for empty chain_id")
+	}
+	if !strings.Contains(string(test12Doc), `"chain_id":"test12"`) {
+		t.Fatalf("test12 signDoc missing chain_id: %s", test12Doc)
+	}
+	if !strings.Contains(string(gnoland1Doc), `"chain_id":"gnoland1"`) {
+		t.Fatalf("gnoland1 signDoc missing chain_id: %s", gnoland1Doc)
+	}
+}
+
+// TestADR36SignDocChainIDJSONEscape verifies that chain_id values containing
+// JSON-special characters cannot break the signDoc structure.
+func TestADR36SignDocChainIDJSONEscape(t *testing.T) {
+	// A chain_id with a quote would break a naive template; json.Marshal escapes it.
+	doc := MakeADR36SignDoc([]byte("x"), "g1x", `"injected","msgs":[{"escape`)
+	// The doc must still be a valid JSON-ish blob starting with { and ending with }.
+	if len(doc) == 0 || doc[0] != '{' || doc[len(doc)-1] != '}' {
+		t.Fatalf("signDoc malformed under hostile chain_id: %s", doc)
+	}
+}
+
+// TestTokenChainBinding asserts that a token carries the chain_id it was
+// issued for, and that ValidateToken rejects mismatched expected/token chains.
+func TestTokenChainBinding(t *testing.T) {
+	pub, priv := generateTestKeypair(t)
+
+	tokTest12, err := makeTestToken(priv, time.Hour, "test12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokTest12.ChainId != "test12" {
+		t.Fatalf("token chain_id = %q, want test12", tokTest12.ChainId)
+	}
+
+	// Same chain ⇒ accept.
+	if err := ValidateToken(pub, tokTest12, "test12"); err != nil {
+		t.Fatalf("same-chain token rejected: %v", err)
+	}
+
+	// Cross-chain (token=test12, expected=gnoland1) ⇒ reject.
+	if err := ValidateToken(pub, tokTest12, "gnoland1"); err == nil {
+		t.Fatal("AUTH-CHAINID-01 regression: cross-chain token accepted")
+	}
+}
+
+// TestTokenChainBindingLegacyGrace covers the 24h transition window where
+// older clients haven't started sending chain_id yet. A token with empty
+// ChainId must still be accepted when the server has a configured chain
+// (logged for monitoring, but not rejected).
+func TestTokenChainBindingLegacyGrace(t *testing.T) {
+	pub, priv := generateTestKeypair(t)
+
+	tokLegacy, err := makeTestToken(priv, time.Hour, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Server expects test12; token is legacy (empty). Grace accept.
+	if err := ValidateToken(pub, tokLegacy, "test12"); err != nil {
+		t.Fatalf("legacy-grace token rejected: %v", err)
+	}
+
+	// Server also legacy (no GNO_CHAIN_ID set): accept.
+	if err := ValidateToken(pub, tokLegacy, ""); err != nil {
+		t.Fatalf("legacy/legacy token rejected: %v", err)
+	}
+}
+
+// FuzzMakeADR36SignDoc seeds the AUTH-CHAINID-01 fix: arbitrary chainID
+// values must never break signDoc structure (the JSON template would
+// otherwise be vulnerable to template-injection on hostile chain_ids).
+func FuzzMakeADR36SignDoc(f *testing.F) {
+	f.Add("test12", "g1abc", []byte("payload"))
+	f.Add("gnoland1", "g1xyz", []byte(""))
+	f.Add("", "g1leg", []byte("legacy"))
+	f.Add(`"injected","msgs":[]`, "g1evil", []byte("attack"))
+	f.Add("chain\x00with\x00nuls", "g1nul", []byte{0, 1, 2, 3})
+
+	f.Fuzz(func(t *testing.T, chainID, signer string, data []byte) {
+		doc := MakeADR36SignDoc(data, signer, chainID)
+		if len(doc) == 0 {
+			t.Fatal("empty doc")
+		}
+		if doc[0] != '{' || doc[len(doc)-1] != '}' {
+			t.Fatalf("doc not a JSON object: %q", doc)
+		}
+	})
+}
+
 // makeTestToken creates a server-signed token for testing.
-func makeTestToken(priv ed25519.PrivateKey, duration time.Duration) (*membav1.Token, error) {
+func makeTestToken(priv ed25519.PrivateKey, duration time.Duration, chainID string) (*membav1.Token, error) {
 	nonce, err := makeNonce()
 	if err != nil {
 		return nil, err
@@ -186,6 +294,7 @@ func makeTestToken(priv ed25519.PrivateKey, duration time.Duration) (*membav1.To
 		Nonce:       encodeBytes(nonce),
 		UserAddress: "g1testuser123",
 		Expiration:  encodeTime(time.Now().Add(duration)),
+		ChainId:     chainID,
 	}
 	tokenBytes, err := proto.Marshal(token)
 	if err != nil {
