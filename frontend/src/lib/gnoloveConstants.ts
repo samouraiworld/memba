@@ -54,7 +54,7 @@ export const TEAMS: Team[] = [
         description: "Building Memba, gnolove, gnomonitoring, and ecosystem dApps.",
         members: [
             "n0izn0iz", "omarsy", "Villaquiranm", "hthieu1110",
-            "MikaelVallenet", "WaDadidou", "dtczelo", "naim-ea",
+            "mvallenet", "WaDadidou", "dtczelo", "naim-ea",
             "louis14448", "pr0m3th3usEx", "davd-gzl", "moonia",
             "zxxma", "clegirar", "omniwired",
         ],
