@@ -5,21 +5,22 @@
 
 ---
 
-## Current Status (2026-04-16)
+## Current Status (2026-05-11)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v6.0.0 (Security Hardening, AVL Migration, Accessibility) |
-| **Shipped Versions** | 45+ (v0.1.0 → v6.0.0) |
-| **Test Suite** | 1,628 frontend + 149 backend + 6 Gno realm test files + 18 E2E specs |
-| **Coverage** | Frontend 56% statements, Backend 22% (CI-enforced thresholds) |
-| **Networks** | test12 (default), test11 (legacy), gnoland1 (halted), portal-loop |
-| **Architecture** | Go + ConnectRPC backend, React + Vite frontend, SQLite, OpenRouter AI |
-| **Security** | 21 issues fixed in v6 (10 critical/high), 32-expert audit plan |
+| **Latest Release** | v6.0.3 (Phase 0 of v7.1 — CI unblock, AUTH-CHAINID-01, audit-clean) |
+| **Shipped Versions** | 48+ (v0.1.0 → v6.0.3) |
+| **Test Suite** | 1,659 frontend + 14 auth + Go fuzz target + Gno realm tests + 175 Playwright E2E |
+| **Coverage** | Frontend 56% statements, Backend 22% (CI-enforced thresholds; aggregate bump → Phase 4) |
+| **Networks** | test12 (default), gnoland1 (transfer-locked, betanet activation in Phase 5) |
+| **Architecture** | Go 1.25.10 + ConnectRPC backend (Fly rolling deploys + GHCR mirror), React 19 + Vite frontend (Netlify), SQLite, OpenRouter AI |
+| **Security** | 14 advisories closed in Phase 0 (4 Go stdlib + 6 Clerk + 4 dompurify); 1 own advisory filed (MEMBA-2026-001 AUTH-CHAINID-01) |
 | **On-Chain** | 9 realm codebases, AVL-based templates, paginated Render() |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721) |
-| **Next Priority** | Betanet preparation, ecosystem contributions, React Query migration |
+| **Active program** | v7.1 — Phase 0 ✅ complete (signoff: `docs/reports/v7.1-phase0-signoff.md`); Phases 1-6 pending operator go-ahead |
+| **Next Priority** | Phase 1: samcrew-deployer push + gnodaokit + AUTH-SESSION-REJECT-01 + Custody spec + CODEOWNERS audit |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 

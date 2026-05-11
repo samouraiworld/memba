@@ -4,7 +4,22 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased
+## Unreleased — post-v6.0.3 patches (Phase 0 wind-down)
+
+- **#333** `fix(deploy)`: Sentry source-map assertion was a false negative (the
+  Vite plugin deletes maps after upload by design) — replaced with a token-presence
+  log. Fly → GHCR mirror jq query corrected (schema is
+  `Registry/Repository/Tag`, not `.Ref`). After this, the GHCR mirror image
+  `ghcr.io/samouraiworld/memba-backend:<sha>` is produced on every backend deploy.
+- **#314** `fix(ux)`: improve error messages + execute button theme token.
+- **#329** `chore`: rename `MikaelVallenet` → `mvallenet` in the gnolove
+  contributors constant (matches the actual GitHub login casing).
+- **#330** `docs(planning)`: v7.1 implementation plan + two expert review trails +
+  PR triage runbook (5 markdown files under `docs/planning/`).
+- **#334** `docs(reports)`: Phase 0 signoff record at
+  `docs/reports/v7.1-phase0-signoff.md`.
+
+Plan reference: `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` §4.
 
 ## v6.0.3 (Phase 0b of v7.1) — Frontend deps, dependency policy, dependabot pause, OWASP regression suite
 
