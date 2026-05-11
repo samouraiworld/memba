@@ -17,8 +17,15 @@ func (s *MultisigService) GetChallenge(
 	req *connect.Request[membav1.GetChallengeRequest],
 ) (*connect.Response[membav1.GetChallengeResponse], error) {
 	pubkeyJSON := req.Msg.GetUserPubkeyJson()
-	slog.Info("GetChallenge called", "has_pubkey", pubkeyJSON != "")
-	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration, pubkeyJSON)
+	// AUTH-CHAINID-01: prefer the client-supplied chain_id; fall back to the
+	// server's configured chain. Clients pre-PR0b don't send chain_id, hence
+	// the fallback during the 24h grace window.
+	chainID := req.Msg.GetChainId()
+	if chainID == "" {
+		chainID = s.chainID
+	}
+	slog.Info("GetChallenge called", "has_pubkey", pubkeyJSON != "", "chain_id", chainID)
+	challenge, err := auth.MakeChallenge(s.privateKey, auth.DefaultChallengeDuration, pubkeyJSON, chainID)
 	if err != nil {
 		return nil, internalError("internal", err)
 	}
@@ -30,7 +37,8 @@ func (s *MultisigService) GetToken(
 	req *connect.Request[membav1.GetTokenRequest],
 ) (*connect.Response[membav1.GetTokenResponse], error) {
 	slog.Info("GetToken called")
-	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature())
+	// Pass server's default chainID for the AUTH-CHAINID-01 grace fallback.
+	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature(), s.chainID)
 	if err != nil {
 		slog.Warn("GetToken: auth failed", "error", err)
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)

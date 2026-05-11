@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: deploy-frontend
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   ci-frontend:
@@ -28,7 +28,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Type check
         run: npx tsc --noEmit
@@ -43,7 +43,7 @@ jobs:
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high --omit=dev
 
   deploy:
     name: Deploy to Netlify
@@ -62,7 +62,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build
         run: npm run build
@@ -75,6 +75,31 @@ jobs:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_GNOLOVE_API_URL: https://backend.gnolove.world
           VITE_GNO_MONITORING_API_URL: https://monitoring.gnolove.world
+          # Sentry release + source-map upload (Phase 0a CR2-07 fix).
+          # If this env is empty the @sentry/vite-plugin no-ops gracefully
+          # (see frontend/vite.config.ts conditional). If it's set, the
+          # plugin uploads maps to Sentry and deletes them from dist via
+          # `filesToDeleteAfterUpload`. Build success with token set =
+          # successful upload (the plugin throws on upload errors).
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      # Sanity-log the upload intent so a missing/expired secret is
+      # noticed early. We deliberately do not assert on local *.map
+      # files: the Sentry plugin cleans them up after upload (privacy
+      # hardening — maps must not ship to Netlify). Verify uploads via
+      # Sentry UI: https://sentry.samourai.pro → memba → Releases.
+      # TODO(v7.2): replace this with a Sentry API check that the release
+      # has artifacts attached.
+      - name: Sentry release intent
+        run: |
+          set -u
+          if [ -z "${SENTRY_TOKEN_SET:-}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN was empty — Sentry release for this build has no source maps. Verify the secret in repo settings."
+          else
+            echo "SENTRY_AUTH_TOKEN was set — @sentry/vite-plugin should have uploaded maps for memba@$(node -p "require('./package.json').version")."
+          fi
+        env:
+          SENTRY_TOKEN_SET: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'yes' || '' }}
 
       - name: Deploy
         uses: nwtgck/actions-netlify@v3

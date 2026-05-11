@@ -1,19 +1,66 @@
 version: 2
+
 updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    # Paused for the v7.1 program (Phase 0 through Phase 6 — re-open in Phase 6
+    # by raising back to 10). See docs/DEPENDENCY_POLICY.md §5 and
+    # docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md §4 (PR0b).
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
       - "frontend"
+    groups:
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      clerk:
+        patterns:
+          - "@clerk/*"
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@typescript-eslint/*"
+          - "typescript-eslint"
+      dev-deps:
+        dependency-type: "development"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "gomod"
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
       - "backend"
+    groups:
+      cosmos:
+        patterns:
+          - "github.com/cosmos/*"
+          - "cosmossdk.io/*"
+      connectrpc:
+        patterns:
+          - "connectrpc.com/*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    labels:
+      - "dependencies"
+      - "ci"
