@@ -69,22 +69,33 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror Fly image to GHCR
+        # Belt-and-braces rollback insurance. If this step fails (transient
+        # registry hiccup, jq schema drift, etc.), the deploy is already
+        # successful — don't fail the workflow on mirror issues.
+        continue-on-error: true
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VERSION: ${{ steps.tag.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          set -euo pipefail
-          # Fly registry image for the just-deployed release
-          FLY_IMAGE=$(flyctl image show -a memba-backend --json | jq -r '.[0].Ref // .Ref')
-          if [ -z "$FLY_IMAGE" ] || [ "$FLY_IMAGE" = "null" ]; then
+          set -uo pipefail
+          # `flyctl image show --json` returns an array on recent flyctl, a
+          # single object on older versions. Handle both. The image ref
+          # lives under `Ref` (newer) or `Image` (older).
+          FLY_RAW=$(flyctl image show -a memba-backend --json 2>/dev/null || echo '[]')
+          FLY_IMAGE=$(printf '%s' "$FLY_RAW" | jq -r '
+            if type == "array" then .[0] else . end
+            | (.Ref // .Image // empty)
+          ')
+          if [ -z "${FLY_IMAGE:-}" ] || [ "$FLY_IMAGE" = "null" ]; then
             echo "::warning::Could not resolve Fly image ref; skipping GHCR mirror"
+            echo "Raw flyctl output (first 500 chars): ${FLY_RAW:0:500}"
             exit 0
           fi
           echo "Mirroring $FLY_IMAGE → ghcr.io"
-          # Pull from Fly (requires FLY_API_TOKEN), retag, push to GHCR
           docker login registry.fly.io -u x -p "$FLY_API_TOKEN"
           docker pull "$FLY_IMAGE"
-          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          OWNER_LC=$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')
           GHCR_REF="ghcr.io/${OWNER_LC}/memba-backend:${VERSION}"
           docker tag "$FLY_IMAGE" "$GHCR_REF"
           docker push "$GHCR_REF"
