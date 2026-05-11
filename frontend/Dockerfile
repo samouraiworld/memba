@@ -10,8 +10,8 @@ RUN npm ci
 # Build with env vars baked in (overridable at compose level)
 COPY . .
 ARG VITE_API_URL=""
-ARG VITE_GNO_CHAIN_ID="test11"
-ARG VITE_GNO_RPC_URL="https://rpc.test11.testnets.gno.land:443"
+ARG VITE_GNO_CHAIN_ID="test12"
+ARG VITE_GNO_RPC_URL="https://rpc.testnet12.samourai.live:443"
 ARG VITE_GNO_BECH32_PREFIX="g"
 RUN npm run build
 
