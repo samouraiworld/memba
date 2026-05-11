@@ -174,6 +174,7 @@ type Challenge struct {
 	Expiration      string                 `protobuf:"bytes,2,opt,name=expiration,proto3" json:"expiration,omitempty"`
 	ServerSignature []byte                 `protobuf:"bytes,3,opt,name=server_signature,json=serverSignature,proto3" json:"server_signature,omitempty"`   // ed25519 signature by server (of protobuf encoding with this field zeroed)
 	BoundPubkeyHash string                 `protobuf:"bytes,4,opt,name=bound_pubkey_hash,json=boundPubkeyHash,proto3" json:"bound_pubkey_hash,omitempty"` // SHA256 of the pubkey this challenge is bound to (v6 AUTH-01 fix)
+	ChainId         string                 `protobuf:"bytes,5,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`                           // v7.1 AUTH-CHAINID-01: chain this challenge is bound to
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -236,6 +237,13 @@ func (x *Challenge) GetBoundPubkeyHash() string {
 	return ""
 }
 
+func (x *Challenge) GetChainId() string {
+	if x != nil {
+		return x.ChainId
+	}
+	return ""
+}
+
 // Token is the auth credential passed with authenticated requests.
 // We use string for nonce/signature because browser storage has poor bytes support.
 type Token struct {
@@ -244,6 +252,7 @@ type Token struct {
 	Expiration      string                 `protobuf:"bytes,2,opt,name=expiration,proto3" json:"expiration,omitempty"`
 	UserAddress     string                 `protobuf:"bytes,3,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`
 	ServerSignature string                 `protobuf:"bytes,4,opt,name=server_signature,json=serverSignature,proto3" json:"server_signature,omitempty"` // base64 ed25519 signature by server
+	ChainId         string                 `protobuf:"bytes,5,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`                         // v7.1 AUTH-CHAINID-01: chain this token is valid for
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -306,6 +315,13 @@ func (x *Token) GetServerSignature() string {
 	return ""
 }
 
+func (x *Token) GetChainId() string {
+	if x != nil {
+		return x.ChainId
+	}
+	return ""
+}
+
 type TokenRequestInfo struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Kind             string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -313,6 +329,7 @@ type TokenRequestInfo struct {
 	UserBech32Prefix string                 `protobuf:"bytes,3,opt,name=user_bech32_prefix,json=userBech32Prefix,proto3" json:"user_bech32_prefix,omitempty"`
 	UserPubkeyJson   string                 `protobuf:"bytes,4,opt,name=user_pubkey_json,json=userPubkeyJson,proto3" json:"user_pubkey_json,omitempty"` // Amino JSON pubkey — optional if user_address is set
 	UserAddress      string                 `protobuf:"bytes,5,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`            // Direct address — used when pubkey unavailable from wallet
+	ChainId          string                 `protobuf:"bytes,6,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`                        // v7.1 AUTH-CHAINID-01: chain the client is authenticating for
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -382,9 +399,17 @@ func (x *TokenRequestInfo) GetUserAddress() string {
 	return ""
 }
 
+func (x *TokenRequestInfo) GetChainId() string {
+	if x != nil {
+		return x.ChainId
+	}
+	return ""
+}
+
 type GetChallengeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserPubkeyJson string                 `protobuf:"bytes,1,opt,name=user_pubkey_json,json=userPubkeyJson,proto3" json:"user_pubkey_json,omitempty"` // Amino JSON pubkey — binds the challenge to this key (v6 AUTH-01 fix)
+	ChainId        string                 `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`                        // v7.1 AUTH-CHAINID-01: chain to bind the challenge to
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -422,6 +447,13 @@ func (*GetChallengeRequest) Descriptor() ([]byte, []int) {
 func (x *GetChallengeRequest) GetUserPubkeyJson() string {
 	if x != nil {
 		return x.UserPubkeyJson
+	}
+	return ""
+}
+
+func (x *GetChallengeRequest) GetChainId() string {
+	if x != nil {
+		return x.ChainId
 	}
 	return ""
 }
@@ -4864,29 +4896,33 @@ var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
 	"\n" +
-	"\x14memba/v1/memba.proto\x12\bmemba.v1\"\x98\x01\n" +
+	"\x14memba/v1/memba.proto\x12\bmemba.v1\"\xb3\x01\n" +
 	"\tChallenge\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x1e\n" +
 	"\n" +
 	"expiration\x18\x02 \x01(\tR\n" +
 	"expiration\x12)\n" +
 	"\x10server_signature\x18\x03 \x01(\fR\x0fserverSignature\x12*\n" +
-	"\x11bound_pubkey_hash\x18\x04 \x01(\tR\x0fboundPubkeyHash\"\x8b\x01\n" +
+	"\x11bound_pubkey_hash\x18\x04 \x01(\tR\x0fboundPubkeyHash\x12\x19\n" +
+	"\bchain_id\x18\x05 \x01(\tR\achainId\"\xa6\x01\n" +
 	"\x05Token\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\tR\x05nonce\x12\x1e\n" +
 	"\n" +
 	"expiration\x18\x02 \x01(\tR\n" +
 	"expiration\x12!\n" +
 	"\fuser_address\x18\x03 \x01(\tR\vuserAddress\x12)\n" +
-	"\x10server_signature\x18\x04 \x01(\tR\x0fserverSignature\"\xd4\x01\n" +
+	"\x10server_signature\x18\x04 \x01(\tR\x0fserverSignature\x12\x19\n" +
+	"\bchain_id\x18\x05 \x01(\tR\achainId\"\xef\x01\n" +
 	"\x10TokenRequestInfo\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x121\n" +
 	"\tchallenge\x18\x02 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\x12,\n" +
 	"\x12user_bech32_prefix\x18\x03 \x01(\tR\x10userBech32Prefix\x12(\n" +
 	"\x10user_pubkey_json\x18\x04 \x01(\tR\x0euserPubkeyJson\x12!\n" +
-	"\fuser_address\x18\x05 \x01(\tR\vuserAddress\"?\n" +
+	"\fuser_address\x18\x05 \x01(\tR\vuserAddress\x12\x19\n" +
+	"\bchain_id\x18\x06 \x01(\tR\achainId\"Z\n" +
 	"\x13GetChallengeRequest\x12(\n" +
-	"\x10user_pubkey_json\x18\x01 \x01(\tR\x0euserPubkeyJson\"I\n" +
+	"\x10user_pubkey_json\x18\x01 \x01(\tR\x0euserPubkeyJson\x12\x19\n" +
+	"\bchain_id\x18\x02 \x01(\tR\achainId\"I\n" +
 	"\x14GetChallengeResponse\x121\n" +
 	"\tchallenge\x18\x01 \x01(\v2\x13.memba.v1.ChallengeR\tchallenge\"U\n" +
 	"\x0fGetTokenRequest\x12\x1b\n" +
