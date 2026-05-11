@@ -9,6 +9,15 @@ primary_region = 'cdg'
 [build]
   dockerfile = 'Dockerfile'
 
+# Rolling deploy: required because this app has a persistent volume
+# ([[mounts]] memba_data) AND runs on a single machine — bluegreen is
+# incompatible with both constraints. Accept ~30s of restart downtime
+# per deploy; rollback via `flyctl releases rollback` or GHCR image
+# mirror (see docs/OPS_RUNBOOK.md §rollback).
+[deploy]
+  strategy = "rolling"
+  wait_timeout = "5m"
+
 [env]
   BACKUP_INTERVAL = '24h'
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'

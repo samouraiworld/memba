@@ -114,7 +114,9 @@ func hashPubkey(pubkeyJSON string) string {
 // If pubkeyJSON is non-empty, the challenge is cryptographically bound to that
 // pubkey — only the holder of that key can use this challenge to obtain a token.
 // This prevents AUTH-01: attackers cannot reuse a challenge with a different pubkey.
-func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration, pubkeyJSON string) (*membav1.Challenge, error) {
+// If chainID is non-empty, the challenge is bound to that chain (AUTH-CHAINID-01):
+// a challenge issued for test12 cannot be replayed against gnoland1.
+func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration, pubkeyJSON, chainID string) (*membav1.Challenge, error) {
 	nonce, err := makeNonce()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to make nonce")
@@ -122,6 +124,7 @@ func MakeChallenge(privateKey ed25519.PrivateKey, duration time.Duration, pubkey
 	challenge := &membav1.Challenge{
 		Nonce:      nonce,
 		Expiration: encodeTime(time.Now().Add(duration)),
+		ChainId:    chainID,
 	}
 	if pubkeyJSON != "" {
 		challenge.BoundPubkeyHash = hashPubkey(pubkeyJSON)
@@ -171,13 +174,24 @@ func ValidateChallenge(publicKey ed25519.PublicKey, challenge *membav1.Challenge
 // ------------------------------------------------------------------
 
 // MakeToken validates a user's ADR-036 signature against a challenge and
-// returns a server-signed auth token.
+// returns a server-signed auth token bound to a specific chain.
+//
+// AUTH-CHAINID-01 (advisory MEMBA-2026-001): tokens carry the chain they were
+// issued for. ADR-036 signDoc embeds chainID, so a signature produced for
+// test12 cannot be verified against a signDoc claiming gnoland1.
+//
+// defaultChainID is the server's configured chain (env GNO_CHAIN_ID). It is
+// used when the client's TokenRequestInfo.ChainID is empty (24h legacy grace
+// window during the v7.1 rollout — clients pre-PR0b don't send chain_id).
+// The effective chainID is recorded in both the ADR-036 signDoc and the
+// returned token.ChainId.
 func MakeToken(
 	privateKey ed25519.PrivateKey,
 	publicKey ed25519.PublicKey,
 	tokenDuration time.Duration,
 	infoJSON string,
 	signatureBase64 string,
+	defaultChainID string,
 ) (*membav1.Token, error) {
 	infoBytes := []byte(infoJSON)
 
@@ -198,6 +212,29 @@ func MakeToken(
 	// Validate the challenge embedded in the request.
 	if err := ValidateChallenge(publicKey, info.Challenge); err != nil {
 		return nil, errors.Wrap(err, "invalid challenge")
+	}
+
+	// AUTH-CHAINID-01: derive the chain this auth is for. Prefer the
+	// client-provided value; fall back to the server's default during the
+	// grace window. If both are empty we still proceed but log it — the
+	// resulting ADR-036 signDoc will use "" (legacy behavior).
+	effectiveChainID := info.ChainId
+	if effectiveChainID == "" {
+		effectiveChainID = defaultChainID
+		if effectiveChainID == "" {
+			slog.Warn("auth: chain_id missing and no server default — legacy mode (deprecated, will be required after grace window)")
+		} else {
+			slog.Info("auth: using server default chain_id", "chain_id", effectiveChainID)
+		}
+	}
+
+	// If the challenge was bound to a chain (newer GetChallenge clients), it
+	// must match the effective chain we're about to issue a token for.
+	if info.Challenge != nil && info.Challenge.ChainId != "" && info.Challenge.ChainId != effectiveChainID {
+		slog.Warn("auth: challenge chain_id mismatch",
+			"challenge_chain_id", info.Challenge.ChainId,
+			"effective_chain_id", effectiveChainID)
+		return nil, errors.New("challenge was issued for a different chain — request a new challenge")
 	}
 
 	// Derive the user's address — pubkey is REQUIRED (v5: address-only rejected, v6: pubkey binding enforced).
@@ -241,9 +278,27 @@ func MakeToken(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to decode user signature")
 			}
-			signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress)
+			// AUTH-CHAINID-01: signDoc embeds effectiveChainID. A test12 signature
+			// is no longer valid for a gnoland1 signDoc (cryptographic chain binding).
+			signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress, effectiveChainID)
 			if !userPubKey.VerifySignature(signDoc, signature) {
-				return nil, errors.New("invalid user signature")
+				// Grace fallback (24h post-deploy): if effectiveChainID was the
+				// server default (legacy clients), retry with the literal empty
+				// chainID — old wallets/clients constructed their signDoc with
+				// chain_id:"". Only honored when info.ChainId is empty (i.e.,
+				// not an explicit cross-chain attempt).
+				if info.ChainId == "" {
+					legacyDoc := MakeADR36SignDoc(infoBytes, chainUserAddress, "")
+					if userPubKey.VerifySignature(legacyDoc, signature) {
+						slog.Warn("auth: legacy ADR-036 signature accepted (empty chain_id) — please update client",
+							"address", chainUserAddress,
+							"resolved_chain_id", effectiveChainID)
+					} else {
+						return nil, errors.New("invalid user signature")
+					}
+				} else {
+					return nil, errors.New("invalid user signature")
+				}
 			}
 		}
 
@@ -277,6 +332,7 @@ func MakeToken(
 		Nonce:       encodeBytes(nonce),
 		UserAddress: universalAddress,
 		Expiration:  encodeTime(time.Now().Add(tokenDuration)),
+		ChainId:     effectiveChainID,
 	}
 	tokenBytes, err := proto.Marshal(token)
 	if err != nil {
@@ -287,7 +343,12 @@ func MakeToken(
 }
 
 // ValidateToken checks the server signature and expiry of a token.
-func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token) error {
+//
+// AUTH-CHAINID-01: if expectedChainID is non-empty and the token carries a
+// non-empty ChainId, they must match — this rejects tokens issued for one
+// chain when used against another. Empty values on either side fall through
+// (24h legacy grace window).
+func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token, expectedChainID string) error {
 	if token == nil {
 		return errors.New("missing token")
 	}
@@ -312,6 +373,21 @@ func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token) error {
 	if !ed25519.Verify(publicKey, tokenBytes, sigBytes) {
 		return errors.New("invalid server signature on token")
 	}
+
+	// AUTH-CHAINID-01: enforce chain binding.
+	if expectedChainID != "" && token.ChainId != "" && token.ChainId != expectedChainID {
+		slog.Warn("auth: token chain mismatch",
+			"token_chain_id", token.ChainId,
+			"expected_chain_id", expectedChainID)
+		return errors.New("token issued for a different chain")
+	}
+	if expectedChainID != "" && token.ChainId == "" {
+		// Legacy token (issued pre-AUTH-CHAINID-01) — accept during 24h grace,
+		// log so we can monitor the legacy footprint.
+		slog.Info("auth: accepting legacy token without chain_id (grace window)",
+			"expected_chain_id", expectedChainID)
+	}
+
 	return nil
 }
 
@@ -320,11 +396,18 @@ func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token) error {
 // ------------------------------------------------------------------
 
 // MakeADR36SignDoc builds a Cosmos ADR-036 sign document.
-func MakeADR36SignDoc(data []byte, signerAddress string) []byte {
-	const template = `{"account_number":"0","chain_id":"","fee":{"amount":[],"gas":"0"},"memo":"","msgs":[{"type":"sign/MsgSignData","value":{"data":%s,"signer":%s}}],"sequence":"0"}`
+//
+// AUTH-CHAINID-01 (advisory MEMBA-2026-001): chainID is now embedded in the
+// signDoc. Previously hardcoded to "", which made signatures bit-identical
+// across chains and exposed Memba to cross-chain replay once it ran on
+// multiple Gno networks (test12, gnoland1). chainID must be safely
+// JSON-encoded since it lands inside the JSON template.
+func MakeADR36SignDoc(data []byte, signerAddress, chainID string) []byte {
+	const template = `{"account_number":"0","chain_id":%s,"fee":{"amount":[],"gas":"0"},"memo":"","msgs":[{"type":"sign/MsgSignData","value":{"data":%s,"signer":%s}}],"sequence":"0"}`
+	chainJSON, _ := json.Marshal(chainID)
 	dataJSON, _ := json.Marshal(base64.StdEncoding.EncodeToString(data))
 	signerJSON, _ := json.Marshal(signerAddress)
-	return []byte(fmt.Sprintf(template, string(dataJSON), string(signerJSON)))
+	return fmt.Appendf(nil, template, string(chainJSON), string(dataJSON), string(signerJSON))
 }
 
 // ParsePubKeyJSON parses an Amino-JSON encoded secp256k1 public key.
