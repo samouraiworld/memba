@@ -1,20 +1,13 @@
 /**
- * GnoloveReport — PR status report with team/repo filters and export.
+ * GnoloveReport — PR status report with team/repo filters, two views, and export.
  *
- * Two views:
- *  - Report View (default): formatted narrative report (gno-skills style) with
- *    categorized sections, emoji indicators, stats — shareable via copy as MD
- *  - Table View: raw PR list with filters (accessible via ?view=table)
+ * Every filter (period, at, tab, team, repos, view) lives in the URL via
+ * `useReportUrlState`. The URL is the artifact: copy it from the address bar
+ * (or via Copy Link) and the recipient sees the same view. See
+ * docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md.
  *
- * Key behaviors:
- *  - Default view is "report" (gno-skills format)
- *  - Repos ordered by priority: gnolang/gno > samouraiworld/* > others
- *  - Multi-select repository filter with checkboxes
- *  - Merged PRs displayed above other statuses
- *  - Weekly scope shows ONLY current week activity
- *  - Merged badge uses purple (not red)
- *
- * Period navigation (weekly/monthly/yearly/all-time) with PR status tabs.
+ * History strategy: coarse-axis changes (period/at/team/tab/repos) use push so
+ * Back walks back through filter changes; `view` toggle uses replace.
  *
  * @module pages/gnolove/GnoloveReport
  */
@@ -22,21 +15,23 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
-    startOfWeek, endOfWeek, addWeeks,
-    startOfMonth, endOfMonth, addMonths,
-    startOfYear, endOfYear, addYears,
-    format, isFuture, getISOWeek, isWithinInterval,
+    addWeeks, addMonths, addYears,
+    format, isFuture, getISOWeek, getISOWeekYear, isWithinInterval,
 } from "date-fns"
-import { useGnoloveReport, useGnoloveRepositories } from "../../hooks/gnolove"
+import { useGnoloveReport, useGnoloveRepositories, useReportUrlState } from "../../hooks/gnolove"
 import { REPORT_TAB_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 import type { ReportTab, Team } from "../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
 import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
 import { extractRepoFromUrl } from "../../lib/gnoloveApi"
-
-type ViewMode = "table" | "report"
-
-type ReportPeriod = "weekly" | "monthly" | "yearly" | "all_time"
+import {
+    rangeFromKey, defaultKey, nextAtForPeriodSwitch,
+    weekKeyFromDate, monthKeyFromDate, yearKeyFromDate,
+    buildShareUrl,
+    DEFAULT_REPORT_STATE,
+    type ReportPeriod, type ReportUrlState,
+} from "../../lib/gnoloveReportUrl"
+import { useNetworkKey } from "../../hooks/useNetworkNav"
 
 const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     weekly: "Weekly",
@@ -45,28 +40,26 @@ const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     all_time: "All Time",
 }
 
+type PRStatus = "merged" | "in_progress" | "waiting_for_review" | "reviewed" | "blocked"
 
-function computeRange(period: ReportPeriod, offset: number): { start: Date; end: Date } {
-    const now = new Date()
-    switch (period) {
-        case "weekly": {
-            const ref = addWeeks(now, offset)
-            return { start: startOfWeek(ref, { weekStartsOn: 1 }), end: endOfWeek(ref, { weekStartsOn: 1 }) }
-        }
-        case "monthly": {
-            const ref = addMonths(now, offset)
-            return { start: startOfMonth(ref), end: endOfMonth(ref) }
-        }
-        case "yearly": {
-            const ref = addYears(now, offset)
-            return { start: startOfYear(ref), end: endOfYear(ref) }
-        }
-        case "all_time":
-            return { start: new Date(1980, 0, 1), end: now }
-    }
+interface ReportData {
+    merged?: TPullRequest[] | null
+    in_progress?: TPullRequest[] | null
+    waiting_for_review?: TPullRequest[] | null
+    reviewed?: TPullRequest[] | null
+    blocked?: TPullRequest[] | null
 }
 
-/** Check if a PR had any activity within the given date range */
+/** Derive a PR's status from the report buckets (used by PRStateBadge) [MF / BUG-4]. */
+function statusFor(pr: TPullRequest, report: ReportData | null | undefined): PRStatus {
+    if (pr.mergedAt || pr.state === "MERGED") return "merged"
+    if (report?.blocked?.some(p => p.id === pr.id)) return "blocked"
+    if (report?.waiting_for_review?.some(p => p.id === pr.id)) return "waiting_for_review"
+    if (report?.reviewed?.some(p => p.id === pr.id)) return "reviewed"
+    return "in_progress"
+}
+
+/** Check if a PR had any activity within the given date range. */
 function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
     const range = { start, end }
     const dates = [pr.createdAt, pr.mergedAt, pr.updatedAt].filter(Boolean) as string[]
@@ -77,25 +70,15 @@ function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
 }
 
 export default function GnoloveReport() {
-    const [searchParams, setSearchParams] = useSearchParams()
-    const [period, setPeriod] = useState<ReportPeriod>("weekly")
-    const [offset, setOffset] = useState(-1) // Default to previous week (report of past work)
-    const [activeTab, setActiveTab] = useState<ReportTab | "all">("all")
-    const [selectedTeam, setSelectedTeam] = useState("all")
-    const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set(["gnolang/gno"]))
+    const [urlState, setUrlState] = useReportUrlState()
+    const { period, at, tab: activeTab, team: teamOrNull, repos: selectedRepos, view } = urlState
+    const selectedTeam = teamOrNull ?? "all"
+    const networkKey = useNetworkKey()
+
+    // Ephemeral UI state — stays local (not in URL).
     const [repoDropdownOpen, setRepoDropdownOpen] = useState(false)
     const repoDropdownRef = useRef<HTMLDivElement>(null)
-    const [view, setView] = useState<ViewMode>(() => searchParams.get("view") === "table" ? "table" : "report")
-
-    const handleViewToggle = useCallback((v: ViewMode) => {
-        setView(v)
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev)
-            if (v === "table") next.set("view", "table")
-            else next.delete("view")
-            return next
-        }, { replace: true })
-    }, [setSearchParams])
+    const [copiedLink, setCopiedLink] = useState(false)
 
     // Close repo dropdown on outside click or Escape key
     useEffect(() => {
@@ -117,13 +100,33 @@ export default function GnoloveReport() {
 
     const { data: repos } = useGnoloveRepositories()
 
-    const { start, end } = useMemo(() => computeRange(period, offset), [period, offset])
+    // Derived absolute date range. `at ?? defaultKey(period)` handles the
+    // "default state" case where the URL doesn't pin a specific period.
+    const { start, end } = useMemo(
+        () => rangeFromKey(period, at ?? defaultKey(period)),
+        [period, at],
+    )
 
     const { data: report, isLoading, isError: reportError, refetch } = useGnoloveReport(start, end)
 
+    // Stale-repo banner [MF-2 / BUG-2]: URL pinned a repo that's not in the server response.
+    const missingRepos = useMemo(() => {
+        if (!repos || selectedRepos.length === 0) return []
+        const known = new Set(repos.map(r => `${r.owner}/${r.name}`))
+        return selectedRepos.filter(r => !known.has(r))
+    }, [repos, selectedRepos])
+
+    // Stale-team banner [MF-18 / R-12]: URL pinned ?team=Foo where Foo isn't a known team
+    // (parser coerces to null, but we surface the raw value to the user).
+    const [searchParams] = useSearchParams()
+    const rawTeam = searchParams.get("team")
+    const staleTeamName = rawTeam && rawTeam !== "all" && teamOrNull === null ? rawTeam : null
+
+    // Repo Set for filter lookups (created lazily; URL state is readonly string[])
+    const selectedReposSet = useMemo(() => new Set(selectedRepos), [selectedRepos])
+
     const prs: TPullRequest[] = useMemo(() => {
         if (!report) return []
-        // Order: Merged first, then In Progress, Waiting, Reviewed, Blocked
         return [
             ...(report.merged ?? []),
             ...(report.in_progress ?? []),
@@ -136,7 +139,6 @@ export default function GnoloveReport() {
     const filteredPrs = useMemo(() => {
         let result = prs
 
-        // Team filter
         if (selectedTeam !== "all") {
             const team = TEAMS.find(t => t.name === selectedTeam)
             if (team) {
@@ -144,20 +146,17 @@ export default function GnoloveReport() {
             }
         }
 
-        // Multi-repo filter
-        if (selectedRepos.size > 0) {
+        if (selectedReposSet.size > 0) {
             result = result.filter(pr => {
                 const repo = extractRepoFromUrl(pr.url)
-                return repo ? selectedRepos.has(repo) : false
+                return repo ? selectedReposSet.has(repo) : false
             })
         }
 
-        // Weekly scope: only show PRs with activity in the selected period
         if (period === "weekly") {
             result = result.filter(pr => hasActivityInRange(pr, start, end))
         }
 
-        // Tab filter
         if (activeTab !== "all") {
             const tabPrs = report?.[activeTab] ?? []
             const tabIds = new Set(tabPrs.map(p => p.id))
@@ -165,7 +164,7 @@ export default function GnoloveReport() {
         }
 
         return result
-    }, [prs, selectedTeam, selectedRepos, period, start, end, activeTab, report])
+    }, [prs, selectedTeam, selectedReposSet, period, start, end, activeTab, report])
 
     const counts = useMemo(() => {
         if (!report) return {} as Record<ReportTab | "all", number>
@@ -183,6 +182,21 @@ export default function GnoloveReport() {
             blocked,
         }
     }, [report])
+
+    // Empty-state reason for UX-2 messaging.
+    const emptyReason = useMemo((): EmptyReason => {
+        if (!report) return "loading"
+        if (filteredPrs.length > 0) return null
+        const totalReportPrs =
+            (report.merged?.length ?? 0) + (report.in_progress?.length ?? 0) +
+            (report.waiting_for_review?.length ?? 0) + (report.reviewed?.length ?? 0) +
+            (report.blocked?.length ?? 0)
+        if (totalReportPrs === 0) return "no_data"
+        if (selectedTeam !== "all" && selectedReposSet.size > 0) return "team_and_repo"
+        if (selectedTeam !== "all") return "team"
+        if (selectedReposSet.size > 0) return "repo"
+        return "filter"
+    }, [report, filteredPrs, selectedTeam, selectedReposSet])
 
     const canGoForward = period !== "all_time" && !isFuture(
         period === "weekly" ? addWeeks(start, 1) :
@@ -204,17 +218,63 @@ export default function GnoloveReport() {
     }, [period, start, end])
 
     function handlePeriodChange(p: ReportPeriod) {
-        setPeriod(p)
-        setOffset(p === "weekly" ? -1 : 0)
+        setUrlState({ period: p, at: nextAtForPeriodSwitch(period, at, p) })
     }
 
     function toggleRepo(repo: string) {
-        setSelectedRepos(prev => {
-            const next = new Set(prev)
-            if (next.has(repo)) next.delete(repo)
-            else next.add(repo)
-            return next
-        })
+        const next = selectedReposSet.has(repo)
+            ? selectedRepos.filter(r => r !== repo)
+            : [...selectedRepos, repo].sort()
+        setUrlState({ repos: next })
+    }
+
+    const stepBy = useCallback(
+        (delta: number) => {
+            const moved =
+                period === "weekly"  ? addWeeks(start, delta) :
+                period === "monthly" ? addMonths(start, delta) :
+                period === "yearly"  ? addYears(start, delta) :
+                start
+            setUrlState({
+                at:
+                    period === "weekly"  ? weekKeyFromDate(moved) :
+                    period === "monthly" ? monthKeyFromDate(moved) :
+                    period === "yearly"  ? yearKeyFromDate(moved) :
+                    null,
+            })
+        },
+        [period, start, setUrlState],
+    )
+
+    function handleViewToggle(v: "report" | "table") {
+        setUrlState({ view: v })
+    }
+
+    // "Copy link" emits a pinned URL reconstructed from validated state [MF-3].
+    const handleCopyLink = useCallback(async () => {
+        const url = buildShareUrl(window.location.origin, networkKey, urlState)
+        try {
+            if (typeof navigator !== "undefined" && navigator.share && /mobile/i.test(navigator.userAgent)) {
+                await navigator.share({ url, title: "Gnolove PR Report" })
+            } else {
+                await navigator.clipboard.writeText(url)
+            }
+            setCopiedLink(true)
+            setTimeout(() => setCopiedLink(false), 1500)
+        } catch {
+            // user dismissed share sheet or clipboard blocked — silent no-op
+        }
+    }, [networkKey, urlState])
+
+    function clearAllFilters() {
+        setUrlState(DEFAULT_REPORT_STATE)
+    }
+    function clearTeam() { setUrlState({ team: null }) }
+    function clearRepos() { setUrlState({ repos: [] }) }
+    function clearTab() { setUrlState({ tab: "all" }) }
+
+    function dismissStaleRepos() {
+        setUrlState({ repos: selectedRepos.filter(r => !missingRepos.includes(r)) })
     }
 
     return (
@@ -222,20 +282,29 @@ export default function GnoloveReport() {
             <div className="gl-header">
                 <h1 className="gl-title">📋 PR Report</h1>
                 <div className="gl-report-actions">
-                    <div className="gl-view-toggle">
+                    <div className="gl-view-toggle" role="tablist" aria-label="View mode">
                         <button
                             className={`gl-view-btn ${view === "report" ? "gl-view-btn--active" : ""}`}
                             onClick={() => handleViewToggle("report")}
+                            aria-pressed={view === "report"}
                         >
                             Report
                         </button>
                         <button
                             className={`gl-view-btn ${view === "table" ? "gl-view-btn--active" : ""}`}
                             onClick={() => handleViewToggle("table")}
+                            aria-pressed={view === "table"}
                         >
                             Table
                         </button>
                     </div>
+                    <button
+                        className="gl-export-btn"
+                        onClick={handleCopyLink}
+                        aria-live="polite"
+                    >
+                        {copiedLink ? "✓ Link copied" : "🔗 Copy link"}
+                    </button>
                     <button
                         className="gl-export-btn"
                         onClick={() => exportToCSV(filteredPrs, activeTab, format(start, "yyyy-MM-dd"))}
@@ -268,13 +337,35 @@ export default function GnoloveReport() {
                 </div>
             )}
 
+            {/* ── Stale-repo / stale-team banners [BUG-2, R-12] ── */}
+            {missingRepos.length > 0 && (
+                <div className="gl-warning-banner" role="alert">
+                    <span>
+                        ⚠️ The shared link references {missingRepos.length === 1 ? "a repository" : "repositories"}{" "}
+                        <strong>{missingRepos.join(", ")}</strong> that {missingRepos.length === 1 ? "is" : "are"} not in the current dataset.
+                    </span>
+                    <button className="gl-error-retry" onClick={dismissStaleRepos}>Remove from filter</button>
+                </div>
+            )}
+            {staleTeamName && (
+                <div className="gl-warning-banner" role="alert">
+                    <span>
+                        ⚠️ Team <strong>{staleTeamName}</strong> from the shared link doesn&apos;t exist anymore.
+                        Showing all teams.
+                    </span>
+                </div>
+            )}
+
             {/* Period Tabs */}
-            <div className="gl-tabs">
+            <div className="gl-tabs" role="tablist" aria-label="Time period">
                 {(Object.entries(REPORT_PERIOD_LABELS) as [ReportPeriod, string][]).map(([key, label]) => (
                     <button
                         key={key}
                         className={`gl-tab ${period === key ? "gl-tab--active" : ""}`}
                         onClick={() => handlePeriodChange(key)}
+                        aria-current={period === key ? "page" : undefined}
+                        role="tab"
+                        aria-selected={period === key}
                     >
                         {label}
                     </button>
@@ -284,11 +375,11 @@ export default function GnoloveReport() {
             {/* Date Navigator */}
             {period !== "all_time" && (
                 <div className="gl-week-nav">
-                    <button className="gl-week-btn" onClick={() => setOffset(o => o - 1)} aria-label="Previous">← Previous</button>
+                    <button className="gl-week-btn" onClick={() => stepBy(-1)} aria-label="Previous">← Previous</button>
                     <span className="gl-week-label">{dateLabel}</span>
                     <button
                         className="gl-week-btn"
-                        onClick={() => setOffset(o => o + 1)}
+                        onClick={() => stepBy(1)}
                         disabled={!canGoForward}
                         aria-label="Next"
                     >
@@ -302,7 +393,8 @@ export default function GnoloveReport() {
                 <select
                     className="gl-filter-select"
                     value={selectedTeam}
-                    onChange={e => setSelectedTeam(e.target.value)}
+                    onChange={e => setUrlState({ team: e.target.value === "all" ? null : e.target.value })}
+                    aria-label="Filter by team"
                 >
                     <option value="all">All Teams</option>
                     {TEAMS.map(team => (
@@ -316,19 +408,22 @@ export default function GnoloveReport() {
                         className="gl-filter-select gl-repo-multiselect-btn"
                         onClick={() => setRepoDropdownOpen(o => !o)}
                         type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={repoDropdownOpen}
+                        aria-label="Filter by repository"
                     >
-                        {selectedRepos.size === 0
+                        {selectedReposSet.size === 0
                             ? "All Repositories"
-                            : `${selectedRepos.size} repo${selectedRepos.size > 1 ? "s" : ""} selected`}
+                            : `${selectedReposSet.size} repo${selectedReposSet.size > 1 ? "s" : ""} selected`}
                         <span className="gl-repo-multiselect-arrow">{repoDropdownOpen ? "▲" : "▼"}</span>
                     </button>
                     {repoDropdownOpen && (
-                        <div className="gl-repo-multiselect-dropdown">
+                        <div className="gl-repo-multiselect-dropdown" role="listbox">
                             <label className="gl-repo-multiselect-option gl-repo-multiselect-option--all">
                                 <input
                                     type="checkbox"
-                                    checked={selectedRepos.size === 0}
-                                    onChange={() => setSelectedRepos(new Set())}
+                                    checked={selectedReposSet.size === 0}
+                                    onChange={() => setUrlState({ repos: [] })}
                                 />
                                 <span>All Repositories</span>
                             </label>
@@ -338,7 +433,7 @@ export default function GnoloveReport() {
                                     <label key={repo.id} className="gl-repo-multiselect-option">
                                         <input
                                             type="checkbox"
-                                            checked={selectedRepos.has(key)}
+                                            checked={selectedReposSet.has(key)}
                                             onChange={() => toggleRepo(key)}
                                         />
                                         <span>{key}</span>
@@ -351,10 +446,13 @@ export default function GnoloveReport() {
             </div>
 
             {/* Status Tabs */}
-            <div className="gl-tabs">
+            <div className="gl-tabs" role="tablist" aria-label="Status filter">
                 <button
                     className={`gl-tab ${activeTab === "all" ? "gl-tab--active" : ""}`}
-                    onClick={() => setActiveTab("all")}
+                    onClick={() => setUrlState({ tab: "all" })}
+                    aria-current={activeTab === "all" ? "true" : undefined}
+                    role="tab"
+                    aria-selected={activeTab === "all"}
                 >
                     All
                     {counts.all != null && <span className="gl-tab-count">{counts.all}</span>}
@@ -363,7 +461,10 @@ export default function GnoloveReport() {
                     <button
                         key={key}
                         className={`gl-tab ${activeTab === key ? "gl-tab--active" : ""}`}
-                        onClick={() => setActiveTab(key)}
+                        onClick={() => setUrlState({ tab: key })}
+                        aria-current={activeTab === key ? "true" : undefined}
+                        role="tab"
+                        aria-selected={activeTab === key}
                     >
                         {label}
                         {counts[key] != null && (
@@ -387,12 +488,27 @@ export default function GnoloveReport() {
                     start={start}
                     end={end}
                     selectedTeam={selectedTeam}
-                    selectedRepos={selectedRepos}
+                    selectedRepos={selectedReposSet}
+                    urlState={urlState}
+                    networkKey={networkKey}
+                    emptyReason={emptyReason}
+                    onClearTeam={clearTeam}
+                    onClearRepos={clearRepos}
+                    onClearAll={clearAllFilters}
                 />
             ) : (
                 <div className="gl-section">
                     {filteredPrs.length === 0 ? (
-                        <div className="gl-empty">No pull requests in this category for the selected period.</div>
+                        <EmptyStateMessage
+                            reason={emptyReason}
+                            selectedTeam={selectedTeam}
+                            selectedRepos={selectedRepos}
+                            activeTab={activeTab}
+                            onClearTeam={clearTeam}
+                            onClearRepos={clearRepos}
+                            onClearTab={clearTab}
+                            onClearAll={clearAllFilters}
+                        />
                     ) : (
                         <div className="gl-pr-list">
                             {filteredPrs.map(pr => (
@@ -409,7 +525,7 @@ export default function GnoloveReport() {
                                             {pr.reviewDecision && ` · ${pr.reviewDecision}`}
                                         </span>
                                     </div>
-                                    <PRStateBadge state={pr.state} mergedAt={pr.mergedAt} tab={activeTab} />
+                                    <PRStateBadge status={statusFor(pr, report)} />
                                 </a>
                             ))}
                         </div>
@@ -420,27 +536,94 @@ export default function GnoloveReport() {
     )
 }
 
+// ── Empty state messaging (UX-2) ──────────────────────────────
+
+type EmptyReason = null | "loading" | "no_data" | "team" | "repo" | "team_and_repo" | "filter"
+
+function EmptyStateMessage({
+    reason, selectedTeam, selectedRepos, activeTab,
+    onClearTeam, onClearRepos, onClearTab, onClearAll,
+}: {
+    reason: EmptyReason
+    selectedTeam: string
+    selectedRepos: readonly string[]
+    activeTab: ReportTab | "all"
+    onClearTeam: () => void
+    onClearRepos: () => void
+    onClearTab: () => void
+    onClearAll: () => void
+}) {
+    if (!reason || reason === "loading") {
+        return <div className="gl-empty">No pull requests in this category for the selected period.</div>
+    }
+    if (reason === "no_data") {
+        return (
+            <div className="gl-empty">
+                <p>No PR activity in this period.</p>
+                <p className="gl-empty__hint">Try widening the period or selecting all repositories.</p>
+                <button className="gl-empty__btn" onClick={onClearAll}>Reset filters</button>
+            </div>
+        )
+    }
+    if (reason === "team_and_repo") {
+        return (
+            <div className="gl-empty">
+                <p><strong>{selectedTeam}</strong> didn&apos;t ship in <strong>{selectedRepos.join(", ")}</strong> during this period.</p>
+                <div className="gl-empty__actions">
+                    <button className="gl-empty__btn" onClick={onClearTeam}>Clear team</button>
+                    <button className="gl-empty__btn" onClick={onClearRepos}>Clear repos</button>
+                    <button className="gl-empty__btn" onClick={onClearAll}>Reset all</button>
+                </div>
+            </div>
+        )
+    }
+    if (reason === "team") {
+        return (
+            <div className="gl-empty">
+                <p>No PRs from <strong>{selectedTeam}</strong> in this period.</p>
+                <button className="gl-empty__btn" onClick={onClearTeam}>Clear team filter</button>
+            </div>
+        )
+    }
+    if (reason === "repo") {
+        return (
+            <div className="gl-empty">
+                <p>No PRs in <strong>{selectedRepos.join(", ")}</strong> for this period.</p>
+                <button className="gl-empty__btn" onClick={onClearRepos}>Show all repositories</button>
+            </div>
+        )
+    }
+    // reason === "filter"
+    return (
+        <div className="gl-empty">
+            <p>No PRs match <strong>{activeTab.replace(/_/g, " ")}</strong> in this period.</p>
+            <button className="gl-empty__btn" onClick={onClearTab}>Show all statuses</button>
+        </div>
+    )
+}
 // ── Narrative Report View ─────────────────────────────────────
 
-interface ReportData {
-    merged?: TPullRequest[] | null
-    in_progress?: TPullRequest[] | null
-    waiting_for_review?: TPullRequest[] | null
-    reviewed?: TPullRequest[] | null
-    blocked?: TPullRequest[] | null
-}
-
-function NarrativeReportView({ report, period, start, end, selectedTeam, selectedRepos }: {
+function NarrativeReportView({
+    report, period, start, end, selectedTeam, selectedRepos,
+    urlState, networkKey,
+    emptyReason, onClearTeam, onClearRepos, onClearAll,
+}: {
     report: ReportData | null | undefined
     period: ReportPeriod
     start: Date
     end: Date
     selectedTeam: string
     selectedRepos: Set<string>
+    urlState: ReportUrlState
+    networkKey: string
+    emptyReason: EmptyReason
+    onClearTeam: () => void
+    onClearRepos: () => void
+    onClearAll: () => void
 }) {
     const [copied, setCopied] = useState(false)
 
-    // Apply team/repo/scope filters to all categories
+    // Apply team/repo/scope filters to each category
     const filterPrs = useCallback((prs: TPullRequest[] | null | undefined): TPullRequest[] => {
         let result = prs ?? []
         if (selectedTeam !== "all") {
@@ -453,7 +636,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 return repo ? selectedRepos.has(repo) : false
             })
         }
-        // Weekly scope: only PRs with activity in range
         if (period === "weekly") {
             result = result.filter(pr => hasActivityInRange(pr, start, end))
         }
@@ -466,30 +648,42 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
     const reviewed = useMemo(() => filterPrs(report?.reviewed), [report, filterPrs])
     const blocked = useMemo(() => filterPrs(report?.blocked), [report, filterPrs])
 
-    const allPrs = useMemo(() => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked], [merged, inProgress, waitingForReview, reviewed, blocked])
+    const allPrs = useMemo(
+        () => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked],
+        [merged, inProgress, waitingForReview, reviewed, blocked],
+    )
 
-    // Active contributors
     const contributors = useMemo(() => {
         const set = new Set<string>()
-        for (const pr of allPrs) {
-            if (pr.authorLogin) set.add(pr.authorLogin)
-        }
+        for (const pr of allPrs) if (pr.authorLogin) set.add(pr.authorLogin)
         return Array.from(set).sort()
     }, [allPrs])
 
-    // Top merged PRs (by title length as impact proxy)
-    const topMerged = useMemo(() =>
-        [...merged].sort((a, b) => b.title.length - a.title.length).slice(0, 5),
-        [merged]
+    // Highlights: top 5 most-recently merged PRs [BUG-3 — was sorted by title.length].
+    const topMerged = useMemo(
+        () => [...merged]
+            .sort((a, b) => {
+                const ta = a.mergedAt ? new Date(a.mergedAt).getTime() : 0
+                const tb = b.mergedAt ? new Date(b.mergedAt).getTime() : 0
+                return tb - ta
+            })
+            .slice(0, 5),
+        [merged],
     )
 
-    // Find contributor team
     const getTeamForUser = (login: string): Team | undefined =>
         TEAMS.find(t => t.members.includes(login))
 
-    const weekId = `${format(start, "yyyy")}-W${String(getISOWeek(start)).padStart(2, "0")}`
+    // Period-aware report ID [BUG-6: was always weekId regardless of period].
+    const reportId = useMemo(() => {
+        switch (period) {
+            case "weekly":   return `${getISOWeekYear(start)}-W${String(getISOWeek(start)).padStart(2, "0")}`
+            case "monthly":  return format(start, "yyyy-MM")
+            case "yearly":   return format(start, "yyyy")
+            case "all_time": return "all-time"
+        }
+    }, [period, start])
 
-    // Period header for gno-skills format
     const teamLabel = selectedTeam === "all" ? "All contributors" : selectedTeam
     const periodHeader = useMemo(() => {
         switch (period) {
@@ -504,27 +698,20 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
         }
     }, [period, start, end, teamLabel])
 
-    // Generate shareable markdown (gno-skills format)
-    // Order: Stats → Highlights → Waiting for Review → In Progress → Blockers → Merged → Contributors
     const generateReportMd = useCallback((): string => {
+        const filterUrl = buildShareUrl(window.location.origin, networkKey, urlState, { stripView: true })
         const lines: string[] = [
             periodHeader,
             "",
-        ]
-
-        // --- Stats (overview first) ---
-        lines.push(
             "## Stats", "",
             `- PRs Merged: ${merged.length}`,
             `- Waiting for Review: ${waitingForReview.length + reviewed.length}`,
             `- In Progress: ${inProgress.length}`,
             `- Blocked: ${blocked.length}`,
             `- Contributors Active: ${contributors.length}`,
-            "", "---", ""
-        )
-
-        // --- Highlights ---
-        lines.push("## ⭐ Highlights", "")
+            "", "---", "",
+            "## ⭐ Highlights", "",
+        ]
         if (topMerged.length > 0) {
             for (const pr of topMerged) {
                 lines.push(`- **${pr.title}** - ${pr.url} - ${pr.authorLogin || "unknown"}`)
@@ -534,7 +721,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
         }
         lines.push("", "---", "")
 
-        // --- Waiting for Review ---
         const allWaiting = [...waitingForReview, ...reviewed]
         if (allWaiting.length > 0) {
             lines.push("## 📋 Waiting for Review", "")
@@ -543,8 +729,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
             }
             lines.push("", "---", "")
         }
-
-        // --- In Progress ---
         if (inProgress.length > 0) {
             lines.push("## 🚧 In Progress", "")
             for (const pr of inProgress) {
@@ -552,8 +736,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
             }
             lines.push("", "---", "")
         }
-
-        // --- Blockers ---
         if (blocked.length > 0) {
             lines.push("## 🚧 Blockers", "")
             for (const pr of blocked) {
@@ -561,8 +743,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
             }
             lines.push("", "---", "")
         }
-
-        // --- Merged (done work — reference at bottom) ---
         if (merged.length > 0) {
             lines.push("## 🎉 Merged", "")
             for (const pr of merged) {
@@ -570,13 +750,18 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
             }
             lines.push("", "---", "")
         }
-
-        // --- Contributors ---
-        lines.push(`## 👥 Active Contributors (${contributors.length})`, "",
+        lines.push(
+            `## 👥 Active Contributors (${contributors.length})`, "",
             contributors.map(login => `@${login}`).join(" · "),
-            "", "---", `_Generated by Gnolove · ${weekId}_`)
+            "", "---",
+            `_Generated by Gnolove · ${reportId}_`,
+            `_Filter URL: ${filterUrl}_`,
+        )
         return lines.join("\n")
-    }, [periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed, blocked, contributors, weekId])
+    }, [
+        periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed,
+        blocked, contributors, reportId, urlState, networkKey,
+    ])
 
     const handleCopy = useCallback(() => {
         navigator.clipboard.writeText(generateReportMd()).then(() => {
@@ -590,22 +775,37 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
         const url = URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        const prefix = period === "monthly" ? "monthly-report" : period === "yearly" ? "annual-report" : "weekly-report"
-        const fileDateId = period === "monthly" ? format(start, "yyyy-MM") : period === "yearly" ? format(start, "yyyy") : weekId
-        a.download = `${prefix}-${fileDateId}.md`
+        const prefix =
+            period === "monthly" ? "monthly-report" :
+            period === "yearly" ? "annual-report" :
+            period === "all_time" ? "all-time-report" :
+            "weekly-report"
+        a.download = `${prefix}-${reportId}.md`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-    }, [generateReportMd, weekId, period, start])
+    }, [generateReportMd, reportId, period])
 
     if (allPrs.length === 0) {
-        return <div className="gl-section"><div className="gl-empty">No data for this period.</div></div>
+        return (
+            <div className="gl-section">
+                <EmptyStateMessage
+                    reason={emptyReason}
+                    selectedTeam={selectedTeam}
+                    selectedRepos={Array.from(selectedRepos)}
+                    activeTab="all"
+                    onClearTeam={onClearTeam}
+                    onClearRepos={onClearRepos}
+                    onClearTab={() => { /* no-op for narrative view */ }}
+                    onClearAll={onClearAll}
+                />
+            </div>
+        )
     }
 
     return (
         <div className="gl-report-narrative">
-            {/* Copy / Download actions */}
             <div className="gl-report-narrative__actions">
                 <button className="gl-export-btn" onClick={handleCopy}>
                     {copied ? "✓ Copied!" : "Copy as Markdown"}
@@ -613,13 +813,11 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 <button className="gl-export-btn" onClick={handleDownload}>
                     Download .md
                 </button>
-                <span className="gl-report-narrative__week-id">{weekId}</span>
+                <span className="gl-report-narrative__week-id">{reportId}</span>
             </div>
 
-            {/* Period Header */}
             <div className="gl-report-narrative__period-header">{periodHeader}</div>
 
-            {/* 1. Stats — overview first */}
             <section className="gl-report-narrative__section">
                 <h2 className="gl-report-narrative__heading">📊 Stats</h2>
                 <div className="gl-report-narrative__stats">
@@ -648,7 +846,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </div>
             </section>
 
-            {/* 2. Highlights */}
             <section className="gl-report-narrative__section">
                 <h2 className="gl-report-narrative__heading">⭐ Highlights</h2>
                 {topMerged.length > 0 ? (
@@ -665,7 +862,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 )}
             </section>
 
-            {/* 3. Waiting for Review */}
             {(waitingForReview.length + reviewed.length) > 0 && (
                 <section className="gl-report-narrative__section">
                     <h2 className="gl-report-narrative__heading">📋 Waiting for Review ({waitingForReview.length + reviewed.length})</h2>
@@ -685,7 +881,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </section>
             )}
 
-            {/* 4. In Progress */}
             {inProgress.length > 0 && (
                 <section className="gl-report-narrative__section">
                     <h2 className="gl-report-narrative__heading">🚧 In Progress ({inProgress.length})</h2>
@@ -700,7 +895,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </section>
             )}
 
-            {/* 5. Blockers */}
             {blocked.length > 0 && (
                 <section className="gl-report-narrative__section gl-report-narrative__section--blockers">
                     <h2 className="gl-report-narrative__heading">🚧 Blockers ({blocked.length})</h2>
@@ -715,7 +909,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </section>
             )}
 
-            {/* 6. Merged — done work at bottom */}
             {merged.length > 0 && (
                 <section className="gl-report-narrative__section">
                     <h2 className="gl-report-narrative__heading">🎉 Merged ({merged.length})</h2>
@@ -738,7 +931,6 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
                 </section>
             )}
 
-            {/* Active Contributors */}
             <section className="gl-report-narrative__section">
                 <h2 className="gl-report-narrative__heading">👥 Active Contributors ({contributors.length})</h2>
                 <div className="gl-report-narrative__contributors">
@@ -758,21 +950,19 @@ function NarrativeReportView({ report, period, start, end, selectedTeam, selecte
     )
 }
 
-function PRStateBadge({ state, mergedAt, tab }: { state: string; mergedAt: string | null; tab: ReportTab | "all" }) {
+/** Status badge derived from PR data, not the active tab [BUG-4]. */
+function PRStateBadge({ status }: { status: PRStatus }) {
     const label =
-        mergedAt ? "Merged" :
-        state === "MERGED" ? "Merged" :
-        state === "CLOSED" ? "Closed" :
-        tab === "blocked" ? "Blocked" :
-        tab === "waiting_for_review" ? "Waiting" :
+        status === "merged" ? "Merged" :
+        status === "blocked" ? "Blocked" :
+        status === "waiting_for_review" ? "Waiting" :
+        status === "reviewed" ? "Reviewed" :
         "Open"
-
     const cls =
-        label === "Merged" ? "gl-pr-state--merged" :
-        label === "Blocked" ? "gl-pr-state--blocked" :
-        label === "Waiting" ? "gl-pr-state--waiting" :
-        label === "Closed" ? "gl-pr-state--closed" :
+        status === "merged" ? "gl-pr-state--merged" :
+        status === "blocked" ? "gl-pr-state--blocked" :
+        status === "waiting_for_review" ? "gl-pr-state--waiting" :
+        status === "reviewed" ? "gl-pr-state--open" :
         "gl-pr-state--open"
-
     return <span className={`gl-pr-state ${cls}`}>{label}</span>
 }
