@@ -7,9 +7,10 @@
  * @module pages/gnolove/GnoloveContributorProfile
  */
 
-import { useMemo, useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
     BarChart, Bar,
@@ -195,13 +196,9 @@ export default function GnoloveContributorProfile() {
     const { data: contributor, isLoading } = useGnoloveContributor(login ?? "")
     const [copied, setCopied] = useState(false)
 
-    useEffect(() => {
-        if (contributor?.name) {
-            document.title = `${contributor.name} (@${contributor.login}) | Gnolove`
-        } else if (login) {
-            document.title = `@${login} | Gnolove`
-        }
-    }, [contributor, login])
+    const pageTitle = contributor?.name
+        ? `${contributor.name} (@${contributor.login}) | Gnolove · Memba`
+        : login ? `@${login} | Gnolove · Memba` : "Contributor | Gnolove · Memba"
 
     const team = useMemo(() => (login ? findTeam(login) : null), [login])
 
@@ -258,6 +255,7 @@ export default function GnoloveContributorProfile() {
     if (isLoading) {
         return (
             <div className="gl-page">
+                <PageMeta title={pageTitle} />
                 <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
@@ -286,6 +284,7 @@ export default function GnoloveContributorProfile() {
     if (!contributor) {
         return (
             <div className="gl-page">
+                <PageMeta title={pageTitle} />
                 <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
@@ -304,6 +303,7 @@ export default function GnoloveContributorProfile() {
 
     return (
         <div className="gl-page">
+            <PageMeta title={pageTitle} description={contributor.bio ?? `Profile of @${contributor.login} on Gnolove.`} />
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Link to={np("gnolove")} className="gl-profile-back">

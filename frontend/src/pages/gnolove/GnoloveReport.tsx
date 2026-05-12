@@ -19,6 +19,7 @@ import {
     format, isFuture, getISOWeek, getISOWeekYear, isWithinInterval,
 } from "date-fns"
 import { useGnoloveReport, useGnoloveRepositories, useReportUrlState } from "../../hooks/gnolove"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import { REPORT_TAB_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 import type { ReportTab, Team } from "../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
@@ -217,6 +218,14 @@ export default function GnoloveReport() {
         }
     }, [period, start, end])
 
+    // Contextual page title that reflects the active filters.
+    const pageTitle = useMemo(() => {
+        const parts = ["PR Report"]
+        if (selectedTeam !== "all") parts.push(selectedTeam)
+        parts.push(dateLabel)
+        return `${parts.join(" · ")} | Gnolove · Memba`
+    }, [selectedTeam, dateLabel])
+
     function handlePeriodChange(p: ReportPeriod) {
         setUrlState({ period: p, at: nextAtForPeriodSwitch(period, at, p) })
     }
@@ -279,6 +288,7 @@ export default function GnoloveReport() {
 
     return (
         <div className="gl-page">
+            <PageMeta title={pageTitle} description={`PR activity report for ${dateLabel} on the Gno ecosystem.`} />
             <div className="gl-header">
                 <h1 className="gl-title">📋 PR Report</h1>
                 <div className="gl-report-actions">

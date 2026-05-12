@@ -8,6 +8,7 @@ import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useGnoloveContributors } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TimeFilter, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 
 export default function GnoloveTeams() {
@@ -31,6 +32,7 @@ export default function GnoloveTeams() {
 
     return (
         <div className="gl-page">
+            <PageMeta title="Teams | Gnolove · Memba" description="Contributor team breakdown for the Gno ecosystem." />
             <Link to={np("gnolove")} className="gl-profile-back">← Back to Contributors Overview</Link>
             <div className="gl-header">
                 <h1 className="gl-title">🏆 Teams</h1>

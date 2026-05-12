@@ -10,6 +10,7 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
 const safeHex = (c: string) => /^[0-9a-fA-F]{3,8}$/.test(c) ? c : "888"
@@ -134,6 +135,7 @@ export default function GnoloveHome() {
 
     return (
         <div className="gl-page">
+            <PageMeta title="Contributors Overview | Gnolove · Memba" description="Gnolove contributor scoreboard for the Gno ecosystem." />
             <div className="gl-header">
                 <h1 className="gl-title">Contributors Overview</h1>
                 {contributors?.lastSyncedAt && (

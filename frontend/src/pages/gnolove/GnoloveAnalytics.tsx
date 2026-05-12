@@ -23,6 +23,7 @@ import {
     useGnoloveMonthlyActivity,
 } from "../../hooks/gnolove"
 import { TEAMS, TEAM_CSS_COLORS, TimeFilter } from "../../lib/gnoloveConstants"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 const TOOLTIP_STYLE = {
     background: "#12121e",
@@ -134,6 +135,7 @@ export default function GnoloveAnalytics() {
 
     return (
         <div className="gl-page">
+            <PageMeta title="Ecosystem Insights | Gnolove · Memba" description="Time-series analytics for the Gno ecosystem (PRs, commits, proposals, governance)." />
             <div className="gl-header">
                 <h1 className="gl-title">📈 Ecosystem Insights</h1>
             </div>

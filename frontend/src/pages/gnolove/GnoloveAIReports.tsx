@@ -11,6 +11,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useGnoloveAIReports } from "../../hooks/gnolove"
 import type { TAIReport } from "../../lib/gnoloveSchemas"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 function formatDate(iso: string): string {
     try {
@@ -177,6 +178,7 @@ export default function GnoloveAIReports() {
 
     return (
         <div className="gl-page">
+            <PageMeta title="AI Reports | Gnolove · Memba" description="Weekly AI-generated ecosystem summaries for the Gno ecosystem." />
             <div className="gl-header">
                 <h1 className="gl-title">AI Reports</h1>
                 <p className="gl-subtitle">
