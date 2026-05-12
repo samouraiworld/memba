@@ -7,9 +7,11 @@
  * @module pages/gnolove/GnoloveAIReports
  */
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useGnoloveAIReports } from "../../hooks/gnolove"
 import type { TAIReport } from "../../lib/gnoloveSchemas"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 function formatDate(iso: string): string {
     try {
@@ -47,9 +49,14 @@ function downloadMarkdown(report: TAIReport) {
     URL.revokeObjectURL(url)
 }
 
-function ReportCard({ report }: { report: TAIReport }) {
+function ReportCard({ report, highlighted, refSetter }: {
+    report: TAIReport
+    highlighted: boolean
+    refSetter?: (el: HTMLDivElement | null) => void
+}) {
     const projects = report.data?.projects ?? []
     const [copied, setCopied] = useState(false)
+    const [linkCopied, setLinkCopied] = useState(false)
 
     const handleCopy = useCallback(() => {
         navigator.clipboard.writeText(reportToMarkdown(report)).then(() => {
@@ -58,13 +65,34 @@ function ReportCard({ report }: { report: TAIReport }) {
         })
     }, [report])
 
+    const handleCopyLink = useCallback(() => {
+        const url = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(report.id)}`
+        navigator.clipboard.writeText(url).then(() => {
+            setLinkCopied(true)
+            setTimeout(() => setLinkCopied(false), 1500)
+        })
+    }, [report.id])
+
     return (
-        <div className="gl-panel" style={{ marginBottom: 16 }}>
+        <div
+            ref={refSetter}
+            className={`gl-panel${highlighted ? " gl-panel--highlight" : ""}`}
+            style={{ marginBottom: 16 }}
+            data-report-id={report.id}
+        >
             <div className="gl-panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h3 className="gl-panel-title">
                     {formatDate(report.createdAt)}
                 </h3>
                 <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                        className="gl-export-btn"
+                        onClick={handleCopyLink}
+                        style={{ fontSize: 11, padding: "3px 8px" }}
+                        aria-label={`Copy permalink to report from ${formatDate(report.createdAt)}`}
+                    >
+                        {linkCopied ? "✓ Linked" : "🔗 Link"}
+                    </button>
                     <button className="gl-export-btn" onClick={handleCopy} style={{ fontSize: 11, padding: "3px 8px" }}>
                         {copied ? "Copied!" : "Copy"}
                     </button>
@@ -95,7 +123,10 @@ function ReportCard({ report }: { report: TAIReport }) {
 
 export default function GnoloveAIReports() {
     const { data: reports, isLoading } = useGnoloveAIReports()
-    const [visibleCount, setVisibleCount] = useState(5)
+    const [baseVisibleCount, setBaseVisibleCount] = useState(5)
+    const [searchParams] = useSearchParams()
+    const targetId = searchParams.get("id")
+    const targetRef = useRef<HTMLDivElement | null>(null)
 
     const sortedReports = useMemo(() => {
         if (!reports?.length) return []
@@ -104,7 +135,25 @@ export default function GnoloveAIReports() {
         )
     }, [reports])
 
-    const visibleReports = sortedReports.slice(0, visibleCount)
+    // Effective visible count auto-expands to include the deep-linked target if it's
+    // below the user's current "load more" cutoff. Pure computation — no setState in effect.
+    const effectiveVisibleCount = useMemo(() => {
+        if (!targetId || sortedReports.length === 0) return baseVisibleCount
+        const idx = sortedReports.findIndex(r => r.id === targetId)
+        return idx >= 0 ? Math.max(baseVisibleCount, idx + 1) : baseVisibleCount
+    }, [targetId, sortedReports, baseVisibleCount])
+
+    // Scroll-into-view on mount when ?id= is present.
+    useEffect(() => {
+        if (!targetId || !targetRef.current) return
+        const el = targetRef.current
+        const handle = window.requestAnimationFrame(() => {
+            el.scrollIntoView({ behavior: "smooth", block: "center" })
+        })
+        return () => window.cancelAnimationFrame(handle)
+    }, [targetId, sortedReports.length])
+
+    const visibleReports = sortedReports.slice(0, effectiveVisibleCount)
 
     if (isLoading) {
         return (
@@ -129,6 +178,7 @@ export default function GnoloveAIReports() {
 
     return (
         <div className="gl-page">
+            <PageMeta title="AI Reports | Gnolove · Memba" description="Weekly AI-generated ecosystem summaries for the Gno ecosystem." />
             <div className="gl-header">
                 <h1 className="gl-title">AI Reports</h1>
                 <p className="gl-subtitle">
@@ -137,16 +187,21 @@ export default function GnoloveAIReports() {
             </div>
 
             {visibleReports.map((report) => (
-                <ReportCard key={report.id} report={report} />
+                <ReportCard
+                    key={report.id}
+                    report={report}
+                    highlighted={report.id === targetId}
+                    refSetter={report.id === targetId ? (el) => { targetRef.current = el } : undefined}
+                />
             ))}
 
-            {visibleCount < sortedReports.length && (
+            {effectiveVisibleCount < sortedReports.length && (
                 <button
                     className="gl-filter-btn gl-filter-btn--active"
                     style={{ margin: "16px auto", display: "block" }}
-                    onClick={() => setVisibleCount((c) => c + 5)}
+                    onClick={() => setBaseVisibleCount((c) => c + 5)}
                 >
-                    Load more ({sortedReports.length - visibleCount} remaining)
+                    Load more ({sortedReports.length - effectiveVisibleCount} remaining)
                 </button>
             )}
         </div>

@@ -7,8 +7,10 @@
  * @module pages/gnolove/GnoloveContributorProfile
  */
 
-import { useMemo, useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
     BarChart, Bar,
@@ -189,17 +191,14 @@ const CHART_TOOLTIP_STYLE = {
 // ── Main Component ──────────────────────────────────────────
 
 export default function GnoloveContributorProfile() {
+    const np = useNetworkPath()
     const { login } = useParams<{ login: string }>()
     const { data: contributor, isLoading } = useGnoloveContributor(login ?? "")
     const [copied, setCopied] = useState(false)
 
-    useEffect(() => {
-        if (contributor?.name) {
-            document.title = `${contributor.name} (@${contributor.login}) | Gnolove`
-        } else if (login) {
-            document.title = `@${login} | Gnolove`
-        }
-    }, [contributor, login])
+    const pageTitle = contributor?.name
+        ? `${contributor.name} (@${contributor.login}) | Gnolove · Memba`
+        : login ? `@${login} | Gnolove · Memba` : "Contributor | Gnolove · Memba"
 
     const team = useMemo(() => (login ? findTeam(login) : null), [login])
 
@@ -256,7 +255,8 @@ export default function GnoloveContributorProfile() {
     if (isLoading) {
         return (
             <div className="gl-page">
-                <Link to="/gnolove" className="gl-profile-back">
+                <PageMeta title={pageTitle} />
+                <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
                 <div className="gl-profile-layout">
@@ -284,7 +284,8 @@ export default function GnoloveContributorProfile() {
     if (!contributor) {
         return (
             <div className="gl-page">
-                <Link to="/gnolove" className="gl-profile-back">
+                <PageMeta title={pageTitle} />
+                <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
                 <div className="gl-empty" style={{ marginTop: 48 }}>
@@ -292,7 +293,7 @@ export default function GnoloveContributorProfile() {
                     <p>
                         No contributor with the login <strong>@{login}</strong> was found.
                     </p>
-                    <Link to="/gnolove" style={{ color: "var(--color-primary)", marginTop: 12, display: "inline-block" }}>
+                    <Link to={np("gnolove")} style={{ color: "var(--color-primary)", marginTop: 12, display: "inline-block" }}>
                         Return to Contributors Overview
                     </Link>
                 </div>
@@ -302,9 +303,10 @@ export default function GnoloveContributorProfile() {
 
     return (
         <div className="gl-page">
+            <PageMeta title={pageTitle} description={contributor.bio ?? `Profile of @${contributor.login} on Gnolove.`} />
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Link to="/gnolove" className="gl-profile-back">
+                <Link to={np("gnolove")} className="gl-profile-back">
                     &larr; Back to Contributors Overview
                 </Link>
                 <button className="gl-profile-copy-btn" onClick={handleCopyUrl}>

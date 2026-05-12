@@ -233,3 +233,8 @@ export function useGnoloveAIReports() {
         staleTime: STALE_ONCHAIN, // Reports change weekly
     })
 }
+
+// ── URL state hooks (re-exports) [MF-31] ─────────────────
+
+export { useReportUrlState } from "./useReportUrlState"
+export { useHomeUrlState } from "./useHomeUrlState"

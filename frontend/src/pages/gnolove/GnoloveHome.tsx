@@ -9,6 +9,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
 const safeHex = (c: string) => /^[0-9a-fA-F]{3,8}$/.test(c) ? c : "888"
@@ -19,8 +21,9 @@ import {
     useGnoloveRepositories,
     useGnoloveMilestone,
     useGnoloveScoreFactors,
+    useHomeUrlState,
 } from "../../hooks/gnolove"
-import { TimeFilter, TIME_FILTER_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
+import { TIME_FILTER_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 import type { Team } from "../../lib/gnoloveConstants"
 import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
@@ -29,22 +32,27 @@ import type { SortKey } from "../../lib/gnoloveFilters"
 const PAGE_SIZE = 25
 
 export default function GnoloveHome() {
-    const [timeFilter, setTimeFilter] = useState<TimeFilter>(TimeFilter.ALL_TIME)
-    const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
-    const [sortBy, setSortBy] = useState<SortKey>("score")
-    const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
-    const [selectedRepos, setSelectedRepos] = useState<string[]>([])
+    const np = useNetworkPath()
+    // URL-bound filter state; ephemeral UI bits stay local.
+    const [urlState, setUrlState] = useHomeUrlState()
+    const { time: timeFilter, excludedTeams: excludedTeamsList, sortBy, sortDir, repos: selectedRepos, page } = urlState
+    const excludedTeams = useMemo(() => new Set(excludedTeamsList), [excludedTeamsList])
+
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
     const [activityExpanded, setActivityExpanded] = useState(false)
-    const [page, setPage] = useState(1)
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
+
+    const setPage = (p: number | ((prev: number) => number)) => {
+        const next = typeof p === "function" ? p(page) : p
+        setUrlState({ page: next })
+    }
 
     // Derive logins to exclude from the set of excluded teams
     const excludeLogins = useMemo(() => deriveExcludeLogins(excludedTeams), [excludedTeams])
 
     const { data: contributors, isLoading, isFetching, isError, refetch } = useGnoloveContributors(
-        timeFilter, excludeLogins, selectedRepos.length > 0 ? selectedRepos : undefined
+        timeFilter, excludeLogins, selectedRepos.length > 0 ? [...selectedRepos] : undefined
     )
     const { data: issues } = useGnoloveIssues()
     const { data: freshlyMerged } = useGnoloveFreshlyMerged()
@@ -80,9 +88,11 @@ export default function GnoloveHome() {
     }, [sorted, page])
 
     const handleSort = (key: SortKey) => {
-        setPage(1)
-        if (sortBy === key) setSortDir(d => (d === "desc" ? "asc" : "desc"))
-        else { setSortBy(key); setSortDir("desc") }
+        if (sortBy === key) {
+            setUrlState({ sortDir: sortDir === "desc" ? "asc" : "desc", page: 1 })
+        } else {
+            setUrlState({ sortBy: key, sortDir: "desc", page: 1 })
+        }
     }
 
     const teamStats = useMemo(() => {
@@ -115,19 +125,17 @@ export default function GnoloveHome() {
     }, [milestone])
 
     const toggleTeamExclusion = (teamName: string) => {
-        setPage(1)
-        setExcludedTeams(prev => {
-            const next = new Set(prev)
-            if (next.has(teamName)) next.delete(teamName)
-            else next.add(teamName)
-            return next
-        })
+        const next = excludedTeams.has(teamName)
+            ? excludedTeamsList.filter(t => t !== teamName)
+            : [...excludedTeamsList, teamName].sort()
+        setUrlState({ excludedTeams: next, page: 1 })
     }
 
     const activityCount = (freshlyMerged?.length ?? 0) + (issues?.length ?? 0)
 
     return (
         <div className="gl-page">
+            <PageMeta title="Contributors Overview | Gnolove · Memba" description="Gnolove contributor scoreboard for the Gno ecosystem." />
             <div className="gl-header">
                 <h1 className="gl-title">Contributors Overview</h1>
                 {contributors?.lastSyncedAt && (
@@ -226,13 +234,13 @@ export default function GnoloveHome() {
                 <div className="gl-section">
                     <div className="gl-section-header-row">
                         <h2 className="gl-section-title">Best Performing Teams</h2>
-                        <Link to="/gnolove/teams" className="gl-section-link">View all teams &rarr;</Link>
+                        <Link to={np("gnolove/teams")} className="gl-section-link">View all teams &rarr;</Link>
                     </div>
                     <div className="gl-team-compact-grid">
                         {teamStats.map((team, i) => (
                             <Link
                                 key={team.name}
-                                to={`/gnolove/teams/${encodeURIComponent(team.name)}`}
+                                to={np(`gnolove/teams/${encodeURIComponent(team.name)}`)}
                                 className="gl-team-compact-card"
                                 style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}
                             >
@@ -263,7 +271,8 @@ export default function GnoloveHome() {
                         <button
                             key={value}
                             className={`gl-filter-btn ${timeFilter === value ? "gl-filter-btn--active" : ""}`}
-                            onClick={() => { setPage(1); setTimeFilter(value as TimeFilter) }}
+                            onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
+                            aria-pressed={timeFilter === value}
                         >
                             {label}
                         </button>
@@ -308,11 +317,11 @@ export default function GnoloveHome() {
                             >
                                 <div className="gl-repo-filter-actions">
                                     <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => {
-                                        setSelectedRepos(repos!.map(r => `${r.owner}/${r.name}`))
+                                        setUrlState({ repos: repos!.map(r => `${r.owner}/${r.name}`).sort(), page: 1 })
                                     }}>
                                         Select All
                                     </button>
-                                    <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => setSelectedRepos([])}>
+                                    <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => setUrlState({ repos: [], page: 1 })}>
                                         Clear
                                     </button>
                                 </div>
@@ -325,9 +334,10 @@ export default function GnoloveHome() {
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={() => {
-                                                    setSelectedRepos(prev =>
-                                                        checked ? prev.filter(r => r !== key) : [...prev, key]
-                                                    )
+                                                    const next = checked
+                                                        ? selectedRepos.filter(r => r !== key)
+                                                        : [...selectedRepos, key].sort()
+                                                    setUrlState({ repos: next, page: 1 })
                                                 }}
                                             />
                                             <span>{key}</span>
@@ -485,6 +495,7 @@ function SortHeader({ label, field, current, dir, onClick }: {
 }
 
 function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithStats; rank: number; loginToTeam: Map<string, Team> }) {
+    const np = useNetworkPath()
     const rankBadge = rank === 1 ? "\uD83E\uDD47" : rank === 2 ? "\uD83E\uDD48" : rank === 3 ? "\uD83E\uDD49" : `${rank}`
     const team = loginToTeam.get(user.login)
 
@@ -495,7 +506,7 @@ function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithSt
                 <div className="gl-contributor-cell">
                     <img src={user.avatarUrl} alt="" className="gl-avatar" loading="lazy" />
                     <div>
-                        <Link to={`/gnolove/contributor/${user.login}`} className="gl-contributor-name">
+                        <Link to={np(`gnolove/contributor/${user.login}`)} className="gl-contributor-name">
                             {user.name || user.login}
                         </Link>
                         <a

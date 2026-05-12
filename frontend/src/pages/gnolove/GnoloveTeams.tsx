@@ -7,9 +7,12 @@
 import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useGnoloveContributors } from "../../hooks/gnolove"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TimeFilter, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 
 export default function GnoloveTeams() {
+    const np = useNetworkPath()
     const { data: contributors, isLoading } = useGnoloveContributors(TimeFilter.ALL_TIME)
 
     const teamsWithMembers = useMemo(() => {
@@ -29,7 +32,8 @@ export default function GnoloveTeams() {
 
     return (
         <div className="gl-page">
-            <Link to="/gnolove" className="gl-profile-back">← Back to Contributors Overview</Link>
+            <PageMeta title="Teams | Gnolove · Memba" description="Contributor team breakdown for the Gno ecosystem." />
+            <Link to={np("gnolove")} className="gl-profile-back">← Back to Contributors Overview</Link>
             <div className="gl-header">
                 <h1 className="gl-title">🏆 Teams</h1>
             </div>
@@ -50,7 +54,7 @@ export default function GnoloveTeams() {
                                 <div className="gl-teams-panel-title">
                                     <span className="gl-teams-panel-rank">#{i + 1}</span>
                                     <Link
-                                        to={`/gnolove/teams/${encodeURIComponent(team.name)}`}
+                                        to={np(`gnolove/teams/${encodeURIComponent(team.name)}`)}
                                         style={{ color: TEAM_CSS_COLORS[team.color], margin: 0, fontSize: 16, fontWeight: 600, textDecoration: "none" }}
                                     >
                                         {team.name}
@@ -69,7 +73,7 @@ export default function GnoloveTeams() {
                                 {team.members.map(user => (
                                     <Link
                                         key={user.id}
-                                        to={`/gnolove/contributor/${user.login}`}
+                                        to={np(`gnolove/contributor/${user.login}`)}
                                         className="gl-teams-member"
                                     >
                                         <img src={user.avatarUrl} alt="" className="gl-teams-member-avatar" loading="lazy" />

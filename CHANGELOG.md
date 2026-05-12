@@ -4,6 +4,65 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## Unreleased — v6.1.0 (Gnolove shareable URLs + section UX hardening)
+
+### Added
+- **Gnolove — shareable report URLs.** Every filter on `/:network/gnolove/report`
+  (period, period offset, status tab, team, repository set, view mode) now
+  serializes to URL query params. Absolute period keys (ISO-8601
+  `at=2026-W18` / `2026-05` / `2026`) so links stay valid forever — a Friday
+  link still shows the same week on Monday. Same treatment for
+  `/gnolove` (Home scoreboard: timeFilter / sort / excludedTeams /
+  selectedRepos / page) and `/gnolove/reports` (AI archive: `?id=` deep-link
+  with auto-scroll + highlight flash). `Copy link` button on the Report
+  reconstructs the URL from validated state (Web Share API fallback on mobile).
+- **Per-page contextual `document.title`** + `og:title` / `twitter:title` via
+  a new `<PageMeta>` component (race-safe cleanup, no react-helmet).
+- **Stale-repo / stale-team warning banners** on the Report when a shared
+  URL pins a repo or team that no longer exists.
+- **Smarter empty states**: branches per reason (no_data / team / repo /
+  team_and_repo / filter) with scoped "Clear that one filter" buttons.
+
+### Fixed
+- **BUG-1**: all internal gnolove `<Link to="…">` use `useNetworkPath()`;
+  SubNav + 12 link sites no longer detour through `LegacyRedirect` (extra
+  render + URL flicker).
+- **BUG-2**: Report no longer silently empties when the default repo
+  (`gnolang/gno`) is missing from the backend response — a dismissible
+  warning banner appears.
+- **BUG-3**: Report "Highlights" (top 5 merged PRs) now sorts by `mergedAt`
+  descending. Previously sorted by `title.length` (a meaningless proxy).
+- **BUG-4**: PR status badge derives from PR data (`statusFor()`), not from
+  the active tab. Blocked PRs now correctly show "Blocked" on the "All" tab.
+- **BUG-5**: Switching period preserves time-window context. April week 18
+  (which ends 2026-05-03) → Monthly now lands on **May**, not the current
+  month. `all_time → weekly` no longer teleports to 1980.
+- **BUG-6**: Report MD-export footer ID matches the report's period
+  (was always week-ID regardless). Footer also embeds a "Filter URL" share
+  link with `view=table` stripped.
+- **UX-1**: `aria-current` on active period/status tabs; `aria-pressed` on
+  view toggle; `aria-haspopup="listbox"` + `aria-expanded` on the repo
+  multi-select; `role="tablist"` on tab groups.
+
+### Internal
+- New `lib/gnoloveReportUrl.ts` + `lib/gnoloveHomeUrl.ts` URL-state codecs
+  with Zod validation, year-range cap, repos size cap, charset-restricted
+  team allowlist, rate-limited Sentry breadcrumb on parse fallback.
+- New `hooks/gnolove/useReportUrlState` + `useHomeUrlState` hooks with
+  push/replace history strategy (push on coarse axes; replace only on
+  `view` toggle).
+- New `components/gnolove/PageMeta` (~50 LOC, race-safe `document.title`).
+- `frontend/package.json` bumped `4.0.0 → 4.1.0` so Sentry release name is
+  `memba@4.1.0`.
+- Tests: 1,759 vitest (1,659 baseline + 100 new) + 13 Playwright chromium
+  specs (3 new for URL-state behavior).
+
+Plan: [`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md) (Rev1, ~1,750 lines).
+Expert review (6 panels, immutable audit trail):
+[`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md).
+
+---
+
 ## Unreleased — post-v6.0.3 patches (Phase 0 wind-down)
 
 - **#333** `fix(deploy)`: Sentry source-map assertion was a false negative (the

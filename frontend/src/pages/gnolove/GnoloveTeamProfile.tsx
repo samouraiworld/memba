@@ -9,9 +9,12 @@
 import { useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useGnoloveContributors, useGnoloveRepositories } from "../../hooks/gnolove"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TimeFilter, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 
 export default function GnoloveTeamProfile() {
+    const np = useNetworkPath()
     const { teamName } = useParams<{ teamName: string }>()
     const decodedName = teamName ? decodeURIComponent(teamName) : ""
     const team = TEAMS.find(t => t.name === decodedName)
@@ -39,7 +42,7 @@ export default function GnoloveTeamProfile() {
     if (!team) {
         return (
             <div className="gl-page">
-                <Link to="/gnolove/teams" className="gl-profile-back">&larr; Back to Teams</Link>
+                <Link to={np("gnolove/teams")} className="gl-profile-back">&larr; Back to Teams</Link>
                 <div className="gl-empty">Team not found: {decodedName}</div>
             </div>
         )
@@ -47,7 +50,8 @@ export default function GnoloveTeamProfile() {
 
     return (
         <div className="gl-page">
-            <Link to="/gnolove/teams" className="gl-profile-back">&larr; Back to Teams</Link>
+            <PageMeta title={`${team.name} | Gnolove · Memba`} description={team.description ?? `Team profile for ${team.name}.`} />
+            <Link to={np("gnolove/teams")} className="gl-profile-back">&larr; Back to Teams</Link>
 
             <div className="gl-team-profile-header" style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}>
                 <div>
@@ -116,7 +120,7 @@ export default function GnoloveTeamProfile() {
                         {teamMembers.map((user, i) => (
                             <Link
                                 key={user.id}
-                                to={`/gnolove/contributor/${user.login}`}
+                                to={np(`gnolove/contributor/${user.login}`)}
                                 className="gl-teams-member"
                             >
                                 <span className="gl-team-member-rank">#{i + 1}</span>
