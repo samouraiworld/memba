@@ -1273,6 +1273,59 @@
     padding: 16px;
 }
 
+/* Highlight flash for deep-linked AI report card. */
+.gl-panel--highlight {
+    animation: gl-panel-flash 2s ease-out;
+    box-shadow: 0 0 0 2px var(--color-primary, #a78bfa);
+}
+
+@keyframes gl-panel-flash {
+    0% { box-shadow: 0 0 0 4px var(--color-primary, #a78bfa); }
+    50% { box-shadow: 0 0 0 2px var(--color-primary, #a78bfa); }
+    100% { box-shadow: 0 0 0 1px transparent; }
+}
+
+/* Warning banner used by the report page (stale-repo / stale-team). */
+.gl-warning-banner {
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: var(--color-k-text, #f0f0f0);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+}
+
+/* Empty-state UX-2 actions/buttons. */
+.gl-empty__hint {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}
+.gl-empty__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.gl-empty__btn {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-k-text, #f0f0f0);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.gl-empty__btn:hover {
+    background: var(--color-surface-hover, rgba(255,255,255,0.04));
+}
+
 .gl-panel-header {
     display: flex;
     align-items: baseline;

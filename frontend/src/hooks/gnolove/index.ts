@@ -237,3 +237,4 @@ export function useGnoloveAIReports() {
 // ── URL state hooks (re-exports) [MF-31] ─────────────────
 
 export { useReportUrlState } from "./useReportUrlState"
+export { useHomeUrlState } from "./useHomeUrlState"
