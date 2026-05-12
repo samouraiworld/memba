@@ -9,6 +9,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
 const safeHex = (c: string) => /^[0-9a-fA-F]{3,8}$/.test(c) ? c : "888"
@@ -30,6 +31,7 @@ import type { SortKey } from "../../lib/gnoloveFilters"
 const PAGE_SIZE = 25
 
 export default function GnoloveHome() {
+    const np = useNetworkPath()
     // URL-bound filter state; ephemeral UI bits stay local.
     const [urlState, setUrlState] = useHomeUrlState()
     const { time: timeFilter, excludedTeams: excludedTeamsList, sortBy, sortDir, repos: selectedRepos, page } = urlState
@@ -230,13 +232,13 @@ export default function GnoloveHome() {
                 <div className="gl-section">
                     <div className="gl-section-header-row">
                         <h2 className="gl-section-title">Best Performing Teams</h2>
-                        <Link to="/gnolove/teams" className="gl-section-link">View all teams &rarr;</Link>
+                        <Link to={np("gnolove/teams")} className="gl-section-link">View all teams &rarr;</Link>
                     </div>
                     <div className="gl-team-compact-grid">
                         {teamStats.map((team, i) => (
                             <Link
                                 key={team.name}
-                                to={`/gnolove/teams/${encodeURIComponent(team.name)}`}
+                                to={np(`gnolove/teams/${encodeURIComponent(team.name)}`)}
                                 className="gl-team-compact-card"
                                 style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}
                             >
@@ -491,6 +493,7 @@ function SortHeader({ label, field, current, dir, onClick }: {
 }
 
 function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithStats; rank: number; loginToTeam: Map<string, Team> }) {
+    const np = useNetworkPath()
     const rankBadge = rank === 1 ? "\uD83E\uDD47" : rank === 2 ? "\uD83E\uDD48" : rank === 3 ? "\uD83E\uDD49" : `${rank}`
     const team = loginToTeam.get(user.login)
 
@@ -501,7 +504,7 @@ function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithSt
                 <div className="gl-contributor-cell">
                     <img src={user.avatarUrl} alt="" className="gl-avatar" loading="lazy" />
                     <div>
-                        <Link to={`/gnolove/contributor/${user.login}`} className="gl-contributor-name">
+                        <Link to={np(`gnolove/contributor/${user.login}`)} className="gl-contributor-name">
                             {user.name || user.login}
                         </Link>
                         <a
