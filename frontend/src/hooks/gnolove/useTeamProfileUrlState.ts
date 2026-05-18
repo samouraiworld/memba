@@ -20,7 +20,7 @@ import {
     type TeamHubPeriod,
 } from "../../lib/gnolovePeriod"
 
-const REPO_CHARSET = /^[A-Za-z0-9._\-]+\/[A-Za-z0-9._\-]+$/
+const REPO_CHARSET = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
 
 export interface TeamProfileUrlState {
     period: TeamHubPeriod
