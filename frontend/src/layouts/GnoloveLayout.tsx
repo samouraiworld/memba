@@ -20,7 +20,11 @@ import GnoloveSubNav from "../components/gnolove/GnoloveSubNav"
 import { SectionErrorBoundary } from "../components/gnolove/SectionErrorBoundary"
 import "../pages/gnolove/gnolove.css"
 
-const CACHE_KEY = "gnolove-cache-v1"
+// Bumped v1 → v2 in Phase 3 (2026-05) so the new `["gnolove", "teams"]`
+// queries don't get served from a v1 cache that doesn't know about them.
+// Plan R-6 mitigation. The old v1 entry stays orphaned in localStorage
+// until the user's next gc — harmless, not worth a one-shot cleanup.
+const CACHE_KEY = "gnolove-cache-v2"
 const CACHE_MAX_AGE = 24 * 60 * 60 * 1000 // 24h
 
 // ── Section Loader ───────────────────────────────────────────

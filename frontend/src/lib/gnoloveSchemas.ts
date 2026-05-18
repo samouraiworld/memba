@@ -391,3 +391,81 @@ export const ContributorsResponseSchema = z.object({
     lastSyncedAt: z.string().nullable().optional(),
 })
 export type TContributorsResponse = z.infer<typeof ContributorsResponseSchema>
+
+// ── Teams (Phase 3) ─────────────────────────────────────────────
+// Backed by gnolove/server/config/teams.yaml + Phase 1 endpoints.
+// color/members deliberately permissive — the backend already validates
+// at load-time, and we'd rather render an unknown future color than
+// blank the whole roster.
+
+export const TeamColorSchema = z.enum([
+    "blue", "yellow", "purple", "red", "green", "brown", "pink",
+])
+
+export const BackendTeamSchema = z.object({
+    slug: z.string(),
+    name: z.string(),
+    color: z.string(),       // narrow to TeamColorSchema at the consumer if you need the union
+    description: z.string().optional(),
+    members: z.array(z.string()).default([]),
+})
+export type TBackendTeam = z.infer<typeof BackendTeamSchema>
+
+export const TeamsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    teams: z.array(BackendTeamSchema),
+})
+export type TTeamsResponse = z.infer<typeof TeamsResponseSchema>
+
+export const TeamResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    team: BackendTeamSchema,
+})
+export type TTeamResponse = z.infer<typeof TeamResponseSchema>
+
+export const ActiveRepoSchema = z.object({
+    repoId: z.string(),
+    teamPRs: z.number(),
+    totalPRs: z.number(),
+    pctOfTeam: z.number(),
+    pctOfRepo: z.number(),
+})
+export type TActiveRepo = z.infer<typeof ActiveRepoSchema>
+
+export const ActiveReposResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    slug: z.string(),
+    period: z.string(),
+    primary: z.array(ActiveRepoSchema).default([]),
+    secondary: z.array(ActiveRepoSchema).default([]),
+})
+export type TActiveReposResponse = z.infer<typeof ActiveReposResponseSchema>
+
+export const TeamStatRowSchema = z.object({
+    repoId: z.string(),
+    authorId: z.string(),
+    login: z.string(),
+    mergedPRs: z.number(),
+})
+export type TTeamStatRow = z.infer<typeof TeamStatRowSchema>
+
+export const TeamStatsTotalsSchema = z.object({
+    mergedPRs: z.number(),
+    activeContributors: z.number(),
+    activeRepos: z.number(),
+})
+export type TTeamStatsTotals = z.infer<typeof TeamStatsTotalsSchema>
+
+export const TeamStatsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    slug: z.string(),
+    period: z.string(),
+    repos: z.array(z.string()).default([]),
+    stats: z.array(TeamStatRowSchema).default([]),
+    totals: TeamStatsTotalsSchema,
+})
+export type TTeamStatsResponse = z.infer<typeof TeamStatsResponseSchema>
