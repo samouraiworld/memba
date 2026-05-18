@@ -113,10 +113,13 @@ export function useGnoloveContributor(login: string) {
 // ── Shared 1-Year PR Report (single fetch for repo + monthly activity) ──
 
 /**
- * P1 fix: shared base query so useGnoloveRepoActivity and useGnoloveMonthlyActivity
+ * Shared base query so useGnoloveRepoActivity and useGnoloveMonthlyActivity
  * hit the same cache instead of independently fetching the same 1-year report.
+ *
+ * Exported as of 2026-05 so the team-hub rework can layer derived hooks
+ * (`useGnoloveTeamReportSlice`, etc.) on the same cached payload.
  */
-function useGnoloveYearReport() {
+export function useGnoloveYearReport() {
     return useQuery({
         queryKey: ["gnolove", "yearReport"],
         queryFn: async ({ signal }) => {
