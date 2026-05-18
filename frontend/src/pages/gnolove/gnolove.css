@@ -2802,3 +2802,50 @@
     color: var(--color-primary);
     border-color: var(--color-primary);
 }
+
+/* ── Focus Areas pills ────────────────────────── */
+
+.gl-thub-card-hint {
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    margin: -4px 0 12px;
+}
+
+.gl-thub-pills {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gl-thub-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--gl-color-skill-tag-bg, var(--color-surface));
+    color: var(--color-text);
+    font-size: 12px;
+}
+
+.gl-thub-pill-label {
+    font-weight: 500;
+}
+
+.gl-thub-pill-count {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-pill-share {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}

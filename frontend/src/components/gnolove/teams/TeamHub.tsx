@@ -24,6 +24,7 @@ import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
 import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
 import { TeamHubRecentActivityCard } from "./TeamHubRecentActivityCard"
 import { TeamHubAIReportsCard } from "./TeamHubAIReportsCard"
+import { TeamHubFocusAreasCard } from "./TeamHubFocusAreasCard"
 import { periodToBackendParam } from "../../../lib/gnolovePeriod"
 import type { Team } from "../../../lib/gnoloveConstants"
 
@@ -95,6 +96,10 @@ export function TeamHub() {
                 />
             </CardErrorBoundary>
 
+            <CardErrorBoundary name="Focus areas">
+                <TeamHubFocusAreasCard team={team} period={period} />
+            </CardErrorBoundary>
+
             <CardErrorBoundary name="Recent activity">
                 <TeamHubRecentActivityCard team={team} period={period} />
             </CardErrorBoundary>
@@ -102,8 +107,6 @@ export function TeamHub() {
             <CardErrorBoundary name="AI weekly report">
                 <TeamHubAIReportsCard team={team} />
             </CardErrorBoundary>
-
-            {/* Phase 4 Commit 4 adds the Focus Areas pills card here. */}
         </div>
     )
 }
