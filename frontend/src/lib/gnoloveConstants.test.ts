@@ -55,6 +55,38 @@ describe("TEAMS", () => {
     })
 })
 
+describe("TEAMS invariants (lock in)", () => {
+    // These tests catch silent drift when the Onbloc/AmozPay-style roster
+    // expansion lands. Without them, last-write-wins in loginToTeam.set()
+    // (GnoloveHome.tsx) would silently misattribute contributors.
+
+    it("contains no duplicate member logins across teams (case-insensitive)", () => {
+        const all = TEAMS.flatMap(t => t.members.map(m => m.toLowerCase()))
+        const dupes = all.filter((m, i) => all.indexOf(m) !== i)
+        expect(dupes).toEqual([])
+    })
+
+    it("uses only documented team colors", () => {
+        const allowed = new Set(["blue", "yellow", "purple", "red", "green", "brown", "pink"])
+        for (const team of TEAMS) {
+            expect(allowed.has(team.color)).toBe(true)
+        }
+    })
+
+    it("rejects whitespace-only or empty member logins", () => {
+        for (const team of TEAMS) {
+            for (const member of team.members) {
+                expect(member.trim().length).toBeGreaterThan(0)
+            }
+        }
+    })
+
+    it("uses unique team names", () => {
+        const names = TEAMS.map(t => t.name)
+        expect(new Set(names).size).toBe(names.length)
+    })
+})
+
 describe("TEAM_CSS_COLORS", () => {
     it("maps all team colors", () => {
         for (const team of TEAMS) {

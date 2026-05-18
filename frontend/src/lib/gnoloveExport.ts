@@ -1,11 +1,12 @@
 /**
- * gnoloveExport — CSV and Markdown export utilities for the weekly report.
+ * gnoloveExport — CSV, Markdown, and PDF export utilities for the weekly report.
+ *
+ * jsPDF + jspdf-autotable are loaded dynamically inside exportToPDF so they
+ * don't enter the lazy gnolove chunk's first-paint graph (~85 KB gz saved).
  *
  * @module lib/gnoloveExport
  */
 
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
 import type { TPullRequest } from "./gnoloveSchemas"
 
 /** Prevent CSV formula injection — prefix dangerous first characters with a tab. */
@@ -60,7 +61,12 @@ export function exportToMarkdown(prs: TPullRequest[], tab: string, weekLabel: st
     downloadFile(generateMarkdown(prs, tab, weekLabel), `gnolove-report-${tab}-${weekLabel}.md`, "text/markdown")
 }
 
-export function exportToPDF(prs: TPullRequest[], tab: string, weekLabel: string): void {
+export async function exportToPDF(prs: TPullRequest[], tab: string, weekLabel: string): Promise<void> {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+    ])
+
     const tabLabel = tab.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
     const doc = new jsPDF()
     doc.setFontSize(14)

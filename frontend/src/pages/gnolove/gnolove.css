@@ -1,10 +1,65 @@
 /* ══════════════════════════════════════════════
-   GNOLOVE SECTION (v2.19.0)
+   GNOLOVE SECTION
    Scoreboard, Reports, Analytics
-   
+
    All classes prefixed gl- to avoid collision
    with k- (Memba core)
    ══════════════════════════════════════════════ */
+
+/* ── Design-system tokens ─────────────────────
+   Section-scoped tokens for state colours, chart
+   series, and the heatmap intensity ramp. Consumers
+   land in the team-hub rework (Phase 4-6). New
+   components MUST reference these, not hex literals.
+   ─────────────────────────────────────────────── */
+
+:root {
+    /* PR-state colours (consumed by gl-pr-state--* and Phase 4 cards) */
+    --gl-color-state-merged: #a855f7;
+    --gl-color-state-merged-bg: rgba(168, 85, 247, 0.12);
+    --gl-color-state-open: #22c55e;
+    --gl-color-state-open-bg: rgba(34, 197, 94, 0.12);
+    --gl-color-state-closed: var(--color-k-danger, #ef4444);
+    --gl-color-state-blocked: var(--color-k-danger, #ef4444);
+    --gl-color-state-waiting: #ffc107;
+    --gl-color-state-waiting-bg: rgba(255, 193, 7, 0.12);
+
+    /* Recharts axis / tooltip palette (consumed by Phase 6 analytics rework) */
+    --gl-color-chart-bg: #12121e;
+    --gl-color-chart-grid: rgba(255, 255, 255, 0.04);
+    --gl-color-chart-axis-fg: #666;
+    --gl-color-chart-series-primary: #00d4aa;
+    --gl-color-chart-series-reviewed: #a855f7;
+    --gl-color-chart-series-open: #4a9eff;
+    --gl-color-chart-series-issues: #ffc107;
+    --gl-color-chart-series-danger: #ef4444;
+
+    /* Heatmap intensity ramp (consumed by ContributionHeatmap + Phase 4-6 Heatmap primitive) */
+    --gl-color-heatmap-l0: rgba(255, 255, 255, 0.03);
+    --gl-color-heatmap-l1: rgba(0, 212, 170, 0.15);
+    --gl-color-heatmap-l2: rgba(0, 212, 170, 0.35);
+    --gl-color-heatmap-l3: rgba(0, 212, 170, 0.6);
+    --gl-color-heatmap-l4: #00d4aa;
+
+    /* Skill / Focus Area tag pills (Phase 4) */
+    --gl-color-skill-tag-bg: var(--color-surface);
+    --gl-color-skill-tag-fg: var(--color-k-dim, #888);
+    --gl-color-skill-tag-border: var(--color-border);
+
+    /* AI report project name accent (Phase 5) */
+    --gl-color-ai-report-project-fg: #a78bfa;
+
+    /* Per-team colour CSS variable — set inline on team cards via
+       `style={{ '--gl-team-color': TEAM_CSS_COLORS[team.color] }}` */
+    --gl-team-color: currentColor;
+}
+
+[data-theme="light"] {
+    --gl-color-chart-bg: #ffffff;
+    --gl-color-chart-grid: rgba(0, 0, 0, 0.06);
+    --gl-color-chart-axis-fg: #555;
+    --gl-color-heatmap-l0: rgba(0, 0, 0, 0.04);
+}
 
 /* ── Layout ──────────────────────────────────── */
 
@@ -736,20 +791,8 @@
     border-radius: 12px;
 }
 
-.gl-error-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px solid rgba(220, 38, 38, 0.25);
-    border-radius: 10px;
-    color: #dc2626;
-    font-size: 13px;
-    font-family: "JetBrains Mono", monospace;
-    margin-bottom: 12px;
-}
+/* gl-error-banner now defined once below (search "Error Banner");
+   the duplicate that lived here lost the cascade anyway. */
 
 /* ── Screen Reader Only ─────────────────────── */
 
