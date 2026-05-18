@@ -2849,3 +2849,148 @@
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
 }
+
+/* ── AI Report Card (Phase 5) ──────────────────── */
+
+.gl-aircard {
+    margin-bottom: 16px;
+}
+
+.gl-aircard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gl-aircard-actions {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.gl-aircard-actions .gl-export-btn {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+.gl-aircard-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0;
+}
+
+.gl-aircard-project {
+    padding: 0 16px;
+}
+
+.gl-aircard-project-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.gl-aircard-project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gl-color-ai-report-project-fg, #a78bfa);
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-aircard-project-team {
+    text-transform: lowercase;
+    font-size: 10px;
+}
+
+.gl-aircard-project-summary {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px;
+    white-space: pre-wrap;
+}
+
+.gl-aircard-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+}
+
+.gl-aircard-toggle:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* ── Mobile bottom sheet ──────────────────────── */
+
+.gl-aircard-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1000;
+    animation: gl-aircard-fade 150ms ease-out;
+}
+
+.gl-aircard-sheet {
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 16px 20px 24px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    animation: gl-aircard-slide 200ms ease-out;
+}
+
+.gl-aircard-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-aircard-sheet-close {
+    background: none;
+    border: 0;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px 12px;
+}
+
+.gl-aircard-sheet-close:hover {
+    color: var(--color-text);
+}
+
+.gl-aircard-sheet-body {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--color-text);
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+@keyframes gl-aircard-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes gl-aircard-slide {
+    from { transform: translateY(20%); }
+    to   { transform: translateY(0); }
+}
