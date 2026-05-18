@@ -44,3 +44,20 @@ export function parseTeamHubPeriod(raw: string | null | undefined): TeamHubPerio
     if (!raw) return DEFAULT_TEAM_HUB_PERIOD
     return isTeamHubPeriod(raw) ? raw : DEFAULT_TEAM_HUB_PERIOD
 }
+
+/**
+ * Convert a period into the cutoff date (everything strictly after this
+ * timestamp counts as "in period"). Returns null for "all", which means
+ * "no lower bound" to client-side filters.
+ */
+export function periodToCutoff(period: TeamHubPeriod, now: Date = new Date()): Date | null {
+    const d = new Date(now)
+    switch (period) {
+        case "daily":   d.setUTCDate(d.getUTCDate() - 1); return d
+        case "weekly":  d.setUTCDate(d.getUTCDate() - 7); return d
+        case "monthly": d.setUTCMonth(d.getUTCMonth() - 1); return d
+        case "yearly":  d.setUTCFullYear(d.getUTCFullYear() - 1); return d
+        case "all":
+        default:        return null
+    }
+}

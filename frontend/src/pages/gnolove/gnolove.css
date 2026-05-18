@@ -2692,3 +2692,113 @@
 .gl-thub-active-repo-primary .gl-thub-active-repo-count {
     color: var(--gl-color-state-merged, #a855f7);
 }
+
+/* ── Recent activity card ─────────────────────── */
+
+.gl-thub-activity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-activity-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.gl-thub-activity-title {
+    color: var(--color-text);
+    font-size: 13px;
+    text-decoration: none;
+    line-height: 1.4;
+}
+
+.gl-thub-activity-title:hover {
+    color: var(--color-primary);
+}
+
+.gl-thub-activity-meta {
+    display: inline-flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-thub-activity-author {
+    color: var(--gl-color-state-merged, #a855f7);
+}
+
+/* ── AI weekly report card ────────────────────── */
+
+.gl-thub-ai-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.gl-thub-ai-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.gl-thub-ai-project {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.gl-thub-ai-project-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.gl-thub-ai-project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gl-color-ai-report-project-fg, #a78bfa);
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-thub-ai-project-team {
+    text-transform: lowercase;
+    font-size: 10px;
+}
+
+.gl-thub-ai-project-summary {
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 8px;
+    color: var(--color-text);
+}
+
+.gl-thub-ai-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+}
+
+.gl-thub-ai-toggle:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}

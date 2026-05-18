@@ -22,6 +22,8 @@ import { CardErrorBoundary } from "./CardErrorBoundary"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
 import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
+import { TeamHubRecentActivityCard } from "./TeamHubRecentActivityCard"
+import { TeamHubAIReportsCard } from "./TeamHubAIReportsCard"
 import { periodToBackendParam } from "../../../lib/gnolovePeriod"
 import type { Team } from "../../../lib/gnoloveConstants"
 
@@ -93,12 +95,15 @@ export function TeamHub() {
                 />
             </CardErrorBoundary>
 
-            {/* Phase 4 Commits 3-4 fill the remaining three cards:
-                  - TeamHubRecentActivityCard
-                  - TeamHubFocusAreasCard
-                  - TeamHubAIReportsCard
-                The page already renders the foundation cards as soon as the
-                backend responds, so the hub is useful before those land. */}
+            <CardErrorBoundary name="Recent activity">
+                <TeamHubRecentActivityCard team={team} period={period} />
+            </CardErrorBoundary>
+
+            <CardErrorBoundary name="AI weekly report">
+                <TeamHubAIReportsCard team={team} />
+            </CardErrorBoundary>
+
+            {/* Phase 4 Commit 4 adds the Focus Areas pills card here. */}
         </div>
     )
 }
