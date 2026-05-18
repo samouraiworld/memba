@@ -48,7 +48,7 @@ Today the section's information architecture is inverted: `GnoloveHome` carries 
 
 | # | Phase | Days | Repo | Key deliverables |
 |--:|---|---:|---|---|
-| 0 | Foundation | 2.0 | Memba | jsPDF lazy import; `useGnoloveYearReport` exported; design-system token additions; TEAMS uniqueness vitest; MSW + fast-check + `@axe-core/playwright` deps; CI bundle-budget + cross-repo smoke script; `VITE_GNOLOVE_*` flags wired through `deploy-frontend.yml`; `_kitchen-sink` dev route |
+| 0 | Foundation | 2.0 | Memba | jsPDF lazy import; `useGnoloveYearReport` exported; DS token additions; TEAMS uniqueness vitest; `SectionErrorBoundary` extracted; MSW + fast-check + `@axe-core/playwright` deps installed. **Deferred to land with consumers:** kitchen-sink dev route → Phase 4 (needs real components to display); cross-repo CI smoke → Phase 1 (needs endpoints to probe); bundle-budget enforcement → Phase 4 (needs team-hub chunk); flag wiring through `deploy-frontend.yml` → Phase 4 (first phase that defines `VITE_GNOLOVE_TEAM_HUB`). |
 | 1 | Backend: teams + AI v2 | 2.5 | gnolove | `teams.yaml` + `GET /teams,:slug,:slug/active-repos,/team-stats`; AI prompt v2 with `summary_short/_long` + `team` + `prompt_version`; on-demand `/ai/report/regenerate` (Sunday cron fallback) |
 | 2a | Backend: sync hardening | 1.0 | gnolove | Sharded workers; incremental `syncUserDetails`; per-repo backoff; N=4 SQLite contention benchmark |
 | 2b | Backend: repo expansion | 1.0 | infra_gnolove | Curated `~50-repo` allowlist deployed via Ansible; backfill window observed |
