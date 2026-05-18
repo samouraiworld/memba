@@ -42,16 +42,35 @@ describe("TEAMS", () => {
         expect(sam!.members).not.toContain("Davphla")
     })
 
-    it("Samourai.world includes zxxma, clegirar, omniwired", () => {
+    it("Samourai.world includes zxxma, clegirar, omniwired, AmozPay", () => {
         const sam = TEAMS.find(t => t.name === "Samourai.world")
         expect(sam!.members).toContain("zxxma")
         expect(sam!.members).toContain("clegirar")
         expect(sam!.members).toContain("omniwired")
+        // AmozPay was added in Phase 1 via the backend teams.yaml; mirrored
+        // into the seed here in Phase 3.
+        expect(sam!.members).toContain("AmozPay")
     })
 
-    it("Onbloc includes dongonw8247", () => {
+    it("Onbloc roster matches the Phase 1 backend fixes", () => {
         const onbloc = TEAMS.find(t => t.name === "Onbloc")
-        expect(onbloc!.members).toContain("dongonw8247")
+        // Typo fix: dongonw8247 → dongwon8247.
+        expect(onbloc!.members).toContain("dongwon8247")
+        expect(onbloc!.members).not.toContain("dongonw8247")
+        // New members from the operator brief.
+        for (const m of ["aronpark1007", "HeesungB", "junghoon-vans", "gihun508443"]) {
+            expect(onbloc!.members).toContain(m)
+        }
+    })
+
+    it("every team has a slug matching the backend teams.yaml", () => {
+        const slugs = TEAMS.map(t => t.slug)
+        expect(new Set(slugs).size).toBe(slugs.length)
+        for (const team of TEAMS) {
+            expect(team.slug).toBeTruthy()
+            expect(team.slug).toBe(team.slug.toLowerCase())
+            expect(team.slug.trim()).toBe(team.slug)
+        }
     })
 })
 

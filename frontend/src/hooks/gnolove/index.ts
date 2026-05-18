@@ -241,3 +241,14 @@ export function useGnoloveAIReports() {
 
 export { useReportUrlState } from "./useReportUrlState"
 export { useHomeUrlState } from "./useHomeUrlState"
+
+// ── Teams (Phase 3) ──────────────────────────────────────
+
+export {
+    useGnoloveTeams,
+    useGnoloveTeam,
+    useGnoloveTeamActiveRepos,
+    useGnoloveTeamStats,
+    backendTeamToFrontend,
+} from "./useGnoloveTeams"
+export type { UseGnoloveTeamsResult } from "./useGnoloveTeams"
