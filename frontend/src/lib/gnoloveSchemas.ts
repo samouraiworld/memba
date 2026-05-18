@@ -365,19 +365,38 @@ export const ScoreFactorsSchema = z.object({
 export type TScoreFactors = z.infer<typeof ScoreFactorsSchema>
 
 // ── AI Reports ─────────────────────────────────────────────────
+//
+// Prompt v1 emits {project_name, summary}.
+// Prompt v2 (gnolove backend Phase 1) adds summary_short, summary_long,
+// and an optional team slug. The backend writes `summary = summary_long`
+// for one rollover cycle so v1-only readers don't blank during the
+// transition. All three new fields are .optional() here — never throw
+// when the backend is still on v1.
+//
+// IMPORTANT (plan R-8): callers coalescing short→long→legacy must use
+// `||` (or an explicit empty-string guard), NOT `??`. An empty string
+// for summary_short is a real failure mode and `??` would render a
+// blank card.
 
 export const AIReportProjectSchema = z.object({
     project_name: z.string(),
     summary: z.string(),
+    summary_short: z.string().optional(),
+    summary_long: z.string().optional(),
+    team: z.string().optional(),
 })
+export type TAIReportProject = z.infer<typeof AIReportProjectSchema>
 
 export const AIReportDataSchema = z.object({
     projects: z.array(AIReportProjectSchema).default([]),
+    cycle: z.string().optional(),
 }).passthrough()
 
 export const AIReportSchema = z.object({
     id: z.string(),
     createdAt: z.string(),
+    /** Server-emitted prompt version. v1 rows backfilled to 1 at startup. */
+    promptVersion: z.number().optional(),
     data: AIReportDataSchema,
 })
 export type TAIReport = z.infer<typeof AIReportSchema>
