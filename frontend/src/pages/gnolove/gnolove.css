@@ -2459,3 +2459,236 @@
     border-bottom: 1px solid var(--color-border);
     margin-bottom: 16px;
 }
+
+/* ── Team Hub (Phase 4) ────────────────────────── */
+
+.gl-thub-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gl-thub-header {
+    border-left: 4px solid var(--gl-team-color, var(--color-primary));
+    padding: 16px 20px;
+    background: var(--color-surface);
+    border-radius: 8px;
+}
+
+.gl-thub-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.gl-thub-header-chips {
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gl-thub-chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-k-dim, #888);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-thub-chip-network {
+    background: var(--gl-color-state-waiting-bg, rgba(255, 193, 7, 0.12));
+    border-color: var(--gl-color-state-waiting, #ffc107);
+    color: var(--gl-color-state-waiting, #ffc107);
+}
+
+.gl-thub-header-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.gl-thub-period {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.gl-thub-period-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-period-select {
+    padding: 6px 10px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+/* ── Cards ─────────────────────────────────────── */
+
+.gl-thub-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px 20px;
+}
+
+.gl-thub-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-secondary);
+    margin: 0 0 12px;
+}
+
+.gl-thub-card-error {
+    border-color: var(--gl-color-state-blocked, #ef4444);
+}
+
+.gl-thub-card-error-msg {
+    color: var(--color-k-dim, #888);
+    font-size: 14px;
+    margin: 0;
+}
+
+.gl-thub-skel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-empty {
+    color: var(--color-k-dim, #888);
+    font-size: 14px;
+    font-style: italic;
+    margin: 8px 0 0;
+}
+
+/* ── Metrics ───────────────────────────────────── */
+
+.gl-thub-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.gl-thub-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+}
+
+.gl-thub-metric-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.gl-thub-metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-metric-skel {
+    background: transparent;
+}
+
+.gl-skeleton-line {
+    height: 12px;
+    border-radius: 4px;
+}
+
+.gl-skeleton-line-sm {
+    height: 8px;
+    width: 60%;
+}
+
+/* ── Active repos ──────────────────────────────── */
+
+.gl-thub-active-bucket + .gl-thub-active-bucket {
+    margin-top: 16px;
+}
+
+.gl-thub-active-bucket-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text);
+    margin: 0 0 4px;
+}
+
+.gl-thub-active-bucket-hint {
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    margin: 0 0 8px;
+}
+
+.gl-thub-active-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gl-thub-active-repo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.gl-thub-active-repo:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gl-thub-active-repo-owner {
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-active-repo-count {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--color-text);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.gl-thub-active-repo-of {
+    color: var(--color-k-dim, #888);
+    margin-left: 4px;
+}
+
+.gl-thub-active-repo-primary .gl-thub-active-repo-count {
+    color: var(--gl-color-state-merged, #a855f7);
+}
