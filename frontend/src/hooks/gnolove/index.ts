@@ -252,3 +252,10 @@ export {
     backendTeamToFrontend,
 } from "./useGnoloveTeams"
 export type { UseGnoloveTeamsResult } from "./useGnoloveTeams"
+
+// ── Team Hub (Phase 4) ───────────────────────────────────
+
+export { useGnoloveBackendHealth } from "./useGnoloveBackendHealth"
+export type { BackendHealth } from "./useGnoloveBackendHealth"
+export { useTeamProfileUrlState } from "./useTeamProfileUrlState"
+export type { TeamProfileUrlState } from "./useTeamProfileUrlState"
