@@ -2985,6 +2985,141 @@
     }
 }
 
+/* ── Cohort retention grid (Plan §2, panel 4) ──────────── */
+
+.gl-cohort-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+}
+
+.gl-cohort-grid-row {
+    display: grid;
+    grid-template-columns: 80px 50px repeat(auto-fill, minmax(34px, 1fr));
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-cohort-grid-head .gl-cohort-grid-label,
+.gl-cohort-grid-head .gl-cohort-grid-size,
+.gl-cohort-grid-head .gl-cohort-grid-offset {
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-cohort-grid-label {
+    padding: 4px 6px;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.gl-cohort-grid-size {
+    padding: 4px 6px;
+    color: var(--color-text-secondary);
+    text-align: right;
+}
+
+.gl-cohort-grid-offset {
+    text-align: center;
+}
+
+.gl-cohort-grid-cell {
+    padding: 4px 0;
+    text-align: center;
+    border-radius: 3px;
+    color: var(--color-text);
+}
+
+.gl-cohort-grid-cell-empty {
+    background: transparent;
+    color: transparent;
+}
+
+/* ── Cross-team collab matrix (Plan §2, panel 5) ───────── */
+
+.gl-collab-matrix {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+}
+
+.gl-collab-matrix-row {
+    display: grid;
+    grid-template-columns: 140px repeat(auto-fit, minmax(60px, 1fr));
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-collab-matrix-corner {
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    padding: 4px 6px;
+    font-style: italic;
+}
+
+.gl-collab-matrix-col {
+    font-size: 10px;
+    color: var(--color-text);
+    padding: 4px 6px 4px;
+    text-align: center;
+    border-top: 3px solid transparent; /* team accent color set inline */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-collab-matrix-row-label {
+    padding: 4px 8px;
+    color: var(--color-text);
+    text-align: right;
+    border-left: 3px solid transparent; /* team accent color set inline */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-collab-matrix-cell {
+    padding: 6px 0;
+    text-align: center;
+    border-radius: 3px;
+    color: var(--color-text);
+}
+
+.gl-collab-matrix-diag {
+    outline: 1px dashed rgba(255, 255, 255, 0.10);
+    outline-offset: -2px;
+}
+
+.gl-panel-footnote {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    margin-top: 8px;
+    padding: 4px 6px;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .gl-cohort-grid-row {
+        grid-template-columns: 64px 40px repeat(auto-fill, minmax(26px, 1fr));
+        font-size: 10px;
+    }
+    .gl-collab-matrix-row {
+        grid-template-columns: 92px repeat(auto-fit, minmax(40px, 1fr));
+        font-size: 10px;
+    }
+}
+
 /* ── AI report project deep-link highlight (Plan §2) ─────── */
 
 .gl-aircard-project--highlight {

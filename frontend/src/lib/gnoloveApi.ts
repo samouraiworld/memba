@@ -32,6 +32,8 @@ import {
     ActiveReposResponseSchema,
     TeamStatsResponseSchema,
     TopicsResponseSchema,
+    CohortsResponseSchema,
+    TeamCollabResponseSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
@@ -53,6 +55,8 @@ import type {
     TActiveReposResponse,
     TTeamStatsResponse,
     TTopicsResponse,
+    TCohortsResponse,
+    TTeamCollabResponse,
 } from "./gnoloveSchemas"
 import { z } from "zod"
 import { TimeFilter } from "./gnoloveConstants"
@@ -396,6 +400,38 @@ export async function getTopics(signal?: AbortSignal): Promise<TTopicsResponse |
         return TopicsResponseSchema.parse(data)
     } catch (err) {
         console.error("[Gnolove] getTopics failed:", err)
+        return null
+    }
+}
+
+// ── Analytics (v6.2.2 — panels 4 & 5) ──────────────────────────
+
+/**
+ * Fetch the contributor-cohort retention table.
+ * Backend caches 5 min; no query params today.
+ */
+export async function getContributorCohorts(signal?: AbortSignal): Promise<TCohortsResponse | null> {
+    try {
+        const data = await fetchJson(apiUrl("/contributors/cohorts"), signal)
+        return CohortsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getContributorCohorts failed:", err)
+        return null
+    }
+}
+
+/**
+ * Fetch the cross-team review matrix. `?time=` accepts the same
+ * `daily|weekly|monthly|yearly|""` values as the team-stats endpoint.
+ */
+export async function getTeamCollab(period: string = "", signal?: AbortSignal): Promise<TTeamCollabResponse | null> {
+    try {
+        const url = new URL("/team-collab", GNOLOVE_API_URL)
+        if (period) url.searchParams.set("time", period)
+        const data = await fetchJson(url.toString(), signal)
+        return TeamCollabResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeamCollab failed:", err)
         return null
     }
 }
