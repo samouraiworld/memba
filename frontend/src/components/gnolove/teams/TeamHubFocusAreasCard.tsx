@@ -2,19 +2,21 @@
  * TeamHubFocusAreasCard — top-5 expertise pills for the team.
  *
  * Operator decision Q-5: pills v1, not a matrix and not a force graph.
- * Built from merged-PR signals (repo name + title) matched against a
- * local taxonomy. Phase 2c will migrate the regex bag to the server
- * (gnolove/server/config/topics.yaml) so the client doesn't drift.
+ * Built from merged-PR signals (repo name + title) matched against the
+ * taxonomy. Phase 2c migrated the rule bag to the gnolove backend
+ * (`config/topics.yaml`); this card now consumes the seed-union via
+ * {@link useGnoloveTopics}, falling back to the build-time copy when
+ * the backend hasn't responded.
  *
  * @module components/gnolove/teams/TeamHubFocusAreasCard
  */
 
 import { useMemo } from "react"
-import { useGnoloveYearReport } from "../../../hooks/gnolove"
+import { useGnoloveYearReport, useGnoloveTopics } from "../../../hooks/gnolove"
 import type { TPullRequest } from "../../../lib/gnoloveSchemas"
 import type { Team } from "../../../lib/gnoloveConstants"
 import { periodToCutoff, type TeamHubPeriod } from "../../../lib/gnolovePeriod"
-import { computeFocusAreas, FOCUS_TOPIC_LABELS } from "../../../lib/gnoloveFocusAreas"
+import { computeFocusAreas } from "../../../lib/gnoloveFocusAreas"
 
 interface Props {
     team: Team
@@ -32,6 +34,7 @@ function repoFromUrl(url: string): string {
 
 export function TeamHubFocusAreasCard({ team, period }: Props) {
     const { data: report, isLoading } = useGnoloveYearReport()
+    const { rules, labels } = useGnoloveTopics()
 
     const pills = useMemo(() => {
         if (!report?.merged) return []
@@ -46,8 +49,8 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
                 return new Date(pr.mergedAt).getTime() >= cutoff.getTime()
             })
             .map(pr => ({ repo: repoFromUrl(pr.url), title: pr.title }))
-        return computeFocusAreas(signals)
-    }, [report, team.members, period])
+        return computeFocusAreas(signals, rules)
+    }, [report, team.members, period, rules])
 
     if (isLoading && !report) {
         return (
@@ -73,7 +76,7 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
                 <ul className="gl-thub-pills">
                     {pills.map(p => (
                         <li key={p.topic} className="gl-thub-pill">
-                            <span className="gl-thub-pill-label">{FOCUS_TOPIC_LABELS[p.topic]}</span>
+                            <span className="gl-thub-pill-label">{labels[p.topic] ?? p.topic}</span>
                             <span className="gl-thub-pill-count">{p.count}</span>
                             <span className="gl-thub-pill-share">{Math.round(p.share * 100)}%</span>
                         </li>

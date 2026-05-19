@@ -259,3 +259,8 @@ export { useGnoloveBackendHealth } from "./useGnoloveBackendHealth"
 export type { BackendHealth } from "./useGnoloveBackendHealth"
 export { useTeamProfileUrlState } from "./useTeamProfileUrlState"
 export type { TeamProfileUrlState } from "./useTeamProfileUrlState"
+
+// ── Topics (Phase 2c) ────────────────────────────────────
+
+export { useGnoloveTopics } from "./useGnoloveTopics"
+export type { UseGnoloveTopicsResult } from "./useGnoloveTopics"

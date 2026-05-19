@@ -31,6 +31,7 @@ import {
     TeamResponseSchema,
     ActiveReposResponseSchema,
     TeamStatsResponseSchema,
+    TopicsResponseSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
@@ -51,6 +52,7 @@ import type {
     TTeamResponse,
     TActiveReposResponse,
     TTeamStatsResponse,
+    TTopicsResponse,
 } from "./gnoloveSchemas"
 import { z } from "zod"
 import { TimeFilter } from "./gnoloveConstants"
@@ -377,6 +379,23 @@ export async function getTeamActiveRepos(
         return ActiveReposResponseSchema.parse(data)
     } catch (err) {
         console.error("[Gnolove] getTeamActiveRepos failed:", err)
+        return null
+    }
+}
+
+// ── Topics (Phase 2c) ───────────────────────────────────────────
+
+/**
+ * Fetch the Focus Areas taxonomy from the backend
+ * (gnolove `config/topics.yaml`). Returns null on failure so callers
+ * can fall back to the seed taxonomy.
+ */
+export async function getTopics(signal?: AbortSignal): Promise<TTopicsResponse | null> {
+    try {
+        const data = await fetchJson(apiUrl("/topics"), signal)
+        return TopicsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTopics failed:", err)
         return null
     }
 }
