@@ -61,25 +61,31 @@ Today the section's information architecture is inverted: `GnoloveHome` carries 
 
 **+1.5 days buffer** booked at phase boundaries (end of 4, end of 6, post-7) — not absorbed slack.
 
-## 4.1 Phase status snapshot (updated 2026-05-19)
+## 4.1 Phase status snapshot (updated 2026-05-20)
 
-| # | Phase (original wording) | Status | PRs / notes |
+| # | Phase | Status | PRs / notes |
 |--:|---|---|---|
 | 0 | Foundation | ✅ shipped | memba#337 |
-| 1 | Backend: teams + AI v2 + /team-stats | ✅ shipped + deployed + prod-smoked | gnolove#220 |
+| 1 | Backend: teams + AI v2 + /team-stats | ✅ shipped + deployed | gnolove#220 |
 | 2a | Backend: sync hardening | ✅ shipped + deployed | gnolove#221 |
-| 2b | Backend: curated ~50-repo expansion (`infra_gnolove`) | ⏳ deferred (operator: no canary needed; revisit when Mistral context budget pressure justifies) | — |
-| 2c | **NEW** — Focus Areas regex bag → server-side `topics.yaml` + `GET /topics` | ✅ shipped 2026-05-19 | gnolove#222, memba#342 |
-| 3 | Memba: TEAMS migration | ✅ shipped | memba#338 |
-| 4 | Memba: Team Hub MVP | ✅ shipped (behind `VITE_GNOLOVE_TEAM_HUB`) | memba#339 |
+| 2b | Backend: curated ~50-repo expansion (`infra_gnolove`) | ⏸ deferred (revisit only if Mistral context budget gets tight) | — |
+| 2c | Focus Areas → server-side `topics.yaml` + `GET /topics` | ✅ shipped + deployed 2026-05-19 | gnolove#222, memba#342 |
+| 3 | Memba: TEAMS migration (seed-union) | ✅ shipped | memba#338 |
+| 4 | Memba: Team Hub MVP (6 cards behind flag) | ✅ shipped | memba#339 |
 | 5 | Memba: AI short/long card | ✅ shipped | memba#340 |
-| 5.5 | **NEW** — CORS glob for `*.netlify.app` previews | ❌ dropped 2026-05-19 (operator: prod-only testing for this release) | — |
-| 6 (orig) | Memba: Analytics rework | ⏸ deferred — not on the current roadmap | — |
-| 6 (operator redef.) | Canary smoke (Playwright) + `useGnoloveBackendHealth` integration | ⏳ pending — unblocks 2026-05-20 after 24h prod soak | flag flipped 2026-05-19 |
-| 7 (orig) | UX polish + a11y (empty states, skeleton fidelity, tabs, focus mgmt, motion gating, `var(--font-mono)`) | 🟡 audited 2026-05-19 — items may land as a v6.2.x patch alongside or after the operator's Phase 6 | — |
-| 7 (operator redef.) | Drop `GnoloveTeamProfileLegacy` + the flag once Phase 6 signs off | ⏳ pending — gated on Phase 6 | — |
+| 5.5 | CORS glob for `*.netlify.app` previews | ❌ dropped 2026-05-19 (operator: prod-only testing) | — |
+| **v6.2.1** | Original Phase 7 — UX polish + a11y (tablist, skeleton fidelity, mobile, motion, --gl-font-mono, error states, deep-link anchor) | ✅ shipped 2026-05-19 | memba#343 |
+| **v6.2.2** | Full `/gnolove` audit fixes (P0+P1) + Home/Analytics period URL state + **3 of 5 plan §2 analytics panels** (PR cycle time, topic heatmap, repo health matrix) + On-Chain Metrics tile removed + GnoloveTeams slimmed + auto-degrade banner + dual-threshold % surfaced | ✅ shipped 2026-05-19 | memba#344 |
+| **v6.2.3 (backend)** | `GET /contributors/cohorts` + `GET /team-collab` (uses existing `Review` table + PR `created_at` — no migration) | ✅ shipped + deployed 2026-05-19 | gnolove#223 |
+| **v6.2.3 (frontend)** | **Remaining 2 of 5 plan §2 analytics panels** — contributor cohort retention + cross-team collab matrix | ✅ shipped 2026-05-19 | memba#345 |
+| **6** | Playwright canary (team hub + 5 analytics panels + network chip honesty) + dev/CI flag parity via `.env.development` | ✅ shipped 2026-05-19 | memba#346 |
+| **7** | Drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag | ⏳ **pending** — gated on 3+ days of clean hub uptime; don't open before 2026-05-23 | — |
 
-**Flag state (production, 2026-05-19):** `VITE_GNOLOVE_TEAM_HUB=true` on Netlify. Team hub is live to users. The legacy stub renders only as the auto-degrade target when `useGnoloveBackendHealth` reports the backend unhealthy.
+**Flag state (production, 2026-05-20):** `VITE_GNOLOVE_TEAM_HUB=true` on Netlify since 2026-05-19. Team hub is live to users. The legacy stub renders only as the auto-degrade target when `useGnoloveBackendHealth` reports the backend unhealthy. Dev/CI parity for the flag via `frontend/.env.development` (memba#346).
+
+**`useGnoloveBackendHealth` integration:** The hook auto-degrades to `<GnoloveTeamProfileLegacy degradedFromHub />` after 2× HEAD-probe failure in 30s (`/teams`). The legacy stub renders a warning banner only on the `degradedFromHub` path so the flag-off case stays silent. Covered by `useGnoloveBackendHealth.test.tsx` (Vitest); the Playwright spec (`gnolove-team-hub.spec.ts`) skips it deliberately because the 15s probe interval would buy no marginal signal vs the unit test.
+
+**All 5 plan §2 analytics panels live** at `/:network/gnolove/analytics` (in order): PR Cycle Time histogram, Topic Activity heatmap (12 months × 16 topics via the live `/topics` taxonomy), Repo Health matrix (traffic-light cells), Contributor Cohort Retention, Cross-Team Collaboration matrix (with outsider buckets footnote).
 
 **Critical path:** Phase 0 → Phase 1 PR1 deploy → Phase 1 PR2 weekly cycle (Sunday) → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. **Sunday weekly-report cycle is the only hard wall-clock dependency**; the on-demand `/ai/report/regenerate` endpoint in Phase 1 is the fallback if Sunday's cron misses.
 
