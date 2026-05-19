@@ -69,18 +69,24 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
                     <h1 className="gl-title" style={{ color: stripeColor, marginBottom: 4 }}>{team.name}</h1>
                     {team.description && <p className="gl-team-profile-desc">{team.description}</p>}
                 </div>
-                <label className="gl-thub-period">
-                    <span className="gl-thub-period-label">Period</span>
-                    <select
-                        className="gl-thub-period-select"
-                        value={period}
-                        onChange={e => onPeriodChange(e.target.value as TeamHubPeriod)}
-                    >
+                <div className="gl-thub-period">
+                    <span className="gl-thub-period-label" id="gl-thub-period-label">Period</span>
+                    <div className="gl-tabs" role="tablist" aria-labelledby="gl-thub-period-label">
                         {TEAM_HUB_PERIODS.map(p => (
-                            <option key={p} value={p}>{TEAM_HUB_PERIOD_LABELS[p]}</option>
+                            <button
+                                key={p}
+                                type="button"
+                                role="tab"
+                                className={`gl-tab ${period === p ? "gl-tab--active" : ""}`}
+                                aria-selected={period === p}
+                                aria-current={period === p ? "page" : undefined}
+                                onClick={() => onPeriodChange(p)}
+                            >
+                                {TEAM_HUB_PERIOD_LABELS[p]}
+                            </button>
                         ))}
-                    </select>
-                </label>
+                    </div>
+                </div>
             </div>
         </header>
     )

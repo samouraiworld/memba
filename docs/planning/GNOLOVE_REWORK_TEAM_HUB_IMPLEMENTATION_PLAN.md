@@ -1,6 +1,7 @@
 # Gnolove Rework — Team-Hub Implementation Plan
 
-> **Date:** 2026-05-18 · **Status:** APPROVED — Q-1..Q-7 answered by operator 2026-05-18 (see §6). Phase 0 ready to open.
+> **Date:** 2026-05-18 · **Status:** APPROVED — Q-1..Q-7 answered by operator 2026-05-18 (see §6).
+> **Execution snapshot (2026-05-19):** Phases 0, 1, 2a, 3, 4, 5 ✅ shipped. Phase 2c (new — Focus Areas → server-side topics) ✅ shipped via gnolove#222 + memba#342. Phase 2b (curated repo expansion) ⏳ deferred. Phase 5.5 (CORS glob) ❌ dropped — operator opted for prod-only testing. **Plan Phases 6 & 7 have been redefined by the operator** (see §4.1) — the analytics rework + UX-polish phases as originally written are deferred; the new 6 is a 24h canary + Playwright smoke, the new 7 is dropping the legacy stub. The original Phase 7 deliverables (UX polish + a11y) are being audited 2026-05-19 as candidate work for a Phase 6b or v6.2.x patch release.
 > **Goal:** Make `/:network/gnolove/teams/:teamName` the section's primary noun — composition, active repos, scoped metrics, an honest expertise visualisation, and embedded team-scoped AI reports — and ship the Onbloc/AmozPay roster fixes, a curated tracked-repo expansion, and short+long AI report summaries along the way.
 > **Predecessor:** v6.1.0 shareable-report-URLs work (PR #336, 2026-05-12). This plan extends that URL-state infrastructure rather than reinventing it.
 > **Repos touched:** `Memba` (this repo, frontend only) + `samouraiworld/topofgnomes` (gnolove backend) + `infra_gnolove` (Ansible env templates).
@@ -59,6 +60,26 @@ Today the section's information architecture is inverted: `GnoloveHome` carries 
 | 7 | UX polish + a11y | 1.5 | Memba | Empty-state ports; loading-skeleton fidelity; tabs pattern consistency; focus management on dropdowns; motion gating; `var(--font-mono)` consolidation |
 
 **+1.5 days buffer** booked at phase boundaries (end of 4, end of 6, post-7) — not absorbed slack.
+
+## 4.1 Phase status snapshot (updated 2026-05-19)
+
+| # | Phase (original wording) | Status | PRs / notes |
+|--:|---|---|---|
+| 0 | Foundation | ✅ shipped | memba#337 |
+| 1 | Backend: teams + AI v2 + /team-stats | ✅ shipped + deployed + prod-smoked | gnolove#220 |
+| 2a | Backend: sync hardening | ✅ shipped + deployed | gnolove#221 |
+| 2b | Backend: curated ~50-repo expansion (`infra_gnolove`) | ⏳ deferred (operator: no canary needed; revisit when Mistral context budget pressure justifies) | — |
+| 2c | **NEW** — Focus Areas regex bag → server-side `topics.yaml` + `GET /topics` | ✅ shipped 2026-05-19 | gnolove#222, memba#342 |
+| 3 | Memba: TEAMS migration | ✅ shipped | memba#338 |
+| 4 | Memba: Team Hub MVP | ✅ shipped (behind `VITE_GNOLOVE_TEAM_HUB`) | memba#339 |
+| 5 | Memba: AI short/long card | ✅ shipped | memba#340 |
+| 5.5 | **NEW** — CORS glob for `*.netlify.app` previews | ❌ dropped 2026-05-19 (operator: prod-only testing for this release) | — |
+| 6 (orig) | Memba: Analytics rework | ⏸ deferred — not on the current roadmap | — |
+| 6 (operator redef.) | Canary smoke (Playwright) + `useGnoloveBackendHealth` integration | ⏳ pending — unblocks 2026-05-20 after 24h prod soak | flag flipped 2026-05-19 |
+| 7 (orig) | UX polish + a11y (empty states, skeleton fidelity, tabs, focus mgmt, motion gating, `var(--font-mono)`) | 🟡 audited 2026-05-19 — items may land as a v6.2.x patch alongside or after the operator's Phase 6 | — |
+| 7 (operator redef.) | Drop `GnoloveTeamProfileLegacy` + the flag once Phase 6 signs off | ⏳ pending — gated on Phase 6 | — |
+
+**Flag state (production, 2026-05-19):** `VITE_GNOLOVE_TEAM_HUB=true` on Netlify. Team hub is live to users. The legacy stub renders only as the auto-degrade target when `useGnoloveBackendHealth` reports the backend unhealthy.
 
 **Critical path:** Phase 0 → Phase 1 PR1 deploy → Phase 1 PR2 weekly cycle (Sunday) → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. **Sunday weekly-report cycle is the only hard wall-clock dependency**; the on-demand `/ai/report/regenerate` endpoint in Phase 1 is the fallback if Sunday's cron misses.
 

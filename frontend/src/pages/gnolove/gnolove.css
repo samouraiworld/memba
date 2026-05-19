@@ -52,6 +52,11 @@
     /* Per-team colour CSS variable — set inline on team cards via
        `style={{ '--gl-team-color': TEAM_CSS_COLORS[team.color] }}` */
     --gl-team-color: currentColor;
+
+    /* Monospace font stack — consolidates ~80 inline declarations into one
+       token. Use `font-family: var(--gl-font-mono)` for any gnolove-section
+       numeric / code / tab text. */
+    --gl-font-mono: "JetBrains Mono", monospace;
 }
 
 [data-theme="light"] {
@@ -95,7 +100,7 @@
     color: var(--color-k-dim, #888);
     text-decoration: none;
     transition: all 0.2s ease;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-subnav-link:hover {
@@ -135,7 +140,7 @@
 .gl-sync-time {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Milestone Bar ───────────────────────────── */
@@ -163,7 +168,7 @@
 .gl-milestone-count {
     font-size: 11px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-milestone-bar {
@@ -204,7 +209,7 @@
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
@@ -234,7 +239,7 @@
     font-size: 11px;
     color: var(--color-k-dim, #888);
     cursor: pointer;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-checkbox input[type="checkbox"] {
@@ -253,7 +258,7 @@
 
 .gl-score-label {
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-score-badge {
@@ -261,7 +266,7 @@
     border-radius: 4px;
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     font-size: 10px;
 }
 
@@ -311,7 +316,7 @@
 .gl-team-rank {
     font-size: 11px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 4px;
 }
 
@@ -327,7 +332,7 @@
     gap: 4px;
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Table ────────────────────────────────────── */
@@ -354,7 +359,7 @@
     color: var(--color-k-dim, #888);
     font-weight: 600;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     white-space: nowrap;
     border-bottom: 1px solid var(--color-border);
 }
@@ -420,19 +425,19 @@
     display: block;
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-badge {
     display: inline-block;
     font-size: 9px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-top: 2px;
 }
 
 .gl-stat-cell {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-align: right;
     color: var(--color-k-dim, #aaa);
 }
@@ -488,7 +493,7 @@
     border-radius: 4px;
     font-size: 9px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── PR List ─────────────────────────────────── */
@@ -541,7 +546,7 @@
 .gl-pr-meta {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-pr-state {
@@ -549,7 +554,7 @@
     border-radius: 6px;
     font-size: 10px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -605,13 +610,13 @@
 .gl-repo-name {
     font-size: 12px;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-repo-branch {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Week Navigator ──────────────────────────── */
@@ -630,7 +635,7 @@
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -676,7 +681,7 @@
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
@@ -740,14 +745,14 @@
     font-size: 22px;
     font-weight: 700;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-stat-label {
     font-size: 10px;
     color: var(--color-k-dim, #888);
     margin-top: 4px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Charts ──────────────────────────────────── */
@@ -785,7 +790,7 @@
     text-align: center;
     color: var(--color-k-muted, #555);
     font-size: 13px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     background: var(--color-surface);
     border: 1px dashed var(--color-border);
     border-radius: 12px;
@@ -897,7 +902,7 @@
 .gl-activity-item-meta {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -941,7 +946,7 @@
 .gl-section-summary {
     font-size: 11px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-left: auto;
 }
 
@@ -980,7 +985,7 @@
     font-size: 10px;
     font-weight: 600;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding-bottom: 4px;
     border-bottom: 1px solid var(--color-border);
 }
@@ -1010,13 +1015,13 @@
 .gl-team-popover-login {
     font-size: 9px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-popover-score {
     font-size: 10px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -1061,7 +1066,7 @@
     border-radius: 4px;
     font-size: 11px;
     color: var(--color-k-dim, #ccc);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
 }
 
@@ -1094,7 +1099,7 @@
     background: var(--color-surface);
     color: var(--color-k-dim, #ccc);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     appearance: auto;
 }
@@ -1116,7 +1121,7 @@
     background: transparent;
     color: var(--color-k-dim, #888);
     font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -1184,7 +1189,7 @@
 .gl-teams-panel-rank {
     font-size: 13px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-panel-stats {
@@ -1192,7 +1197,7 @@
     gap: 14px;
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-members {
@@ -1237,7 +1242,7 @@
 .gl-teams-member-login {
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-member-stats {
@@ -1251,13 +1256,13 @@
     font-size: 13px;
     color: var(--color-k-accent, #00d4aa);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-member-detail {
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Dashboard Stat Cards (with sparklines) ──── */
@@ -1291,7 +1296,7 @@
 .gl-dash-card-label {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1386,7 +1391,7 @@
 .gl-panel-subtitle {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-panel-grid {
@@ -1425,7 +1430,7 @@
 .gl-onchain-metric-label {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Heatmap ───────────────────────────────────── */
@@ -1460,7 +1465,7 @@
 .gl-heatmap-legend-label {
     font-size: 9px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin: 0 2px;
 }
 
@@ -1483,7 +1488,7 @@
 .gl-team-filters-label {
     font-size: 11px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-right: 2px;
 }
 
@@ -1496,7 +1501,7 @@
     border-radius: 16px;
     background: transparent;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -1537,7 +1542,7 @@
     font-size: 12px;
     color: var(--color-k-muted, #666);
     margin: -12px 0 8px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── GitHub Icon Link ──────────────────────────── */
@@ -1564,7 +1569,7 @@
     color: var(--color-k-dim, #777);
     text-decoration: none;
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 16px;
     transition: color 0.2s;
 }
@@ -1618,13 +1623,13 @@
 .gl-profile-login {
     font-size: 13px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-team-badge {
     display: inline-block;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding: 2px 8px;
     border-radius: 10px;
     border: 1px solid;
@@ -1643,7 +1648,7 @@
     gap: 6px;
     font-size: 12px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-meta-item {
@@ -1667,7 +1672,7 @@
     color: var(--color-k-dim, #888);
     text-decoration: none;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     transition: all 0.2s;
 }
 
@@ -1682,7 +1687,7 @@
     border: 1px solid var(--color-border);
     border-radius: 8px;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-onchain-label {
@@ -1709,7 +1714,7 @@
     background: transparent;
     color: var(--color-k-dim, #888);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -1758,7 +1763,7 @@
 .gl-activity-row-meta {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     display: block;
     margin-top: 2px;
 }
@@ -1782,7 +1787,7 @@
 .gl-repo-card-profile-name {
     font-size: 13px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-repo-card-profile-desc {
@@ -1798,7 +1803,7 @@
     gap: 12px;
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-repos-grid {
@@ -1923,7 +1928,7 @@
 .gl-team-compact-rank {
     font-size: 11px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     min-width: 18px;
 }
 
@@ -1947,7 +1952,7 @@
     gap: 8px;
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-top: 2px;
 }
 
@@ -1968,7 +1973,7 @@
     font-size: 11px;
     color: var(--color-k-accent, #00d4aa);
     text-decoration: none;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-section-link:hover {
@@ -1978,7 +1983,7 @@
 .gl-section-count {
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Pagination ──────────────────────────────────────────── */
@@ -2000,7 +2005,7 @@
     border: 1px solid var(--color-border);
     color: var(--color-k-dim, #aaa);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s ease;
 }
@@ -2065,7 +2070,7 @@
     font-size: 16px;
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-profile-stat-label {
@@ -2100,7 +2105,7 @@
 }
 .gl-team-repo-name {
     font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #ccc);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2111,7 +2116,7 @@
 }
 .gl-team-repo-branch {
     font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-muted, #555);
     background: var(--color-surface);
     padding: 2px 6px;
@@ -2122,7 +2127,7 @@
 .gl-team-member-rank {
     font-size: 11px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     min-width: 24px;
     text-align: right;
     margin-right: 4px;
@@ -2140,7 +2145,7 @@
     background: rgba(255, 71, 87, 0.06);
     border: 1px solid rgba(255, 71, 87, 0.15);
     font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: #ff8a94;
 }
 .gl-error-retry {
@@ -2148,7 +2153,7 @@
     border: 1px solid rgba(255, 71, 87, 0.25);
     color: var(--color-k-danger, #ff4757);
     font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     padding: 4px 12px;
     border-radius: 5px;
     cursor: pointer;
@@ -2184,7 +2189,7 @@
     background: transparent;
     color: var(--color-text-secondary);
     font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -2217,7 +2222,7 @@
 .gl-report-narrative__week-id {
     font-size: 10px;
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-left: auto;
 }
 
@@ -2237,7 +2242,7 @@
     font-size: 13px;
     font-weight: 700;
     color: var(--color-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 10px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2251,7 +2256,7 @@
     gap: 6px;
     font-size: 12px;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     line-height: 1.5;
 }
 
@@ -2267,7 +2272,7 @@
 .gl-report-narrative__empty {
     color: var(--color-text-muted);
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin: 0;
 }
 
@@ -2313,7 +2318,7 @@
     font-size: 20px;
     font-weight: 700;
     color: var(--color-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-report-narrative__stat--blocked .gl-report-narrative__stat-value {
@@ -2323,7 +2328,7 @@
 .gl-report-narrative__stat-label {
     font-size: 9px;
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -2341,7 +2346,7 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--color-primary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 6px;
 }
 
@@ -2361,7 +2366,7 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-text-secondary);
 }
 
@@ -2430,7 +2435,7 @@
     padding: 8px 12px;
     cursor: pointer;
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-text);
     transition: background 0.1s;
 }
@@ -2454,7 +2459,7 @@
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding: 12px 0 8px;
     border-bottom: 1px solid var(--color-border);
     margin-bottom: 16px;
@@ -2497,7 +2502,7 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-thub-chip-network {
@@ -2518,7 +2523,6 @@
     display: inline-flex;
     flex-direction: column;
     gap: 4px;
-    min-width: 140px;
 }
 
 .gl-thub-period-label {
@@ -2526,16 +2530,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--color-k-dim, #888);
-}
-
-.gl-thub-period-select {
-    padding: 6px 10px;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 14px;
 }
 
 /* ── Cards ─────────────────────────────────────── */
@@ -2601,7 +2595,7 @@
     font-size: 22px;
     font-weight: 600;
     color: var(--color-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-thub-metric-label {
@@ -2678,7 +2672,7 @@
 }
 
 .gl-thub-active-repo-count {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-text);
     font-size: 13px;
     white-space: nowrap;
@@ -2731,7 +2725,7 @@
     flex-wrap: wrap;
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-thub-activity-author {
@@ -2772,7 +2766,7 @@
     font-weight: 600;
     color: var(--gl-color-ai-report-project-fg, #a78bfa);
     margin: 0;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-thub-ai-project-team {
@@ -2837,17 +2831,212 @@
 }
 
 .gl-thub-pill-count {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
 }
 
 .gl-thub-pill-share {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     font-size: 10px;
     color: var(--color-text-secondary);
     padding: 1px 5px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Skeleton fidelity (Plan §7) ───────────────
+   One shape per card type, sized to match the loaded content so the
+   layout doesn't pop when data arrives. */
+
+.gl-thub-active-list-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.gl-thub-active-repo-skel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+}
+
+.gl-thub-skel-repo-name {
+    display: inline-block;
+    height: 12px;
+    width: 60%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-repo-count {
+    display: inline-block;
+    height: 12px;
+    width: 48px;
+    border-radius: 4px;
+}
+
+.gl-thub-pills-skel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.gl-thub-skel-pill {
+    display: inline-block;
+    height: 24px;
+    width: 110px;
+    border-radius: 999px;
+}
+
+.gl-thub-skel-pill:nth-child(2) { width: 96px; }
+.gl-thub-skel-pill:nth-child(3) { width: 130px; }
+.gl-thub-skel-pill:nth-child(4) { width: 88px; }
+.gl-thub-skel-pill:nth-child(5) { width: 116px; }
+
+.gl-thub-activity-list-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.gl-thub-activity-row-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-thub-skel-activity-title {
+    display: block;
+    height: 14px;
+    width: 90%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-activity-meta {
+    display: block;
+    height: 11px;
+    width: 55%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-airpt {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-skel-airpt-summary {
+    display: block;
+    height: 12px;
+    width: 100%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-airpt-summary:nth-child(2) {
+    width: 78%;
+}
+
+.gl-thub-skel-airpt-toggle {
+    display: block;
+    height: 14px;
+    width: 160px;
+    margin-top: 4px;
+    border-radius: 4px;
+}
+
+/* ── Mobile layout (≤ 768px) — Plan §7 ─────────
+   Phase 4 shipped the desktop layout only. This block tightens
+   everything below 768px: smaller paddings, single-column grids,
+   and a wrapping period tablist so the header doesn't overflow. */
+
+@media (max-width: 768px) {
+    .gl-thub-page {
+        gap: 14px;
+    }
+
+    .gl-thub-header {
+        padding: 14px;
+    }
+
+    .gl-thub-header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .gl-thub-header-body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .gl-thub-period {
+        width: 100%;
+    }
+
+    .gl-thub-period .gl-tabs {
+        flex-wrap: wrap;
+    }
+
+    .gl-thub-card {
+        padding: 14px 14px;
+    }
+
+    .gl-thub-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .gl-thub-metric {
+        padding: 10px;
+    }
+
+    .gl-thub-metric-value {
+        font-size: 18px;
+    }
+
+    .gl-thub-active-repo-name {
+        max-width: 60%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .gl-thub-activity-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}
+
+/* ── Reduced motion (team-hub, Plan §7) ──────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-thub-active-repo,
+    .gl-thub-activity-title,
+    .gl-thub-pill,
+    .gl-thub-card,
+    .gl-thub-ai-toggle {
+        transition: none;
+    }
+    .gl-thub-active-repo:hover,
+    .gl-thub-card:hover {
+        transform: none;
+    }
 }
 
 /* ── AI Report Card (Phase 5) ──────────────────── */
@@ -2897,7 +3086,7 @@
     font-weight: 600;
     color: var(--gl-color-ai-report-project-fg, #a78bfa);
     margin: 0;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-aircard-project-team {

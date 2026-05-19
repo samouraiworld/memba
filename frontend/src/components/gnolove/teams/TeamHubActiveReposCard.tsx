@@ -39,13 +39,16 @@ function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "sec
 export function TeamHubActiveReposCard({ data, isLoading }: Props) {
     if (isLoading && !data) {
         return (
-            <div className="gl-thub-card">
+            <div className="gl-thub-card" aria-busy="true">
                 <h2 className="gl-thub-card-title">Active repositories</h2>
-                <div className="gl-thub-skel-stack">
-                    <div className="gl-skeleton gl-skeleton-line" />
-                    <div className="gl-skeleton gl-skeleton-line" />
-                    <div className="gl-skeleton gl-skeleton-line" />
-                </div>
+                <ul className="gl-thub-active-list gl-thub-active-list-skel" aria-hidden="true">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <li key={i} className="gl-thub-active-repo-skel">
+                            <span className="gl-skeleton gl-thub-skel-repo-name" />
+                            <span className="gl-skeleton gl-thub-skel-repo-count" />
+                        </li>
+                    ))}
+                </ul>
             </div>
         )
     }
@@ -57,6 +60,7 @@ export function TeamHubActiveReposCard({ data, isLoading }: Props) {
     return (
         <div className="gl-thub-card">
             <h2 className="gl-thub-card-title">Active repositories</h2>
+            <div aria-live="polite" aria-label="Active repositories for the selected period">
 
             {empty && (
                 <p className="gl-thub-empty">No tracked-repo activity for this team in the selected period.</p>
@@ -86,6 +90,7 @@ export function TeamHubActiveReposCard({ data, isLoading }: Props) {
                     </ul>
                 </section>
             )}
+            </div>
         </div>
     )
 }

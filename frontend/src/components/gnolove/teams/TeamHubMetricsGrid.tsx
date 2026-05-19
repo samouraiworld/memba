@@ -48,7 +48,11 @@ export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props)
 
     return (
         <div className="gl-thub-card">
-            <div className="gl-thub-metrics-grid">
+            <div
+                className="gl-thub-metrics-grid"
+                aria-live="polite"
+                aria-label="Team metrics"
+            >
                 <MetricCell label="Roster" value={teamMemberCount} />
                 <MetricCell label="Active contributors" value={activeContributors} />
                 <MetricCell label="Active repos" value={activeRepos} />

@@ -25,11 +25,12 @@ export function TeamHubAIReportsCard({ team }: Props) {
 
     if (isLoading && !reports) {
         return (
-            <div className="gl-thub-card">
+            <div className="gl-thub-card" aria-busy="true">
                 <h2 className="gl-thub-card-title">AI weekly report</h2>
-                <div className="gl-thub-skel-stack">
-                    <div className="gl-skeleton gl-skeleton-line" />
-                    <div className="gl-skeleton gl-skeleton-line" />
+                <div className="gl-thub-skel-airpt" aria-hidden="true">
+                    <span className="gl-skeleton gl-thub-skel-airpt-summary" />
+                    <span className="gl-skeleton gl-thub-skel-airpt-summary" />
+                    <span className="gl-skeleton gl-thub-skel-airpt-toggle" />
                 </div>
             </div>
         )
