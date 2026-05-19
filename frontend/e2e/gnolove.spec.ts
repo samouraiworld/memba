@@ -112,8 +112,10 @@ test.describe('Gnolove Section', () => {
     })
 
     test('team filter toggles visually', async ({ page }) => {
-        const filterGroups = page.locator('.gl-filter-group')
-        const teamFilterGroup = filterGroups.nth(1)
+        // v6.2.2 — the team toggle is the only remaining .gl-filter-group
+        // after the period selector migrated to role="tablist"; was previously
+        // .nth(1) when the period was also a .gl-filter-group.
+        const teamFilterGroup = page.locator('.gl-filter-group').first()
         await expect(teamFilterGroup).toBeVisible({ timeout: 10_000 })
 
         // First team button should start with --active class (all teams included by default)
