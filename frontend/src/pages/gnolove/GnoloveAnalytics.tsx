@@ -310,19 +310,6 @@ export default function GnoloveAnalytics() {
                             </div>
                         )}
 
-                        {/* On-Chain Overview */}
-                        <div className="gl-panel">
-                            <div className="gl-panel-header">
-                                <h2 className="gl-panel-title">On-Chain Metrics</h2>
-                                <span className="gl-panel-subtitle">Gno ecosystem on-chain data</span>
-                            </div>
-                            <div className="gl-onchain-grid">
-                                <OnchainMetric label="Proposals" value={proposals?.length ?? 0} icon="🗳️" />
-                                <OnchainMetric label="GovDAO Members" value={govdaoMembers?.length ?? 0} icon="🏛️" />
-                                <OnchainMetric label="Packages" value={packages?.length ?? 0} icon="📦" />
-                                <OnchainMetric label="Namespaces" value={namespaces?.length ?? 0} icon="🏷️" />
-                            </div>
-                        </div>
                     </div>
                 </>
             )}
@@ -370,14 +357,3 @@ function Sparkline({ data, color, width = 80, height = 24 }: {
     )
 }
 
-function OnchainMetric({ label, value, icon }: { label: string; value: number; icon: string }) {
-    return (
-        <div className="gl-onchain-metric">
-            <span className="gl-onchain-metric-icon">{icon}</span>
-            <div>
-                <div className="gl-onchain-metric-value">{value.toLocaleString()}</div>
-                <div className="gl-onchain-metric-label">{label}</div>
-            </div>
-        </div>
-    )
-}

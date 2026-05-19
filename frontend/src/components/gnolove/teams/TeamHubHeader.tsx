@@ -2,8 +2,11 @@
  * TeamHubHeader — colour-stripe header + period selector + sync pill + network chip.
  *
  * The chips serve two trust-signals:
- *   - "Last sync: <relative>" tells the user how fresh the data is and is
- *     populated from `useGnoloveTeams().lastSyncedAt` (yaml mtime).
+ *   - "Roster updated: <relative>" tells the user when the team config was
+ *     last deployed. It comes from `useGnoloveTeams().lastSyncedAt` — the
+ *     `config/teams.yaml` mtime on the backend, NOT the data sync clock
+ *     used by metrics / activity / repos (those refresh on their own
+ *     cadence and aren't surfaced here).
  *   - "Data: mainnet" is shown only when the user is on `:network=test12`
  *     so they don't conflate test-chain context with real contribution
  *     data, which always comes from mainnet GitHub.
@@ -52,9 +55,11 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
                 <div className="gl-thub-header-chips">
                     <span
                         className="gl-thub-chip gl-thub-chip-sync"
-                        title={lastSyncedAt ? new Date(lastSyncedAt).toISOString() : "no sync timestamp yet"}
+                        title={lastSyncedAt
+                            ? `Team config (teams.yaml) deployed ${new Date(lastSyncedAt).toISOString()}`
+                            : "no roster sync yet"}
                     >
-                        Last sync: {formatRelativeTime(lastSyncedAt)}
+                        Roster updated: {formatRelativeTime(lastSyncedAt)}
                     </span>
                     {networkKey === "test12" && (
                         <span className="gl-thub-chip gl-thub-chip-network" role="note">

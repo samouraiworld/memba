@@ -24,8 +24,14 @@ export default function GnoloveTeamProfile() {
     // legacy path. The hook returns "unknown" immediately when `enabled=false`.
     const health = useGnoloveBackendHealth({ enabled: hubEnabled })
 
-    if (!hubEnabled || health === "down") {
+    // Distinguish "flag deliberately off" (no banner — operator intent) from
+    // "flag on but backend reported unhealthy" (banner — user deserves to know
+    // they're on the fallback). Plan §3 R-4 is explicit about the banner.
+    if (!hubEnabled) {
         return <GnoloveTeamProfileLegacy />
+    }
+    if (health === "down") {
+        return <GnoloveTeamProfileLegacy degradedFromHub />
     }
     return <TeamHub />
 }

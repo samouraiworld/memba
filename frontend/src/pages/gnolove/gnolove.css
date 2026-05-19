@@ -2844,6 +2844,65 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+/* ── AI report project deep-link highlight (Plan §2) ─────── */
+
+.gl-aircard-project--highlight {
+    animation: gl-aircard-flash 1.5s ease-out;
+    border-radius: 6px;
+}
+
+@keyframes gl-aircard-flash {
+    0% { background: rgba(167, 139, 250, 0.18); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.4); }
+    100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-aircard-project--highlight {
+        animation: none;
+        background: rgba(167, 139, 250, 0.10);
+    }
+}
+
+/* ── Active-repo % badge (Plan §2 — dual-threshold visibility) ─ */
+
+.gl-thub-active-repo-pct {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-k-accent, #00d4aa);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.10);
+    margin-right: 6px;
+}
+
+.gl-thub-active-repo-secondary .gl-thub-active-repo-pct {
+    color: var(--color-k-dim, #888);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Score factors details (Plan §2 — Home density cap) ─ */
+
+.gl-score-factors-details {
+    margin: 8px 0 12px;
+}
+
+.gl-score-factors-summary {
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    user-select: none;
+    padding: 4px 0;
+}
+
+.gl-score-factors-summary:hover {
+    color: var(--color-text);
+}
+
+.gl-score-factors-details[open] .gl-score-factors {
+    margin-top: 6px;
+}
+
 /* ── Skeleton fidelity (Plan §7) ───────────────
    One shape per card type, sized to match the loaded content so the
    layout doesn't pop when data arrives. */

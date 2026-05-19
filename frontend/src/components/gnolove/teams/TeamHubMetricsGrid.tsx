@@ -2,9 +2,13 @@
  * TeamHubMetricsGrid — five-stat strip powered by /team-stats totals.
  *
  * Numbers come straight from the backend's precomputed roll-up so the
- * card renders without any client-side aggregation. Loading state shows
- * skeleton blocks; failure renders zeroes with a subdued note rather
- * than disappearing entirely (consistent with the rest of the hub).
+ * card renders without any client-side aggregation. Three states:
+ *   - Loading (no prior data): shaped skeleton.
+ *   - Error (`stats == null` after the fetch resolved): every backend-fed
+ *     cell renders "—" and the card sets aria-busy=false + a subdued
+ *     error note. The Roster cell is still populated from the local
+ *     `teamMemberCount` prop since that's a client-side value.
+ *   - Success: render the totals.
  *
  * @module components/gnolove/teams/TeamHubMetricsGrid
  */
@@ -29,8 +33,8 @@ function MetricCell({ label, value }: { label: string; value: number | string })
 export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props) {
     if (isLoading && !stats) {
         return (
-            <div className="gl-thub-card">
-                <div className="gl-thub-metrics-grid">
+            <div className="gl-thub-card" aria-busy="true">
+                <div className="gl-thub-metrics-grid" aria-hidden="true">
                     {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="gl-thub-metric gl-thub-metric-skel">
                             <span className="gl-skeleton gl-skeleton-line" />
@@ -41,6 +45,11 @@ export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props)
             </div>
         )
     }
+
+    // After loading resolves: stats may be null when the fetch failed (gnoloveApi
+    // returns null on error). Render an honest "—" state instead of silently
+    // showing zeros, which would read as "this team did nothing this period."
+    const hasFailed = !isLoading && stats == null
 
     const merged = stats?.totals.mergedPRs ?? 0
     const activeContributors = stats?.totals.activeContributors ?? 0
@@ -54,14 +63,23 @@ export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props)
                 aria-label="Team metrics"
             >
                 <MetricCell label="Roster" value={teamMemberCount} />
-                <MetricCell label="Active contributors" value={activeContributors} />
-                <MetricCell label="Active repos" value={activeRepos} />
-                <MetricCell label="Merged PRs" value={merged} />
+                <MetricCell label="Active contributors" value={hasFailed ? "—" : activeContributors} />
+                <MetricCell label="Active repos" value={hasFailed ? "—" : activeRepos} />
+                <MetricCell label="Merged PRs" value={hasFailed ? "—" : merged} />
                 <MetricCell
                     label="PRs per contributor"
-                    value={activeContributors > 0 ? (merged / activeContributors).toFixed(1) : "—"}
+                    value={hasFailed
+                        ? "—"
+                        : activeContributors > 0
+                            ? (merged / activeContributors).toFixed(1)
+                            : "—"}
                 />
             </div>
+            {hasFailed && (
+                <p className="gl-thub-empty" role="status">
+                    Metrics unavailable. The backend didn't return data for this period.
+                </p>
+            )}
         </div>
     )
 }
