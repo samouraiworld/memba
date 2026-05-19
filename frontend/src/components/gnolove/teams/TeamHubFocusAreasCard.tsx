@@ -54,11 +54,13 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
 
     if (isLoading && !report) {
         return (
-            <div className="gl-thub-card">
+            <div className="gl-thub-card" aria-busy="true">
                 <h2 className="gl-thub-card-title">Focus areas</h2>
-                <div className="gl-thub-skel-stack">
-                    <div className="gl-skeleton gl-skeleton-line" />
-                </div>
+                <ul className="gl-thub-pills gl-thub-pills-skel" aria-hidden="true">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <li key={i} className="gl-skeleton gl-thub-skel-pill" />
+                    ))}
+                </ul>
             </div>
         )
     }
@@ -70,19 +72,21 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
                 Honest v1: top-5 topics derived from merged PRs in this period.
                 Matrix view (per-repo × per-topic) is a follow-up.
             </p>
-            {pills.length === 0 ? (
-                <p className="gl-thub-empty">Not enough merged-PR signal to derive topics for this period.</p>
-            ) : (
-                <ul className="gl-thub-pills">
-                    {pills.map(p => (
-                        <li key={p.topic} className="gl-thub-pill">
-                            <span className="gl-thub-pill-label">{labels[p.topic] ?? p.topic}</span>
-                            <span className="gl-thub-pill-count">{p.count}</span>
-                            <span className="gl-thub-pill-share">{Math.round(p.share * 100)}%</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            <div aria-live="polite" aria-label="Focus areas for the selected period">
+                {pills.length === 0 ? (
+                    <p className="gl-thub-empty">Not enough merged-PR signal to derive topics for this period.</p>
+                ) : (
+                    <ul className="gl-thub-pills">
+                        {pills.map(p => (
+                            <li key={p.topic} className="gl-thub-pill">
+                                <span className="gl-thub-pill-label">{labels[p.topic] ?? p.topic}</span>
+                                <span className="gl-thub-pill-count">{p.count}</span>
+                                <span className="gl-thub-pill-share">{Math.round(p.share * 100)}%</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
         </div>
     )
 }

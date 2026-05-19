@@ -74,13 +74,16 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
 
     if (isLoading && !report) {
         return (
-            <div className="gl-thub-card">
+            <div className="gl-thub-card" aria-busy="true">
                 <h2 className="gl-thub-card-title">Recent merged PRs</h2>
-                <div className="gl-thub-skel-stack">
-                    <div className="gl-skeleton gl-skeleton-line" />
-                    <div className="gl-skeleton gl-skeleton-line" />
-                    <div className="gl-skeleton gl-skeleton-line" />
-                </div>
+                <ul className="gl-thub-activity-list gl-thub-activity-list-skel" aria-hidden="true">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <li key={i} className="gl-thub-activity-row-skel">
+                            <span className="gl-skeleton gl-thub-skel-activity-title" />
+                            <span className="gl-skeleton gl-thub-skel-activity-meta" />
+                        </li>
+                    ))}
+                </ul>
             </div>
         )
     }
@@ -88,6 +91,7 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
     return (
         <div className="gl-thub-card">
             <h2 className="gl-thub-card-title">Recent merged PRs</h2>
+            <div aria-live="polite" aria-label="Recent merged pull requests for the selected period">
             {rows.length === 0 ? (
                 <p className="gl-thub-empty">
                     No merged PRs from {team.name} in the “{TEAM_HUB_PERIOD_LABELS[period]}” window.
@@ -117,6 +121,7 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
                     })}
                 </ul>
             )}
+            </div>
         </div>
     )
 }

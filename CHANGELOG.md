@@ -4,6 +4,44 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## Unreleased — v6.2.0 (Gnolove Team Hub Rework)
+
+> Makes `/:network/gnolove/teams/:teamName` the section's primary noun — team composition + active repos + scoped metrics + Focus Areas pills + embedded AI reports. Plan: [`docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md`](docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md). Live in production behind `VITE_GNOLOVE_TEAM_HUB`, flipped on Netlify 2026-05-19.
+
+### Added
+- **Phase 0 (#337)** — `jsPDF` lazy import (~135 KB gz off first paint); `useGnoloveYearReport()` exported as the shared base query so derived hooks reuse the same cache; `SectionErrorBoundary` extracted; TEAMS uniqueness invariants locked in vitest; design-system token additions for PR-state + Recharts palette + heatmap ramp; MSW + fast-check + `@axe-core/playwright` added as dev deps.
+- **Phase 3 (#338)** — `useGnoloveTeams()` seed + fetched-union hook: build-time `TEAMS` constant becomes the seed; backend `GET /teams` replaces it once the network resolves. `KNOWN_TEAMS` becomes async-aware; localStorage cache key bumped `v1 → v2`.
+- **Phase 4 (#339)** — Team Hub MVP behind `VITE_GNOLOVE_TEAM_HUB`. Six cards under `components/gnolove/teams/`: `TeamHubHeader` (name + colour stripe + period selector + "Last sync" pill + "Data: mainnet" chip on `test12`), `TeamHubMetricsGrid`, `TeamHubActiveReposCard` (dual-threshold "Primary" / "Also contributes to" rows), `TeamHubFocusAreasCard` (5 pills), `TeamHubRecentActivityCard`, `TeamHubAIReportsCard`. `useTeamProfileUrlState` URL-state codec; `lib/gnolovePeriod.ts` extraction; per-card `CardErrorBoundary`; `useGnoloveBackendHealth()` auto-degrades to `GnoloveTeamProfileLegacy` after 2× HEAD failure in 30s.
+- **Phase 5 (#340)** — AI report v2 polish. Shared `<AIReportCard>` backs both the standalone page and the team-hub embed. Short summary visible by default; "Read Detailed Report" toggle expands the long form inline on desktop, opens as a bottom-sheet on mobile (<768px). `?id=` → `?aiReport=` URL namespace migration with back-compat. Empty-string-safe coalescing (`||`, not `??`) for the additive Zod migration on `summary_short` / `summary_long`.
+- **Phase 2c (#342, paired with gnolove#222)** — Focus Areas taxonomy moves server-side. `gnolove/server/config/topics.yaml` (16 topics, ported verbatim from the legacy TS regex bag) is now the source of truth, exposed via `GET /topics`. Memba consumes via `useGnoloveTopics()` seed-union (same shape as `useGnoloveTeams`); `computeFocusAreas(signals, rules?)` accepts caller rules with the build-time copy as default. `FocusTopic` widened from a literal union to `string` since the backend now owns the taxonomy. `compileBackendTopic` drops invalid regexes with a warning rather than crashing the card.
+
+### Changed
+- The Team Hub auto-degrades to the legacy stub if the gnolove backend reports unhealthy — no Netlify redeploy required to mitigate a backend hiccup.
+
+### Operator decisions logged
+- **Q-1** Curated ~50 tracked repos (not naive ~120). **Q-2** Dual-threshold "active repo" rule (>2% of team's PRs AND >5% of repo's PRs → Primary; below → "Also contributes to"). **Q-3** Both AI summaries visible inline; toggle labelled **"Read Detailed Report"**. **Q-4** Client-side AI report team filter. **Q-5** Focus Areas pills v1 (matrix is v1.5 behind a sub-flag). **Q-6** 24h EU-business Lours SLA for roster changes; emergency client-side seed-edit fallback. **Q-7** No staging; rollout = Netlify Deploy Previews + 24h production canary. Full text in plan §6.
+
+### Tests
+- Memba: 1838/1838 vitest passing (started this version at 1759). New: 23 around `useGnoloveTopics` + Focus Areas refactor; 19 around `useGnoloveTeams`; full coverage of seed-union loading / success / null / empty-roster branches; per-card error boundary tests.
+- gnolove backend: full Go suite green; `TestLoadRealConfigFile` smoke tests both `teams.yaml` and `topics.yaml` against the real checked-in YAML so a bad commit fails CI.
+
+### Not in this version (intentionally)
+- **Phase 2b** — curated `~50-repo` expansion in `infra_gnolove` (deferred; revisit when Mistral context-budget pressure justifies).
+- **Phase 5.5** — CORS glob for `*.netlify.app` previews (dropped 2026-05-19: operator opted for prod-only testing).
+- **Plan-original Phase 6** — Analytics rework (cycle-time histogram, cohort retention, repo health matrix, topic-time heatmap, cross-team collab matrix). Deferred; operator redefined Phase 6 as a 1-day Playwright canary instead.
+- **Plan-original Phase 7** — UX polish + a11y (empty states, skeleton fidelity, tabs pattern consistency, focus management on dropdowns, motion gating, `var(--font-mono)` consolidation). Being audited 2026-05-19 as candidate work for a v6.2.x patch release.
+
+### Internal
+- New components: `components/gnolove/teams/` (TeamHub + 6 cards + `CardErrorBoundary`).
+- New hooks: `useGnoloveTeams`, `useGnoloveTeam`, `useGnoloveTeamActiveRepos`, `useGnoloveTeamStats`, `useGnoloveTopics`, `useGnoloveBackendHealth`, `useTeamProfileUrlState`.
+- New API client: `getTeams`, `getTeam`, `getTeamActiveRepos`, `getTeamStats`, `getTopics`.
+- New Zod schemas: `BackendTeamSchema`, `TeamsResponseSchema`, `TeamResponseSchema`, `ActiveReposResponseSchema`, `TeamStatsResponseSchema`, `BackendTopicSchema`, `TopicsResponseSchema`.
+- gnolove backend: new packages `server/teams`, `server/topics`, `server/handler/teams`, `server/handler/topics`. New endpoints: `GET /teams`, `GET /teams/:slug`, `GET /teams/:slug/active-repos`, `GET /teams/:slug/team-stats`, `GET /topics`. Two new env vars: `TEAMS_CONFIG_PATH` (default `config/teams.yaml`), `TOPICS_CONFIG_PATH` (default `config/topics.yaml`).
+
+Handoffs: [`docs/reports/handoff-team-hub-2026-05-18.md`](docs/reports/handoff-team-hub-2026-05-18.md), [`docs/reports/handoff-team-hub-2026-05-19.md`](docs/reports/handoff-team-hub-2026-05-19.md).
+
+---
+
 ## Unreleased — v6.1.0 (Gnolove shareable URLs + section UX hardening)
 
 ### Added
