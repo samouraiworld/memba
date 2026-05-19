@@ -23,6 +23,9 @@ import {
     useGnoloveMonthlyActivity,
     useGnoloveYearReport,
     useGnoloveTopics,
+    useGnoloveTeams,
+    useGnoloveCohorts,
+    useGnoloveTeamCollab,
 } from "../../hooks/gnolove"
 import { computeFocusAreas } from "../../lib/gnoloveFocusAreas"
 import { TEAMS, TEAM_CSS_COLORS, TimeFilter, TIME_FILTER_LABELS, isTimeFilter } from "../../lib/gnoloveConstants"
@@ -59,6 +62,13 @@ export default function GnoloveAnalytics() {
     const { data: contributors, isLoading, isError: contributorsError, refetch } = useGnoloveContributors(period)
     const { data: yearReport } = useGnoloveYearReport()
     const { rules: topicRules, labels: topicLabels } = useGnoloveTopics()
+    const { teams: rosterTeams } = useGnoloveTeams()
+    const { data: cohortsData } = useGnoloveCohorts()
+    // Map gnolove TimeFilter -> backend period param. TimeFilter values
+    // (`all`, `yearly`, ...) line up except for `all` which the backend
+    // wants as the empty string.
+    const collabPeriod = period === TimeFilter.ALL_TIME ? "" : period
+    const { data: teamCollabData } = useGnoloveTeamCollab(collabPeriod)
 
     // Snapshot "now" once at mount so useMemos that bucket by recency stay
     // stable across re-renders. react-hooks/purity flags raw Date.now() inside
@@ -299,6 +309,50 @@ export default function GnoloveAnalytics() {
             .slice(0, 15)
     }, [yearReport, nowMs])
 
+    // ── Cohort retention grid (plan §2, panel 4/5) ────────────
+    // Rows = cohort months (newest first so the freshest cohort sits at the
+    // top of the table). Columns = month offset 0..maxOffset across all
+    // cohorts in the response. Cells = retention fraction at that offset,
+    // empty when the offset exceeds the cohort's age. Intensity uses the
+    // shared --gl-color-heatmap-l0..l4 ramp like the topic heatmap.
+    const cohortGrid = useMemo(() => {
+        const rows = cohortsData?.cohorts ?? []
+        if (rows.length === 0) return { rows: [], maxOffset: 0 }
+        let maxOffset = 0
+        for (const r of rows) {
+            if (r.retention.length - 1 > maxOffset) maxOffset = r.retention.length - 1
+        }
+        // Newest at the top — operators care most about the latest cohort.
+        const sorted = [...rows].sort((a, b) => b.month.localeCompare(a.month))
+        return { rows: sorted, maxOffset }
+    }, [cohortsData])
+
+    // ── Cross-team collab matrix (plan §2, panel 5/5) ─────────
+    // Backend ships sparse cells; densify into a teams × teams matrix
+    // here. Outsider buckets surface as a footer line so users see
+    // what the matrix misses (contributors with no team membership).
+    const collabMatrix = useMemo(() => {
+        const teamsList = teamCollabData?.teams ?? []
+        const cells = teamCollabData?.cells ?? []
+        const map = new Map<string, number>()
+        let max = 0
+        for (const c of cells) {
+            const key = `${c.authorTeam}|${c.reviewerTeam}`
+            map.set(key, (map.get(key) ?? 0) + c.reviews)
+            if (map.get(key)! > max) max = map.get(key)!
+        }
+        return { teamsList, get: (a: string, r: string) => map.get(`${a}|${r}`) ?? 0, max }
+    }, [teamCollabData])
+
+    // Resolve team display name + colour stripe via the roster (seed-union).
+    const teamMeta = useMemo(() => {
+        const m = new Map<string, { name: string; color: string }>()
+        for (const t of rosterTeams) {
+            m.set(t.slug, { name: t.name, color: TEAM_CSS_COLORS[t.color] })
+        }
+        return m
+    }, [rosterTeams])
+
     // ── Sparkline data from monthly activity ─────────────────
     const sparklineMerged = useMemo(() => {
         if (!monthlyActivity?.length) return []
@@ -463,6 +517,126 @@ export default function GnoloveAnalytics() {
                             })}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* ── Cohort retention grid (plan §2, panel 4/5) ──── */}
+            {cohortGrid.rows.length > 0 && (
+                <div className="gl-panel">
+                    <div className="gl-panel-header">
+                        <h2 className="gl-panel-title">Contributor cohort retention</h2>
+                        <span className="gl-panel-subtitle">
+                            Rows = month of each contributor's first PR. Cell = % of the cohort
+                            with at least one PR in the Nth month after they joined.
+                        </span>
+                    </div>
+                    <div className="gl-cohort-grid" role="table" aria-label="Cohort retention grid">
+                        <div className="gl-cohort-grid-row gl-cohort-grid-head" role="row">
+                            <span className="gl-cohort-grid-label" role="columnheader">Cohort</span>
+                            <span className="gl-cohort-grid-size" role="columnheader">N</span>
+                            {Array.from({ length: cohortGrid.maxOffset + 1 }).map((_, i) => (
+                                <span key={i} className="gl-cohort-grid-offset" role="columnheader">
+                                    M{i}
+                                </span>
+                            ))}
+                        </div>
+                        {cohortGrid.rows.map(row => (
+                            <div key={row.month} className="gl-cohort-grid-row" role="row">
+                                <span className="gl-cohort-grid-label" role="rowheader">{row.month}</span>
+                                <span className="gl-cohort-grid-size" role="cell">{row.size}</span>
+                                {Array.from({ length: cohortGrid.maxOffset + 1 }).map((_, i) => {
+                                    const v = row.retention[i]
+                                    if (v === undefined) {
+                                        return <span key={i} className="gl-cohort-grid-cell gl-cohort-grid-cell-empty" role="cell" />
+                                    }
+                                    const level = v === 0 ? 0
+                                        : v < 0.15 ? 1
+                                        : v < 0.4 ? 2
+                                        : v < 0.7 ? 3 : 4
+                                    return (
+                                        <span
+                                            key={i}
+                                            className={`gl-cohort-grid-cell gl-topic-heatmap-cell-l${level}`}
+                                            role="cell"
+                                            title={`${row.month}: ${Math.round(v * 100)}% active at M${i}`}
+                                        >
+                                            {Math.round(v * 100)}
+                                        </span>
+                                    )
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Cross-team collab matrix (plan §2, panel 5/5) ─ */}
+            {collabMatrix.teamsList.length > 0 && (
+                <div className="gl-panel">
+                    <div className="gl-panel-header">
+                        <h2 className="gl-panel-title">Cross-team collaboration</h2>
+                        <span className="gl-panel-subtitle">
+                            Rows = author's team. Columns = reviewer's team. Cell = MERGED-PR
+                            review count (self-reviews + dependabot excluded).
+                            {teamCollabData?.period ? ` Period: ${teamCollabData.period}.` : " All time."}
+                        </span>
+                    </div>
+                    <div className="gl-collab-matrix" role="table" aria-label="Cross-team collaboration matrix">
+                        <div className="gl-collab-matrix-row gl-collab-matrix-head" role="row">
+                            <span className="gl-collab-matrix-corner" role="columnheader" aria-label="author down × reviewer right">
+                                ↓ author / reviewer →
+                            </span>
+                            {collabMatrix.teamsList.map(slug => (
+                                <span
+                                    key={slug}
+                                    className="gl-collab-matrix-col"
+                                    role="columnheader"
+                                    style={{ borderTopColor: teamMeta.get(slug)?.color ?? "transparent" }}
+                                    title={teamMeta.get(slug)?.name ?? slug}
+                                >
+                                    {teamMeta.get(slug)?.name ?? slug}
+                                </span>
+                            ))}
+                        </div>
+                        {collabMatrix.teamsList.map(authorSlug => (
+                            <div key={authorSlug} className="gl-collab-matrix-row" role="row">
+                                <span
+                                    className="gl-collab-matrix-row-label"
+                                    role="rowheader"
+                                    style={{ borderLeftColor: teamMeta.get(authorSlug)?.color ?? "transparent" }}
+                                >
+                                    {teamMeta.get(authorSlug)?.name ?? authorSlug}
+                                </span>
+                                {collabMatrix.teamsList.map(reviewerSlug => {
+                                    const v = collabMatrix.get(authorSlug, reviewerSlug)
+                                    const ratio = collabMatrix.max > 0 ? v / collabMatrix.max : 0
+                                    const level = v === 0 ? 0
+                                        : ratio < 0.15 ? 1
+                                        : ratio < 0.4 ? 2
+                                        : ratio < 0.7 ? 3 : 4
+                                    const diag = authorSlug === reviewerSlug
+                                    return (
+                                        <span
+                                            key={reviewerSlug}
+                                            className={`gl-collab-matrix-cell gl-topic-heatmap-cell-l${level}${diag ? " gl-collab-matrix-diag" : ""}`}
+                                            role="cell"
+                                            title={`${teamMeta.get(authorSlug)?.name ?? authorSlug} → ${teamMeta.get(reviewerSlug)?.name ?? reviewerSlug}: ${v} reviews`}
+                                        >
+                                            {v > 0 ? v : ""}
+                                        </span>
+                                    )
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                    {(Object.keys(teamCollabData?.outsiderReviewsByAuthorTeam ?? {}).length > 0 ||
+                      Object.keys(teamCollabData?.outsiderReviewsByReviewerTeam ?? {}).length > 0) && (
+                        <p className="gl-panel-footnote">
+                            Reviews involving contributors with no team membership aren't shown here
+                            (∑ author-side: {Object.values(teamCollabData?.outsiderReviewsByAuthorTeam ?? {}).reduce((a, b) => a + b, 0)},
+                            reviewer-side: {Object.values(teamCollabData?.outsiderReviewsByReviewerTeam ?? {}).reduce((a, b) => a + b, 0)}).
+                        </p>
+                    )}
                 </div>
             )}
 

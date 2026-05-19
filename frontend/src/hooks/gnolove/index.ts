@@ -264,3 +264,21 @@ export type { TeamProfileUrlState } from "./useTeamProfileUrlState"
 
 export { useGnoloveTopics } from "./useGnoloveTopics"
 export type { UseGnoloveTopicsResult } from "./useGnoloveTopics"
+
+// ── Analytics panels 4 & 5 (v6.2.2) ──────────────────────
+
+export function useGnoloveCohorts() {
+    return useQuery({
+        queryKey: ["gnolove", "cohorts"],
+        queryFn: ({ signal }) => api.getContributorCohorts(signal),
+        staleTime: STALE_ONCHAIN, // 5 min — backend already caches the same
+    })
+}
+
+export function useGnoloveTeamCollab(period: string) {
+    return useQuery({
+        queryKey: ["gnolove", "teamCollab", period],
+        queryFn: ({ signal }) => api.getTeamCollab(period, signal),
+        staleTime: STALE_ONCHAIN,
+    })
+}
