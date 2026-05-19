@@ -87,8 +87,12 @@ function filterByTeam(projects: TAIReportProject[], slug: string | undefined): T
  * Slugify a project name for the URL hash. Plan §2 deep-link shape is
  * `?aiReport=<cycle>#<project_name>` — we map the visible name to a stable
  * ASCII slug so the anchor is URL-safe and matches `id={projectAnchor(name)}`.
+ *
+ * Kept un-exported because react-refresh/only-export-components forbids
+ * mixing non-component exports with components. If another file needs
+ * this, extract it to lib/.
  */
-export function projectAnchor(name: string): string {
+function projectAnchor(name: string): string {
     return name
         .toLowerCase()
         .normalize("NFKD")

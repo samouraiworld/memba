@@ -266,17 +266,27 @@ export default function GnoloveHome() {
 
             {/* Filters */}
             <div className="gl-filters">
-                <div className="gl-filter-group">
-                    {Object.entries(TIME_FILTER_LABELS).map(([value, label]) => (
-                        <button
-                            key={value}
-                            className={`gl-filter-btn ${timeFilter === value ? "gl-filter-btn--active" : ""}`}
-                            onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
-                            aria-pressed={timeFilter === value}
-                        >
-                            {label}
-                        </button>
-                    ))}
+                {/* Time filter — single-select; uses the same role=tablist
+                    pattern as TeamHubHeader + GnoloveReport so keyboard
+                    navigation and screen-reader semantics stay consistent
+                    across the /gnolove surface. */}
+                <div className="gl-tabs" role="tablist" aria-label="Time period">
+                    {Object.entries(TIME_FILTER_LABELS).map(([value, label]) => {
+                        const active = timeFilter === value
+                        return (
+                            <button
+                                key={value}
+                                type="button"
+                                role="tab"
+                                className={`gl-tab ${active ? "gl-tab--active" : ""}`}
+                                aria-selected={active}
+                                aria-current={active ? "page" : undefined}
+                                onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
+                            >
+                                {label}
+                            </button>
+                        )
+                    })}
                 </div>
                 <div className="gl-filter-group">
                     {TEAMS.map(team => {
