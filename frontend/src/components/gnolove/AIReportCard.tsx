@@ -83,6 +83,30 @@ function filterByTeam(projects: TAIReportProject[], slug: string | undefined): T
     return projects.filter(p => (p.team ?? "").toLowerCase() === want)
 }
 
+/**
+ * Slugify a project name for the URL hash. Plan §2 deep-link shape is
+ * `?aiReport=<cycle>#<project_name>` — we map the visible name to a stable
+ * ASCII slug so the anchor is URL-safe and matches `id={projectAnchor(name)}`.
+ *
+ * Kept un-exported because react-refresh/only-export-components forbids
+ * mixing non-component exports with components. If another file needs
+ * this, extract it to lib/.
+ */
+function projectAnchor(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+}
+
+/** Read the current URL hash, stripped of the leading `#`. */
+function currentHash(): string {
+    if (typeof window === "undefined") return ""
+    return decodeURIComponent(window.location.hash.replace(/^#/, ""))
+}
+
 function useIsMobile(): boolean {
     const [isMobile, setIsMobile] = useState(() =>
         typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT_PX,
@@ -98,6 +122,7 @@ function useIsMobile(): boolean {
 
 function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile: boolean }) {
     const [expanded, setExpanded] = useState(false)
+    const [highlighted, setHighlighted] = useState(false)
     // R-8 explicitly: use `||`, NOT `??`, to drop empty strings.
     const shortText = project.summary_short || project.summary
     const longText = project.summary_long || project.summary
@@ -105,8 +130,35 @@ function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile
     const showLongAsSheet = isMobile && expanded && hasDistinctLong
     const showLongInline = !isMobile && expanded && hasDistinctLong
 
+    const anchor = projectAnchor(project.project_name)
+
+    // Plan §2 deep-link: `?aiReport=<id>#<project_name>` should scroll to the
+    // matching ProjectRow and auto-expand it. Reacts to hashchange too so the
+    // operator's "Copy link" (future) doesn't require a page reload to work.
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        const onHash = () => {
+            if (currentHash() === anchor) {
+                setExpanded(true)
+                setHighlighted(true)
+                setTimeout(() => setHighlighted(false), 1500)
+                // Scroll into view if the browser hasn't already done so —
+                // hashes set after first paint don't auto-scroll on every browser.
+                const el = document.getElementById(`gl-aircard-project-${anchor}`)
+                el?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+        }
+        onHash()
+        window.addEventListener("hashchange", onHash)
+        return () => window.removeEventListener("hashchange", onHash)
+    }, [anchor])
+
     return (
-        <div className="gl-aircard-project">
+        <div
+            id={`gl-aircard-project-${anchor}`}
+            className={`gl-aircard-project${highlighted ? " gl-aircard-project--highlight" : ""}`}
+            data-project-anchor={anchor}
+        >
             <div className="gl-aircard-project-head">
                 <h4 className="gl-aircard-project-name">{project.project_name}</h4>
                 {project.team && (

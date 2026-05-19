@@ -266,17 +266,27 @@ export default function GnoloveHome() {
 
             {/* Filters */}
             <div className="gl-filters">
-                <div className="gl-filter-group">
-                    {Object.entries(TIME_FILTER_LABELS).map(([value, label]) => (
-                        <button
-                            key={value}
-                            className={`gl-filter-btn ${timeFilter === value ? "gl-filter-btn--active" : ""}`}
-                            onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
-                            aria-pressed={timeFilter === value}
-                        >
-                            {label}
-                        </button>
-                    ))}
+                {/* Time filter — single-select; uses the same role=tablist
+                    pattern as TeamHubHeader + GnoloveReport so keyboard
+                    navigation and screen-reader semantics stay consistent
+                    across the /gnolove surface. */}
+                <div className="gl-tabs" role="tablist" aria-label="Time period">
+                    {Object.entries(TIME_FILTER_LABELS).map(([value, label]) => {
+                        const active = timeFilter === value
+                        return (
+                            <button
+                                key={value}
+                                type="button"
+                                role="tab"
+                                className={`gl-tab ${active ? "gl-tab--active" : ""}`}
+                                aria-selected={active}
+                                aria-current={active ? "page" : undefined}
+                                onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
+                            >
+                                {label}
+                            </button>
+                        )
+                    })}
                 </div>
                 <div className="gl-filter-group">
                     {TEAMS.map(team => {
@@ -350,18 +360,10 @@ export default function GnoloveHome() {
                 )}
             </div>
 
-            {/* Score Factors */}
-            {scoreFactors && (
-                <div className="gl-score-factors">
-                    <span className="gl-score-label">Score weights:</span>
-                    <span className="gl-score-badge">PR x{scoreFactors.prFactor}</span>
-                    <span className="gl-score-badge">Issue x{scoreFactors.issueFactor}</span>
-                    <span className="gl-score-badge">Commit x{scoreFactors.commitFactor}</span>
-                    <span className="gl-score-badge">Review x{scoreFactors.reviewedPrFactor}</span>
-                </div>
-            )}
-
-            {/* Leaderboard Table — Paginated */}
+            {/* Leaderboard Table — Paginated.
+                Plan §2 caps the home to 5 sections; Score Factors moves
+                here as a collapsible inside the section header so the
+                info stays one click away without occupying a slot. */}
             <div className="gl-section">
                 <div className="gl-section-header-row">
                     <h2 className="gl-section-title">Contributor Leaderboard</h2>
@@ -371,6 +373,17 @@ export default function GnoloveHome() {
                         </span>
                     )}
                 </div>
+                {scoreFactors && (
+                    <details className="gl-score-factors-details">
+                        <summary className="gl-score-factors-summary">Score weights</summary>
+                        <div className="gl-score-factors">
+                            <span className="gl-score-badge">PR x{scoreFactors.prFactor}</span>
+                            <span className="gl-score-badge">Issue x{scoreFactors.issueFactor}</span>
+                            <span className="gl-score-badge">Commit x{scoreFactors.commitFactor}</span>
+                            <span className="gl-score-badge">Review x{scoreFactors.reviewedPrFactor}</span>
+                        </div>
+                    </details>
+                )}
                 {isLoading ? (
                     <div className="gl-loading">
                         <div className="gl-skeleton" /><div className="gl-skeleton" /><div className="gl-skeleton" />

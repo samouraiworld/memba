@@ -26,18 +26,19 @@ test.describe('Gnolove Section', () => {
     })
 
     test('time filter buttons render', async ({ page }) => {
-        const filterGroup = page.locator('.gl-filter-group').first()
-        await expect(filterGroup).toBeVisible({ timeout: 10_000 })
+        // v6.2.2 — period filter migrated to role="tablist" for keyboard +
+        // screen-reader semantics consistent with TeamHubHeader & GnoloveReport.
+        const tablist = page.getByRole('tablist', { name: 'Time period' })
+        await expect(tablist).toBeVisible({ timeout: 10_000 })
 
-        // Should have 4 time filter buttons (All Time, This Year, This Month, This Week)
-        const buttons = filterGroup.locator('.gl-filter-btn')
-        await expect(buttons).toHaveCount(4)
+        const tabs = tablist.getByRole('tab')
+        await expect(tabs).toHaveCount(4)
     })
 
     test('team filter buttons render', async ({ page }) => {
-        // Second filter group is the team filter
-        const filterGroups = page.locator('.gl-filter-group')
-        const teamFilterGroup = filterGroups.nth(1)
+        // The team toggle is the only remaining `.gl-filter-group` after the
+        // period tablist migration above; index 0 is now it.
+        const teamFilterGroup = page.locator('.gl-filter-group').first()
         await expect(teamFilterGroup).toBeVisible({ timeout: 10_000 })
 
         // Should have 8 team buttons
@@ -111,8 +112,10 @@ test.describe('Gnolove Section', () => {
     })
 
     test('team filter toggles visually', async ({ page }) => {
-        const filterGroups = page.locator('.gl-filter-group')
-        const teamFilterGroup = filterGroups.nth(1)
+        // v6.2.2 — the team toggle is the only remaining .gl-filter-group
+        // after the period selector migrated to role="tablist"; was previously
+        // .nth(1) when the period was also a .gl-filter-group.
+        const teamFilterGroup = page.locator('.gl-filter-group').first()
         await expect(teamFilterGroup).toBeVisible({ timeout: 10_000 })
 
         // First team button should start with --active class (all teams included by default)

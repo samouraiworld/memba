@@ -18,6 +18,8 @@ interface Props {
 
 function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "secondary" }) {
     const [owner, name] = repo.repoId.split("/")
+    const pctOfRepo = Math.round(repo.pctOfRepo * 100)
+    const pctOfTeam = Math.round(repo.pctOfTeam * 100)
     return (
         <a
             href={`https://github.com/${repo.repoId}`}
@@ -28,9 +30,12 @@ function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "sec
             <span className="gl-thub-active-repo-name">
                 <span className="gl-thub-active-repo-owner">{owner}/</span>{name}
             </span>
-            <span className="gl-thub-active-repo-count" title={`${repo.teamPRs} of ${repo.totalPRs} merged PRs (${Math.round(repo.pctOfRepo * 100)}% of repo)`}>
-                {repo.teamPRs}
-                <span className="gl-thub-active-repo-of">/ {repo.totalPRs}</span>
+            <span
+                className="gl-thub-active-repo-count"
+                title={`${repo.teamPRs} of ${repo.totalPRs} merged PRs in this repo · ${pctOfTeam}% of the team's PRs land here`}
+            >
+                <span className="gl-thub-active-repo-pct">{pctOfRepo}%</span>
+                <span className="gl-thub-active-repo-of">{repo.teamPRs}/{repo.totalPRs}</span>
             </span>
         </a>
     )
@@ -53,14 +58,24 @@ export function TeamHubActiveReposCard({ data, isLoading }: Props) {
         )
     }
 
+    // After loading resolves: data may be null when the fetch failed (gnoloveApi
+    // returns null on error). "No primary AND no secondary" is *also* a
+    // legitimate empty state for a quiet period, so distinguish the two.
+    const hasFailed = !isLoading && data == null
     const primary = data?.primary ?? []
     const secondary = data?.secondary ?? []
-    const empty = primary.length === 0 && secondary.length === 0
+    const empty = !hasFailed && primary.length === 0 && secondary.length === 0
 
     return (
         <div className="gl-thub-card">
             <h2 className="gl-thub-card-title">Active repositories</h2>
             <div aria-live="polite" aria-label="Active repositories for the selected period">
+
+            {hasFailed && (
+                <p className="gl-thub-empty" role="status">
+                    Active-repos data unavailable. The backend didn't return data for this period.
+                </p>
+            )}
 
             {empty && (
                 <p className="gl-thub-empty">No tracked-repo activity for this team in the selected period.</p>

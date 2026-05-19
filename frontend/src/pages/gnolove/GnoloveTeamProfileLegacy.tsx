@@ -16,7 +16,17 @@ import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TimeFilter, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
 
-export default function GnoloveTeamProfileLegacy() {
+interface Props {
+    /**
+     * Set true only when this component is rendered because
+     * `useGnoloveBackendHealth` reported "down". The page then shows a
+     * banner explaining the fallback. Default (flag-off path) renders
+     * silently — the legacy stub is the operator-chosen view.
+     */
+    degradedFromHub?: boolean
+}
+
+export default function GnoloveTeamProfileLegacy({ degradedFromHub = false }: Props = {}) {
     const np = useNetworkPath()
     const { teamName } = useParams<{ teamName: string }>()
     const decodedName = teamName ? decodeURIComponent(teamName) : ""
@@ -55,6 +65,16 @@ export default function GnoloveTeamProfileLegacy() {
         <div className="gl-page">
             <PageMeta title={`${team.name} | Gnolove · Memba`} description={team.description ?? `Team profile for ${team.name}.`} />
             <Link to={np("gnolove/teams")} className="gl-profile-back">&larr; Back to Teams</Link>
+
+            {degradedFromHub && (
+                <div className="gl-error-banner" role="alert">
+                    <span>
+                        <strong>Showing the fallback view.</strong> The gnolove backend is
+                        temporarily unreachable, so the full team hub can't render. The page
+                        will switch back automatically once the backend responds.
+                    </span>
+                </div>
+            )}
 
             <div className="gl-team-profile-header" style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}>
                 <div>
