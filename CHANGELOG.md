@@ -4,6 +4,58 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## Unreleased — v6.2.3 (Gnolove analytics rework — final 2 panels + Phase 6 canary)
+
+> Last beats of the team-hub rework. Plan §2's analytics promise is now fully delivered: 5 of 5 panels rendering against real data, with end-to-end canary coverage. Only Phase 7 (drop the legacy stub + the `VITE_GNOLOVE_TEAM_HUB` flag) remains, and that's intentionally gated on a few days of clean prod uptime.
+
+### Added
+- **Cohort retention panel.** Per-month cohort × month-offset retention grid, sourced from a new gnolove endpoint `GET /contributors/cohorts` (samouraiworld/gnolove#223). Newest cohort at the top; intensity from the shared `--gl-color-heatmap-l0..l4` ramp; empty cells where offset > cohort age render transparent so "hasn't aged yet" looks different from "dropped to zero." Backend math: per-author `MIN(created_at)` over the PR table picks the cohort; 24-month lookback cap.
+- **Cross-team collaboration matrix.** 8×8 (auto-grows with `teams.yaml`) review-count matrix from new gnolove endpoint `GET /team-collab?time=...`. Joins `reviews` → `pull_requests` → `users` twice to attribute each review to (authorTeam, reviewerTeam). Self-reviews and dependabot excluded; "outsider" buckets (reviews involving non-team contributors) surface as a footnote. Diagonal cells get a dashed outline so intra-team activity reads distinctly. Driven by the page period selector.
+- **Phase 6 — Playwright canary.** New `e2e/gnolove-team-hub.spec.ts` exercises: team hub mounts on `gnoland1`, "Roster updated" chip in header, period tablist URL state, network chip honesty (hidden on `gnoland1`, present on `test12`), all 5 analytics panel titles in trailing-year mode, and the On-Chain Metrics tile is **not** present (catches accidental revert of the v6.2.2 cleanup).
+- **Dev/CI flag parity.** New `frontend/.env.development` sets `VITE_GNOLOVE_TEAM_HUB=true` so `npm run dev` and CI Playwright runs mirror production (where the flag has been on since 2026-05-19). Devs who want the legacy stub override with `.env.local`. `.env.example` updated with doc-only entries.
+
+### Internal
+- New Zod schemas: `CohortRowSchema` / `CohortsResponseSchema` and `TeamCollabCellSchema` / `TeamCollabResponseSchema`.
+- New API client functions: `getContributorCohorts()`, `getTeamCollab(period)`.
+- New hooks: `useGnoloveCohorts()`, `useGnoloveTeamCollab(period)` — 5-min staleTime matching the backend ristretto cache.
+- New CSS namespaces: `.gl-cohort-grid-*`, `.gl-collab-matrix-*` (both reuse the topic-heatmap intensity ramp). `.gl-panel-footnote` utility class for the outsider-reviews line.
+
+### gnolove backend (samouraiworld/gnolove#223)
+- Two new aggregation endpoints — no new tables, no migrations, no new ingestion. `Review.AuthorID` + `Review.PullRequestID` was already populated by `syncPRs()` (see `server/sync/sync.go:263`); the new endpoints just aggregate from there + the PR `created_at` index.
+
+### Tests
+- 1843/1843 vitest unchanged.
+- New Playwright canary spec covers the team hub + all 5 analytics panels.
+- gnolove backend: full Go suite still green; new `handler/contributor/cohorts_test.go` + `handler/teams/collab_test.go` cover the cohort math, the dependabot/self-review exclusions, the outsider buckets, and the cache-hit behavior.
+
+### Pending
+- **Phase 7** — drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag. Gated on 3+ days of clean hub uptime (so don't open before 2026-05-23). Small cleanup, not a feature.
+
+Handoff: [`docs/reports/handoff-team-hub-2026-05-20.md`](docs/reports/handoff-team-hub-2026-05-20.md).
+
+---
+
+## Unreleased — v6.2.2 (Gnolove audit fixes + Analytics period URL + 3 of 5 plan §2 panels)
+
+Shipped 2026-05-19 via memba#344. See plan §4.1 for the full breakdown. Highlights:
+- **3 of 5 plan §2 analytics panels** — PR cycle-time histogram, topic activity heatmap (16 topics × 12 months via the live `/topics` taxonomy), repo health matrix (traffic-light cells for PRs/wk, median cycle, open backlog, last activity).
+- **`/gnolove` audit fixes (P0+P1)** — On-Chain Metrics tile removed (plan §2), `GnoloveTeams` slimmed to the index link grid plan §2 asked for, Score Factors badge folded into a `<details>` to hit the 5-section cap, "Last sync" → "Roster updated" pill (honesty), `TeamHubMetricsGrid` + `TeamHubActiveReposCard` distinguish "data unavailable" from "legitimately quiet period" instead of silently rendering 0s, auto-degrade banner above the legacy stub (plan §3 R-4), dual-threshold % surfaced inline on Primary/Secondary repo rows, AI report `?aiReport=<id>#<project>` deep-link with auto-expand + scroll + reduced-motion-safe highlight flash.
+- **Period selector consistency** — Home time-filter migrated to `role="tablist"`; Analytics gains a tablist + URL state (`?time=`).
+
+---
+
+## Unreleased — v6.2.1 (Team-hub UX polish + Phase-7 a11y)
+
+Shipped 2026-05-19 via memba#343. Highlights:
+- Period selector → `role="tablist"` matching the `GnoloveReport` pattern. `aria-current`/`aria-selected` on the active period.
+- Skeleton fidelity — each of the four loading cards renders a card-shaped placeholder instead of the generic 3-line stack. `aria-busy="true"` on the card, `aria-hidden="true"` on the skeleton DOM.
+- `aria-live="polite"` regions on metrics, active repos, focus pills, recent activity so period changes announce.
+- New `--gl-font-mono` token; 84 hardcoded `JetBrains Mono` declarations consolidated to `var()` references.
+- `@media (max-width: 768px)` block for `.gl-thub-*` — header stacks, metrics grid drops to 2 cols, paddings tighten.
+- Reduced-motion respect extended to team-hub interactives (cards, pills, repo rows, AI toggle).
+
+---
+
 ## Unreleased — v6.2.0 (Gnolove Team Hub Rework)
 
 > Makes `/:network/gnolove/teams/:teamName` the section's primary noun — team composition + active repos + scoped metrics + Focus Areas pills + embedded AI reports. Plan: [`docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md`](docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md). Live in production behind `VITE_GNOLOVE_TEAM_HUB`, flipped on Netlify 2026-05-19.
