@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest"
-import { computeFocusAreas, _internals, FOCUS_TOPIC_LABELS } from "./gnoloveFocusAreas"
+import { describe, it, expect, vi } from "vitest"
+import {
+    computeFocusAreas,
+    compileBackendTopic,
+    compileBackendTopics,
+    _internals,
+    FOCUS_TOPIC_LABELS,
+    OTHER_SLUG,
+} from "./gnoloveFocusAreas"
 
 describe("classify", () => {
     const { classify } = _internals
@@ -85,5 +92,95 @@ describe("FOCUS_TOPIC_LABELS", () => {
         for (const t of topics) {
             expect(FOCUS_TOPIC_LABELS[t]).toBeTruthy()
         }
+    })
+})
+
+describe("computeFocusAreas with explicit rules", () => {
+    it("uses caller-provided rules instead of the seed", () => {
+        // Custom rule set: only one topic, "weird-stuff", matches everything.
+        const rules = [{ topic: "weird-stuff", patterns: [/.+/] }]
+        const pills = computeFocusAreas(
+            [{ repo: "onbloc/adena-wallet", title: "x" }],
+            rules,
+        )
+        expect(pills).toHaveLength(1)
+        expect(pills[0].topic).toBe("weird-stuff")
+    })
+
+    it("returns 'other' when no caller rule matches", () => {
+        const rules = [{ topic: "noop", patterns: [/^never-matches-this-input$/] }]
+        const pills = computeFocusAreas(
+            // Three signals so 'other' clears the 5% threshold.
+            [
+                { repo: "x", title: "a" },
+                { repo: "y", title: "b" },
+                { repo: "z", title: "c" },
+            ],
+            rules,
+        )
+        expect(pills.find(p => p.topic === OTHER_SLUG)?.count).toBe(3)
+    })
+})
+
+describe("compileBackendTopic", () => {
+    it("compiles every pattern", () => {
+        const rule = compileBackendTopic({
+            slug: "wallet",
+            label: "Wallet",
+            patterns: ["adena", "\\bwallet\\b"],
+        })
+        expect(rule.topic).toBe("wallet")
+        expect(rule.patterns).toHaveLength(2)
+        expect(rule.patterns[0].test("adena-wallet")).toBe(true)
+    })
+
+    it("drops invalid regexes with a warning rather than throwing", () => {
+        const spy = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const rule = compileBackendTopic({
+            slug: "broken",
+            label: "Broken",
+            patterns: ["[unclosed", "valid"],
+        })
+        expect(rule.patterns).toHaveLength(1)
+        expect(rule.patterns[0].test("valid")).toBe(true)
+        expect(spy).toHaveBeenCalled()
+        spy.mockRestore()
+    })
+})
+
+describe("compileBackendTopics", () => {
+    it("falls back to the seed when the backend returns no topics", () => {
+        const { rules, labels } = compileBackendTopics([])
+        expect(rules).toBe(_internals.SEED_TOPIC_RULES)
+        expect(labels).toBe(_internals.SEED_TOPIC_LABELS)
+    })
+
+    it("preserves backend order (first-match-wins matters)", () => {
+        const { rules } = compileBackendTopics([
+            { slug: "indexer", label: "Indexer", patterns: ["gnoscan"] },
+            { slug: "wallet", label: "Wallet", patterns: ["adena"] },
+        ])
+        expect(rules.map(r => r.topic)).toEqual(["indexer", "wallet"])
+    })
+
+    it("builds a labels map and keeps the 'other' fallback label", () => {
+        const { labels } = compileBackendTopics([
+            { slug: "wallet", label: "Wallet (live)", patterns: ["adena"] },
+        ])
+        expect(labels.wallet).toBe("Wallet (live)")
+        expect(labels[OTHER_SLUG]).toBeTruthy()
+    })
+
+    it("end-to-end: live taxonomy classifies signals the seed can't", () => {
+        // A topic the seed doesn't know about — only the live taxonomy
+        // can pick it up.
+        const { rules } = compileBackendTopics([
+            { slug: "graphql-api", label: "GraphQL API", patterns: ["graphql"] },
+        ])
+        const pills = computeFocusAreas(
+            [{ repo: "x", title: "feat: graphql resolver tweak" }],
+            rules,
+        )
+        expect(pills[0].topic).toBe("graphql-api")
     })
 })

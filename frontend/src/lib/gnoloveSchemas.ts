@@ -487,4 +487,23 @@ export const TeamStatsResponseSchema = z.object({
     stats: z.array(TeamStatRowSchema).default([]),
     totals: TeamStatsTotalsSchema,
 })
+
+// ── Topics (Phase 2c) ───────────────────────────────────────────
+// Backed by gnolove/server/config/topics.yaml + the /topics endpoint.
+// Patterns are RE2 source strings — the client recompiles each one as a
+// JS RegExp at consumption time (see useGnoloveTopics + gnoloveFocusAreas).
+
+export const BackendTopicSchema = z.object({
+    slug: z.string(),
+    label: z.string(),
+    patterns: z.array(z.string()).default([]),
+})
+export type TBackendTopic = z.infer<typeof BackendTopicSchema>
+
+export const TopicsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    topics: z.array(BackendTopicSchema),
+})
+export type TTopicsResponse = z.infer<typeof TopicsResponseSchema>
 export type TTeamStatsResponse = z.infer<typeof TeamStatsResponseSchema>
