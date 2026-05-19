@@ -2844,6 +2844,147 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+/* ── Topic activity heatmap (Plan §2) ──────────────────── */
+
+.gl-topic-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.gl-topic-heatmap-row {
+    display: grid;
+    grid-template-columns: 140px repeat(12, minmax(28px, 1fr)) 40px;
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-topic-heatmap-head .gl-topic-heatmap-month,
+.gl-topic-heatmap-head .gl-topic-heatmap-label,
+.gl-topic-heatmap-head .gl-topic-heatmap-total {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-topic-heatmap-label {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    padding: 4px 6px;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-topic-heatmap-cell {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-text);
+    text-align: center;
+    padding: 4px 0;
+    border-radius: 3px;
+    transition: transform 0.1s;
+}
+
+.gl-topic-heatmap-cell-l0 { background: var(--gl-color-heatmap-l0); color: transparent; }
+.gl-topic-heatmap-cell-l1 { background: var(--gl-color-heatmap-l1); }
+.gl-topic-heatmap-cell-l2 { background: var(--gl-color-heatmap-l2); }
+.gl-topic-heatmap-cell-l3 { background: var(--gl-color-heatmap-l3); color: #0a0a14; font-weight: 600; }
+.gl-topic-heatmap-cell-l4 { background: var(--gl-color-heatmap-l4); color: #0a0a14; font-weight: 700; }
+
+.gl-topic-heatmap-cell:hover { transform: scale(1.06); }
+
+.gl-topic-heatmap-total {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 6px;
+    text-align: right;
+    color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-topic-heatmap-cell { transition: none; }
+    .gl-topic-heatmap-cell:hover { transform: none; }
+}
+
+/* ── Repo health matrix (Plan §2) ──────────────────────── */
+
+.gl-repo-health {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--gl-font-mono);
+    font-size: 12px;
+}
+
+.gl-repo-health thead th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-k-dim, #888);
+    border-bottom: 1px solid var(--color-border);
+    padding: 6px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 10px;
+}
+
+.gl-repo-health tbody th {
+    text-align: left;
+    font-weight: 500;
+    padding: 6px 8px;
+    color: var(--color-text);
+}
+
+.gl-repo-health tbody th a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.gl-repo-health tbody th a:hover {
+    color: var(--color-k-accent, #00d4aa);
+}
+
+.gl-repo-health-cell {
+    padding: 6px 8px;
+    text-align: right;
+    border-radius: 4px;
+}
+
+.gl-repo-health-good {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.07);
+}
+
+.gl-repo-health-fair {
+    color: #ffc107;
+    background: rgba(255, 193, 7, 0.08);
+}
+
+.gl-repo-health-poor {
+    color: var(--color-k-danger, #ef4444);
+    background: rgba(239, 68, 68, 0.10);
+}
+
+@media (max-width: 768px) {
+    .gl-topic-heatmap-row {
+        grid-template-columns: 100px repeat(12, minmax(20px, 1fr)) 32px;
+    }
+    .gl-repo-health {
+        font-size: 11px;
+    }
+    .gl-repo-health thead th,
+    .gl-repo-health tbody th,
+    .gl-repo-health-cell {
+        padding: 4px 6px;
+    }
+}
+
 /* ── AI report project deep-link highlight (Plan §2) ─────── */
 
 .gl-aircard-project--highlight {
