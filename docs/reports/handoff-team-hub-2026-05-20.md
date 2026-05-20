@@ -24,6 +24,7 @@
 | **gnolove#223** | `samouraiworld/gnolove` | `/contributors/cohorts` + `/team-collab` endpoints | merged + deployed 2026-05-19 |
 | **memba#345** | `samouraiworld/memba` | cohort retention + cross-team collab panels (4/5 + 5/5) | merged 2026-05-19 (admin) |
 | **memba#346** | `samouraiworld/memba` | Phase 6 — team-hub canary + analytics smoke tests | merged 2026-05-19 (admin) |
+| **memba#347** | `samouraiworld/memba` | unbreak Phase 6 canary in CI (env-dir + tab regex + soft-skip) | merged 2026-05-19 (admin) — main CI green from this point |
 
 **Net effect:**
 - Team hub renders for users in production with all six cards working off live data.
@@ -51,7 +52,8 @@
 - `FocusTopic` is a `string` type alias (widened in #342). Don't narrow it back to a literal union — the backend owns the taxonomy now and the union would drift.
 - `useGnoloveBackendHealth` integration is covered by the Vitest unit test next to the hook. The Playwright spec (`e2e/gnolove-team-hub.spec.ts`) deliberately skips it — 15s+ probe-interval waits per case with no marginal information gain.
 - `GnoloveTeamProfileLegacy` accepts a `degradedFromHub` prop now (#344). Only render the banner on that path, not the flag-off path — flag-off is intentional and silent.
-- `.env.development` is committed and gitignore-safe. Don't commit `.env.local` — that's the dev-override file.
+- `.env.development` **lives at the repo root**, not under `frontend/`. `vite.config.ts` sets `envDir: '..'` so Vite resolves env files relative to the repo root. Putting them under `frontend/` (the natural-feeling location) silently no-ops — that was the root cause of #346 landing red on main; #347 fixed it. Don't commit `.env.local` — that's the dev-override file (also at the repo root).
+- The Phase 6 analytics 5-panels canary **soft-skips when zero panels render** (e.g. when the runner can't reach `backend.gnolove.world` because Phase 5.5's CORS-glob was dropped). The team-hub canary tests don't depend on backend data and always assert. Authoritative panel-rendering coverage continues on memba.samourai.app deploy previews; the canary's job is FE regression detection, not backend liveness alarming. If you ever want CI to assert data-mode panel rendering, choose between reopening Phase 5.5 or mocking via `page.route()`.
 - `Date.now()` inside `useMemo` trips `react-hooks/purity`. Pattern in `GnoloveAnalytics.tsx`: snapshot via `const [nowMs] = useState(() => Date.now())` and feed memos.
 - The plan doc references the gnolove remote as `samouraiworld/topofgnomes` in a few places. Actual is `samouraiworld/gnolove`. Don't fix retroactively.
 
@@ -60,8 +62,9 @@
 - `Memba/frontend/src/pages/gnolove/GnoloveTeamProfile.tsx` — delete the branch, render `<TeamHub />` unconditionally.
 - `Memba/frontend/src/pages/gnolove/GnoloveTeamProfileLegacy.tsx` — delete the file.
 - `Memba/frontend/src/lib/gnoloveFeatureFlags.ts` — remove `isTeamHubEnabled()` + the flag reference.
-- `Memba/frontend/.env.development` — drop the `VITE_GNOLOVE_TEAM_HUB` line.
-- `Memba/frontend/.env.example` — drop the doc entry.
+- `.env.development` (repo root, **not** `frontend/.env.development` — that path was deleted in #347) — drop the `VITE_GNOLOVE_TEAM_HUB` line, or delete the file entirely if no other flags accumulate there.
+- Repo-root `.env.example` — drop the `VITE_GNOLOVE_TEAM_HUB=` doc entry added in #347.
+- `Memba/frontend/.env.example` — drop the doc entry + the `envDir: '..'` warning note (only useful while the flag exists).
 - Netlify production env — drop the variable (post-merge, otherwise the flag still resolves to true via fallback default which is fine).
 - Update `useGnoloveBackendHealth` consumer (`GnoloveTeamProfile`) — backend-down case still needs an honest UX (currently degrades to the legacy stub). Decide: render an inline error state inside the hub, or keep a tiny "Service unavailable" page. Plan §3 R-4 only requires the user knows.
 - `Memba/frontend/e2e/gnolove-team-hub.spec.ts` — the network-chip and tablist tests still apply. Remove any assertion that the legacy stub renders, since that path will be gone.
