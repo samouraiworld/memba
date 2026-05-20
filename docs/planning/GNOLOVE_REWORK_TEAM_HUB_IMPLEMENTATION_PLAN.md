@@ -78,7 +78,7 @@ Today the section's information architecture is inverted: `GnoloveHome` carries 
 | **v6.2.2** | Full `/gnolove` audit fixes (P0+P1) + Home/Analytics period URL state + **3 of 5 plan §2 analytics panels** (PR cycle time, topic heatmap, repo health matrix) + On-Chain Metrics tile removed + GnoloveTeams slimmed + auto-degrade banner + dual-threshold % surfaced | ✅ shipped 2026-05-19 | memba#344 |
 | **v6.2.3 (backend)** | `GET /contributors/cohorts` + `GET /team-collab` (uses existing `Review` table + PR `created_at` — no migration) | ✅ shipped + deployed 2026-05-19 | gnolove#223 |
 | **v6.2.3 (frontend)** | **Remaining 2 of 5 plan §2 analytics panels** — contributor cohort retention + cross-team collab matrix | ✅ shipped 2026-05-19 | memba#345 |
-| **6** | Playwright canary (team hub + 5 analytics panels + network chip honesty) + dev/CI flag parity via `.env.development` | ✅ shipped 2026-05-19 | memba#346 |
+| **6** | Playwright canary (team hub + 5 analytics panels + network chip honesty) + dev/CI flag parity via `.env.development` | ✅ shipped 2026-05-19 | memba#346 (then memba#347 unbroke the canary in CI — env-dir alignment, tab regex, data-soft-skip) |
 | **7** | Drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag | ⏳ **pending** — gated on 3+ days of clean hub uptime; don't open before 2026-05-23 | — |
 
 **Flag state (production, 2026-05-20):** `VITE_GNOLOVE_TEAM_HUB=true` on Netlify since 2026-05-19. Team hub is live to users. The legacy stub renders only as the auto-degrade target when `useGnoloveBackendHealth` reports the backend unhealthy. Dev/CI parity for the flag via `frontend/.env.development` (memba#346).
