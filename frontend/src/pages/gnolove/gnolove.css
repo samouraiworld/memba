@@ -24,15 +24,18 @@
     --gl-color-state-waiting: #ffc107;
     --gl-color-state-waiting-bg: rgba(255, 193, 7, 0.12);
 
-    /* Recharts axis / tooltip palette (consumed by Phase 6 analytics rework) */
+    /* Recharts axis / tooltip palette */
     --gl-color-chart-bg: #12121e;
     --gl-color-chart-grid: rgba(255, 255, 255, 0.04);
     --gl-color-chart-axis-fg: #666;
+    --gl-color-chart-tooltip-border: rgba(255, 255, 255, 0.08);
     --gl-color-chart-series-primary: #00d4aa;
     --gl-color-chart-series-reviewed: #a855f7;
     --gl-color-chart-series-open: #4a9eff;
+    --gl-color-chart-series-commits: #22c55e;
     --gl-color-chart-series-issues: #ffc107;
     --gl-color-chart-series-danger: #ef4444;
+    --gl-color-chart-series-neutral: #777;
 
     /* Heatmap intensity ramp (consumed by ContributionHeatmap + Phase 4-6 Heatmap primitive) */
     --gl-color-heatmap-l0: rgba(255, 255, 255, 0.03);
@@ -63,6 +66,12 @@
     --gl-color-chart-bg: #ffffff;
     --gl-color-chart-grid: rgba(0, 0, 0, 0.06);
     --gl-color-chart-axis-fg: #555;
+    --gl-color-chart-tooltip-border: rgba(0, 0, 0, 0.12);
+    --gl-color-chart-series-primary: #009e7e;
+    --gl-color-chart-series-reviewed: #7c3aed;
+    --gl-color-chart-series-open: #2563eb;
+    --gl-color-chart-series-commits: #16a34a;
+    --gl-color-chart-series-neutral: #6b7280;
     --gl-color-heatmap-l0: rgba(0, 0, 0, 0.04);
 }
 

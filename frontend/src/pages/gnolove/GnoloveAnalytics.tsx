@@ -34,19 +34,20 @@ import {
     computeCycleTimeHistogram, computeTopicHeatmap, topicHeatmapMax,
     computeRepoHealth, computeCohortGrid, computeCollabMatrix, computeSparklines,
 } from "../../lib/gnoloveAnalytics"
-
-const TOOLTIP_STYLE = {
-    background: "#12121e",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 6,
-    fontSize: 11,
-    fontFamily: "JetBrains Mono, monospace",
-}
-
-const GRID_STYLE = { stroke: "rgba(255,255,255,0.04)" }
-const AXIS_TICK = { fill: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }
+import { useChartTokens } from "../../hooks/useChartTokens"
 
 export default function GnoloveAnalytics() {
+    const ct = useChartTokens()
+    const tooltipStyle = useMemo(() => ({
+        background: ct.bg,
+        border: `1px solid ${ct.tooltipBorder}`,
+        borderRadius: 6,
+        fontSize: 11,
+        fontFamily: "var(--gl-font-mono)",
+    }), [ct.bg, ct.tooltipBorder])
+    const gridStyle = useMemo(() => ({ stroke: ct.grid }), [ct.grid])
+    const axisTick = useMemo(() => ({ fill: ct.axisFg, fontSize: 10, fontFamily: "var(--gl-font-mono)" }), [ct.axisFg])
+
     const [searchParams, setSearchParams] = useSearchParams()
     const rawTime = searchParams.get("time")
     const period: TimeFilter = rawTime && isTimeFilter(rawTime) ? rawTime : TimeFilter.ALL_TIME
@@ -142,10 +143,10 @@ export default function GnoloveAnalytics() {
             {stats && (
                 <div className="gl-dash-stats">
                     <DashStatCard label="Contributors" value={stats.totalContributors} icon="👥" />
-                    <DashStatCard label="Pull Requests" value={stats.totalPrs} icon="🔀" sparkline={sparklines.merged} color="#00d4aa" />
+                    <DashStatCard label="Pull Requests" value={stats.totalPrs} icon="🔀" sparkline={sparklines.merged} color={ct.primary} />
                     <DashStatCard label="Commits" value={stats.totalCommits} icon="📝" />
                     <DashStatCard label="Issues" value={stats.totalIssues} icon="🐛" />
-                    <DashStatCard label="Reviews" value={stats.totalReviews} icon="👁️" sparkline={sparklines.open} color="#a855f7" />
+                    <DashStatCard label="Reviews" value={stats.totalReviews} icon="👁️" sparkline={sparklines.open} color={ct.reviewed} />
                     <DashStatCard label="GovDAO" value={stats.govdaoMembers} icon="🏛️" />
                 </div>
             )}
@@ -160,11 +161,11 @@ export default function GnoloveAnalytics() {
                     <div className="gl-chart-container" role="img" aria-label="Bar chart showing PR cycle time distribution in days">
                         <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={cycleTimeHistogram} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
-                                <CartesianGrid {...GRID_STYLE} />
-                                <XAxis dataKey="label" tick={AXIS_TICK} />
-                                <YAxis tick={AXIS_TICK} />
-                                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                <Bar dataKey="count" name="Merged PRs" fill="var(--gl-color-state-merged, #a855f7)" radius={[3, 3, 0, 0]} />
+                                <CartesianGrid {...gridStyle} />
+                                <XAxis dataKey="label" tick={axisTick} />
+                                <YAxis tick={axisTick} />
+                                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                <Bar dataKey="count" name="Merged PRs" fill={ct.reviewed} radius={[3, 3, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -393,26 +394,26 @@ export default function GnoloveAnalytics() {
                             <AreaChart data={monthlyActivity} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="gradMerged" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#00d4aa" stopOpacity={0.3} />
-                                        <stop offset="100%" stopColor="#00d4aa" stopOpacity={0.02} />
+                                        <stop offset="0%" stopColor={ct.primary} stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor={ct.primary} stopOpacity={0.02} />
                                     </linearGradient>
                                     <linearGradient id="gradReviewed" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#a855f7" stopOpacity={0.25} />
-                                        <stop offset="100%" stopColor="#a855f7" stopOpacity={0.02} />
+                                        <stop offset="0%" stopColor={ct.reviewed} stopOpacity={0.25} />
+                                        <stop offset="100%" stopColor={ct.reviewed} stopOpacity={0.02} />
                                     </linearGradient>
                                     <linearGradient id="gradOpen" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#4a9eff" stopOpacity={0.2} />
-                                        <stop offset="100%" stopColor="#4a9eff" stopOpacity={0.02} />
+                                        <stop offset="0%" stopColor={ct.open} stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor={ct.open} stopOpacity={0.02} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid {...GRID_STYLE} />
-                                <XAxis dataKey="month" tick={AXIS_TICK} tickFormatter={m => m.slice(5)} />
-                                <YAxis tick={AXIS_TICK} />
-                                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }} />
-                                <Area type="monotone" dataKey="merged" name="Merged" stroke="#00d4aa" strokeWidth={2} fill="url(#gradMerged)" />
-                                <Area type="monotone" dataKey="inReview" name="In Review" stroke="#a855f7" strokeWidth={1.5} fill="url(#gradReviewed)" />
-                                <Area type="monotone" dataKey="open" name="Open" stroke="#4a9eff" strokeWidth={1.5} fill="url(#gradOpen)" />
+                                <CartesianGrid {...gridStyle} />
+                                <XAxis dataKey="month" tick={axisTick} tickFormatter={m => m.slice(5)} />
+                                <YAxis tick={axisTick} />
+                                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "var(--gl-font-mono)" }} />
+                                <Area type="monotone" dataKey="merged" name="Merged" stroke={ct.primary} strokeWidth={2} fill="url(#gradMerged)" />
+                                <Area type="monotone" dataKey="inReview" name="In Review" stroke={ct.reviewed} strokeWidth={1.5} fill="url(#gradReviewed)" />
+                                <Area type="monotone" dataKey="open" name="Open" stroke={ct.open} strokeWidth={1.5} fill="url(#gradOpen)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -437,11 +438,11 @@ export default function GnoloveAnalytics() {
                                 <div className="gl-chart-container" role="img" aria-label="Bar chart showing contributor distribution by merged PR count">
                                     <ResponsiveContainer width="100%" height={260}>
                                         <BarChart data={contributionTiers} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
-                                            <CartesianGrid {...GRID_STYLE} />
-                                            <XAxis dataKey="label" tick={AXIS_TICK} />
-                                            <YAxis tick={AXIS_TICK} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                            <Bar dataKey="count" name="Contributors" fill="#00d4aa" radius={[3, 3, 0, 0]} />
+                                            <CartesianGrid {...gridStyle} />
+                                            <XAxis dataKey="label" tick={axisTick} />
+                                            <YAxis tick={axisTick} />
+                                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                            <Bar dataKey="count" name="Contributors" fill={ct.primary} radius={[3, 3, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -458,11 +459,11 @@ export default function GnoloveAnalytics() {
                                 <div className="gl-chart-container" role="img" aria-label="Horizontal bar chart showing most active repositories by merged PRs">
                                     <ResponsiveContainer width="100%" height={260}>
                                         <BarChart data={repoActivity.slice(0, 8)} layout="vertical" margin={{ left: 100, right: 10, top: 10, bottom: 0 }}>
-                                            <CartesianGrid {...GRID_STYLE} />
-                                            <XAxis type="number" tick={AXIS_TICK} />
-                                            <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fontSize: 9 }} width={90} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                            <Bar dataKey="prs" name="Merged PRs" fill="#4a9eff" radius={[0, 3, 3, 0]} />
+                                            <CartesianGrid {...gridStyle} />
+                                            <XAxis type="number" tick={axisTick} />
+                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 9 }} width={90} />
+                                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                            <Bar dataKey="prs" name="Merged PRs" fill={ct.open} radius={[0, 3, 3, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -480,15 +481,15 @@ export default function GnoloveAnalytics() {
                             <div className="gl-chart-container" role="img" aria-label="Horizontal bar chart showing team breakdown by PRs, commits, issues, and reviews">
                                 <ResponsiveContainer width="100%" height={Math.max(280, teamData.length * 45)}>
                                     <BarChart data={teamData} layout="vertical" margin={{ left: 120, right: 20, top: 10, bottom: 10 }}>
-                                        <CartesianGrid {...GRID_STYLE} />
-                                        <XAxis type="number" tick={AXIS_TICK} />
-                                        <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fill: "#ccc", fontSize: 11 }} width={110} />
-                                        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }} />
-                                        <Bar dataKey="prs" name="PRs" fill="#4a9eff" radius={[0, 2, 2, 0]} />
-                                        <Bar dataKey="commits" name="Commits" fill="#22c55e" radius={[0, 2, 2, 0]} />
-                                        <Bar dataKey="issues" name="Issues" fill="#ffc107" radius={[0, 2, 2, 0]} />
-                                        <Bar dataKey="reviews" name="Reviews" fill="#a855f7" radius={[0, 2, 2, 0]} />
+                                        <CartesianGrid {...gridStyle} />
+                                        <XAxis type="number" tick={axisTick} />
+                                        <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 11 }} width={110} />
+                                        <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "var(--gl-font-mono)" }} />
+                                        <Bar dataKey="prs" name="PRs" fill={ct.open} radius={[0, 2, 2, 0]} />
+                                        <Bar dataKey="commits" name="Commits" fill={ct.commits} radius={[0, 2, 2, 0]} />
+                                        <Bar dataKey="issues" name="Issues" fill={ct.issues} radius={[0, 2, 2, 0]} />
+                                        <Bar dataKey="reviews" name="Reviews" fill={ct.reviewed} radius={[0, 2, 2, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -517,14 +518,14 @@ export default function GnoloveAnalytics() {
                                             }}
                                             style={{ cursor: "pointer" }}
                                         >
-                                            <CartesianGrid {...GRID_STYLE} />
-                                            <XAxis type="number" tick={AXIS_TICK} />
-                                            <YAxis type="category" dataKey="name" tick={{ ...AXIS_TICK, fontSize: 9 }} width={80} />
-                                            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--color-text)" }} />
-                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace" }} />
-                                            <Bar dataKey="yes" name="Yes" stackId="votes" fill="#22c55e" />
-                                            <Bar dataKey="no" name="No" stackId="votes" fill="#ef4444" />
-                                            <Bar dataKey="abstain" name="Abstain" stackId="votes" fill="#777" />
+                                            <CartesianGrid {...gridStyle} />
+                                            <XAxis type="number" tick={axisTick} />
+                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 9 }} width={80} />
+                                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
+                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontFamily: "var(--gl-font-mono)" }} />
+                                            <Bar dataKey="yes" name="Yes" stackId="votes" fill={ct.commits} />
+                                            <Bar dataKey="no" name="No" stackId="votes" fill={ct.danger} />
+                                            <Bar dataKey="abstain" name="Abstain" stackId="votes" fill={ct.neutral} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -551,7 +552,7 @@ function DashStatCard({ label, value, icon, sparkline, color }: {
             </div>
             <div className="gl-dash-card-value">{value.toLocaleString()}</div>
             {sparkline && sparkline.length > 2 && (
-                <Sparkline data={sparkline} color={color ?? "#00d4aa"} />
+                <Sparkline data={sparkline} color={color ?? "var(--gl-color-chart-series-primary, #00d4aa)"} />
             )}
         </div>
     )
