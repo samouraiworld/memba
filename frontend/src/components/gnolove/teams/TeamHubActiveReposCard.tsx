@@ -10,6 +10,7 @@
  */
 
 import type { TActiveReposResponse, TActiveRepo } from "../../../lib/gnoloveSchemas"
+import { RepoBadge, sortReposWithCorePinned } from "../RepoBadge"
 
 interface Props {
     data: TActiveReposResponse | null | undefined
@@ -31,6 +32,7 @@ function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "sec
         >
             <span className="gl-thub-active-repo-name">
                 <span className="gl-thub-active-repo-owner">{owner}/</span>{name}
+                <RepoBadge repo={repo.repoId} />
             </span>
             <span
                 className="gl-thub-active-repo-count"
@@ -61,8 +63,8 @@ export function TeamHubActiveReposCard({ data, isLoading, isError, onRetry }: Pr
     }
 
     const hasFailed = isError || (!isLoading && data == null)
-    const primary = data?.primary ?? []
-    const secondary = data?.secondary ?? []
+    const primary = sortReposWithCorePinned(data?.primary ?? [], r => r.repoId)
+    const secondary = sortReposWithCorePinned(data?.secondary ?? [], r => r.repoId)
     const empty = !hasFailed && primary.length === 0 && secondary.length === 0
 
     return (

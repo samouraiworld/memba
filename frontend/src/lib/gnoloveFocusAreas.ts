@@ -48,19 +48,24 @@ export interface TopicRule {
  * and the latest server config, resolved as soon as `useGnoloveTopics`
  * fetches.
  *
- * Order matters: earlier rules win on ambiguous hits.
+ * Order matters: earlier rules win on ambiguous hits. Conventional-commit
+ * prefixes like `feat(gnovm):` are matched first for precision.
  */
 const SEED_TOPIC_RULES: TopicRule[] = [
-    { topic: "gnovm", patterns: [/\bvm\b/, /interpreter/, /\bstack[- ]engine\b/, /gnoland\/gno/] },
-    { topic: "gnocore", patterns: [/\bcore\b/, /\bprotocol\b/, /tm2/, /consensus/] },
+    { topic: "gnovm", patterns: [/\(gnovm\)/, /\bvm\b/, /interpreter/, /\bstack[- ]engine\b/, /gnomod/, /precompile/, /type-check/, /transpile/, /\bast\b/, /\bparser\b/] },
+    { topic: "consensus", patterns: [/\(consensus\)/, /\bconsensus\b/, /\btendermint\b/, /\bbft\b/, /\bvalidator set\b/, /\bblock\b/] },
+    { topic: "gnocore", patterns: [/\(tm2\)/, /\bcore\b/, /\bprotocol\b/, /tm2/] },
+    { topic: "realms", patterns: [/\(gno\.land\)/, /\brealm\b/, /\bpackage\b/, /grc20/, /\bavl\b/, /r\//, /p\//] },
     { topic: "gnosdk", patterns: [/\bsdk\b/, /\bjs-client\b/, /tx[- ]builder/] },
-    { topic: "gnops", patterns: [/portal[- ]loop/, /validator/, /\binfra\b/, /deploy/, /\bops\b/] },
+    { topic: "gnops", patterns: [/\(ci\)/, /\(build\)/, /portal[- ]loop/, /\binfra\b/, /deploy/, /\bops\b/, /\bci\b/] },
     { topic: "security", patterns: [/\bsecurity\b/, /\bauth\b/, /audit/, /multisig/, /signer/, /cve/] },
     { topic: "devx", patterns: [/gnopls/, /gno-?cli/, /devx/, /\btooling\b/, /\blinter\b/, /\blsp\b/] },
+    { topic: "frontend", patterns: [/\breact\b/, /\bvite\b/, /\bcss\b/, /\bui\b/, /component/, /\bux\b/, /\bfrontend\b/] },
+    { topic: "testing", patterns: [/\btest\b/, /\bvitest\b/, /\be2e\b/, /coverage/, /\bci\/cd\b/] },
     { topic: "docs", patterns: [/\bdocs?\b/, /readme/, /tutorial/] },
     { topic: "wallet", patterns: [/adena/, /\bwallet\b/, /gnokey/] },
     { topic: "indexer", patterns: [/gnoscan/, /\bindexer\b/, /\bgraphql\b/] },
-    { topic: "governance", patterns: [/govdao/, /\bgovern/, /\bproposal/, /multisig/] },
+    { topic: "governance", patterns: [/govdao/, /\bgovern/, /\bproposal/] },
     { topic: "dex", patterns: [/gnoswap/, /\bdex\b/, /\bswap\b/, /\bamm\b/, /liquidity/] },
     { topic: "nft", patterns: [/\bnft\b/, /\berc721\b/, /grc721/] },
     { topic: "messaging", patterns: [/berty/, /messaging/, /\bp2p\b/] },
@@ -72,11 +77,15 @@ const SEED_TOPIC_RULES: TopicRule[] = [
 /** Seed labels for the topic slugs; merged with backend labels at render time. */
 const SEED_TOPIC_LABELS: Record<FocusTopic, string> = {
     gnovm: "Gno VM",
-    gnocore: "Core protocol",
+    consensus: "Consensus",
+    gnocore: "Core / TM2",
+    realms: "Realms & packages",
     gnosdk: "SDK",
     gnops: "Ops & infra",
     security: "Security",
     devx: "DevX & tooling",
+    frontend: "Frontend",
+    testing: "Testing & CI",
     docs: "Docs",
     wallet: "Wallet",
     indexer: "Indexer & API",
@@ -105,8 +114,7 @@ export interface FocusPill {
     share: number
 }
 
-const TOP_N = 5
-const OTHER_HIDE_THRESHOLD = 0.05
+const TOP_N = 6
 
 interface Signal {
     repo: string
@@ -148,8 +156,7 @@ export function computeFocusAreas(
         count,
         share: count / total,
     }))
-    // "other" is hidden when it's noise; promoted when it's a real signal.
-    const filtered = entries.filter(p => p.topic !== OTHER_SLUG || p.share > OTHER_HIDE_THRESHOLD)
+    const filtered = entries.filter(p => p.topic !== OTHER_SLUG)
     filtered.sort((a, b) => b.count - a.count)
     return filtered.slice(0, TOP_N)
 }
@@ -196,6 +203,5 @@ export const _internals = {
     classify,
     SEED_TOPIC_RULES,
     SEED_TOPIC_LABELS,
-    OTHER_HIDE_THRESHOLD,
     TOP_N,
 }

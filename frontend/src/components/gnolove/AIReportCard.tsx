@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { TAIReport, TAIReportProject } from "../../lib/gnoloveSchemas"
 import { AccessibleDialog } from "../AccessibleDialog"
+import { RepoBadge, sortReposWithCorePinned } from "./RepoBadge"
 
 const MOBILE_BREAKPOINT_PX = 768
 
@@ -161,7 +162,10 @@ function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile
             data-project-anchor={anchor}
         >
             <div className="gl-aircard-project-head">
-                <h4 className="gl-aircard-project-name">{project.project_name}</h4>
+                <h4 className="gl-aircard-project-name">
+                    {project.project_name}
+                    <RepoBadge repo={project.project_name} />
+                </h4>
                 {project.team && (
                     <span className="gl-thub-chip gl-aircard-project-team">{project.team}</span>
                 )}
@@ -215,7 +219,8 @@ export function AIReportCard({
     permalinkParam = "aiReport",
     compact = false,
 }: Props) {
-    const { filtered: projects, teamFallback } = filterByTeam(report.data?.projects ?? [], teamSlug)
+    const { filtered: unsorted, teamFallback } = filterByTeam(report.data?.projects ?? [], teamSlug)
+    const projects = sortReposWithCorePinned(unsorted, p => p.project_name)
     const isMobile = useIsMobile()
     const [copied, setCopied] = useState(false)
     const [linkCopied, setLinkCopied] = useState(false)

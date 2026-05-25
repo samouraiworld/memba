@@ -22,6 +22,7 @@ import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
 import { TeamHubRecentActivityCard } from "./TeamHubRecentActivityCard"
 import { TeamHubAIReportsCard } from "./TeamHubAIReportsCard"
 import { TeamHubFocusAreasCard } from "./TeamHubFocusAreasCard"
+import { TeamHubReportCard } from "./TeamHubReportCard"
 import { periodToBackendParam } from "../../../lib/gnolovePeriod"
 import type { Team } from "../../../lib/gnoloveConstants"
 
@@ -103,6 +104,10 @@ export function TeamHub() {
                     onRetry={() => teamStatsQuery.refetch()}
                     teamMemberCount={team.members.length}
                 />
+            </GnoloveErrorBoundary>
+
+            <GnoloveErrorBoundary name="Team report" variant="card">
+                <TeamHubReportCard team={team} period={period} />
             </GnoloveErrorBoundary>
 
             <GnoloveErrorBoundary name="Active repositories" variant="card" onRetry={() => activeReposQuery.refetch()}>

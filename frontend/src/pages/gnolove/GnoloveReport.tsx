@@ -37,6 +37,7 @@ import { filterPrs } from "../../lib/gnoloveReportFilters"
 import { NarrativeReportView } from "../../components/gnolove/report/NarrativeReportView"
 import { EmptyStateMessage } from "../../components/gnolove/report/EmptyStateMessage"
 import type { EmptyReason } from "../../components/gnolove/report/types"
+import { RepoBadge, isCorerepo } from "../../components/gnolove/RepoBadge"
 
 const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     weekly: "Weekly",
@@ -391,7 +392,13 @@ export default function GnoloveReport() {
                                 />
                                 <span>All Repositories</span>
                             </label>
-                            {repos?.map(repo => {
+                            {repos?.slice().sort((a, b) => {
+                                const aCore = isCorerepo(`${a.owner}/${a.name}`)
+                                const bCore = isCorerepo(`${b.owner}/${b.name}`)
+                                if (aCore && !bCore) return -1
+                                if (!aCore && bCore) return 1
+                                return 0
+                            }).map(repo => {
                                 const key = `${repo.owner}/${repo.name}`
                                 return (
                                     <label key={repo.id} className="gl-repo-multiselect-option">
@@ -401,6 +408,7 @@ export default function GnoloveReport() {
                                             onChange={() => toggleRepo(key)}
                                         />
                                         <span>{key}</span>
+                                        <RepoBadge repo={key} />
                                     </label>
                                 )
                             })}
