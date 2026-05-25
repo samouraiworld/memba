@@ -73,6 +73,8 @@
     --gl-color-chart-series-commits: #16a34a;
     --gl-color-chart-series-neutral: #6b7280;
     --gl-color-heatmap-l0: rgba(0, 0, 0, 0.04);
+    --gl-ms-track-bg: rgba(0, 0, 0, 0.06);
+    --gl-ms-border: rgba(0, 0, 0, 0.06);
 }
 
 /* ── Layout ──────────────────────────────────── */
@@ -89,6 +91,8 @@
     flex-direction: column;
     gap: 20px;
 }
+
+.gl-mb-16 { margin-bottom: 16px; }
 
 /* ── Sub Navigation ──────────────────────────── */
 
@@ -3484,10 +3488,6 @@
     .gl-thub-ai-toggle {
         transition: none;
     }
-    .gl-thub-active-repo:hover,
-    .gl-thub-card:hover {
-        transform: none;
-    }
 }
 
 /* ── AI Report Card (Phase 5) ──────────────────── */
@@ -3633,4 +3633,73 @@
 @keyframes gl-aircard-slide {
     from { transform: translateY(20%); }
     to   { transform: translateY(0); }
+}
+
+/* ── Milestone Page ───────────────────────────── */
+
+.gl-ms-progress-track {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--gl-ms-track-bg, rgba(255, 255, 255, 0.08));
+    overflow: hidden;
+    margin: 8px 16px 16px;
+}
+
+.gl-ms-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: #a78bfa;
+    transition: width 0.3s ease;
+}
+
+.gl-ms-progress-fill--done {
+    background: #22c55e;
+}
+
+.gl-ms-description {
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
+
+.gl-ms-issues {
+    display: flex;
+    flex-direction: column;
+}
+
+.gl-ms-issue {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gl-ms-border, rgba(255, 255, 255, 0.04));
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.gl-ms-issue-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #eab308;
+    flex-shrink: 0;
+}
+
+.gl-ms-issue-dot--closed {
+    background: #22c55e;
+}
+
+.gl-ms-issue-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-ms-issue-number {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    flex-shrink: 0;
 }
