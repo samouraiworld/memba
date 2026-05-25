@@ -19,6 +19,7 @@ import { persistQueryClient } from "@tanstack/react-query-persist-client"
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister"
 import GnoloveSubNav from "../components/gnolove/GnoloveSubNav"
 import { GnoloveErrorBoundary } from "../components/gnolove/GnoloveErrorBoundary"
+import { useFocusOnRouteChange } from "../hooks/useFocusOnRouteChange"
 import "../pages/gnolove/gnolove.css"
 
 // Bumped v1 → v2 in Phase 3 (2026-05) so the new `["gnolove", "teams"]`
@@ -43,6 +44,7 @@ function GnolovePageLoader() {
 // ── Layout ───────────────────────────────────────────────────
 
 export default function GnoloveLayout() {
+    useFocusOnRouteChange()
     const [queryClient] = useState(
         () =>
             new QueryClient({

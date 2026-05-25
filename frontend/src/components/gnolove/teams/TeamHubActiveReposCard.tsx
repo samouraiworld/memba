@@ -68,7 +68,10 @@ export function TeamHubActiveReposCard({ data, isLoading, isError, onRetry }: Pr
     return (
         <div className="gl-thub-card">
             <h2 className="gl-thub-card-title">Active repositories</h2>
-            <div aria-live="polite" aria-label="Active repositories for the selected period">
+            <span className="gl-sr-only" aria-live="polite">
+                {hasFailed ? "Data unavailable" : empty ? "No active repositories" : `${primary.length + secondary.length} repositories`}
+            </span>
+            <div aria-label="Active repositories for the selected period">
 
             {hasFailed && (
                 <p className="gl-thub-empty" role="status">

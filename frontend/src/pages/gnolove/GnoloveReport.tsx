@@ -244,7 +244,7 @@ export default function GnoloveReport() {
         <div className="gl-page">
             <PageMeta title={pageTitle} description={`PR activity report for ${dateLabel} on the Gno ecosystem.`} />
             <div className="gl-header">
-                <h1 className="gl-title">📋 PR Report</h1>
+                <h1 className="gl-title">PR Report</h1>
                 <div className="gl-report-actions">
                     <div className="gl-view-toggle" role="tablist" aria-label="View mode">
                         <button

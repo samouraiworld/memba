@@ -28,7 +28,7 @@ export default function GnoloveTeams() {
             <PageMeta title="Teams | Gnolove · Memba" description="Contributor teams in the Gno ecosystem." />
             <Link to={np("gnolove")} className="gl-profile-back">← Back to Contributors Overview</Link>
             <div className="gl-header">
-                <h1 className="gl-title">🏆 Teams</h1>
+                <h1 className="gl-title">Teams</h1>
                 {lastSyncedAt && (
                     <span className="gl-thub-chip gl-thub-chip-sync" title={new Date(lastSyncedAt).toISOString()}>
                         Roster updated: {new Date(lastSyncedAt).toLocaleDateString()}

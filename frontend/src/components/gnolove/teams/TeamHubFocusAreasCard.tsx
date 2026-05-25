@@ -68,7 +68,10 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
                 Honest v1: top-5 topics derived from merged PRs in this period.
                 Matrix view (per-repo × per-topic) is a follow-up.
             </p>
-            <div aria-live="polite" aria-label="Focus areas for the selected period">
+            <span className="gl-sr-only" aria-live="polite">
+                {pills.length === 0 ? "No focus areas for this period" : `${pills.length} focus areas`}
+            </span>
+            <div aria-label="Focus areas for the selected period">
                 {pills.length === 0 ? (
                     <p className="gl-thub-empty">Not enough merged-PR signal to derive topics for this period.</p>
                 ) : (

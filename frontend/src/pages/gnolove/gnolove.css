@@ -1892,6 +1892,15 @@
     .gl-pagination {
         flex-wrap: wrap;
     }
+
+    .gl-tab,
+    .gl-filter-btn,
+    .gl-export-btn,
+    .gl-pagination-btn,
+    .gl-sort-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
 }
 
 /* ── Compact Team Cards (v2.21.1 — above leaderboard) ────── */
@@ -2030,6 +2039,22 @@
     color: var(--color-k-muted, #555);
     padding: 0 4px;
     font-size: 11px;
+}
+
+.gl-sort-btn {
+    all: unset;
+    cursor: pointer;
+    width: 100%;
+    padding: 6px 8px;
+    font: inherit;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.gl-sort-btn:focus-visible {
+    outline: 2px solid var(--color-k-accent, #00d4aa);
+    outline-offset: -2px;
+    border-radius: 2px;
 }
 
 /* ── Team Profile Page (v2.21.1) ─────────────────────────── */

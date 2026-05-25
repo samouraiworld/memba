@@ -109,7 +109,7 @@ export default function GnoloveAnalytics() {
         <div className="gl-page">
             <PageMeta title="Ecosystem Insights | Gnolove · Memba" description="Time-series analytics for the Gno ecosystem (PRs, commits, proposals, governance)." />
             <div className="gl-header">
-                <h1 className="gl-title">📈 Ecosystem Insights</h1>
+                <h1 className="gl-title">Ecosystem Insights</h1>
                 <div className="gl-tabs" role="tablist" aria-label="Time period">
                     {Object.entries(TIME_FILTER_LABELS).map(([value, label]) => {
                         const active = period === value
@@ -157,7 +157,7 @@ export default function GnoloveAnalytics() {
                         <h2 className="gl-panel-title">PR Cycle Time</h2>
                         <span className="gl-panel-subtitle">Days from open → merged for {period === TimeFilter.ALL_TIME ? "the last year" : TIME_FILTER_LABELS[period].toLowerCase()}</span>
                     </div>
-                    <div className="gl-chart-container">
+                    <div className="gl-chart-container" role="img" aria-label="Bar chart showing PR cycle time distribution in days">
                         <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={cycleTimeHistogram} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
                                 <CartesianGrid {...GRID_STYLE} />
@@ -388,7 +388,7 @@ export default function GnoloveAnalytics() {
                         <h2 className="gl-panel-title">PR Activity Trend</h2>
                         <span className="gl-panel-subtitle">Merged, reviewed, and open PRs per month</span>
                     </div>
-                    <div className="gl-chart-container">
+                    <div className="gl-chart-container" role="img" aria-label="Area chart showing monthly PR activity trend: merged, reviewed, and open">
                         <ResponsiveContainer width="100%" height={280}>
                             <AreaChart data={monthlyActivity} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
                                 <defs>
@@ -434,7 +434,7 @@ export default function GnoloveAnalytics() {
                                     <h2 className="gl-panel-title">Contributor Distribution</h2>
                                     <span className="gl-panel-subtitle">By merged PR count</span>
                                 </div>
-                                <div className="gl-chart-container">
+                                <div className="gl-chart-container" role="img" aria-label="Bar chart showing contributor distribution by merged PR count">
                                     <ResponsiveContainer width="100%" height={260}>
                                         <BarChart data={contributionTiers} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
                                             <CartesianGrid {...GRID_STYLE} />
@@ -455,7 +455,7 @@ export default function GnoloveAnalytics() {
                                     <h2 className="gl-panel-title">Most Active Repos</h2>
                                     <span className="gl-panel-subtitle">Merged PRs (past year)</span>
                                 </div>
-                                <div className="gl-chart-container">
+                                <div className="gl-chart-container" role="img" aria-label="Horizontal bar chart showing most active repositories by merged PRs">
                                     <ResponsiveContainer width="100%" height={260}>
                                         <BarChart data={repoActivity.slice(0, 8)} layout="vertical" margin={{ left: 100, right: 10, top: 10, bottom: 0 }}>
                                             <CartesianGrid {...GRID_STYLE} />
@@ -477,7 +477,7 @@ export default function GnoloveAnalytics() {
                                 <h2 className="gl-panel-title">Team Breakdown</h2>
                                 <span className="gl-panel-subtitle">PRs, commits, issues, and reviews by team</span>
                             </div>
-                            <div className="gl-chart-container">
+                            <div className="gl-chart-container" role="img" aria-label="Horizontal bar chart showing team breakdown by PRs, commits, issues, and reviews">
                                 <ResponsiveContainer width="100%" height={Math.max(280, teamData.length * 45)}>
                                     <BarChart data={teamData} layout="vertical" margin={{ left: 120, right: 20, top: 10, bottom: 10 }}>
                                         <CartesianGrid {...GRID_STYLE} />
@@ -546,7 +546,7 @@ function DashStatCard({ label, value, icon, sparkline, color }: {
     return (
         <div className="gl-dash-card">
             <div className="gl-dash-card-top">
-                <span className="gl-dash-card-icon">{icon}</span>
+                <span className="gl-dash-card-icon" aria-hidden="true">{icon}</span>
                 <span className="gl-dash-card-label">{label}</span>
             </div>
             <div className="gl-dash-card-value">{value.toLocaleString()}</div>
