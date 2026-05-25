@@ -35,77 +35,43 @@ export default function GnoloveMilestone() {
                 <p className="gl-subtitle">{milestone.title}</p>
             </div>
 
-            {/* Progress bar */}
-            <div className="gl-panel" style={{ marginBottom: 16 }}>
+            <div className="gl-panel gl-mb-16">
                 <div className="gl-panel-header">
                     <h2 className="gl-panel-title">Progress</h2>
                     <span className="gl-panel-subtitle">
                         {closedCount}/{totalCount} issues closed ({progress}%)
                     </span>
                 </div>
-                <div style={{ padding: "8px 16px 16px" }}>
-                    <div style={{
-                        height: 8,
-                        borderRadius: 4,
-                        background: "rgba(255,255,255,0.08)",
-                        overflow: "hidden",
-                    }}>
-                        <div style={{
-                            height: "100%",
-                            width: `${progress}%`,
-                            background: progress === 100 ? "#22c55e" : "#a78bfa",
-                            borderRadius: 4,
-                            transition: "width 0.3s ease",
-                        }} />
-                    </div>
+                <div className="gl-ms-progress-track">
+                    <div
+                        className={`gl-ms-progress-fill${progress === 100 ? " gl-ms-progress-fill--done" : ""}`}
+                        style={{ width: `${progress}%` }}
+                    />
                 </div>
             </div>
 
-            {/* Description */}
             {milestone.description && (
-                <div className="gl-panel" style={{ marginBottom: 16 }}>
-                    <div style={{ padding: 16, fontSize: 13, lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
-                        {milestone.description}
-                    </div>
+                <div className="gl-panel gl-mb-16">
+                    <div className="gl-ms-description">{milestone.description}</div>
                 </div>
             )}
 
-            {/* Issues list */}
             <div className="gl-panel">
                 <div className="gl-panel-header">
                     <h2 className="gl-panel-title">Issues ({totalCount})</h2>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column" }}>
+                <div className="gl-ms-issues">
                     {milestone.issues.map((issue) => (
                         <a
                             key={issue.id}
                             href={issue.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                padding: "10px 16px",
-                                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                                textDecoration: "none",
-                                color: "var(--color-text)",
-                                fontSize: 13,
-                            }}
+                            className="gl-ms-issue"
                         >
-                            <span style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: issue.state === "CLOSED" ? "#22c55e" : "#eab308",
-                                flexShrink: 0,
-                            }} />
-                            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {issue.title}
-                            </span>
-                            <span style={{ color: "var(--color-text-secondary)", fontSize: 11, flexShrink: 0 }}>
-                                #{issue.number}
-                            </span>
+                            <span className={`gl-ms-issue-dot${issue.state === "CLOSED" ? " gl-ms-issue-dot--closed" : ""}`} />
+                            <span className="gl-ms-issue-title">{issue.title}</span>
+                            <span className="gl-ms-issue-number">#{issue.number}</span>
                         </a>
                     ))}
                 </div>

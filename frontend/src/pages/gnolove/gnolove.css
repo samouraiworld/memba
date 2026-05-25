@@ -24,15 +24,18 @@
     --gl-color-state-waiting: #ffc107;
     --gl-color-state-waiting-bg: rgba(255, 193, 7, 0.12);
 
-    /* Recharts axis / tooltip palette (consumed by Phase 6 analytics rework) */
+    /* Recharts axis / tooltip palette */
     --gl-color-chart-bg: #12121e;
     --gl-color-chart-grid: rgba(255, 255, 255, 0.04);
     --gl-color-chart-axis-fg: #666;
+    --gl-color-chart-tooltip-border: rgba(255, 255, 255, 0.08);
     --gl-color-chart-series-primary: #00d4aa;
     --gl-color-chart-series-reviewed: #a855f7;
     --gl-color-chart-series-open: #4a9eff;
+    --gl-color-chart-series-commits: #22c55e;
     --gl-color-chart-series-issues: #ffc107;
     --gl-color-chart-series-danger: #ef4444;
+    --gl-color-chart-series-neutral: #777;
 
     /* Heatmap intensity ramp (consumed by ContributionHeatmap + Phase 4-6 Heatmap primitive) */
     --gl-color-heatmap-l0: rgba(255, 255, 255, 0.03);
@@ -63,7 +66,15 @@
     --gl-color-chart-bg: #ffffff;
     --gl-color-chart-grid: rgba(0, 0, 0, 0.06);
     --gl-color-chart-axis-fg: #555;
+    --gl-color-chart-tooltip-border: rgba(0, 0, 0, 0.12);
+    --gl-color-chart-series-primary: #009e7e;
+    --gl-color-chart-series-reviewed: #7c3aed;
+    --gl-color-chart-series-open: #2563eb;
+    --gl-color-chart-series-commits: #16a34a;
+    --gl-color-chart-series-neutral: #6b7280;
     --gl-color-heatmap-l0: rgba(0, 0, 0, 0.04);
+    --gl-ms-track-bg: rgba(0, 0, 0, 0.06);
+    --gl-ms-border: rgba(0, 0, 0, 0.06);
 }
 
 /* ── Layout ──────────────────────────────────── */
@@ -80,6 +91,8 @@
     flex-direction: column;
     gap: 20px;
 }
+
+.gl-mb-16 { margin-bottom: 16px; }
 
 /* ── Sub Navigation ──────────────────────────── */
 
@@ -778,6 +791,11 @@
     background-size: 200% 100%;
     animation: gl-shimmer 1.5s infinite;
     border-radius: 8px;
+}
+
+.gl-skeleton--card {
+    height: 180px;
+    margin-bottom: 16px;
 }
 
 @keyframes gl-shimmer {
@@ -2867,6 +2885,46 @@
     margin: -4px 0 12px;
 }
 
+.gl-thub-methodology {
+    display: inline;
+    position: relative;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.gl-thub-methodology-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-k-dim, #888);
+    font-size: 10px;
+    cursor: pointer;
+    list-style: none;
+    vertical-align: middle;
+}
+
+.gl-thub-methodology-toggle::-webkit-details-marker { display: none; }
+
+.gl-thub-methodology[open] > span {
+    position: absolute;
+    left: 0;
+    top: 22px;
+    z-index: 10;
+    background: var(--gl-color-chart-bg, #12121e);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--color-k-dim, #ccc);
+    white-space: nowrap;
+    min-width: 200px;
+}
+
 .gl-thub-pills {
     list-style: none;
     margin: 0;
@@ -3430,10 +3488,6 @@
     .gl-thub-ai-toggle {
         transition: none;
     }
-    .gl-thub-active-repo:hover,
-    .gl-thub-card:hover {
-        transform: none;
-    }
 }
 
 /* ── AI Report Card (Phase 5) ──────────────────── */
@@ -3579,4 +3633,73 @@
 @keyframes gl-aircard-slide {
     from { transform: translateY(20%); }
     to   { transform: translateY(0); }
+}
+
+/* ── Milestone Page ───────────────────────────── */
+
+.gl-ms-progress-track {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--gl-ms-track-bg, rgba(255, 255, 255, 0.08));
+    overflow: hidden;
+    margin: 8px 16px 16px;
+}
+
+.gl-ms-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: #a78bfa;
+    transition: width 0.3s ease;
+}
+
+.gl-ms-progress-fill--done {
+    background: #22c55e;
+}
+
+.gl-ms-description {
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
+
+.gl-ms-issues {
+    display: flex;
+    flex-direction: column;
+}
+
+.gl-ms-issue {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gl-ms-border, rgba(255, 255, 255, 0.04));
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.gl-ms-issue-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #eab308;
+    flex-shrink: 0;
+}
+
+.gl-ms-issue-dot--closed {
+    background: #22c55e;
+}
+
+.gl-ms-issue-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gl-ms-issue-number {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    flex-shrink: 0;
 }

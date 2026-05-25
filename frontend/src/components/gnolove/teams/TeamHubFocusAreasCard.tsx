@@ -63,11 +63,13 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
 
     return (
         <div className="gl-thub-card">
-            <h2 className="gl-thub-card-title">Focus areas</h2>
-            <p className="gl-thub-card-hint">
-                Honest v1: top-5 topics derived from merged PRs in this period.
-                Matrix view (per-repo × per-topic) is a follow-up.
-            </p>
+            <h2 className="gl-thub-card-title">
+                Focus areas
+                <details className="gl-thub-methodology">
+                    <summary className="gl-thub-methodology-toggle">?</summary>
+                    <span>Top-5 topics derived from merged PRs in the selected period.</span>
+                </details>
+            </h2>
             <span className="gl-sr-only" aria-live="polite">
                 {pills.length === 0 ? "No focus areas for this period" : `${pills.length} focus areas`}
             </span>

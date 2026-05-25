@@ -86,10 +86,13 @@ export function TeamHubActiveReposCard({ data, isLoading, isError, onRetry }: Pr
 
             {primary.length > 0 && (
                 <section className="gl-thub-active-bucket">
-                    <h3 className="gl-thub-active-bucket-title">Primary</h3>
-                    <p className="gl-thub-active-bucket-hint">
-                        &gt; 2% of team’s merged PRs <em>and</em> &gt; 5% of the repo’s merged PRs.
-                    </p>
+                    <h3 className="gl-thub-active-bucket-title">
+                        Primary
+                        <details className="gl-thub-methodology">
+                            <summary className="gl-thub-methodology-toggle">?</summary>
+                            <span>&gt; 2% of team’s merged PRs <em>and</em> &gt; 5% of the repo’s merged PRs.</span>
+                        </details>
+                    </h3>
                     <ul className="gl-thub-active-list">
                         {primary.map(r => (
                             <li key={r.repoId}><RepoRow repo={r} bucket="primary" /></li>
