@@ -2,6 +2,8 @@
 
 > How Memba will reduce its reliance on centralized infrastructure over time.
 
+> **Naming note**: "Phase N" in this document refers to *decentralization phases* (long-horizon tracks for moving state on-chain). These are **independent** of the v7.x release-phase numbering used in [`ROADMAP.md`](../ROADMAP.md) and [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md). The two numbering schemes will not be aligned.
+
 ---
 
 ## Current Centralization Points
@@ -110,4 +112,4 @@ The guiding principle: **decentralize when the benefit to users exceeds the cost
 
 ---
 
-*Last updated: 2026-04-16 (v6)*
+*Last reviewed: 2026-05-11 (v7.1 Phase 1 stale-doc refresh). Decentralization phases still match the pre-v7.1 plan — no on-chain migrations occurred during v7.1 Phase 0 (audit unblock only).*

@@ -50,6 +50,49 @@ Review findings feed into the **next version's RFC** as action items.
 
 ---
 
+## v7.1 Phase 0 — Audit Unblock & Security Hardening ✅ COMPLETE (2026-05-11)
+
+> Plan: [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §4
+> Signoff: [`docs/reports/v7.1-phase0-signoff.md`](docs/reports/v7.1-phase0-signoff.md) (immutable audit record)
+> Releases: `v6.0.2` (#331), `v6.0.3` (#332 + hotfix #333)
+
+| Workstream | Outcome | PRs |
+|------------|---------|-----|
+| Go stdlib advisories (`GO-2026-4918/4971/4980/4982`) | Go 1.25.10 + `govulncheck` pinned v1.3.0 | #331 |
+| Clerk `GHSA-vqx2-fgx2-5wq9` + `GHSA-w24r-5266-9c3c` | `@clerk/clerk-react ^5.61.6` + override `@clerk/shared ≥ 3.47.5` | #332 |
+| dompurify `GHSA-39q2/-h7mw/-crv5/-v9jr` (4 advisories) | `dompurify ^3.4.2` + 30-vector OWASP regression suite | #332 |
+| **AUTH-CHAINID-01** (own advisory `MEMBA-2026-001`) | ADR-036 signDoc `chain_id` rebinding rejection in `backend/internal/auth/crypto.go` + 4 regression tests + `FuzzMakeADR36SignDoc` | #331 |
+| Rollback strategy | Drop bluegreen (incompatible), switch to `fly.toml [deploy] strategy = "rolling"` + per-release GHCR image mirror | #331 + hotfix #333 |
+| Sentry source-map upload | `SENTRY_AUTH_TOKEN` wired in `deploy-frontend.yml` | #331 + hotfix #333 |
+| Dependency policy + dependabot freeze | [`docs/DEPENDENCY_POLICY.md`](docs/DEPENDENCY_POLICY.md); `dependabot.yml` `open-pull-requests-limit: 0`; `dependency-review-action@v4` gate | #332 |
+| 15-PR backlog | 6 merged, 13 closed (10 folded, 3 deferred to v7.2) | — |
+
+**Test delta:** Vitest 1,628 → 1,659 (+31 OWASP DOMPurify vectors); Go auth 11 → 14 + 1 fuzz target.
+**Production deploys:** backend `ghcr.io/samouraiworld/memba-backend:a4f6eb9` (rolling), frontend Netlify deploy of `2baa5db` — both HTTP 200, stable.
+
+---
+
+## v7.1 Phase 1 — Auth Hardening + Custody + Stale-Doc Refresh 🚧 IN PROGRESS
+
+> Plan: [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §5
+> Gate: Phase 1 PRs touching auth, secrets, or chain probes require a secondary CODEOWNERS reviewer (Q-A). The AD-15 self-merge pattern from Phase 0 is **not** repeated.
+
+| PR | Scope | Status |
+|----|-------|--------|
+| `samcrew-deployer:fix/mainnet-security-audit-v3` | 5 commits (channels events, escrow + agent registry + NFT market + candidature + badges audit fixes) | Open |
+| `gnodaokit:fix/security-audit-v5-realm-fixes` | Red/Blue + expert + CTO findings — float64→bps consensus safety, H-6 Snapshot, M-10 openCount leak, R17 supermajority | Draft PR open |
+| **AUTH-SESSION-REJECT-01** | `backend/internal/auth/crypto.go` — defensive rejection of Adena 1.20+ session subaccounts; unit test | Hold (Q-A) |
+| **Custody section in `MAINNET_PREPARATION.md`** | Signers, M-of-N, hardware class, geographic distribution, recovery, rotation, dry-run; signed by ≥ 2 Samourai Coop principals. Hard prerequisite for Phase 2. | Draft (1 signer confirmed, slots TBD for the rest) |
+| **SECRETS_ROTATION.md** expansion + **SECURITY.md** update | PGP fingerprint, GHSA enablement, Resolved Advisories table seeded with `MEMBA-2026-001` | Open |
+| `chainHealth` fallback + gnoland1 transfer-lock probe | Corrected probe path `params/bank:p:restricted_denoms` (gno #5629). Updates `GNO_CORE_BREAKING_CHANGES.md`. | Hold (Q-A) |
+| **Stale-doc refresh** (this PR) | `DEPLOYMENT_RUNBOOK.md`, `MAINNET_PREPARATION.md`, `ROADMAP.md`, `realm-versions.json`, `PROGRESSIVE_DECENTRALIZATION.md` | In review |
+| `docs/planning/V7_1_DOCS_INVENTORY.md` + `V7_1_KT.md` | Doc inventory + knowledge-transfer doc | Pending |
+| CODEOWNERS audit + branch-protection screenshot | Confirm Q-A reviewer mapping + immutable evidence of branch rules | Pending |
+
+Phase 1 close-of-phase deliverable: [`docs/reports/v7.1-phase1-signoff.md`](docs/reports/v7.1-phase1-signoff.md) mirroring Phase 0's shape (goal vs outcome, PRs merged, advisories, DoD).
+
+---
+
 ## v2.15.0 — Gnoland1 Support & Smooth Network Switching ✅ SHIPPED (2026-03-19)
 
 > Branch: `feat/gnoland1-smooth-switching`
