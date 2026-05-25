@@ -1,5 +1,7 @@
 {
   "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment.",
+  "lastVerified": "2026-05-11",
+  "verifiedDuring": "v7.1 Phase 0 close (docs/reports/v7.1-phase0-signoff.md). No realm deployments occurred during Phase 0; test12 state unchanged since the Phase B v2 deployment batch (2026-04-09, multisig seq 57-61). gnoland1 remains empty pending Phase 5 betanet activation.",
   "test12": {
     "memba_dao": {
       "path": "gno.land/r/samcrew/memba_dao",

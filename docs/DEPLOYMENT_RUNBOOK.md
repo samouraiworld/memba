@@ -1,8 +1,9 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Last updated:** 2026-04-01 (v2.27.0)
+> **Last updated:** 2026-05-11 (v7.1 Phase 1 stale-doc refresh — Realm Inventory reconciled with `realm-versions.json`; gnoland1 column reframed around transfer-lock + v7.1 Phase 5).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
+> **Source of truth for deployed state:** [`realm-versions.json`](../realm-versions.json) — this runbook is the procedural reference; the JSON is the authoritative ledger.
 
 ---
 
@@ -23,18 +24,23 @@
 
 ## Realm Inventory
 
-| # | Realm | Module Path | test12 | gnoland1 | Source |
-|---|-------|-------------|--------|----------|--------|
-| 1 | **gnodaokit** (4 pkg + 3 realm) | `gno.land/{p,r}/samcrew/...` | ✅ | ❓ Pending restart | `samcrew-deployer/projects/gnodaokit/` |
-| 2 | **tokenfactory** | `gno.land/r/samcrew/tokenfactory` | ✅ | ❓ | `samcrew-deployer/projects/tokenfactory/` |
-| 3 | **memba_dao** | `gno.land/r/samcrew/memba_dao` | ✅ | ❓ | `samcrew-deployer/projects/memba/realms/` |
-| 4 | **memba_dao_candidature** | `gno.land/r/samcrew/memba_dao_candidature` | ✅ | ❓ | `samcrew-deployer/projects/memba/realms/` |
-| 5 | **memba_dao_channels** | `gno.land/r/samcrew/memba_dao_channels` | ✅ | ❓ | `samcrew-deployer/projects/memba/realms/` |
-| 6 | **escrow** | `gno.land/r/samcrew/escrow_stub` | ❌ | ❌ | `contracts/escrow_stub/` |
-| 7 | **agent_registry** | TBD | ❌ Not built | ❌ | N/A |
-| 8 | **IBC transfer** | `gno.land/r/aib/ibc/apps/transfer` | ❓ Upstream | ❌ | Upstream |
+> Status reflects on-chain state per [`realm-versions.json`](../realm-versions.json). gnoland1 is intentionally empty — Memba activates gnoland1 in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_PREPARATION.md`](MAINNET_PREPARATION.md) is signed.
 
-**Total tracked artifacts:** 34 (query with `samcrew-status.sh`)
+| # | Realm | Module Path (test12) | test12 | gnoland1 | Source |
+|---|-------|----------------------|--------|----------|--------|
+| 1 | **gnodaokit** (basedao, daocond, daokit, realmid) | `gno.land/p/samcrew/{basedao,daocond,daokit,realmid}` | ✅ | ⏳ Phase 5 | `samcrew-deployer/projects/gnodaokit/` |
+| 2 | **tokenfactory** | `gno.land/r/samcrew/tokenfactory` | ✅ | ⏳ Phase 5 | Deployed externally (realm code not in repo) |
+| 3 | **memba_dao** | `gno.land/r/samcrew/memba_dao` | ✅ (block 150069, 2026-03-29) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| 4 | **memba_dao_candidature_v2** | `gno.land/r/samcrew/memba_dao_candidature_v2` | ✅ (block 237938, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| 5 | **memba_dao_channels_v2** | `gno.land/r/samcrew/memba_dao_channels_v2` | ✅ (block 237939, 2026-04-09) — *v3 ACL fix pending* | ⏳ Phase 5 (v3 only) | `samcrew-deployer/projects/memba/realms/` |
+| 6 | **agent_registry** | `gno.land/r/samcrew/agent_registry` | ✅ (block 231189, 2026-04-03) — *UseCredit ACL fix pending v2* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| 7 | **escrow** | `gno.land/r/samcrew/escrow` | ✅ (block 232733, 2026-04-03) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| 8 | **nft_market** | `gno.land/r/samcrew/nft_market` | ✅ (block 237929, 2026-04-09) — *BuyNFT TransferFrom feature-gated* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+| 9 | **gnobuilders_badges** | `gno.land/r/samcrew/gnobuilders_badges` | ✅ (block 237936, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
+
+**Live on test12:** 9 realms (all in `gno.land/r/samcrew/`).
+**Total tracked artifacts:** query with `./samcrew-status.sh test12` from the deployer repo for the canonical count.
+**Outstanding v3 work** (tracked under v7.1 Phase 2): `memba_dao_channels` two-tier pause + ACL hardening; `agent_registry` UseCredit ACL.
 
 ---
 
