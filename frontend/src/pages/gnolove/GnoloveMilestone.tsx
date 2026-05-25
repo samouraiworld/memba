@@ -6,6 +6,7 @@
 
 import { useGnoloveMilestone } from "../../hooks/gnolove"
 import { PageMeta } from "../../components/gnolove/PageMeta"
+import { renderMarkdown } from "../../lib/markdownLite"
 
 export default function GnoloveMilestone() {
     const { data: milestone, isLoading } = useGnoloveMilestone()
@@ -52,7 +53,11 @@ export default function GnoloveMilestone() {
 
             {milestone.description && (
                 <div className="gl-panel gl-mb-16">
-                    <div className="gl-ms-description">{milestone.description}</div>
+                    {/* renderMarkdown escapes all HTML then applies safe markdown transforms; source is GitHub API */}
+                    <div
+                        className="gl-ms-description"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(milestone.description) }}
+                    />
                 </div>
             )}
 

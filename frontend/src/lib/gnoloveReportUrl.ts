@@ -22,14 +22,14 @@ import {
 import { TEAMS, type ReportTab } from "./gnoloveConstants"
 
 /** Runtime period type. URL boundary maps "all" ↔ "all_time" [MF-1]. */
-export type ReportPeriod = "weekly" | "monthly" | "yearly" | "all_time"
+export type ReportPeriod = "weekly" | "monthly" | "yearly" | "all_time" | "custom"
 export type ReportTabOrAll = ReportTab | "all"
 export type ReportView = "report" | "table"
 
 /** Parsed, validated report URL state. Every field has a safe default. */
 export interface ReportUrlState {
     period: ReportPeriod
-    /** Absolute period key (e.g. "2026-W18", "2026-05", "2026"). null for all_time. */
+    /** Absolute period key (e.g. "2026-W18", "2026-05", "2026"). null for all_time/custom. */
     at: string | null
     tab: ReportTabOrAll
     /** null = "All Teams". */
@@ -37,15 +37,19 @@ export interface ReportUrlState {
     /** Sorted, deduped. [] = "All Repositories"; non-empty = explicit subset [MF-8]. */
     repos: readonly string[]
     view: ReportView
+    /** Custom period start date (YYYY-MM-DD). Only used when period === "custom". */
+    from: string | null
+    /** Custom period end date (YYYY-MM-DD). Only used when period === "custom". */
+    to: string | null
 }
 
 // ── URL ↔ runtime period mapping ────────────────────────────
 
 const URL_PERIOD_TO_RUNTIME: Record<string, ReportPeriod> = {
-    weekly: "weekly", monthly: "monthly", yearly: "yearly", all: "all_time",
+    weekly: "weekly", monthly: "monthly", yearly: "yearly", all: "all_time", custom: "custom",
 }
 const RUNTIME_PERIOD_TO_URL: Record<ReportPeriod, string> = {
-    weekly: "weekly", monthly: "monthly", yearly: "yearly", all_time: "all",
+    weekly: "weekly", monthly: "monthly", yearly: "yearly", all_time: "all", custom: "custom",
 }
 
 // ── Allowlist of known teams (for stale-team detection [MF-18]) ──
@@ -64,6 +68,7 @@ export const MONTH_RE = /^(20[1-3]\d)-(0[1-9]|1[0-2])$/
 export const YEAR_RE = /^20[1-3]\d$/
 
 const REPO_RE = /^[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/
+export const DATE_RE = /^(20[1-3]\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 
 // ── Rate-limited fallback breadcrumb [MF-6] ────────────────
 
@@ -103,11 +108,13 @@ export function yearKeyFromDate(d: Date): string {
 
 /**
  * Parses a period key into an absolute date range.
+ * For custom periods, pass `from`/`to` as ISO dates (YYYY-MM-DD).
  * Never throws — falls back to safe defaults with a Sentry capture.
  */
 export function rangeFromKey(
     period: ReportPeriod,
     key: string | null,
+    custom?: { from: string | null; to: string | null },
 ): { start: Date; end: Date } {
     try {
         const now = new Date()
@@ -143,6 +150,20 @@ export function rangeFromKey(
             }
             case "all_time":
                 return { start: new Date(2010, 0, 1), end: now }
+            case "custom": {
+                const fromStr = custom?.from
+                const toStr = custom?.to
+                if (fromStr && toStr && DATE_RE.test(fromStr) && DATE_RE.test(toStr)) {
+                    const s = new Date(fromStr + "T00:00:00")
+                    const e = new Date(toStr + "T23:59:59")
+                    if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s <= e) {
+                        return { start: s, end: e }
+                    }
+                }
+                const weekAgo = new Date(now)
+                weekAgo.setDate(weekAgo.getDate() - 7)
+                return { start: weekAgo, end: now }
+            }
         }
     } catch (err) {
         Sentry.captureMessage(`rangeFromKey threw: ${String(err)}`, "warning")
@@ -162,6 +183,7 @@ export function defaultKey(period: ReportPeriod, now: Date = new Date()): string
         case "monthly":  return monthKeyFromDate(now)
         case "yearly":   return yearKeyFromDate(now)
         case "all_time": return null
+        case "custom":   return null
     }
 }
 
@@ -177,7 +199,7 @@ export function nextAtForPeriodSwitch(
     nextPeriod: ReportPeriod,
 ): string | null {
     if (nextPeriod === "all_time") return null
-    if (currentPeriod === "all_time") return defaultKey(nextPeriod)
+    if (currentPeriod === "all_time" || currentPeriod === "custom") return defaultKey(nextPeriod)
     const { end } = rangeFromKey(currentPeriod, currentAt ?? defaultKey(currentPeriod))
     switch (nextPeriod) {
         case "weekly":  return weekKeyFromDate(end)
@@ -188,7 +210,7 @@ export function nextAtForPeriodSwitch(
 
 // ── Zod schemas ─────────────────────────────────────────────
 
-const UrlPeriodSchema = z.enum(["weekly", "monthly", "yearly", "all"]).catch("weekly")
+const UrlPeriodSchema = z.enum(["weekly", "monthly", "yearly", "all", "custom"]).catch("weekly")
 const TabSchema = z.enum([
     "all", "merged", "in_progress", "waiting_for_review", "reviewed", "blocked",
 ]).catch("all")
@@ -205,7 +227,7 @@ export function parseReportUrl(params: URLSearchParams): ReportUrlState {
     // ── period ──
     const periodRaw = params.get("period")
     const urlPeriod = UrlPeriodSchema.parse(periodRaw ?? "weekly")
-    if (periodRaw && !["weekly", "monthly", "yearly", "all"].includes(periodRaw)) {
+    if (periodRaw && !["weekly", "monthly", "yearly", "all", "custom"].includes(periodRaw)) {
         breadcrumbFallback("period", periodRaw)
     }
     const period = URL_PERIOD_TO_RUNTIME[urlPeriod]
@@ -261,7 +283,24 @@ export function parseReportUrl(params: URLSearchParams): ReportUrlState {
     const view = ViewSchema.parse(viewRaw ?? "report")
     if (viewRaw && viewRaw !== view) breadcrumbFallback("view", viewRaw)
 
-    return { period, at, tab, team, repos, view }
+    // ── from / to (custom period) ──
+    const fromRaw = params.get("from")
+    const toRaw = params.get("to")
+    let from: string | null = null
+    let to: string | null = null
+    if (period === "custom") {
+        if (fromRaw && DATE_RE.test(fromRaw)) from = fromRaw
+        if (toRaw && DATE_RE.test(toRaw)) to = toRaw
+        if (!from || !to) {
+            const now = new Date()
+            const weekAgo = new Date(now)
+            weekAgo.setDate(weekAgo.getDate() - 7)
+            from = from ?? format(weekAgo, "yyyy-MM-dd")
+            to = to ?? format(now, "yyyy-MM-dd")
+        }
+    }
+
+    return { period, at, tab, team, repos, view, from, to }
 }
 
 /**
@@ -296,6 +335,12 @@ export function serializeReportUrl(
     }
 
     if (s.view !== "report") out.set("view", s.view)
+
+    if (s.period === "custom") {
+        if (s.from) out.set("from", s.from)
+        if (s.to) out.set("to", s.to)
+    }
+
     return out
 }
 
@@ -323,4 +368,6 @@ export const DEFAULT_REPORT_STATE: ReportUrlState = {
     team: null,
     repos: ["gnolang/gno"],
     view: "report",
+    from: null,
+    to: null,
 }

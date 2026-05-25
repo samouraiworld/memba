@@ -392,6 +392,8 @@ describe("parse ∘ serialize round-trip", () => {
             team: "Samourai.world",
             repos: ["gnolang/gno", "samouraiworld/memba"],
             view: "table",
+            from: null,
+            to: null,
         }
         const round = parseReportUrl(serializeReportUrl(original))
         expect(round).toEqual(original)
