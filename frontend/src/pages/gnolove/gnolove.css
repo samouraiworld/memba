@@ -789,6 +789,11 @@
     border-radius: 8px;
 }
 
+.gl-skeleton--card {
+    height: 180px;
+    margin-bottom: 16px;
+}
+
 @keyframes gl-shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }

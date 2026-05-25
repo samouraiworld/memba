@@ -51,10 +51,15 @@ export default function GnoloveAIReports() {
 
     if (isLoading) {
         return (
-            <div className="gl-loading">
-                <div className="gl-skeleton" />
-                <div className="gl-skeleton" />
-                <div className="gl-skeleton" />
+            <div className="gl-page">
+                <PageMeta title="AI Reports | Gnolove · Memba" description="Weekly AI-generated ecosystem summaries for the Gno ecosystem." />
+                <div className="gl-header">
+                    <h1 className="gl-title">AI Reports</h1>
+                    <p className="gl-subtitle">Weekly AI-generated ecosystem summaries</p>
+                </div>
+                <div className="gl-skeleton gl-skeleton--card" />
+                <div className="gl-skeleton gl-skeleton--card" />
+                <div className="gl-skeleton gl-skeleton--card" />
             </div>
         )
     }
