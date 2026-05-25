@@ -240,7 +240,7 @@ export default function GnoloveHome() {
                         {teamStats.map((team, i) => (
                             <Link
                                 key={team.name}
-                                to={np(`gnolove/teams/${encodeURIComponent(team.name)}`)}
+                                to={np(`gnolove/teams/${encodeURIComponent(team.slug)}`)}
                                 className="gl-team-compact-card"
                                 style={{ borderLeftColor: TEAM_CSS_COLORS[team.color] }}
                             >

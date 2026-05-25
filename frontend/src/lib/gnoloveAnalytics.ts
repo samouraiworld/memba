@@ -8,6 +8,7 @@ import { extractRepoFromUrl } from "./gnoloveApi"
 // ── Types ────────────────────────────────────────────────────
 
 export interface TeamDatum {
+    slug: string
     name: string
     score: number
     prs: number
@@ -97,6 +98,7 @@ export function computeTeamData(
     return teams.map(team => {
         const members = contributors.users.filter(u => team.members.includes(u.login))
         return {
+            slug: team.slug,
             name: team.name,
             score: members.reduce((s, m) => s + (m.score ?? 0), 0),
             prs: members.reduce((s, m) => s + (m.TotalPrs ?? 0), 0),
