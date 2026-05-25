@@ -76,12 +76,12 @@ function downloadMarkdown(report: TAIReport) {
     URL.revokeObjectURL(url)
 }
 
-function filterByTeam(projects: TAIReportProject[], slug: string | undefined): TAIReportProject[] {
-    if (!slug) return projects
+function filterByTeam(projects: TAIReportProject[], slug: string | undefined): { filtered: TAIReportProject[]; teamFallback: boolean } {
+    if (!slug) return { filtered: projects, teamFallback: false }
     const tagged = projects.some(p => typeof p.team === "string" && p.team.length > 0)
-    if (!tagged) return projects // v1 rollover — no team tags → show all
+    if (!tagged) return { filtered: projects, teamFallback: true }
     const want = slug.toLowerCase()
-    return projects.filter(p => (p.team ?? "").toLowerCase() === want)
+    return { filtered: projects.filter(p => (p.team ?? "").toLowerCase() === want), teamFallback: false }
 }
 
 /**
@@ -215,7 +215,7 @@ export function AIReportCard({
     permalinkParam = "aiReport",
     compact = false,
 }: Props) {
-    const projects = filterByTeam(report.data?.projects ?? [], teamSlug)
+    const { filtered: projects, teamFallback } = filterByTeam(report.data?.projects ?? [], teamSlug)
     const isMobile = useIsMobile()
     const [copied, setCopied] = useState(false)
     const [linkCopied, setLinkCopied] = useState(false)
@@ -263,6 +263,12 @@ export function AIReportCard({
                     </div>
                 )}
             </div>
+
+            {teamFallback && (
+                <p className="gl-aircard-fallback-hint">
+                    Team tagging not available for this report — showing all projects.
+                </p>
+            )}
 
             {projects.length === 0 ? (
                 <p className="gl-empty-text">

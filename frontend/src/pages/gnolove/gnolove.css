@@ -3518,6 +3518,13 @@
     padding: 3px 8px;
 }
 
+.gl-aircard-fallback-hint {
+    font-size: 11px;
+    color: var(--color-k-muted, #888);
+    padding: 6px 16px;
+    font-style: italic;
+}
+
 .gl-aircard-projects {
     display: flex;
     flex-direction: column;
