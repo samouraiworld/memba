@@ -19,6 +19,9 @@ import { useEffect } from "react"
 interface PageMetaProps {
     title: string
     description?: string
+    image?: string
+    url?: string
+    noindex?: boolean
 }
 
 function setOrCreateMeta(selector: string, attrName: string, value: string): { node: HTMLMetaElement; prevValue: string | null; created: boolean } {
@@ -37,27 +40,42 @@ function setOrCreateMeta(selector: string, attrName: string, value: string): { n
     return { node, prevValue, created }
 }
 
-export function PageMeta({ title, description }: PageMetaProps) {
+export function PageMeta({ title, description, image, url, noindex }: PageMetaProps) {
     useEffect(() => {
         const prevTitle = document.title
         document.title = title
 
-        const ogTitle = setOrCreateMeta('meta[property="og:title"]', "content", title)
-        const twTitle = setOrCreateMeta('meta[name="twitter:title"]', "content", title)
-        let ogDesc: ReturnType<typeof setOrCreateMeta> | null = null
-        let metaDesc: ReturnType<typeof setOrCreateMeta> | null = null
+        const managed: ReturnType<typeof setOrCreateMeta>[] = []
+
+        managed.push(setOrCreateMeta('meta[property="og:title"]', "content", title))
+        managed.push(setOrCreateMeta('meta[name="twitter:title"]', "content", title))
+
         if (description) {
-            metaDesc = setOrCreateMeta('meta[name="description"]', "content", description)
-            ogDesc = setOrCreateMeta('meta[property="og:description"]', "content", description)
+            managed.push(setOrCreateMeta('meta[name="description"]', "content", description))
+            managed.push(setOrCreateMeta('meta[property="og:description"]', "content", description))
+        }
+
+        const resolvedUrl = url ?? window.location.href
+        managed.push(setOrCreateMeta('meta[property="og:url"]', "content", resolvedUrl))
+
+        if (image) {
+            managed.push(setOrCreateMeta('meta[property="og:image"]', "content", image))
+            managed.push(setOrCreateMeta('meta[name="twitter:image"]', "content", image))
+        }
+
+        let robotsMeta: ReturnType<typeof setOrCreateMeta> | null = null
+        if (noindex) {
+            robotsMeta = setOrCreateMeta('meta[name="robots"]', "content", "noindex")
+            managed.push(robotsMeta)
         }
 
         return () => {
-            // Race-safe restore: only roll back if the value we set is still in place.
             if (document.title === title) {
                 document.title = prevTitle
             }
-            for (const { node, prevValue, created } of [ogTitle, twTitle, ...(ogDesc ? [ogDesc] : []), ...(metaDesc ? [metaDesc] : [])]) {
-                if (node.getAttribute("content") !== title && node.getAttribute("content") !== description) continue
+            for (const { node, prevValue, created } of managed) {
+                const cur = node.getAttribute("content")
+                if (cur !== title && cur !== description && cur !== resolvedUrl && cur !== image && cur !== "noindex") continue
                 if (created) {
                     node.remove()
                 } else if (prevValue !== null) {
@@ -65,7 +83,7 @@ export function PageMeta({ title, description }: PageMetaProps) {
                 }
             }
         }
-    }, [title, description])
+    }, [title, description, image, url, noindex])
 
     return null
 }

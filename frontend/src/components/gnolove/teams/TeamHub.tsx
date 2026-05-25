@@ -61,9 +61,12 @@ export function TeamHub() {
         const decoded = teamName ? decodeURIComponent(teamName) : ""
         return (
             <div className="gl-page">
-                <PageMeta title="Team not found | Gnolove · Memba" description="The requested team could not be found." />
+                <PageMeta title="Team not found | Gnolove · Memba" description="The requested team could not be found." noindex />
                 <Link to={backHref} className="gl-profile-back">&larr; Back to Teams</Link>
-                <div className="gl-empty">Team not found: {decoded}</div>
+                <div className="gl-empty">
+                    <p>Team not found: {decoded}</p>
+                    <Link to={backHref} className="gl-filter-btn gl-filter-btn--active" style={{ marginTop: 12, display: "inline-block" }}>See all teams &rarr;</Link>
+                </div>
             </div>
         )
     }
