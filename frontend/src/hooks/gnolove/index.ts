@@ -113,10 +113,13 @@ export function useGnoloveContributor(login: string) {
 // ── Shared 1-Year PR Report (single fetch for repo + monthly activity) ──
 
 /**
- * P1 fix: shared base query so useGnoloveRepoActivity and useGnoloveMonthlyActivity
+ * Shared base query so useGnoloveRepoActivity and useGnoloveMonthlyActivity
  * hit the same cache instead of independently fetching the same 1-year report.
+ *
+ * Exported as of 2026-05 so the team-hub rework can layer derived hooks
+ * (`useGnoloveTeamReportSlice`, etc.) on the same cached payload.
  */
-function useGnoloveYearReport() {
+export function useGnoloveYearReport() {
     return useQuery({
         queryKey: ["gnolove", "yearReport"],
         queryFn: async ({ signal }) => {
@@ -231,5 +234,51 @@ export function useGnoloveAIReports() {
         queryKey: ["gnolove", "aiReports"],
         queryFn: ({ signal }) => api.getAIReports(signal),
         staleTime: STALE_ONCHAIN, // Reports change weekly
+    })
+}
+
+// ── URL state hooks (re-exports) [MF-31] ─────────────────
+
+export { useReportUrlState } from "./useReportUrlState"
+export { useHomeUrlState } from "./useHomeUrlState"
+
+// ── Teams (Phase 3) ──────────────────────────────────────
+
+export {
+    useGnoloveTeams,
+    useGnoloveTeam,
+    useGnoloveTeamActiveRepos,
+    useGnoloveTeamStats,
+    backendTeamToFrontend,
+} from "./useGnoloveTeams"
+export type { UseGnoloveTeamsResult } from "./useGnoloveTeams"
+
+// ── Team Hub (Phase 4) ───────────────────────────────────
+
+export { useGnoloveBackendHealth } from "./useGnoloveBackendHealth"
+export type { BackendHealth } from "./useGnoloveBackendHealth"
+export { useTeamProfileUrlState } from "./useTeamProfileUrlState"
+export type { TeamProfileUrlState } from "./useTeamProfileUrlState"
+
+// ── Topics (Phase 2c) ────────────────────────────────────
+
+export { useGnoloveTopics } from "./useGnoloveTopics"
+export type { UseGnoloveTopicsResult } from "./useGnoloveTopics"
+
+// ── Analytics panels 4 & 5 (v6.2.2) ──────────────────────
+
+export function useGnoloveCohorts() {
+    return useQuery({
+        queryKey: ["gnolove", "cohorts"],
+        queryFn: ({ signal }) => api.getContributorCohorts(signal),
+        staleTime: STALE_ONCHAIN, // 5 min — backend already caches the same
+    })
+}
+
+export function useGnoloveTeamCollab(period: string) {
+    return useQuery({
+        queryKey: ["gnolove", "teamCollab", period],
+        queryFn: ({ signal }) => api.getTeamCollab(period, signal),
+        staleTime: STALE_ONCHAIN,
     })
 }

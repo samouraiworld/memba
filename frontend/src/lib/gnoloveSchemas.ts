@@ -365,19 +365,38 @@ export const ScoreFactorsSchema = z.object({
 export type TScoreFactors = z.infer<typeof ScoreFactorsSchema>
 
 // ── AI Reports ─────────────────────────────────────────────────
+//
+// Prompt v1 emits {project_name, summary}.
+// Prompt v2 (gnolove backend Phase 1) adds summary_short, summary_long,
+// and an optional team slug. The backend writes `summary = summary_long`
+// for one rollover cycle so v1-only readers don't blank during the
+// transition. All three new fields are .optional() here — never throw
+// when the backend is still on v1.
+//
+// IMPORTANT (plan R-8): callers coalescing short→long→legacy must use
+// `||` (or an explicit empty-string guard), NOT `??`. An empty string
+// for summary_short is a real failure mode and `??` would render a
+// blank card.
 
 export const AIReportProjectSchema = z.object({
     project_name: z.string(),
     summary: z.string(),
+    summary_short: z.string().optional(),
+    summary_long: z.string().optional(),
+    team: z.string().optional(),
 })
+export type TAIReportProject = z.infer<typeof AIReportProjectSchema>
 
 export const AIReportDataSchema = z.object({
     projects: z.array(AIReportProjectSchema).default([]),
+    cycle: z.string().optional(),
 }).passthrough()
 
 export const AIReportSchema = z.object({
     id: z.string(),
     createdAt: z.string(),
+    /** Server-emitted prompt version. v1 rows backfilled to 1 at startup. */
+    promptVersion: z.number().optional(),
     data: AIReportDataSchema,
 })
 export type TAIReport = z.infer<typeof AIReportSchema>
@@ -391,3 +410,142 @@ export const ContributorsResponseSchema = z.object({
     lastSyncedAt: z.string().nullable().optional(),
 })
 export type TContributorsResponse = z.infer<typeof ContributorsResponseSchema>
+
+// ── Teams (Phase 3) ─────────────────────────────────────────────
+// Backed by gnolove/server/config/teams.yaml + Phase 1 endpoints.
+// color/members deliberately permissive — the backend already validates
+// at load-time, and we'd rather render an unknown future color than
+// blank the whole roster.
+
+export const TeamColorSchema = z.enum([
+    "blue", "yellow", "purple", "red", "green", "brown", "pink",
+])
+
+export const BackendTeamSchema = z.object({
+    slug: z.string(),
+    name: z.string(),
+    color: z.string(),       // narrow to TeamColorSchema at the consumer if you need the union
+    description: z.string().optional(),
+    members: z.array(z.string()).default([]),
+})
+export type TBackendTeam = z.infer<typeof BackendTeamSchema>
+
+export const TeamsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    teams: z.array(BackendTeamSchema),
+})
+export type TTeamsResponse = z.infer<typeof TeamsResponseSchema>
+
+export const TeamResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    team: BackendTeamSchema,
+})
+export type TTeamResponse = z.infer<typeof TeamResponseSchema>
+
+export const ActiveRepoSchema = z.object({
+    repoId: z.string(),
+    teamPRs: z.number(),
+    totalPRs: z.number(),
+    pctOfTeam: z.number(),
+    pctOfRepo: z.number(),
+})
+export type TActiveRepo = z.infer<typeof ActiveRepoSchema>
+
+export const ActiveReposResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    slug: z.string(),
+    period: z.string(),
+    primary: z.array(ActiveRepoSchema).default([]),
+    secondary: z.array(ActiveRepoSchema).default([]),
+})
+export type TActiveReposResponse = z.infer<typeof ActiveReposResponseSchema>
+
+export const TeamStatRowSchema = z.object({
+    repoId: z.string(),
+    authorId: z.string(),
+    login: z.string(),
+    mergedPRs: z.number(),
+})
+export type TTeamStatRow = z.infer<typeof TeamStatRowSchema>
+
+export const TeamStatsTotalsSchema = z.object({
+    mergedPRs: z.number(),
+    activeContributors: z.number(),
+    activeRepos: z.number(),
+})
+export type TTeamStatsTotals = z.infer<typeof TeamStatsTotalsSchema>
+
+export const TeamStatsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    slug: z.string(),
+    period: z.string(),
+    repos: z.array(z.string()).default([]),
+    stats: z.array(TeamStatRowSchema).default([]),
+    totals: TeamStatsTotalsSchema,
+})
+
+// ── Topics (Phase 2c) ───────────────────────────────────────────
+// Backed by gnolove/server/config/topics.yaml + the /topics endpoint.
+// Patterns are RE2 source strings — the client recompiles each one as a
+// JS RegExp at consumption time (see useGnoloveTopics + gnoloveFocusAreas).
+
+export const BackendTopicSchema = z.object({
+    slug: z.string(),
+    label: z.string(),
+    patterns: z.array(z.string()).default([]),
+})
+export type TBackendTopic = z.infer<typeof BackendTopicSchema>
+
+export const TopicsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string(),
+    topics: z.array(BackendTopicSchema),
+})
+export type TTopicsResponse = z.infer<typeof TopicsResponseSchema>
+export type TTeamStatsResponse = z.infer<typeof TeamStatsResponseSchema>
+
+// ── Cohorts (v6.2.2 analytics, panel 4/5) ───────────────────────
+// Backed by gnolove `GET /contributors/cohorts`. retention[i] is the
+// fraction of the cohort that contributed in the i-th month after their
+// first PR (index 0 always 1.0).
+
+export const CohortRowSchema = z.object({
+    month: z.string(),                    // "YYYY-MM"
+    size: z.number(),
+    retention: z.array(z.number()).default([]),
+})
+export type TCohortRow = z.infer<typeof CohortRowSchema>
+
+export const CohortsResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    generatedAt: z.string(),
+    cohorts: z.array(CohortRowSchema).default([]),
+})
+export type TCohortsResponse = z.infer<typeof CohortsResponseSchema>
+
+// ── Team collab (v6.2.2 analytics, panel 5/5) ───────────────────
+// Backed by gnolove `GET /team-collab`. Sparse list of non-zero cells;
+// the frontend densifies into the 8×8 matrix shape.
+
+export const TeamCollabCellSchema = z.object({
+    authorTeam: z.string(),
+    reviewerTeam: z.string(),
+    reviews: z.number(),
+})
+export type TTeamCollabCell = z.infer<typeof TeamCollabCellSchema>
+
+export const TeamCollabResponseSchema = z.object({
+    schemaVersion: z.number(),
+    lastSyncedAt: z.string().nullable().optional(),
+    period: z.string(),
+    teams: z.array(z.string()).default([]),
+    cells: z.array(TeamCollabCellSchema).default([]),
+    outsiderReviewsByAuthorTeam: z.record(z.string(), z.number()).default({}),
+    outsiderReviewsByReviewerTeam: z.record(z.string(), z.number()).default({}),
+})
+export type TTeamCollabResponse = z.infer<typeof TeamCollabResponseSchema>

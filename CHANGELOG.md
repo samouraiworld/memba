@@ -4,6 +4,161 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## Unreleased — v6.2.3 (Gnolove analytics rework — final 2 panels + Phase 6 canary)
+
+> Last beats of the team-hub rework. Plan §2's analytics promise is now fully delivered: 5 of 5 panels rendering against real data, with end-to-end canary coverage. Only Phase 7 (drop the legacy stub + the `VITE_GNOLOVE_TEAM_HUB` flag) remains, and that's intentionally gated on a few days of clean prod uptime.
+
+### Added
+- **Cohort retention panel.** Per-month cohort × month-offset retention grid, sourced from a new gnolove endpoint `GET /contributors/cohorts` (samouraiworld/gnolove#223). Newest cohort at the top; intensity from the shared `--gl-color-heatmap-l0..l4` ramp; empty cells where offset > cohort age render transparent so "hasn't aged yet" looks different from "dropped to zero." Backend math: per-author `MIN(created_at)` over the PR table picks the cohort; 24-month lookback cap.
+- **Cross-team collaboration matrix.** 8×8 (auto-grows with `teams.yaml`) review-count matrix from new gnolove endpoint `GET /team-collab?time=...`. Joins `reviews` → `pull_requests` → `users` twice to attribute each review to (authorTeam, reviewerTeam). Self-reviews and dependabot excluded; "outsider" buckets (reviews involving non-team contributors) surface as a footnote. Diagonal cells get a dashed outline so intra-team activity reads distinctly. Driven by the page period selector.
+- **Phase 6 — Playwright canary.** New `e2e/gnolove-team-hub.spec.ts` exercises: team hub mounts on `gnoland1`, "Roster updated" chip in header, period tablist URL state, network chip honesty (hidden on `gnoland1`, present on `test12`), all 5 analytics panel titles in trailing-year mode, and the On-Chain Metrics tile is **not** present (catches accidental revert of the v6.2.2 cleanup).
+- **Dev/CI flag parity.** New `.env.development` (repo root — `vite.config.ts` sets `envDir: '..'`) sets `VITE_GNOLOVE_TEAM_HUB=true` so `npm run dev` and CI Playwright runs mirror production (where the flag has been on since 2026-05-19). Devs who want the legacy stub override with `.env.local` (also at the repo root). `.env.example` updated with doc-only entries.
+
+### Fixed
+- **Phase 6 canary actually green in CI.** Three follow-up corrections shipped after #346 landed red on main:
+  1. `.env.development` was at `frontend/` but Vite's `envDir: '..'` reads from the repo root, so the flag was never loaded in dev/CI — moved to repo root.
+  2. The period-tablist canary clicked a tab named `/Weekly/i` that never existed; labels are `Last week` per `TEAM_HUB_PERIOD_LABELS` — regex fixed.
+  3. The 5-panels canary asserted panel titles, but each panel `<h2>` is gated behind `{data && (...)}` — without backend reachability from the runner (CORS blocks `localhost:5173`), no panels mount. Test now soft-skips with a clear reason rather than failing; data-mode runs on memba.samourai.app remain authoritative.
+
+### Internal
+- New Zod schemas: `CohortRowSchema` / `CohortsResponseSchema` and `TeamCollabCellSchema` / `TeamCollabResponseSchema`.
+- New API client functions: `getContributorCohorts()`, `getTeamCollab(period)`.
+- New hooks: `useGnoloveCohorts()`, `useGnoloveTeamCollab(period)` — 5-min staleTime matching the backend ristretto cache.
+- New CSS namespaces: `.gl-cohort-grid-*`, `.gl-collab-matrix-*` (both reuse the topic-heatmap intensity ramp). `.gl-panel-footnote` utility class for the outsider-reviews line.
+
+### gnolove backend (samouraiworld/gnolove#223)
+- Two new aggregation endpoints — no new tables, no migrations, no new ingestion. `Review.AuthorID` + `Review.PullRequestID` was already populated by `syncPRs()` (see `server/sync/sync.go:263`); the new endpoints just aggregate from there + the PR `created_at` index.
+
+### Tests
+- 1843/1843 vitest unchanged.
+- New Playwright canary spec covers the team hub + all 5 analytics panels.
+- gnolove backend: full Go suite still green; new `handler/contributor/cohorts_test.go` + `handler/teams/collab_test.go` cover the cohort math, the dependabot/self-review exclusions, the outsider buckets, and the cache-hit behavior.
+
+### Pending
+- **Phase 7** — drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag. Gated on 3+ days of clean hub uptime (so don't open before 2026-05-23). Small cleanup, not a feature.
+
+Handoff: [`docs/reports/handoff-team-hub-2026-05-20.md`](docs/reports/handoff-team-hub-2026-05-20.md).
+
+---
+
+## Unreleased — v6.2.2 (Gnolove audit fixes + Analytics period URL + 3 of 5 plan §2 panels)
+
+Shipped 2026-05-19 via memba#344. See plan §4.1 for the full breakdown. Highlights:
+- **3 of 5 plan §2 analytics panels** — PR cycle-time histogram, topic activity heatmap (16 topics × 12 months via the live `/topics` taxonomy), repo health matrix (traffic-light cells for PRs/wk, median cycle, open backlog, last activity).
+- **`/gnolove` audit fixes (P0+P1)** — On-Chain Metrics tile removed (plan §2), `GnoloveTeams` slimmed to the index link grid plan §2 asked for, Score Factors badge folded into a `<details>` to hit the 5-section cap, "Last sync" → "Roster updated" pill (honesty), `TeamHubMetricsGrid` + `TeamHubActiveReposCard` distinguish "data unavailable" from "legitimately quiet period" instead of silently rendering 0s, auto-degrade banner above the legacy stub (plan §3 R-4), dual-threshold % surfaced inline on Primary/Secondary repo rows, AI report `?aiReport=<id>#<project>` deep-link with auto-expand + scroll + reduced-motion-safe highlight flash.
+- **Period selector consistency** — Home time-filter migrated to `role="tablist"`; Analytics gains a tablist + URL state (`?time=`).
+
+---
+
+## Unreleased — v6.2.1 (Team-hub UX polish + Phase-7 a11y)
+
+Shipped 2026-05-19 via memba#343. Highlights:
+- Period selector → `role="tablist"` matching the `GnoloveReport` pattern. `aria-current`/`aria-selected` on the active period.
+- Skeleton fidelity — each of the four loading cards renders a card-shaped placeholder instead of the generic 3-line stack. `aria-busy="true"` on the card, `aria-hidden="true"` on the skeleton DOM.
+- `aria-live="polite"` regions on metrics, active repos, focus pills, recent activity so period changes announce.
+- New `--gl-font-mono` token; 84 hardcoded `JetBrains Mono` declarations consolidated to `var()` references.
+- `@media (max-width: 768px)` block for `.gl-thub-*` — header stacks, metrics grid drops to 2 cols, paddings tighten.
+- Reduced-motion respect extended to team-hub interactives (cards, pills, repo rows, AI toggle).
+
+---
+
+## Unreleased — v6.2.0 (Gnolove Team Hub Rework)
+
+> Makes `/:network/gnolove/teams/:teamName` the section's primary noun — team composition + active repos + scoped metrics + Focus Areas pills + embedded AI reports. Plan: [`docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md`](docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md). Live in production behind `VITE_GNOLOVE_TEAM_HUB`, flipped on Netlify 2026-05-19.
+
+### Added
+- **Phase 0 (#337)** — `jsPDF` lazy import (~135 KB gz off first paint); `useGnoloveYearReport()` exported as the shared base query so derived hooks reuse the same cache; `SectionErrorBoundary` extracted; TEAMS uniqueness invariants locked in vitest; design-system token additions for PR-state + Recharts palette + heatmap ramp; MSW + fast-check + `@axe-core/playwright` added as dev deps.
+- **Phase 3 (#338)** — `useGnoloveTeams()` seed + fetched-union hook: build-time `TEAMS` constant becomes the seed; backend `GET /teams` replaces it once the network resolves. `KNOWN_TEAMS` becomes async-aware; localStorage cache key bumped `v1 → v2`.
+- **Phase 4 (#339)** — Team Hub MVP behind `VITE_GNOLOVE_TEAM_HUB`. Six cards under `components/gnolove/teams/`: `TeamHubHeader` (name + colour stripe + period selector + "Last sync" pill + "Data: mainnet" chip on `test12`), `TeamHubMetricsGrid`, `TeamHubActiveReposCard` (dual-threshold "Primary" / "Also contributes to" rows), `TeamHubFocusAreasCard` (5 pills), `TeamHubRecentActivityCard`, `TeamHubAIReportsCard`. `useTeamProfileUrlState` URL-state codec; `lib/gnolovePeriod.ts` extraction; per-card `CardErrorBoundary`; `useGnoloveBackendHealth()` auto-degrades to `GnoloveTeamProfileLegacy` after 2× HEAD failure in 30s.
+- **Phase 5 (#340)** — AI report v2 polish. Shared `<AIReportCard>` backs both the standalone page and the team-hub embed. Short summary visible by default; "Read Detailed Report" toggle expands the long form inline on desktop, opens as a bottom-sheet on mobile (<768px). `?id=` → `?aiReport=` URL namespace migration with back-compat. Empty-string-safe coalescing (`||`, not `??`) for the additive Zod migration on `summary_short` / `summary_long`.
+- **Phase 2c (#342, paired with gnolove#222)** — Focus Areas taxonomy moves server-side. `gnolove/server/config/topics.yaml` (16 topics, ported verbatim from the legacy TS regex bag) is now the source of truth, exposed via `GET /topics`. Memba consumes via `useGnoloveTopics()` seed-union (same shape as `useGnoloveTeams`); `computeFocusAreas(signals, rules?)` accepts caller rules with the build-time copy as default. `FocusTopic` widened from a literal union to `string` since the backend now owns the taxonomy. `compileBackendTopic` drops invalid regexes with a warning rather than crashing the card.
+
+### Changed
+- The Team Hub auto-degrades to the legacy stub if the gnolove backend reports unhealthy — no Netlify redeploy required to mitigate a backend hiccup.
+
+### Operator decisions logged
+- **Q-1** Curated ~50 tracked repos (not naive ~120). **Q-2** Dual-threshold "active repo" rule (>2% of team's PRs AND >5% of repo's PRs → Primary; below → "Also contributes to"). **Q-3** Both AI summaries visible inline; toggle labelled **"Read Detailed Report"**. **Q-4** Client-side AI report team filter. **Q-5** Focus Areas pills v1 (matrix is v1.5 behind a sub-flag). **Q-6** 24h EU-business Lours SLA for roster changes; emergency client-side seed-edit fallback. **Q-7** No staging; rollout = Netlify Deploy Previews + 24h production canary. Full text in plan §6.
+
+### Tests
+- Memba: 1838/1838 vitest passing (started this version at 1759). New: 23 around `useGnoloveTopics` + Focus Areas refactor; 19 around `useGnoloveTeams`; full coverage of seed-union loading / success / null / empty-roster branches; per-card error boundary tests.
+- gnolove backend: full Go suite green; `TestLoadRealConfigFile` smoke tests both `teams.yaml` and `topics.yaml` against the real checked-in YAML so a bad commit fails CI.
+
+### Not in this version (intentionally)
+- **Phase 2b** — curated `~50-repo` expansion in `infra_gnolove` (deferred; revisit when Mistral context-budget pressure justifies).
+- **Phase 5.5** — CORS glob for `*.netlify.app` previews (dropped 2026-05-19: operator opted for prod-only testing).
+- **Plan-original Phase 6** — Analytics rework (cycle-time histogram, cohort retention, repo health matrix, topic-time heatmap, cross-team collab matrix). Deferred; operator redefined Phase 6 as a 1-day Playwright canary instead.
+- **Plan-original Phase 7** — UX polish + a11y (empty states, skeleton fidelity, tabs pattern consistency, focus management on dropdowns, motion gating, `var(--font-mono)` consolidation). Being audited 2026-05-19 as candidate work for a v6.2.x patch release.
+
+### Internal
+- New components: `components/gnolove/teams/` (TeamHub + 6 cards + `CardErrorBoundary`).
+- New hooks: `useGnoloveTeams`, `useGnoloveTeam`, `useGnoloveTeamActiveRepos`, `useGnoloveTeamStats`, `useGnoloveTopics`, `useGnoloveBackendHealth`, `useTeamProfileUrlState`.
+- New API client: `getTeams`, `getTeam`, `getTeamActiveRepos`, `getTeamStats`, `getTopics`.
+- New Zod schemas: `BackendTeamSchema`, `TeamsResponseSchema`, `TeamResponseSchema`, `ActiveReposResponseSchema`, `TeamStatsResponseSchema`, `BackendTopicSchema`, `TopicsResponseSchema`.
+- gnolove backend: new packages `server/teams`, `server/topics`, `server/handler/teams`, `server/handler/topics`. New endpoints: `GET /teams`, `GET /teams/:slug`, `GET /teams/:slug/active-repos`, `GET /teams/:slug/team-stats`, `GET /topics`. Two new env vars: `TEAMS_CONFIG_PATH` (default `config/teams.yaml`), `TOPICS_CONFIG_PATH` (default `config/topics.yaml`).
+
+Handoffs: [`docs/reports/handoff-team-hub-2026-05-18.md`](docs/reports/handoff-team-hub-2026-05-18.md), [`docs/reports/handoff-team-hub-2026-05-19.md`](docs/reports/handoff-team-hub-2026-05-19.md).
+
+---
+
+## Unreleased — v6.1.0 (Gnolove shareable URLs + section UX hardening)
+
+### Added
+- **Gnolove — shareable report URLs.** Every filter on `/:network/gnolove/report`
+  (period, period offset, status tab, team, repository set, view mode) now
+  serializes to URL query params. Absolute period keys (ISO-8601
+  `at=2026-W18` / `2026-05` / `2026`) so links stay valid forever — a Friday
+  link still shows the same week on Monday. Same treatment for
+  `/gnolove` (Home scoreboard: timeFilter / sort / excludedTeams /
+  selectedRepos / page) and `/gnolove/reports` (AI archive: `?id=` deep-link
+  with auto-scroll + highlight flash). `Copy link` button on the Report
+  reconstructs the URL from validated state (Web Share API fallback on mobile).
+- **Per-page contextual `document.title`** + `og:title` / `twitter:title` via
+  a new `<PageMeta>` component (race-safe cleanup, no react-helmet).
+- **Stale-repo / stale-team warning banners** on the Report when a shared
+  URL pins a repo or team that no longer exists.
+- **Smarter empty states**: branches per reason (no_data / team / repo /
+  team_and_repo / filter) with scoped "Clear that one filter" buttons.
+
+### Fixed
+- **BUG-1**: all internal gnolove `<Link to="…">` use `useNetworkPath()`;
+  SubNav + 12 link sites no longer detour through `LegacyRedirect` (extra
+  render + URL flicker).
+- **BUG-2**: Report no longer silently empties when the default repo
+  (`gnolang/gno`) is missing from the backend response — a dismissible
+  warning banner appears.
+- **BUG-3**: Report "Highlights" (top 5 merged PRs) now sorts by `mergedAt`
+  descending. Previously sorted by `title.length` (a meaningless proxy).
+- **BUG-4**: PR status badge derives from PR data (`statusFor()`), not from
+  the active tab. Blocked PRs now correctly show "Blocked" on the "All" tab.
+- **BUG-5**: Switching period preserves time-window context. April week 18
+  (which ends 2026-05-03) → Monthly now lands on **May**, not the current
+  month. `all_time → weekly` no longer teleports to 1980.
+- **BUG-6**: Report MD-export footer ID matches the report's period
+  (was always week-ID regardless). Footer also embeds a "Filter URL" share
+  link with `view=table` stripped.
+- **UX-1**: `aria-current` on active period/status tabs; `aria-pressed` on
+  view toggle; `aria-haspopup="listbox"` + `aria-expanded` on the repo
+  multi-select; `role="tablist"` on tab groups.
+
+### Internal
+- New `lib/gnoloveReportUrl.ts` + `lib/gnoloveHomeUrl.ts` URL-state codecs
+  with Zod validation, year-range cap, repos size cap, charset-restricted
+  team allowlist, rate-limited Sentry breadcrumb on parse fallback.
+- New `hooks/gnolove/useReportUrlState` + `useHomeUrlState` hooks with
+  push/replace history strategy (push on coarse axes; replace only on
+  `view` toggle).
+- New `components/gnolove/PageMeta` (~50 LOC, race-safe `document.title`).
+- `frontend/package.json` bumped `4.0.0 → 4.1.0` so Sentry release name is
+  `memba@4.1.0`.
+- Tests: 1,759 vitest (1,659 baseline + 100 new) + 13 Playwright chromium
+  specs (3 new for URL-state behavior).
+
+Plan: [`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md) (Rev1, ~1,750 lines).
+Expert review (6 panels, immutable audit trail):
+[`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md).
+
+---
+
 ## Unreleased — post-v6.0.3 patches (Phase 0 wind-down)
 
 - **#333** `fix(deploy)`: Sentry source-map assertion was a false negative (the

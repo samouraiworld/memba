@@ -26,18 +26,19 @@ test.describe('Gnolove Section', () => {
     })
 
     test('time filter buttons render', async ({ page }) => {
-        const filterGroup = page.locator('.gl-filter-group').first()
-        await expect(filterGroup).toBeVisible({ timeout: 10_000 })
+        // v6.2.2 — period filter migrated to role="tablist" for keyboard +
+        // screen-reader semantics consistent with TeamHubHeader & GnoloveReport.
+        const tablist = page.getByRole('tablist', { name: 'Time period' })
+        await expect(tablist).toBeVisible({ timeout: 10_000 })
 
-        // Should have 4 time filter buttons (All Time, This Year, This Month, This Week)
-        const buttons = filterGroup.locator('.gl-filter-btn')
-        await expect(buttons).toHaveCount(4)
+        const tabs = tablist.getByRole('tab')
+        await expect(tabs).toHaveCount(4)
     })
 
     test('team filter buttons render', async ({ page }) => {
-        // Second filter group is the team filter
-        const filterGroups = page.locator('.gl-filter-group')
-        const teamFilterGroup = filterGroups.nth(1)
+        // The team toggle is the only remaining `.gl-filter-group` after the
+        // period tablist migration above; index 0 is now it.
+        const teamFilterGroup = page.locator('.gl-filter-group').first()
         await expect(teamFilterGroup).toBeVisible({ timeout: 10_000 })
 
         // Should have 8 team buttons
@@ -52,18 +53,17 @@ test.describe('Gnolove Section', () => {
     })
 
     test('navigates to report page', async ({ page }) => {
-        // Click the "Report" link in sub-nav
-        const reportLink = page.locator('a[href="/gnolove/report"]')
+        // SubNav links are now network-prefixed (e.g. /test12/gnolove/report) per BUG-1 fix.
+        const reportLink = page.locator('nav.gl-subnav a').filter({ hasText: 'Report' }).first()
         await expect(reportLink).toBeVisible({ timeout: 10_000 })
         await reportLink.click()
 
         await expect(page).toHaveURL(/\/gnolove\/report/)
-        // Report page should render without errors
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
     })
 
     test('navigates to analytics page', async ({ page }) => {
-        const analyticsLink = page.locator('a[href="/gnolove/analytics"]')
+        const analyticsLink = page.locator('nav.gl-subnav a').filter({ hasText: 'Analytics' }).first()
         await expect(analyticsLink).toBeVisible({ timeout: 10_000 })
         await analyticsLink.click()
 
@@ -72,7 +72,7 @@ test.describe('Gnolove Section', () => {
     })
 
     test('navigates to teams page', async ({ page }) => {
-        const teamsLink = page.locator('a[href="/gnolove/teams"]')
+        const teamsLink = page.locator('nav.gl-subnav a').filter({ hasText: 'Teams' }).first()
         await expect(teamsLink).toBeVisible({ timeout: 10_000 })
         await teamsLink.click()
 
@@ -80,9 +80,42 @@ test.describe('Gnolove Section', () => {
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
     })
 
+    // ── URL-state behaviour (shareable links) [Phase 1 / MF-3 / MF-4] ──
+
+    test('report URL is fully shareable: deep-link params reflected in UI', async ({ page }) => {
+        await page.goto('/test12/gnolove/report?period=monthly&at=2025-03&tab=merged')
+        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
+
+        // Monthly period tab is selected
+        const monthlyTab = page.locator('button.gl-tab[aria-selected="true"]', { hasText: 'Monthly' })
+        await expect(monthlyTab).toBeVisible({ timeout: 10_000 })
+    })
+
+    test('report URL preserves coarse filters across view toggle (push vs replace) [MF-2]', async ({ page }) => {
+        await page.goto('/test12/gnolove/report?period=monthly&at=2025-03')
+        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
+
+        // Toggle to table view — uses replace, doesn't pollute history.
+        await page.locator('button.gl-view-btn', { hasText: 'Table' }).click()
+        await expect(page).toHaveURL(/view=table/, { timeout: 5_000 })
+        await expect(page).toHaveURL(/period=monthly/)
+        await expect(page).toHaveURL(/at=2025-03/)
+    })
+
+    test('report URL gracefully handles garbage input', async ({ page }) => {
+        const errors: string[] = []
+        page.on('pageerror', e => errors.push(e.message))
+        await page.goto('/test12/gnolove/report?period=invalid&tab=lolnope&at=999-99')
+        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
+        await expect(page.locator('.gl-title')).toContainText('PR Report', { timeout: 10_000 })
+        expect(errors).toEqual([])
+    })
+
     test('team filter toggles visually', async ({ page }) => {
-        const filterGroups = page.locator('.gl-filter-group')
-        const teamFilterGroup = filterGroups.nth(1)
+        // v6.2.2 — the team toggle is the only remaining .gl-filter-group
+        // after the period selector migrated to role="tablist"; was previously
+        // .nth(1) when the period was also a .gl-filter-group.
+        const teamFilterGroup = page.locator('.gl-filter-group').first()
         await expect(teamFilterGroup).toBeVisible({ timeout: 10_000 })
 
         // First team button should start with --active class (all teams included by default)

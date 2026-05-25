@@ -27,6 +27,13 @@ import {
     ScoreFactorsSchema,
     AIReportsSchema,
     AIReportSchema,
+    TeamsResponseSchema,
+    TeamResponseSchema,
+    ActiveReposResponseSchema,
+    TeamStatsResponseSchema,
+    TopicsResponseSchema,
+    CohortsResponseSchema,
+    TeamCollabResponseSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
@@ -43,6 +50,13 @@ import type {
     TGovdaoMember,
     TScoreFactors,
     TAIReport,
+    TTeamsResponse,
+    TTeamResponse,
+    TActiveReposResponse,
+    TTeamStatsResponse,
+    TTopicsResponse,
+    TCohortsResponse,
+    TTeamCollabResponse,
 } from "./gnoloveSchemas"
 import { z } from "zod"
 import { TimeFilter } from "./gnoloveConstants"
@@ -318,6 +332,130 @@ export async function getAIReportByWeek(start: string, end: string, signal?: Abo
         return AIReportSchema.parse(data)
     } catch (err) {
         console.error("[Gnolove] getAIReportByWeek failed:", err)
+        return null
+    }
+}
+
+// ── Teams (Phase 3) ─────────────────────────────────────────────
+
+/**
+ * Fetch the team roster from the backend (gnolove `config/teams.yaml`).
+ * Returns null on failure so callers can fall back to the seed roster.
+ */
+export async function getTeams(signal?: AbortSignal): Promise<TTeamsResponse | null> {
+    try {
+        const data = await fetchJson(apiUrl("/teams"), signal)
+        return TeamsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeams failed:", err)
+        return null
+    }
+}
+
+/**
+ * Fetch a single team by slug (case-insensitive on the backend).
+ */
+export async function getTeam(slug: string, signal?: AbortSignal): Promise<TTeamResponse | null> {
+    try {
+        if (!slug) return null
+        const data = await fetchJson(apiUrl(`/teams/${encodeURIComponent(slug)}`), signal)
+        return TeamResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeam failed:", err)
+        return null
+    }
+}
+
+/**
+ * Fetch active repos for a team using the dual-threshold rule.
+ * period accepts "daily" | "weekly" | "monthly" | "yearly" | "" (all-time).
+ */
+export async function getTeamActiveRepos(
+    slug: string,
+    period: string = "",
+    signal?: AbortSignal,
+): Promise<TActiveReposResponse | null> {
+    try {
+        if (!slug) return null
+        const url = new URL(`/teams/${encodeURIComponent(slug)}/active-repos`, GNOLOVE_API_URL)
+        if (period) url.searchParams.set("time", period)
+        const data = await fetchJson(url.toString(), signal)
+        return ActiveReposResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeamActiveRepos failed:", err)
+        return null
+    }
+}
+
+// ── Topics (Phase 2c) ───────────────────────────────────────────
+
+/**
+ * Fetch the Focus Areas taxonomy from the backend
+ * (gnolove `config/topics.yaml`). Returns null on failure so callers
+ * can fall back to the seed taxonomy.
+ */
+export async function getTopics(signal?: AbortSignal): Promise<TTopicsResponse | null> {
+    try {
+        const data = await fetchJson(apiUrl("/topics"), signal)
+        return TopicsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTopics failed:", err)
+        return null
+    }
+}
+
+// ── Analytics (v6.2.2 — panels 4 & 5) ──────────────────────────
+
+/**
+ * Fetch the contributor-cohort retention table.
+ * Backend caches 5 min; no query params today.
+ */
+export async function getContributorCohorts(signal?: AbortSignal): Promise<TCohortsResponse | null> {
+    try {
+        const data = await fetchJson(apiUrl("/contributors/cohorts"), signal)
+        return CohortsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getContributorCohorts failed:", err)
+        return null
+    }
+}
+
+/**
+ * Fetch the cross-team review matrix. `?time=` accepts the same
+ * `daily|weekly|monthly|yearly|""` values as the team-stats endpoint.
+ */
+export async function getTeamCollab(period: string = "", signal?: AbortSignal): Promise<TTeamCollabResponse | null> {
+    try {
+        const url = new URL("/team-collab", GNOLOVE_API_URL)
+        if (period) url.searchParams.set("time", period)
+        const data = await fetchJson(url.toString(), signal)
+        return TeamCollabResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeamCollab failed:", err)
+        return null
+    }
+}
+
+/**
+ * Fetch (repo, author) stats for a team with optional repo filter.
+ */
+export async function getTeamStats(
+    slug: string,
+    period: string = "",
+    repos: string[] = [],
+    signal?: AbortSignal,
+): Promise<TTeamStatsResponse | null> {
+    try {
+        if (!slug) return null
+        const url = new URL(`/teams/${encodeURIComponent(slug)}/team-stats`, GNOLOVE_API_URL)
+        if (period) url.searchParams.set("time", period)
+        for (const r of repos) {
+            if (r.trim()) url.searchParams.append("repos", r.trim())
+        }
+        const data = await fetchJson(url.toString(), signal)
+        return TeamStatsResponseSchema.parse(data)
+    } catch (err) {
+        console.error("[Gnolove] getTeamStats failed:", err)
         return null
     }
 }

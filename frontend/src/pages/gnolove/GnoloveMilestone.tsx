@@ -5,6 +5,7 @@
  */
 
 import { useGnoloveMilestone } from "../../hooks/gnolove"
+import { PageMeta } from "../../components/gnolove/PageMeta"
 
 export default function GnoloveMilestone() {
     const { data: milestone, isLoading } = useGnoloveMilestone()
@@ -28,6 +29,7 @@ export default function GnoloveMilestone() {
 
     return (
         <div className="gl-page">
+            <PageMeta title={`Milestone #${milestone.number} — ${milestone.title} | Gnolove · Memba`} description={`Progress tracking for milestone "${milestone.title}".`} />
             <div className="gl-header">
                 <h1 className="gl-title">Milestone #{milestone.number}</h1>
                 <p className="gl-subtitle">{milestone.title}</p>

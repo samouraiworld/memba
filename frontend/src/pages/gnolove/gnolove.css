@@ -1,10 +1,70 @@
 /* ══════════════════════════════════════════════
-   GNOLOVE SECTION (v2.19.0)
+   GNOLOVE SECTION
    Scoreboard, Reports, Analytics
-   
+
    All classes prefixed gl- to avoid collision
    with k- (Memba core)
    ══════════════════════════════════════════════ */
+
+/* ── Design-system tokens ─────────────────────
+   Section-scoped tokens for state colours, chart
+   series, and the heatmap intensity ramp. Consumers
+   land in the team-hub rework (Phase 4-6). New
+   components MUST reference these, not hex literals.
+   ─────────────────────────────────────────────── */
+
+:root {
+    /* PR-state colours (consumed by gl-pr-state--* and Phase 4 cards) */
+    --gl-color-state-merged: #a855f7;
+    --gl-color-state-merged-bg: rgba(168, 85, 247, 0.12);
+    --gl-color-state-open: #22c55e;
+    --gl-color-state-open-bg: rgba(34, 197, 94, 0.12);
+    --gl-color-state-closed: var(--color-k-danger, #ef4444);
+    --gl-color-state-blocked: var(--color-k-danger, #ef4444);
+    --gl-color-state-waiting: #ffc107;
+    --gl-color-state-waiting-bg: rgba(255, 193, 7, 0.12);
+
+    /* Recharts axis / tooltip palette (consumed by Phase 6 analytics rework) */
+    --gl-color-chart-bg: #12121e;
+    --gl-color-chart-grid: rgba(255, 255, 255, 0.04);
+    --gl-color-chart-axis-fg: #666;
+    --gl-color-chart-series-primary: #00d4aa;
+    --gl-color-chart-series-reviewed: #a855f7;
+    --gl-color-chart-series-open: #4a9eff;
+    --gl-color-chart-series-issues: #ffc107;
+    --gl-color-chart-series-danger: #ef4444;
+
+    /* Heatmap intensity ramp (consumed by ContributionHeatmap + Phase 4-6 Heatmap primitive) */
+    --gl-color-heatmap-l0: rgba(255, 255, 255, 0.03);
+    --gl-color-heatmap-l1: rgba(0, 212, 170, 0.15);
+    --gl-color-heatmap-l2: rgba(0, 212, 170, 0.35);
+    --gl-color-heatmap-l3: rgba(0, 212, 170, 0.6);
+    --gl-color-heatmap-l4: #00d4aa;
+
+    /* Skill / Focus Area tag pills (Phase 4) */
+    --gl-color-skill-tag-bg: var(--color-surface);
+    --gl-color-skill-tag-fg: var(--color-k-dim, #888);
+    --gl-color-skill-tag-border: var(--color-border);
+
+    /* AI report project name accent (Phase 5) */
+    --gl-color-ai-report-project-fg: #a78bfa;
+
+    /* Per-team colour CSS variable — set inline on team cards via
+       `style={{ '--gl-team-color': TEAM_CSS_COLORS[team.color] }}` */
+    --gl-team-color: currentColor;
+
+    /* Monospace font stack — consolidates ~80 inline declarations into one
+       token. Use `font-family: var(--gl-font-mono)` for any gnolove-section
+       numeric / code / tab text. */
+    --gl-font-mono: "JetBrains Mono", monospace;
+}
+
+[data-theme="light"] {
+    --gl-color-chart-bg: #ffffff;
+    --gl-color-chart-grid: rgba(0, 0, 0, 0.06);
+    --gl-color-chart-axis-fg: #555;
+    --gl-color-heatmap-l0: rgba(0, 0, 0, 0.04);
+}
 
 /* ── Layout ──────────────────────────────────── */
 
@@ -40,7 +100,7 @@
     color: var(--color-k-dim, #888);
     text-decoration: none;
     transition: all 0.2s ease;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-subnav-link:hover {
@@ -80,7 +140,7 @@
 .gl-sync-time {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Milestone Bar ───────────────────────────── */
@@ -108,7 +168,7 @@
 .gl-milestone-count {
     font-size: 11px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-milestone-bar {
@@ -149,7 +209,7 @@
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
@@ -179,7 +239,7 @@
     font-size: 11px;
     color: var(--color-k-dim, #888);
     cursor: pointer;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-checkbox input[type="checkbox"] {
@@ -198,7 +258,7 @@
 
 .gl-score-label {
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-score-badge {
@@ -206,7 +266,7 @@
     border-radius: 4px;
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     font-size: 10px;
 }
 
@@ -256,7 +316,7 @@
 .gl-team-rank {
     font-size: 11px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 4px;
 }
 
@@ -272,7 +332,7 @@
     gap: 4px;
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Table ────────────────────────────────────── */
@@ -299,7 +359,7 @@
     color: var(--color-k-dim, #888);
     font-weight: 600;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     white-space: nowrap;
     border-bottom: 1px solid var(--color-border);
 }
@@ -365,19 +425,19 @@
     display: block;
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-badge {
     display: inline-block;
     font-size: 9px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-top: 2px;
 }
 
 .gl-stat-cell {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-align: right;
     color: var(--color-k-dim, #aaa);
 }
@@ -433,7 +493,7 @@
     border-radius: 4px;
     font-size: 9px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── PR List ─────────────────────────────────── */
@@ -486,7 +546,7 @@
 .gl-pr-meta {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-pr-state {
@@ -494,7 +554,7 @@
     border-radius: 6px;
     font-size: 10px;
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -550,13 +610,13 @@
 .gl-repo-name {
     font-size: 12px;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-repo-branch {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Week Navigator ──────────────────────────── */
@@ -575,7 +635,7 @@
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -621,7 +681,7 @@
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
     background: transparent;
     cursor: pointer;
@@ -685,14 +745,14 @@
     font-size: 22px;
     font-weight: 700;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-stat-label {
     font-size: 10px;
     color: var(--color-k-dim, #888);
     margin-top: 4px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Charts ──────────────────────────────────── */
@@ -730,26 +790,14 @@
     text-align: center;
     color: var(--color-k-muted, #555);
     font-size: 13px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     background: var(--color-surface);
     border: 1px dashed var(--color-border);
     border-radius: 12px;
 }
 
-.gl-error-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px solid rgba(220, 38, 38, 0.25);
-    border-radius: 10px;
-    color: #dc2626;
-    font-size: 13px;
-    font-family: "JetBrains Mono", monospace;
-    margin-bottom: 12px;
-}
+/* gl-error-banner now defined once below (search "Error Banner");
+   the duplicate that lived here lost the cascade anyway. */
 
 /* ── Screen Reader Only ─────────────────────── */
 
@@ -854,7 +902,7 @@
 .gl-activity-item-meta {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -898,7 +946,7 @@
 .gl-section-summary {
     font-size: 11px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-left: auto;
 }
 
@@ -937,7 +985,7 @@
     font-size: 10px;
     font-weight: 600;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding-bottom: 4px;
     border-bottom: 1px solid var(--color-border);
 }
@@ -967,13 +1015,13 @@
 .gl-team-popover-login {
     font-size: 9px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-popover-score {
     font-size: 10px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
 
@@ -1018,7 +1066,7 @@
     border-radius: 4px;
     font-size: 11px;
     color: var(--color-k-dim, #ccc);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
 }
 
@@ -1051,7 +1099,7 @@
     background: var(--color-surface);
     color: var(--color-k-dim, #ccc);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     appearance: auto;
 }
@@ -1073,7 +1121,7 @@
     background: transparent;
     color: var(--color-k-dim, #888);
     font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -1141,7 +1189,7 @@
 .gl-teams-panel-rank {
     font-size: 13px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-panel-stats {
@@ -1149,7 +1197,7 @@
     gap: 14px;
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-members {
@@ -1194,7 +1242,7 @@
 .gl-teams-member-login {
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-member-stats {
@@ -1208,13 +1256,13 @@
     font-size: 13px;
     color: var(--color-k-accent, #00d4aa);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-teams-member-detail {
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Dashboard Stat Cards (with sparklines) ──── */
@@ -1248,7 +1296,7 @@
 .gl-dash-card-label {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1273,6 +1321,59 @@
     padding: 16px;
 }
 
+/* Highlight flash for deep-linked AI report card. */
+.gl-panel--highlight {
+    animation: gl-panel-flash 2s ease-out;
+    box-shadow: 0 0 0 2px var(--color-primary, #a78bfa);
+}
+
+@keyframes gl-panel-flash {
+    0% { box-shadow: 0 0 0 4px var(--color-primary, #a78bfa); }
+    50% { box-shadow: 0 0 0 2px var(--color-primary, #a78bfa); }
+    100% { box-shadow: 0 0 0 1px transparent; }
+}
+
+/* Warning banner used by the report page (stale-repo / stale-team). */
+.gl-warning-banner {
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: var(--color-k-text, #f0f0f0);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+}
+
+/* Empty-state UX-2 actions/buttons. */
+.gl-empty__hint {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}
+.gl-empty__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.gl-empty__btn {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-k-text, #f0f0f0);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.gl-empty__btn:hover {
+    background: var(--color-surface-hover, rgba(255,255,255,0.04));
+}
+
 .gl-panel-header {
     display: flex;
     align-items: baseline;
@@ -1290,7 +1391,7 @@
 .gl-panel-subtitle {
     font-size: 10px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-panel-grid {
@@ -1329,7 +1430,7 @@
 .gl-onchain-metric-label {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Heatmap ───────────────────────────────────── */
@@ -1364,7 +1465,7 @@
 .gl-heatmap-legend-label {
     font-size: 9px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin: 0 2px;
 }
 
@@ -1387,7 +1488,7 @@
 .gl-team-filters-label {
     font-size: 11px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-right: 2px;
 }
 
@@ -1400,7 +1501,7 @@
     border-radius: 16px;
     background: transparent;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -1441,7 +1542,7 @@
     font-size: 12px;
     color: var(--color-k-muted, #666);
     margin: -12px 0 8px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── GitHub Icon Link ──────────────────────────── */
@@ -1468,7 +1569,7 @@
     color: var(--color-k-dim, #777);
     text-decoration: none;
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 16px;
     transition: color 0.2s;
 }
@@ -1522,13 +1623,13 @@
 .gl-profile-login {
     font-size: 13px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-team-badge {
     display: inline-block;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding: 2px 8px;
     border-radius: 10px;
     border: 1px solid;
@@ -1547,7 +1648,7 @@
     gap: 6px;
     font-size: 12px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-meta-item {
@@ -1571,7 +1672,7 @@
     color: var(--color-k-dim, #888);
     text-decoration: none;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     transition: all 0.2s;
 }
 
@@ -1586,7 +1687,7 @@
     border: 1px solid var(--color-border);
     border-radius: 8px;
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-onchain-label {
@@ -1613,7 +1714,7 @@
     background: transparent;
     color: var(--color-k-dim, #888);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -1662,7 +1763,7 @@
 .gl-activity-row-meta {
     font-size: 10px;
     color: var(--color-k-dim, #777);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     display: block;
     margin-top: 2px;
 }
@@ -1686,7 +1787,7 @@
 .gl-repo-card-profile-name {
     font-size: 13px;
     color: var(--color-k-accent, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-repo-card-profile-desc {
@@ -1702,7 +1803,7 @@
     gap: 12px;
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-profile-repos-grid {
@@ -1827,7 +1928,7 @@
 .gl-team-compact-rank {
     font-size: 11px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     min-width: 18px;
 }
 
@@ -1851,7 +1952,7 @@
     gap: 8px;
     font-size: 10px;
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-top: 2px;
 }
 
@@ -1872,7 +1973,7 @@
     font-size: 11px;
     color: var(--color-k-accent, #00d4aa);
     text-decoration: none;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-section-link:hover {
@@ -1882,7 +1983,7 @@
 .gl-section-count {
     font-size: 11px;
     color: var(--color-k-dim, #888);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 /* ── Pagination ──────────────────────────────────────────── */
@@ -1904,7 +2005,7 @@
     border: 1px solid var(--color-border);
     color: var(--color-k-dim, #aaa);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s ease;
 }
@@ -1969,7 +2070,7 @@
     font-size: 16px;
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-team-profile-stat-label {
@@ -2004,7 +2105,7 @@
 }
 .gl-team-repo-name {
     font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #ccc);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2015,7 +2116,7 @@
 }
 .gl-team-repo-branch {
     font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-k-muted, #555);
     background: var(--color-surface);
     padding: 2px 6px;
@@ -2026,7 +2127,7 @@
 .gl-team-member-rank {
     font-size: 11px;
     color: var(--color-k-muted, #555);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     min-width: 24px;
     text-align: right;
     margin-right: 4px;
@@ -2044,7 +2145,7 @@
     background: rgba(255, 71, 87, 0.06);
     border: 1px solid rgba(255, 71, 87, 0.15);
     font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     color: #ff8a94;
 }
 .gl-error-retry {
@@ -2052,7 +2153,7 @@
     border: 1px solid rgba(255, 71, 87, 0.25);
     color: var(--color-k-danger, #ff4757);
     font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--gl-font-mono);
     padding: 4px 12px;
     border-radius: 5px;
     cursor: pointer;
@@ -2088,7 +2189,7 @@
     background: transparent;
     color: var(--color-text-secondary);
     font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -2121,7 +2222,7 @@
 .gl-report-narrative__week-id {
     font-size: 10px;
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-left: auto;
 }
 
@@ -2141,7 +2242,7 @@
     font-size: 13px;
     font-weight: 700;
     color: var(--color-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 10px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2155,7 +2256,7 @@
     gap: 6px;
     font-size: 12px;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     line-height: 1.5;
 }
 
@@ -2171,7 +2272,7 @@
 .gl-report-narrative__empty {
     color: var(--color-text-muted);
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin: 0;
 }
 
@@ -2217,7 +2318,7 @@
     font-size: 20px;
     font-weight: 700;
     color: var(--color-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
 }
 
 .gl-report-narrative__stat--blocked .gl-report-narrative__stat-value {
@@ -2227,7 +2328,7 @@
 .gl-report-narrative__stat-label {
     font-size: 9px;
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -2245,7 +2346,7 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--color-primary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     margin-bottom: 6px;
 }
 
@@ -2265,7 +2366,7 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-text-secondary);
 }
 
@@ -2334,7 +2435,7 @@
     padding: 8px 12px;
     cursor: pointer;
     font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     color: var(--color-text);
     transition: background 0.1s;
 }
@@ -2358,8 +2459,1062 @@
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--gl-font-mono);
     padding: 12px 0 8px;
     border-bottom: 1px solid var(--color-border);
     margin-bottom: 16px;
+}
+
+/* ── Team Hub (Phase 4) ────────────────────────── */
+
+.gl-thub-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gl-thub-header {
+    border-left: 4px solid var(--gl-team-color, var(--color-primary));
+    padding: 16px 20px;
+    background: var(--color-surface);
+    border-radius: 8px;
+}
+
+.gl-thub-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.gl-thub-header-chips {
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gl-thub-chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-k-dim, #888);
+    font-family: var(--gl-font-mono);
+}
+
+.gl-thub-chip-network {
+    background: var(--gl-color-state-waiting-bg, rgba(255, 193, 7, 0.12));
+    border-color: var(--gl-color-state-waiting, #ffc107);
+    color: var(--gl-color-state-waiting, #ffc107);
+}
+
+.gl-thub-header-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.gl-thub-period {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gl-thub-period-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-k-dim, #888);
+}
+
+/* ── Cards ─────────────────────────────────────── */
+
+.gl-thub-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px 20px;
+}
+
+.gl-thub-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-secondary);
+    margin: 0 0 12px;
+}
+
+.gl-thub-card-error {
+    border-color: var(--gl-color-state-blocked, #ef4444);
+}
+
+.gl-thub-card-error-msg {
+    color: var(--color-k-dim, #888);
+    font-size: 14px;
+    margin: 0;
+}
+
+.gl-thub-skel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-empty {
+    color: var(--color-k-dim, #888);
+    font-size: 14px;
+    font-style: italic;
+    margin: 8px 0 0;
+}
+
+/* ── Metrics ───────────────────────────────────── */
+
+.gl-thub-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.gl-thub-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+}
+
+.gl-thub-metric-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text);
+    font-family: var(--gl-font-mono);
+}
+
+.gl-thub-metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-metric-skel {
+    background: transparent;
+}
+
+.gl-skeleton-line {
+    height: 12px;
+    border-radius: 4px;
+}
+
+.gl-skeleton-line-sm {
+    height: 8px;
+    width: 60%;
+}
+
+/* ── Active repos ──────────────────────────────── */
+
+.gl-thub-active-bucket + .gl-thub-active-bucket {
+    margin-top: 16px;
+}
+
+.gl-thub-active-bucket-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text);
+    margin: 0 0 4px;
+}
+
+.gl-thub-active-bucket-hint {
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    margin: 0 0 8px;
+}
+
+.gl-thub-active-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gl-thub-active-repo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.gl-thub-active-repo:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gl-thub-active-repo-owner {
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-active-repo-count {
+    font-family: var(--gl-font-mono);
+    color: var(--color-text);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.gl-thub-active-repo-of {
+    color: var(--color-k-dim, #888);
+    margin-left: 4px;
+}
+
+.gl-thub-active-repo-primary .gl-thub-active-repo-count {
+    color: var(--gl-color-state-merged, #a855f7);
+}
+
+/* ── Recent activity card ─────────────────────── */
+
+.gl-thub-activity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-activity-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.gl-thub-activity-title {
+    color: var(--color-text);
+    font-size: 13px;
+    text-decoration: none;
+    line-height: 1.4;
+}
+
+.gl-thub-activity-title:hover {
+    color: var(--color-primary);
+}
+
+.gl-thub-activity-meta {
+    display: inline-flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    font-family: var(--gl-font-mono);
+}
+
+.gl-thub-activity-author {
+    color: var(--gl-color-state-merged, #a855f7);
+}
+
+/* ── AI weekly report card ────────────────────── */
+
+.gl-thub-ai-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.gl-thub-ai-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.gl-thub-ai-project {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.gl-thub-ai-project-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.gl-thub-ai-project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gl-color-ai-report-project-fg, #a78bfa);
+    margin: 0;
+    font-family: var(--gl-font-mono);
+}
+
+.gl-thub-ai-project-team {
+    text-transform: lowercase;
+    font-size: 10px;
+}
+
+.gl-thub-ai-project-summary {
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 8px;
+    color: var(--color-text);
+}
+
+.gl-thub-ai-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+}
+
+.gl-thub-ai-toggle:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* ── Focus Areas pills ────────────────────────── */
+
+.gl-thub-card-hint {
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    margin: -4px 0 12px;
+}
+
+.gl-thub-pills {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gl-thub-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--gl-color-skill-tag-bg, var(--color-surface));
+    color: var(--color-text);
+    font-size: 12px;
+}
+
+.gl-thub-pill-label {
+    font-weight: 500;
+}
+
+.gl-thub-pill-count {
+    font-family: var(--gl-font-mono);
+    color: var(--color-k-dim, #888);
+}
+
+.gl-thub-pill-share {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Topic activity heatmap (Plan §2) ──────────────────── */
+
+.gl-topic-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.gl-topic-heatmap-row {
+    display: grid;
+    grid-template-columns: 140px repeat(12, minmax(28px, 1fr)) 40px;
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-topic-heatmap-head .gl-topic-heatmap-month,
+.gl-topic-heatmap-head .gl-topic-heatmap-label,
+.gl-topic-heatmap-head .gl-topic-heatmap-total {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-topic-heatmap-label {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    padding: 4px 6px;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-topic-heatmap-cell {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-text);
+    text-align: center;
+    padding: 4px 0;
+    border-radius: 3px;
+    transition: transform 0.1s;
+}
+
+.gl-topic-heatmap-cell-l0 { background: var(--gl-color-heatmap-l0); color: transparent; }
+.gl-topic-heatmap-cell-l1 { background: var(--gl-color-heatmap-l1); }
+.gl-topic-heatmap-cell-l2 { background: var(--gl-color-heatmap-l2); }
+.gl-topic-heatmap-cell-l3 { background: var(--gl-color-heatmap-l3); color: #0a0a14; font-weight: 600; }
+.gl-topic-heatmap-cell-l4 { background: var(--gl-color-heatmap-l4); color: #0a0a14; font-weight: 700; }
+
+.gl-topic-heatmap-cell:hover { transform: scale(1.06); }
+
+.gl-topic-heatmap-total {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 6px;
+    text-align: right;
+    color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-topic-heatmap-cell { transition: none; }
+    .gl-topic-heatmap-cell:hover { transform: none; }
+}
+
+/* ── Repo health matrix (Plan §2) ──────────────────────── */
+
+.gl-repo-health {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--gl-font-mono);
+    font-size: 12px;
+}
+
+.gl-repo-health thead th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-k-dim, #888);
+    border-bottom: 1px solid var(--color-border);
+    padding: 6px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 10px;
+}
+
+.gl-repo-health tbody th {
+    text-align: left;
+    font-weight: 500;
+    padding: 6px 8px;
+    color: var(--color-text);
+}
+
+.gl-repo-health tbody th a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.gl-repo-health tbody th a:hover {
+    color: var(--color-k-accent, #00d4aa);
+}
+
+.gl-repo-health-cell {
+    padding: 6px 8px;
+    text-align: right;
+    border-radius: 4px;
+}
+
+.gl-repo-health-good {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.07);
+}
+
+.gl-repo-health-fair {
+    color: #ffc107;
+    background: rgba(255, 193, 7, 0.08);
+}
+
+.gl-repo-health-poor {
+    color: var(--color-k-danger, #ef4444);
+    background: rgba(239, 68, 68, 0.10);
+}
+
+@media (max-width: 768px) {
+    .gl-topic-heatmap-row {
+        grid-template-columns: 100px repeat(12, minmax(20px, 1fr)) 32px;
+    }
+    .gl-repo-health {
+        font-size: 11px;
+    }
+    .gl-repo-health thead th,
+    .gl-repo-health tbody th,
+    .gl-repo-health-cell {
+        padding: 4px 6px;
+    }
+}
+
+/* ── Cohort retention grid (Plan §2, panel 4) ──────────── */
+
+.gl-cohort-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+}
+
+.gl-cohort-grid-row {
+    display: grid;
+    grid-template-columns: 80px 50px repeat(auto-fill, minmax(34px, 1fr));
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-cohort-grid-head .gl-cohort-grid-label,
+.gl-cohort-grid-head .gl-cohort-grid-size,
+.gl-cohort-grid-head .gl-cohort-grid-offset {
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-cohort-grid-label {
+    padding: 4px 6px;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.gl-cohort-grid-size {
+    padding: 4px 6px;
+    color: var(--color-text-secondary);
+    text-align: right;
+}
+
+.gl-cohort-grid-offset {
+    text-align: center;
+}
+
+.gl-cohort-grid-cell {
+    padding: 4px 0;
+    text-align: center;
+    border-radius: 3px;
+    color: var(--color-text);
+}
+
+.gl-cohort-grid-cell-empty {
+    background: transparent;
+    color: transparent;
+}
+
+/* ── Cross-team collab matrix (Plan §2, panel 5) ───────── */
+
+.gl-collab-matrix {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+}
+
+.gl-collab-matrix-row {
+    display: grid;
+    grid-template-columns: 140px repeat(auto-fit, minmax(60px, 1fr));
+    gap: 2px;
+    align-items: stretch;
+}
+
+.gl-collab-matrix-corner {
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    padding: 4px 6px;
+    font-style: italic;
+}
+
+.gl-collab-matrix-col {
+    font-size: 10px;
+    color: var(--color-text);
+    padding: 4px 6px 4px;
+    text-align: center;
+    border-top: 3px solid transparent; /* team accent color set inline */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-collab-matrix-row-label {
+    padding: 4px 8px;
+    color: var(--color-text);
+    text-align: right;
+    border-left: 3px solid transparent; /* team accent color set inline */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gl-collab-matrix-cell {
+    padding: 6px 0;
+    text-align: center;
+    border-radius: 3px;
+    color: var(--color-text);
+}
+
+.gl-collab-matrix-diag {
+    outline: 1px dashed rgba(255, 255, 255, 0.10);
+    outline-offset: -2px;
+}
+
+.gl-panel-footnote {
+    font-family: var(--gl-font-mono);
+    font-size: 10px;
+    color: var(--color-k-dim, #888);
+    margin-top: 8px;
+    padding: 4px 6px;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .gl-cohort-grid-row {
+        grid-template-columns: 64px 40px repeat(auto-fill, minmax(26px, 1fr));
+        font-size: 10px;
+    }
+    .gl-collab-matrix-row {
+        grid-template-columns: 92px repeat(auto-fit, minmax(40px, 1fr));
+        font-size: 10px;
+    }
+}
+
+/* ── AI report project deep-link highlight (Plan §2) ─────── */
+
+.gl-aircard-project--highlight {
+    animation: gl-aircard-flash 1.5s ease-out;
+    border-radius: 6px;
+}
+
+@keyframes gl-aircard-flash {
+    0% { background: rgba(167, 139, 250, 0.18); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.4); }
+    100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-aircard-project--highlight {
+        animation: none;
+        background: rgba(167, 139, 250, 0.10);
+    }
+}
+
+/* ── Active-repo % badge (Plan §2 — dual-threshold visibility) ─ */
+
+.gl-thub-active-repo-pct {
+    font-family: var(--gl-font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-k-accent, #00d4aa);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.10);
+    margin-right: 6px;
+}
+
+.gl-thub-active-repo-secondary .gl-thub-active-repo-pct {
+    color: var(--color-k-dim, #888);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Score factors details (Plan §2 — Home density cap) ─ */
+
+.gl-score-factors-details {
+    margin: 8px 0 12px;
+}
+
+.gl-score-factors-summary {
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--color-k-dim, #888);
+    user-select: none;
+    padding: 4px 0;
+}
+
+.gl-score-factors-summary:hover {
+    color: var(--color-text);
+}
+
+.gl-score-factors-details[open] .gl-score-factors {
+    margin-top: 6px;
+}
+
+/* ── Skeleton fidelity (Plan §7) ───────────────
+   One shape per card type, sized to match the loaded content so the
+   layout doesn't pop when data arrives. */
+
+.gl-thub-active-list-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.gl-thub-active-repo-skel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+}
+
+.gl-thub-skel-repo-name {
+    display: inline-block;
+    height: 12px;
+    width: 60%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-repo-count {
+    display: inline-block;
+    height: 12px;
+    width: 48px;
+    border-radius: 4px;
+}
+
+.gl-thub-pills-skel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.gl-thub-skel-pill {
+    display: inline-block;
+    height: 24px;
+    width: 110px;
+    border-radius: 999px;
+}
+
+.gl-thub-skel-pill:nth-child(2) { width: 96px; }
+.gl-thub-skel-pill:nth-child(3) { width: 130px; }
+.gl-thub-skel-pill:nth-child(4) { width: 88px; }
+.gl-thub-skel-pill:nth-child(5) { width: 116px; }
+
+.gl-thub-activity-list-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.gl-thub-activity-row-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gl-thub-skel-activity-title {
+    display: block;
+    height: 14px;
+    width: 90%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-activity-meta {
+    display: block;
+    height: 11px;
+    width: 55%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-airpt {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gl-thub-skel-airpt-summary {
+    display: block;
+    height: 12px;
+    width: 100%;
+    border-radius: 4px;
+}
+
+.gl-thub-skel-airpt-summary:nth-child(2) {
+    width: 78%;
+}
+
+.gl-thub-skel-airpt-toggle {
+    display: block;
+    height: 14px;
+    width: 160px;
+    margin-top: 4px;
+    border-radius: 4px;
+}
+
+/* ── Mobile layout (≤ 768px) — Plan §7 ─────────
+   Phase 4 shipped the desktop layout only. This block tightens
+   everything below 768px: smaller paddings, single-column grids,
+   and a wrapping period tablist so the header doesn't overflow. */
+
+@media (max-width: 768px) {
+    .gl-thub-page {
+        gap: 14px;
+    }
+
+    .gl-thub-header {
+        padding: 14px;
+    }
+
+    .gl-thub-header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .gl-thub-header-body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .gl-thub-period {
+        width: 100%;
+    }
+
+    .gl-thub-period .gl-tabs {
+        flex-wrap: wrap;
+    }
+
+    .gl-thub-card {
+        padding: 14px 14px;
+    }
+
+    .gl-thub-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .gl-thub-metric {
+        padding: 10px;
+    }
+
+    .gl-thub-metric-value {
+        font-size: 18px;
+    }
+
+    .gl-thub-active-repo-name {
+        max-width: 60%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .gl-thub-activity-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}
+
+/* ── Reduced motion (team-hub, Plan §7) ──────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .gl-thub-active-repo,
+    .gl-thub-activity-title,
+    .gl-thub-pill,
+    .gl-thub-card,
+    .gl-thub-ai-toggle {
+        transition: none;
+    }
+    .gl-thub-active-repo:hover,
+    .gl-thub-card:hover {
+        transform: none;
+    }
+}
+
+/* ── AI Report Card (Phase 5) ──────────────────── */
+
+.gl-aircard {
+    margin-bottom: 16px;
+}
+
+.gl-aircard-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.gl-aircard-actions {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.gl-aircard-actions .gl-export-btn {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+.gl-aircard-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0;
+}
+
+.gl-aircard-project {
+    padding: 0 16px;
+}
+
+.gl-aircard-project-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.gl-aircard-project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gl-color-ai-report-project-fg, #a78bfa);
+    margin: 0;
+    font-family: var(--gl-font-mono);
+}
+
+.gl-aircard-project-team {
+    text-transform: lowercase;
+    font-size: 10px;
+}
+
+.gl-aircard-project-summary {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px;
+    white-space: pre-wrap;
+}
+
+.gl-aircard-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+}
+
+.gl-aircard-toggle:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* ── Mobile bottom sheet ──────────────────────── */
+
+.gl-aircard-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1000;
+    animation: gl-aircard-fade 150ms ease-out;
+}
+
+.gl-aircard-sheet {
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 16px 20px 24px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    animation: gl-aircard-slide 200ms ease-out;
+}
+
+.gl-aircard-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.gl-aircard-sheet-close {
+    background: none;
+    border: 0;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px 12px;
+}
+
+.gl-aircard-sheet-close:hover {
+    color: var(--color-text);
+}
+
+.gl-aircard-sheet-body {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--color-text);
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+@keyframes gl-aircard-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes gl-aircard-slide {
+    from { transform: translateY(20%); }
+    to   { transform: translateY(0); }
 }
