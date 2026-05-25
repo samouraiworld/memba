@@ -458,8 +458,8 @@ export const ActiveReposResponseSchema = z.object({
     lastSyncedAt: z.string().nullable().optional(),
     slug: z.string(),
     period: z.string(),
-    primary: z.array(ActiveRepoSchema).default([]),
-    secondary: z.array(ActiveRepoSchema).default([]),
+    primary: z.preprocess(v => v ?? [], z.array(ActiveRepoSchema)),
+    secondary: z.preprocess(v => v ?? [], z.array(ActiveRepoSchema)),
 })
 export type TActiveReposResponse = z.infer<typeof ActiveReposResponseSchema>
 
@@ -483,8 +483,8 @@ export const TeamStatsResponseSchema = z.object({
     lastSyncedAt: z.string().nullable().optional(),
     slug: z.string(),
     period: z.string(),
-    repos: z.array(z.string()).default([]),
-    stats: z.array(TeamStatRowSchema).default([]),
+    repos: z.preprocess(v => v ?? [], z.array(z.string())),
+    stats: z.preprocess(v => v ?? [], z.array(TeamStatRowSchema)),
     totals: TeamStatsTotalsSchema,
 })
 
