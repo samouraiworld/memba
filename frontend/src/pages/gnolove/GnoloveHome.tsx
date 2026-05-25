@@ -30,6 +30,7 @@ import type { Team } from "../../lib/gnoloveConstants"
 import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
+import { formatRelativeTime, isStale } from "../../lib/gnoloveTime"
 
 const PAGE_SIZE = 25
 
@@ -42,6 +43,7 @@ export default function GnoloveHome() {
 
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
     const [activityExpanded, setActivityExpanded] = useState(false)
+    const [nowMs] = useState(() => Date.now())
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
     const repoDropdownRef = useRef<HTMLDivElement>(null)
@@ -134,8 +136,11 @@ export default function GnoloveHome() {
             <div className="gl-header">
                 <h1 className="gl-title">Contributors Overview</h1>
                 {contributors?.lastSyncedAt && (
-                    <span className="gl-sync-time">
-                        Last sync: {new Date(contributors.lastSyncedAt).toLocaleString()}
+                    <span
+                        className={`gl-sync-time${isStale(contributors.lastSyncedAt, nowMs) ? " gl-sync-time--stale" : ""}`}
+                        title={new Date(contributors.lastSyncedAt).toISOString()}
+                    >
+                        Last sync: {formatRelativeTime(contributors.lastSyncedAt, nowMs)}
                     </span>
                 )}
             </div>

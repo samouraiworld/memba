@@ -16,7 +16,7 @@ import { useState, useMemo, useCallback, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
     addWeeks, addMonths, addYears,
-    format, isFuture,
+    format, isFuture, endOfWeek, endOfMonth, endOfYear,
 } from "date-fns"
 import { useGnoloveReport, useGnoloveRepositories, useReportUrlState } from "../../hooks/gnolove"
 import { PageMeta } from "../../components/gnolove/PageMeta"
@@ -154,9 +154,9 @@ export default function GnoloveReport() {
     }, [report, filteredPrs, selectedTeam, selectedReposSet])
 
     const canGoForward = period !== "all_time" && !isFuture(
-        period === "weekly" ? addWeeks(start, 1) :
-        period === "monthly" ? addMonths(start, 1) :
-        addYears(start, 1)
+        period === "weekly" ? endOfWeek(start, { weekStartsOn: 1 }) :
+        period === "monthly" ? endOfMonth(start) :
+        endOfYear(start)
     )
 
     const dateLabel = useMemo(() => {

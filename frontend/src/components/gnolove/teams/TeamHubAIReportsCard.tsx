@@ -11,6 +11,7 @@
  * @module components/gnolove/teams/TeamHubAIReportsCard
  */
 
+import { useSearchParams } from "react-router-dom"
 import { useGnoloveAIReports } from "../../../hooks/gnolove"
 import { AIReportCard } from "../AIReportCard"
 import type { Team } from "../../../lib/gnoloveConstants"
@@ -21,7 +22,10 @@ interface Props {
 
 export function TeamHubAIReportsCard({ team }: Props) {
     const { data: reports, isLoading } = useGnoloveAIReports()
-    const latest = reports?.[0]
+    const [searchParams] = useSearchParams()
+    const targetId = searchParams.get("aiReport")
+    const matched = targetId && reports?.find(r => r.id === targetId)
+    const latest = matched || reports?.[0]
 
     if (isLoading && !reports) {
         return (
