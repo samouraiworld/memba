@@ -9,6 +9,7 @@
  */
 
 import { Component } from "react"
+import * as Sentry from "@sentry/react"
 import type { ReactNode, ErrorInfo } from "react"
 
 interface Props {
@@ -30,6 +31,10 @@ export class SectionErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, info: ErrorInfo) {
         console.error(`[Gnolove/${this.props.sectionName}] ErrorBoundary caught:`, error, info.componentStack)
+        Sentry.captureException(error, {
+            tags: { section: "gnolove", component: this.props.sectionName },
+            contexts: { react: { componentStack: info.componentStack ?? "" } },
+        })
         this.props.onError?.(error, info)
     }
 

@@ -1,24 +1,21 @@
 /**
- * TeamHub — orchestrator for the Phase 4 team page.
+ * TeamHub — orchestrator for the team page.
  *
- * Wires up the team lookup, the URL-state period, and the per-card queries
- * (active-repos, team-stats). Each card sits behind a {@link CardErrorBoundary}
- * so a shape mismatch on one endpoint doesn't black-out the page.
- *
- * The "not found" path is intentionally minimal: if the team doesn't exist
- * in either the seed roster or the live one, we render a polite message and
- * keep the back link visible. Phase 5 will extend this with the AI report
- * card body.
+ * Wires up the team lookup, URL-state period, per-card queries, the
+ * backend health probe, and the degradation banner. Each card sits
+ * behind a {@link CardErrorBoundary} so a crash in one card doesn't
+ * black-out the page.
  *
  * @module components/gnolove/teams/TeamHub
  */
 
 import { Link, useParams } from "react-router-dom"
-import { useGnoloveTeams, useGnoloveTeamActiveRepos, useGnoloveTeamStats, useTeamProfileUrlState } from "../../../hooks/gnolove"
+import { useGnoloveTeams, useGnoloveTeamActiveRepos, useGnoloveTeamStats, useTeamProfileUrlState, useGnoloveBackendHealth } from "../../../hooks/gnolove"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { useNetworkPath } from "../../../hooks/useNetworkNav"
 import { PageMeta } from "../PageMeta"
 import { CardErrorBoundary } from "./CardErrorBoundary"
+import { HubBackendDownBanner } from "./HubBackendDownBanner"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
 import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
@@ -31,7 +28,6 @@ import type { Team } from "../../../lib/gnoloveConstants"
 function findTeam(teams: Team[], rawParam: string): Team | null {
     const decoded = decodeURIComponent(rawParam)
     const lower = decoded.toLowerCase()
-    // Slug lookup first (new URL form), then name match (legacy URLs).
     return (
         teams.find(t => t.slug.toLowerCase() === lower) ??
         teams.find(t => t.name.toLowerCase() === lower) ??
@@ -45,12 +41,21 @@ export function TeamHub() {
     const { teamName } = useParams<{ teamName: string }>()
     const { teams, lastSyncedAt } = useGnoloveTeams()
     const { period, repos, setPeriod } = useTeamProfileUrlState()
+    const health = useGnoloveBackendHealth()
 
     const team = teamName ? findTeam(teams, teamName) : null
     const backHref = np("gnolove/teams")
 
     const activeReposQuery = useGnoloveTeamActiveRepos(team?.slug, periodToBackendParam(period))
     const teamStatsQuery = useGnoloveTeamStats(team?.slug, periodToBackendParam(period), repos)
+
+    const cardErrorCount =
+        (activeReposQuery.isError ? 1 : 0) +
+        (teamStatsQuery.isError ? 1 : 0)
+
+    const oldestDataUpdate = [activeReposQuery.dataUpdatedAt, teamStatsQuery.dataUpdatedAt]
+        .filter((t): t is number => t != null && t > 0)
+        .sort()[0]
 
     if (!team) {
         const decoded = teamName ? decodeURIComponent(teamName) : ""
@@ -70,6 +75,12 @@ export function TeamHub() {
                 description={team.description ?? `Team profile for ${team.name}.`}
             />
 
+            <HubBackendDownBanner
+                health={health}
+                cardErrorCount={cardErrorCount}
+                dataUpdatedAt={oldestDataUpdate}
+            />
+
             <CardErrorBoundary name="Header">
                 <TeamHubHeader
                     team={team}
@@ -81,18 +92,22 @@ export function TeamHub() {
                 />
             </CardErrorBoundary>
 
-            <CardErrorBoundary name="Metrics">
+            <CardErrorBoundary name="Metrics" onRetry={() => teamStatsQuery.refetch()}>
                 <TeamHubMetricsGrid
                     stats={teamStatsQuery.data}
                     isLoading={teamStatsQuery.isLoading}
+                    isError={teamStatsQuery.isError}
+                    onRetry={() => teamStatsQuery.refetch()}
                     teamMemberCount={team.members.length}
                 />
             </CardErrorBoundary>
 
-            <CardErrorBoundary name="Active repositories">
+            <CardErrorBoundary name="Active repositories" onRetry={() => activeReposQuery.refetch()}>
                 <TeamHubActiveReposCard
                     data={activeReposQuery.data}
                     isLoading={activeReposQuery.isLoading}
+                    isError={activeReposQuery.isError}
+                    onRetry={() => activeReposQuery.refetch()}
                 />
             </CardErrorBoundary>
 

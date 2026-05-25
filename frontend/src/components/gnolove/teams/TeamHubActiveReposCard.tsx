@@ -14,6 +14,8 @@ import type { TActiveReposResponse, TActiveRepo } from "../../../lib/gnoloveSche
 interface Props {
     data: TActiveReposResponse | null | undefined
     isLoading: boolean
+    isError: boolean
+    onRetry: () => void
 }
 
 function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "secondary" }) {
@@ -41,7 +43,7 @@ function RepoRow({ repo, bucket }: { repo: TActiveRepo; bucket: "primary" | "sec
     )
 }
 
-export function TeamHubActiveReposCard({ data, isLoading }: Props) {
+export function TeamHubActiveReposCard({ data, isLoading, isError, onRetry }: Props) {
     if (isLoading && !data) {
         return (
             <div className="gl-thub-card" aria-busy="true">
@@ -58,10 +60,7 @@ export function TeamHubActiveReposCard({ data, isLoading }: Props) {
         )
     }
 
-    // After loading resolves: data may be null when the fetch failed (gnoloveApi
-    // returns null on error). "No primary AND no secondary" is *also* a
-    // legitimate empty state for a quiet period, so distinguish the two.
-    const hasFailed = !isLoading && data == null
+    const hasFailed = isError || (!isLoading && data == null)
     const primary = data?.primary ?? []
     const secondary = data?.secondary ?? []
     const empty = !hasFailed && primary.length === 0 && secondary.length === 0
@@ -74,6 +73,7 @@ export function TeamHubActiveReposCard({ data, isLoading }: Props) {
             {hasFailed && (
                 <p className="gl-thub-empty" role="status">
                     Active-repos data unavailable. The backend didn't return data for this period.
+                    {" "}<button className="gl-thub-inline-retry" onClick={onRetry}>Retry</button>
                 </p>
             )}
 

@@ -20,20 +20,22 @@ describe("useGnoloveBackendHealth", () => {
         vi.spyOn(globalThis, "fetch").mockImplementation(
             () => new Promise(() => { /* never */ }) as unknown as Promise<Response>,
         )
-        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/teams" }))
+        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/health" }))
         expect(result.current).toBe("unknown")
     })
 
     it("becomes 'up' after one successful probe", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }))
-        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/teams" }))
+        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/health" }))
         await waitFor(() => expect(result.current).toBe("up"))
     })
 
-    it("treats 4xx as 'up' (server responding, just rejecting)", async () => {
+    it("treats non-200 as a failure (only 200 counts as up)", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 404 }))
-        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/teams" }))
-        await waitFor(() => expect(result.current).toBe("up"))
+        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/health" }))
+        // Single failure doesn't flip to "down" (threshold = 2), so stays unknown.
+        await new Promise(r => setTimeout(r, 20))
+        expect(result.current).not.toBe("up")
     })
 
     it("doesn't flip to 'down' on a single failure (need 2)", async () => {
@@ -44,7 +46,7 @@ describe("useGnoloveBackendHealth", () => {
             if (calls === 1) throw new Error("ECONNREFUSED")
             return new Promise(() => { /* never */ }) as unknown as Promise<Response>
         })
-        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/teams" }))
+        const { result } = renderHook(() => useGnoloveBackendHealth({ probeUrl: "http://x/health" }))
         // Give the first probe time to finish.
         await new Promise(r => setTimeout(r, 20))
         // After exactly 1 failure, status should still be "unknown" (threshold is 2).
@@ -53,7 +55,7 @@ describe("useGnoloveBackendHealth", () => {
 
     it("can be disabled to skip probing entirely", () => {
         const fetchSpy = vi.spyOn(globalThis, "fetch")
-        renderHook(() => useGnoloveBackendHealth({ enabled: false, probeUrl: "http://x/teams" }))
+        renderHook(() => useGnoloveBackendHealth({ enabled: false, probeUrl: "http://x/health" }))
         expect(fetchSpy).not.toHaveBeenCalled()
     })
 })

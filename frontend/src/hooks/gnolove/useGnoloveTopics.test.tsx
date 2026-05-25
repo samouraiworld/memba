@@ -55,8 +55,8 @@ describe("useGnoloveTopics", () => {
         expect(result.current.lastSyncedAt).toBe("2026-05-19T10:00:00Z")
     })
 
-    it("falls back to the seed when the backend returns null", async () => {
-        vi.spyOn(api, "getTopics").mockResolvedValue(null)
+    it("falls back to the seed when the backend throws", async () => {
+        vi.spyOn(api, "getTopics").mockRejectedValue(new Error("network error"))
         const { result } = renderHook(() => useGnoloveTopics(), { wrapper: withQueryClient() })
         await waitFor(() => expect(result.current.isLoading).toBe(false))
         expect(result.current.isFetched).toBe(false)

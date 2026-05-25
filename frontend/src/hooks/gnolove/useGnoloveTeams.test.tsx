@@ -81,8 +81,8 @@ describe("useGnoloveTeams", () => {
         expect(result.current.lastSyncedAt).toBe("2026-05-18T20:00:00Z")
     })
 
-    it("falls back to the seed when the backend returns null", async () => {
-        vi.spyOn(api, "getTeams").mockResolvedValue(null)
+    it("falls back to the seed when the backend throws", async () => {
+        vi.spyOn(api, "getTeams").mockRejectedValue(new Error("network error"))
         const { result } = renderHook(() => useGnoloveTeams(), { wrapper: withQueryClient() })
         await waitFor(() => expect(result.current.isLoading).toBe(false))
         expect(result.current.isFetched).toBe(false)

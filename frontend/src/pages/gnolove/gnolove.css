@@ -2560,6 +2560,43 @@
     margin: 0;
 }
 
+.gl-thub-retry-btn {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.gl-thub-inline-retry {
+    background: none;
+    border: none;
+    color: var(--gl-accent, #00d4aa);
+    cursor: pointer;
+    font-size: inherit;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.gl-thub-backend-down-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    background: var(--gl-color-state-blocked-bg, rgba(239, 68, 68, 0.1));
+    border: 1px solid var(--gl-color-state-blocked, #ef4444);
+    color: var(--color-text-primary, #f5f5f5);
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.gl-thub-backend-down-banner p {
+    margin: 0;
+    flex: 1;
+}
+
 .gl-thub-skel-stack {
     display: flex;
     flex-direction: column;
