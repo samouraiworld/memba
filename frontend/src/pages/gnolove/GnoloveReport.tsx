@@ -12,27 +12,31 @@
  * @module pages/gnolove/GnoloveReport
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
     addWeeks, addMonths, addYears,
-    format, isFuture, getISOWeek, getISOWeekYear, isWithinInterval,
+    format, isFuture,
 } from "date-fns"
 import { useGnoloveReport, useGnoloveRepositories, useReportUrlState } from "../../hooks/gnolove"
 import { PageMeta } from "../../components/gnolove/PageMeta"
-import { REPORT_TAB_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
-import type { ReportTab, Team } from "../../lib/gnoloveConstants"
+import { REPORT_TAB_LABELS, TEAMS } from "../../lib/gnoloveConstants"
+import type { ReportTab } from "../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
 import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
-import { extractRepoFromUrl } from "../../lib/gnoloveApi"
 import {
     rangeFromKey, defaultKey, nextAtForPeriodSwitch,
     weekKeyFromDate, monthKeyFromDate, yearKeyFromDate,
     buildShareUrl,
     DEFAULT_REPORT_STATE,
-    type ReportPeriod, type ReportUrlState,
+    type ReportPeriod,
 } from "../../lib/gnoloveReportUrl"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { useClickOutside } from "../../hooks/useClickOutside"
+import { filterPrs } from "../../lib/gnoloveReportFilters"
+import { NarrativeReportView } from "../../components/gnolove/report/NarrativeReportView"
+import { EmptyStateMessage } from "../../components/gnolove/report/EmptyStateMessage"
+import type { EmptyReason } from "../../components/gnolove/report/types"
 
 const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     weekly: "Weekly",
@@ -60,16 +64,6 @@ function statusFor(pr: TPullRequest, report: ReportData | null | undefined): PRS
     return "in_progress"
 }
 
-/** Check if a PR had any activity within the given date range. */
-function hasActivityInRange(pr: TPullRequest, start: Date, end: Date): boolean {
-    const range = { start, end }
-    const dates = [pr.createdAt, pr.mergedAt, pr.updatedAt].filter(Boolean) as string[]
-    return dates.some(d => {
-        try { return isWithinInterval(new Date(d), range) }
-        catch { return false }
-    })
-}
-
 export default function GnoloveReport() {
     const [urlState, setUrlState] = useReportUrlState()
     const { period, at, tab: activeTab, team: teamOrNull, repos: selectedRepos, view } = urlState
@@ -81,23 +75,8 @@ export default function GnoloveReport() {
     const repoDropdownRef = useRef<HTMLDivElement>(null)
     const [copiedLink, setCopiedLink] = useState(false)
 
-    // Close repo dropdown on outside click or Escape key
-    useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (repoDropdownRef.current && !repoDropdownRef.current.contains(e.target as Node)) {
-                setRepoDropdownOpen(false)
-            }
-        }
-        function handleKeyDown(e: KeyboardEvent) {
-            if (e.key === "Escape") setRepoDropdownOpen(false)
-        }
-        document.addEventListener("mousedown", handleClick)
-        document.addEventListener("keydown", handleKeyDown)
-        return () => {
-            document.removeEventListener("mousedown", handleClick)
-            document.removeEventListener("keydown", handleKeyDown)
-        }
-    }, [])
+    const closeRepoDropdown = useCallback(() => setRepoDropdownOpen(false), [])
+    useClickOutside(repoDropdownRef, closeRepoDropdown)
 
     const { data: repos } = useGnoloveRepositories()
 
@@ -137,35 +116,10 @@ export default function GnoloveReport() {
         ]
     }, [report])
 
-    const filteredPrs = useMemo(() => {
-        let result = prs
-
-        if (selectedTeam !== "all") {
-            const team = TEAMS.find(t => t.name === selectedTeam)
-            if (team) {
-                result = result.filter(pr => pr.authorLogin && team.members.includes(pr.authorLogin))
-            }
-        }
-
-        if (selectedReposSet.size > 0) {
-            result = result.filter(pr => {
-                const repo = extractRepoFromUrl(pr.url)
-                return repo ? selectedReposSet.has(repo) : false
-            })
-        }
-
-        if (period === "weekly") {
-            result = result.filter(pr => hasActivityInRange(pr, start, end))
-        }
-
-        if (activeTab !== "all") {
-            const tabPrs = report?.[activeTab] ?? []
-            const tabIds = new Set(tabPrs.map(p => p.id))
-            result = result.filter(pr => tabIds.has(pr.id))
-        }
-
-        return result
-    }, [prs, selectedTeam, selectedReposSet, period, start, end, activeTab, report])
+    const filteredPrs = useMemo(
+        () => filterPrs(prs, { teamName: selectedTeam, selectedRepos: selectedReposSet, period, start, end, activeTab, report }),
+        [prs, selectedTeam, selectedReposSet, period, start, end, activeTab, report],
+    )
 
     const counts = useMemo(() => {
         if (!report) return {} as Record<ReportTab | "all", number>
@@ -546,421 +500,8 @@ export default function GnoloveReport() {
     )
 }
 
-// ── Empty state messaging (UX-2) ──────────────────────────────
+// ── Sub-components ──────────────────────────────────────────────
 
-type EmptyReason = null | "loading" | "no_data" | "team" | "repo" | "team_and_repo" | "filter"
-
-function EmptyStateMessage({
-    reason, selectedTeam, selectedRepos, activeTab,
-    onClearTeam, onClearRepos, onClearTab, onClearAll,
-}: {
-    reason: EmptyReason
-    selectedTeam: string
-    selectedRepos: readonly string[]
-    activeTab: ReportTab | "all"
-    onClearTeam: () => void
-    onClearRepos: () => void
-    onClearTab: () => void
-    onClearAll: () => void
-}) {
-    if (!reason || reason === "loading") {
-        return <div className="gl-empty">No pull requests in this category for the selected period.</div>
-    }
-    if (reason === "no_data") {
-        return (
-            <div className="gl-empty">
-                <p>No PR activity in this period.</p>
-                <p className="gl-empty__hint">Try widening the period or selecting all repositories.</p>
-                <button className="gl-empty__btn" onClick={onClearAll}>Reset filters</button>
-            </div>
-        )
-    }
-    if (reason === "team_and_repo") {
-        return (
-            <div className="gl-empty">
-                <p><strong>{selectedTeam}</strong> didn&apos;t ship in <strong>{selectedRepos.join(", ")}</strong> during this period.</p>
-                <div className="gl-empty__actions">
-                    <button className="gl-empty__btn" onClick={onClearTeam}>Clear team</button>
-                    <button className="gl-empty__btn" onClick={onClearRepos}>Clear repos</button>
-                    <button className="gl-empty__btn" onClick={onClearAll}>Reset all</button>
-                </div>
-            </div>
-        )
-    }
-    if (reason === "team") {
-        return (
-            <div className="gl-empty">
-                <p>No PRs from <strong>{selectedTeam}</strong> in this period.</p>
-                <button className="gl-empty__btn" onClick={onClearTeam}>Clear team filter</button>
-            </div>
-        )
-    }
-    if (reason === "repo") {
-        return (
-            <div className="gl-empty">
-                <p>No PRs in <strong>{selectedRepos.join(", ")}</strong> for this period.</p>
-                <button className="gl-empty__btn" onClick={onClearRepos}>Show all repositories</button>
-            </div>
-        )
-    }
-    // reason === "filter"
-    return (
-        <div className="gl-empty">
-            <p>No PRs match <strong>{activeTab.replace(/_/g, " ")}</strong> in this period.</p>
-            <button className="gl-empty__btn" onClick={onClearTab}>Show all statuses</button>
-        </div>
-    )
-}
-// ── Narrative Report View ─────────────────────────────────────
-
-function NarrativeReportView({
-    report, period, start, end, selectedTeam, selectedRepos,
-    urlState, networkKey,
-    emptyReason, onClearTeam, onClearRepos, onClearAll,
-}: {
-    report: ReportData | null | undefined
-    period: ReportPeriod
-    start: Date
-    end: Date
-    selectedTeam: string
-    selectedRepos: Set<string>
-    urlState: ReportUrlState
-    networkKey: string
-    emptyReason: EmptyReason
-    onClearTeam: () => void
-    onClearRepos: () => void
-    onClearAll: () => void
-}) {
-    const [copied, setCopied] = useState(false)
-
-    // Apply team/repo/scope filters to each category
-    const filterPrs = useCallback((prs: TPullRequest[] | null | undefined): TPullRequest[] => {
-        let result = prs ?? []
-        if (selectedTeam !== "all") {
-            const team = TEAMS.find(t => t.name === selectedTeam)
-            if (team) result = result.filter(pr => pr.authorLogin && team.members.includes(pr.authorLogin))
-        }
-        if (selectedRepos.size > 0) {
-            result = result.filter(pr => {
-                const repo = extractRepoFromUrl(pr.url)
-                return repo ? selectedRepos.has(repo) : false
-            })
-        }
-        if (period === "weekly") {
-            result = result.filter(pr => hasActivityInRange(pr, start, end))
-        }
-        return result
-    }, [selectedTeam, selectedRepos, period, start, end])
-
-    const merged = useMemo(() => filterPrs(report?.merged), [report, filterPrs])
-    const inProgress = useMemo(() => filterPrs(report?.in_progress), [report, filterPrs])
-    const waitingForReview = useMemo(() => filterPrs(report?.waiting_for_review), [report, filterPrs])
-    const reviewed = useMemo(() => filterPrs(report?.reviewed), [report, filterPrs])
-    const blocked = useMemo(() => filterPrs(report?.blocked), [report, filterPrs])
-
-    const allPrs = useMemo(
-        () => [...merged, ...inProgress, ...waitingForReview, ...reviewed, ...blocked],
-        [merged, inProgress, waitingForReview, reviewed, blocked],
-    )
-
-    const contributors = useMemo(() => {
-        const set = new Set<string>()
-        for (const pr of allPrs) if (pr.authorLogin) set.add(pr.authorLogin)
-        return Array.from(set).sort()
-    }, [allPrs])
-
-    // Highlights: top 5 most-recently merged PRs [BUG-3 — was sorted by title.length].
-    const topMerged = useMemo(
-        () => [...merged]
-            .sort((a, b) => {
-                const ta = a.mergedAt ? new Date(a.mergedAt).getTime() : 0
-                const tb = b.mergedAt ? new Date(b.mergedAt).getTime() : 0
-                return tb - ta
-            })
-            .slice(0, 5),
-        [merged],
-    )
-
-    const getTeamForUser = (login: string): Team | undefined =>
-        TEAMS.find(t => t.members.includes(login))
-
-    // Period-aware report ID [BUG-6: was always weekId regardless of period].
-    const reportId = useMemo(() => {
-        switch (period) {
-            case "weekly":   return `${getISOWeekYear(start)}-W${String(getISOWeek(start)).padStart(2, "0")}`
-            case "monthly":  return format(start, "yyyy-MM")
-            case "yearly":   return format(start, "yyyy")
-            case "all_time": return "all-time"
-        }
-    }, [period, start])
-
-    const teamLabel = selectedTeam === "all" ? "All contributors" : selectedTeam
-    const periodHeader = useMemo(() => {
-        switch (period) {
-            case "weekly":
-                return `From ${format(start, "dd/MM")} to ${format(end, "dd/MM")} : ${teamLabel}`
-            case "monthly":
-                return `Monthly Report — ${format(start, "MMMM yyyy")} : ${teamLabel}`
-            case "yearly":
-                return `Annual Report — ${format(start, "yyyy")} : ${teamLabel}`
-            case "all_time":
-                return `All Time Report : ${teamLabel}`
-        }
-    }, [period, start, end, teamLabel])
-
-    const generateReportMd = useCallback((): string => {
-        const filterUrl = buildShareUrl(window.location.origin, networkKey, urlState, { stripView: true })
-        const lines: string[] = [
-            periodHeader,
-            "",
-            "## Stats", "",
-            `- PRs Merged: ${merged.length}`,
-            `- Waiting for Review: ${waitingForReview.length + reviewed.length}`,
-            `- In Progress: ${inProgress.length}`,
-            `- Blocked: ${blocked.length}`,
-            `- Contributors Active: ${contributors.length}`,
-            "", "---", "",
-            "## ⭐ Highlights", "",
-        ]
-        if (topMerged.length > 0) {
-            for (const pr of topMerged) {
-                lines.push(`- **${pr.title}** - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-        } else {
-            lines.push("None this period.")
-        }
-        lines.push("", "---", "")
-
-        const allWaiting = [...waitingForReview, ...reviewed]
-        if (allWaiting.length > 0) {
-            lines.push("## 📋 Waiting for Review", "")
-            for (const pr of allWaiting) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-            lines.push("", "---", "")
-        }
-        if (inProgress.length > 0) {
-            lines.push("## 🚧 In Progress", "")
-            for (const pr of inProgress) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-            lines.push("", "---", "")
-        }
-        if (blocked.length > 0) {
-            lines.push("## 🚧 Blockers", "")
-            for (const pr of blocked) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-            lines.push("", "---", "")
-        }
-        if (merged.length > 0) {
-            lines.push("## 🎉 Merged", "")
-            for (const pr of merged) {
-                lines.push(`- ${pr.title} - ${pr.url} - ${pr.authorLogin || "unknown"}`)
-            }
-            lines.push("", "---", "")
-        }
-        lines.push(
-            `## 👥 Active Contributors (${contributors.length})`, "",
-            contributors.map(login => `@${login}`).join(" · "),
-            "", "---",
-            `_Generated by Gnolove · ${reportId}_`,
-            `_Filter URL: ${filterUrl}_`,
-        )
-        return lines.join("\n")
-    }, [
-        periodHeader, merged, topMerged, inProgress, waitingForReview, reviewed,
-        blocked, contributors, reportId, urlState, networkKey,
-    ])
-
-    const handleCopy = useCallback(() => {
-        navigator.clipboard.writeText(generateReportMd()).then(() => {
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-        })
-    }, [generateReportMd])
-
-    const handleDownload = useCallback(() => {
-        const blob = new Blob([generateReportMd()], { type: "text/markdown" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        const prefix =
-            period === "monthly" ? "monthly-report" :
-            period === "yearly" ? "annual-report" :
-            period === "all_time" ? "all-time-report" :
-            "weekly-report"
-        a.download = `${prefix}-${reportId}.md`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-    }, [generateReportMd, reportId, period])
-
-    if (allPrs.length === 0) {
-        return (
-            <div className="gl-section">
-                <EmptyStateMessage
-                    reason={emptyReason}
-                    selectedTeam={selectedTeam}
-                    selectedRepos={Array.from(selectedRepos)}
-                    activeTab="all"
-                    onClearTeam={onClearTeam}
-                    onClearRepos={onClearRepos}
-                    onClearTab={() => { /* no-op for narrative view */ }}
-                    onClearAll={onClearAll}
-                />
-            </div>
-        )
-    }
-
-    return (
-        <div className="gl-report-narrative">
-            <div className="gl-report-narrative__actions">
-                <button className="gl-export-btn" onClick={handleCopy}>
-                    {copied ? "✓ Copied!" : "Copy as Markdown"}
-                </button>
-                <button className="gl-export-btn" onClick={handleDownload}>
-                    Download .md
-                </button>
-                <span className="gl-report-narrative__week-id">{reportId}</span>
-            </div>
-
-            <div className="gl-report-narrative__period-header">{periodHeader}</div>
-
-            <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">📊 Stats</h2>
-                <div className="gl-report-narrative__stats">
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{merged.length}</span>
-                        <span className="gl-report-narrative__stat-label">Merged</span>
-                    </div>
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{waitingForReview.length + reviewed.length}</span>
-                        <span className="gl-report-narrative__stat-label">Waiting</span>
-                    </div>
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{inProgress.length}</span>
-                        <span className="gl-report-narrative__stat-label">In Progress</span>
-                    </div>
-                    {blocked.length > 0 && (
-                        <div className="gl-report-narrative__stat gl-report-narrative__stat--blocked">
-                            <span className="gl-report-narrative__stat-value">{blocked.length}</span>
-                            <span className="gl-report-narrative__stat-label">Blocked</span>
-                        </div>
-                    )}
-                    <div className="gl-report-narrative__stat">
-                        <span className="gl-report-narrative__stat-value">{contributors.length}</span>
-                        <span className="gl-report-narrative__stat-label">Contributors</span>
-                    </div>
-                </div>
-            </section>
-
-            <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">⭐ Highlights</h2>
-                {topMerged.length > 0 ? (
-                    <ul className="gl-report-narrative__list">
-                        {topMerged.map(pr => (
-                            <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: <strong>{pr.title}</strong>
-                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="gl-report-narrative__empty">No merged PRs this period.</p>
-                )}
-            </section>
-
-            {(waitingForReview.length + reviewed.length) > 0 && (
-                <section className="gl-report-narrative__section">
-                    <h2 className="gl-report-narrative__heading">📋 Waiting for Review ({waitingForReview.length + reviewed.length})</h2>
-                    <ul className="gl-report-narrative__list">
-                        {[...waitingForReview, ...reviewed].map(pr => (
-                            <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
-                                {pr.reviewDecision && (
-                                    <span className={`gl-pr-state gl-pr-state--${pr.reviewDecision === "APPROVED" ? "open" : "waiting"}`} style={{ marginLeft: 6 }}>
-                                        {pr.reviewDecision === "APPROVED" ? "Approved" : pr.reviewDecision === "CHANGES_REQUESTED" ? "Changes Requested" : "Review Required"}
-                                    </span>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            )}
-
-            {inProgress.length > 0 && (
-                <section className="gl-report-narrative__section">
-                    <h2 className="gl-report-narrative__heading">🚧 In Progress ({inProgress.length})</h2>
-                    <ul className="gl-report-narrative__list">
-                        {inProgress.map(pr => (
-                            <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            )}
-
-            {blocked.length > 0 && (
-                <section className="gl-report-narrative__section gl-report-narrative__section--blockers">
-                    <h2 className="gl-report-narrative__heading">🚧 Blockers ({blocked.length})</h2>
-                    <ul className="gl-report-narrative__list">
-                        {blocked.map(pr => (
-                            <li key={pr.id}>
-                                <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                {pr.authorLogin && <span className="gl-report-narrative__author"> @{pr.authorLogin}</span>}
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            )}
-
-            {merged.length > 0 && (
-                <section className="gl-report-narrative__section">
-                    <h2 className="gl-report-narrative__heading">🎉 Merged ({merged.length})</h2>
-                    <ul className="gl-report-narrative__list">
-                        {merged.map(pr => {
-                            const team = pr.authorLogin ? getTeamForUser(pr.authorLogin) : undefined
-                            return (
-                                <li key={pr.id}>
-                                    <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>: {pr.title}
-                                    {pr.authorLogin && (
-                                        <span className="gl-report-narrative__author">
-                                            {" "}@{pr.authorLogin}
-                                            {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
-                                        </span>
-                                    )}
-                                </li>
-                            )
-                        })}
-                    </ul>
-                </section>
-            )}
-
-            <section className="gl-report-narrative__section">
-                <h2 className="gl-report-narrative__heading">👥 Active Contributors ({contributors.length})</h2>
-                <div className="gl-report-narrative__contributors">
-                    {contributors.map(login => {
-                        const team = getTeamForUser(login)
-                        const count = allPrs.filter(pr => pr.authorLogin === login).length
-                        return (
-                            <span key={login} className="gl-report-narrative__contributor">
-                                {team && <span className="gl-report-narrative__team-dot" style={{ background: TEAM_CSS_COLORS[team.color] }} title={team.name} />}
-                                @{login} <span className="gl-report-narrative__contributor-count">({count})</span>
-                            </span>
-                        )
-                    })}
-                </div>
-            </section>
-        </div>
-    )
-}
-
-/** Status badge derived from PR data, not the active tab [BUG-4]. */
 function PRStateBadge({ status }: { status: PRStatus }) {
     const label =
         status === "merged" ? "Merged" :

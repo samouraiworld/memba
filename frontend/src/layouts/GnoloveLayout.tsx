@@ -18,7 +18,7 @@ import * as Sentry from "@sentry/react"
 import { persistQueryClient } from "@tanstack/react-query-persist-client"
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister"
 import GnoloveSubNav from "../components/gnolove/GnoloveSubNav"
-import { SectionErrorBoundary } from "../components/gnolove/SectionErrorBoundary"
+import { GnoloveErrorBoundary } from "../components/gnolove/GnoloveErrorBoundary"
 import "../pages/gnolove/gnolove.css"
 
 // Bumped v1 → v2 in Phase 3 (2026-05) so the new `["gnolove", "teams"]`
@@ -96,11 +96,11 @@ export default function GnoloveLayout() {
         <QueryClientProvider client={queryClient}>
             <div className="gl-layout">
                 <GnoloveSubNav />
-                <SectionErrorBoundary sectionName="Gnolove">
+                <GnoloveErrorBoundary name="Gnolove">
                     <Suspense fallback={<GnolovePageLoader />}>
                         <Outlet />
                     </Suspense>
-                </SectionErrorBoundary>
+                </GnoloveErrorBoundary>
             </div>
         </QueryClientProvider>
     )

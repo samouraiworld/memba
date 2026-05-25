@@ -136,7 +136,7 @@ export function useGnoloveYearReport() {
 export function useGnoloveRepoActivity() {
     const { data: report } = useGnoloveYearReport()
     return useQuery({
-        queryKey: ["gnolove", "repoActivity", !!report],
+        queryKey: ["gnolove", "repoActivity"],
         queryFn: () => {
             if (!report?.merged) return []
             const repoMap = new Map<string, number>()
@@ -159,7 +159,7 @@ export function useGnoloveRepoActivity() {
 export function useGnoloveMonthlyActivity() {
     const { data: report } = useGnoloveYearReport()
     return useQuery({
-        queryKey: ["gnolove", "monthlyActivity", !!report],
+        queryKey: ["gnolove", "monthlyActivity"],
         queryFn: () => {
             if (!report) return []
             // Bucket all PRs by month using creation/merge date.

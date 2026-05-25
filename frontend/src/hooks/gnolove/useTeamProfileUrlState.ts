@@ -54,7 +54,7 @@ export function useTeamProfileUrlState(): TeamProfileUrlState {
                 out.set("period", next)
             }
             return out
-        }, { replace: true })
+        })
     }, [setParams])
 
     const setRepos = useCallback((next: string[]) => {

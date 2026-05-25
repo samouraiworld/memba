@@ -7,9 +7,10 @@
  * @module pages/gnolove/GnoloveHome
  */
 
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { useClickOutside } from "../../hooks/useClickOutside"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
@@ -60,17 +61,8 @@ export default function GnoloveHome() {
     const { data: milestone } = useGnoloveMilestone()
     const { data: scoreFactors } = useGnoloveScoreFactors()
 
-    // Close repo filter on click outside
-    useEffect(() => {
-        if (!repoFilterOpen) return
-        function handleClickOutside(e: MouseEvent) {
-            if (repoFilterRef.current && !repoFilterRef.current.contains(e.target as Node)) {
-                setRepoFilterOpen(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [repoFilterOpen])
+    const closeRepoFilter = useCallback(() => setRepoFilterOpen(false), [])
+    useClickOutside(repoFilterRef, closeRepoFilter)
 
     const sorted = useMemo(() => {
         if (!contributors?.users) return []

@@ -14,6 +14,7 @@
  * @module components/gnolove/teams/TeamHubHeader
  */
 
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import type { Team } from "../../../lib/gnoloveConstants"
 import { TEAM_CSS_COLORS } from "../../../lib/gnoloveConstants"
@@ -32,11 +33,11 @@ interface Props {
     backToTeamsHref: string
 }
 
-function formatRelativeTime(iso: string | null): string {
+function formatRelativeTime(iso: string | null, nowMs: number): string {
     if (!iso) return "—"
     const ts = new Date(iso).getTime()
     if (Number.isNaN(ts)) return "—"
-    const diff = Date.now() - ts
+    const diff = nowMs - ts
     if (diff < 60_000) return "just now"
     const mins = Math.round(diff / 60_000)
     if (mins < 60) return `${mins}m ago`
@@ -47,6 +48,7 @@ function formatRelativeTime(iso: string | null): string {
 }
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, networkKey, backToTeamsHref }: Props) {
+    const [nowMs] = useState(() => Date.now())
     const stripeColor = TEAM_CSS_COLORS[team.color]
     return (
         <header className="gl-thub-header" style={{ borderLeftColor: stripeColor }}>
@@ -59,7 +61,7 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
                             ? `Team config (teams.yaml) deployed ${new Date(lastSyncedAt).toISOString()}`
                             : "no roster sync yet"}
                     >
-                        Roster updated: {formatRelativeTime(lastSyncedAt)}
+                        Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
                     {networkKey === "test12" && (
                         <span className="gl-thub-chip gl-thub-chip-network" role="note">
