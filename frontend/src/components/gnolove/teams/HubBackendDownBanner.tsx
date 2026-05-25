@@ -32,7 +32,7 @@ function formatCacheAge(updatedAt: number | undefined): string {
 export function HubBackendDownBanner({ health, cardErrorCount, dataUpdatedAt }: Props) {
     const queryClient = useQueryClient()
 
-    const isDown = health === "down" || cardErrorCount >= 3
+    const isDown = health === "down" || cardErrorCount >= 2
     if (!isDown) return null
 
     const cacheHint = formatCacheAge(dataUpdatedAt)

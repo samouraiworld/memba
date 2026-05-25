@@ -2601,6 +2601,12 @@
     color: var(--gl-color-state-waiting, #ffc107);
 }
 
+.gl-thub-chip-sync {
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.4);
+    color: #34d399;
+}
+
 .gl-thub-header-body {
     display: flex;
     justify-content: space-between;
@@ -2857,6 +2863,14 @@
 
 .gl-thub-activity-author {
     color: var(--gl-color-state-merged, #a855f7);
+}
+
+.gl-thub-activity-repo {
+    color: var(--color-text-secondary);
+}
+
+.gl-thub-activity-when {
+    color: var(--color-k-dim, #666);
 }
 
 /* ── AI weekly report card ────────────────────── */
@@ -3917,4 +3931,148 @@
     color: var(--color-text-secondary);
     font-size: 11px;
     flex-shrink: 0;
+}
+
+/* ── Small phone breakpoint (375-480px) ──────────────────── */
+
+@media (max-width: 480px) {
+    /* Team hub: single-column metrics on small phones */
+    .gl-thub-metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .gl-thub-metric {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+    }
+
+    .gl-thub-metric-value {
+        font-size: 16px;
+        order: 2;
+        margin-left: auto;
+    }
+
+    .gl-thub-metric-label {
+        order: 1;
+        font-size: 12px;
+    }
+
+    /* Period selector pills: horizontal scroll */
+    .gl-thub-period .gl-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .gl-thub-period .gl-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .gl-thub-period .gl-tab {
+        scroll-snap-align: start;
+        flex-shrink: 0;
+    }
+
+    /* Focus area pills: wrap */
+    .gl-thub-pills {
+        flex-wrap: wrap;
+    }
+
+    /* Report card counts: stack */
+    .gl-thub-report-counts {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* Home page: single-column team cards */
+    .gl-team-compact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Home stats row: 2x2 grid */
+    .gl-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Report page filters: stack vertically */
+    .gl-report-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .gl-report-filters .gl-filter-select,
+    .gl-report-filters .gl-repo-multiselect {
+        width: 100%;
+    }
+
+    /* Custom date range: stack on narrow screens */
+    .gl-custom-range {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .gl-custom-range-sep {
+        display: none;
+    }
+
+    /* Export buttons: wrap */
+    .gl-report-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* AI reports toggle: full width */
+    .gl-aircard-toggle {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Leaderboard: hide low-priority columns */
+    .gl-leaderboard th:nth-child(4),
+    .gl-leaderboard td:nth-child(4),
+    .gl-leaderboard th:nth-child(5),
+    .gl-leaderboard td:nth-child(5) {
+        display: none;
+    }
+
+    /* Analytics: horizontal scroll for heatmaps */
+    .gl-topic-heatmap,
+    .gl-cohort-grid,
+    .gl-collab-matrix {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Touch targets: minimum 44px */
+    .gl-tab,
+    .gl-filter-btn,
+    .gl-export-btn,
+    .gl-view-btn,
+    .gl-week-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Body text: ensure minimum 14px */
+    .gl-page {
+        font-size: 14px;
+    }
+
+    /* Active repos: stack percentage */
+    .gl-thub-active-repo {
+        flex-wrap: wrap;
+    }
+
+    .gl-thub-active-repo-count {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 2px;
+    }
 }
