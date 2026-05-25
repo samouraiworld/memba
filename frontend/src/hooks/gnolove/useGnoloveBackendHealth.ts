@@ -29,7 +29,7 @@ interface UseGnoloveBackendHealthOptions {
 }
 
 export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {}): BackendHealth {
-    const { enabled = true, probeUrl = `${GNOLOVE_API_URL}/health` } = opts
+    const { enabled = true, probeUrl = `${GNOLOVE_API_URL}/teams` } = opts
     const [status, setStatus] = useState<BackendHealth>("unknown")
     const failuresRef = useRef<number[]>([])
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
