@@ -27,9 +27,13 @@ import {
     useGnoloveCohorts,
     useGnoloveTeamCollab,
 } from "../../hooks/gnolove"
-import { computeFocusAreas } from "../../lib/gnoloveFocusAreas"
 import { TEAMS, TEAM_CSS_COLORS, TimeFilter, TIME_FILTER_LABELS, isTimeFilter } from "../../lib/gnoloveConstants"
 import { PageMeta } from "../../components/gnolove/PageMeta"
+import {
+    computeTeamData, computeContributionTiers, computeVoteData, computeStats,
+    computeCycleTimeHistogram, computeTopicHeatmap, topicHeatmapMax,
+    computeRepoHealth, computeCohortGrid, computeCollabMatrix, computeSparklines,
+} from "../../lib/gnoloveAnalytics"
 
 const TOOLTIP_STYLE = {
     background: "#12121e",
@@ -43,9 +47,6 @@ const GRID_STYLE = { stroke: "rgba(255,255,255,0.04)" }
 const AXIS_TICK = { fill: "#666", fontSize: 10, fontFamily: "JetBrains Mono, monospace" }
 
 export default function GnoloveAnalytics() {
-    // Plan §2: "wire the page-level period selector to URL state."
-    // Validate the URL param at the boundary so a malformed link doesn't
-    // crash the page; fall back to ALL_TIME (the historical default).
     const [searchParams, setSearchParams] = useSearchParams()
     const rawTime = searchParams.get("time")
     const period: TimeFilter = rawTime && isTimeFilter(rawTime) ? rawTime : TimeFilter.ALL_TIME
@@ -64,16 +65,9 @@ export default function GnoloveAnalytics() {
     const { rules: topicRules, labels: topicLabels } = useGnoloveTopics()
     const { teams: rosterTeams } = useGnoloveTeams()
     const { data: cohortsData } = useGnoloveCohorts()
-    // Map gnolove TimeFilter -> backend period param. TimeFilter values
-    // (`all`, `yearly`, ...) line up except for `all` which the backend
-    // wants as the empty string.
     const collabPeriod = period === TimeFilter.ALL_TIME ? "" : period
     const { data: teamCollabData } = useGnoloveTeamCollab(collabPeriod)
 
-    // Snapshot "now" once at mount so useMemos that bucket by recency stay
-    // stable across re-renders. react-hooks/purity flags raw Date.now() inside
-    // memos, and we don't want the analytics page to tick second-by-second
-    // anyway — a per-mount anchor is the right granularity here.
     const [nowMs] = useState(() => Date.now())
     const { data: proposals } = useGnoloveProposals()
     const { data: govdaoMembers } = useGnoloveGovdaoMembers()
@@ -82,58 +76,9 @@ export default function GnoloveAnalytics() {
     const { data: repoActivity } = useGnoloveRepoActivity()
     const { data: monthlyActivity } = useGnoloveMonthlyActivity()
 
-    // ── Team contribution breakdown ──────────────────────────
-    const teamData = useMemo(() => {
-        if (!contributors?.users) return []
-        return TEAMS.map(team => {
-            const members = contributors.users.filter(u => team.members.includes(u.login))
-            return {
-                name: team.name,
-                score: members.reduce((s, m) => s + (m.score ?? 0), 0),
-                prs: members.reduce((s, m) => s + (m.TotalPrs ?? 0), 0),
-                commits: members.reduce((s, m) => s + (m.TotalCommits ?? 0), 0),
-                issues: members.reduce((s, m) => s + (m.TotalIssues ?? 0), 0),
-                reviews: members.reduce((s, m) => s + (m.TotalReviewedPullRequests ?? 0), 0),
-                color: TEAM_CSS_COLORS[team.color],
-            }
-        }).filter(t => t.score > 0).sort((a, b) => b.score - a.score)
-    }, [contributors])
-
-    // ── Contribution distribution tiers ──────────────────────
-    const contributionTiers = useMemo(() => {
-        if (!contributors?.users) return []
-        const tiers = [
-            { label: "1 PR", min: 1, max: 1, count: 0 },
-            { label: "2-5", min: 2, max: 5, count: 0 },
-            { label: "6-10", min: 6, max: 10, count: 0 },
-            { label: "11-25", min: 11, max: 25, count: 0 },
-            { label: "26-50", min: 26, max: 50, count: 0 },
-            { label: "50+", min: 51, max: Infinity, count: 0 },
-        ]
-        for (const user of contributors.users) {
-            const prs = user.TotalPrs ?? 0
-            if (prs === 0) continue
-            const tier = tiers.find(t => prs >= t.min && prs <= t.max)
-            if (tier) tier.count++
-        }
-        return tiers
-    }, [contributors])
-
-    // ── Proposal vote aggregation ────────────────────────────
-    const voteData = useMemo(() => {
-        if (!proposals?.length) return []
-        return proposals
-            .filter(p => p.votes.length > 0)
-            .slice(0, 20)
-            .map(p => {
-                const yes = p.votes.filter(v => v.vote === "YES").length
-                const no = p.votes.filter(v => v.vote === "NO").length
-                const abstain = p.votes.filter(v => v.vote === "ABSTAIN").length
-                const label = p.title || `#${p.id.slice(0, 6)}`
-                return { name: label.length > 20 ? label.slice(0, 20) + "..." : label, yes, no, abstain, proposalId: p.id }
-            })
-            .reverse()
-    }, [proposals])
+    const teamData = useMemo(() => computeTeamData(contributors, TEAMS, TEAM_CSS_COLORS), [contributors])
+    const contributionTiers = useMemo(() => computeContributionTiers(contributors), [contributors])
+    const voteData = useMemo(() => computeVoteData(proposals), [proposals])
 
     const navigate = useNavigate()
     const handleVoteBarClick = useCallback((data: { proposalId?: string }) => {
@@ -142,209 +87,14 @@ export default function GnoloveAnalytics() {
         }
     }, [navigate])
 
-    // ── Summary stats ────────────────────────────────────────
-    const stats = useMemo(() => {
-        if (!contributors?.users) return null
-        const users = contributors.users
-        return {
-            totalContributors: users.length,
-            totalPrs: users.reduce((s, u) => s + (u.TotalPrs ?? 0), 0),
-            totalCommits: users.reduce((s, u) => s + (u.TotalCommits ?? 0), 0),
-            totalIssues: users.reduce((s, u) => s + (u.TotalIssues ?? 0), 0),
-            totalReviews: users.reduce((s, u) => s + (u.TotalReviewedPullRequests ?? 0), 0),
-            totalProposals: proposals?.length ?? 0,
-            govdaoMembers: govdaoMembers?.length ?? 0,
-            totalPackages: packages?.length ?? 0,
-            totalNamespaces: namespaces?.length ?? 0,
-        }
-    }, [contributors, proposals, govdaoMembers, packages, namespaces])
+    const stats = useMemo(() => computeStats(contributors, proposals, govdaoMembers, packages, namespaces), [contributors, proposals, govdaoMembers, packages, namespaces])
+    const cycleTimeHistogram = useMemo(() => computeCycleTimeHistogram(yearReport?.merged, period, nowMs), [yearReport, period, nowMs])
+    const topicHeatmap = useMemo(() => computeTopicHeatmap(yearReport?.merged, topicRules, nowMs), [yearReport, topicRules, nowMs])
+    const heatmapMax = useMemo(() => topicHeatmapMax(topicHeatmap), [topicHeatmap])
+    const repoHealth = useMemo(() => computeRepoHealth(yearReport, nowMs), [yearReport, nowMs])
+    const cohortGrid = useMemo(() => computeCohortGrid(cohortsData), [cohortsData])
+    const collabMatrix = useMemo(() => computeCollabMatrix(teamCollabData), [teamCollabData])
 
-    // ── Cycle time histogram (plan §2) ───────────────────────
-    // Buckets merged-PR cycle time (mergedAt - createdAt) into seven
-    // human-meaningful ranges. Includes ALL period buckets even when
-    // empty so the chart shape stays comparable across periods.
-    const cycleTimeHistogram = useMemo(() => {
-        const buckets: { label: string; max: number; count: number }[] = [
-            { label: "<1d",    max: 1,           count: 0 },
-            { label: "1-3d",   max: 3,           count: 0 },
-            { label: "3-7d",   max: 7,           count: 0 },
-            { label: "1-2w",   max: 14,          count: 0 },
-            { label: "2-4w",   max: 28,          count: 0 },
-            { label: "1-3mo",  max: 90,          count: 0 },
-            { label: ">3mo",   max: Number.POSITIVE_INFINITY, count: 0 },
-        ]
-        if (!yearReport?.merged) return buckets
-        const cutoff = (() => {
-            switch (period) {
-                case TimeFilter.WEEKLY: return nowMs - 7 * 24 * 3_600_000
-                case TimeFilter.MONTHLY: return nowMs - 30 * 24 * 3_600_000
-                case TimeFilter.YEARLY: return nowMs - 365 * 24 * 3_600_000
-                default: return 0
-            }
-        })()
-        for (const pr of yearReport.merged) {
-            if (!pr.mergedAt || !pr.createdAt) continue
-            const merged = new Date(pr.mergedAt).getTime()
-            if (cutoff > 0 && merged < cutoff) continue
-            const created = new Date(pr.createdAt).getTime()
-            const days = (merged - created) / 86_400_000
-            if (days < 0) continue
-            const bucket = buckets.find(b => days <= b.max)
-            if (bucket) bucket.count++
-        }
-        return buckets
-    }, [yearReport, period, nowMs])
-
-    // ── Topic activity heatmap (plan §2) ─────────────────────
-    // 16 topics × 12 trailing months. Reuses the same /topics taxonomy
-    // the Team Hub uses (Phase 2c) so analytics and the hub agree on
-    // what counts as "wallet" vs "governance" PR work.
-    const topicHeatmap = useMemo(() => {
-        if (!yearReport?.merged) return { months: [], rows: [] as { topic: string; counts: number[]; total: number }[] }
-        // Roll trailing 12 months ending at the current month.
-        const anchor = new Date(nowMs)
-        const months: string[] = []
-        const monthIndex = new Map<string, number>()
-        for (let i = 11; i >= 0; i--) {
-            const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1)
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-            monthIndex.set(key, months.length)
-            months.push(key)
-        }
-        // Build per-topic monthly buckets using the classifier inside computeFocusAreas:
-        // we re-derive classification per PR by running each one through a single-rule
-        // call. Faster + simpler: inline a tiny classifier here using the live rules.
-        const counts = new Map<string, number[]>()
-        const ensure = (topic: string): number[] => {
-            let row = counts.get(topic)
-            if (!row) { row = new Array(months.length).fill(0); counts.set(topic, row) }
-            return row
-        }
-        for (const pr of yearReport.merged) {
-            if (!pr.mergedAt) continue
-            const monthKey = pr.mergedAt.slice(0, 7)
-            const m = monthIndex.get(monthKey)
-            if (m === undefined) continue
-            const repoMatch = pr.url.match(/github\.com\/([^/]+\/[^/]+)/)
-            const repo = repoMatch ? repoMatch[1] : ""
-            // computeFocusAreas takes signals, but we want per-PR classification.
-            // Reuse it with a single-signal call → first pill is the topic.
-            const pills = computeFocusAreas([{ repo, title: pr.title }], topicRules)
-            const topic = pills[0]?.topic ?? "other"
-            ensure(topic)[m]++
-        }
-        const rows = Array.from(counts.entries())
-            .map(([topic, counts]) => ({
-                topic,
-                counts,
-                total: counts.reduce((s, n) => s + n, 0),
-            }))
-            // Hide "other" if it's noise (< 5% of total signal); always sort by total desc.
-            .filter(r => {
-                if (r.topic !== "other") return true
-                const grandTotal = Array.from(counts.values()).reduce(
-                    (s, row) => s + row.reduce((a, b) => a + b, 0), 0,
-                )
-                return grandTotal > 0 && r.total / grandTotal > 0.05
-            })
-            .sort((a, b) => b.total - a.total)
-        return { months, rows }
-    }, [yearReport, topicRules, nowMs])
-
-    const topicHeatmapMax = useMemo(() => {
-        let max = 0
-        for (const r of topicHeatmap.rows) for (const c of r.counts) if (c > max) max = c
-        return max
-    }, [topicHeatmap])
-
-    // ── Repo health matrix (plan §2) ─────────────────────────
-    // Rows = repos in the year report, cols = traffic-light scored
-    // PRs/week, median cycle time, open backlog (in-progress + waiting +
-    // blocked + reviewed), last activity. Cells use the gl-color-state
-    // tokens; "good / fair / poor" is keyed off engineering-team norms.
-    const repoHealth = useMemo(() => {
-        if (!yearReport?.merged) return [] as { repo: string; prsPerWeek: number; medianCycleDays: number; openBacklog: number; lastActivityDays: number }[]
-        type Bucket = { merged: number[]; cycleDays: number[]; lastMerged: number; openBacklog: number }
-        const byRepo = new Map<string, Bucket>()
-        const repoKey = (url: string) => url.match(/github\.com\/([^/]+\/[^/]+)/)?.[1] ?? ""
-        for (const pr of yearReport.merged) {
-            const repo = repoKey(pr.url)
-            if (!repo || !pr.mergedAt) continue
-            const merged = new Date(pr.mergedAt).getTime()
-            const created = pr.createdAt ? new Date(pr.createdAt).getTime() : merged
-            const days = (merged - created) / 86_400_000
-            let row = byRepo.get(repo)
-            if (!row) { row = { merged: [], cycleDays: [], lastMerged: 0, openBacklog: 0 }; byRepo.set(repo, row) }
-            row.merged.push(merged)
-            row.cycleDays.push(days)
-            if (merged > row.lastMerged) row.lastMerged = merged
-        }
-        for (const bucket of ["in_progress", "waiting_for_review", "reviewed", "blocked"] as const) {
-            for (const pr of yearReport[bucket] ?? []) {
-                const repo = repoKey(pr.url)
-                if (!repo) continue
-                let row = byRepo.get(repo)
-                if (!row) { row = { merged: [], cycleDays: [], lastMerged: 0, openBacklog: 0 }; byRepo.set(repo, row) }
-                row.openBacklog++
-            }
-        }
-        const oneYearAgo = nowMs - 365 * 24 * 3_600_000
-        return Array.from(byRepo.entries())
-            .map(([repo, b]) => {
-                const weeksCovered = Math.max(1, (nowMs - oneYearAgo) / (7 * 24 * 3_600_000))
-                const sortedCycles = [...b.cycleDays].sort((a, b) => a - b)
-                const median = sortedCycles.length === 0
-                    ? 0
-                    : sortedCycles[Math.floor(sortedCycles.length / 2)]
-                return {
-                    repo,
-                    prsPerWeek: b.merged.length / weeksCovered,
-                    medianCycleDays: median,
-                    openBacklog: b.openBacklog,
-                    lastActivityDays: b.lastMerged === 0 ? Number.POSITIVE_INFINITY : (nowMs - b.lastMerged) / 86_400_000,
-                }
-            })
-            .filter(r => r.prsPerWeek > 0 || r.openBacklog > 0)
-            .sort((a, b) => b.prsPerWeek - a.prsPerWeek)
-            .slice(0, 15)
-    }, [yearReport, nowMs])
-
-    // ── Cohort retention grid (plan §2, panel 4/5) ────────────
-    // Rows = cohort months (newest first so the freshest cohort sits at the
-    // top of the table). Columns = month offset 0..maxOffset across all
-    // cohorts in the response. Cells = retention fraction at that offset,
-    // empty when the offset exceeds the cohort's age. Intensity uses the
-    // shared --gl-color-heatmap-l0..l4 ramp like the topic heatmap.
-    const cohortGrid = useMemo(() => {
-        const rows = cohortsData?.cohorts ?? []
-        if (rows.length === 0) return { rows: [], maxOffset: 0 }
-        let maxOffset = 0
-        for (const r of rows) {
-            if (r.retention.length - 1 > maxOffset) maxOffset = r.retention.length - 1
-        }
-        // Newest at the top — operators care most about the latest cohort.
-        const sorted = [...rows].sort((a, b) => b.month.localeCompare(a.month))
-        return { rows: sorted, maxOffset }
-    }, [cohortsData])
-
-    // ── Cross-team collab matrix (plan §2, panel 5/5) ─────────
-    // Backend ships sparse cells; densify into a teams × teams matrix
-    // here. Outsider buckets surface as a footer line so users see
-    // what the matrix misses (contributors with no team membership).
-    const collabMatrix = useMemo(() => {
-        const teamsList = teamCollabData?.teams ?? []
-        const cells = teamCollabData?.cells ?? []
-        const map = new Map<string, number>()
-        let max = 0
-        for (const c of cells) {
-            const key = `${c.authorTeam}|${c.reviewerTeam}`
-            map.set(key, (map.get(key) ?? 0) + c.reviews)
-            if (map.get(key)! > max) max = map.get(key)!
-        }
-        return { teamsList, get: (a: string, r: string) => map.get(`${a}|${r}`) ?? 0, max }
-    }, [teamCollabData])
-
-    // Resolve team display name + colour stripe via the roster (seed-union).
     const teamMeta = useMemo(() => {
         const m = new Map<string, { name: string; color: string }>()
         for (const t of rosterTeams) {
@@ -353,16 +103,7 @@ export default function GnoloveAnalytics() {
         return m
     }, [rosterTeams])
 
-    // ── Sparkline data from monthly activity ─────────────────
-    const sparklineMerged = useMemo(() => {
-        if (!monthlyActivity?.length) return []
-        return monthlyActivity.map(m => m.merged)
-    }, [monthlyActivity])
-
-    const sparklineOpen = useMemo(() => {
-        if (!monthlyActivity?.length) return []
-        return monthlyActivity.map(m => m.open + m.inReview)
-    }, [monthlyActivity])
+    const sparklines = useMemo(() => computeSparklines(monthlyActivity), [monthlyActivity])
 
     return (
         <div className="gl-page">
@@ -401,10 +142,10 @@ export default function GnoloveAnalytics() {
             {stats && (
                 <div className="gl-dash-stats">
                     <DashStatCard label="Contributors" value={stats.totalContributors} icon="👥" />
-                    <DashStatCard label="Pull Requests" value={stats.totalPrs} icon="🔀" sparkline={sparklineMerged} color="#00d4aa" />
+                    <DashStatCard label="Pull Requests" value={stats.totalPrs} icon="🔀" sparkline={sparklines.merged} color="#00d4aa" />
                     <DashStatCard label="Commits" value={stats.totalCommits} icon="📝" />
                     <DashStatCard label="Issues" value={stats.totalIssues} icon="🐛" />
-                    <DashStatCard label="Reviews" value={stats.totalReviews} icon="👁️" sparkline={sparklineOpen} color="#a855f7" />
+                    <DashStatCard label="Reviews" value={stats.totalReviews} icon="👁️" sparkline={sparklines.open} color="#a855f7" />
                     <DashStatCard label="GovDAO" value={stats.govdaoMembers} icon="🏛️" />
                 </div>
             )}
@@ -451,7 +192,7 @@ export default function GnoloveAnalytics() {
                                     {topicLabels[row.topic] ?? row.topic}
                                 </span>
                                 {row.counts.map((c, i) => {
-                                    const ratio = topicHeatmapMax > 0 ? c / topicHeatmapMax : 0
+                                    const ratio = heatmapMax > 0 ? c / heatmapMax : 0
                                     const level = c === 0 ? 0
                                         : ratio < 0.15 ? 1
                                         : ratio < 0.4 ? 2

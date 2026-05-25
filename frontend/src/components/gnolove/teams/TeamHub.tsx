@@ -14,7 +14,7 @@ import { useGnoloveTeams, useGnoloveTeamActiveRepos, useGnoloveTeamStats, useTea
 import { useNetwork } from "../../../hooks/useNetwork"
 import { useNetworkPath } from "../../../hooks/useNetworkNav"
 import { PageMeta } from "../PageMeta"
-import { CardErrorBoundary } from "./CardErrorBoundary"
+import { GnoloveErrorBoundary } from "../GnoloveErrorBoundary"
 import { HubBackendDownBanner } from "./HubBackendDownBanner"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
@@ -81,7 +81,7 @@ export function TeamHub() {
                 dataUpdatedAt={oldestDataUpdate}
             />
 
-            <CardErrorBoundary name="Header">
+            <GnoloveErrorBoundary name="Header" variant="card">
                 <TeamHubHeader
                     team={team}
                     period={period}
@@ -90,9 +90,9 @@ export function TeamHub() {
                     networkKey={networkKey}
                     backToTeamsHref={backHref}
                 />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
 
-            <CardErrorBoundary name="Metrics" onRetry={() => teamStatsQuery.refetch()}>
+            <GnoloveErrorBoundary name="Metrics" variant="card" onRetry={() => teamStatsQuery.refetch()}>
                 <TeamHubMetricsGrid
                     stats={teamStatsQuery.data}
                     isLoading={teamStatsQuery.isLoading}
@@ -100,28 +100,28 @@ export function TeamHub() {
                     onRetry={() => teamStatsQuery.refetch()}
                     teamMemberCount={team.members.length}
                 />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
 
-            <CardErrorBoundary name="Active repositories" onRetry={() => activeReposQuery.refetch()}>
+            <GnoloveErrorBoundary name="Active repositories" variant="card" onRetry={() => activeReposQuery.refetch()}>
                 <TeamHubActiveReposCard
                     data={activeReposQuery.data}
                     isLoading={activeReposQuery.isLoading}
                     isError={activeReposQuery.isError}
                     onRetry={() => activeReposQuery.refetch()}
                 />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
 
-            <CardErrorBoundary name="Focus areas">
+            <GnoloveErrorBoundary name="Focus areas" variant="card">
                 <TeamHubFocusAreasCard team={team} period={period} />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
 
-            <CardErrorBoundary name="Recent activity">
+            <GnoloveErrorBoundary name="Recent activity" variant="card">
                 <TeamHubRecentActivityCard team={team} period={period} />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
 
-            <CardErrorBoundary name="AI weekly report">
+            <GnoloveErrorBoundary name="AI weekly report" variant="card">
                 <TeamHubAIReportsCard team={team} />
-            </CardErrorBoundary>
+            </GnoloveErrorBoundary>
         </div>
     )
 }

@@ -13,6 +13,7 @@
 
 import { useMemo } from "react"
 import { useGnoloveYearReport, useGnoloveTopics } from "../../../hooks/gnolove"
+import { extractRepoFromUrl } from "../../../lib/gnoloveApi"
 import type { TPullRequest } from "../../../lib/gnoloveSchemas"
 import type { Team } from "../../../lib/gnoloveConstants"
 import { periodToCutoff, type TeamHubPeriod } from "../../../lib/gnolovePeriod"
@@ -25,11 +26,6 @@ interface Props {
 
 function prAuthorLogin(pr: TPullRequest): string {
     return pr.author?.login ?? pr.authorLogin ?? ""
-}
-
-function repoFromUrl(url: string): string {
-    const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
-    return m ? m[1] : ""
 }
 
 export function TeamHubFocusAreasCard({ team, period }: Props) {
@@ -48,7 +44,7 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
                 if (!pr.mergedAt) return false
                 return new Date(pr.mergedAt).getTime() >= cutoff.getTime()
             })
-            .map(pr => ({ repo: repoFromUrl(pr.url), title: pr.title }))
+            .map(pr => ({ repo: extractRepoFromUrl(pr.url), title: pr.title }))
         return computeFocusAreas(signals, rules)
     }, [report, team.members, period, rules])
 

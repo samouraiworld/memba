@@ -9,8 +9,9 @@
  * @module components/gnolove/teams/TeamHubRecentActivityCard
  */
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useGnoloveYearReport } from "../../../hooks/gnolove"
+import { extractRepoFromUrl } from "../../../lib/gnoloveApi"
 import type { TPullRequest } from "../../../lib/gnoloveSchemas"
 import type { Team } from "../../../lib/gnoloveConstants"
 import { periodToCutoff, TEAM_HUB_PERIOD_LABELS, type TeamHubPeriod } from "../../../lib/gnolovePeriod"
@@ -23,21 +24,14 @@ interface Props {
 }
 
 function prAuthorLogin(pr: TPullRequest): string {
-    // Author can land as either the nested object or the flattened authorLogin
-    // field depending on which endpoint the report came from. Use both.
     return pr.author?.login ?? pr.authorLogin ?? ""
 }
 
-function repoFromUrl(url: string): string {
-    const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
-    return m ? m[1] : ""
-}
-
-function relTime(iso: string | null | undefined): string {
+function relTime(iso: string | null | undefined, nowMs: number): string {
     if (!iso) return ""
     const ts = new Date(iso).getTime()
     if (Number.isNaN(ts)) return ""
-    const diff = Date.now() - ts
+    const diff = nowMs - ts
     if (diff < 60_000) return "just now"
     const mins = Math.round(diff / 60_000)
     if (mins < 60) return `${mins}m ago`
@@ -50,6 +44,7 @@ function relTime(iso: string | null | undefined): string {
 }
 
 export function TeamHubRecentActivityCard({ team, period }: Props) {
+    const [nowMs] = useState(() => Date.now())
     const { data: report, isLoading } = useGnoloveYearReport()
 
     const rows = useMemo(() => {
@@ -100,7 +95,7 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
                 <ul className="gl-thub-activity-list">
                     {rows.map(pr => {
                         const login = prAuthorLogin(pr)
-                        const repo = repoFromUrl(pr.url)
+                        const repo = extractRepoFromUrl(pr.url)
                         return (
                             <li key={pr.id} className="gl-thub-activity-row">
                                 <a
@@ -114,7 +109,7 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
                                 <span className="gl-thub-activity-meta">
                                     <span className="gl-thub-activity-repo">{repo}</span>
                                     {login && <span className="gl-thub-activity-author">@{login}</span>}
-                                    <span className="gl-thub-activity-when">{relTime(pr.mergedAt)}</span>
+                                    <span className="gl-thub-activity-when">{relTime(pr.mergedAt, nowMs)}</span>
                                 </span>
                             </li>
                         )
