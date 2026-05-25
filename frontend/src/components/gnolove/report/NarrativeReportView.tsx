@@ -3,7 +3,6 @@ import { format, getISOWeek, getISOWeekYear } from "date-fns"
 import { TEAMS, TEAM_CSS_COLORS } from "../../../lib/gnoloveConstants"
 import type { Team } from "../../../lib/gnoloveConstants"
 import type { TPullRequest } from "../../../lib/gnoloveSchemas"
-import { exportToCSV, exportToMarkdown, exportToPDF } from "../../../lib/gnoloveExport"
 import {
     buildShareUrl,
     type ReportPeriod, type ReportUrlState,
