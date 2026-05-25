@@ -127,7 +127,7 @@ function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile
     // R-8 explicitly: use `||`, NOT `??`, to drop empty strings.
     const shortText = project.summary_short || project.summary
     const longText = project.summary_long || project.summary
-    const hasDistinctLong = longText && longText !== shortText
+    const hasDistinctLong = !!(longText && longText !== shortText)
     const showLongAsSheet = isMobile && expanded && hasDistinctLong
     const showLongInline = !isMobile && expanded && hasDistinctLong
 
