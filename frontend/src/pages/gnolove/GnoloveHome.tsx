@@ -11,6 +11,7 @@ import { useState, useMemo, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { useClickOutside } from "../../hooks/useClickOutside"
+import { useFocusTrap } from "../../hooks/useFocusTrap"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 
 // Guard API-supplied hex colors against malformed values (layout corruption, not XSS)
@@ -43,6 +44,8 @@ export default function GnoloveHome() {
     const [activityExpanded, setActivityExpanded] = useState(false)
 
     const repoFilterRef = useRef<HTMLDivElement>(null)
+    const repoDropdownRef = useRef<HTMLDivElement>(null)
+    useFocusTrap(repoDropdownRef, repoFilterOpen)
 
     const setPage = (p: number | ((prev: number) => number)) => {
         const next = typeof p === "function" ? p(page) : p
@@ -308,14 +311,10 @@ export default function GnoloveHome() {
                         </button>
                         {repoFilterOpen && (
                             <div
+                                ref={repoDropdownRef}
                                 className="gl-repo-filter-dropdown"
                                 role="group"
                                 aria-label="Repository filter"
-                                onKeyDown={e => {
-                                    if (e.key === "Escape") {
-                                        setRepoFilterOpen(false)
-                                    }
-                                }}
                             >
                                 <div className="gl-repo-filter-actions">
                                     <button className="gl-filter-btn gl-filter-btn--sm" onClick={() => {
@@ -491,10 +490,10 @@ function SortHeader({ label, field, current, dir, onClick }: {
 }) {
     const active = current === field
     return (
-        <th className="gl-sortable" onClick={() => onClick(field)} role="button" tabIndex={0}
-            aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : undefined}
-            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(field) } }}>
-            {label} {active ? (dir === "desc" ? "\u25BC" : "\u25B2") : ""}
+        <th scope="col" aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : "none"}>
+            <button type="button" className="gl-sort-btn" onClick={() => onClick(field)}>
+                {label} {active ? (dir === "desc" ? "\u25BC" : "\u25B2") : ""}
+            </button>
         </th>
     )
 }

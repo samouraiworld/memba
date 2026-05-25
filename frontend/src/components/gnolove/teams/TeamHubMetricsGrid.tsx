@@ -56,9 +56,11 @@ export function TeamHubMetricsGrid({ stats, isLoading, isError, onRetry, teamMem
 
     return (
         <div className="gl-thub-card">
+            <span className="gl-sr-only" aria-live="polite">
+                {hasFailed ? "Metrics unavailable" : `${merged} merged PRs, ${activeContributors} active contributors`}
+            </span>
             <div
                 className="gl-thub-metrics-grid"
-                aria-live="polite"
                 aria-label="Team metrics"
             >
                 <MetricCell label="Roster" value={teamMemberCount} />

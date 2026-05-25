@@ -94,8 +94,9 @@ describe("TeamHubMetricsGrid (P2 — aria-live)", () => {
                 teamMemberCount={9}
             />,
         )
-        const live = screen.getByLabelText("Team metrics")
-        expect(live.getAttribute("aria-live")).toBe("polite")
+        expect(screen.getByLabelText("Team metrics")).toBeInTheDocument()
+        const liveRegion = screen.getByText(/12 merged PRs, 3 active contributors/)
+        expect(liveRegion.getAttribute("aria-live")).toBe("polite")
     })
 })
 

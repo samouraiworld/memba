@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import type { TAIReport, TAIReportProject } from "../../lib/gnoloveSchemas"
+import { AccessibleDialog } from "../AccessibleDialog"
 
 const MOBILE_BREAKPOINT_PX = 768
 
@@ -126,7 +127,7 @@ function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile
     // R-8 explicitly: use `||`, NOT `??`, to drop empty strings.
     const shortText = project.summary_short || project.summary
     const longText = project.summary_long || project.summary
-    const hasDistinctLong = longText && longText !== shortText
+    const hasDistinctLong = !!(longText && longText !== shortText)
     const showLongAsSheet = isMobile && expanded && hasDistinctLong
     const showLongInline = !isMobile && expanded && hasDistinctLong
 
@@ -181,32 +182,27 @@ function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile
                 </button>
             )}
 
-            {showLongAsSheet && (
-                <div
-                    className="gl-aircard-sheet-backdrop"
-                    role="dialog"
-                    aria-modal="true"
-                    onClick={() => setExpanded(false)}
-                >
-                    <div
-                        className="gl-aircard-sheet"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="gl-aircard-sheet-head">
-                            <h4 className="gl-aircard-project-name">{project.project_name}</h4>
-                            <button
-                                type="button"
-                                className="gl-aircard-sheet-close"
-                                onClick={() => setExpanded(false)}
-                                aria-label="Close"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <p className="gl-aircard-sheet-body">{longText}</p>
+            <AccessibleDialog
+                open={showLongAsSheet}
+                onClose={() => setExpanded(false)}
+                labelledBy={`gl-aircard-sheet-title-${anchor}`}
+                className="gl-aircard-sheet-backdrop"
+            >
+                <div className="gl-aircard-sheet">
+                    <div className="gl-aircard-sheet-head">
+                        <h4 id={`gl-aircard-sheet-title-${anchor}`} className="gl-aircard-project-name">{project.project_name}</h4>
+                        <button
+                            type="button"
+                            className="gl-aircard-sheet-close"
+                            onClick={() => setExpanded(false)}
+                            aria-label="Close"
+                        >
+                            ×
+                        </button>
                     </div>
+                    <p className="gl-aircard-sheet-body">{longText}</p>
                 </div>
-            )}
+            </AccessibleDialog>
         </div>
     )
 }

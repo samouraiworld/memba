@@ -86,7 +86,10 @@ export function TeamHubRecentActivityCard({ team, period }: Props) {
     return (
         <div className="gl-thub-card">
             <h2 className="gl-thub-card-title">Recent merged PRs</h2>
-            <div aria-live="polite" aria-label="Recent merged pull requests for the selected period">
+            <span className="gl-sr-only" aria-live="polite">
+                {rows.length === 0 ? `No merged PRs in ${TEAM_HUB_PERIOD_LABELS[period]}` : `${rows.length} merged PRs`}
+            </span>
+            <div aria-label="Recent merged pull requests for the selected period">
             {rows.length === 0 ? (
                 <p className="gl-thub-empty">
                     No merged PRs from {team.name} in the “{TEAM_HUB_PERIOD_LABELS[period]}” window.
