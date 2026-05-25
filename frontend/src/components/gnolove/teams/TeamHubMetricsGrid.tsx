@@ -18,6 +18,8 @@ import type { TTeamStatsResponse } from "../../../lib/gnoloveSchemas"
 interface Props {
     stats: TTeamStatsResponse | null | undefined
     isLoading: boolean
+    isError: boolean
+    onRetry: () => void
     teamMemberCount: number
 }
 
@@ -30,7 +32,7 @@ function MetricCell({ label, value }: { label: string; value: number | string })
     )
 }
 
-export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props) {
+export function TeamHubMetricsGrid({ stats, isLoading, isError, onRetry, teamMemberCount }: Props) {
     if (isLoading && !stats) {
         return (
             <div className="gl-thub-card" aria-busy="true">
@@ -46,10 +48,7 @@ export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props)
         )
     }
 
-    // After loading resolves: stats may be null when the fetch failed (gnoloveApi
-    // returns null on error). Render an honest "—" state instead of silently
-    // showing zeros, which would read as "this team did nothing this period."
-    const hasFailed = !isLoading && stats == null
+    const hasFailed = isError || (!isLoading && stats == null)
 
     const merged = stats?.totals.mergedPRs ?? 0
     const activeContributors = stats?.totals.activeContributors ?? 0
@@ -78,6 +77,7 @@ export function TeamHubMetricsGrid({ stats, isLoading, teamMemberCount }: Props)
             {hasFailed && (
                 <p className="gl-thub-empty" role="status">
                     Metrics unavailable. The backend didn't return data for this period.
+                    {" "}<button className="gl-thub-inline-retry" onClick={onRetry}>Retry</button>
                 </p>
             )}
         </div>

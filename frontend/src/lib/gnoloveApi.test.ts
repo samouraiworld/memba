@@ -1,6 +1,9 @@
 /**
  * Tests for gnoloveApi.ts — API layer with Zod validation.
  *
+ * Post-PR-1: errors propagate (throw) instead of being swallowed.
+ * React Query catches these; consumers see isError: true.
+ *
  * @module lib/gnoloveApi.test
  */
 
@@ -38,21 +41,19 @@ describe("getContributors", () => {
         mockFetch.mockResolvedValue(okResponse(payload))
         const result = await api.getContributors()
         expect(result).not.toBeNull()
-        expect(result!.users).toHaveLength(1)
-        expect(result!.users[0].login).toBe("alice")
-        expect(result!.users[0].score).toBe(42)
+        expect(result.users).toHaveLength(1)
+        expect(result.users[0].login).toBe("alice")
+        expect(result.users[0].score).toBe(42)
     })
 
-    it("returns null on network error", async () => {
+    it("throws on network error", async () => {
         mockFetch.mockRejectedValue(new Error("Network failed"))
-        const result = await api.getContributors()
-        expect(result).toBeNull()
+        await expect(api.getContributors()).rejects.toThrow("Network failed")
     })
 
-    it("returns null on HTTP error", async () => {
+    it("throws HttpError on HTTP error", async () => {
         mockFetch.mockResolvedValue(errorResponse(500))
-        const result = await api.getContributors()
-        expect(result).toBeNull()
+        await expect(api.getContributors()).rejects.toThrow(api.HttpError)
     })
 })
 
@@ -69,10 +70,9 @@ describe("getLastIssues", () => {
         expect(result[0].title).toBe("Fix bug")
     })
 
-    it("returns empty array on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        const result = await api.getLastIssues()
-        expect(result).toEqual([])
+        await expect(api.getLastIssues()).rejects.toThrow("fail")
     })
 })
 
@@ -85,13 +85,12 @@ describe("getPullRequestsReport", () => {
         mockFetch.mockResolvedValue(okResponse(report))
         const result = await api.getPullRequestsReport(new Date("2026-01-01"), new Date("2026-01-07"))
         expect(result).not.toBeNull()
-        expect(result!.merged).toHaveLength(1)
+        expect(result.merged).toHaveLength(1)
     })
 
-    it("returns null on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        const result = await api.getPullRequestsReport(new Date(), new Date())
-        expect(result).toBeNull()
+        await expect(api.getPullRequestsReport(new Date(), new Date())).rejects.toThrow("fail")
     })
 })
 
@@ -106,9 +105,9 @@ describe("getNewContributors", () => {
         expect(result[0].login).toBe("bob")
     })
 
-    it("returns empty on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getNewContributors()).toEqual([])
+        await expect(api.getNewContributors()).rejects.toThrow("fail")
     })
 })
 
@@ -121,9 +120,9 @@ describe("getRepositories", () => {
         expect(result[0].name).toBe("gno")
     })
 
-    it("returns empty on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getRepositories()).toEqual([])
+        await expect(api.getRepositories()).rejects.toThrow("fail")
     })
 })
 
@@ -133,46 +132,132 @@ describe("getScoreFactors", () => {
         mockFetch.mockResolvedValue(okResponse(factors))
         const result = await api.getScoreFactors()
         expect(result).not.toBeNull()
-        expect(result!.prFactor).toBe(5)
+        expect(result.prFactor).toBe(5)
     })
 
-    it("returns null on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getScoreFactors()).toBeNull()
+        await expect(api.getScoreFactors()).rejects.toThrow("fail")
     })
 })
 
 describe("getMilestone", () => {
-    it("returns null on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getMilestone(7)).toBeNull()
+        await expect(api.getMilestone(7)).rejects.toThrow("fail")
     })
 })
 
 describe("getContributor", () => {
-    it("returns null for empty login", async () => {
+    it("returns null for empty login without fetching", async () => {
         mockFetch.mockClear()
         const result = await api.getContributor("")
         expect(result).toBeNull()
         expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it("returns null on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getContributor("alice")).toBeNull()
+        await expect(api.getContributor("alice")).rejects.toThrow("fail")
     })
 })
 
 describe("getProposals", () => {
-    it("returns empty on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getProposals()).toEqual([])
+        await expect(api.getProposals()).rejects.toThrow("fail")
     })
 })
 
 describe("getGovdaoMembers", () => {
-    it("returns empty on error", async () => {
+    it("throws on error", async () => {
         mockFetch.mockRejectedValue(new Error("fail"))
-        expect(await api.getGovdaoMembers()).toEqual([])
+        await expect(api.getGovdaoMembers()).rejects.toThrow("fail")
+    })
+})
+
+describe("getTeams", () => {
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getTeams()).rejects.toThrow("fail")
+    })
+})
+
+describe("getTeamActiveRepos", () => {
+    it("returns null for empty slug without fetching", async () => {
+        mockFetch.mockClear()
+        const result = await api.getTeamActiveRepos("")
+        expect(result).toBeNull()
+        expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getTeamActiveRepos("core")).rejects.toThrow("fail")
+    })
+})
+
+describe("getTeamStats", () => {
+    it("returns null for empty slug without fetching", async () => {
+        mockFetch.mockClear()
+        const result = await api.getTeamStats("")
+        expect(result).toBeNull()
+        expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getTeamStats("core")).rejects.toThrow("fail")
+    })
+})
+
+describe("getAIReports", () => {
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getAIReports()).rejects.toThrow("fail")
+    })
+})
+
+describe("getTopics", () => {
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getTopics()).rejects.toThrow("fail")
+    })
+})
+
+describe("getContributorCohorts", () => {
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getContributorCohorts()).rejects.toThrow("fail")
+    })
+})
+
+describe("getTeamCollab", () => {
+    it("throws on error", async () => {
+        mockFetch.mockRejectedValue(new Error("fail"))
+        await expect(api.getTeamCollab()).rejects.toThrow("fail")
+    })
+})
+
+describe("HttpError", () => {
+    it("is thrown on non-ok HTTP response", async () => {
+        mockFetch.mockResolvedValue(errorResponse(503))
+        try {
+            await api.getTeams()
+            expect.fail("should have thrown")
+        } catch (err) {
+            expect(err).toBeInstanceOf(api.HttpError)
+            expect((err as api.HttpError).status).toBe(503)
+        }
+    })
+})
+
+describe("extractRepoFromUrl", () => {
+    it("extracts owner/repo from GitHub URL", () => {
+        expect(api.extractRepoFromUrl("https://github.com/gnolang/gno/pull/1")).toBe("gnolang/gno")
+    })
+
+    it("returns empty string for non-GitHub URL", () => {
+        expect(api.extractRepoFromUrl("https://example.com")).toBe("")
     })
 })

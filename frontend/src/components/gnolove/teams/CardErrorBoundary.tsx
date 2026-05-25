@@ -10,12 +10,13 @@
  */
 
 import { Component, type ReactNode } from "react"
+import * as Sentry from "@sentry/react"
 
 interface Props {
     name: string
     children: ReactNode
-    /** Optional override for the failure UI. Defaults to a compact banner. */
     fallback?: (error: Error, name: string) => ReactNode
+    onRetry?: () => void
 }
 
 interface State {
@@ -30,10 +31,16 @@ export class CardErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, info: { componentStack?: string }) {
-        // Logs only — no automatic reporting hook here, the global section
-        // boundary handles Sentry. Per-card crashes are usually benign API
-        // shape mismatches that the user-visible card already calls out.
         console.error(`[TeamHub:${this.props.name}]`, error, info.componentStack)
+        Sentry.captureException(error, {
+            tags: { section: "gnolove", card: this.props.name },
+            contexts: { react: { componentStack: info.componentStack ?? "" } },
+        })
+    }
+
+    private handleRetry = () => {
+        this.setState({ error: null })
+        this.props.onRetry?.()
     }
 
     render() {
@@ -45,6 +52,12 @@ export class CardErrorBoundary extends Component<Props, State> {
                     <p className="gl-thub-card-error-msg">
                         Couldn’t load this card. The rest of the page should still work.
                     </p>
+                    <button
+                        className="gl-filter-btn gl-filter-btn--active gl-thub-retry-btn"
+                        onClick={this.handleRetry}
+                    >
+                        Retry
+                    </button>
                 </div>
             )
         }

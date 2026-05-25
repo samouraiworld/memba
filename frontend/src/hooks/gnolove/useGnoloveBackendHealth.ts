@@ -1,17 +1,14 @@
 /**
- * useGnoloveBackendHealth — lazy `/teams` HEAD probe with auto-degrade.
- *
- * Plan R-4 mitigation: if the gnolove backend goes down, the team hub
- * would otherwise render six red error cards. This hook lets the page
- * detect a backend that's down and swap in the legacy stub instead.
+ * useGnoloveBackendHealth — GET /health probe with auto-degrade.
  *
  * Probe semantics:
  *   - First check on mount, then every PROBE_INTERVAL_MS.
- *   - A check is "failing" if the HEAD request rejects OR returns
- *     a 5xx / 0 status. 4xx counts as "up" (the server is responding).
- *   - Backend is considered DOWN after FAIL_THRESHOLD consecutive
- *     failures inside FAIL_WINDOW_MS. The plan's "2× in 30s" rule.
+ *   - Probes GET /health; only HTTP 200 counts as "up".
+ *   - Backend is DOWN after FAIL_THRESHOLD consecutive failures
+ *     inside FAIL_WINDOW_MS (the plan's "2× in 30s" rule).
  *   - After recovery, one successful probe clears the down state.
+ *   - Pauses when the tab is hidden (visibilitychange) to avoid
+ *     wasting 240 HEAD requests/hour on backgrounded tabs.
  *
  * @module hooks/gnolove/useGnoloveBackendHealth
  */
@@ -27,16 +24,15 @@ const PROBE_TIMEOUT_MS = 5_000
 export type BackendHealth = "unknown" | "up" | "down"
 
 interface UseGnoloveBackendHealthOptions {
-    /** Set to false to skip probing — useful in tests. */
     enabled?: boolean
-    /** Override the URL to probe. Defaults to `${GNOLOVE_API_URL}/teams`. */
     probeUrl?: string
 }
 
 export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {}): BackendHealth {
-    const { enabled = true, probeUrl = `${GNOLOVE_API_URL}/teams` } = opts
+    const { enabled = true, probeUrl = `${GNOLOVE_API_URL}/health` } = opts
     const [status, setStatus] = useState<BackendHealth>("unknown")
     const failuresRef = useRef<number[]>([])
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     useEffect(() => {
         if (!enabled) return
@@ -47,8 +43,8 @@ export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {
             const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
             let ok = false
             try {
-                const res = await fetch(probeUrl, { method: "HEAD", signal: controller.signal })
-                ok = res.status < 500 && res.status !== 0
+                const res = await fetch(probeUrl, { method: "GET", signal: controller.signal })
+                ok = res.status === 200
             } catch {
                 ok = false
             } finally {
@@ -61,7 +57,6 @@ export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {
                 failuresRef.current = []
                 setStatus("up")
             } else {
-                // Drop failures older than the window before counting.
                 failuresRef.current = [
                     ...failuresRef.current.filter(t => now - t < FAIL_WINDOW_MS),
                     now,
@@ -72,11 +67,33 @@ export function useGnoloveBackendHealth(opts: UseGnoloveBackendHealthOptions = {
             }
         }
 
-        probe()
-        const interval = setInterval(probe, PROBE_INTERVAL_MS)
+        function startPolling() {
+            probe()
+            intervalRef.current = setInterval(probe, PROBE_INTERVAL_MS)
+        }
+
+        function stopPolling() {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current)
+                intervalRef.current = null
+            }
+        }
+
+        function handleVisibility() {
+            if (document.hidden) {
+                stopPolling()
+            } else {
+                startPolling()
+            }
+        }
+
+        startPolling()
+        document.addEventListener("visibilitychange", handleVisibility)
+
         return () => {
             cancelled = true
-            clearInterval(interval)
+            stopPolling()
+            document.removeEventListener("visibilitychange", handleVisibility)
         }
     }, [enabled, probeUrl])
 
