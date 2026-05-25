@@ -117,7 +117,7 @@ describe("Skeleton fidelity (P1 — Plan §7)", () => {
     })
 
     it("AIReportsCard skeleton uses the report-shaped template, not generic lines", () => {
-        const { container } = render(withQueryClient(<TeamHubAIReportsCard team={team} />))
+        const { container } = render(<MemoryRouter>{withQueryClient(<TeamHubAIReportsCard team={team} />)}</MemoryRouter>)
         const card = container.querySelector(".gl-thub-card")
         expect(card?.getAttribute("aria-busy")).toBe("true")
         expect(container.querySelector(".gl-thub-skel-airpt")).toBeInTheDocument()
