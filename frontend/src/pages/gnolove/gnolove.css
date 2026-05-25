@@ -156,6 +156,10 @@
     font-family: var(--gl-font-mono);
 }
 
+.gl-sync-time--stale {
+    color: #eab308;
+}
+
 /* ── Milestone Bar ───────────────────────────── */
 
 .gl-milestone {

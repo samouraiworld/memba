@@ -13,15 +13,18 @@
  * @module pages/gnolove/GnoloveTeams
  */
 
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useGnoloveTeams } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import { TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
+import { formatRelativeTime } from "../../lib/gnoloveTime"
 
 export default function GnoloveTeams() {
     const np = useNetworkPath()
     const { teams, lastSyncedAt } = useGnoloveTeams()
+    const [nowMs] = useState(() => Date.now())
 
     return (
         <div className="gl-page">
@@ -31,7 +34,7 @@ export default function GnoloveTeams() {
                 <h1 className="gl-title">Teams</h1>
                 {lastSyncedAt && (
                     <span className="gl-thub-chip gl-thub-chip-sync" title={new Date(lastSyncedAt).toISOString()}>
-                        Roster updated: {new Date(lastSyncedAt).toLocaleDateString()}
+                        Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
                 )}
             </div>

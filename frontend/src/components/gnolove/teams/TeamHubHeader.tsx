@@ -23,6 +23,7 @@ import {
     TEAM_HUB_PERIODS,
     type TeamHubPeriod,
 } from "../../../lib/gnolovePeriod"
+import { formatRelativeTime } from "../../../lib/gnoloveTime"
 
 interface Props {
     team: Team
@@ -31,20 +32,6 @@ interface Props {
     lastSyncedAt: string | null
     networkKey: string
     backToTeamsHref: string
-}
-
-function formatRelativeTime(iso: string | null, nowMs: number): string {
-    if (!iso) return "—"
-    const ts = new Date(iso).getTime()
-    if (Number.isNaN(ts)) return "—"
-    const diff = nowMs - ts
-    if (diff < 60_000) return "just now"
-    const mins = Math.round(diff / 60_000)
-    if (mins < 60) return `${mins}m ago`
-    const hours = Math.round(mins / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.round(hours / 24)
-    return `${days}d ago`
 }
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, networkKey, backToTeamsHref }: Props) {
