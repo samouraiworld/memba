@@ -42,7 +42,7 @@ export const TEAMS: Team[] = [
         name: "Core Team",
         color: "blue",
         description: "Gno core protocol engineers building the chain, VM, and standard libraries.",
-        logoUrl: "https://avatars.githubusercontent.com/u/50029748",
+        logoUrl: "https://avatars.githubusercontent.com/u/75237105?s=200&v=4",
         website: "https://gno.land",
         twitter: "gnolang_",
         members: [
@@ -56,7 +56,7 @@ export const TEAMS: Team[] = [
         name: "All in Bits",
         color: "yellow",
         description: "AiB team contributing to Gno ecosystem tooling and infrastructure.",
-        logoUrl: "https://avatars.githubusercontent.com/u/21206845",
+        logoUrl: "https://avatars.githubusercontent.com/u/57690767?s=200&v=4",
         website: "https://allinbits.com",
         twitter: "Allinbits_inc",
         members: ["albttx", "alexiscolin", "tbruyelle", "leohhhn", "n2p5", "michelleellen"],
@@ -66,7 +66,7 @@ export const TEAMS: Team[] = [
         name: "Onbloc",
         color: "purple",
         description: "Building GnoSwap DEX, Adena wallet, and GnoScan explorer.",
-        logoUrl: "https://avatars.githubusercontent.com/u/89903882",
+        logoUrl: "https://avatars.githubusercontent.com/u/104608792?s=200&v=4",
         website: "https://onbloc.xyz",
         twitter: "onblocxyz",
         members: [
@@ -89,7 +89,7 @@ export const TEAMS: Team[] = [
         name: "Samourai.world",
         color: "red",
         description: "Core contributors for +4 years and building ecosystem tools, dev tools, dApps for engineers and general public.",
-        logoUrl: "https://avatars.githubusercontent.com/u/71438920",
+        logoUrl: "https://avatars.githubusercontent.com/u/98518729?s=200&v=4",
         website: "https://samourai.world",
         twitter: "samouraicoop",
         members: [

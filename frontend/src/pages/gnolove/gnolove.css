@@ -2052,6 +2052,13 @@
     font-weight: 600;
 }
 
+.gl-team-award-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-left: 24px;
+}
+
 .gl-team-award {
     display: inline-block;
     font-size: 9px;
