@@ -90,6 +90,8 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow-x: hidden;
+    min-width: 0;
 }
 
 .gl-mb-16 { margin-bottom: 16px; }
@@ -1265,6 +1267,26 @@
     font-family: var(--gl-font-mono);
 }
 
+.gl-teams-panel-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.gl-teams-panel-socials {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.gl-teams-panel-social {
+    font-size: 11px;
+    color: var(--color-k-muted, #666);
+}
+
 .gl-teams-members {
     display: flex;
     flex-direction: column;
@@ -1954,6 +1976,25 @@
         grid-template-columns: 1fr;
     }
 
+    .gl-team-compact-card {
+        min-width: 0;
+    }
+
+    .gl-milestone {
+        padding: 12px;
+    }
+
+    .gl-milestone-header {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .gl-section-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
     .gl-pagination {
         flex-wrap: wrap;
     }
@@ -2009,6 +2050,20 @@
 .gl-team-compact-name {
     font-size: 13px;
     font-weight: 600;
+}
+
+.gl-team-award {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 212, 170, 0.12);
+    color: var(--color-k-accent, #00d4aa);
+    white-space: nowrap;
+    line-height: 1.3;
 }
 
 .gl-team-compact-desc {
@@ -2613,6 +2668,31 @@
     align-items: flex-end;
     gap: 16px;
     flex-wrap: wrap;
+}
+
+.gl-thub-team-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.gl-thub-team-socials {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.gl-thub-team-social-link {
+    font-size: 12px;
+    color: var(--color-k-muted, #666);
+    text-decoration: none;
+}
+
+.gl-thub-team-social-link:hover {
+    color: var(--color-k-accent, #00d4aa);
 }
 
 .gl-thub-period {
@@ -4160,5 +4240,55 @@
         width: 100%;
         justify-content: flex-start;
         margin-top: 2px;
+    }
+}
+
+/* ── iPhone SE / small phone (≤ 375px) ───────────────────── */
+
+@media (max-width: 375px) {
+    .gl-page {
+        gap: 14px;
+    }
+
+    .gl-title {
+        font-size: 18px;
+    }
+
+    .gl-milestone {
+        padding: 10px;
+    }
+
+    .gl-milestone-title {
+        font-size: 12px;
+    }
+
+    .gl-team-compact-card {
+        padding: 8px 10px;
+    }
+
+    .gl-team-compact-name {
+        font-size: 12px;
+    }
+
+    .gl-team-compact-desc {
+        font-size: 10px;
+    }
+
+    .gl-team-compact-stats {
+        font-size: 9px;
+        gap: 6px;
+    }
+
+    .gl-section-summary {
+        font-size: 12px;
+    }
+
+    .gl-teams-panel {
+        padding: 10px 12px;
+    }
+
+    .gl-teams-panel-header {
+        flex-wrap: wrap;
+        gap: 4px;
     }
 }

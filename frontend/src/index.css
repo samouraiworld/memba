@@ -1533,6 +1533,10 @@ body {
     display: none;
   }
 
+  .k-topbar-hamburger {
+    display: none;
+  }
+
   .k-main-column {
     margin-left: 0 !important;
   }
