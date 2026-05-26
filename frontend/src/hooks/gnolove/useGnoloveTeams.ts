@@ -23,6 +23,8 @@ import type { TBackendTeam } from "../../lib/gnoloveSchemas"
 
 const STALE_TEAMS = 5 * 60_000 // 5 min — roster changes are Lours-deploy slow
 
+const SEED_BY_SLUG = new Map(TEAMS.map(t => [t.slug.toLowerCase(), t]))
+
 const TEAM_COLORS = new Set<TeamColor>([
     "blue", "yellow", "purple", "red", "green", "brown", "pink",
 ])
@@ -33,12 +35,16 @@ const TEAM_COLORS = new Set<TeamColor>([
  */
 export function backendTeamToFrontend(t: TBackendTeam): Team {
     const color: TeamColor = TEAM_COLORS.has(t.color as TeamColor) ? (t.color as TeamColor) : "blue"
+    const seed = SEED_BY_SLUG.get(t.slug.toLowerCase())
     return {
         slug: t.slug,
         name: t.name,
         color,
         description: t.description,
         members: t.members ?? [],
+        logoUrl: seed?.logoUrl,
+        website: seed?.website,
+        twitter: seed?.twitter,
     }
 }
 
