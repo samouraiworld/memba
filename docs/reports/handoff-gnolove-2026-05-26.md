@@ -1,57 +1,59 @@
-# Handoff — Gnolove UX Polish (2026-05-25 / 2026-05-26)
+# Handoff — Gnolove UX Overhaul (2026-05-25 / 2026-05-26)
 
 > **Session dates:** 2026-05-25 evening through 2026-05-26
-> **Use:** Reference for next session continuity.
+> **Scope:** 10 PRs merged (#351–#360), covering architecture, a11y, polish, testing, reliability, topic precision, mobile PWA, team awards, and team profiles.
 
 ---
 
 ## What shipped
 
-### PR #357 (merged) — Focus areas rework, repo badges, team report card, custom dates, mobile UX
-
-| Workstream | Summary |
-|---|---|
-| Focus areas rework | Kill "Other" bucket, add 4 new topics (consensus, realms, frontend, testing), conventional-commit prefix matching, TOP_N raised to 6 |
-| Repo priority + badges | `gnolang/gno` always sorted first with blue "core" badge across all views |
-| Team report card | New card on team pages: merged/in-progress/waiting/blocked counts + top-3 PRs |
-| Custom date range | "Custom" period on report page with from/to date pickers, URL-state roundtrips |
-| Milestone markdown | Render milestone descriptions with `renderMarkdown` (XSS-safe) |
-| Mobile UX | New 480px breakpoint, stacked layouts, touch-friendly sizing |
-| Polish | Backend-down banner threshold lowered to 2, focus card skeleton updated to 6 pills |
-
-CI fix commits:
-- Split `RepoBadge.tsx` utilities into `lib/gnoloveRepo.ts` (react-refresh lint)
-- Add missing `"custom"` case to all `ReportPeriod` switches (TS strict mode)
-
-### PR #358 (open) — Roster popover, team ordering fix, description update
-
-| Change | Detail |
-|---|---|
-| Roster popover | Click "Roster" metric on team pages to see member list with GitHub profile links |
-| Team ordering | Case-insensitive login matching fixes mis-rankings on Overview page |
-| Samouraiworld description | Updated to reflect 4-year contributor history |
-| Mobile roster | Popover adapts to full-width on 480px screens |
-
-### gnolove#224 (open) — Backend config updates
-
-| Change | Detail |
-|---|---|
-| Samouraiworld description | Synced with frontend |
-| `onbloc/gno-ibc` | Added to `.env.example` (VPS env needs manual update) |
-| Topics sync | 4 new topics + conventional-commit patterns synced with frontend classifier |
-
-## Pending actions
-
-| Item | Status | Owner |
+| PR | Title | Date |
 |---|---|---|
-| **Merge memba#358** | Awaiting CI + review | zxxma |
-| **Merge gnolove#224** | Awaiting review | zxxma |
-| **VPS env update** | Add `onbloc/gno-ibc/main` to `GITHUB_REPOSITORIES` | Lours (SSH) |
-| **gnolove backend redeploy** | After gnolove#224 merge + VPS env update | zxxma |
-| **Phase 7** — drop legacy team profile + feature flag | Overdue (gate was 2026-05-23) | Next session |
+| #351 | Architecture refactor: extract god-components + unify error boundaries | 2026-05-25 |
+| #352 | Accessibility: dialog, focus trap, SortHeader, touch targets | 2026-05-25 |
+| #353 | UX polish, design tokens, dead CSS cleanup | 2026-05-25 |
+| #354 | Product trust, shareability, label honesty | 2026-05-25 |
+| #355 | Critical-seam test coverage (lib + TeamHub) | 2026-05-25 |
+| #356 | Team hub reliability: /health fix + null-array Zod parse | 2026-05-25 |
+| #357 | Focus areas rework, repo badges, team report card, custom dates, mobile | 2026-05-26 |
+| #358 | Roster popover, team ordering fix, description update | 2026-05-26 |
+| #359 | Topic classifier: reduce "Other" from 35% to 7.5% | 2026-05-26 |
+| #360 | Mobile UX fixes, team award badges, team profile enrichment | 2026-05-26 |
 
-## Notes for next session
+### gnolove backend
+| PR | Title |
+|---|---|
+| gnolove#224 | Samouraiworld description, gno-ibc tracked repo, topics sync |
+| gnolove#225 | Topic patterns expansion (30+ new rules) |
 
-- Phase 7 (drop `GnoloveTeamProfileLegacy` + `VITE_GNOLOVE_TEAM_HUB` flag) is past its 3-day soak gate. Safe to execute. See `docs/reports/handoff-team-hub-2026-05-20.md` §"Where Phase 7 lives" for the full checklist.
-- Custom date range is shipped and functional. Weekly period is intentionally Mon-Sun (ISO weeks). Users wanting arbitrary dates should use the "Custom" period option.
-- `onbloc/gno-ibc` won't appear until someone with VPS SSH access updates the `.env` file and redeploys.
+## Repository housekeeping (done this session)
+
+- **Memba:** 12 stale local branches deleted, 13 remote tracking refs pruned. Only `main` remains locally.
+- **gnolove:** 3 local branches deleted, 31 merged remote branches deleted. Only `main` remains locally.
+- **All Gno repos pulled:** gno, HyperGno, Samourai Gno Security Guard, gno-skills — all up to date.
+- **Open PRs:** 0 on both Memba and gnolove.
+- **Open issues on Memba:** 0.
+- **Open issues on gnolove:** 4 (all pre-existing: #124 govdao votes, #108 tweets, #21 txlink, #16 automated reports).
+
+## Pending actions for next session
+
+| Priority | Item | Owner |
+|---|---|---|
+| P0 | **Phase 7** — drop `GnoloveTeamProfileLegacy` + `VITE_GNOLOVE_TEAM_HUB` flag | Next session |
+| P1 | **VPS env update** — add `onbloc/gno-ibc/main` to `GITHUB_REPOSITORIES` | Lours (SSH) |
+| P1 | **iPhone visual testing** — verify mobile fixes (#360) on real device | zxxma |
+| P2 | **gnolove open issues** — triage #124 (govdao votes), #108 (tweets), #21 (txlink), #16 (automated reports) |  |
+
+## gno core changes since v1.1.0
+
+Recent commits on gno master — no breaking API changes affecting Memba/gnolove:
+- `halt_height` config field for coordinated chain upgrades (#5334)
+- `gnobr` block rollback tool for validators (#5410)
+- `/status` RPC gains `build_version` (#5409)
+- cold stdlib typeCheckCache fix (#5400)
+
+These are node-operator and validator features. No impact on Memba frontend or gnolove backend.
+
+## Architecture state
+
+Both repos are clean: `main` only, zero open PRs, CI green. gnolove has 4 pre-existing feature-request issues. The team-hub rework is functionally complete — only the Phase 7 flag cleanup remains.
