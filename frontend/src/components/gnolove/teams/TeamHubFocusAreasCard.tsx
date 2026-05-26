@@ -53,7 +53,7 @@ export function TeamHubFocusAreasCard({ team, period }: Props) {
             <div className="gl-thub-card" aria-busy="true">
                 <h2 className="gl-thub-card-title">Focus areas</h2>
                 <ul className="gl-thub-pills gl-thub-pills-skel" aria-hidden="true">
-                    {Array.from({ length: 5 }).map((_, i) => (
+                    {Array.from({ length: 6 }).map((_, i) => (
                         <li key={i} className="gl-skeleton gl-thub-skel-pill" />
                     ))}
                 </ul>

@@ -37,12 +37,15 @@ import { filterPrs } from "../../lib/gnoloveReportFilters"
 import { NarrativeReportView } from "../../components/gnolove/report/NarrativeReportView"
 import { EmptyStateMessage } from "../../components/gnolove/report/EmptyStateMessage"
 import type { EmptyReason } from "../../components/gnolove/report/types"
+import { RepoBadge } from "../../components/gnolove/RepoBadge"
+import { isCorerepo } from "../../lib/gnoloveRepo"
 
 const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     weekly: "Weekly",
     monthly: "Monthly",
     yearly: "Yearly",
     all_time: "All Time",
+    custom: "Custom",
 }
 
 type PRStatus = "merged" | "in_progress" | "waiting_for_review" | "reviewed" | "blocked"
@@ -66,7 +69,7 @@ function statusFor(pr: TPullRequest, report: ReportData | null | undefined): PRS
 
 export default function GnoloveReport() {
     const [urlState, setUrlState] = useReportUrlState()
-    const { period, at, tab: activeTab, team: teamOrNull, repos: selectedRepos, view } = urlState
+    const { period, at, tab: activeTab, team: teamOrNull, repos: selectedRepos, view, from: customFrom, to: customTo } = urlState
     const selectedTeam = teamOrNull ?? "all"
     const networkKey = useNetworkKey()
 
@@ -80,11 +83,9 @@ export default function GnoloveReport() {
 
     const { data: repos } = useGnoloveRepositories()
 
-    // Derived absolute date range. `at ?? defaultKey(period)` handles the
-    // "default state" case where the URL doesn't pin a specific period.
     const { start, end } = useMemo(
-        () => rangeFromKey(period, at ?? defaultKey(period)),
-        [period, at],
+        () => rangeFromKey(period, at ?? defaultKey(period), { from: customFrom, to: customTo }),
+        [period, at, customFrom, customTo],
     )
 
     const { data: report, isLoading, isError: reportError, refetch } = useGnoloveReport(start, end)
@@ -153,7 +154,7 @@ export default function GnoloveReport() {
         return "filter"
     }, [report, filteredPrs, selectedTeam, selectedReposSet])
 
-    const canGoForward = period !== "all_time" && !isFuture(
+    const canGoForward = period !== "all_time" && period !== "custom" && !isFuture(
         period === "weekly" ? endOfWeek(start, { weekStartsOn: 1 }) :
         period === "monthly" ? endOfMonth(start) :
         endOfYear(start)
@@ -169,6 +170,8 @@ export default function GnoloveReport() {
                 return format(start, "yyyy")
             case "all_time":
                 return "All Time"
+            case "custom":
+                return `${format(start, "MMM d, yyyy")} — ${format(end, "MMM d, yyyy")}`
         }
     }, [period, start, end])
 
@@ -337,7 +340,7 @@ export default function GnoloveReport() {
             </div>
 
             {/* Date Navigator */}
-            {period !== "all_time" && (
+            {period !== "all_time" && period !== "custom" && (
                 <div className="gl-week-nav">
                     <button className="gl-week-btn" onClick={() => stepBy(-1)} aria-label="Previous">← Previous</button>
                     <span className="gl-week-label">{dateLabel}</span>
@@ -349,6 +352,32 @@ export default function GnoloveReport() {
                     >
                         Next →
                     </button>
+                </div>
+            )}
+            {period === "custom" && (
+                <div className="gl-custom-range">
+                    <label className="gl-custom-range-label">
+                        From
+                        <input
+                            type="date"
+                            className="gl-custom-range-input"
+                            value={customFrom ?? ""}
+                            max={customTo ?? format(new Date(), "yyyy-MM-dd")}
+                            onChange={e => setUrlState({ from: e.target.value })}
+                        />
+                    </label>
+                    <span className="gl-custom-range-sep">to</span>
+                    <label className="gl-custom-range-label">
+                        To
+                        <input
+                            type="date"
+                            className="gl-custom-range-input"
+                            value={customTo ?? ""}
+                            min={customFrom ?? undefined}
+                            max={format(new Date(), "yyyy-MM-dd")}
+                            onChange={e => setUrlState({ to: e.target.value })}
+                        />
+                    </label>
                 </div>
             )}
 
@@ -391,7 +420,13 @@ export default function GnoloveReport() {
                                 />
                                 <span>All Repositories</span>
                             </label>
-                            {repos?.map(repo => {
+                            {repos?.slice().sort((a, b) => {
+                                const aCore = isCorerepo(`${a.owner}/${a.name}`)
+                                const bCore = isCorerepo(`${b.owner}/${b.name}`)
+                                if (aCore && !bCore) return -1
+                                if (!aCore && bCore) return 1
+                                return 0
+                            }).map(repo => {
                                 const key = `${repo.owner}/${repo.name}`
                                 return (
                                     <label key={repo.id} className="gl-repo-multiselect-option">
@@ -401,6 +436,7 @@ export default function GnoloveReport() {
                                             onChange={() => toggleRepo(key)}
                                         />
                                         <span>{key}</span>
+                                        <RepoBadge repo={key} />
                                     </label>
                                 )
                             })}

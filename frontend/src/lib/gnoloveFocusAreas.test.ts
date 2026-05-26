@@ -30,9 +30,23 @@ describe("classify", () => {
         expect(classify({ repo: "weirdorg/totallynewthing", title: "feat: random" })).toBe("other")
     })
     it("first-match-wins on ambiguous hits", () => {
-        // 'core' would match gnocore, but the higher-priority gnovm rule
-        // sees `gnoland/gno` repo name and wins.
-        expect(classify({ repo: "gnoland/gno", title: "feat: core consensus tweak" })).toBe("gnovm")
+        // 'consensus' matches before 'gnocore' due to rule order.
+        expect(classify({ repo: "gnoland/gno", title: "feat: core consensus tweak" })).toBe("consensus")
+    })
+    it("matches gnovm via conventional-commit prefix", () => {
+        expect(classify({ repo: "gnoland/gno", title: "feat(gnovm): add new opcode" })).toBe("gnovm")
+    })
+    it("matches realms via conventional-commit prefix", () => {
+        expect(classify({ repo: "gnoland/gno", title: "feat(gno.land): add blog realm" })).toBe("realms")
+    })
+    it("matches consensus via title keyword", () => {
+        expect(classify({ repo: "gnoland/gno", title: "fix: tendermint round step bug" })).toBe("consensus")
+    })
+    it("matches frontend via title keyword", () => {
+        expect(classify({ repo: "samouraiworld/memba", title: "feat: react component for chart" })).toBe("frontend")
+    })
+    it("matches testing via title keyword", () => {
+        expect(classify({ repo: "samouraiworld/memba", title: "chore: add vitest coverage" })).toBe("testing")
     })
 })
 
@@ -41,54 +55,47 @@ describe("computeFocusAreas", () => {
         expect(computeFocusAreas([])).toEqual([])
     })
 
-    it("returns top 5 pills sorted by count desc", () => {
+    it("returns top 6 pills sorted by count desc", () => {
         const signals = [
             ...Array(10).fill({ repo: "onbloc/adena-wallet", title: "x" }),       // wallet × 10
             ...Array(7).fill({ repo: "onbloc/gnoscan", title: "x" }),             // indexer × 7
-            ...Array(4).fill({ repo: "gnoland/gno", title: "x" }),                // gnovm × 4
+            ...Array(4).fill({ repo: "x/y", title: "feat(gnovm): update" }),      // gnovm × 4
             ...Array(3).fill({ repo: "x/y", title: "feat: docs typo fix" }),      // docs × 3
             ...Array(2).fill({ repo: "x/y", title: "feat: govdao proposal" }),    // governance × 2
             ...Array(1).fill({ repo: "x/y", title: "feat: nft listing" }),        // nft × 1
         ]
         const pills = computeFocusAreas(signals)
-        expect(pills.map(p => p.topic)).toEqual(["wallet", "indexer", "gnovm", "docs", "governance"])
+        expect(pills.map(p => p.topic)).toEqual(["wallet", "indexer", "gnovm", "docs", "governance", "nft"])
         expect(pills[0].count).toBe(10)
         expect(pills[0].share).toBeCloseTo(10 / 27)
     })
 
-    it("hides 'other' below the 5% threshold", () => {
+    it("never shows 'other' regardless of share", () => {
         const signals = [
-            ...Array(20).fill({ repo: "onbloc/adena-wallet", title: "x" }),  // wallet
-            { repo: "totally/unknown", title: "feat: weird" },                // other × 1 → 1/21 ≈ 4.7%
+            ...Array(5).fill({ repo: "onbloc/adena-wallet", title: "x" }),
+            ...Array(5).fill({ repo: "totally/unknown", title: "zzz" }),
         ]
         const pills = computeFocusAreas(signals)
         expect(pills.find(p => p.topic === "other")).toBeUndefined()
     })
 
-    it("keeps 'other' above the 5% threshold", () => {
-        const signals = [
-            ...Array(10).fill({ repo: "onbloc/adena-wallet", title: "x" }),       // wallet × 10
-            ...Array(2).fill({ repo: "totally/unknown", title: "x" }),            // other × 2 → 2/12 ≈ 16.7%
-        ]
-        const pills = computeFocusAreas(signals)
-        expect(pills.find(p => p.topic === "other")?.count).toBe(2)
-    })
-
-    it("populates a share that sums to 1 across all classified signals", () => {
+    it("populates correct share values relative to total signal count", () => {
         const signals = [
             ...Array(3).fill({ repo: "onbloc/adena-wallet", title: "x" }),
-            ...Array(2).fill({ repo: "gnoland/gno", title: "x" }),
+            ...Array(2).fill({ repo: "x/y", title: "feat(gnovm): fix" }),
         ]
         const pills = computeFocusAreas(signals)
-        const total = pills.reduce((s, p) => s + p.share, 0)
-        expect(total).toBeCloseTo(1)
+        expect(pills).toHaveLength(2)
+        expect(pills[0].share).toBeCloseTo(3 / 5)
+        expect(pills[1].share).toBeCloseTo(2 / 5)
     })
 })
 
 describe("FOCUS_TOPIC_LABELS", () => {
     it("has a label for every defined topic", () => {
-        const topics = ["gnovm", "gnocore", "gnosdk", "gnops", "security", "devx", "docs",
-            "wallet", "indexer", "governance", "dex", "nft", "messaging", "ibc", "ai", "zk", "other"] as const
+        const topics = ["gnovm", "consensus", "gnocore", "realms", "gnosdk", "gnops", "security",
+            "devx", "frontend", "testing", "docs", "wallet", "indexer", "governance", "dex",
+            "nft", "messaging", "ibc", "ai", "zk", "other"] as const
         for (const t of topics) {
             expect(FOCUS_TOPIC_LABELS[t]).toBeTruthy()
         }
@@ -107,10 +114,9 @@ describe("computeFocusAreas with explicit rules", () => {
         expect(pills[0].topic).toBe("weird-stuff")
     })
 
-    it("returns 'other' when no caller rule matches", () => {
+    it("returns empty when no caller rule matches (other is always hidden)", () => {
         const rules = [{ topic: "noop", patterns: [/^never-matches-this-input$/] }]
         const pills = computeFocusAreas(
-            // Three signals so 'other' clears the 5% threshold.
             [
                 { repo: "x", title: "a" },
                 { repo: "y", title: "b" },
@@ -118,7 +124,7 @@ describe("computeFocusAreas with explicit rules", () => {
             ],
             rules,
         )
-        expect(pills.find(p => p.topic === OTHER_SLUG)?.count).toBe(3)
+        expect(pills).toEqual([])
     })
 })
 

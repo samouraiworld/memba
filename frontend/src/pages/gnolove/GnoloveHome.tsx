@@ -31,6 +31,8 @@ import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
 import { formatRelativeTime, isStale } from "../../lib/gnoloveTime"
+import { RepoBadge } from "../../components/gnolove/RepoBadge"
+import { isCorerepo } from "../../lib/gnoloveRepo"
 
 const PAGE_SIZE = 25
 
@@ -331,7 +333,13 @@ export default function GnoloveHome() {
                                         Clear
                                     </button>
                                 </div>
-                                {repos.map(repo => {
+                                {repos.slice().sort((a, b) => {
+                                    const aCore = isCorerepo(`${a.owner}/${a.name}`)
+                                    const bCore = isCorerepo(`${b.owner}/${b.name}`)
+                                    if (aCore && !bCore) return -1
+                                    if (!aCore && bCore) return 1
+                                    return 0
+                                }).map(repo => {
                                     const key = `${repo.owner}/${repo.name}`
                                     const checked = selectedRepos.includes(key)
                                     return (
@@ -347,6 +355,7 @@ export default function GnoloveHome() {
                                                 }}
                                             />
                                             <span>{key}</span>
+                                            <RepoBadge repo={key} />
                                         </label>
                                     )
                                 })}
