@@ -103,6 +103,7 @@ export function TeamHub() {
                     isError={teamStatsQuery.isError}
                     onRetry={() => teamStatsQuery.refetch()}
                     teamMemberCount={team.members.length}
+                    teamMembers={team.members}
                 />
             </GnoloveErrorBoundary>
 

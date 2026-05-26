@@ -97,7 +97,8 @@ export default function GnoloveHome() {
     const teamStats = useMemo(() => {
         if (!contributors?.users) return []
         return TEAMS.map(team => {
-            const members = contributors.users.filter(u => team.members.includes(u.login))
+            const lowerMembers = new Set(team.members.map(m => m.toLowerCase()))
+            const members = contributors.users.filter(u => lowerMembers.has(u.login.toLowerCase()))
             const totalScore = members.reduce((s, m) => s + (m.score ?? 0), 0)
             const totalPrs = members.reduce((s, m) => s + (m.TotalPrs ?? 0), 0)
             const totalCommits = members.reduce((s, m) => s + (m.TotalCommits ?? 0), 0)
@@ -110,7 +111,7 @@ export default function GnoloveHome() {
         const map = new Map<string, Team>()
         for (const team of TEAMS) {
             for (const login of team.members) {
-                map.set(login, team)
+                map.set(login.toLowerCase(), team)
             }
         }
         return map
@@ -515,7 +516,7 @@ function SortHeader({ label, field, current, dir, onClick }: {
 function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithStats; rank: number; loginToTeam: Map<string, Team> }) {
     const np = useNetworkPath()
     const rankBadge = rank === 1 ? "\uD83E\uDD47" : rank === 2 ? "\uD83E\uDD48" : rank === 3 ? "\uD83E\uDD49" : `${rank}`
-    const team = loginToTeam.get(user.login)
+    const team = loginToTeam.get(user.login.toLowerCase())
 
     return (
         <tr className="gl-contributor-row">
