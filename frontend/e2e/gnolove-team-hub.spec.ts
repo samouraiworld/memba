@@ -1,35 +1,28 @@
 import { test, expect } from "@playwright/test"
 
 /**
- * Gnolove Team Hub canary — Phase 6.
+ * Gnolove Team Hub canary.
  *
- * Smoke tests that the flag-gated `/gnolove/teams/:slug` page renders
- * end-to-end against the live gnolove backend, and that the period
- * selector / URL-state contract holds. The `useGnoloveBackendHealth`
- * auto-degrade fall-through is covered by the unit test next to the
- * hook (`useGnoloveBackendHealth.test.tsx`) — replaying it in
- * Playwright would need 15s+ of probe-interval waits that buy us
- * nothing additional.
+ * Smoke tests that `/gnolove/teams/:slug` renders end-to-end against
+ * the live gnolove backend, and that the period selector / URL-state
+ * contract holds. Backend health auto-degrade is covered by the unit
+ * test next to `useGnoloveBackendHealth`.
  *
  * Data source: backend.gnolove.world (the live prod backend). Tests
- * are written to tolerate a backend hiccup with a soft skip rather
- * than failing the suite — the canary's job is to surface frontend
- * regressions, not to alarm on every transient 502.
+ * tolerate a backend hiccup with a soft skip rather than failing the
+ * suite — the canary's job is to surface frontend regressions, not
+ * to alarm on every transient 502.
  */
 
 const TEAM_SLUG = "samouraiworld"
 const HUB_PATH = `/gnoland1/gnolove/teams/${TEAM_SLUG}`
 const ANALYTICS_PATH = "/gnoland1/gnolove/analytics"
 
-test.describe("Gnolove Team Hub canary (Phase 6)", () => {
+test.describe("Gnolove Team Hub canary", () => {
     test("hub renders for a known team", async ({ page }) => {
         await page.goto(HUB_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
 
-        // If the hub flag is off the page renders the legacy stub, which
-        // also satisfies the "page didn't crash" canary — but we want to
-        // assert the new markup specifically. Surface a soft-fail if the
-        // stub renders so the operator notices the flag drift.
         const hub = page.locator(".gl-thub-page")
         await expect(hub).toBeVisible({ timeout: 10_000 })
 
@@ -80,7 +73,7 @@ test.describe("Gnolove Team Hub canary (Phase 6)", () => {
     })
 })
 
-test.describe("Gnolove Analytics canary (Phase 6)", () => {
+test.describe("Gnolove Analytics canary", () => {
     test("period tablist + URL state", async ({ page }) => {
         await page.goto(ANALYTICS_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})

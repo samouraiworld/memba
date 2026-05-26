@@ -272,10 +272,14 @@ export default function GnoloveHome() {
                                     <span className="gl-team-compact-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
                                         {team.name}
                                     </span>
-                                    {teamAwards.get(team.slug)?.map(award => (
-                                        <span key={award} className="gl-team-award">{award}</span>
-                                    ))}
                                 </div>
+                                {teamAwards.has(team.slug) && (
+                                    <div className="gl-team-award-row">
+                                        {teamAwards.get(team.slug)!.map(award => (
+                                            <span key={award} className="gl-team-award">{award}</span>
+                                        ))}
+                                    </div>
+                                )}
                                 {team.description && (
                                     <span className="gl-team-compact-desc">{team.description}</span>
                                 )}
