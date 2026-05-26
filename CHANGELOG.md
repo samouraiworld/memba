@@ -4,7 +4,34 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased — v6.2.3 (Gnolove analytics rework — final 2 panels + Phase 6 canary)
+## Unreleased — v6.3.0 (Gnolove UX overhaul — topic classifier, mobile, awards, profiles)
+
+> Major Gnolove UX session (2026-05-25 / 2026-05-26): 10 PRs merged (#351–#360), covering architecture refactoring, accessibility, design tokens, test coverage, product trust, topic classifier precision, mobile PWA, team awards, and team profile enrichment. Phase 7 (drop legacy flag) still pending.
+
+### Added — PRs #351–#360
+
+- **Architecture refactor (#351).** God-components split: `gnoloveAnalytics.ts`, `gnoloveReportFilters.ts`, `NarrativeReportView` extracted. Error boundaries unified.
+- **Accessibility AAA (#352).** `useFocusTrap` + `AccessibleDialog`, SortHeader aria, touch targets (44px min), chart aria-labels, aria-live regions.
+- **UX polish + design tokens (#353).** Dead CSS cleanup, light-theme chart tokens, methodology text in collapsible `<details>`.
+- **Product trust + shareability (#354).** `og:url`/`og:image` PageMeta, relative-time sync pills with stale warnings, AI report deep-link support, improved "Team not found" empty state.
+- **Test coverage (#355).** `gnoloveTime.test.ts`, `gnoloveAnalytics.test.ts`, `gnoloveReportFilters.test.ts`, `TeamHub.test.tsx`.
+- **Reliability foundation (#356).** Fixed `/health` endpoint handling, null-array Zod parse, backend-down banner.
+- **Focus areas rework + repo badges + team report card + custom dates (#357).** Kill "Other" bucket (4 new topics: consensus, realms, frontend, testing), conventional-commit prefix matching, `gnolang/gno` "core" badge, team report card on hub pages, "Custom" date range with from/to pickers, new 480px mobile breakpoint.
+- **Roster popover + team ordering (#358).** Clickable roster metric, case-insensitive login matching, Samouraiworld description update.
+- **Topic classifier precision (#359).** 30+ new regex patterns reduce "Other" from 35% to 7.5%. Synced with gnolove backend `topics.yaml` (gnolove#225).
+- **Mobile UX + team awards + team profiles (#360).** Dead burger menu hidden, `overflow-x: hidden` on `.gl-page`, 375px iPhone SE breakpoint. Data-driven award badges (Top Contributors, Top Reviewers, Most Efficient). Team logos (GitHub org avatars), websites, and verified Twitter handles on Teams page + team hub headers.
+
+### gnolove backend (gnolove#224, #225)
+- Samouraiworld description synced, `onbloc/gno-ibc` added to tracked repos.
+- `topics.yaml` expanded with 30+ patterns matching the frontend classifier.
+
+### Pending
+- **Phase 7** — drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag. Overdue (gate was 2026-05-23). Safe to execute next session.
+- **VPS env update** — add `onbloc/gno-ibc/main` to `GITHUB_REPOSITORIES` on VPS (Lours has SSH access).
+
+---
+
+## v6.2.3 (Gnolove analytics rework — final 2 panels + Phase 6 canary)
 
 > Last beats of the team-hub rework. Plan §2's analytics promise is now fully delivered: 5 of 5 panels rendering against real data, with end-to-end canary coverage. Only Phase 7 (drop the legacy stub + the `VITE_GNOLOVE_TEAM_HUB` flag) remains, and that's intentionally gated on a few days of clean prod uptime.
 
