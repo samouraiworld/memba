@@ -21,7 +21,8 @@
 import { useCallback, useEffect, useState } from "react"
 import type { TAIReport, TAIReportProject } from "../../lib/gnoloveSchemas"
 import { AccessibleDialog } from "../AccessibleDialog"
-import { RepoBadge, sortReposWithCorePinned } from "./RepoBadge"
+import { RepoBadge } from "./RepoBadge"
+import { sortReposWithCorePinned } from "../../lib/gnoloveRepo"
 
 const MOBILE_BREAKPOINT_PX = 768
 

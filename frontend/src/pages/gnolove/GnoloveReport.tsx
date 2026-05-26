@@ -37,7 +37,8 @@ import { filterPrs } from "../../lib/gnoloveReportFilters"
 import { NarrativeReportView } from "../../components/gnolove/report/NarrativeReportView"
 import { EmptyStateMessage } from "../../components/gnolove/report/EmptyStateMessage"
 import type { EmptyReason } from "../../components/gnolove/report/types"
-import { RepoBadge, isCorerepo } from "../../components/gnolove/RepoBadge"
+import { RepoBadge } from "../../components/gnolove/RepoBadge"
+import { isCorerepo } from "../../lib/gnoloveRepo"
 
 const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     weekly: "Weekly",

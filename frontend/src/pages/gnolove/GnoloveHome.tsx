@@ -31,7 +31,8 @@ import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
 import { formatRelativeTime, isStale } from "../../lib/gnoloveTime"
-import { RepoBadge, isCorerepo } from "../../components/gnolove/RepoBadge"
+import { RepoBadge } from "../../components/gnolove/RepoBadge"
+import { isCorerepo } from "../../lib/gnoloveRepo"
 
 const PAGE_SIZE = 25
 

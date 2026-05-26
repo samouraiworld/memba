@@ -10,7 +10,8 @@
  */
 
 import type { TActiveReposResponse, TActiveRepo } from "../../../lib/gnoloveSchemas"
-import { RepoBadge, sortReposWithCorePinned } from "../RepoBadge"
+import { RepoBadge } from "../RepoBadge"
+import { sortReposWithCorePinned } from "../../../lib/gnoloveRepo"
 
 interface Props {
     data: TActiveReposResponse | null | undefined
