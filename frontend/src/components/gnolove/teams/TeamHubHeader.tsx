@@ -60,8 +60,34 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
 
             <div className="gl-thub-header-body">
                 <div>
-                    <h1 className="gl-title" style={{ color: stripeColor, marginBottom: 4 }}>{team.name}</h1>
-                    {team.description && <p className="gl-team-profile-desc">{team.description}</p>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {team.logoUrl && (
+                            <img
+                                src={`${team.logoUrl}?s=64`}
+                                alt=""
+                                className="gl-thub-team-logo"
+                                loading="lazy"
+                                width={32}
+                                height={32}
+                            />
+                        )}
+                        <h1 className="gl-title" style={{ color: stripeColor, marginBottom: 0 }}>{team.name}</h1>
+                    </div>
+                    {team.description && <p className="gl-team-profile-desc" style={{ marginTop: 4 }}>{team.description}</p>}
+                    {(team.website || team.twitter) && (
+                        <div className="gl-thub-team-socials">
+                            {team.website && (
+                                <a href={team.website} target="_blank" rel="noopener noreferrer" className="gl-thub-team-social-link">
+                                    {team.website.replace(/^https?:\/\//, "")}
+                                </a>
+                            )}
+                            {team.twitter && (
+                                <a href={`https://x.com/${team.twitter}`} target="_blank" rel="noopener noreferrer" className="gl-thub-team-social-link">
+                                    @{team.twitter}
+                                </a>
+                            )}
+                        </div>
+                    )}
                 </div>
                 <div className="gl-thub-period">
                     <span className="gl-thub-period-label" id="gl-thub-period-label">Period</span>

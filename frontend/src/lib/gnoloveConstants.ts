@@ -19,6 +19,8 @@ export interface Team {
     members: string[]
     description?: string
     logoUrl?: string
+    website?: string
+    twitter?: string
 }
 
 /**
@@ -40,6 +42,9 @@ export const TEAMS: Team[] = [
         name: "Core Team",
         color: "blue",
         description: "Gno core protocol engineers building the chain, VM, and standard libraries.",
+        logoUrl: "https://avatars.githubusercontent.com/u/50029748",
+        website: "https://gno.land",
+        twitter: "gnolang_",
         members: [
             "sw360cab", "jaekwon", "ajnavarro", "gfanton", "ltzmaxwell",
             "zivkovicmilos", "thehowl", "piux2", "petar-dambovaliev", "mvertes",
@@ -51,6 +56,9 @@ export const TEAMS: Team[] = [
         name: "All in Bits",
         color: "yellow",
         description: "AiB team contributing to Gno ecosystem tooling and infrastructure.",
+        logoUrl: "https://avatars.githubusercontent.com/u/21206845",
+        website: "https://allinbits.com",
+        twitter: "Allinbits_inc",
         members: ["albttx", "alexiscolin", "tbruyelle", "leohhhn", "n2p5", "michelleellen"],
     },
     {
@@ -58,8 +66,9 @@ export const TEAMS: Team[] = [
         name: "Onbloc",
         color: "purple",
         description: "Building GnoSwap DEX, Adena wallet, and GnoScan explorer.",
-        // Roster fix landed via teams.yaml (Phase 1): dongwon8247 (was dongonw8247),
-        // plus aronpark1007, HeesungB, junghoon-vans, gihun508443.
+        logoUrl: "https://avatars.githubusercontent.com/u/89903882",
+        website: "https://onbloc.xyz",
+        twitter: "onblocxyz",
         members: [
             "notJoon", "r3v4s", "adr-sk", "jinoosss",
             "dongwon8247", "aronpark1007", "HeesungB", "junghoon-vans", "gihun508443",
@@ -70,6 +79,9 @@ export const TEAMS: Team[] = [
         name: "VarMeta",
         color: "yellow",
         description: "Vietnam-based team contributing to Gno core and tooling.",
+        logoUrl: "https://avatars.githubusercontent.com/u/87471684",
+        website: "https://varmeta.co",
+        twitter: "var_meta",
         members: ["linhpn99", "thinhnx-var", "AnhVAR"],
     },
     {
@@ -77,6 +89,9 @@ export const TEAMS: Team[] = [
         name: "Samourai.world",
         color: "red",
         description: "Core contributors for +4 years and building ecosystem tools, dev tools, dApps for engineers and general public.",
+        logoUrl: "https://avatars.githubusercontent.com/u/71438920",
+        website: "https://samourai.world",
+        twitter: "samouraicoop",
         members: [
             "n0izn0iz", "omarsy", "Villaquiranm", "hthieu1110",
             "mvallenet", "WaDadidou", "dtczelo", "naim-ea",
@@ -89,6 +104,9 @@ export const TEAMS: Team[] = [
         name: "Berty",
         color: "green",
         description: "Decentralized messaging protocol team contributing to Gno networking.",
+        logoUrl: "https://avatars.githubusercontent.com/u/22157871",
+        website: "https://berty.tech",
+        twitter: "berty",
         members: ["jefft0", "D4ryl00", "iuricmp"],
     },
     {
@@ -96,6 +114,7 @@ export const TEAMS: Team[] = [
         name: "DevX",
         color: "brown",
         description: "Developer experience team improving Gno SDK and toolchain.",
+        logoUrl: "https://avatars.githubusercontent.com/u/50029748",
         members: ["ilgooz", "jeronimoalbi", "salmad3"],
     },
     {
@@ -103,6 +122,8 @@ export const TEAMS: Team[] = [
         name: "Grants",
         color: "pink",
         description: "Independent contributors funded through the Gno grants program.",
+        logoUrl: "https://avatars.githubusercontent.com/u/50029748",
+        website: "https://gno.land/grants",
         members: [
             "NicolasMelet", "Chaegnal", "paulogarithm", "louonezime",
             "Milosevic02", "Tchips46", "matijamarjanovic", "odeke-em",

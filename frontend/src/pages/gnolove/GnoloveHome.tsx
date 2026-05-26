@@ -102,9 +102,29 @@ export default function GnoloveHome() {
             const totalScore = members.reduce((s, m) => s + (m.score ?? 0), 0)
             const totalPrs = members.reduce((s, m) => s + (m.TotalPrs ?? 0), 0)
             const totalCommits = members.reduce((s, m) => s + (m.TotalCommits ?? 0), 0)
-            return { ...team, memberCount: members.length, totalScore, totalPrs, totalCommits }
+            const totalReviews = members.reduce((s, m) => s + (m.TotalReviewedPullRequests ?? 0), 0)
+            const prsPerMember = members.length > 0 ? totalPrs / members.length : 0
+            return { ...team, memberCount: members.length, totalScore, totalPrs, totalCommits, totalReviews, prsPerMember }
         }).filter(t => t.memberCount > 0).sort((a, b) => b.totalScore - a.totalScore)
     }, [contributors])
+
+    const teamAwards = useMemo(() => {
+        if (teamStats.length < 2) return new Map<string, string[]>()
+        const awards = new Map<string, string[]>()
+        const add = (slug: string, award: string) => {
+            const existing = awards.get(slug) ?? []
+            existing.push(award)
+            awards.set(slug, existing)
+        }
+        const topPrs = [...teamStats].sort((a, b) => b.totalPrs - a.totalPrs)[0]
+        const topReviews = [...teamStats].sort((a, b) => b.totalReviews - a.totalReviews)[0]
+        const topEfficiency = [...teamStats].sort((a, b) => b.prsPerMember - a.prsPerMember)[0]
+        if (topPrs.totalPrs > 0) add(topPrs.slug, "Top Contributors")
+        if (topReviews.totalReviews > 0) add(topReviews.slug, "Top Reviewers")
+        if (topEfficiency.prsPerMember > 0 && topEfficiency.slug !== topPrs.slug)
+            add(topEfficiency.slug, "Most Efficient")
+        return awards
+    }, [teamStats])
 
     // Precompute login → team lookup (O(1) per row instead of O(n*m))
     const loginToTeam = useMemo(() => {
@@ -252,6 +272,9 @@ export default function GnoloveHome() {
                                     <span className="gl-team-compact-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
                                         {team.name}
                                     </span>
+                                    {teamAwards.get(team.slug)?.map(award => (
+                                        <span key={award} className="gl-team-award">{award}</span>
+                                    ))}
                                 </div>
                                 {team.description && (
                                     <span className="gl-team-compact-desc">{team.description}</span>
@@ -259,6 +282,7 @@ export default function GnoloveHome() {
                                 <div className="gl-team-compact-stats">
                                     <span>{team.totalScore} pts</span>
                                     <span>{team.totalPrs} PRs</span>
+                                    <span>{team.totalReviews} reviews</span>
                                     <span>{team.memberCount} members</span>
                                 </div>
                             </Link>

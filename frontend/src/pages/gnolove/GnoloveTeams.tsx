@@ -49,6 +49,16 @@ export default function GnoloveTeams() {
                     >
                         <div className="gl-teams-panel-header">
                             <div className="gl-teams-panel-title">
+                                {team.logoUrl && (
+                                    <img
+                                        src={`${team.logoUrl}?s=40`}
+                                        alt=""
+                                        className="gl-teams-panel-logo"
+                                        loading="lazy"
+                                        width={20}
+                                        height={20}
+                                    />
+                                )}
                                 <span
                                     style={{ color: TEAM_CSS_COLORS[team.color], fontSize: 16, fontWeight: 600 }}
                                 >
@@ -63,6 +73,20 @@ export default function GnoloveTeams() {
                             <p className="gl-team-profile-desc" style={{ margin: "8px 0 0" }}>
                                 {team.description}
                             </p>
+                        )}
+                        {(team.website || team.twitter) && (
+                            <div className="gl-teams-panel-socials">
+                                {team.website && (
+                                    <span className="gl-teams-panel-social" title={team.website}>
+                                        {team.website.replace(/^https?:\/\//, "")}
+                                    </span>
+                                )}
+                                {team.twitter && (
+                                    <span className="gl-teams-panel-social" title={`@${team.twitter}`}>
+                                        @{team.twitter}
+                                    </span>
+                                )}
+                            </div>
                         )}
                     </Link>
                 ))}
