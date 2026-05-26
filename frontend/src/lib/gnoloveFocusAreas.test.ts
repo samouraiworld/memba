@@ -45,8 +45,38 @@ describe("classify", () => {
     it("matches frontend via title keyword", () => {
         expect(classify({ repo: "samouraiworld/memba", title: "feat: react component for chart" })).toBe("frontend")
     })
+    it("matches frontend via gnoweb scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "feat(gnoweb): add beta banner" })).toBe("frontend")
+    })
     it("matches testing via title keyword", () => {
         expect(classify({ repo: "samouraiworld/memba", title: "chore: add vitest coverage" })).toBe("testing")
+    })
+    it("matches gnocore via gnogenesis scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "feat(gnogenesis/fork): orthogonal txs / genesis source flags" })).toBe("gnocore")
+    })
+    it("matches gnocore via gnoland scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "feat(gnoland): chain hardfork mechanism v3" })).toBe("gnocore")
+    })
+    it("matches gnocore via amino keyword", () => {
+        expect(classify({ repo: "gnolang/gno", title: "fix(amino): return error instead of panic" })).toBe("gnocore")
+    })
+    it("matches consensus via validator keyword", () => {
+        expect(classify({ repo: "gnolang/gno", title: "fix(valopers): reject signing key rotation" })).toBe("consensus")
+    })
+    it("matches realms via boards2 scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "chore(boards2): escape thread titles" })).toBe("realms")
+    })
+    it("matches gnops via faucet keyword", () => {
+        expect(classify({ repo: "gnolang/gno", title: "fix(faucet): avoid IP spoofing" })).toBe("gnops")
+    })
+    it("matches gnops via github-bot scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "chore(github-bot): Add user to team" })).toBe("gnops")
+    })
+    it("matches devx via gnodev keyword", () => {
+        expect(classify({ repo: "gnolang/gno", title: "fix(gnodev): rewrite lazy loading proxy" })).toBe("devx")
+    })
+    it("matches gnovm via gnolang scope", () => {
+        expect(classify({ repo: "gnolang/gno", title: "fix(gnolang): preprocess hardening" })).toBe("gnovm")
     })
 })
 
