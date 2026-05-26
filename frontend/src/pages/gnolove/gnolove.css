@@ -2738,6 +2738,68 @@
     color: var(--color-k-dim, #888);
 }
 
+.gl-thub-metric--roster {
+    position: relative;
+}
+.gl-thub-roster-toggle {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+.gl-thub-roster-toggle:hover .gl-thub-metric-label,
+.gl-thub-roster-toggle:focus-visible .gl-thub-metric-label {
+    color: var(--color-k-text, #eee);
+}
+.gl-thub-roster-toggle:focus-visible {
+    outline: 2px solid var(--color-link, #4a9eff);
+    outline-offset: 4px;
+    border-radius: 6px;
+}
+.gl-thub-roster-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    background: var(--color-k-card-bg, #1e1e1e);
+    border: 1px solid var(--color-k-border, #333);
+    border-radius: 8px;
+    padding: 12px 16px;
+    min-width: 180px;
+    max-width: 260px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.gl-thub-roster-heading {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-k-dim, #888);
+    margin: 0 0 8px;
+}
+.gl-thub-roster-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.gl-thub-roster-list li a {
+    font-size: 13px;
+    color: var(--color-link, #4a9eff);
+    text-decoration: none;
+}
+.gl-thub-roster-list li a:hover {
+    text-decoration: underline;
+}
+
 .gl-thub-metric-skel {
     background: transparent;
 }
@@ -3958,6 +4020,30 @@
     .gl-thub-metric-label {
         order: 1;
         font-size: 12px;
+    }
+
+    /* Roster toggle: match row layout at 480px */
+    .gl-thub-roster-toggle {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .gl-thub-roster-toggle .gl-thub-metric-value {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .gl-thub-roster-toggle .gl-thub-metric-label {
+        order: 1;
+    }
+
+    .gl-thub-roster-popover {
+        left: 0;
+        transform: none;
+        right: 0;
+        max-width: none;
     }
 
     /* Period selector pills: horizontal scroll */

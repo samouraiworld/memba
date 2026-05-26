@@ -76,7 +76,7 @@ export const TEAMS: Team[] = [
         slug: "samouraiworld",
         name: "Samourai.world",
         color: "red",
-        description: "Building Memba, gnolove, gnomonitoring, and ecosystem dApps.",
+        description: "Core contributors for +4 years and building ecosystem tools, dev tools, dApps for engineers and general public.",
         members: [
             "n0izn0iz", "omarsy", "Villaquiranm", "hthieu1110",
             "mvallenet", "WaDadidou", "dtczelo", "naim-ea",
