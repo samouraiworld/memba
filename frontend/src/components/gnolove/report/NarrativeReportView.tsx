@@ -78,8 +78,9 @@ export function NarrativeReportView({
             case "monthly":  return format(start, "yyyy-MM")
             case "yearly":   return format(start, "yyyy")
             case "all_time": return "all-time"
+            case "custom":   return `${format(start, "yyyy-MM-dd")}_${format(end, "yyyy-MM-dd")}`
         }
-    }, [period, start])
+    }, [period, start, end])
 
     const teamLabel = selectedTeam === "all" ? "All contributors" : selectedTeam
     const periodHeader = useMemo(() => {
@@ -92,6 +93,8 @@ export function NarrativeReportView({
                 return `Annual Report — ${format(start, "yyyy")} : ${teamLabel}`
             case "all_time":
                 return `All Time Report : ${teamLabel}`
+            case "custom":
+                return `From ${format(start, "dd/MM/yyyy")} to ${format(end, "dd/MM/yyyy")} : ${teamLabel}`
         }
     }, [period, start, end, teamLabel])
 

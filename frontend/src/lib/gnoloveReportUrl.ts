@@ -205,6 +205,7 @@ export function nextAtForPeriodSwitch(
         case "weekly":  return weekKeyFromDate(end)
         case "monthly": return monthKeyFromDate(end)
         case "yearly":  return yearKeyFromDate(end)
+        case "custom":  return null
     }
 }
 
