@@ -11,7 +11,7 @@ Every new session must begin with these steps, in order:
 
 ```
 [ ] 1. Read this file (SESSION_CONVENTIONS.md)
-[ ] 2. Read docs/planning/MASTER_ROADMAP.md for current milestone status
+[ ] 2. Read ROADMAP.md for current milestone status
 [ ] 3. Read the HANDOFF.md of the current milestone (docs/planning/milestones/v2.0-<phase>/)
 [ ] 4. git pull origin main && git status
 [ ] 5. cd frontend && npm test (verify baseline)

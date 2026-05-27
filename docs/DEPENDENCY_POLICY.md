@@ -3,7 +3,7 @@
 > **Owner**: zxxma (sole maintainer at v7.1)
 > **Last updated**: 2026-05-11 (initial publication; PR0b of the v7.1 program)
 > **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
-> **Audit trail**: see `docs/planning/MEMBA_V7_1_*` for the threat model that motivated this policy.
+> **Audit trail**: see `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` (live plan) and `docs/planning/archive/v7.1-phase0/` (Phase 0 expert reviews) for the threat model that motivated this policy.
 
 ---
 
