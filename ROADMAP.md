@@ -5,22 +5,22 @@
 
 ---
 
-## Current Status (2026-05-11)
+## Current Status (2026-05-27)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v6.0.3 (Phase 0 of v7.1 — CI unblock, AUTH-CHAINID-01, audit-clean) |
-| **Shipped Versions** | 48+ (v0.1.0 → v6.0.3) |
-| **Test Suite** | 1,659 frontend + 14 auth + Go fuzz target + Gno realm tests + 175 Playwright E2E |
+| **Latest Release** | v6.3.1 (Gnolove UX overhaul + post-v6.3.0 cleanup; GitHub release tag pending Tag Protection bypass-actor) |
+| **Shipped Versions** | 50+ (v0.1.0 → v6.3.1) |
+| **Test Suite** | 96 Vitest files (~1,843 assertions) + 14 Go auth cases + `FuzzMakeADR36SignDoc` + Gno realm tests + 20 Playwright E2E specs (175 sub-specs across runs) |
 | **Coverage** | Frontend 56% statements, Backend 22% (CI-enforced thresholds; aggregate bump → Phase 4) |
-| **Networks** | test12 (default), gnoland1 (transfer-locked, betanet activation in Phase 5) |
+| **Networks** | test12 (default), gnoland1 (live, transfer-locked — betanet activation in Phase 5) |
 | **Architecture** | Go 1.25.10 + ConnectRPC backend (Fly rolling deploys + GHCR mirror), React 19 + Vite frontend (Netlify), SQLite, OpenRouter AI |
-| **Security** | 14 advisories closed in Phase 0 (4 Go stdlib + 6 Clerk + 4 dompurify); 1 own advisory filed (MEMBA-2026-001 AUTH-CHAINID-01) |
-| **On-Chain** | 9 realm codebases, AVL-based templates, paginated Render() |
+| **Security** | 14 Phase 0 advisories + 78 v6.3.x Dependabot alerts (42 + 20 + 16) closed; 1 own advisory filed (MEMBA-2026-001 AUTH-CHAINID-01); 0 open alerts |
+| **On-Chain** | 9 realm codebases on test12 (3 with known ACL gaps awaiting samcrew-deployer fix-branch merge); AVL-based templates; paginated Render() |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721) |
-| **Active program** | v7.1 — Phase 0 ✅ complete (signoff: `docs/reports/v7.1-phase0-signoff.md`); Phases 1-6 pending operator go-ahead |
-| **Next Priority** | Phase 1: samcrew-deployer push + gnodaokit + AUTH-SESSION-REJECT-01 + Custody spec + CODEOWNERS audit |
+| **Active program** | v7.1 — Phase 0 ✅ complete; Phase 1 in progress (stale-doc refresh #335 done; AUTH-SESSION-REJECT-01 + Custody + chainHealth + cross-repo audits pending) |
+| **Next Priority** | Phase 1 restart: AUTH-SESSION-REJECT-01, samcrew-deployer fix-branch PR + deploy, gnodaokit#63/#62 merge, Custody section, CODEOWNERS audit |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 

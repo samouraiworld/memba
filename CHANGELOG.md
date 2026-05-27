@@ -4,9 +4,37 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased — v6.3.0 (Gnolove UX overhaul — topic classifier, mobile, awards, profiles)
+## v6.3.1 — Post-v6.3.0 cleanup (2026-05-26 / 2026-05-27)
 
-> Major Gnolove UX session (2026-05-25 / 2026-05-26): 10 PRs merged (#351–#360), covering architecture refactoring, accessibility, design tokens, test coverage, product trust, topic classifier precision, mobile PWA, team awards, and team profile enrichment. Phase 7 (drop legacy flag) still pending.
+> Trailing wave that closed Phase 7, knocked out the remaining dependency-vuln backlog, hardened the team-logo merge seed, fixed mobile overflow, and reorganized `docs/planning/`. Merged via #361–#368 across two days.
+
+### Phase 7 — drop legacy team profile + flag (#362)
+- `GnoloveTeamProfileLegacy` removed end-to-end (component, imports, route guards).
+- `VITE_GNOLOVE_TEAM_HUB` feature flag deleted from `.env.development`, `.env.example`, `frontend/src/config.ts`, and the `e2e/gnolove-team-hub.spec.ts` flag-gated branches.
+
+### Security — vuln backlog cleared
+- **#363** — fixed all high + moderate frontend vulnerabilities (42 alerts) via direct dep bumps + targeted overrides.
+- **#365** — fixed 20 pnpm workspace vulnerabilities via root `overrides` and `workspace:*` mcp-server-dao-analyst dep wiring (`fast-uri >=3.1.2`, `hono >=4.12.18`, `@hono/node-server >=1.19.13`, `qs >=6.15.2`, `ip-address >=10.1.1`, `vite >=7.3.2`, `postcss >=8.5.10`).
+- **#368** — removed orphan `mcp-server/package-lock.json` (npm v3 lockfile inside a pnpm workspace) that Dependabot kept rescanning despite the root overrides; closes the remaining 16 alerts in one move.
+
+### Reliability + UX
+- **#364** — team logo / website / Twitter handle no longer lost when the backend `teams.yaml` payload races the seed merge.
+- **#366** — gnolove mobile: prevent horizontal overflow on hero text, fix text sizing on iPhone SE 375px breakpoint.
+
+### Docs / repo hygiene
+- **#361** — finalize v6.3.0 changelog + handoff doc.
+- **#367** — archive 16 shipped planning docs into versioned `docs/planning/archive/` subdirs (history preserved via `git mv`); track 2 untracked gnolove session docs into `archive/v6.3-gnolove/`; drop stale next-session prompt; remove stray root `package-lock.json`; gitignore `.claude/`; fix 7 broken doc links exposed by the archive move.
+- Stale remote branch `docs/handoff-2026-05-19` (from closed PR #341) deleted from origin.
+
+### Pending (carry-forward to v7.1 Phase 1)
+- **VPS env update** — add `onbloc/gno-ibc/main` to `GITHUB_REPOSITORIES` on the gnolove VPS (Lours has SSH access).
+- **GitHub release** — publish a `v6.3.1` release tag from these notes (Tag Protection bypass-actor required).
+
+---
+
+## v6.3.0 — Gnolove UX overhaul (2026-05-25 / 2026-05-26)
+
+> Major Gnolove UX session: 10 PRs merged (#351–#360), covering architecture refactoring, accessibility, design tokens, test coverage, product trust, topic classifier precision, mobile PWA, team awards, and team profile enrichment.
 
 ### Added — PRs #351–#360
 
@@ -25,9 +53,7 @@ Full changelogs are split by version range for easier navigation:
 - Samouraiworld description synced, `onbloc/gno-ibc` added to tracked repos.
 - `topics.yaml` expanded with 30+ patterns matching the frontend classifier.
 
-### Pending
-- **Phase 7** — drop `GnoloveTeamProfileLegacy` + the `VITE_GNOLOVE_TEAM_HUB` flag. Overdue (gate was 2026-05-23). Safe to execute next session.
-- **VPS env update** — add `onbloc/gno-ibc/main` to `GITHUB_REPOSITORIES` on VPS (Lours has SSH access).
+> Phase 7 (drop legacy + flag) shipped 36 hours later in #362 (see v6.3.1 above).
 
 ---
 
