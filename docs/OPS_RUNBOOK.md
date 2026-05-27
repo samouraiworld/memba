@@ -2,7 +2,7 @@
 
 > **Scope**: day-to-day operational procedures, recurring tasks, and incident playbooks for `memba.samourai.app` (frontend) and `memba-backend.fly.dev` (backend).
 > **Owner**: zxxma (currently sole code owner — see v7.1 plan §1.8 for the planned reviewer-recruitment follow-up).
-> **Audit trail**: see `docs/planning/MEMBA_V7_1_*` for the rationale behind the procedures below.
+> **Audit trail**: see `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` (live plan) and `docs/planning/archive/v7.1-phase0/` (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
 
 ---
 

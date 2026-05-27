@@ -91,7 +91,7 @@ Shipped 2026-05-19 via memba#343. Highlights:
 
 ## Unreleased — v6.2.0 (Gnolove Team Hub Rework)
 
-> Makes `/:network/gnolove/teams/:teamName` the section's primary noun — team composition + active repos + scoped metrics + Focus Areas pills + embedded AI reports. Plan: [`docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md`](docs/planning/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md). Live in production behind `VITE_GNOLOVE_TEAM_HUB`, flipped on Netlify 2026-05-19.
+> Makes `/:network/gnolove/teams/:teamName` the section's primary noun — team composition + active repos + scoped metrics + Focus Areas pills + embedded AI reports. Plan: [`docs/planning/archive/v6.3-gnolove/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md`](docs/planning/archive/v6.3-gnolove/GNOLOVE_REWORK_TEAM_HUB_IMPLEMENTATION_PLAN.md). Live in production behind `VITE_GNOLOVE_TEAM_HUB`, flipped on Netlify 2026-05-19.
 
 ### Added
 - **Phase 0 (#337)** — `jsPDF` lazy import (~135 KB gz off first paint); `useGnoloveYearReport()` exported as the shared base query so derived hooks reuse the same cache; `SectionErrorBoundary` extracted; TEAMS uniqueness invariants locked in vitest; design-system token additions for PR-state + Recharts palette + heatmap ramp; MSW + fast-check + `@axe-core/playwright` added as dev deps.
@@ -180,9 +180,9 @@ Handoffs: [`docs/reports/handoff-team-hub-2026-05-18.md`](docs/reports/handoff-t
 - Tests: 1,759 vitest (1,659 baseline + 100 new) + 13 Playwright chromium
   specs (3 new for URL-state behavior).
 
-Plan: [`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md) (Rev1, ~1,750 lines).
+Plan: [`docs/planning/archive/v6.1-shareable-urls/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md`](docs/planning/archive/v6.1-shareable-urls/GNOLOVE_SHAREABLE_REPORT_URLS_PLAN.md) (Rev1, ~1,750 lines).
 Expert review (6 panels, immutable audit trail):
-[`docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md`](docs/planning/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md).
+[`docs/planning/archive/v6.1-shareable-urls/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md`](docs/planning/archive/v6.1-shareable-urls/GNOLOVE_SHAREABLE_REPORT_URLS_EXPERT_REVIEW.md).
 
 ---
 
@@ -346,7 +346,7 @@ Plan reference: `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` §4.
 - Gno lint now fails CI (removed `|| true`)
 
 ### Docs
-- `docs/planning/MEMBA_V6_IMPLEMENTATION_PLAN.md` — 32-expert audit, 108 issues catalogued
+- `docs/planning/archive/v6/MEMBA_V6_IMPLEMENTATION_PLAN.md` — 32-expert audit, 108 issues catalogued
 - `docs/SECRETS_ROTATION.md` — rotation procedures for all credentials
 - `docs/PROGRESSIVE_DECENTRALIZATION.md` — roadmap for reducing centralization
 
