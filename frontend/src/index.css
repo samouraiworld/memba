@@ -1263,7 +1263,7 @@ body {
   color: var(--color-k-muted, #555);
   font-size: 9px;
   font-family: 'JetBrains Mono', monospace;
-  max-width: 500px;
+  max-width: min(500px, calc(100vw - 32px));
   line-height: 1.4;
 }
 
@@ -1539,6 +1539,7 @@ body {
 
   .k-main-column {
     margin-left: 0 !important;
+    overflow-x: hidden;
   }
 
   .k-mobile-only {

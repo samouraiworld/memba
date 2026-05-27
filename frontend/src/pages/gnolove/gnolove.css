@@ -84,6 +84,8 @@
     flex-direction: column;
     gap: 20px;
     min-height: 50vh;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .gl-page {
@@ -1938,6 +1940,21 @@
         align-items: flex-start;
     }
 
+    .gl-filter-group {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        max-width: 100%;
+    }
+
+    .gl-filter-group::-webkit-scrollbar {
+        display: none;
+    }
+
+    .gl-filter-group .gl-filter-btn {
+        flex-shrink: 0;
+    }
+
     .gl-tabs {
         flex-wrap: wrap;
     }
@@ -2299,6 +2316,12 @@
     font-size: 12px;
     font-family: var(--gl-font-mono);
     color: #ff8a94;
+    min-width: 0;
+}
+
+.gl-error-banner > span {
+    min-width: 0;
+    word-break: break-word;
 }
 .gl-error-retry {
     background: rgba(255, 71, 87, 0.1);
@@ -4231,6 +4254,16 @@
     .gl-week-btn {
         min-height: 44px;
         min-width: 44px;
+    }
+
+    /* Title: scale down from 22px desktop */
+    .gl-title {
+        font-size: 20px;
+    }
+
+    /* Section titles: slight reduction */
+    .gl-section-title {
+        font-size: 15px;
     }
 
     /* Body text: ensure minimum 14px */
