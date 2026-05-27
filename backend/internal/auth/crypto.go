@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -185,6 +186,24 @@ func ValidateChallenge(publicKey ed25519.PublicKey, challenge *membav1.Challenge
 // window during the v7.1 rollout — clients pre-PR0b don't send chain_id).
 // The effective chainID is recorded in both the ADR-036 signDoc and the
 // returned token.ChainId.
+// SessionPubkeyOptInEnv toggles AUTH-SESSION-REJECT-01. Setting it to "1" or
+// "true" relaxes TokenRequestInfo unmarshal from strict back to lenient so a
+// future Adena release that adds session metadata fields can be accepted
+// without a code change. Default (unset / any other value) is strict.
+const SessionPubkeyOptInEnv = "MEMBA_ACCEPT_SESSION_PUBKEYS"
+
+// sessionPubkeysAccepted reads the kill switch at call time so tests and
+// operators can flip it without restarting the process. Conservative parse:
+// only "1" / "true" / "TRUE" opt in; everything else stays strict.
+func sessionPubkeysAccepted() bool {
+	switch os.Getenv(SessionPubkeyOptInEnv) {
+	case "1", "true", "TRUE":
+		return true
+	default:
+		return false
+	}
+}
+
 func MakeToken(
 	privateKey ed25519.PrivateKey,
 	publicKey ed25519.PublicKey,
@@ -195,9 +214,28 @@ func MakeToken(
 ) (*membav1.Token, error) {
 	infoBytes := []byte(infoJSON)
 
+	// AUTH-SESSION-REJECT-01 (Phase 1.9b defensive measure):
+	// Adena 1.20+ is expected to ship multichain session-pubkey signatures
+	// using derived subaccount keys. The session pubkey would parse and
+	// derive an address, but that address ≠ the user's main on-chain account
+	// — silently misattributing identity.
+	//
+	// We cannot tell a session secp256k1 pubkey from a main one by inspection
+	// alone, so the defensive contract is to refuse TokenRequestInfo payloads
+	// that carry fields we don't recognise. Adena 1.20+ is expected to add a
+	// session_* / parent_* signal; strict unmarshal trips on it and we log
+	// the reject so operators know when the rollout hits production.
+	//
+	// Kill switch: SessionPubkeyOptInEnv ("MEMBA_ACCEPT_SESSION_PUBKEYS=1")
+	// flips back to DiscardUnknown:true once we explicitly opt in.
 	var info membav1.TokenRequestInfo
-	if err := protojson.Unmarshal(infoBytes, &info); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal token request info")
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: sessionPubkeysAccepted()}
+	if err := unmarshaler.Unmarshal(infoBytes, &info); err != nil {
+		slog.Warn("AUTH-SESSION-REJECT-01: TokenRequestInfo unmarshal failed",
+			"err", err.Error(),
+			"opt_in_env", SessionPubkeyOptInEnv,
+			"hint", "if this is an Adena 1.20+ session signature, set MEMBA_ACCEPT_SESSION_PUBKEYS=1 to opt in")
+		return nil, errors.Wrap(err, "failed to unmarshal token request info (AUTH-SESSION-REJECT-01: strict — set "+SessionPubkeyOptInEnv+"=1 to opt in)")
 	}
 
 	if info.Kind != ClientMagic {

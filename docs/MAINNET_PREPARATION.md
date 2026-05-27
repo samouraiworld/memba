@@ -19,7 +19,7 @@ This document tracks items to be addressed before the mainnet release.
 | Phases 2–6 — Channels v3, RQ migration, betanet activation, release polish | ⏳ Pending Phase 1 close | Plan §§6-10 |
 
 ### Phase 1 deliverables touching this doc
-- **AUTH-SESSION-REJECT-01** — defensive rejection of Adena 1.20+ session subaccounts in `backend/internal/auth/crypto.go`. Must ship before Adena 1.20 reaches production.
+- ✅ **AUTH-SESSION-REJECT-01** — defensive rejection of Adena 1.20+ session subaccounts shipped in `backend/internal/auth/crypto.go` (`MakeToken` now uses strict `protojson.UnmarshalOptions{DiscardUnknown: false}` against `TokenRequestInfo`, so a payload carrying a future `session_*`/`parent_*` field trips a tagged error and an `slog.Warn` line operators can monitor). Kill-switch env var `MEMBA_ACCEPT_SESSION_PUBKEYS=1` opts back into lenient unmarshal once Memba grows explicit session support (v8). Regression tests: `TestSessionRejectStrictByDefault`, `TestSessionRejectOptInRelaxes`, `TestSessionRejectLegacyClientUnaffected` in `crypto_test.go`.
 - **Custody section** (to be added below by PR1.3) — signers, M-of-N policy, hardware wallet class, geographic distribution, recovery, rotation, dry-run. Hard prerequisite for Phase 2 (channels_v3 two-tier pause). Must be signed by ≥ 2 Samourai Coop principals.
 - **chainHealth fallback + transfer-lock probe** — corrected gnoland1 probe path (`params/bank:p:restricted_denoms`).
 

@@ -284,6 +284,95 @@ func FuzzMakeADR36SignDoc(f *testing.F) {
 	})
 }
 
+// ─── v7.1 Phase 1.9b — AUTH-SESSION-REJECT-01 regression tests ─────
+
+// TestSessionRejectStrictByDefault is the canary for AUTH-SESSION-REJECT-01:
+// a TokenRequestInfo JSON carrying an unknown field (the kind of payload
+// Adena 1.20+ multichain session signatures are expected to produce) must
+// be rejected by default. Without the strict unmarshal, the unknown field
+// would be silently dropped and Memba would auth a session subaccount as
+// if it were the user's main on-chain identity.
+func TestSessionRejectStrictByDefault(t *testing.T) {
+	_, priv := generateTestKeypair(t)
+	t.Setenv(SessionPubkeyOptInEnv, "")
+	if sessionPubkeysAccepted() {
+		t.Fatal("kill switch should be off when env var is empty")
+	}
+
+	// Minimal TokenRequestInfo + an unexpected session_pubkey field that the
+	// proto schema does not declare. Adena 1.20+ could add anything here;
+	// the contract is "we don't know about it, so we don't trust it."
+	infoJSON := `{
+		"kind": "Login to Memba Multisig Service",
+		"user_bech32_prefix": "g",
+		"user_pubkey_json": "{\"type\":\"tendermint/PubKeySecp256k1\",\"value\":\"A1B2C3==\"}",
+		"session_pubkey": "future-adena-session-blob"
+	}`
+
+	_, err := MakeToken(priv, nil, time.Hour, infoJSON, "", "test12")
+	if err == nil {
+		t.Fatal("AUTH-SESSION-REJECT-01 regression: TokenRequestInfo with unknown field was accepted")
+	}
+	if !strings.Contains(err.Error(), "AUTH-SESSION-REJECT-01") {
+		t.Fatalf("expected error tagged with AUTH-SESSION-REJECT-01, got: %v", err)
+	}
+}
+
+// TestSessionRejectOptInRelaxes covers the operator escape hatch: setting
+// MEMBA_ACCEPT_SESSION_PUBKEYS=1 should switch back to lenient unmarshal so
+// the same payload that was rejected above gets through (the request then
+// fails for normal downstream reasons — invalid pubkey, missing challenge —
+// not for the strict-unmarshal reason).
+func TestSessionRejectOptInRelaxes(t *testing.T) {
+	_, priv := generateTestKeypair(t)
+	t.Setenv(SessionPubkeyOptInEnv, "1")
+	if !sessionPubkeysAccepted() {
+		t.Fatal("kill switch should be on when env var is '1'")
+	}
+
+	infoJSON := `{
+		"kind": "Login to Memba Multisig Service",
+		"user_bech32_prefix": "g",
+		"user_pubkey_json": "{\"type\":\"tendermint/PubKeySecp256k1\",\"value\":\"A1B2C3==\"}",
+		"session_pubkey": "future-adena-session-blob"
+	}`
+
+	_, err := MakeToken(priv, nil, time.Hour, infoJSON, "", "test12")
+	if err == nil {
+		// Shouldn't happen — the pubkey value is bogus base64, downstream will fail.
+		t.Fatal("expected downstream error (invalid pubkey or missing challenge), got nil")
+	}
+	if strings.Contains(err.Error(), "AUTH-SESSION-REJECT-01") {
+		t.Fatalf("opt-in should bypass strict unmarshal, but request still rejected by AUTH-SESSION-REJECT-01: %v", err)
+	}
+}
+
+// TestSessionRejectLegacyClientUnaffected guards against the most likely
+// false positive: a real, current Adena 1.19 client sending a vanilla
+// TokenRequestInfo with no extra fields must still get past the unmarshal
+// step. (The request then fails for an unrelated reason — bogus test
+// pubkey — but not at the AUTH-SESSION-REJECT-01 path.)
+func TestSessionRejectLegacyClientUnaffected(t *testing.T) {
+	_, priv := generateTestKeypair(t)
+	t.Setenv(SessionPubkeyOptInEnv, "")
+
+	infoJSON := `{
+		"kind": "Login to Memba Multisig Service",
+		"user_bech32_prefix": "g",
+		"user_pubkey_json": "{\"type\":\"tendermint/PubKeySecp256k1\",\"value\":\"A1B2C3==\"}",
+		"chain_id": "test12"
+	}`
+
+	_, err := MakeToken(priv, nil, time.Hour, infoJSON, "", "test12")
+	if err == nil {
+		// Same as above: the bogus pubkey will trip a downstream check.
+		t.Fatal("expected downstream error on bogus pubkey, got nil")
+	}
+	if strings.Contains(err.Error(), "AUTH-SESSION-REJECT-01") {
+		t.Fatalf("legacy-shaped TokenRequestInfo must not trip AUTH-SESSION-REJECT-01: %v", err)
+	}
+}
+
 // makeTestToken creates a server-signed token for testing.
 func makeTestToken(priv ed25519.PrivateKey, duration time.Duration, chainID string) (*membav1.Token, error) {
 	nonce, err := makeNonce()
