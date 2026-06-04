@@ -13,17 +13,26 @@
  * @module pages/gnolove/GnoloveTeams
  */
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { useGnoloveTeams } from "../../hooks/gnolove"
+import { useGnoloveTeams, useGnoloveContributors } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { PageMeta } from "../../components/gnolove/PageMeta"
-import { TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
+import { TEAM_CSS_COLORS, TimeFilter } from "../../lib/gnoloveConstants"
+import { sortTeamsByScore } from "../../lib/gnoloveAnalytics"
 import { formatRelativeTime } from "../../lib/gnoloveTime"
 
 export default function GnoloveTeams() {
     const np = useNetworkPath()
     const { teams, lastSyncedAt } = useGnoloveTeams()
+    // Order teams by their "This month" aggregate score (the default window).
+    // While contributors load or on error, `sortTeamsByScore` returns the
+    // curated roster order unchanged — the index never blanks or reshuffles.
+    const { data: contributors } = useGnoloveContributors(TimeFilter.MONTHLY)
+    const orderedTeams = useMemo(
+        () => sortTeamsByScore(teams, contributors),
+        [teams, contributors],
+    )
     const [nowMs] = useState(() => Date.now())
 
     return (
@@ -40,7 +49,7 @@ export default function GnoloveTeams() {
             </div>
 
             <div className="gl-teams-list">
-                {teams.map(team => (
+                {orderedTeams.map(team => (
                     <Link
                         key={team.slug}
                         to={np(`gnolove/teams/${encodeURIComponent(team.slug)}`)}

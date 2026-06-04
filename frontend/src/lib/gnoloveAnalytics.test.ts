@@ -4,6 +4,7 @@ import {
     computeContributionTiers,
     computeVoteData,
     computeTeamData,
+    sortTeamsByScore,
     computeStats,
 } from "./gnoloveAnalytics"
 import { TimeFilter } from "./gnoloveConstants"
@@ -195,6 +196,49 @@ describe("computeTeamData", () => {
         expect(result[0].name).toBe("Core")
         expect(result[0].score).toBe(80)
         expect(result[0].prs).toBe(15)
+    })
+})
+
+describe("sortTeamsByScore", () => {
+    const teams: Team[] = [
+        { slug: "alpha", name: "Alpha", color: "purple", description: "", members: ["alice"] },
+        { slug: "bravo", name: "Bravo", color: "blue", description: "", members: ["bob", "bonnie"] },
+        { slug: "charlie", name: "Charlie", color: "green", description: "", members: ["carol"] },
+        { slug: "delta", name: "Delta", color: "red", description: "", members: [] },
+    ]
+
+    it("returns the curated order unchanged when contributors is undefined (loading/error)", () => {
+        const result = sortTeamsByScore(teams, undefined)
+        expect(result.map(t => t.slug)).toEqual(["alpha", "bravo", "charlie", "delta"])
+        // new array, not the same reference (non-mutating)
+        expect(result).not.toBe(teams)
+    })
+
+    it("orders active teams by aggregate score desc; inactive teams keep curated order at the bottom", () => {
+        const contributors = makeContributors([
+            makeUser({ login: "alice", score: 40 }),
+            makeUser({ login: "bob", score: 30 }),
+            makeUser({ login: "bonnie", score: 25 }), // Bravo total = 55 > Alpha 40
+            // carol absent → Charlie scores 0 (inactive)
+        ])
+        const result = sortTeamsByScore(teams, contributors)
+        // Active: Bravo (55), Alpha (40). Inactive: Charlie, Delta in curated order.
+        expect(result.map(t => t.slug)).toEqual(["bravo", "alpha", "charlie", "delta"])
+    })
+
+    it("matches member logins case-insensitively", () => {
+        const contributors = makeContributors([
+            makeUser({ login: "ALICE", score: 99 }), // upper-case login still matches "alice"
+        ])
+        const result = sortTeamsByScore(teams, contributors)
+        expect(result[0].slug).toBe("alpha")
+    })
+
+    it("does not mutate the input array", () => {
+        const contributors = makeContributors([makeUser({ login: "carol", score: 100 })])
+        const snapshot = teams.map(t => t.slug)
+        sortTeamsByScore(teams, contributors)
+        expect(teams.map(t => t.slug)).toEqual(snapshot)
     })
 })
 
