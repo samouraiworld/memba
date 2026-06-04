@@ -110,6 +110,48 @@ export function computeTeamData(
     }).filter(t => t.score > 0).sort((a, b) => b.score - a.score)
 }
 
+/**
+ * Order a roster of teams by their aggregate contributor score, highest first.
+ *
+ * Score = sum of member `score` from the supplied `contributors` response, so it
+ * reflects whatever time window that response was fetched for (the Teams index
+ * fetches the monthly window). Member matching is **case-insensitive** — GitHub
+ * logins are — mirroring the Home page's team-card logic.
+ *
+ * Behavior:
+ *  - Active teams (score > 0) first, sorted by score descending.
+ *  - Inactive teams (score 0, or no contributor data) are kept and appended in
+ *    their original curated order — the index must stay a complete directory.
+ *  - If `contributors` is undefined (loading/error), the input order is returned
+ *    unchanged so the page never blanks or reshuffles unexpectedly.
+ *
+ * Pure: returns a new array; never mutates the input.
+ */
+export function sortTeamsByScore<T extends { members: readonly string[] }>(
+    teams: readonly T[],
+    contributors: TContributorsResponse | undefined,
+): T[] {
+    if (!contributors?.users) return [...teams]
+    const scoreByLogin = new Map<string, number>()
+    for (const u of contributors.users) {
+        scoreByLogin.set(u.login.toLowerCase(), u.score ?? 0)
+    }
+    return teams
+        .map((team, index) => {
+            const score = team.members.reduce(
+                (sum, login) => sum + (scoreByLogin.get(login.toLowerCase()) ?? 0),
+                0,
+            )
+            return { team, score, index }
+        })
+        .sort((a, b) => {
+            // Active teams first by score desc; ties and inactive keep curated order.
+            if ((a.score > 0 || b.score > 0) && b.score !== a.score) return b.score - a.score
+            return a.index - b.index
+        })
+        .map(s => s.team)
+}
+
 export function computeContributionTiers(
     contributors: TContributorsResponse | undefined,
 ): ContributionTier[] {
