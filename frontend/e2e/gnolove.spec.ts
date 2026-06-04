@@ -92,14 +92,17 @@ test.describe('Gnolove Section', () => {
     })
 
     test('report URL preserves coarse filters across view toggle (push vs replace) [MF-2]', async ({ page }) => {
-        await page.goto('/test12/gnolove/report?period=monthly&at=2025-03')
+        // Use a NON-default period (weekly) so it stays explicit in the URL:
+        // monthly is now the default and is intentionally elided from shareable
+        // links, so asserting period=monthly after a re-serialize would fail.
+        await page.goto('/test12/gnolove/report?period=weekly&at=2025-W10')
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
 
         // Toggle to table view — uses replace, doesn't pollute history.
         await page.locator('button.gl-view-btn', { hasText: 'Table' }).click()
         await expect(page).toHaveURL(/view=table/, { timeout: 5_000 })
-        await expect(page).toHaveURL(/period=monthly/)
-        await expect(page).toHaveURL(/at=2025-03/)
+        await expect(page).toHaveURL(/period=weekly/)
+        await expect(page).toHaveURL(/at=2025-W10/)
     })
 
     test('report URL gracefully handles garbage input', async ({ page }) => {
