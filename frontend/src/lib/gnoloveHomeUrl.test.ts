@@ -37,10 +37,15 @@ describe("parseHomeUrl", () => {
         expect(s.time).toBe(TimeFilter.MONTHLY)
     })
 
-    it("garbage time falls back to ALL_TIME with breadcrumb", () => {
+    it("garbage time falls back to MONTHLY (default) with breadcrumb", () => {
         const s = parseHomeUrl(new URLSearchParams("time=wonky"))
-        expect(s.time).toBe(TimeFilter.ALL_TIME)
+        expect(s.time).toBe(TimeFilter.MONTHLY)
         expect(Sentry.addBreadcrumb).toHaveBeenCalled()
+    })
+
+    it("time=all parses to ALL_TIME (explicit non-default)", () => {
+        const s = parseHomeUrl(new URLSearchParams("time=all"))
+        expect(s.time).toBe(TimeFilter.ALL_TIME)
     })
 
     it("sortBy=TotalCommits&sortDir=asc parses both", () => {
@@ -95,9 +100,11 @@ describe("serializeHomeUrl", () => {
         expect(serializeHomeUrl(DEFAULT_HOME_STATE).toString()).toBe("")
     })
 
-    it("time=MONTHLY emits param", () => {
-        const s: HomeUrlState = { ...DEFAULT_HOME_STATE, time: TimeFilter.MONTHLY }
-        expect(serializeHomeUrl(s).get("time")).toBe(TimeFilter.MONTHLY)
+    it("non-default time (ALL_TIME) emits ?time=all; MONTHLY (default) omits", () => {
+        const allTime: HomeUrlState = { ...DEFAULT_HOME_STATE, time: TimeFilter.ALL_TIME }
+        expect(serializeHomeUrl(allTime).get("time")).toBe(TimeFilter.ALL_TIME)
+        const monthly: HomeUrlState = { ...DEFAULT_HOME_STATE, time: TimeFilter.MONTHLY }
+        expect(serializeHomeUrl(monthly).get("time")).toBeNull()
     })
 
     it("page=2 emits ?page=2; page=1 omits", () => {

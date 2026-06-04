@@ -115,7 +115,7 @@ describe("useReportUrlState — push vs replace history strategy [MF-2]", () => 
                 <div>
                     <div data-testid="period">{state.period}</div>
                     <div data-testid="at">{state.at ?? "null"}</div>
-                    <button data-testid="go" onClick={() => setState({ period: "monthly", at: "2025-03" })}>
+                    <button data-testid="go" onClick={() => setState({ period: "yearly", at: "2025" })}>
                         go
                     </button>
                     <button data-testid="back" onClick={() => nav(-1)}>back</button>
@@ -127,12 +127,12 @@ describe("useReportUrlState — push vs replace history strategy [MF-2]", () => 
                 <PushHarness />
             </MemoryRouter>,
         )
-        expect(screen.getByTestId("period").textContent).toBe("weekly")
-        fireEvent.click(screen.getByTestId("go"))
         expect(screen.getByTestId("period").textContent).toBe("monthly")
+        fireEvent.click(screen.getByTestId("go"))
+        expect(screen.getByTestId("period").textContent).toBe("yearly")
         fireEvent.click(screen.getByTestId("back"))
         // Back must restore the previous (default) state because we used push, not replace.
-        expect(screen.getByTestId("period").textContent).toBe("weekly")
+        expect(screen.getByTestId("period").textContent).toBe("monthly")
     })
 
     it("setState({ view }) does NOT pollute history (back skips it)", () => {
@@ -143,7 +143,7 @@ describe("useReportUrlState — push vs replace history strategy [MF-2]", () => 
                 <div>
                     <div data-testid="view">{state.view}</div>
                     <div data-testid="period">{state.period}</div>
-                    <button data-testid="step-period" onClick={() => setState({ period: "monthly", at: "2025-03" })}>
+                    <button data-testid="step-period" onClick={() => setState({ period: "yearly", at: "2025" })}>
                         step period (push)
                     </button>
                     <button data-testid="toggle-view" onClick={() => setState({ view: "table" })}>
@@ -158,15 +158,15 @@ describe("useReportUrlState — push vs replace history strategy [MF-2]", () => 
                 <ReplaceHarness />
             </MemoryRouter>,
         )
-        // 1. Push: period weekly → monthly (new history entry)
+        // 1. Push: period monthly → yearly (new history entry)
         fireEvent.click(screen.getByTestId("step-period"))
-        expect(screen.getByTestId("period").textContent).toBe("monthly")
+        expect(screen.getByTestId("period").textContent).toBe("yearly")
         // 2. Replace: toggle view (no new history entry)
         fireEvent.click(screen.getByTestId("toggle-view"))
         expect(screen.getByTestId("view").textContent).toBe("table")
-        // 3. Back: should restore weekly (skipping the view toggle entirely)
+        // 3. Back: should restore monthly (skipping the view toggle entirely)
         fireEvent.click(screen.getByTestId("back"))
-        expect(screen.getByTestId("period").textContent).toBe("weekly")
+        expect(screen.getByTestId("period").textContent).toBe("monthly")
     })
 })
 
@@ -237,8 +237,8 @@ describe("useReportUrlState — state identity", () => {
                 <IdentityHarness />
             </MemoryRouter>,
         )
-        expect(screen.getByTestId("period").textContent).toBe("weekly")
+        expect(screen.getByTestId("period").textContent).toBe("monthly")
         fireEvent.click(screen.getByTestId("noop"))
-        expect(screen.getByTestId("period").textContent).toBe("weekly")
+        expect(screen.getByTestId("period").textContent).toBe("monthly")
     })
 })

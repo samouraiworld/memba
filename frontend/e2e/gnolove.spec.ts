@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test'
  *
  * Routes tested:
  *   /gnolove          → GnoloveHome (scoreboard)
- *   /gnolove/report   → GnoloveReport (weekly PRs)
+ *   /gnolove/report   → GnoloveReport (monthly PRs by default)
  *   /gnolove/analytics → GnoloveAnalytics (charts)
  *   /gnolove/teams    → GnoloveTeams (team breakdown)
  */

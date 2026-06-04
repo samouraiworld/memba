@@ -211,7 +211,7 @@ export function nextAtForPeriodSwitch(
 
 // ── Zod schemas ─────────────────────────────────────────────
 
-const UrlPeriodSchema = z.enum(["weekly", "monthly", "yearly", "all", "custom"]).catch("weekly")
+const UrlPeriodSchema = z.enum(["weekly", "monthly", "yearly", "all", "custom"]).catch("monthly")
 const TabSchema = z.enum([
     "all", "merged", "in_progress", "waiting_for_review", "reviewed", "blocked",
 ]).catch("all")
@@ -227,7 +227,7 @@ const TeamCharsetRe = /^[A-Za-z0-9 ._-]{1,64}$/
 export function parseReportUrl(params: URLSearchParams): ReportUrlState {
     // ── period ──
     const periodRaw = params.get("period")
-    const urlPeriod = UrlPeriodSchema.parse(periodRaw ?? "weekly")
+    const urlPeriod = UrlPeriodSchema.parse(periodRaw ?? "monthly")
     if (periodRaw && !["weekly", "monthly", "yearly", "all", "custom"].includes(periodRaw)) {
         breadcrumbFallback("period", periodRaw)
     }
@@ -315,7 +315,7 @@ export function serializeReportUrl(
 ): URLSearchParams {
     const out = new URLSearchParams()
     const urlPeriod = RUNTIME_PERIOD_TO_URL[s.period]
-    if (urlPeriod !== "weekly") out.set("period", urlPeriod)
+    if (urlPeriod !== "monthly") out.set("period", urlPeriod)
 
     const effectiveAt = s.at ?? defaultKey(s.period)
     if (opts.pinAt && effectiveAt) {
@@ -363,7 +363,7 @@ export function buildShareUrl(
 
 /** Bare default state. Reads return new instances; consumers should not mutate. */
 export const DEFAULT_REPORT_STATE: ReportUrlState = {
-    period: "weekly",
+    period: "monthly",
     at: null,
     tab: "all",
     team: null,
