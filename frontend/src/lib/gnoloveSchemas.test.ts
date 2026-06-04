@@ -10,7 +10,7 @@ import {
     EnhancedUserWithStatsSchema, RepositorySchema,
     PackageSchema, NamespaceSchema, ProposalSchema,
     GovdaoMemberSchema, ScoreFactorsSchema, PullRequestReportSchema,
-    ContributorsResponseSchema, LabelSchema,
+    ContributorsResponseSchema, LabelSchema, NotablePRSchema,
 } from "./gnoloveSchemas"
 
 describe("UserSchema", () => {
@@ -168,5 +168,33 @@ describe("ContributorsResponseSchema", () => {
         })
         expect(response.users).toHaveLength(1)
         expect(response.lastSyncedAt).toBe("2026-01-01T00:00:00Z")
+    })
+})
+
+describe("NotablePRSchema", () => {
+    it("parses a full board item", () => {
+        const item = NotablePRSchema.parse({
+            itemID: "PVTI_abc", number: 5653, title: "test13 upgrade",
+            url: "https://github.com/gnolang/gno/pull/5653",
+            repository: "gnolang/gno", authorLogin: "aeddi",
+            state: "OPEN", isDraft: false, reviewDecision: "REVIEW_REQUIRED",
+            status: "Needs review", updatedAt: "2026-06-03T10:00:00Z",
+            syncedAt: "2026-06-04T00:00:00Z", // extra backend field — ignored
+        })
+        expect(item.number).toBe(5653)
+        expect(item.status).toBe("Needs review")
+        expect(item.repository).toBe("gnolang/gno")
+    })
+
+    it("defaults nullish optional fields to safe empties", () => {
+        const item = NotablePRSchema.parse({
+            itemID: "PVTI_def", number: 1, title: "draft thing",
+            url: "https://github.com/gnolang/gno/pull/1",
+            repository: "gnolang/gno", updatedAt: "2026-06-03T10:00:00Z",
+            authorLogin: null, state: null, reviewDecision: null, status: null,
+        })
+        expect(item.authorLogin).toBe("")
+        expect(item.status).toBe("")
+        expect(item.isDraft).toBe(false)
     })
 })

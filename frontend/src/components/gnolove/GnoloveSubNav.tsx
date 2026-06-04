@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
     { path: "gnolove",            label: "Overview",   end: true  },
     { path: "gnolove/teams",      label: "Teams",      end: false },
     { path: "gnolove/report",     label: "Report",     end: false },
+    { path: "gnolove/notable-prs", label: "Notable PRs", end: false },
     { path: "gnolove/analytics",  label: "Analytics",  end: false },
     { path: "gnolove/reports",    label: "AI Reports", end: false },
     { path: "gnolove/milestone",  label: "Milestone",  end: false },

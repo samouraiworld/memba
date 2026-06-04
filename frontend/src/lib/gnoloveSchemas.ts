@@ -172,6 +172,25 @@ export const PullRequestReportSchema = z.object({
 })
 export type TPullRequestReport = z.infer<typeof PullRequestReportSchema>
 
+// ── Notable PRs board (gnolang Project #66) ──────────────────
+
+/** One PR item mirrored from the gnolang "Notable PRs" GitHub Project (#66). */
+export const NotablePRSchema = z.object({
+    itemID: z.string(),
+    number: z.number(),
+    title: z.string(),
+    url: z.string(),
+    repository: z.string(),
+    authorLogin: z.string().nullish().transform(v => v ?? ""),
+    state: z.string().nullish().transform(v => v ?? ""),
+    isDraft: z.boolean().nullish().transform(v => v ?? false),
+    reviewDecision: z.string().nullish().transform(v => v ?? ""),
+    /** Board "Status" column, e.g. "Needs review". May be empty. */
+    status: z.string().nullish().transform(v => v ?? ""),
+    updatedAt: z.string(),
+})
+export type TNotablePR = z.infer<typeof NotablePRSchema>
+
 // ── Commit ───────────────────────────────────────────────────
 
 export const CommitBaseSchema = z.object({
