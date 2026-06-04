@@ -239,9 +239,9 @@ describe("parseReportUrl", () => {
         expect(s.at).toBeNull()
     })
 
-    it("invalid period silently falls back to weekly + fires breadcrumb [MF-6]", () => {
+    it("invalid period silently falls back to monthly (default) + fires breadcrumb [MF-6]", () => {
         const s = parseReportUrl(new URLSearchParams("period=wonky"))
-        expect(s.period).toBe("weekly")
+        expect(s.period).toBe("monthly")
         expect(Sentry.addBreadcrumb).toHaveBeenCalled()
         const call = vi.mocked(Sentry.addBreadcrumb).mock.calls[0][0]
         expect(call.category).toBe("gnolove.url.fallback")
@@ -334,9 +334,11 @@ describe("serializeReportUrl", () => {
         expect(serializeReportUrl(DEFAULT_REPORT_STATE).toString()).toBe("")
     })
 
-    it("non-default period emits param", () => {
-        const s: ReportUrlState = { ...DEFAULT_REPORT_STATE, period: "monthly" }
-        expect(serializeReportUrl(s).get("period")).toBe("monthly")
+    it("non-default period emits param; default (monthly) is omitted", () => {
+        const s: ReportUrlState = { ...DEFAULT_REPORT_STATE, period: "weekly" }
+        expect(serializeReportUrl(s).get("period")).toBe("weekly")
+        const dflt: ReportUrlState = { ...DEFAULT_REPORT_STATE, period: "monthly" }
+        expect(serializeReportUrl(dflt).has("period")).toBe(false)
     })
 
     it("all_time period serializes as 'all' in URL [MF-1]", () => {
@@ -438,14 +440,14 @@ describe("buildShareUrl [MF-3 / S-3]", () => {
     it("includes filter params in the produced URL", () => {
         const s: ReportUrlState = {
             ...DEFAULT_REPORT_STATE,
-            period: "monthly",
-            at: "2026-05",
+            period: "weekly",
+            at: "2026-W18",
             team: "Samourai.world",
             tab: "merged",
         }
         const url = buildShareUrl("https://x", "test12", s)
-        expect(url).toContain("period=monthly")
-        expect(url).toContain("at=2026-05")
+        expect(url).toContain("period=weekly")
+        expect(url).toContain("at=2026-W18")
         expect(url).toContain("team=Samourai.world")
         expect(url).toContain("tab=merged")
     })

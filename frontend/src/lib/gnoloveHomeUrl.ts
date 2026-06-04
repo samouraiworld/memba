@@ -35,7 +35,7 @@ export interface HomeUrlState {
 }
 
 export const DEFAULT_HOME_STATE: HomeUrlState = {
-    time: TimeFilter.ALL_TIME,
+    time: TimeFilter.MONTHLY,
     excludedTeams: [],
     sortBy: "score",
     sortDir: "desc",
@@ -62,7 +62,7 @@ export function __resetHomeFallbackRateLimitForTests(): void {
 
 const TimeSchema = z.enum([
     TimeFilter.ALL_TIME, TimeFilter.YEARLY, TimeFilter.MONTHLY, TimeFilter.WEEKLY,
-]).catch(TimeFilter.ALL_TIME)
+]).catch(TimeFilter.MONTHLY)
 const SortBySchema = z.enum([
     "score", "TotalCommits", "TotalPrs", "TotalIssues", "TotalReviewedPullRequests",
 ]).catch("score")
@@ -70,7 +70,7 @@ const SortDirSchema = z.enum(["asc", "desc"]).catch("desc")
 
 export function parseHomeUrl(params: URLSearchParams): HomeUrlState {
     const timeRaw = params.get("time")
-    const time = TimeSchema.parse(timeRaw ?? TimeFilter.ALL_TIME) as TimeFilter
+    const time = TimeSchema.parse(timeRaw ?? TimeFilter.MONTHLY) as TimeFilter
     if (timeRaw && time !== timeRaw) breadcrumbFallback("time", timeRaw)
 
     const sortByRaw = params.get("sortBy")
@@ -121,7 +121,7 @@ export function parseHomeUrl(params: URLSearchParams): HomeUrlState {
 
 export function serializeHomeUrl(s: HomeUrlState): URLSearchParams {
     const out = new URLSearchParams()
-    if (s.time !== TimeFilter.ALL_TIME) out.set("time", s.time)
+    if (s.time !== TimeFilter.MONTHLY) out.set("time", s.time)
     if (s.sortBy !== "score") out.set("sortBy", s.sortBy)
     if (s.sortDir !== "desc") out.set("sortDir", s.sortDir)
     if (s.excludedTeams.length > 0) {
