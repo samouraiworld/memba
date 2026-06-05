@@ -197,4 +197,35 @@ describe("NotablePRSchema", () => {
         expect(item.status).toBe("")
         expect(item.isDraft).toBe(false)
     })
+
+    it("parses enriched fields (area, size, labels, reviewers, reviews)", () => {
+        const item = NotablePRSchema.parse({
+            itemID: "PVTI_xyz", number: 5728, title: "grc721 ledger split",
+            url: "https://github.com/gnolang/gno/pull/5728", repository: "gnolang/gno",
+            authorLogin: "jinoosss", authorAvatarUrl: "https://avatars.githubusercontent.com/u/1",
+            state: "OPEN", isDraft: false, reviewDecision: "CHANGES_REQUESTED",
+            status: "Todo", mainArea: "Gnops", additions: 2797, deletions: 1380,
+            labels: [{ name: ":receipt: package/realm", color: "ededed" }],
+            assignees: ["jinoosss"], requestedReviewers: ["davd-gzl", "aeddi"],
+            reviews: [{ login: "jeronimoalbi", state: "APPROVED" }],
+            createdAt: "2026-06-01T00:00:00Z", updatedAt: "2026-06-04T00:00:00Z",
+        })
+        expect(item.mainArea).toBe("Gnops")
+        expect(item.additions).toBe(2797)
+        expect(item.labels[0].name).toContain("package/realm")
+        expect(item.requestedReviewers).toEqual(["davd-gzl", "aeddi"])
+        expect(item.reviews[0]).toEqual({ login: "jeronimoalbi", state: "APPROVED" })
+    })
+
+    it("defaults enriched arrays/numbers when absent", () => {
+        const item = NotablePRSchema.parse({
+            itemID: "PVTI_min", number: 2, title: "minimal", url: "https://x/2",
+            repository: "gnolang/gno", updatedAt: "2026-06-03T10:00:00Z",
+        })
+        expect(item.mainArea).toBe("")
+        expect(item.additions).toBe(0)
+        expect(item.labels).toEqual([])
+        expect(item.requestedReviewers).toEqual([])
+        expect(item.reviews).toEqual([])
+    })
 })
