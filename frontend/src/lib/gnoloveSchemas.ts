@@ -175,6 +175,15 @@ export type TPullRequestReport = z.infer<typeof PullRequestReportSchema>
 // ── Notable PRs board (gnolang Project #66) ──────────────────
 
 /** One PR item mirrored from the gnolang "Notable PRs" GitHub Project (#66). */
+export const NotablePRLabelSchema = z.object({
+    name: z.string(),
+    color: z.string().nullish().transform(v => v ?? ""),
+})
+export const NotablePRReviewSchema = z.object({
+    login: z.string(),
+    /** APPROVED / CHANGES_REQUESTED / COMMENTED / DISMISSED / PENDING. */
+    state: z.string().nullish().transform(v => v ?? ""),
+})
 export const NotablePRSchema = z.object({
     itemID: z.string(),
     number: z.number(),
@@ -182,14 +191,28 @@ export const NotablePRSchema = z.object({
     url: z.string(),
     repository: z.string(),
     authorLogin: z.string().nullish().transform(v => v ?? ""),
+    authorAvatarUrl: z.string().nullish().transform(v => v ?? ""),
     state: z.string().nullish().transform(v => v ?? ""),
     isDraft: z.boolean().nullish().transform(v => v ?? false),
     reviewDecision: z.string().nullish().transform(v => v ?? ""),
-    /** Board "Status" column, e.g. "Needs review". May be empty. */
+    /** Board "Status" column: Todo / In progress / Done. May be empty. */
     status: z.string().nullish().transform(v => v ?? ""),
+    /** Board "Main Area" column: UX / Blockchain / VM / Gnops / Gno.land. */
+    mainArea: z.string().nullish().transform(v => v ?? ""),
+    additions: z.number().nullish().transform(v => v ?? 0),
+    deletions: z.number().nullish().transform(v => v ?? 0),
+    labels: z.array(NotablePRLabelSchema).nullish().transform(v => v ?? []),
+    assignees: z.array(z.string()).nullish().transform(v => v ?? []),
+    /** Reviewers still requested (pending). */
+    requestedReviewers: z.array(z.string()).nullish().transform(v => v ?? []),
+    /** Completed reviews (latest per reviewer). */
+    reviews: z.array(NotablePRReviewSchema).nullish().transform(v => v ?? []),
+    createdAt: z.string().nullish().transform(v => v ?? ""),
     updatedAt: z.string(),
 })
 export type TNotablePR = z.infer<typeof NotablePRSchema>
+export type TNotablePRLabel = z.infer<typeof NotablePRLabelSchema>
+export type TNotablePRReview = z.infer<typeof NotablePRReviewSchema>
 
 // ── Commit ───────────────────────────────────────────────────
 
