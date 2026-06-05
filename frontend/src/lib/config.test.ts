@@ -4,6 +4,7 @@ import {
     APP_VERSION,
     UGNOT_PER_GNOT,
     NETWORKS,
+    VISIBLE_NETWORKS,
     DEFAULT_NETWORK,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
@@ -23,12 +24,27 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has all 5 chain options', () => {
+    it('NETWORKS has the expected chain options', () => {
         expect(Object.keys(NETWORKS)).toContain('test12')
         expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
+        expect(Object.keys(NETWORKS)).toContain('test13')
+    })
+
+    it('test13 map key is identifier-safe but on-wire chainId is hyphenated', () => {
+        // The chainId VALUE is signature-load-bearing (ADR-036 sign doc) and
+        // MUST be "test-13"; the map KEY stays "test13".
+        expect(NETWORKS.test13.chainId).toBe('test-13')
+        expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
+    })
+
+    it('test13 is hidden from the selector by default (VITE_ENABLE_TEST13 unset)', () => {
+        expect(NETWORKS.test13.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('test13')
+        // …but still reachable by URL/env (present in the full map).
+        expect(Object.keys(NETWORKS)).toContain('test13')
     })
 
     it('test12 has correct chain config', () => {
@@ -105,6 +121,16 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://evil.samourai.live.attacker.com')).toBe(false)
         expect(isTrustedRpcDomain('https://fakepsamourai.live')).toBe(false)
         expect(isTrustedRpcDomain('https://samourai.live.evil.com')).toBe(false)
+    })
+
+    it('trusts gnoland.network subdomains (test-13 RPC host)', () => {
+        expect(isTrustedRpcDomain('https://rpc.test-13-aeddi-1.gnoland.network')).toBe(true)
+        expect(isTrustedRpcDomain('https://gnoland.network')).toBe(true)
+    })
+
+    it('rejects gnoland.network lookalikes', () => {
+        expect(isTrustedRpcDomain('https://fakegnoland.network')).toBe(false)
+        expect(isTrustedRpcDomain('https://gnoland.network.evil.com')).toBe(false)
     })
 
     it('trusts localhost for local devnet', () => {

@@ -184,6 +184,19 @@ The deployer is **multi-network by design**; test13 is a config + mapping task, 
 5. **GNOVERSION / toolchain pin** — gnodaokit Makefile pins `4e80c37e`; set it (and the CI/deploy binary) to the exact commit the deployed test13 chain was built from (derive from `chain/test-13` / test13 `/status`). **CI gap (H9):** `.github/workflows/test.yml` installs `gno@latest`/`gnokey@latest` with `continue-on-error` — replace with the pinned commit and decide if the gno-test job blocks the migration PR.
 6. **Adena ↔ test13** — confirm the wallet exposes test13 (`GetNetwork().chainId == "test13"`); if not, the network-switch UX needs a custom-network add.
 
+### 5.7 ✅ Phase-0 live-chain verification log (2026-06-05)
+
+Probed the live RPC `https://rpc.test-13-aeddi-1.gnoland.network` (read-only, `gnokey query`). **Material change since the plan: test-13 was relaunched.**
+
+- **Chain relaunched.** Height ~**1.4k** (was ~136k on 2026-06-04) from a **state-export genesis** (`app_state` carries `past_chain_ids` + replay `txs`). Binary **`v1.0.0-rc.0`** (node reports it; gno tag `v1.0.0` = `e3d3718`, 2026-03-16 "gnoland1 betanet genesis"). **chain-id `test-13` confirmed** (hyphen) — the plan's corrected identifier holds.
+- **🔑 Still PRE-interrealm-v2.** `v1.0.0` does **not** contain the v2 ADR/testdata and is not an ancestor of `master` (where v2 lives). So **gnodaokit #64 (v2 port) STAYS PARKED** — the deployable target remains v0.9 / v1-crossing, which gnodaokit `main` + the memba realms already match. (Reason updated: chain relaunched on v1.0.0, not the old `chain/test-13` 5dd6950.)
+- **§5.1 RESOLVED — all on-chain deps already PRESENT:** `r/demo/profile`, `p/demo/tokens/grc20`, `r/demo/defi/grc20reg`, `p/onbloc/{json,uint256}`, `p/demo/svg`, `p/nt/{avl,ufmt,seqid,testutils}/v0`. **No dependency deploys needed.** **H5 resolved:** `p/samcrew/piechart` is on-chain (basedao render dep).
+- **To deploy (Phase 3, unchanged):** gnodaokit `p/samcrew/{realmid,daocond,daokit,basedao}` (ABSENT) + the memba realms `r/samcrew/{memba_dao,…}` (ABSENT, fresh chain).
+- **§5.2 likely satisfied:** `p/samcrew/piechart` deployed ⇒ the **samcrew namespace exists** on the relaunched chain (registry is `r/sys/users`; `r/gnoland/users/v1` is absent here). **Residual (H7):** confirm the namespace **owner == the intended test13 deploy multisig** — tx_index is `off` so trace via team/aeddi, not RPC.
+- **Caveat:** `aeddi-1` is the plan's flagged non-canonical node (AWS prod infra was incoming) — confirm this relaunched node is the canonical test-13 before pinning anything to it.
+
+**Net:** Phase-0 §5.1 closed (deps present, no dep deploys); §5.4 chain-id confirmed; §5.5 toolchain target ≈ `v1.0.0`/`v1.0.0-rc.0`; #64 parked confirmed; remaining gates = namespace-owner confirm (§5.2/H7) + node-canonicity + Adena (§5.6).
+
 ---
 
 ## 6. Phased implementation plan

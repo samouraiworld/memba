@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { VISIBLE_NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import {
     House, Buildings, Coins, FolderOpen,
@@ -199,7 +200,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                     outline: "none",
                                 }}
                             >
-                                {Object.entries(network.networks).map(([key, net]) => (
+                                {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
                                     <option key={key} value={key} style={{ background: "var(--color-border)", color: "var(--color-text-secondary)" }}>
                                         {net.label}
                                     </option>

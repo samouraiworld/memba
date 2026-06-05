@@ -38,6 +38,8 @@ interface NetworkConfig {
     label: string
     userRegistryPath: string
     faucetUrl: string
+    /** When true, the network is reachable by URL/env but hidden from the selector. */
+    hidden?: boolean
 }
 
 /** Available Gno networks for the chain selector. */
@@ -49,6 +51,27 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Testnet 12",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
+    },
+    // Testnet 13 (gno v0.9 / pre-interrealm-v2). On-wire chainId is "test-13"
+    // (HYPHEN) — it is embedded in the ADR-036 sign doc, so it MUST match the
+    // chain exactly or every login fails "invalid user signature". The map KEY
+    // ("test13") stays identifier-safe.
+    //
+    // The RPC host is aeddi's personal node (non-canonical, expected to move to
+    // prod infra) → keep it env-overridable (VITE_TEST13_RPC_URL) with a
+    // fallback slot, never a hardcoded sole path.
+    //
+    // Hidden from the selector until the memba realms are deployed there
+    // (Phase 3); flip VITE_ENABLE_TEST13=true to surface it. Still reachable
+    // now via /test13/... URLs or VITE_GNO_CHAIN_ID=test13.
+    test13: {
+        chainId: "test-13",
+        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test-13-aeddi-1.gnoland.network",
+        fallbackRpcUrls: [],
+        label: "Testnet 13",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "https://faucet.gno.land",
+        hidden: !import.meta.env.VITE_ENABLE_TEST13,
     },
     test11: {
         chainId: "test11",
@@ -87,6 +110,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         faucetUrl: "",
     },
 }
+
+/** Networks shown in the selector (all non-hidden ones). NETWORKS stays the
+ *  full map for resolution by URL/env/localStorage. */
+export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntries(
+    Object.entries(NETWORKS).filter(([, n]) => !n.hidden),
+)
 
 /** Default network key. */
 export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test12"
@@ -168,6 +197,8 @@ export function getExplorerBaseUrl(): string {
         case "portal-loop": return "https://gno.land"
         case "gnoland1": return "https://betanet.gno.land"
         case "test12": return "https://test12.gno.land"
+        // test-13 explorer host not yet canonical; override when known.
+        case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
 }
@@ -268,6 +299,7 @@ export const TRUSTED_RPC_DOMAINS = [
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
     "rpc.test12.gno.land",
+    "gnoland.network", // test-13 (aeddi-1 node + future prod infra), suffix-matched
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live
     //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)

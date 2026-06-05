@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { SunDim, Moon } from "@phosphor-icons/react"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { validateActiveRpcDomain } from "../../lib/config"
+import { validateActiveRpcDomain, VISIBLE_NETWORKS } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
 import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
@@ -90,7 +90,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                         }}
                         title="Switch network"
                     >
-                        {Object.entries(network.networks).map(([key, net]) => (
+                        {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
                             <option key={key} value={key}>
                                 {net.label}
                             </option>
