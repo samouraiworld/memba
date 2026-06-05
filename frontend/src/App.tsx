@@ -75,6 +75,7 @@ const OrganizationsPage = lazy(() => import("./pages/OrganizationsPage"))
 const GnoloveLayout = lazy(() => import("./layouts/GnoloveLayout"))
 const GnoloveHome = lazy(() => import("./pages/gnolove/GnoloveHome"))
 const GnoloveReport = lazy(() => import("./pages/gnolove/GnoloveReport"))
+const GnoloveNotablePRs = lazy(() => import("./pages/gnolove/GnoloveNotablePRs"))
 const GnoloveAnalytics = lazy(() => import("./pages/gnolove/GnoloveAnalytics"))
 const GnoloveContributorProfile = lazy(() => import("./pages/gnolove/GnoloveContributorProfile"))
 const GnoloveTeams = lazy(() => import("./pages/gnolove/GnoloveTeams"))
@@ -220,6 +221,7 @@ function App() {
           <Route path="gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
             <Route index element={<GnoloveHome />} />
             <Route path="report" element={<GnoloveReport />} />
+            <Route path="notable-prs" element={<GnoloveNotablePRs />} />
             <Route path="analytics" element={<GnoloveAnalytics />} />
             <Route path="contributor/:login" element={<GnoloveContributorProfile />} />
             <Route path="teams" element={<GnoloveTeams />} />

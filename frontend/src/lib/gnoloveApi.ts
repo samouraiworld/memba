@@ -32,12 +32,14 @@ import {
     TopicsResponseSchema,
     CohortsResponseSchema,
     TeamCollabResponseSchema,
+    NotablePRSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
     TIssue,
     TPullRequestReport,
     TPullRequest,
+    TNotablePR,
     TUser,
     TMilestone,
     TRepository,
@@ -158,6 +160,12 @@ export async function getNewContributors(signal?: AbortSignal): Promise<TUser[]>
 export async function getFreshlyMerged(signal?: AbortSignal): Promise<TPullRequest[] | null> {
     const data = await fetchJson(apiUrl("/last-prs"), signal)
     return z.array(PullRequestSchema).nullish().parse(data) ?? null
+}
+
+/** Notable PRs board (gnolang Project #66). Returns [] when empty/not synced. */
+export async function getNotablePRs(signal?: AbortSignal): Promise<TNotablePR[]> {
+    const data = await fetchJson(apiUrl("/projects/notable"), signal)
+    return z.array(NotablePRSchema).nullish().parse(data) ?? []
 }
 
 export async function getMilestone(milestoneNumber: number, signal?: AbortSignal): Promise<TMilestone> {
