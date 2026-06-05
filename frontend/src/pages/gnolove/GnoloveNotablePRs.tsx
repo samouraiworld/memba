@@ -16,16 +16,14 @@
  */
 
 import { useMemo, useState } from "react"
-import { Link } from "react-router-dom"
-import { useNotablePRs } from "../../hooks/gnolove"
+import { Link, useSearchParams } from "react-router-dom"
+import { useNotablePRs, useBoards } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { PageMeta } from "../../components/gnolove/PageMeta"
-import type { TNotablePR, TNotablePRLabel } from "../../lib/gnoloveSchemas"
+import type { TNotablePR, TNotablePRLabel, TBoardMeta } from "../../lib/gnoloveSchemas"
 
-const PROJECT_URL = "https://github.com/orgs/gnolang/projects/66/views/1"
-
-// ── Board taxonomy ───────────────────────────────────────────
-const AREA_ORDER = ["VM", "Blockchain", "Gnops", "Gno.land", "UX"] as const
+// ── Board taxonomy (defaults; per-board values come from the API) ─────
+const DEFAULT_AREA_ORDER = ["VM", "Blockchain", "Gnops", "Gno.land", "UX"]
 const AREA_COLOR: Record<string, string> = {
     VM: "#00d4aa",
     Blockchain: "#a855f7",
@@ -33,8 +31,15 @@ const AREA_COLOR: Record<string, string> = {
     "Gno.land": "#22c55e",
     UX: "#4a9eff",
 }
-const STATUS_ORDER = ["Todo", "In progress", "Done"] as const
+const DEFAULT_STATUS_ORDER = ["Todo", "In progress", "Done"]
+const DEFAULT_BOARD_ID = "notable"
 const UNASSIGNED = "Unassigned"
+
+/** GitHub board URL for a board, or the #66 board as a fallback. */
+function boardUrl(board?: TBoardMeta): string {
+    if (!board) return "https://github.com/orgs/gnolang/projects/66/views/1"
+    return `https://github.com/orgs/${board.owner}/projects/${board.number}`
+}
 
 type ViewMode = "list" | "board"
 type GroupBy = "area" | "status" | "repo"
@@ -43,6 +48,11 @@ type GroupBy = "area" | "status" | "repo"
 type ReviewState = { key: string; label: string; tone: string }
 
 function reviewState(pr: TNotablePR): ReviewState {
+    if (pr.itemType === "issue") {
+        return pr.state === "CLOSED"
+            ? { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, #ef4444)" }
+            : { key: "open", label: "Open", tone: "var(--gl-color-state-open, #22c55e)" }
+    }
     if (pr.state === "MERGED") return { key: "merged", label: "Merged", tone: "var(--gl-color-state-merged, #a855f7)" }
     if (pr.state === "CLOSED") return { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, #ef4444)" }
     if (pr.isDraft) return { key: "draft", label: "Draft", tone: "#6e7781" }
@@ -53,9 +63,9 @@ function reviewState(pr: TNotablePR): ReviewState {
     }
 }
 
-/** Open, not draft, not yet approved/merged/closed → still needs reviewer action. */
+/** A PR that is open, not draft, not yet approved → still needs reviewer action. Issues never "need review". */
 function needsReview(pr: TNotablePR): boolean {
-    return pr.state === "OPEN" && !pr.isDraft && pr.reviewDecision !== "APPROVED"
+    return pr.itemType !== "issue" && pr.state === "OPEN" && !pr.isDraft && pr.reviewDecision !== "APPROVED"
 }
 
 function isDone(pr: TNotablePR): boolean {
@@ -215,9 +225,9 @@ function groupKey(pr: TNotablePR, by: GroupBy): string {
     return pr.repository || UNASSIGNED
 }
 
-function orderedGroups(map: Map<string, TNotablePR[]>, by: GroupBy): string[] {
+function orderedGroups(map: Map<string, TNotablePR[]>, by: GroupBy, areaOrder: string[], statusOrder: string[]): string[] {
     const keys = Array.from(map.keys())
-    const order = by === "area" ? AREA_ORDER : by === "status" ? STATUS_ORDER : []
+    const order = by === "area" ? areaOrder : by === "status" ? statusOrder : []
     const rank = (k: string): number => {
         const i = (order as readonly string[]).indexOf(k)
         return i === -1 ? (k === UNASSIGNED ? 9998 : 9000 + keys.indexOf(k)) : i
@@ -238,7 +248,23 @@ function sortRows(prs: TNotablePR[]): TNotablePR[] {
 // ── Page ─────────────────────────────────────────────────────
 export default function GnoloveNotablePRs() {
     const np = useNetworkPath()
-    const { data, isLoading, isError } = useNotablePRs()
+    const [searchParams, setSearchParams] = useSearchParams()
+
+    const { data: boards } = useBoards()
+    const boardList = useMemo(() => boards ?? [], [boards])
+
+    // Selected board comes from ?board=; default to #66 ("notable").
+    const boardId = searchParams.get("board") || DEFAULT_BOARD_ID
+    const activeBoard = useMemo(
+        () => boardList.find(b => b.id === boardId) ?? boardList.find(b => b.id === DEFAULT_BOARD_ID),
+        [boardList, boardId],
+    )
+    const areaOrder = activeBoard?.areas?.length ? activeBoard.areas : DEFAULT_AREA_ORDER
+    const statusOrder = activeBoard?.statuses?.length ? activeBoard.statuses : DEFAULT_STATUS_ORDER
+    const boardLabel = activeBoard?.label ?? "Notable PRs"
+    const projectUrl = boardUrl(activeBoard)
+
+    const { data, isLoading, isError } = useNotablePRs(boardId)
 
     const [view, setView] = useState<ViewMode>("list")
     const [groupBy, setGroupBy] = useState<GroupBy>("area")
@@ -249,11 +275,21 @@ export default function GnoloveNotablePRs() {
 
     const all = useMemo(() => data ?? [], [data])
 
-    // Areas present (for the filter chips), in canonical order.
+    // Switch board: update the URL and reset the area filter (areas differ per board).
+    const selectBoard = (id: string) => {
+        setArea("all")
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev)
+            if (id === DEFAULT_BOARD_ID) next.delete("board"); else next.set("board", id)
+            return next
+        }, { replace: true })
+    }
+
+    // Areas present (for the filter chips), in this board's canonical order.
     const areas = useMemo(() => {
         const present = new Set(all.map(p => p.mainArea).filter(Boolean))
-        return AREA_ORDER.filter(a => present.has(a))
-    }, [all])
+        return areaOrder.filter(a => present.has(a))
+    }, [all, areaOrder])
 
     const filtered = useMemo(() => all.filter(pr => {
         if (area !== "all" && pr.mainArea !== area) return false
@@ -269,8 +305,14 @@ export default function GnoloveNotablePRs() {
             const arr = m.get(k)
             if (arr) arr.push(pr); else m.set(k, [pr])
         }
-        return orderedGroups(m, groupBy).map(k => ({ key: k, prs: sortRows(m.get(k)!) }))
-    }, [filtered, groupBy])
+        return orderedGroups(m, groupBy, areaOrder, statusOrder).map(k => ({ key: k, prs: sortRows(m.get(k)!) }))
+    }, [filtered, groupBy, areaOrder, statusOrder])
+
+    // Board (Kanban) columns; when "Hide done" is on, drop the terminal Done column.
+    const boardColumns = useMemo(
+        () => (hideDone ? statusOrder.filter(s => s !== "Done") : statusOrder),
+        [statusOrder, hideDone],
+    )
 
     const toggleGroup = (k: string) => setCollapsed(prev => {
         const next = new Set(prev)
@@ -280,19 +322,36 @@ export default function GnoloveNotablePRs() {
 
     return (
         <div className="gl-page">
-            <PageMeta title="Notable PRs | Gnolove · Memba" description="PRs from the gnolang Notable PRs board that need review or help." />
+            <PageMeta title={`${boardLabel} | Gnolove · Memba`} description="gnolang project boards that need review or help, mirrored into Memba." />
             <Link to={np("gnolove")} className="gl-profile-back">← Back to Contributors Overview</Link>
 
             <div className="gl-header">
-                <h1 className="gl-title">Notable PRs</h1>
-                <a href={PROJECT_URL} target="_blank" rel="noopener noreferrer" className="gl-thub-chip" title="Open the gnolang Notable PRs board on GitHub">
-                    gnolang/projects #66 ↗
+                <h1 className="gl-title">{boardLabel}</h1>
+                <a href={projectUrl} target="_blank" rel="noopener noreferrer" className="gl-thub-chip" title={`Open the gnolang #${activeBoard?.number ?? 66} board on GitHub`}>
+                    gnolang/projects #{activeBoard?.number ?? 66} ↗
                 </a>
             </div>
             <p className="gl-team-profile-desc" style={{ marginTop: 0 }}>
-                PRs the Gno core team flagged as needing review or help, mirrored from the{" "}
-                <a href={PROJECT_URL} target="_blank" rel="noopener noreferrer">Notable PRs by Area</a> board.
+                Items from the gnolang{" "}
+                <a href={projectUrl} target="_blank" rel="noopener noreferrer">{boardLabel}</a> board, mirrored into Memba and filtered to what needs attention.
             </p>
+
+            {/* ── Board selector (shown when more than one board is mirrored) ── */}
+            {boardList.length > 1 && (
+                <div className="gl-np-seg" role="tablist" aria-label="Board" style={{ marginBottom: 8 }}>
+                    {boardList.map(b => (
+                        <button
+                            key={b.id}
+                            role="tab"
+                            aria-selected={b.id === activeBoard?.id}
+                            className={`gl-np-seg-btn${b.id === activeBoard?.id ? " is-active" : ""}`}
+                            onClick={() => selectBoard(b.id)}
+                        >
+                            {b.label}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* ── Controls ── */}
             <div className="gl-np-controls">
@@ -328,7 +387,7 @@ export default function GnoloveNotablePRs() {
                 <label className="gl-np-toggle">
                     <input type="checkbox" checked={hideDone} onChange={e => setHideDone(e.target.checked)} /> Hide done
                 </label>
-                <span className="gl-np-count">{filtered.length} PR{filtered.length === 1 ? "" : "s"}</span>
+                <span className="gl-np-count">{filtered.length} item{filtered.length === 1 ? "" : "s"}</span>
             </div>
 
             {/* ── States ── */}
@@ -336,12 +395,12 @@ export default function GnoloveNotablePRs() {
             {isError && <p className="gl-team-profile-desc" role="alert">Couldn't load the notable PRs board right now. Please try again later.</p>}
             {!isLoading && !isError && all.length === 0 && (
                 <p className="gl-team-profile-desc">
-                    No notable PRs to show yet. View the board{" "}
-                    <a href={PROJECT_URL} target="_blank" rel="noopener noreferrer">directly on GitHub</a>.
+                    Nothing to show on this board yet. View it{" "}
+                    <a href={projectUrl} target="_blank" rel="noopener noreferrer">directly on GitHub</a>.
                 </p>
             )}
             {!isLoading && !isError && all.length > 0 && filtered.length === 0 && (
-                <p className="gl-team-profile-desc">No PRs match the current filters. Try turning off “Needs review” or “Hide done”.</p>
+                <p className="gl-team-profile-desc">Nothing matches the current filters. Try turning off “Needs review” or “Hide done”.</p>
             )}
 
             {/* ── List view ── */}
@@ -363,7 +422,7 @@ export default function GnoloveNotablePRs() {
             {/* ── Board view ── */}
             {view === "board" && filtered.length > 0 && (
                 <div className="gl-np-board">
-                    {STATUS_ORDER.map(st => {
+                    {boardColumns.map(st => {
                         const col = sortRows(filtered.filter(p => (p.status || UNASSIGNED) === st))
                         return (
                             <div key={st} className="gl-np-col">

@@ -33,6 +33,7 @@ import {
     CohortsResponseSchema,
     TeamCollabResponseSchema,
     NotablePRSchema,
+    BoardMetaSchema,
 } from "./gnoloveSchemas"
 import type {
     TContributorsResponse,
@@ -40,6 +41,7 @@ import type {
     TPullRequestReport,
     TPullRequest,
     TNotablePR,
+    TBoardMeta,
     TUser,
     TMilestone,
     TRepository,
@@ -162,9 +164,16 @@ export async function getFreshlyMerged(signal?: AbortSignal): Promise<TPullReque
     return z.array(PullRequestSchema).nullish().parse(data) ?? null
 }
 
-/** Notable PRs board (gnolang Project #66). Returns [] when empty/not synced. */
-export async function getNotablePRs(signal?: AbortSignal): Promise<TNotablePR[]> {
-    const data = await fetchJson(apiUrl("/projects/notable"), signal)
+/** Mirrored GitHub project boards and their taxonomy. */
+export async function getBoards(signal?: AbortSignal): Promise<TBoardMeta[]> {
+    const data = await fetchJson(apiUrl("/projects/boards"), signal)
+    return z.array(BoardMetaSchema).nullish().parse(data) ?? []
+}
+
+/** One board's items (PRs/issues). Returns [] when empty/not synced. */
+export async function getNotablePRs(boardId?: string, signal?: AbortSignal): Promise<TNotablePR[]> {
+    const path = boardId ? `/projects/notable?board=${encodeURIComponent(boardId)}` : "/projects/notable"
+    const data = await fetchJson(apiUrl(path), signal)
     return z.array(NotablePRSchema).nullish().parse(data) ?? []
 }
 

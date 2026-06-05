@@ -172,9 +172,20 @@ export const PullRequestReportSchema = z.object({
 })
 export type TPullRequestReport = z.infer<typeof PullRequestReportSchema>
 
-// ── Notable PRs board (gnolang Project #66) ──────────────────
+// ── Notable PRs / project boards ─────────────────────────────
 
-/** One PR item mirrored from the gnolang "Notable PRs" GitHub Project (#66). */
+/** Metadata for one mirrored GitHub project board (from /projects/boards). */
+export const BoardMetaSchema = z.object({
+    id: z.string(),
+    label: z.string(),
+    owner: z.string(),
+    number: z.number(),
+    areas: z.array(z.string()).nullish().transform(v => v ?? []),
+    statuses: z.array(z.string()).nullish().transform(v => v ?? []),
+})
+export type TBoardMeta = z.infer<typeof BoardMetaSchema>
+
+/** One item (PR or issue) mirrored from a gnolang GitHub project board. */
 export const NotablePRLabelSchema = z.object({
     name: z.string(),
     color: z.string().nullish().transform(v => v ?? ""),
@@ -186,6 +197,10 @@ export const NotablePRReviewSchema = z.object({
 })
 export const NotablePRSchema = z.object({
     itemID: z.string(),
+    /** Source board slug (e.g. "notable", "gnoland-dev"). */
+    boardId: z.string().nullish().transform(v => v ?? ""),
+    /** "pr" or "issue". Older payloads without it are treated as PRs. */
+    itemType: z.string().nullish().transform(v => v ?? "pr"),
     number: z.number(),
     title: z.string(),
     url: z.string(),
