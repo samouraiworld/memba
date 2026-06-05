@@ -49,12 +49,20 @@ export function useGnoloveReport(startDate: Date, endDate: Date) {
     })
 }
 
-// ── Notable PRs board (gnolang Project #66) ──────────────────
+// ── Project boards (Notable PRs #66, Gno.land dev #38, …) ─────
 
-export function useNotablePRs() {
+export function useBoards() {
     return useQuery({
-        queryKey: ["gnolove", "notable-prs"],
-        queryFn: ({ signal }) => api.getNotablePRs(signal),
+        queryKey: ["gnolove", "boards"],
+        queryFn: ({ signal }) => api.getBoards(signal),
+        staleTime: STALE_DEFAULT,
+    })
+}
+
+export function useNotablePRs(boardId?: string) {
+    return useQuery({
+        queryKey: ["gnolove", "notable-prs", boardId ?? "default"],
+        queryFn: ({ signal }) => api.getNotablePRs(boardId, signal),
         staleTime: STALE_DEFAULT,
     })
 }
