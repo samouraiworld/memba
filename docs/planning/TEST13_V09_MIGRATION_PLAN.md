@@ -197,6 +197,36 @@ Probed the live RPC `https://rpc.test-13-aeddi-1.gnoland.network` (read-only, `g
 
 **Net:** Phase-0 §5.1 closed (deps present, no dep deploys); §5.4 chain-id confirmed; §5.5 toolchain target ≈ `v1.0.0`/`v1.0.0-rc.0`; #64 parked confirmed; remaining gates = namespace-owner confirm (§5.2/H7) + node-canonicity + Adena (§5.6).
 
+### 5.8 ⚠️ Re-pull + the "branch ≠ live binary" v2 gap (2026-06-08, public-launch Monday)
+
+Re-pulled all repos and re-probed the live chains. **#64-parked still holds for the live binary — but the assumption it rests on is now thinner than §5.7 thought, and worth pinning precisely.**
+
+**Live chains (probed today):**
+- `test-13` (aeddi-1) → still **`v1.0.0-rc.0`**, network `test-13`. Unchanged since 06-05.
+- `test12` (`rpc.testnet12.samourai.live`) → **LIVE, also upgraded to `v1.0.0-rc.0`**, height ~1.1M. **Memba prod (defaults to `test12`) is not broken.** Whichever testnet we deploy to today, the binary target is identical.
+- mainnet `rpc.gno.land` (`gnoland1`) → also `v1.0.0-rc.0`.
+
+**The new fact §5.7 missed — the deploy *branch* has already done the v2 hard-move:**
+The §5.7 conclusion was "deployable target stays v0.9/v1-crossing." Verified true **for the running binary**, but the gating proof is now exact:
+
+| | `runtime.PreviousRealm()` lives where? | gnodaokit `main` (uses `runtime.*`, 4 sites) |
+|---|---|---|
+| **`v1.0.0-rc.0`** (live test-13 / test12 / mainnet) | `chain/runtime/native.gno` — still there | ✅ **compiles, deploys as-is** |
+| **`chain/test13` git branch** (relocked 06-05, post-master-merge) | **hard-moved** to `chain/runtime/unsafe` — gone from `chain/runtime` | ❌ **fails to compile → needs #64** |
+
+So the v2 cutover is **not** a distant test14/mainnet event (§3.1's framing) — it is **staged on the very branch the node deploys from**. The §5.7/§9-addendum belief that `chain/test-13` was still `5dd6950` (pre-v2) is **stale**: the branch is now `f45cc5c88` and carries the full `runtime.*` → `unsafe.*` hard-move. The only thing keeping us on the friendly side is that the live node still runs the older `v1.0.0-rc.0` binary. **Lead indicator: the live `/status` `version` flipping off `v1.0.0-rc.0` = #64 becomes mandatory same-day.**
+
+**Action delta (cheap window, do now while the binary is still pre-hard-move):**
+1. **#64 — leave it alone until merge time; it is correctly parked, not broken.** It is from David's *fork* (`davd-gzl/gnodaokit:feat/port-latest-gno-interrealm-v2`), so we don't push to it. Two decisions resolved 2026-06-08:
+   - **Red CI is correct signal, not a defect — do NOT hack it green.** Root-caused both jobs: `gno-lint` → `p/moul/txlink/txlink.gno:132: name CurrentRealm not declared`; `gno-test` → `r/demo/profile [setup failed], 2 build errors`. Cause = **toolchain↔dependency skew**: `make lint/test` resolve `p/moul/txlink` + `r/demo/profile` from the **live chain (`v1.0.0-rc.0`)** while #64 pins the toolchain to gno **master `2c7f1abe`** (hard-move `unsafe.*` world) — the two introspection APIs disagree. **Merge gate:** #64 goes green *only* when the on-chain dep ecosystem reaches the v2 hard-move (= the live `/status` version leaves `v1.0.0-rc.0`). Forcing it green now would mean vendoring/patching gno-core (`txlink`/`profile`) to `unsafe.*` — overreach, and revert-bound. So: **green-when-chain-is-v2** is the documented gate; nothing to do on our side until then.
+   - **De-brand (🤖 Claude-Code footer in the PR body) at merge time, not now** — it only matters when #64 actually merges, which is itself gated on the chain reaching v2. Strip it as part of the merge step (David edits, or maintainer edit at merge).
+2. **Off-chain is already partly staged** (`config.ts` has the `test13` entry, `chainId:"test-13"` hyphen-correct, `hidden:!VITE_ENABLE_TEST13` from #379; CSP/`TRUSTED_RPC_DOMAINS` `+gnoland.network` dual-file also shipped in #379).
+   - ✅ **M4/M5 DONE (2026-06-08, same branch).** M4a: `mcp-server-dao-analyst/src/index.ts` `KNOWN_NETWORKS` + help/error strings now include `test13` (RPC env-overridable via `TEST13_RPC_URL`). M4b: `mcp-server-dao-analyst/register-agent.sh` `REMOTE`/`CHAIN` made env-overridable (test12 default; documented `test-13` hyphen-chainid override). M5: deleted the orphaned, never-deployed hand-copies `contracts/agent_registry/` + `contracts/escrow/` (the `agent_registry` copy still carried the **vulnerable no-ACL `UseCredit`**; neither is produced by `extract-contracts.ts` nor referenced anywhere); regenerated stubs (**zero drift** — already fresh); all 4 remaining `*_stub` pass `gno test`. (Pre-existing unrelated `tsc` error in `mcp-server-dao-analyst/src/analysis/prompts.ts:25` noted — broken on `main`, out of scope.)
+   - ✅ **H1 RESOLVED (2026-06-08, branch `feat/channels-v2-api-unification`).** Unified the entire channel write-API on the hardened `memba_dao_channels_v2` shape (Option C). **Root mechanism found:** `BoardView` detected v2 via `boardPath.endsWith("_channels")`, which **missed `_channels_v2`** → the native realm was routed to the wrong (`CreateThread`) builder. Fix: (a) `BoardView` now uses `.includes("_channels")`; (b) channel builders send `PostThread`/`PostReply`/`EditThread`/`DeleteThread`/`FlagThread`/`CreateChannel(name,desc,ctype)`; (c) `generateChannelCode()` regenerated to the same API (renamed funcs, thread-only edit/delete, baked-ACL `CreateChannel`, added `FlagThread`+`Hidden`/`FlagCount`, dropped `SetChannelACL`/`ArchiveChannel`/`ReorderChannels` — no UI callers). Render↔`parserV1` format was already compatible (no parser change). **Verified:** `tsc` clean · 1922 vitest pass · eslint clean · **`gno lint` clean** on the generated realm (real v0.9 toolchain) + gofmt-parse on the token-gated variant. Legacy `*_board` realms keep `CreateThread`/`ReplyToThread` (unchanged). Branch unpushed (awaiting review).
+3. **PR the 5 `fix/mainnet-security-audit-v3` deployer-hardening commits** (still no PR) + add the `test-13` `networks.toml` entry.
+
+**Unchanged external blockers (§5/§5.7):** samcrew namespace-owner confirm (H7), canonical RPC host, node freeze/stability, Adena test13 support — all still pending aeddi.
+
 ---
 
 ## 6. Phased implementation plan

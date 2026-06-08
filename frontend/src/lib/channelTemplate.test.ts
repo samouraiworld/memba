@@ -16,11 +16,9 @@ import {
     buildChannelCreateThreadMsg,
     buildChannelReplyMsg,
     buildCreateChannelMsg,
-    buildSetACLMsg,
-    buildArchiveChannelMsg,
-    buildReorderChannelsMsg,
-    buildEditMessageMsg,
-    buildDeleteMessageMsg,
+    buildEditThreadMsg,
+    buildDeleteThreadMsg,
+    buildFlagThreadMsg,
     MEMBA_CHANNEL_DEFS,
 } from "./channelTemplate"
 
@@ -201,24 +199,38 @@ describe("generateChannelCode", () => {
         expect(code).toContain("🔒")
     })
 
-    it("generates CreateThread with token gate check", () => {
+    it("generates PostThread/PostReply with token gate check (unified hardened API)", () => {
         const code = generateChannelCode(baseConfig)
+        expect(code).toContain("func PostThread(cur realm,")
+        expect(code).toContain("func PostReply(cur realm,")
         expect(code).toContain("assertHasTokens(caller)")
         expect(code).toContain("assertChannelWritable(channel, caller)")
+        // Legacy names must be gone — clients now call PostThread/PostReply.
+        expect(code).not.toContain("func CreateThread(")
+        expect(code).not.toContain("func ReplyToThread(")
     })
 
-    it("generates edit/delete functions", () => {
+    it("generates thread-only edit/delete (no per-reply edit/delete)", () => {
         const code = generateChannelCode(baseConfig)
-        expect(code).toContain("func EditMessage(cur realm,")
-        expect(code).toContain("func DeleteMessage(cur realm,")
+        expect(code).toContain("func EditThread(cur realm, channel string, threadID int, newBody string)")
+        expect(code).toContain("func DeleteThread(cur realm, channel string, threadID int)")
+        expect(code).not.toContain("func EditMessage(")
+        expect(code).not.toContain("func DeleteMessage(")
     })
 
-    it("generates admin actions: CreateChannel, SetChannelACL, ArchiveChannel, ReorderChannels", () => {
+    it("generates FlagThread moderation with auto-hide threshold", () => {
         const code = generateChannelCode(baseConfig)
-        expect(code).toContain("func CreateChannel(cur realm,")
-        expect(code).toContain("func SetChannelACL(cur realm,")
-        expect(code).toContain("func ArchiveChannel(cur realm,")
-        expect(code).toContain("func ReorderChannels(cur realm,")
+        expect(code).toContain("func FlagThread(cur realm, channel string, threadID int)")
+        expect(code).toContain("flagThreshold")
+        expect(code).toContain("Hidden    bool")
+    })
+
+    it("generates CreateChannel with baked ACL; drops SetChannelACL/Archive/Reorder", () => {
+        const code = generateChannelCode(baseConfig)
+        expect(code).toContain("func CreateChannel(cur realm, name, description, ctype string)")
+        expect(code).not.toContain("func SetChannelACL(")
+        expect(code).not.toContain("func ArchiveChannel(")
+        expect(code).not.toContain("func ReorderChannels(")
     })
 
     it("generates no-op token gate when minTokenBalance is 0", () => {
@@ -390,10 +402,10 @@ describe("buildDeployChannelMsg", () => {
 // ── MsgCall Builders ──────────────────────────────────────────
 
 describe("buildChannelCreateThreadMsg", () => {
-    it("builds MsgCall for CreateThread", () => {
+    it("builds MsgCall for PostThread (unified hardened API)", () => {
         const msg = buildChannelCreateThreadMsg("g1a", "gno.land/r/u/dao_channels", "general", "Title", "Body")
         expect(msg.type).toBe("vm/MsgCall")
-        expect((msg.value as Record<string, unknown>).func).toBe("CreateThread")
+        expect((msg.value as Record<string, unknown>).func).toBe("PostThread")
         expect((msg.value as Record<string, unknown>).args).toEqual(["general", "Title", "Body"])
     })
 
@@ -404,62 +416,46 @@ describe("buildChannelCreateThreadMsg", () => {
 })
 
 describe("buildChannelReplyMsg", () => {
-    it("builds MsgCall for ReplyToThread with string threadId", () => {
+    it("builds MsgCall for PostReply with string threadId", () => {
         const msg = buildChannelReplyMsg("g1a", "gno.land/r/u/dao_channels", "general", 42, "reply body")
-        expect((msg.value as Record<string, unknown>).func).toBe("ReplyToThread")
+        expect((msg.value as Record<string, unknown>).func).toBe("PostReply")
         expect((msg.value as Record<string, unknown>).args).toEqual(["general", "42", "reply body"])
     })
 })
 
 describe("buildCreateChannelMsg", () => {
-    it("includes channel type and role args", () => {
-        const msg = buildCreateChannelMsg("g1a", "gno.land/r/u/dao_channels", "news", "announcements", "", "admin")
+    it("sends name, description, type (ACL baked at creation)", () => {
+        const msg = buildCreateChannelMsg("g1a", "gno.land/r/u/dao_channels", "news", "News & updates", "announcements")
         expect((msg.value as Record<string, unknown>).func).toBe("CreateChannel")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["news", "announcements", "", "admin"])
+        expect((msg.value as Record<string, unknown>).args).toEqual(["news", "News & updates", "announcements"])
     })
 
-    it("defaults type to text", () => {
+    it("defaults description empty and type to text", () => {
         const msg = buildCreateChannelMsg("g1a", "gno.land/r/u/dao_channels", "general")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "text", "", ""])
+        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "", "text"])
     })
 })
 
-describe("buildSetACLMsg", () => {
-    it("builds MsgCall for SetChannelACL", () => {
-        const msg = buildSetACLMsg("g1a", "gno.land/r/u/dao_channels", "dev", "dev,admin", "dev,admin")
-        expect((msg.value as Record<string, unknown>).func).toBe("SetChannelACL")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["dev", "dev,admin", "dev,admin"])
+describe("buildEditThreadMsg", () => {
+    it("builds MsgCall for EditThread (thread body only)", () => {
+        const msg = buildEditThreadMsg("g1a", "gno.land/r/u/dao_channels", "general", 5, "new body")
+        expect((msg.value as Record<string, unknown>).func).toBe("EditThread")
+        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "5", "new body"])
     })
 })
 
-describe("buildArchiveChannelMsg", () => {
-    it("builds MsgCall for ArchiveChannel", () => {
-        const msg = buildArchiveChannelMsg("g1a", "gno.land/r/u/dao_channels", "old")
-        expect((msg.value as Record<string, unknown>).func).toBe("ArchiveChannel")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["old"])
+describe("buildDeleteThreadMsg", () => {
+    it("builds MsgCall for DeleteThread (soft delete)", () => {
+        const msg = buildDeleteThreadMsg("g1a", "gno.land/r/u/dao_channels", "general", 5)
+        expect((msg.value as Record<string, unknown>).func).toBe("DeleteThread")
+        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "5"])
     })
 })
 
-describe("buildReorderChannelsMsg", () => {
-    it("joins channel names with comma", () => {
-        const msg = buildReorderChannelsMsg("g1a", "gno.land/r/u/dao_channels", ["dev", "general", "support"])
-        expect((msg.value as Record<string, unknown>).func).toBe("ReorderChannels")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["dev,general,support"])
-    })
-})
-
-describe("buildEditMessageMsg", () => {
-    it("builds MsgCall for EditMessage with replyId", () => {
-        const msg = buildEditMessageMsg("g1a", "gno.land/r/u/dao_channels", "general", 5, 3, "new body")
-        expect((msg.value as Record<string, unknown>).func).toBe("EditMessage")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "5", "3", "new body"])
-    })
-})
-
-describe("buildDeleteMessageMsg", () => {
-    it("builds MsgCall for DeleteMessage", () => {
-        const msg = buildDeleteMessageMsg("g1a", "gno.land/r/u/dao_channels", "general", 5, -1)
-        expect((msg.value as Record<string, unknown>).func).toBe("DeleteMessage")
-        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "5", "-1"])
+describe("buildFlagThreadMsg", () => {
+    it("builds MsgCall for FlagThread", () => {
+        const msg = buildFlagThreadMsg("g1a", "gno.land/r/u/dao_channels", "general", 7)
+        expect((msg.value as Record<string, unknown>).func).toBe("FlagThread")
+        expect((msg.value as Record<string, unknown>).args).toEqual(["general", "7"])
     })
 })

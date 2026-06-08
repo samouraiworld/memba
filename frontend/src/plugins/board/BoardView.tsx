@@ -62,7 +62,12 @@ interface BoardViewProps extends PluginProps {
 }
 
 export default function BoardView({ boardPath, realmPath, slug, auth, adena, initialChannel, onChannelChange, hideChannelList, userRoles = [], daoName = "this DAO", isMember = false }: BoardViewProps) {
-    const isV2 = boardPath.endsWith("_channels")
+    // Channel realms (generated `*_channels` and the hardened `memba_dao_channels_v2`)
+    // share the unified PostThread/PostReply API. Legacy `*_board` realms keep
+    // CreateThread/ReplyToThread. `.includes` catches the `_v2` suffix that
+    // `.endsWith("_channels")` previously missed (routing the native realm to the
+    // wrong builder → "CreateThread not declared" panic on every post).
+    const isV2 = boardPath.includes("_channels")
 
     // v2.5a: Start in "channel" view when initialChannel is provided (headless mode)
     const [viewState, setViewState] = useState<ViewState>(() => ({

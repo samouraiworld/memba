@@ -9,7 +9,8 @@
  * - Token-gated writes ($MEMBA balance check)
  * - @mention support (parsed in Render output)
  * - Rate limiting (MIN_POST_INTERVAL blocks between posts)
- * - Admin actions: create/archive/reorder channels, edit/delete messages
+ * - Author edit/delete of own threads + member flag-for-moderation
+ * - Admin action: create channels (ACL baked at creation; no runtime SetChannelACL/Archive/Reorder)
  * - Public read access (anyone can query via Render)
  *
  * Deployed via MsgAddPackage through Adena DoContract.
@@ -182,6 +183,8 @@ type Thread struct {
 \tCreatedAt int64 // block height
 \tEditedAt  int64 // 0 if never edited
 \tDeleted   bool
+\tHidden    bool
+\tFlagCount int
 }
 
 type Reply struct {
@@ -216,11 +219,14 @@ var (
 \tminPostInterval  = ${config.minPostInterval}
 \tadminAddr        address
 \tmembers          *avl.Tree // address string → role string (v3 ACL)
+\tflaggedBy        map[string]bool // "channel/threadID/flagger" -> flagged
+\tflagThreshold    = 3
 )
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
 \tmembers = avl.NewTree()
+\tflaggedBy = make(map[string]bool)
 \tadminAddr = runtime.PreviousRealm().Address()
 \tmembers.Set(string(adminAddr), "admin") // deployer is first member
 ${channelInit}
@@ -321,6 +327,9 @@ func renderThread(channelName string, threadID int) string {
 \t\t\t\t\tif t.Deleted {
 \t\t\t\t\t\treturn "# [Deleted]\\n\\n*This message has been deleted.*\\n"
 \t\t\t\t\t}
+\t\t\t\t\tif t.Hidden {
+\t\t\t\t\t\treturn "# [Hidden]\\n\\n*This thread has been hidden pending moderation.*\\n"
+\t\t\t\t\t}
 \t\t\t\t\tout := "# " + t.Title + "\\n\\n"
 \t\t\t\t\tout += t.Body + "\\n\\n"
 \t\t\t\t\tout += "---\\n"
@@ -361,7 +370,7 @@ func renderACL(channelName string) string {
 
 // ── Write Actions ─────────────────────────────────────────
 
-func CreateThread(cur realm, channel, title, body string) int {
+func PostThread(cur realm, channel, title, body string) int {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
@@ -396,7 +405,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 \tpanic("channel not found")
 }
 
-func ReplyToThread(cur realm, channel string, threadID int, body string) int {
+func PostReply(cur realm, channel string, threadID int, body string) int {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
@@ -430,80 +439,78 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 \tpanic("channel not found")
 }
 
-// ── Edit / Delete ─────────────────────────────────────────
-
-func EditMessage(cur realm, channel string, threadID int, replyID int, newBody string) {
-	caller := runtime.PreviousRealm().Address()
-	assertIsMember(caller)
-	blockHeight := runtime.ChainHeight()
-	if len(newBody) == 0 || len(newBody) > 8192 {
-		panic("body must be 1-8192 characters")
-	}
-	for i, ch := range channels {
-		if ch.Name == channel {
-			for j, t := range ch.Threads {
-				if t.ID == threadID {
-					if replyID < 0 {
-						// Edit thread body
-						if t.Author != caller {
-							panic("only the author can edit")
-						}
-						if blockHeight-t.CreatedAt > ${config.editWindowBlocks} {
-							panic("edit window expired (${config.editWindowBlocks} blocks)")
-						}
-						channels[i].Threads[j].Body = newBody
-						channels[i].Threads[j].EditedAt = blockHeight
-						return
-					}
-					// Edit reply
-					for k, r := range t.Replies {
-						if r.ID == replyID {
-							if r.Author != caller {
-								panic("only the author can edit")
-							}
-							if blockHeight-r.CreatedAt > ${config.editWindowBlocks} {
-								panic("edit window expired (${config.editWindowBlocks} blocks)")
-							}
-							channels[i].Threads[j].Replies[k].Body = newBody
-							channels[i].Threads[j].Replies[k].EditedAt = blockHeight
-							return
-						}
-					}
-					panic("reply not found")
-				}
-			}
-			panic("thread not found")
-		}
-	}
-	panic("channel not found")
+// FlagThread lets any member flag a thread for moderation. After flagThreshold
+// distinct flags the thread is auto-hidden from listings and detail views.
+func FlagThread(cur realm, channel string, threadID int) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertIsMember(caller)
+\tflagKey := channel + "/" + strconv.Itoa(threadID) + "/" + string(caller)
+\tif flaggedBy[flagKey] {
+\t\tpanic("already flagged")
+\t}
+\tfor i, ch := range channels {
+\t\tif ch.Name == channel {
+\t\t\tfor j, t := range ch.Threads {
+\t\t\t\tif t.ID == threadID {
+\t\t\t\t\tif t.Deleted || t.Hidden {
+\t\t\t\t\t\tpanic("cannot flag this thread")
+\t\t\t\t\t}
+\t\t\t\t\tflaggedBy[flagKey] = true
+\t\t\t\t\tchannels[i].Threads[j].FlagCount++
+\t\t\t\t\tif channels[i].Threads[j].FlagCount >= flagThreshold {
+\t\t\t\t\t\tchannels[i].Threads[j].Hidden = true
+\t\t\t\t\t}
+\t\t\t\t\treturn
+\t\t\t\t}
+\t\t\t}
+\t\t\tpanic("thread not found")
+\t\t}
+\t}
+\tpanic("channel not found")
 }
 
-func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
+// ── Edit / Delete ─────────────────────────────────────────
+
+func EditThread(cur realm, channel string, threadID int, newBody string) {
+\tcaller := runtime.PreviousRealm().Address()
+\tassertIsMember(caller)
+\tblockHeight := runtime.ChainHeight()
+\tif len(newBody) == 0 || len(newBody) > 8192 {
+\t\tpanic("body must be 1-8192 characters")
+\t}
+\tfor i, ch := range channels {
+\t\tif ch.Name == channel {
+\t\t\tfor j, t := range ch.Threads {
+\t\t\t\tif t.ID == threadID {
+\t\t\t\t\tif t.Author != caller {
+\t\t\t\t\t\tpanic("only the author can edit")
+\t\t\t\t\t}
+\t\t\t\t\tif blockHeight-t.CreatedAt > ${config.editWindowBlocks} {
+\t\t\t\t\t\tpanic("edit window expired (${config.editWindowBlocks} blocks)")
+\t\t\t\t\t}
+\t\t\t\t\tchannels[i].Threads[j].Body = newBody
+\t\t\t\t\tchannels[i].Threads[j].EditedAt = blockHeight
+\t\t\t\t\treturn
+\t\t\t\t}
+\t\t\t}
+\t\t\tpanic("thread not found")
+\t\t}
+\t}
+\tpanic("channel not found")
+}
+
+func DeleteThread(cur realm, channel string, threadID int) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
 \t\t\tfor j, t := range ch.Threads {
 \t\t\t\tif t.ID == threadID {
-\t\t\t\t\tif replyID < 0 {
-\t\t\t\t\t\t// Delete thread
-\t\t\t\t\t\tif t.Author != caller && caller != adminAddr {
-\t\t\t\t\t\t\tpanic("only author or admin can delete")
-\t\t\t\t\t\t}
-\t\t\t\t\t\tchannels[i].Threads[j].Deleted = true
-\t\t\t\t\t\treturn
+\t\t\t\t\tif t.Author != caller && caller != adminAddr {
+\t\t\t\t\t\tpanic("only author or admin can delete")
 \t\t\t\t\t}
-\t\t\t\t\t// Delete reply
-\t\t\t\t\tfor k, r := range t.Replies {
-\t\t\t\t\t\tif r.ID == replyID {
-\t\t\t\t\t\t\tif r.Author != caller && caller != adminAddr {
-\t\t\t\t\t\t\t\tpanic("only author or admin can delete")
-\t\t\t\t\t\t\t}
-\t\t\t\t\t\t\tchannels[i].Threads[j].Replies[k].Deleted = true
-\t\t\t\t\t\t\treturn
-\t\t\t\t\t\t}
-\t\t\t\t\t}
-\t\t\t\t\tpanic("reply not found")
+\t\t\t\t\tchannels[i].Threads[j].Deleted = true
+\t\t\t\t\treturn
 \t\t\t\t}
 \t\t\t}
 \t\t\tpanic("thread not found")
@@ -514,14 +521,15 @@ func DeleteMessage(cur realm, channel string, threadID int, replyID int) {
 
 // ── Admin Actions ─────────────────────────────────────────
 
-func CreateChannel(cur realm, name, chanType, readRoles, writeRoles string) {
+func CreateChannel(cur realm, name, description, ctype string) {
 \tcaller := runtime.PreviousRealm().Address()
 \tassertIsAdmin(caller)
+\t_ = description // reserved for future per-channel descriptions
 \tif len(name) == 0 || len(name) > 30 {
 \t\tpanic("channel name must be 1-30 characters")
 \t}
-\tif chanType != "text" && chanType != "announcements" && chanType != "readonly" {
-\t\tpanic("invalid channel type: " + chanType)
+\tif ctype != "text" && ctype != "announcements" && ctype != "readonly" {
+\t\tpanic("invalid channel type: " + ctype)
 \t}
 \tif len(channels) >= 50 {
 \t\tpanic("maximum 50 channels reached")
@@ -531,60 +539,17 @@ func CreateChannel(cur realm, name, chanType, readRoles, writeRoles string) {
 \t\t\tpanic("channel already exists: " + name)
 \t\t}
 \t}
+\t// ACL baked at creation (hardened model): empty ReadRoles = public read,
+\t// empty WriteRoles = all members may write. No runtime SetChannelACL.
 \tchannels = append(channels, Channel{
 \t\tName:       name,
-\t\tChanType:   chanType,
-\t\tReadRoles:  readRoles,
-\t\tWriteRoles: writeRoles,
+\t\tChanType:   ctype,
+\t\tReadRoles:  "",
+\t\tWriteRoles: "",
 \t\tThreads:    []Thread{},
 \t\tArchived:   false,
 \t})
 \tchannelOrder = append(channelOrder, name)
-}
-
-func SetChannelACL(cur realm, channel, readRoles, writeRoles string) {
-\tcaller := runtime.PreviousRealm().Address()
-\tassertIsAdmin(caller)
-\tfor i, ch := range channels {
-\t\tif ch.Name == channel {
-\t\t\tchannels[i].ReadRoles = readRoles
-\t\t\tchannels[i].WriteRoles = writeRoles
-\t\t\treturn
-\t\t}
-\t}
-\tpanic("channel not found: " + channel)
-}
-
-func ArchiveChannel(cur realm, name string) {
-\tcaller := runtime.PreviousRealm().Address()
-\tassertIsAdmin(caller)
-\tfor i, ch := range channels {
-\t\tif ch.Name == name {
-\t\t\tchannels[i].Archived = true
-\t\t\treturn
-\t\t}
-\t}
-\tpanic("channel not found: " + name)
-}
-
-func ReorderChannels(cur realm, order string) {
-\tcaller := runtime.PreviousRealm().Address()
-\tassertIsAdmin(caller)
-\tnewOrder := strings.Split(order, ",")
-\t// Validate all names exist
-\tfor _, name := range newOrder {
-\t\tfound := false
-\t\tfor _, ch := range channels {
-\t\t\tif ch.Name == name {
-\t\t\t\tfound = true
-\t\t\t\tbreak
-\t\t\t}
-\t\t}
-\t\tif !found {
-\t\t\tpanic("unknown channel in order: " + name)
-\t\t}
-\t}
-\tchannelOrder = newOrder
 }
 
 // ── Guards ────────────────────────────────────────────────
@@ -667,7 +632,7 @@ func truncAddr(addr address) string {
 func countActiveThreads(ch Channel) int {
 \tcount := 0
 \tfor _, t := range ch.Threads {
-\t\tif !t.Deleted {
+\t\tif !t.Deleted && !t.Hidden {
 \t\t\tcount++
 \t\t}
 \t}
@@ -677,7 +642,7 @@ func countActiveThreads(ch Channel) int {
 func getActiveThreads(ch Channel) []Thread {
 \tvar active []Thread
 \tfor _, t := range ch.Threads {
-\t\tif !t.Deleted {
+\t\tif !t.Deleted && !t.Hidden {
 \t\t\tactive = append(active, t)
 \t\t}
 \t}
@@ -726,8 +691,16 @@ export function buildDeployChannelMsg(
 }
 
 // ── MsgCall Builders ──────────────────────────────────────
+//
+// These target the UNIFIED hardened channel API (memba_dao_channels_v2 and
+// generated realms from generateChannelCode share the same exported surface):
+//   PostThread(channel, title, body)         · PostReply(channel, threadID, body)
+//   EditThread(channel, threadID, newBody)   · DeleteThread(channel, threadID)
+//   FlagThread(channel, threadID)            · CreateChannel(name, description, ctype)
+// The hardened realm bakes ACL at channel creation, so there is no runtime
+// SetChannelACL / ArchiveChannel / ReorderChannels and no per-reply edit/delete.
 
-/** Build a MsgCall for CreateThread on a channel realm. */
+/** Build a MsgCall for PostThread on a channel realm. */
 export function buildChannelCreateThreadMsg(
     caller: string,
     channelRealmPath: string,
@@ -741,13 +714,13 @@ export function buildChannelCreateThreadMsg(
             caller,
             send: "",
             pkg_path: channelRealmPath,
-            func: "CreateThread",
+            func: "PostThread",
             args: [channel, title, body],
         },
     }
 }
 
-/** Build a MsgCall for ReplyToThread on a channel realm. */
+/** Build a MsgCall for PostReply on a channel realm. */
 export function buildChannelReplyMsg(
     caller: string,
     channelRealmPath: string,
@@ -761,20 +734,23 @@ export function buildChannelReplyMsg(
             caller,
             send: "",
             pkg_path: channelRealmPath,
-            func: "ReplyToThread",
+            func: "PostReply",
             args: [channel, String(threadId), body],
         },
     }
 }
 
-/** Build a MsgCall for CreateChannel on a channel realm (admin only). */
+/**
+ * Build a MsgCall for CreateChannel on a channel realm (owner/admin only).
+ * The hardened realm bakes write ACL at creation (default roles), so the only
+ * args are name, description and channel type.
+ */
 export function buildCreateChannelMsg(
     caller: string,
     channelRealmPath: string,
     channelName: string,
+    description: string = "",
     channelType: ChannelType = "text",
-    readRoles: string = "",
-    writeRoles: string = "",
 ): AminoMsg {
     return {
         type: "vm/MsgCall",
@@ -783,74 +759,17 @@ export function buildCreateChannelMsg(
             send: "",
             pkg_path: channelRealmPath,
             func: "CreateChannel",
-            args: [channelName, channelType, readRoles, writeRoles],
+            args: [channelName, description, channelType],
         },
     }
 }
 
-/** Build a MsgCall for SetChannelACL (admin only). */
-export function buildSetACLMsg(
-    caller: string,
-    channelRealmPath: string,
-    channel: string,
-    readRoles: string,
-    writeRoles: string,
-): AminoMsg {
-    return {
-        type: "vm/MsgCall",
-        value: {
-            caller,
-            send: "",
-            pkg_path: channelRealmPath,
-            func: "SetChannelACL",
-            args: [channel, readRoles, writeRoles],
-        },
-    }
-}
-
-/** Build a MsgCall for ArchiveChannel (admin only). */
-export function buildArchiveChannelMsg(
-    caller: string,
-    channelRealmPath: string,
-    channelName: string,
-): AminoMsg {
-    return {
-        type: "vm/MsgCall",
-        value: {
-            caller,
-            send: "",
-            pkg_path: channelRealmPath,
-            func: "ArchiveChannel",
-            args: [channelName],
-        },
-    }
-}
-
-/** Build a MsgCall for ReorderChannels (admin only). */
-export function buildReorderChannelsMsg(
-    caller: string,
-    channelRealmPath: string,
-    orderedNames: string[],
-): AminoMsg {
-    return {
-        type: "vm/MsgCall",
-        value: {
-            caller,
-            send: "",
-            pkg_path: channelRealmPath,
-            func: "ReorderChannels",
-            args: [orderedNames.join(",")],
-        },
-    }
-}
-
-/** Build a MsgCall for EditMessage (author only, within edit window). */
-export function buildEditMessageMsg(
+/** Build a MsgCall for EditThread (author only, within edit window). */
+export function buildEditThreadMsg(
     caller: string,
     channelRealmPath: string,
     channel: string,
     threadId: number,
-    replyId: number,
     newBody: string,
 ): AminoMsg {
     return {
@@ -859,19 +778,18 @@ export function buildEditMessageMsg(
             caller,
             send: "",
             pkg_path: channelRealmPath,
-            func: "EditMessage",
-            args: [channel, String(threadId), String(replyId), newBody],
+            func: "EditThread",
+            args: [channel, String(threadId), newBody],
         },
     }
 }
 
-/** Build a MsgCall for DeleteMessage (author or admin). */
-export function buildDeleteMessageMsg(
+/** Build a MsgCall for DeleteThread (author only — soft delete). */
+export function buildDeleteThreadMsg(
     caller: string,
     channelRealmPath: string,
     channel: string,
     threadId: number,
-    replyId: number,
 ): AminoMsg {
     return {
         type: "vm/MsgCall",
@@ -879,8 +797,27 @@ export function buildDeleteMessageMsg(
             caller,
             send: "",
             pkg_path: channelRealmPath,
-            func: "DeleteMessage",
-            args: [channel, String(threadId), String(replyId)],
+            func: "DeleteThread",
+            args: [channel, String(threadId)],
+        },
+    }
+}
+
+/** Build a MsgCall for FlagThread (any member — moderation flag). */
+export function buildFlagThreadMsg(
+    caller: string,
+    channelRealmPath: string,
+    channel: string,
+    threadId: number,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: channelRealmPath,
+            func: "FlagThread",
+            args: [channel, String(threadId)],
         },
     }
 }
