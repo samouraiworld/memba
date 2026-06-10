@@ -15,7 +15,7 @@
  * @see docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §5/A6
  */
 
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import type { AminoMsg } from "../../lib/grc20"
 import { setTxConfirmationCallback } from "../../lib/grc20"
 import "./tx-confirmation.css"
@@ -32,20 +32,6 @@ export interface TxSummary {
 interface ConfirmationRequest {
     summary: TxSummary
     resolve: (confirmed: boolean) => void
-}
-
-interface TxConfirmationContextType {
-    requestConfirmation: (summary: TxSummary) => Promise<boolean>
-}
-
-// ── Context ──────────────────────────────────────────────────
-
-const TxConfirmationContext = createContext<TxConfirmationContextType | null>(null)
-
-export function useTxConfirmation(): TxConfirmationContextType {
-    const ctx = useContext(TxConfirmationContext)
-    if (!ctx) throw new Error("useTxConfirmation must be used within TxConfirmationProvider")
-    return ctx
 }
 
 // ── Provider ─────────────────────────────────────────────────
@@ -82,7 +68,7 @@ export function TxConfirmationProvider({ children }: { children: React.ReactNode
     }, [])
 
     return (
-        <TxConfirmationContext.Provider value={{ requestConfirmation }}>
+        <>
             {children}
             {request && (
                 <TxConfirmationModal
@@ -91,7 +77,7 @@ export function TxConfirmationProvider({ children }: { children: React.ReactNode
                     onCancel={handleCancel}
                 />
             )}
-        </TxConfirmationContext.Provider>
+        </>
     )
 }
 
