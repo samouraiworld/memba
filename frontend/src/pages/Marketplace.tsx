@@ -26,7 +26,7 @@ import {
 } from "../lib/agentRegistry"
 import { buildRegisterAgentMsg, buildReviewAgentMsg } from "../lib/agentTemplate"
 import { doContractBroadcast } from "../lib/grc20"
-import { MEMBA_DAO } from "../lib/config"
+import { MEMBA_DAO, AGENT_CREDITS_ENABLED } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -725,6 +725,27 @@ function CreditSection({ agentId, address, onError }: {
 }) {
     const [depositAmount, setDepositAmount] = useState("")
     const [submitting, setSubmitting] = useState(false)
+
+    // A5.ui: fail-closed — disable credit operations when flag is off
+    if (!AGENT_CREDITS_ENABLED) {
+        return (
+            <div className="mp-detail__section">
+                <h3>Credits</h3>
+                <div
+                    role="alert"
+                    style={{
+                        padding: "12px 16px", borderRadius: 8, fontSize: 12,
+                        background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
+                        fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                        lineHeight: 1.6,
+                    }}
+                >
+                    ⚠️ Agent credit deposits are temporarily disabled while the on-chain
+                    registry is being verified. Do not send funds to agent contracts directly.
+                </div>
+            </div>
+        )
+    }
 
     const handleDeposit = async () => {
         const ugnot = Math.floor(parseFloat(depositAmount || "0") * 1_000_000)
