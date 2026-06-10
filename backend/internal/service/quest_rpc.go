@@ -353,6 +353,14 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 		return nil, internalError("GetLeaderboard.count", err)
 	}
 
+	// A7: Bound offset — return empty if offset >= totalCount (avoids slow-path DoS)
+	if offset >= totalCount {
+		return connect.NewResponse(&membav1.GetLeaderboardResponse{
+			Entries:    nil,
+			TotalCount: totalCount,
+		}), nil
+	}
+
 	// First try from cache table (fast path), joining profiles for usernames
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT ur.address, ur.rank_tier, ur.rank_name, ur.total_xp, ur.quests_completed,
@@ -396,6 +404,11 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 
 // computeLeaderboard computes the leaderboard from quest_completions using
 // a single aggregation query (no N+1). Also populates the user_ranks cache.
+//
+// A7: Fixed self-deadlock — rows are collected and the cursor is closed BEFORE
+// writing to user_ranks. On MaxOpenConns(1) SQLite, the old code deadlocked
+// because ExecContext tried to acquire the only connection while the query
+// cursor was still open.
 func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset uint32) ([]*membav1.LeaderboardEntry, error) {
 	// Get all users with their quest IDs in a single query
 	rows, err := s.db.QueryContext(ctx,
@@ -406,7 +419,6 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 	if err != nil {
 		return nil, internalError("computeLeaderboard", err)
 	}
-	defer func() { _ = rows.Close() }()
 
 	type userXP struct {
 		addr           string
@@ -415,10 +427,12 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 	}
 	var users []userXP
 
+	// A7: Collect ALL rows first — do NOT write to DB inside the cursor loop
 	for rows.Next() {
 		var addr, questIDs string
 		var questCount uint32
 		if err := rows.Scan(&addr, &questIDs, &questCount); err != nil {
+			_ = rows.Close()
 			return nil, internalError("computeLeaderboard.scan", err)
 		}
 
@@ -431,17 +445,23 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 		}
 
 		users = append(users, userXP{addr, totalXP, questCount})
-
-		// Cache the rank
-		tier, name := calculateRankTier(totalXP)
-		_, _ = s.db.ExecContext(ctx,
-			`INSERT OR REPLACE INTO user_ranks (address, rank_tier, rank_name, total_xp, quests_completed, updated_at)
-			 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-			addr, tier, name, totalXP, questCount,
-		)
+	}
+	// Close cursor BEFORE any writes — prevents MaxOpenConns(1) self-deadlock
+	if err := rows.Close(); err != nil {
+		return nil, internalError("computeLeaderboard.close", err)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, internalError("computeLeaderboard.rows", err)
+	}
+
+	// Now populate the user_ranks cache (cursor is closed, connection is free)
+	for _, u := range users {
+		tier, name := calculateRankTier(u.totalXP)
+		_, _ = s.db.ExecContext(ctx,
+			`INSERT OR REPLACE INTO user_ranks (address, rank_tier, rank_name, total_xp, quests_completed, updated_at)
+			 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+			u.addr, tier, name, u.totalXP, u.questsComplete,
+		)
 	}
 
 	// Sort by XP descending using sort package
