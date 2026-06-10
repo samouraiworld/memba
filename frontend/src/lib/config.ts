@@ -16,6 +16,20 @@
 // ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = __APP_VERSION__
 
+/**
+ * Treasury spend kill-switch (AAA-0 A1.a — CRITICAL fund safety).
+ *
+ * When false (default): hides "Propose Spend" UI, replaces deposit-inviting
+ * copy with a fund-safety warning, and blocks deep-links to /treasury/propose.
+ *
+ * WHY: ExecuteProposal in the DAO template has no banker code — spends never
+ * execute, but the UI invites deposits that are permanently irrecoverable.
+ * This flag stays false until A1.c implements the real banker treasury.
+ *
+ * @see docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §5/A1
+ */
+export const TREASURY_SPEND_ENABLED = import.meta.env.VITE_ENABLE_TREASURY_SPEND === "true"
+
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""
 

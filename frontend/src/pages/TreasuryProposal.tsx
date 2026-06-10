@@ -4,6 +4,7 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildProposeMsg } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
+import { TREASURY_SPEND_ENABLED } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
@@ -20,6 +21,46 @@ export function TreasuryProposal() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+
+    // A1.a route-level gate: block deep-links to /treasury/propose when spending is disabled
+    if (!TREASURY_SPEND_ENABLED) {
+        return (
+            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                <button
+                    id="treasury-propose-back-btn"
+                    aria-label="Back to Treasury"
+                    onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
+                    style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                >
+                    ← Back to Treasury
+                </button>
+
+                <div>
+                    <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Treasury Spending Unavailable</h2>
+                </div>
+
+                <div
+                    id="treasury-spend-disabled-warning"
+                    role="alert"
+                    style={{
+                        padding: "24px 20px", borderRadius: 8,
+                        background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
+                        fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                        lineHeight: 1.7, textAlign: "center",
+                    }}
+                >
+                    <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                        ⚠️ Treasury spending is not yet enforced on-chain.
+                    </p>
+                    <p>
+                        Do not send funds to DAO addresses — they cannot be recovered.
+                        Treasury proposals cannot execute fund transfers until on-chain
+                        banker support is implemented.
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     const handlePropose = async () => {
         if (!auth.isAuthenticated || !adena.address) {
@@ -142,7 +183,6 @@ export function TreasuryProposal() {
                 fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#2196f3",
             }}>
                 ℹ This creates a DAO proposal. Members must vote to approve the spend.
-                After passing, someone must execute the proposal to complete the transfer.
             </div>
 
             {/* Submit */}
