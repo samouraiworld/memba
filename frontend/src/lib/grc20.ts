@@ -236,7 +236,9 @@ export async function getTokenBalance(
 
 /**
  * Build MsgCall for grc20factory.New() — creates token with caller as admin.
- * Returns TWO messages if initialMint > 0 (create + fee transfer).
+ *
+ * A4: The tokenfactory realm applies a 2.5% fee on-chain via `applyFee`.
+ * The client-side Transfer to FEE_RECIPIENT was removed to stop double-charging.
  */
 export function buildCreateTokenMsgs(
     callerAddress: string,
@@ -246,7 +248,7 @@ export function buildCreateTokenMsgs(
     initialMint: bigint,
     faucetAmount: bigint,
 ): AminoMsg[] {
-    const msgs: AminoMsg[] = [
+    return [
         buildMsgCall("New", [
             name,
             symbol,
@@ -255,27 +257,13 @@ export function buildCreateTokenMsgs(
             String(faucetAmount),
         ], callerAddress),
     ]
-
-    // Add fee transfer if minting > 0
-    if (initialMint > 0n) {
-        const fee = calculateFee(initialMint)
-        if (fee > 0n) {
-            msgs.push(
-                buildMsgCall("Transfer", [
-                    symbol,
-                    FEE_RECIPIENT,
-                    String(fee),
-                ], callerAddress),
-            )
-        }
-    }
-
-    return msgs
 }
 
 /**
  * Build MsgCall for grc20factory.NewWithAdmin() — creates token with specified admin (e.g. multisig).
- * Returns TWO messages if initialMint > 0 (create + fee transfer from admin).
+ *
+ * A4: The tokenfactory realm applies a 2.5% fee on-chain via `applyFee`.
+ * The client-side Transfer to FEE_RECIPIENT was removed to stop double-charging.
  */
 export function buildCreateTokenWithAdminMsgs(
     callerAddress: string,
@@ -286,7 +274,7 @@ export function buildCreateTokenWithAdminMsgs(
     faucetAmount: bigint,
     adminAddress: string,
 ): AminoMsg[] {
-    const msgs: AminoMsg[] = [
+    return [
         buildMsgCall("NewWithAdmin", [
             name,
             symbol,
@@ -296,27 +284,15 @@ export function buildCreateTokenWithAdminMsgs(
             adminAddress,
         ], callerAddress),
     ]
-
-    // Add fee transfer if minting > 0
-    if (initialMint > 0n) {
-        const fee = calculateFee(initialMint)
-        if (fee > 0n) {
-            msgs.push(
-                buildMsgCall("Transfer", [
-                    symbol,
-                    FEE_RECIPIENT,
-                    String(fee),
-                ], callerAddress),
-            )
-        }
-    }
-
-    return msgs
 }
 
 /**
  * Build MsgCall for grc20factory.Mint() — mints tokens (admin only).
- * Returns TWO messages: mint + 2.5% fee transfer.
+ *
+ * A4: The tokenfactory realm applies a 2.5% fee on-chain via `applyFee`.
+ * The client-side Transfer to FEE_RECIPIENT was removed to stop double-charging.
+ * This also fixes the side-bug where minting to a third party reverted when the
+ * caller held no tokens (the fee Transfer drew from the caller's balance).
  */
 export function buildMintMsgs(
     callerAddress: string,
@@ -324,20 +300,9 @@ export function buildMintMsgs(
     to: string,
     amount: bigint,
 ): AminoMsg[] {
-    const msgs: AminoMsg[] = [
+    return [
         buildMsgCall("Mint", [symbol, to, String(amount)], callerAddress),
     ]
-
-    if (amount > 0n) {
-        const fee = calculateFee(amount)
-        if (fee > 0n) {
-            msgs.push(
-                buildMsgCall("Transfer", [symbol, FEE_RECIPIENT, String(fee)], callerAddress),
-            )
-        }
-    }
-
-    return msgs
 }
 
 /**
