@@ -87,6 +87,23 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: "Safety gate: AAA feature flags (A9/E8)"
+        working-directory: .
+        run: |
+          # A9/E8: Prevent fund-trapping feature flags from being enabled in .env.example.
+          # These flags gate features with incomplete on-chain enforcement.
+          # To enable a flag, you must remove its line from this guard AND pass code review.
+          FAIL=0
+          for FLAG in VITE_ENABLE_NFT VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
+            VALUE=$(grep "^${FLAG}=" .env.example | cut -d= -f2 || true)
+            if [ "$VALUE" = "true" ]; then
+              echo "::error::SAFETY GATE FAILED — ${FLAG}=true in .env.example. This flag gates a feature with incomplete on-chain enforcement. See MEMBA_AAA_IMPLEMENTATION_PLAN.md."
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "✅ All safety-gated feature flags are disabled in .env.example"
+
       - name: Build
         run: npm run build
 
