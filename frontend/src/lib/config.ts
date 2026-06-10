@@ -16,6 +16,18 @@
 // ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = __APP_VERSION__
 
+/**
+ * Agent credit deposit kill-switch (AAA-0 A5.ui — fail-closed).
+ *
+ * When false (default): disables "Deposit Credits" and "Refund Credits"
+ * actions in the Marketplace CreditSection. The agent_registry realm's
+ * UseCredit was historically unguarded, and depositing into an undeployed
+ * or misconfigured registry would lose funds permanently.
+ *
+ * @see docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §5/A5
+ */
+export const AGENT_CREDITS_ENABLED = import.meta.env.VITE_ENABLE_AGENT_CREDITS === "true"
+
 /** GitHub OAuth App Client ID (must be set via VITE_GITHUB_CLIENT_ID env var). */
 export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ""
 
