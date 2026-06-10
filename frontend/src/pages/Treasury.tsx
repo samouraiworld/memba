@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, TREASURY_SPEND_ENABLED } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOConfig, type DAOMember } from "../lib/dao"
 import { getTokenBalance, listFactoryTokens, type TokenInfo } from "../lib/grc20"
 import { resilientFetch } from "../lib/rpcFallback"
@@ -165,7 +165,7 @@ export function Treasury() {
             <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)" }}>Assets</h3>
-                    {auth.isAuthenticated && isCurrentUserMember && (
+                    {TREASURY_SPEND_ENABLED && auth.isAuthenticated && isCurrentUserMember && (
                         <button
                             className="k-btn-primary"
                             onClick={() => navigate(`/dao/${encodedSlug}/treasury/propose`)}
@@ -176,14 +176,37 @@ export function Treasury() {
                     )}
                 </div>
 
+                {/* A1.a: Fund-safety warning when treasury spending is not yet on-chain */}
+                {!TREASURY_SPEND_ENABLED && (
+                    <div
+                        id="treasury-spend-warning"
+                        role="alert"
+                        style={{
+                            padding: "16px 20px", borderRadius: 8, marginBottom: 16,
+                            background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
+                            fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                            lineHeight: 1.6,
+                        }}
+                    >
+                        ⚠️ Treasury spending is not yet enforced on-chain. Do not send funds to DAO
+                        addresses — they cannot be recovered. This page shows read-only balances.
+                    </div>
+                )}
+
                 {assets.length === 0 ? (
                     <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
                         <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                             No assets found in treasury
                         </p>
-                        <p style={{ color: "var(--color-text-dim)", fontSize: 11, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
-                            Assets will appear once tokens are transferred to the DAO
-                        </p>
+                        {TREASURY_SPEND_ENABLED ? (
+                            <p style={{ color: "var(--color-text-dim)", fontSize: 11, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                                Assets will appear once tokens are transferred to the DAO
+                            </p>
+                        ) : (
+                            <p style={{ color: "var(--color-text-dim)", fontSize: 11, marginTop: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                                Treasury balance display only — spending is not yet available.
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
