@@ -3,6 +3,15 @@
   command = "npm run build"
   publish = "dist"
 
+# Clerk satellite proxy — allows memba.samourai.app to use the shared
+# Samourai App Clerk instance without a dedicated clerk.memba CNAME.
+# Must be BEFORE the SPA catch-all or it will never match.
+[[redirects]]
+  from = "/__clerk/*"
+  to = "https://frontend-api.clerk.services/*"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
