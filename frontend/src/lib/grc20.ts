@@ -87,6 +87,25 @@ export function setWalletRpcContext(url: string | null, trusted: boolean) {
 export function getWalletRpcContext(): { url: string | null; trusted: boolean } {
     return { url: _walletRpcUrl, trusted: _walletRpcTrusted }
 }
+// ── A6: Transaction Confirmation Gate ─────────────────────────
+
+/**
+ * Module-level confirmation callback, registered by TxConfirmationProvider.
+ * When set, doContractBroadcast will call this before broadcasting and
+ * block until the user confirms or cancels. Returns true to proceed.
+ *
+ * @see components/ui/TxConfirmation.tsx
+ */
+type TxConfirmCallback = (msgs: AminoMsg[], memo: string) => Promise<boolean>
+let _txConfirmCallback: TxConfirmCallback | null = null
+
+/**
+ * Register the confirmation callback. Called by TxConfirmationProvider on mount.
+ * Pass null to unregister (e.g., on unmount or in tests).
+ */
+export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
+    _txConfirmCallback = cb
+}
 
 /**
  * Sign + broadcast via Adena DoContract.
@@ -95,6 +114,10 @@ export function getWalletRpcContext(): { url: string | null; trusted: boolean } 
  * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
  * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
  *
+ * A6: Blocks with a user confirmation modal before broadcasting.
+ * The modal shows a summary of the transaction effects (action, recipients,
+ * amounts, message count). If cancelled, throws with a user-friendly message.
+ *
  * RESILIENCE: Retries transient network failures (timeout, fetch) up to 2 times
  * with exponential backoff. User-initiated cancellations are never retried.
  */
@@ -102,6 +125,13 @@ export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
 ): Promise<{ hash: string }> {
+    // A6: Confirmation gate — ask user before broadcasting
+    if (_txConfirmCallback) {
+        const confirmed = await _txConfirmCallback(msgs, memo)
+        if (!confirmed) {
+            throw new Error("Transaction cancelled by user")
+        }
+    }
     // SECURITY: Block transactions through untrusted or unverifiable RPC
     if (!_walletRpcTrusted) {
         const detail = _walletRpcUrl
