@@ -89,12 +89,10 @@ describe('buildCreateTokenMsgs', () => {
         expect(msgs[0].value.args).toEqual(['Foo', 'FOO', '6', '0', '100'])
     })
 
-    it('builds two msgs when initialMint > 0 (create + fee transfer)', () => {
+    it('builds single msg even when initialMint > 0 (A4: on-chain fee only)', () => {
         const msgs = buildCreateTokenMsgs('g1caller', 'Foo', 'FOO', 6, 1000n, 100n)
-        expect(msgs).toHaveLength(2)
+        expect(msgs).toHaveLength(1)
         expect(msgs[0].value.func).toBe('New')
-        expect(msgs[1].value.func).toBe('Transfer')
-        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '25']) // 2.5%
     })
 
     it('does NOT add fee msg when fee rounds to 0', () => {
@@ -116,24 +114,22 @@ describe('buildCreateTokenWithAdminMsgs', () => {
         expect(msgs[0].value.args).toEqual(['Foo', 'FOO', '6', '0', '100', 'g1admin'])
     })
 
-    it('adds fee transfer for non-zero mint', () => {
+    it('builds single msg even for non-zero mint (A4: on-chain fee only)', () => {
         const msgs = buildCreateTokenWithAdminMsgs('g1caller', 'Foo', 'FOO', 6, 1000n, 100n, 'g1admin')
-        expect(msgs).toHaveLength(2)
-        expect(msgs[1].value.func).toBe('Transfer')
+        expect(msgs).toHaveLength(1)
+        expect(msgs[0].value.func).toBe('NewWithAdmin')
     })
 })
 
 describe('buildMintMsgs', () => {
-    it('builds mint + fee transfer', () => {
+    it('builds single Mint msg (A4: on-chain fee only, no client-side Transfer)', () => {
         const msgs = buildMintMsgs('g1caller', 'FOO', 'g1recipient', 1000n)
-        expect(msgs).toHaveLength(2)
+        expect(msgs).toHaveLength(1)
         expect(msgs[0].value.func).toBe('Mint')
         expect(msgs[0].value.args).toEqual(['FOO', 'g1recipient', '1000'])
-        expect(msgs[1].value.func).toBe('Transfer')
-        expect(msgs[1].value.args).toEqual(['FOO', FEE_RECIPIENT, '25']) // 2.5%
     })
 
-    it('skips fee for zero-amount mint', () => {
+    it('still builds single msg for zero-amount mint', () => {
         const msgs = buildMintMsgs('g1caller', 'FOO', 'g1to', 0n)
         expect(msgs).toHaveLength(1)
     })
@@ -185,10 +181,10 @@ describe('buildCreateMembaTokenMsgs', () => {
         expect(symbol).toMatch(/^MEMBA/) // MEMBA or MEMBATEST
     })
 
-    it('includes fee transfer for non-zero initial mint', () => {
+    it('builds single msg even for non-zero initial mint (A4: on-chain fee only)', () => {
         const msgs = buildCreateMembaTokenMsgs('g1deployer', 1000000n)
-        expect(msgs).toHaveLength(2)
-        expect(msgs[1].value.func).toBe('Transfer')
+        expect(msgs).toHaveLength(1)
+        expect(msgs[0].value.func).toBe('New')
     })
 
     it('uses 6 decimals', () => {
@@ -244,12 +240,11 @@ describe('toAdenaMessages', () => {
         expect(result[0].value.args).toEqual(['FOO', 'g1to', '100'])
     })
 
-    it('handles multiple messages', () => {
+    it('handles the single-message builders correctly', () => {
         const msgs = buildMintMsgs('g1caller', 'FOO', 'g1to', 1000n)
         const adena = toAdenaMessages(msgs)
-        expect(adena).toHaveLength(2)
+        expect(adena).toHaveLength(1)
         expect(adena[0].type).toBe('/vm.m_call')
-        expect(adena[1].type).toBe('/vm.m_call')
     })
 
     it('preserves empty send field', () => {
