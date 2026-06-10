@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
 import './tokens.css'
 import './index.css'
@@ -49,7 +50,9 @@ if (SENTRY_DSN) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <TxConfirmationProvider>
+        <App />
+      </TxConfirmationProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
