@@ -17,6 +17,16 @@
   to = "/index.html"
   status = 200
 
+# D1 (AAA-0): Immutable cache for content-hashed Vite assets.
+# Filenames like /assets/index-racrH-hq.js are content-hashed — safe to cache
+# permanently. index.html stays at must-revalidate (always checks for new builds).
+# Without this, all assets serve max-age=0,must-revalidate (Netlify default) and
+# every mobile revisit revalidates every chunk over a flaky 4G connection.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [build.environment]
   NODE_VERSION = "22"
 
