@@ -204,6 +204,41 @@ func sessionPubkeysAccepted() bool {
 	}
 }
 
+// AllowUnsignedAuthEnv gates the A2 empty-signature policy (two-phase, lockout-safe).
+// A user signature is the ONLY proof of private-key ownership: pubkeys are public
+// on-chain and the challenge binding only proves the challenge was *requested* for
+// a pubkey, so an empty signature lets anyone mint a token for any address
+// (impersonation). Rollout:
+//   - Phase 1 (default / unset / "1" / "true"): empty sigs ACCEPTED but emitted on
+//     the auth_login gate-signal metric, so the signed-login ratio can be observed
+//     before enforcing. Lockout-safe — deploying this does not break current
+//     unsigned clients.
+//   - Phase 2 ("0" / "false"): empty sigs REJECTED. Flip once the observed
+//     signed-login ratio ≈ 100% (24h token TTL means stragglers re-auth within a day).
+const AllowUnsignedAuthEnv = "MEMBA_ALLOW_UNSIGNED_AUTH"
+
+func allowUnsignedAuth() bool {
+	switch os.Getenv(AllowUnsignedAuthEnv) {
+	case "0", "false", "FALSE":
+		return false // Phase 2: enforce
+	default:
+		return true // Phase 1: accept + log (default, lockout-safe)
+	}
+}
+
+// logAuthLogin emits the auth_login gate signal — a structured, countable log line
+// (the backend has no metrics backend yet). result ∈ {signed, empty_allowed,
+// empty_rejected}; operators aggregate/alert on metric="auth_login" to watch the
+// signed-login ratio before flipping AllowUnsignedAuthEnv to enforce.
+func logAuthLogin(result, address, chainID string) {
+	slog.Info("auth_login",
+		"metric", "auth_login",
+		"result", result,
+		"address", address,
+		"chain_id", chainID,
+	)
+}
+
 func MakeToken(
 	privateKey ed25519.PrivateKey,
 	publicKey ed25519.PublicKey,
@@ -310,7 +345,9 @@ func MakeToken(
 			return nil, errors.New("challenge must be bound to a pubkey — please update your client")
 		}
 
-		// Verify ADR-036 signature when provided (optional — Adena may not support it yet).
+		// A2: a user signature is the only proof of private-key ownership. Verify
+		// it when present; gate the empty case behind the two-phase enforcement
+		// switch (AllowUnsignedAuthEnv) and record the auth_login gate signal.
 		if signatureBase64 != "" {
 			signature, err := base64.StdEncoding.DecodeString(signatureBase64)
 			if err != nil {
@@ -338,6 +375,22 @@ func MakeToken(
 					return nil, errors.New("invalid user signature")
 				}
 			}
+			logAuthLogin("signed", chainUserAddress, effectiveChainID)
+		} else {
+			// A2.phase1: empty signature = NO cryptographic proof of key ownership.
+			// Pubkeys are public and the challenge binding only proves the challenge
+			// was requested for this pubkey, so an empty sig is impersonation-capable.
+			if !allowUnsignedAuth() {
+				logAuthLogin("empty_rejected", chainUserAddress, effectiveChainID)
+				slog.Warn("auth: AUTH-UNSIGNED-01 — empty user signature rejected (enforcement on)",
+					"address", chainUserAddress)
+				return nil, errors.New("user signature is required")
+			}
+			logAuthLogin("empty_allowed", chainUserAddress, effectiveChainID)
+			slog.Warn("auth: AUTH-UNSIGNED-01 — token minted WITHOUT a user signature "+
+				"(impersonation-capable; set "+AllowUnsignedAuthEnv+"=0 to enforce)",
+				"address", chainUserAddress,
+				"chain_id", effectiveChainID)
 		}
 
 		universalAddress, err = bech32.ConvertAndEncode(UniversalBech32Prefix, addressBytes)
