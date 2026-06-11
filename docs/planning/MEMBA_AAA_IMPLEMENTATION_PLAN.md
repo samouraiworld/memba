@@ -100,7 +100,19 @@ This table is **authoritative for wave membership** (§13 mirrors it; task heade
 | **GATED** (external, tracked not scheduled) | B8.exec + B10 (gnodaokit#64 / chain reaches interrealm-v2) · F11 (funded test-13 keys) · test13 deploy (aeddi RPC + keys) |
 | **PRE-MAINNET GATES** | G2 custody · G3 second maintainer · §14 residual-risk re-review · external audit (Q10) |
 
-**In-flight (2026-06-10):** AAA-0 frontend/backend/CI slice is open as 7 PRs — A9.policy **#383**, D1 **#384**, A7 **#385**, A4 **#386**, A1.a **#387**, A5.ui **#388**, A6 **#389** (all CI-green, mergeable; squash-merge order = that order; #387/#388 rebase the `.env.example` conflict to keep all three flags `=false`). Out-of-band infra fix **#390** (Clerk satellite proxy, `netlify.toml`) lands alongside D1 — see D8.a-clerk. Still **deferred** in AAA-0: A2.phase1, A3, A8 (multi-session; not in the 7 PRs).
+**Shipped status (2026-06-11) — all merged unless noted.** Memba PRs are in `samouraiworld/memba`; realm PRs (#13–#20) are in `samouraiworld/samcrew-deployer`.
+
+- **AAA-0 (funds & trust):** ✅ A9.policy #383 · D1 #384 · A7 #385 · A4 #386 · A1.a #387 · A5.ui #388 · A6 #389 · Clerk-proxy #390 · onbloc RPC/CSP congruence #392. **A2.phase1 backend** ✅ #393 (empty-sig gate signal + `MEMBA_ALLOW_UNSIGNED_AUTH` enforce switch). Plan committed #391.
+- **AAA-1 realm hardening (B1–B6), all four realms:** ✅ agent_registry (deployer #13) · channels_v2 B1 #14 / B2 #15 / B3·B4·B6 #16 · profile.gno B5 #17 · nft_market B3·B4·B6 #18. (B4 is N/A for channels_v2 — owner-gated creation.)
+- **AAA-1 testing:** ✅ E1 realm CI gate (deployer #19) · E2 pin gno v1.1.0 + fix test.sh (#20).
+- **AAA-1 governance/agentic:** ✅ G7.a ops-runbook (#394) · F4 llms.txt (#395).
+
+**NOT done / next session (in priority order):**
+1. **A2.phase1 frontend + A2.phase2 / A3** — BLOCKED on the shared `tm2` canonical-sign-bytes Go helper (Adena has no ADR-036, only tx-shaped signing — `Layout.tsx` sends `signature:""` on purpose). Do A3's helper first; it unblocks real signed auth *and* multisig verification. Substantial, gnokey-vector-tested crypto — fresh-session task.
+2. **A8** — AI analyst chain-binding / cache-poisoning (backend + frontend + mcp-server).
+3. **A5.redeploy** — redeploy hardened agent_registry to test12/13 (see §4.6 runbook in OPS_RUNBOOK; preconditions verified empty 2026-06-10).
+4. **G5** — `realm-versions.json` overhaul: needs full txHashes + deploy-commit SHAs + fresh on-chain (vm/qfile) verification (deployed test12 state unchanged — source hardened, not redeployed).
+5. **C15.a** (DAO export script — integration-complex: parsers are vite-coupled) then **C16** (cutover notice, depends on C15.a) · **G8** (founder/validator comms) · **D8.a** (CSP congruence unit test — partially done via #392).
 
 Rules:
 - **AAA-0 ships before anything else.** Every item is XS–M and either stops fund loss or closes an unauthenticated DoS/impersonation path.
