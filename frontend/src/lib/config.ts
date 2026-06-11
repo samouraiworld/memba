@@ -83,17 +83,19 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // chain exactly or every login fails "invalid user signature". The map KEY
     // ("test13") stays identifier-safe.
     //
-    // The RPC host is aeddi's personal node (non-canonical, expected to move to
-    // prod infra) → keep it env-overridable (VITE_TEST13_RPC_URL) with a
-    // fallback slot, never a hardcoded sole path.
+    // Canonical RPC is now onbloc's node (test13.rpc.onbloc.xyz) — Adena moved its
+    // test-13 default here in v1.19.5 (#856), replacing aeddi's personal node. We
+    // mirror it so Memba's wallet-RPC trust gate (TRUSTED_RPC_DOMAINS) and CSP
+    // accept what Adena hands back from GetNetwork(); keep env-overridable
+    // (VITE_TEST13_RPC_URL) with the old aeddi node as a fallback slot.
     //
     // Hidden from the selector until the memba realms are deployed there
     // (Phase 3); flip VITE_ENABLE_TEST13=true to surface it. Still reachable
     // now via /test13/... URLs or VITE_GNO_CHAIN_ID=test13.
     test13: {
         chainId: "test-13",
-        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test-13-aeddi-1.gnoland.network",
-        fallbackRpcUrls: [],
+        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://test13.rpc.onbloc.xyz:443",
+        fallbackRpcUrls: ["https://rpc.test-13-aeddi-1.gnoland.network:443"],
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
@@ -325,7 +327,8 @@ export const TRUSTED_RPC_DOMAINS = [
     "rpc.gno.land",
     "rpc.test11.testnets.gno.land",
     "rpc.test12.gno.land",
-    "gnoland.network", // test-13 (aeddi-1 node + future prod infra), suffix-matched
+    "gnoland.network", // test-13 indexer/gnoweb + gnoland1 fallbacks, suffix-matched
+    "onbloc.xyz",      // test-13 canonical RPC (test13.rpc.onbloc.xyz) — Adena moved here in v1.19.5 (#856)
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live
     //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)

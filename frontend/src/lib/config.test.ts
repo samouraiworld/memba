@@ -123,7 +123,7 @@ describe('isTrustedRpcDomain', () => {
         expect(isTrustedRpcDomain('https://samourai.live.evil.com')).toBe(false)
     })
 
-    it('trusts gnoland.network subdomains (test-13 RPC host)', () => {
+    it('trusts gnoland.network subdomains (test-13 indexer/gnoweb + gnoland1 fallbacks)', () => {
         expect(isTrustedRpcDomain('https://rpc.test-13-aeddi-1.gnoland.network')).toBe(true)
         expect(isTrustedRpcDomain('https://gnoland.network')).toBe(true)
     })
@@ -131,6 +131,28 @@ describe('isTrustedRpcDomain', () => {
     it('rejects gnoland.network lookalikes', () => {
         expect(isTrustedRpcDomain('https://fakegnoland.network')).toBe(false)
         expect(isTrustedRpcDomain('https://gnoland.network.evil.com')).toBe(false)
+    })
+
+    it('trusts onbloc.xyz subdomains (test-13 canonical RPC — Adena v1.19.5 #856)', () => {
+        expect(isTrustedRpcDomain('https://test13.rpc.onbloc.xyz:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://onbloc.xyz')).toBe(true)
+    })
+
+    it('rejects onbloc.xyz lookalikes', () => {
+        expect(isTrustedRpcDomain('https://fakeonbloc.xyz')).toBe(false)
+        expect(isTrustedRpcDomain('https://onbloc.xyz.evil.com')).toBe(false)
+    })
+
+    // D8.a-lite: every configured NETWORKS RPC + fallback URL must be trusted, so the
+    // wallet-RPC trust gate never blocks a network we ship. Catches the exact drift
+    // that broke test-13 when Adena moved its RPC to onbloc.xyz (#856).
+    it('trusts every configured NETWORKS rpcUrl and fallbackRpcUrls', () => {
+        for (const [key, net] of Object.entries(NETWORKS)) {
+            expect(isTrustedRpcDomain(net.rpcUrl), `${key} rpcUrl ${net.rpcUrl} must be trusted`).toBe(true)
+            for (const fb of net.fallbackRpcUrls) {
+                expect(isTrustedRpcDomain(fb), `${key} fallback ${fb} must be trusted`).toBe(true)
+            }
+        }
     })
 
     it('trusts localhost for local devnet', () => {
