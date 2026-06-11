@@ -15,6 +15,8 @@
 
 **🌐 Live:** [memba.samourai.app](https://memba.samourai.app)
 
+**🤖 For AI agents:** [memba.samourai.app/llms.txt](https://memba.samourai.app/llms.txt) — discovery file linking the SKILL guide, MCP servers, API, and RPC endpoints (see [docs/AGENTIC.md](docs/AGENTIC.md)).
+
 ## Features (v4.0)
 
 ### Multisig

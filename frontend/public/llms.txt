@@ -1,0 +1,29 @@
+# Memba メンバー
+
+> Gno-native multisig wallet and DAO governance app on gno.land. Operate multisig wallets, launch and govern DAOs, launch tokens, run an on-chain AI-agent marketplace, and analyze contributors — all backed by on-chain Gno realms.
+
+Memba runs on the gno.land testnets (`test12` today; `test-13` on the onbloc canonical RPC is pending cutover). On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
+
+## Docs
+
+- [SKILL.md](https://github.com/samouraiworld/memba/blob/main/SKILL.md): agent skill guide — how an AI agent should operate Memba
+- [Agentic guide](https://github.com/samouraiworld/memba/blob/main/docs/AGENTIC.md): MCP server setup and the agent tool catalog
+- [API reference](https://github.com/samouraiworld/memba/blob/main/docs/API.md): ConnectRPC backend API
+- [Architecture](https://github.com/samouraiworld/memba/blob/main/docs/ARCHITECTURE.md): system overview
+
+## MCP servers
+
+- [mcp-server](https://github.com/samouraiworld/memba/tree/main/mcp-server): core Memba MCP tools
+- [mcp-server-dao-analyst](https://github.com/samouraiworld/memba/tree/main/mcp-server-dao-analyst): DAO-governance analyst MCP
+
+## Endpoints
+
+- App: https://memba.samourai.app
+- Backend API: https://memba-backend.fly.dev
+- RPC (test12): https://rpc.testnet12.samourai.live:443
+- RPC (test-13): https://test13.rpc.onbloc.xyz:443
+
+## Source
+
+- [Repository](https://github.com/samouraiworld/memba)
+- [Realm source — samcrew-deployer](https://github.com/samouraiworld/samcrew-deployer)
