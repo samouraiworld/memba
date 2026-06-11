@@ -40,6 +40,21 @@
 | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Netlify + backend | Clerk auth (alerts) | Must be the *same* environment (test/live). |
 | `OPENROUTER_API_KEY` | Fly | AI analyst | Rate-limited; not on the critical path. |
 | `LIGHTHOUSE_API_KEY` | Fly | IPFS gateway | |
+| `MEMBA_ALLOW_UNSIGNED_AUTH` | Fly (backend) | auth — A2 enforcement | Empty-signature login policy. Unset / `1` = **accept-but-log** (Phase 1, lockout-safe); `0` = **enforce** (reject empty sigs). Watch the `auth_login` metric; flip to `0` only once the signed-login ratio ≈ 100%. Flip procedure: §2.1. |
+| `VITE_ENABLE_TREASURY_SPEND` | Netlify (frontend) | funds — A1.a kill-switch | `false` (default) hides Propose-Spend, blocks `/treasury/propose`, and shows a fund-safety banner. Keep `false` until the on-chain banker (A1.c) lands. CI (`ci.yml` safety gate) blocks `true`. Flip procedure: §2.1. |
+| `VITE_ENABLE_NFT`, `VITE_ENABLE_AGENT_CREDITS` | Netlify (frontend) | funds — A9 / A5.ui kill-switches | `false` (default). NFT custody + agent-credit deposits are fund-trapping until their realms are completed/redeployed. Same CI safety gate blocks `true`. |
+
+> The three `VITE_ENABLE_*` flags above are **fund-safety kill-switches**: the CI safety gate in `.github/workflows/ci.yml` fails the build if any is set to `true` in `.env.example`. Flipping one ON is a deliberate, reviewed decision tied to a completed on-chain feature.
+
+### 2.1 Security-flag flip procedures
+
+**`MEMBA_ALLOW_UNSIGNED_AUTH` → `0` (A2.phase2 — enforce signed auth).**
+1. Pre-req: the frontend signed-challenge flow ships (Layout stops sending `signature: ""`) **and** the `auth_login` metric shows `result=signed` ≈ 100% over ≥ 7 days (24 h token TTL means stragglers re-auth within a day).
+2. `flyctl secrets set MEMBA_ALLOW_UNSIGNED_AUTH=0 -a memba-backend` (rolling restart).
+3. Verify: a fresh login with a real signature still succeeds; the `auth_login` metric shows `empty_rejected` climbing only for stale/abusive clients.
+4. Rollback: `flyctl secrets unset MEMBA_ALLOW_UNSIGNED_AUTH` (reverts to accept-but-log) if legitimate users are locked out.
+
+**`VITE_ENABLE_TREASURY_SPEND` → `true`.** Do **not** flip until A1.c implements the on-chain banker treasury — until then a passing spend proposal cannot execute and funds sent to the DAO are irrecoverable. When ready: remove the flag from the `ci.yml` safety-gate list in the same PR, set it in Netlify, redeploy.
 
 ---
 
@@ -143,6 +158,27 @@ Users will be logged out (their auth tokens are in localStorage, but the server'
 2. Fly rollback via §4.1 GHCR mirror.
 3. Netlify rollback via §4.2 previous deploy.
 4. File post-mortem at `docs/reports/v7.1-postmortem.md`.
+
+### 4.6 Realm incidents (exploit / abuse on a deployed realm)
+
+> **Realm deploys are irreversible.** A Gno realm cannot be patched in place: there is no `git revert` for on-chain code. The two levers are **pause** (stop the bleeding) and **repoint** (deploy a fixed realm at a new path and point the app at it). Plan for both *before* an incident.
+
+**Decision tree.**
+1. **Detect** — exploit report, abnormal `bank/balances` on a realm address, abuse spike, or a failing live ACL probe (§7).
+2. **Decide to pause** — the operator (zxxma) decides; no quorum needed to *propose*, but the pause TX is admin-gated (below). When in doubt, pause: pausing only blocks *new* state-mutating user ops — users can still reclaim their own funds (see the per-realm exemptions).
+3. **Pause** — sign + broadcast the realm's pause entrypoint from the **admin multisig** `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0` (samcrew-core-test1):
+   * `agent_registry.Pause` / `nft_market.Pause` (admin-only);
+   * `memba_dao_channels_v2.PauseRealm` (owner = the same multisig at deploy).
+   * **Pause is not a full stop by design** — fund-exit/unwind ops stay open: `agent_registry.RefundCredits`; `nft_market.DelistNFT` / `CancelOffer` / `ClaimExpiredOffer` / `ClaimPurchaseTimeout`; channels_v2 owner governance. This is deliberate (users must always recover escrow); see each realm's pause-policy header.
+4. **Comms** — pin in `#memba` Discord + the status surface: which realm, what's paused, what users can still do (withdraw/refund), ETA. Notify DAO founders for any `memba_dao*` realm.
+5. **Fix + repoint (rollback)** — patch the realm source in **`samcrew-deployer`** (the canonical realm source), deploy the fixed realm at a **new path** (e.g. `_v3`), then **repoint the frontend config atomically in one release** (the `NETWORKS`/realm-path constants). The old realm stays paused/deprecated. *Repoint is the realm rollback* — there is nothing to roll back on-chain.
+
+**A5 — agent_registry redeploy runbook (the canonical repoint pattern).**
+1. **Preconditions:** assert the old realm's bank balance == 0 and the credits ledger is empty (live-verified empty on 2026-06-10: `bank/balances/g18q5we4jm88qvggp4rmpnf63h2kvuytadggxuwr`). If non-zero at execution time, publish a refund window first (note: `RefundCredits`' send path is blocked on test12 by `restricted_denoms=["ugnot"]`, so a non-zero balance needs manual/admin handling).
+2. **Deploy** the hardened `agent_registry` via `samcrew-deployer`.
+3. **Repoint** the frontend realm path atomically in the same release.
+4. **Verify** the new path with the live ACL/state probes (§7); record the deploy in `realm-versions.json` (G5 format: full txHash + deployer commit SHA).
+5. **Rollback** = repoint config back to the old path.
 
 ---
 
