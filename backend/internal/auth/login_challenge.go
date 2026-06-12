@@ -67,10 +67,14 @@ func LoginChallengeSignBytes(chainID, userAddress string, nonce []byte) ([]byte,
 		AccountNumber: 0,
 		Sequence:      0,
 		GasWanted:     0,
-		GasFeeAmount:  0, // => gas_fee "" : a zero-fee, non-broadcastable doc
-		GasFeeDenom:   "",
-		Msgs:          []json.RawMessage{msg},
-		Memo:          LoginChallengeMemo(nonce),
+		// Nominal non-zero gas_fee ("1ugnot"). Adena's validateTransactionDocumentFee
+		// REJECTS an empty gas_fee (falsy string) before showing the sign popup, so the
+		// fee must be a non-empty coin string. The doc is never broadcast, so the value
+		// is irrelevant — it only needs to match what Adena signs. See design §9.
+		GasFeeAmount: 1,
+		GasFeeDenom:  "ugnot",
+		Msgs:         []json.RawMessage{msg},
+		Memo:         LoginChallengeMemo(nonce),
 	})
 }
 

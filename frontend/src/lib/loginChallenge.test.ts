@@ -54,7 +54,7 @@ describe("buildLoginChallengeDoc", () => {
         expect(doc.chainId).toBe("test12")
         expect(doc.accountNumber).toBe("0")
         expect(doc.sequence).toBe("0")
-        expect(doc.tx.fee).toEqual({ gas_wanted: "0", gas_fee: "" })
+        expect(doc.tx.fee).toEqual({ gas_wanted: "0", gas_fee: "1ugnot" })
         expect(doc.tx.signatures).toBeNull()
     })
 
