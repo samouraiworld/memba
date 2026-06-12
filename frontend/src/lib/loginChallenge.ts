@@ -24,6 +24,15 @@ export function loginChallengeMemo(nonceBase64: string): string {
     return `${CLIENT_MAGIC} | nonce: ${nonceBase64}`
 }
 
+// adenaPubKeyToJSON converts the pubkey from Adena's sign response
+// ({"@type":"/tm.PubKeySecp256k1", value}) into the backend's expected
+// ParsePubKeyJSON form ({"type":"tendermint/PubKeySecp256k1", value}). Used so
+// untransacted wallets (no on-chain pubkey) can authenticate via the sign-response
+// pubkey. See design §9.
+export function adenaPubKeyToJSON(value: string): string {
+    return JSON.stringify({ type: "tendermint/PubKeySecp256k1", value })
+}
+
 /** Adena SignMultisigTransaction document for the login challenge. */
 export interface LoginChallengeDoc {
     tx: {
@@ -87,6 +96,9 @@ export function buildLoginChallengeDoc(
             msg: [
                 {
                     "@type": "/vm.m_call",
+                    // args:null (not omitted, not []) to match Adena's proto-roundtrip
+                    // form and the backend LoginChallengeSignBytes. See design §9.
+                    args: null,
                     caller: address,
                     send: "",
                     max_deposit: "",

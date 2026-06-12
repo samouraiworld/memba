@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain } from "../lib/config";
 import { setWalletRpcContext } from "../lib/grc20";
 import { trackEvent } from "../lib/analytics";
-import { buildLoginChallengeDoc } from "../lib/loginChallenge";
+import { buildLoginChallengeDoc, adenaPubKeyToJSON } from "../lib/loginChallenge";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -330,11 +330,12 @@ export function useAdena() {
     /** A2 login proof — sign the non-broadcast, tx-shaped login challenge
      *  (sentinel /vm.m_call, nonce in memo) via Adena's SignMultisigTransaction.
      *  The doc is byte-identical to the backend's LoginChallengeSignBytes; the
-     *  backend reconstructs + verifies it. Returns the base64 signature, or null
-     *  if the wallet is unavailable / rejects / does not support the primitive
-     *  (callers fall back to unsigned login while MEMBA_ALLOW_UNSIGNED_AUTH allows). */
+     *  backend reconstructs + verifies it. Returns the base64 signature AND the
+     *  signer's pubkey (from the sign response) — the latter lets untransacted
+     *  wallets (no on-chain pubkey) authenticate by proving key ownership. Returns
+     *  null if the wallet is unavailable / rejects / lacks the primitive. */
     const signLoginChallenge = useCallback(
-        async (chainId: string, nonceBase64: string): Promise<string | null> => {
+        async (chainId: string, nonceBase64: string): Promise<{ signature: string; pubKey: string } | null> => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const adena = getAdena() as any;
             if (!adena || !state.connected || !state.address) return null;
@@ -343,7 +344,12 @@ export function useAdena() {
                 const doc = buildLoginChallengeDoc(chainId, state.address, nonceBase64);
                 const res = await adena.SignMultisigTransaction(doc);
                 if (!res || res.status === "failure") return null;
-                return res.data?.signature?.signature ?? null;
+                const signature = res.data?.signature?.signature;
+                if (!signature) return null;
+                // Adena returns the pubkey it signed with: { "@type":"/tm.PubKeySecp256k1", value }.
+                const pubKeyValue = res.data?.signature?.pub_key?.value;
+                const pubKey = pubKeyValue ? adenaPubKeyToJSON(pubKeyValue) : "";
+                return { signature, pubKey };
             } catch (err) {
                 console.error("[Memba] login challenge sign error:", err);
                 return null;

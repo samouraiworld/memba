@@ -31,15 +31,19 @@ func LoginChallengeMemo(nonce []byte) string {
 	return ClientMagic + " | nonce: " + base64.StdEncoding.EncodeToString(nonce)
 }
 
-// loginMsg is the sentinel MsgCall. Args is intentionally omitted (gno MsgCall.Args
-// is omitempty, so the canonical form has no "args" key when empty).
+// loginMsg is the sentinel MsgCall. Args is a nil slice WITHOUT omitempty so it
+// marshals to "args":null — matching what Adena signs: Adena proto-encodes then
+// decodes the msg and an empty/missing args becomes null (adena-module
+// messages.ts:120-124). gnokey omits empty args, but the login doc is never
+// broadcast, so A2 matches Adena, not gnokey. See design §9.
 type loginMsg struct {
-	Type       string `json:"@type"`
-	Caller     string `json:"caller"`
-	Send       string `json:"send"`
-	MaxDeposit string `json:"max_deposit"`
-	PkgPath    string `json:"pkg_path"`
-	Func       string `json:"func"`
+	Type       string   `json:"@type"`
+	Args       []string `json:"args"`
+	Caller     string   `json:"caller"`
+	Send       string   `json:"send"`
+	MaxDeposit string   `json:"max_deposit"`
+	PkgPath    string   `json:"pkg_path"`
+	Func       string   `json:"func"`
 }
 
 // LoginChallengeSignBytes reconstructs the gno-canonical sign-bytes of the login

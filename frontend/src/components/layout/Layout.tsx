@@ -71,41 +71,46 @@ export function Layout() {
         setAuthError(null)
 
         try {
-            // 1. Get server challenge BOUND to our pubkey (v6 AUTH-01 fix)
-            // The challenge is cryptographically bound to this specific pubkey.
-            // An attacker cannot request a challenge and use it with a victim's pubkey.
-            // Bind the challenge to the active chain so it round-trips correctly.
+            // 1. Get a server challenge. Bound to our pubkey when the chain already
+            // knows it (AUTH-01 defense-in-depth); unbound for untransacted wallets
+            // whose pubkey is not yet on-chain — those prove ownership via the
+            // signature below. Also binds the active chain so it round-trips.
             const challenge = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId)
             if (!challenge) throw new Error("Failed to get challenge")
 
-            // 2. Build TokenRequestInfo (protojson). The challenge MUST be echoed with
+            // 2. Sign the tx-shaped login proof (Adena has no ADR-036). The signature
+            // proves key ownership, and Adena's response carries the signer's pubkey —
+            // which is how an untransacted wallet (no on-chain pubkey) authenticates.
+            const nonceB64 = bytesToBase64(challenge.nonce)
+            const signed = await adena.signLoginChallenge(network.chainId, nonceB64)
+            let signature = ""
+            let pubkey = adena.pubkeyJSON || ""
+            if (signed) {
+                signature = signed.signature
+                if (signed.pubKey) pubkey = signed.pubKey // authoritative (from sign response)
+            } else {
+                console.warn("[Memba] login signature unavailable (rejected/unsupported)")
+            }
+
+            // No pubkey from the chain AND none from a signature → no ownership proof
+            // possible. Guide the user instead of failing with a generic 403.
+            if (!pubkey) {
+                throw new Error(
+                    "Approve the signature request in Adena to sign in. A brand-new wallet must sign once to prove key ownership.",
+                )
+            }
+
+            // 3. Build TokenRequestInfo (protojson). The challenge MUST be echoed with
             // all server-signed fields — including chainId — or ValidateChallenge fails.
             const info = buildTokenRequestInfo({
-                nonceB64: bytesToBase64(challenge.nonce),
+                nonceB64,
                 expiration: challenge.expiration,
                 serverSignatureB64: bytesToBase64(challenge.serverSignature),
                 boundPubkeyHash: challenge.boundPubkeyHash || "",
                 chainId: challenge.chainId || network.chainId,
-                userPubkeyJson: adena.pubkeyJSON || undefined,
-                userAddress: adena.pubkeyJSON ? undefined : adena.address,
+                userPubkeyJson: pubkey,
             })
             const infoJson = JSON.stringify(info)
-
-            // 3. A2.phase1 — sign a tx-shaped login proof (Adena has no ADR-036).
-            // The backend reconstructs the same sentinel /vm.m_call + nonce-in-memo
-            // doc and verifies the signature. If the wallet rejects or can't sign,
-            // fall back to an empty signature — MEMBA_ALLOW_UNSIGNED_AUTH still mints
-            // a token (lockout-safe two-phase rollout), so a hiccup never blocks login.
-            let signature = ""
-            if (adena.pubkeyJSON) {
-                const nonceB64 = bytesToBase64(challenge.nonce)
-                const signed = await adena.signLoginChallenge(network.chainId, nonceB64)
-                if (signed) {
-                    signature = signed
-                } else {
-                    console.warn("[Memba] login signature unavailable (rejected/unsupported) — proceeding unsigned")
-                }
-            }
 
             // 4. Exchange for auth token
             const token = await auth.getToken(infoJson, signature)
