@@ -6,6 +6,7 @@ import {
     loginChallengeMemo,
     buildLoginChallengeDoc,
     buildTokenRequestInfo,
+    adenaPubKeyToJSON,
 } from "./loginChallenge"
 
 describe("buildTokenRequestInfo", () => {
@@ -61,20 +62,31 @@ describe("buildLoginChallengeDoc", () => {
         expect(doc.tx.memo).toBe("Login to Memba Multisig Service | nonce: AAEC")
     })
 
-    it("builds exactly the backend's sentinel /vm.m_call with caller and NO args", () => {
+    it("builds the backend's sentinel /vm.m_call with caller and args:null (matches Adena)", () => {
         expect(doc.tx.msg).toHaveLength(1)
         const msg = doc.tx.msg[0]
-        // Field set must match backend LoginChallengeSignBytes exactly (args omitted).
+        // Field set must match backend LoginChallengeSignBytes exactly. args is null
+        // (not omitted, not []) to match Adena's proto-roundtrip form.
         expect(msg).toEqual({
             "@type": "/vm.m_call",
+            args: null,
             caller: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
             send: "",
             max_deposit: "",
             pkg_path: LOGIN_PKG_PATH,
             func: LOGIN_FUNC,
         })
-        expect("args" in msg).toBe(false)
+        expect(msg.args).toBeNull()
         expect(LOGIN_PKG_PATH).toBe("gno.land/r/memba/login")
         expect(LOGIN_FUNC).toBe("ProveKeyOwnership")
+    })
+})
+
+describe("adenaPubKeyToJSON", () => {
+    it("converts Adena's @type pubkey to the backend's tendermint type form", () => {
+        // Adena sign response: { "@type":"/tm.PubKeySecp256k1", value:"<b64>" }
+        expect(adenaPubKeyToJSON("A+FhNtsX")).toBe(
+            '{"type":"tendermint/PubKeySecp256k1","value":"A+FhNtsX"}',
+        )
     })
 })

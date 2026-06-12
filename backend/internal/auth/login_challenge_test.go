@@ -45,9 +45,10 @@ func TestLoginChallengeSignBytes_Shape(t *testing.T) {
 	if !strings.Contains(got, `"memo":`) || !strings.Contains(got, base64.StdEncoding.EncodeToString(nonce)) {
 		t.Errorf("memo missing nonce binding (want memo %q)\nfull: %s", wantMemo, got)
 	}
-	// args must be ABSENT (gno omitempty canonical form), not "args":[].
-	if strings.Contains(got, `"args"`) {
-		t.Errorf("login msg must omit empty args (canonical), got: %s", got)
+	// args must be "args":null to match Adena's proto-roundtrip form (empty args ->
+	// null, adena-module messages.ts:120-124), NOT omitted and NOT [].
+	if !strings.Contains(got, `"args":null`) {
+		t.Errorf(`login msg must emit "args":null to match Adena, got: %s`, got)
 	}
 	// top-level keys sorted (sortJSON contract).
 	if !strings.HasPrefix(got, `{"account_number":"0","chain_id":"test12"`) {
@@ -83,6 +84,107 @@ func loginAuthInfo(t *testing.T, serverPriv []byte, chainID string) (string, *se
 		t.Fatal(err)
 	}
 	return string(b), priv, addr, challenge
+}
+
+// unboundLoginAuthInfo is like loginAuthInfo but requests an UNBOUND challenge
+// (boundPubkeyHash=""), as an untransacted wallet must (no pubkey at challenge time).
+func unboundLoginAuthInfo(t *testing.T, serverPriv []byte, chainID string) (string, *secp256k1.PrivKey, string, *membav1.Challenge) {
+	t.Helper()
+	priv := secp256k1.GenPrivKey()
+	pub := priv.PubKey().(*secp256k1.PubKey)
+	pubkeyJSON := fmt.Sprintf(`{"type":"tendermint/PubKeySecp256k1","value":"%s"}`,
+		base64.StdEncoding.EncodeToString(pub.Key))
+	addr, err := bech32.ConvertAndEncode("g", pub.Address().Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Empty pubkeyJSON => unbound challenge (boundPubkeyHash == "").
+	challenge, err := MakeChallenge(serverPriv, time.Hour, "", chainID)
+	if err != nil {
+		t.Fatalf("MakeChallenge: %v", err)
+	}
+	if challenge.BoundPubkeyHash != "" {
+		t.Fatal("expected an unbound challenge")
+	}
+	info := &membav1.TokenRequestInfo{
+		Kind: ClientMagic, UserBech32Prefix: "g", UserPubkeyJson: pubkeyJSON,
+		ChainId: chainID, Challenge: challenge,
+	}
+	b, err := protojson.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b), priv, addr, challenge
+}
+
+// TestMakeToken_UnboundChallenge_SignedAccepted: an untransacted wallet uses an
+// UNBOUND challenge; a valid signature is the ownership proof, so it mints.
+func TestMakeToken_UnboundChallenge_SignedAccepted(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "0") // even with enforcement on, a VALID signature passes
+	serverPub, serverPriv := generateTestKeypair(t)
+	const chainID = "test12"
+	infoJSON, priv, addr, challenge := unboundLoginAuthInfo(t, serverPriv, chainID)
+
+	sb, err := LoginChallengeSignBytes(chainID, addr, challenge.Nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := priv.Sign(sb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, base64.StdEncoding.EncodeToString(raw), chainID)
+	if err != nil {
+		t.Fatalf("unbound challenge + valid signature must mint, got: %v", err)
+	}
+	if tok == nil {
+		t.Fatal("expected a token")
+	}
+}
+
+// TestMakeToken_UnboundChallenge_EmptySigRejected: an unbound challenge with NO
+// signature has no ownership proof and must be rejected (regardless of the gate).
+func TestMakeToken_UnboundChallenge_EmptySigRejected(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "") // phase 1 (default allow) — still must reject unbound+unsigned
+	serverPub, serverPriv := generateTestKeypair(t)
+	infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, "test12")
+
+	_, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, "", "test12")
+	if err == nil {
+		t.Fatal("unbound challenge with empty signature must be rejected (no ownership proof)")
+	}
+}
+
+// TestMakeToken_UnboundChallenge_InvalidSig_PhaseBoundary documents the security
+// boundary the unbound-challenge relaxation relies on: an unbound challenge + a
+// present-but-INVALID signature (e.g. an attacker submitting a victim's public
+// pubkey + garbage sig) is MINTED in phase 1 (deliberately permissive, lockout-safe
+// — identical to the pre-existing bound+empty phase-1 behavior, since boundPubkeyHash
+// = sha256(public pubkey) is no barrier to someone holding the public pubkey) and is
+// REJECTED in phase 2. Phase 2 is the impersonation boundary; do not flip it before
+// the real-Adena golden vector confirms valid sigs verify. See design §9.
+func TestMakeToken_UnboundChallenge_InvalidSig_PhaseBoundary(t *testing.T) {
+	serverPub, serverPriv := generateTestKeypair(t)
+	const chainID = "test12"
+
+	t.Run("phase 1 mints (lockout-safe)", func(t *testing.T) {
+		t.Setenv(AllowUnsignedAuthEnv, "") // default allow
+		infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, chainID)
+		garbage := base64.StdEncoding.EncodeToString([]byte("not a valid secp256k1 signature!"))
+		tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, garbage, chainID)
+		if err != nil || tok == nil {
+			t.Fatalf("phase 1: unbound + invalid sig must mint (lockout-safe), got err=%v", err)
+		}
+	})
+
+	t.Run("phase 2 rejects (impersonation closed)", func(t *testing.T) {
+		t.Setenv(AllowUnsignedAuthEnv, "0") // enforce
+		infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, chainID)
+		garbage := base64.StdEncoding.EncodeToString([]byte("not a valid secp256k1 signature!"))
+		if _, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, garbage, chainID); err == nil {
+			t.Fatal("phase 2: unbound + invalid sig must be rejected (impersonation boundary)")
+		}
+	})
 }
 
 // TestMakeToken_TxShapedSignature_Accepted is the A2 happy path: a real secp256k1

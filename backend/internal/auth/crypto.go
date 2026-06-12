@@ -328,10 +328,14 @@ func MakeToken(
 			return nil, errors.Wrap(err, "failed to encode bech32 address")
 		}
 
-		// v6 AUTH-01: Verify the challenge was issued for THIS specific pubkey.
-		// This prevents an attacker from requesting a challenge and using it
-		// with a victim's pubkey (pubkeys are public on-chain data).
+		// v6 AUTH-01: challenge↔pubkey binding. This existed only to stop empty-sig
+		// impersonation (attacker replays a challenge with a victim's *public* pubkey).
+		// A real signature makes that impossible, so the binding is required only on the
+		// EMPTY-sig path; the SIGNED path may use an unbound challenge (needed so
+		// untransacted wallets — whose pubkey is not on-chain — can authenticate by
+		// proving key ownership; the pubkey comes from Adena's sign response). See §9.
 		if info.Challenge != nil && info.Challenge.BoundPubkeyHash != "" {
+			// When bound, always verify it matches (defense in depth, both paths).
 			expectedHash := hashPubkey(info.UserPubkeyJson)
 			if info.Challenge.BoundPubkeyHash != expectedHash {
 				slog.Warn("pubkey-bound challenge mismatch",
@@ -339,13 +343,13 @@ func MakeToken(
 					"provided_hash", expectedHash)
 				return nil, errors.New("challenge was issued for a different pubkey — request a new challenge")
 			}
-		} else {
-			// Challenge without pubkey binding — reject.
-			// Old clients must update to send pubkey in GetChallenge.
-			slog.Warn("challenge without pubkey binding rejected",
+		} else if signatureBase64 == "" {
+			// Unbound AND unsigned = no proof of ownership at all. Reject.
+			slog.Warn("unbound challenge with no signature rejected",
 				"address", chainUserAddress)
-			return nil, errors.New("challenge must be bound to a pubkey — please update your client")
+			return nil, errors.New("challenge must be bound to a pubkey or accompanied by a signature")
 		}
+		// else: unbound but signed — the signature verification below is the proof.
 
 		// A2: a user signature is the only proof of private-key ownership. Verify
 		// it when present; gate the empty case behind the two-phase enforcement
