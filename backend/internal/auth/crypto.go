@@ -349,31 +349,16 @@ func MakeToken(
 		// it when present; gate the empty case behind the two-phase enforcement
 		// switch (AllowUnsignedAuthEnv) and record the auth_login gate signal.
 		if signatureBase64 != "" {
-			signature, err := base64.StdEncoding.DecodeString(signatureBase64)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to decode user signature")
-			}
-			// AUTH-CHAINID-01: signDoc embeds effectiveChainID. A test12 signature
-			// is no longer valid for a gnoland1 signDoc (cryptographic chain binding).
-			signDoc := MakeADR36SignDoc(infoBytes, chainUserAddress, effectiveChainID)
-			if !userPubKey.VerifySignature(signDoc, signature) {
-				// Grace fallback (24h post-deploy): if effectiveChainID was the
-				// server default (legacy clients), retry with the literal empty
-				// chainID — old wallets/clients constructed their signDoc with
-				// chain_id:"". Only honored when info.ChainId is empty (i.e.,
-				// not an explicit cross-chain attempt).
-				if info.ChainId == "" {
-					legacyDoc := MakeADR36SignDoc(infoBytes, chainUserAddress, "")
-					if userPubKey.VerifySignature(legacyDoc, signature) {
-						slog.Warn("auth: legacy ADR-036 signature accepted (empty chain_id) — please update client",
-							"address", chainUserAddress,
-							"resolved_chain_id", effectiveChainID)
-					} else {
-						return nil, errors.New("invalid user signature")
-					}
-				} else {
-					return nil, errors.New("invalid user signature")
-				}
+			// Adena has no ADR-036 — it signs only tx-shaped docs. The login proof
+			// is therefore a non-broadcast tx-shaped challenge embedding the server
+			// nonce + chain_id, verified over gno-canonical sign-bytes
+			// (LoginChallengeSignBytes). The challenge nonce (validated above for
+			// server-signature/expiry/replay and bound to this pubkey) is the
+			// anti-replay binding; chain binding comes from the signDoc chain_id.
+			if err := VerifyLoginChallengeSignature(
+				userPubKey, effectiveChainID, chainUserAddress, info.Challenge.Nonce, signatureBase64,
+			); err != nil {
+				return nil, err
 			}
 			logAuthLogin("signed", chainUserAddress, effectiveChainID)
 		} else {
