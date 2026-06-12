@@ -189,3 +189,54 @@ Frontend tx-shaped signing (A2.phase1-frontend), the enforce-flip (A2.phase2), a
 wiring land in their own branches/PRs after the helper is proven. Optional upstreaming of the
 helper to gno as a tiny dependency-free `signbytes` reference package (Touron's suggestion) is
 tracked but non-blocking.
+
+## 9. A2 — untransacted-wallet login (pubkey-from-sign) + `args:null` (2026-06-12)
+
+**Problem (two distinct, both surfaced by live test).** On gno, an account's public key is only
+on-chain after its first outgoing tx. A **funded-but-never-transacted** wallet has
+`public_key:null` on-chain, so Adena's `GetAccount` returns no pubkey, the frontend falls back to
+**address-only** auth, and the v5 anti-impersonation policy rejects it → `GetToken` 403 (proven via
+`auth/accounts` query: `sequence:0`, `public_key:null`). Separately, even with a pubkey, the login
+signature verifies as `signed_invalid` because **Adena emits `"args":null`** for an empty-args
+m_call (proto round-trip; `adena-module .../messages.ts:120-124`) while the template **omits**
+`args`.
+
+**Approach (A — unbound challenge + signature-as-proof).** A valid signature *is* the ownership
+proof, so it can replace `boundPubkeyHash` (AUTH-01) on the signed path, and the pubkey can come
+from **Adena's sign response** (`Signature.pub_key.value`, `multisig.ts:13-17`) instead of the
+chain. This lets untransacted wallets authenticate by proving key ownership — strictly stronger than
+the address-only path we reject today.
+
+**Security model.** `boundPubkeyHash` exists only to stop empty-sig impersonation (attacker replays
+a challenge with a victim's public pubkey). A real signature makes that impossible. Therefore:
+- **Signed path:** signature must verify over `LoginChallengeSignBytes` (nonce + chain_id +
+  caller-derived-from-pubkey); `boundPubkeyHash` is **optional** (verified if present). Unbound
+  challenges are accepted *only when signed*.
+- **Empty-sig path:** unchanged — `boundPubkeyHash` **required** + `MEMBA_ALLOW_UNSIGNED_AUTH` gate.
+- Replay prevented by the server-signed, single-use nonce; impersonation prevented by the signature.
+- Phase-1 `signed_invalid` (invalid sig still minted) is no *new* risk — it already mints for
+  empty sigs in phase 1; phase-2 enforcement rejects it.
+
+**Changes.**
+- Backend `LoginChallengeSignBytes`: emit `"args":null` (match Adena).
+- Backend `MakeToken`: binding check becomes signature-aware — verify `boundPubkeyHash` when
+  present; reject unbound **only when the signature is empty**; unbound+signed is allowed (the
+  signature path is the proof).
+- Frontend `buildLoginChallengeDoc`: add `args: null`.
+- Frontend `signLoginChallenge`: return `{ signature, pubKey }` (read `res.data.signature.pub_key`,
+  convert `{"@type":"/tm.PubKeySecp256k1",value}` → `{"type":"tendermint/PubKeySecp256k1",value}`).
+- Frontend `Layout`: sign the challenge; use the **sign-response pubkey** as authoritative (falls
+  back to GetAccount pubkey); `getChallenge` binds when a pubkey is already known, else unbound;
+  submit the authoritative pubkey + signature; honest error when no pubkey **and** signing
+  declined.
+
+**Testing / proof.** TDD both sides. Backend: unbound+valid-sig mints `signed`; unbound+empty-sig
+rejected; bound-mismatch rejected; `args:null` in the doc. Frontend: `buildLoginChallengeDoc`
+includes `args:null`; pubkey extracted from sign response. Add a **golden vector from a real Adena
+signature** (captured post-deploy when the wallet signs in → `result=signed`) to lock byte-equality.
+A focused **security review** of the unbound-challenge change before merge. Gates stay permissive
+until `result=signed` is observed; then flip `MEMBA_ALLOW_UNSIGNED_AUTH=0`.
+
+**Note (gnokey vs Adena):** `gnokey` omits empty `args`; Adena emits `args:null`. The login doc is
+never broadcast, so A2 matches **Adena**. A3 enforcement must account for Adena's proto-roundtrip
+form before flipping `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` (tracked; A3 is log-only today).
