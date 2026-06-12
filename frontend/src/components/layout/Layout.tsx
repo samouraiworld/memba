@@ -8,7 +8,7 @@ import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
-import { CLIENT_MAGIC } from "../../lib/loginChallenge"
+import { buildTokenRequestInfo } from "../../lib/loginChallenge"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
@@ -74,29 +74,21 @@ export function Layout() {
             // 1. Get server challenge BOUND to our pubkey (v6 AUTH-01 fix)
             // The challenge is cryptographically bound to this specific pubkey.
             // An attacker cannot request a challenge and use it with a victim's pubkey.
-            const challenge = await auth.getChallenge(adena.pubkeyJSON || undefined)
+            // Bind the challenge to the active chain so it round-trips correctly.
+            const challenge = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId)
             if (!challenge) throw new Error("Failed to get challenge")
 
-            // 2. Build TokenRequestInfo (protojson format)
-            const info: Record<string, unknown> = {
-                kind: CLIENT_MAGIC,
-                challenge: {
-                    nonce: bytesToBase64(challenge.nonce),
-                    expiration: challenge.expiration,
-                    serverSignature: bytesToBase64(challenge.serverSignature),
-                    boundPubkeyHash: challenge.boundPubkeyHash || "",
-                },
-                userBech32Prefix: "g",
-                // AUTH-CHAINID-01: send the chain we authenticate for so the backend's
-                // effectiveChainID is deterministic and matches the signed login doc.
-                chainId: network.chainId,
-            }
-            // Send pubkey if available, otherwise use address-only auth
-            if (adena.pubkeyJSON) {
-                info.userPubkeyJson = adena.pubkeyJSON
-            } else {
-                info.userAddress = adena.address
-            }
+            // 2. Build TokenRequestInfo (protojson). The challenge MUST be echoed with
+            // all server-signed fields — including chainId — or ValidateChallenge fails.
+            const info = buildTokenRequestInfo({
+                nonceB64: bytesToBase64(challenge.nonce),
+                expiration: challenge.expiration,
+                serverSignatureB64: bytesToBase64(challenge.serverSignature),
+                boundPubkeyHash: challenge.boundPubkeyHash || "",
+                chainId: challenge.chainId || network.chainId,
+                userPubkeyJson: adena.pubkeyJSON || undefined,
+                userAddress: adena.pubkeyJSON ? undefined : adena.address,
+            })
             const infoJson = JSON.stringify(info)
 
             // 3. A2.phase1 — sign a tx-shaped login proof (Adena has no ADR-036).

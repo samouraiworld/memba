@@ -77,8 +77,10 @@ export function useAuth() {
         return () => clearInterval(timer);
     }, [state.token]);
 
-    const getChallenge = useCallback(async (userPubkeyJson?: string) => {
-        const res = await api.getChallenge({ userPubkeyJson: userPubkeyJson || "" });
+    const getChallenge = useCallback(async (userPubkeyJson?: string, chainId?: string) => {
+        // AUTH-CHAINID-01: bind the challenge to the active chain so the server signs
+        // chain_id into it; the client must echo that chain_id back (buildTokenRequestInfo).
+        const res = await api.getChallenge({ userPubkeyJson: userPubkeyJson || "", chainId: chainId || "" });
         return res.challenge;
     }, []);
 
