@@ -106,7 +106,10 @@ export function buildLoginChallengeDoc(
                     func: LOGIN_FUNC,
                 },
             ],
-            fee: { gas_wanted: "0", gas_fee: "" },
+            // Non-empty gas_fee: Adena's validateTransactionDocumentFee rejects an
+            // empty gas_fee before showing the sign popup. Never broadcast → value is
+            // irrelevant, but must match the backend's LoginChallengeSignBytes. See §9.
+            fee: { gas_wanted: "0", gas_fee: "1ugnot" },
             signatures: null,
             memo: loginChallengeMemo(nonceBase64),
         },
