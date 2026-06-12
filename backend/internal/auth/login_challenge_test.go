@@ -111,26 +111,52 @@ func TestMakeToken_TxShapedSignature_Accepted(t *testing.T) {
 	}
 }
 
-// TestMakeToken_TxShapedSignature_Rejected: a present-but-invalid signature is
-// rejected regardless of the unsigned-auth gate (the gate only covers empty sigs).
-func TestMakeToken_TxShapedSignature_Rejected(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "") // default allow — must NOT rescue a bad present sig
-	serverPub, serverPriv := generateTestKeypair(t)
-	const chainID = "test12"
-	infoJSON, priv, addr, challenge := loginAuthInfo(t, serverPriv, chainID)
-
-	// Sign a DIFFERENT nonce than the challenge carries → verification must fail.
-	wrong := append([]byte(nil), challenge.Nonce...)
+// signWrongNonce signs a doc bound to a different nonce than the challenge carries,
+// so it will not verify against the reconstructed login sign-bytes.
+func signWrongNonce(t *testing.T, priv *secp256k1.PrivKey, chainID, addr string, nonce []byte) string {
+	t.Helper()
+	wrong := append([]byte(nil), nonce...)
 	wrong[0] ^= 0xff
 	sb, _ := LoginChallengeSignBytes(chainID, addr, wrong)
 	rawSig, _ := priv.Sign(sb)
-	sig := base64.StdEncoding.EncodeToString(rawSig)
+	return base64.StdEncoding.EncodeToString(rawSig)
+}
+
+// TestMakeToken_TxShapedSignature_RejectedWhenEnforced: in phase 2 a present-but-
+// invalid signature is rejected.
+func TestMakeToken_TxShapedSignature_RejectedWhenEnforced(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "0") // enforce
+	serverPub, serverPriv := generateTestKeypair(t)
+	const chainID = "test12"
+	infoJSON, priv, addr, challenge := loginAuthInfo(t, serverPriv, chainID)
+	sig := signWrongNonce(t, priv, chainID, addr, challenge.Nonce)
 
 	_, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, sig, chainID)
 	if err == nil {
-		t.Fatal("expected a signature over the wrong nonce to be rejected")
+		t.Fatal("enforcement on: a signature over the wrong nonce must be rejected")
 	}
 	if !strings.Contains(err.Error(), "invalid user signature") {
 		t.Fatalf("expected 'invalid user signature', got: %v", err)
+	}
+}
+
+// TestMakeToken_TxShapedSignature_InvalidAllowedInPhase1 is the lockout-safety
+// guarantee: in phase 1 a present-but-invalid signature (e.g. an Adena canonical-doc
+// mismatch) must NOT block login — it is logged and a token is still minted, like the
+// empty-sig case. This prevents the 403 outage where a real-but-non-matching Adena
+// signature hard-failed every login.
+func TestMakeToken_TxShapedSignature_InvalidAllowedInPhase1(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "") // default allow (phase 1)
+	serverPub, serverPriv := generateTestKeypair(t)
+	const chainID = "test12"
+	infoJSON, priv, addr, challenge := loginAuthInfo(t, serverPriv, chainID)
+	sig := signWrongNonce(t, priv, chainID, addr, challenge.Nonce)
+
+	tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, sig, chainID)
+	if err != nil {
+		t.Fatalf("phase 1 must accept (log + mint) an invalid signature, got: %v", err)
+	}
+	if tok == nil {
+		t.Fatal("expected a token in phase 1")
 	}
 }

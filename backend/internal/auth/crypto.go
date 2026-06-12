@@ -227,9 +227,11 @@ func allowUnsignedAuth() bool {
 }
 
 // logAuthLogin emits the auth_login gate signal — a structured, countable log line
-// (the backend has no metrics backend yet). result ∈ {signed, empty_allowed,
-// empty_rejected}; operators aggregate/alert on metric="auth_login" to watch the
-// signed-login ratio before flipping AllowUnsignedAuthEnv to enforce.
+// (the backend has no metrics backend yet). result ∈ {signed, signed_invalid,
+// signed_invalid_rejected, empty_allowed, empty_rejected}; operators aggregate/alert
+// on metric="auth_login" to watch the signed-login ratio before flipping
+// AllowUnsignedAuthEnv to enforce. "signed_invalid" means a signature was present but
+// did not verify (e.g. an Adena canonical-doc mismatch) and was accepted in phase 1.
 func logAuthLogin(result, address, chainID string) {
 	slog.Info("auth_login",
 		"metric", "auth_login",
@@ -355,12 +357,37 @@ func MakeToken(
 			// (LoginChallengeSignBytes). The challenge nonce (validated above for
 			// server-signature/expiry/replay and bound to this pubkey) is the
 			// anti-replay binding; chain binding comes from the signDoc chain_id.
-			if err := VerifyLoginChallengeSignature(
+			if verr := VerifyLoginChallengeSignature(
 				userPubKey, effectiveChainID, chainUserAddress, info.Challenge.Nonce, signatureBase64,
-			); err != nil {
-				return nil, err
+			); verr != nil {
+				// Present-but-invalid signature — most often Adena's canonical sign-doc
+				// bytes diverging from LoginChallengeSignBytes. Gate it exactly like the
+				// empty-sig case: enforce only in phase 2. Phase 1 must NOT hard-fail
+				// (that caused a 403 login outage when the frontend began sending real
+				// Adena signatures that did not yet match the reconstructed doc).
+				if !allowUnsignedAuth() {
+					logAuthLogin("signed_invalid_rejected", chainUserAddress, effectiveChainID)
+					slog.Warn("auth: AUTH-UNSIGNED-01 — user signature did not verify (enforcement on)",
+						"address", chainUserAddress, "err", verr.Error())
+					return nil, errors.New("invalid user signature")
+				}
+				logAuthLogin("signed_invalid", chainUserAddress, effectiveChainID)
+				// AUTH-A2-DEBUG (temporary): emit the reconstructed sign-bytes + received
+				// signature so the login-doc template can be reconciled with Adena's
+				// actual output. Remove once signed-login ratio is ~100%.
+				if signBytes, sbErr := LoginChallengeSignBytes(effectiveChainID, chainUserAddress, info.Challenge.Nonce); sbErr == nil {
+					slog.Warn("auth: AUTH-A2-DEBUG — tx-shaped login signature did not verify (accepted in phase 1)",
+						"address", chainUserAddress,
+						"chain_id", effectiveChainID,
+						"nonce_b64", base64.StdEncoding.EncodeToString(info.Challenge.Nonce),
+						"reconstructed_sign_bytes", string(signBytes),
+						"signature_b64", signatureBase64,
+						"user_pubkey_json", info.UserPubkeyJson,
+						"err", verr.Error())
+				}
+			} else {
+				logAuthLogin("signed", chainUserAddress, effectiveChainID)
 			}
-			logAuthLogin("signed", chainUserAddress, effectiveChainID)
 		} else {
 			// A2.phase1: empty signature = NO cryptographic proof of key ownership.
 			// Pubkeys are public and the challenge binding only proves the challenge
