@@ -5,7 +5,39 @@ import {
     LOGIN_FUNC,
     loginChallengeMemo,
     buildLoginChallengeDoc,
+    buildTokenRequestInfo,
 } from "./loginChallenge"
+
+describe("buildTokenRequestInfo", () => {
+    const base = {
+        nonceB64: "bm9uY2U=",
+        expiration: "2026-06-12T10:00:00Z",
+        serverSignatureB64: "c2ln",
+        boundPubkeyHash: "abc123",
+        chainId: "test12",
+    }
+
+    it("echoes chainId into BOTH info.chainId AND info.challenge.chainId (AUTH-CHAINID round-trip)", () => {
+        // Regression guard: dropping challenge.chainId breaks ValidateChallenge's
+        // server-signature check (the GetToken 403 outage).
+        const info = buildTokenRequestInfo({ ...base, userPubkeyJson: "{pk}" })
+        const challenge = info.challenge as Record<string, unknown>
+        expect(challenge.chainId).toBe("test12")
+        expect(info.chainId).toBe("test12")
+        expect(challenge.nonce).toBe("bm9uY2U=")
+        expect(challenge.serverSignature).toBe("c2ln")
+        expect(challenge.boundPubkeyHash).toBe("abc123")
+        expect(info.kind).toBe(CLIENT_MAGIC)
+        expect(info.userBech32Prefix).toBe("g")
+        expect(info.userPubkeyJson).toBe("{pk}")
+    })
+
+    it("uses userAddress (not pubkey) when no pubkey is available", () => {
+        const info = buildTokenRequestInfo({ ...base, userAddress: "g1abc" })
+        expect(info.userAddress).toBe("g1abc")
+        expect("userPubkeyJson" in info).toBe(false)
+    })
+})
 
 describe("loginChallengeMemo", () => {
     it("is the client magic plus the base64 nonce (must match the backend memo)", () => {

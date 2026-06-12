@@ -41,6 +41,42 @@ export interface LoginChallengeDoc {
 // sequence and fee are zero (non-broadcastable); args is OMITTED to match gno's
 // MsgCall omitempty canonical form. nonceBase64 is the standard-base64 challenge
 // nonce (the same encoding the backend uses).
+//
+// buildTokenRequestInfo builds the protojson TokenRequestInfo the backend's
+// MakeToken consumes. CRITICAL: the challenge must be echoed back with ALL the
+// server-signed fields — including chainId — or ValidateChallenge's server-signature
+// check fails (a dropped challenge.chainId caused a GetToken 403 login outage).
+// chainId is set on BOTH info.chainId and info.challenge.chainId so the backend's
+// effectiveChainID matches the challenge binding (AUTH-CHAINID-01).
+export function buildTokenRequestInfo(opts: {
+    nonceB64: string
+    expiration: string
+    serverSignatureB64: string
+    boundPubkeyHash: string
+    chainId: string
+    userPubkeyJson?: string
+    userAddress?: string
+}): Record<string, unknown> {
+    const info: Record<string, unknown> = {
+        kind: CLIENT_MAGIC,
+        challenge: {
+            nonce: opts.nonceB64,
+            expiration: opts.expiration,
+            serverSignature: opts.serverSignatureB64,
+            boundPubkeyHash: opts.boundPubkeyHash,
+            chainId: opts.chainId,
+        },
+        userBech32Prefix: "g",
+        chainId: opts.chainId,
+    }
+    if (opts.userPubkeyJson) {
+        info.userPubkeyJson = opts.userPubkeyJson
+    } else if (opts.userAddress) {
+        info.userAddress = opts.userAddress
+    }
+    return info
+}
+
 export function buildLoginChallengeDoc(
     chainId: string,
     address: string,
