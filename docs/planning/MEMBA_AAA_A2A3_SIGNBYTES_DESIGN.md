@@ -114,14 +114,30 @@ The helper adds **no new crypto dependency**. Signature verification reuses the 
 cosmos-sdk `secp256k1.PubKey.VerifySignature` (sha256-then-verify), already proven byte/hash
 compatible with gno/Adena by the passing AUTH-CHAINID-01 tests.
 
-- **A2 (auth, follow-on PR):** wire the backend to **accept** a real tx-shaped login proof — a
-  deterministic, non-broadcast `/vm.m_call` challenge embedding `chain_id` + server nonce, verified
-  via `CanonicalSignBytes`. **Rollout stays two-phase / lockout-safe:** this session does **not**
-  flip `MEMBA_ALLOW_UNSIGNED_AUTH` and does **not** remove the legacy ADR-036 path. Phase 2 (flip
-  to enforce) remains gate-signal-driven (≈100% signed logins over ≥7d) and requires the frontend
-  A2.phase1 (stop sending `signature: ""`) to ship first. The app-sec "flip + remove in the same
-  release" recommendation is **declined** here as it would lock out every current user (independent
-  frontend/backend deploy pipelines).
+- **A2 (auth) — BACKEND IMPLEMENTED (`feat/aaa-a2-txsig-verify`).** `MakeToken`'s
+  signature-present path now verifies a **tx-shaped login proof** instead of the (Adena-impossible)
+  ADR-036 scheme. New `internal/auth/login_challenge.go`: `LoginChallengeSignBytes(chainID,
+  userAddress, nonce)` reconstructs a deterministic, **non-broadcast** sign-doc —
+  `account_number=0`, `sequence=0`, zero fee, one sentinel `/vm.m_call`
+  (`gno.land/r/memba/login`.`ProveKeyOwnership`, never deployed → un-broadcastable; `args` omitted
+  to match gno's `omitempty` canonical form), memo = `"Login to Memba Multisig Service | nonce:
+  <base64(challenge.Nonce)>"` — and verifies the user's secp256k1 signature over it via
+  `CanonicalSignBytes`. The challenge nonce (already validated for server-sig/expiry/replay and
+  bound to the pubkey) is the anti-replay binding; chain binding comes from the doc `chain_id`.
+  Confirmed prerequisite: cosmos-sdk `secp256k1.Address()` is byte-equal to the gno chain address,
+  so the backend can reconstruct the `caller`. **Rollout stays two-phase / lockout-safe:** the
+  `MEMBA_ALLOW_UNSIGNED_AUTH` gate and empty-sig path are unchanged (no flip; default-allow). The
+  legacy `MakeADR36SignDoc` helper + its unit tests remain (dead in the live path) for phase-2
+  removal. The app-sec "flip + remove now" recommendation is **declined** (would lock out current
+  users on independent frontend/backend deploy pipelines).
+  **Frontend (A2.phase1) — IMPLEMENTED (`feat/aaa-a2-frontend-signed-login`, PR #400):**
+  `Layout.tsx` stops sending `signature:""` and builds a byte-identical login doc via
+  `frontend/src/lib/loginChallenge.ts` (`buildLoginChallengeDoc`), signed by a dedicated
+  `useAdena.signLoginChallenge` (Adena `SignMultisigTransaction`, not `signArbitrary` whose
+  fee-defaulting would break byte-equality); also sends `info.chainId`. Lockout-safe fallback to
+  `""` on wallet reject. Before flipping enforcement, capture a **real Adena** signature vector and
+  assert it verifies (the only unproven link — gnokey/in-Go vectors prove the backend, not Adena's
+  exact JSON for this doc).
 - **A3 (multisig) — IMPLEMENTED (`feat/aaa-a3-multisig-verify`).** `SignTransaction`
   reconstructs sign-bytes from the tx row's **stored** fields (`msgs_json`, `fee_json`,
   `account_number`, `sequence`, `memo`) via `CanonicalSignBytes` (never from client `body_bytes`),
