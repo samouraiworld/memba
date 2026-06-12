@@ -1,0 +1,27 @@
+{
+  "description": "m_call: ZERO gas_fee (must serialize to \"\"), large uint64 sequence/account_number",
+  "gnokey_version": "develop",
+  "chain_id": "test12",
+  "account_number": 4294967296,
+  "account_sequence": 999999999,
+  "unsigned_tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_call",
+        "caller": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+        "send": "",
+        "max_deposit": "",
+        "pkg_path": "gno.land/r/demo/foo",
+        "func": "Ping"
+      }
+    ],
+    "fee": {
+      "gas_wanted": "2000000",
+      "gas_fee": ""
+    },
+    "signatures": null,
+    "memo": ""
+  },
+  "pub_key_b64": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y",
+  "signature_b64": "GRbA7bgXhZ/tLSMZzW7wQ5wUC+UAy9B36xgBulh+RxkbjK097QvzZgL6wXbM6ePlf42yU1t2oVg7PRBcKEPQaQ=="
+}

@@ -1,0 +1,1 @@
+{"account_number":"7","chain_id":"test12","fee":{"gas_fee":"1000000ugnot","gas_wanted":"2000000"},"memo":"memba\u003ctest\u003e\u0026unicodé","msgs":[{"@type":"/vm.m_call","args":["hello","world"],"caller":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","func":"Bar","max_deposit":"","pkg_path":"gno.land/r/demo/foo","send":""}],"sequence":"13"}

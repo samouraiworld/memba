@@ -1,0 +1,39 @@
+{
+  "description": "vm.m_addpkg: package deploy (nested MemPackage/files)",
+  "gnokey_version": "develop",
+  "chain_id": "test12",
+  "account_number": 1,
+  "account_sequence": 1,
+  "unsigned_tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_addpkg",
+        "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+        "package": {
+          "name": "hello",
+          "path": "gno.land/r/demo/hello",
+          "files": [
+            {
+              "name": "hello.gno",
+              "body": "package hello\n\nfunc Hello() string { return \"hi\" }\n"
+            }
+          ],
+          "type": {
+            "@type": "/gno.MemPackageType",
+            "value": "MPUserAll"
+          }
+        },
+        "send": "",
+        "max_deposit": ""
+      }
+    ],
+    "fee": {
+      "gas_wanted": "2000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": null,
+    "memo": ""
+  },
+  "pub_key_b64": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y",
+  "signature_b64": "rPZNSoE8dptZ58lyrrSGEwFl9HR4ZpKOvk87lB0sU0dtoh/hmT0zl2sSW4ACRFrWwuuUIhFCE9BveKEKtJ/3eA=="
+}
