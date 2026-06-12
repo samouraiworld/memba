@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain } from "../lib/config";
 import { setWalletRpcContext } from "../lib/grc20";
 import { trackEvent } from "../lib/analytics";
+import { buildLoginChallengeDoc } from "../lib/loginChallenge";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -326,6 +327,31 @@ export function useAdena() {
         [state.connected]
     );
 
+    /** A2 login proof — sign the non-broadcast, tx-shaped login challenge
+     *  (sentinel /vm.m_call, nonce in memo) via Adena's SignMultisigTransaction.
+     *  The doc is byte-identical to the backend's LoginChallengeSignBytes; the
+     *  backend reconstructs + verifies it. Returns the base64 signature, or null
+     *  if the wallet is unavailable / rejects / does not support the primitive
+     *  (callers fall back to unsigned login while MEMBA_ALLOW_UNSIGNED_AUTH allows). */
+    const signLoginChallenge = useCallback(
+        async (chainId: string, nonceBase64: string): Promise<string | null> => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const adena = getAdena() as any;
+            if (!adena || !state.connected || !state.address) return null;
+            if (typeof adena.SignMultisigTransaction !== "function") return null;
+            try {
+                const doc = buildLoginChallengeDoc(chainId, state.address, nonceBase64);
+                const res = await adena.SignMultisigTransaction(doc);
+                if (!res || res.status === "failure") return null;
+                return res.data?.signature?.signature ?? null;
+            } catch (err) {
+                console.error("[Memba] login challenge sign error:", err);
+                return null;
+            }
+        },
+        [state.connected, state.address]
+    );
+
     /** Add a network to Adena wallet. Opens a confirmation popup.
      *  Params match Adena's AddNetworkParams: { chainId, chainName, rpcUrl }.
      *  Returns true on success (including "already added"), false on rejection/error. */
@@ -436,6 +462,7 @@ export function useAdena() {
         connect,
         disconnect,
         signArbitrary,
+        signLoginChallenge,
         addNetwork,
         switchWalletNetwork,
     };

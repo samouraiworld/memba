@@ -8,6 +8,7 @@ import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
+import { CLIENT_MAGIC } from "../../lib/loginChallenge"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
@@ -26,9 +27,6 @@ import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
 
-
-// Must exactly match backend auth.ClientMagic constant.
-const CLIENT_MAGIC = "Login to Memba Multisig Service"
 
 // Encode Uint8Array to base64 string (protojson format for bytes fields)
 function bytesToBase64(bytes: Uint8Array): string {
@@ -89,6 +87,9 @@ export function Layout() {
                     boundPubkeyHash: challenge.boundPubkeyHash || "",
                 },
                 userBech32Prefix: "g",
+                // AUTH-CHAINID-01: send the chain we authenticate for so the backend's
+                // effectiveChainID is deterministic and matches the signed login doc.
+                chainId: network.chainId,
             }
             // Send pubkey if available, otherwise use address-only auth
             if (adena.pubkeyJSON) {
@@ -98,9 +99,21 @@ export function Layout() {
             }
             const infoJson = JSON.stringify(info)
 
-            // 3. ADR-036 signing skipped — Adena returns UNSUPPORTED_TYPE for sign/MsgSignData
-            // Auth security is enforced via pubkey-bound challenges (v6 AUTH-01).
-            const signature = ""
+            // 3. A2.phase1 — sign a tx-shaped login proof (Adena has no ADR-036).
+            // The backend reconstructs the same sentinel /vm.m_call + nonce-in-memo
+            // doc and verifies the signature. If the wallet rejects or can't sign,
+            // fall back to an empty signature — MEMBA_ALLOW_UNSIGNED_AUTH still mints
+            // a token (lockout-safe two-phase rollout), so a hiccup never blocks login.
+            let signature = ""
+            if (adena.pubkeyJSON) {
+                const nonceB64 = bytesToBase64(challenge.nonce)
+                const signed = await adena.signLoginChallenge(network.chainId, nonceB64)
+                if (signed) {
+                    signature = signed
+                } else {
+                    console.warn("[Memba] login signature unavailable (rejected/unsupported) — proceeding unsigned")
+                }
+            }
 
             // 4. Exchange for auth token
             const token = await auth.getToken(infoJson, signature)
@@ -116,7 +129,7 @@ export function Layout() {
         } finally {
             setAuthLoading(false)
         }
-    }, [adena, auth])
+    }, [adena, auth, network.chainId])
 
     // H-06: Set wallet address for per-wallet quest isolation
     useEffect(() => {
