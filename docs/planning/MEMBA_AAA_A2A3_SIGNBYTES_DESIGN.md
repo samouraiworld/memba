@@ -122,11 +122,18 @@ compatible with gno/Adena by the passing AUTH-CHAINID-01 tests.
   A2.phase1 (stop sending `signature: ""`) to ship first. The app-sec "flip + remove in the same
   release" recommendation is **declined** here as it would lock out every current user (independent
   frontend/backend deploy pipelines).
-- **A3 (multisig, follow-on PR):** on `SignTransaction`, reconstruct sign-bytes from the tx row's
-  **stored** fields via `CanonicalSignBytes` (never from client-supplied `body_bytes`), then
-  secp256k1-verify against the member's pubkey; reject garbage/wrong-sequence pastes with
-  actionable copy. Removes the current blind storage of client `body_bytes`
-  (`tx_rpc.go:280-316`).
+- **A3 (multisig) — IMPLEMENTED (`feat/aaa-a3-multisig-verify`).** `SignTransaction`
+  reconstructs sign-bytes from the tx row's **stored** fields (`msgs_json`, `fee_json`,
+  `account_number`, `sequence`, `memo`) via `CanonicalSignBytes` (never from client `body_bytes`),
+  extracts the member pubkey from the multisig's stored `pubkey_json`
+  (`multisig.LegacyAminoPubKey`, matched by the authenticated signer's address), and
+  secp256k1-verifies. New `internal/auth/multisig_verify.go`: `VerifyMultisigMemberSignature` +
+  `StoredTxFields`. **Two-phase / lockout-safe** like A2: gated by
+  `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` (default **log-only** — a failure is recorded on the
+  `multisig_sig_verify` gate signal but the signature is still accepted, so a reconstruction edge
+  case cannot lock out legitimate signers before real Adena member signatures are observed
+  verifying; set `=1` to enforce/reject once `multisig_sig_verify{result=ok}` ≈ 100%). `body_bytes`
+  is still stored for client-side broadcast assembly but is no longer trusted for verification.
 
 ## 6. Test strategy (TDD, byte-equality proof)
 

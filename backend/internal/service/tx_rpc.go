@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/auth"
 )
 
 // ─── Transaction RPCs ─────────────────────────────────────────────
@@ -280,18 +281,29 @@ func (s *MultisigService) SignTransaction(
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
-	// Verify the transaction exists and the user is a member of its multisig.
-	var chainID, multisigAddr string
+	// Verify the transaction exists, load the authoritative fields needed to
+	// reconstruct the canonical sign-bytes, and the multisig pubkey to verify against.
+	var (
+		chainID, multisigAddr string
+		txf                   auth.StoredTxFields
+		multisigPubkeyJSON    string
+	)
 	err = s.db.QueryRowContext(ctx,
-		"SELECT chain_id, multisig_address FROM transactions WHERE id = ? AND final_hash IS NULL",
+		`SELECT t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
+		        t.account_number, t.sequence, t.memo, m.pubkey_json
+		 FROM transactions t
+		 JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
+		 WHERE t.id = ? AND t.final_hash IS NULL`,
 		txID,
-	).Scan(&chainID, &multisigAddr)
+	).Scan(&chainID, &multisigAddr, &txf.MsgsJSON, &txf.FeeJSON,
+		&txf.AccountNumber, &txf.Sequence, &txf.Memo, &multisigPubkeyJSON)
 	if err == sql.ErrNoRows {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 	if err != nil {
 		return nil, internalError("SignTransaction: query tx", err)
 	}
+	txf.ChainID = chainID
 
 	var memberExists int
 	err = s.db.QueryRowContext(ctx,
@@ -300,6 +312,24 @@ func (s *MultisigService) SignTransaction(
 	).Scan(&memberExists)
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	// A3: verify the signature server-side against sign-bytes reconstructed from the
+	// stored tx fields — never from client body_bytes. Two-phase (lockout-safe): in
+	// log-only mode a failure is recorded on the multisig_sig_verify gate signal but
+	// still accepted; set MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1 to reject failures.
+	if verr := auth.VerifyMultisigMemberSignature(multisigPubkeyJSON, userAddress, sig, txf); verr != nil {
+		if auth.EnforceMultisigSigVerify() {
+			slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "rejected",
+				"tx_id", txID, "signer", userAddress, "err", verr.Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, verr)
+		}
+		slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "mismatch",
+			"tx_id", txID, "signer", userAddress, "err", verr.Error(),
+			"hint", "accepted in log-only mode; set "+auth.EnforceMultisigSigVerifyEnv+"=1 to enforce")
+	} else {
+		slog.Info("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "ok",
+			"tx_id", txID, "signer", userAddress)
 	}
 
 	_, err = s.db.ExecContext(ctx,
