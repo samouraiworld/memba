@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 test-results/
 playwright-report/
+
+# A2 login spike (throwaway, not shipped)
+sign-spike.html

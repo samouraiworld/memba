@@ -200,6 +200,9 @@ tracked but non-blocking.
 > CONFIRMED working for wallets with an on-chain pubkey. The backend A2 capability (tx-shaped verify,
 > unbound-challenge, `args:null`) remains merged but unused/harmless.
 >
+> **REDESIGN (2026-06-13): see [`MEMBA_AAA_A2_SIGNAMINO_LOGIN_DESIGN.md`](./MEMBA_AAA_A2_SIGNAMINO_LOGIN_DESIGN.md)**
+> — full design + TDD plan on `adena.Sign` (signAmino), source-traced. Supersedes the rest of this §9.
+>
 > **To make signed-login work, redesign on the correct single-account primitive (`signTx`/`signAmino`):**
 > those sign with Adena's OWN chain `account_number`/`sequence`, so the backend must reconstruct
 > `LoginChallengeSignBytes` from chain-queried OR client-supplied account_number/sequence (the nonce gives
