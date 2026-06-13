@@ -192,6 +192,23 @@ tracked but non-blocking.
 
 ## 9. A2 — untransacted-wallet login (pubkey-from-sign) + `args:null` (2026-06-12)
 
+> **STATUS (2026-06-13): IMPLEMENTED THEN REVERTED — A2 signed-login is BLOCKED, do not re-attempt as-is.**
+> The approach below shipped (PRs #399/#400/#403/#404) but the frontend signing was **reverted** (#405)
+> because Adena's `SignMultisigTransaction` is a **multisig-collaboration** primitive (signs to a file to
+> collect N-of-M signatures) that **hangs** for a single-account dApp login — it never returns a signature
+> to the page. **Current production = unsigned login** (`signature:""`, gated by `MEMBA_ALLOW_UNSIGNED_AUTH`),
+> CONFIRMED working for wallets with an on-chain pubkey. The backend A2 capability (tx-shaped verify,
+> unbound-challenge, `args:null`) remains merged but unused/harmless.
+>
+> **To make signed-login work, redesign on the correct single-account primitive (`signTx`/`signAmino`):**
+> those sign with Adena's OWN chain `account_number`/`sequence`, so the backend must reconstruct
+> `LoginChallengeSignBytes` from chain-queried OR client-supplied account_number/sequence (the nonce gives
+> anti-replay). Treat as a designed project (deep audit → design → review → build), NOT a live patch.
+> Funded-but-never-transacted wallets (e.g. `public_key:null`, `sequence:0`) also can't log in until they
+> send 1 on-chain tx (registers the pubkey) — pre-existing v5 policy (#292). The rest of §9 documents the
+> reverted approach for reference.
+
+
 **Problem (two distinct, both surfaced by live test).** On gno, an account's public key is only
 on-chain after its first outgoing tx. A **funded-but-never-transacted** wallet has
 `public_key:null` on-chain, so Adena's `GetAccount` returns no pubkey, the frontend falls back to
