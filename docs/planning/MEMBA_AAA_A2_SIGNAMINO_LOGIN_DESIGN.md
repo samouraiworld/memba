@@ -1,5 +1,23 @@
 # A2 Signed-Login on `adena.Sign` (signAmino) — Design + Implementation Plan
 
+> **⚠️ SHELVED (2026‑06‑15) — DO NOT IMPLEMENT.** Superseded by re-enabling the original
+> **`SignMultisigTransaction`** approach (PRs #399–#403, mostly still in the codebase). Reasons, verified
+> from source:
+> - `signAmino`'s popup runs gas **simulation** and disables Approve when the fee is ≤0; **test12 has a
+>   zero gas price**, so the fee resolves to 0 and signing is blocked (reproduced live, spike v1).
+> - `SignMultisigTransaction` signs the dApp-provided doc **as-is** (fixed `gas_fee: 1ugnot`, **no
+>   simulation**) and **resolves to the dApp** (`withSaveFile` default false). Last session's "it hangs"
+>   was a misread of the *in-wallet* hook; the dApp popup returns the signature.
+> - Neither primitive serves **untransacted** wallets (Adena `validatePublicKeyExists` + gas-sim both need
+>   an on-chain pubkey, since Adena #800, 2026‑02‑13). So signed-login is **transacted-wallet-only** —
+>   which is the population that already logs in. `g1747` is untransacted (`seq 0, pubkey null`) and needs
+>   one on-chain tx before it can log in by any path.
+>
+> This doc is retained for the source-audit trail (§0 expert review, §1 Adena pipeline). The active plan is
+> the `SignMultisigTransaction` re-enable; see `.remember/remember.md` and the spike `frontend/sign-spike.html`.
+
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
 > **Status (2026-06-13): DESIGN — awaiting expert review + user approval. DO NOT build until approved.**
