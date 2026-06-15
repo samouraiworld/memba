@@ -20,6 +20,9 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['@phosphor-icons/react'],
           'vendor-sentry': ['@sentry/react'],
+          // ConnectRPC + protobuf client stack — app-wide, long-lived; split out of the
+          // eager index chunk to keep it under the 600KB budget (cached across deploys).
+          'vendor-rpc': ['@connectrpc/connect', '@connectrpc/connect-web', '@bufbuild/protobuf'],
         },
       },
     },
