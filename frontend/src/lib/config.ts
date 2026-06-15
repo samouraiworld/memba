@@ -66,6 +66,10 @@ interface NetworkConfig {
     faucetUrl: string
     /** When true, the network is reachable by URL/env but hidden from the selector. */
     hidden?: boolean
+    /** When false, Memba's realms are NOT deployed on this network — the app shows
+     *  a notice instead of letting DAO/channel features fail with 404s. Omitted
+     *  (or true) means the realms are deployed. */
+    realmsDeployed?: boolean
 }
 
 /** Available Gno networks for the chain selector. */
@@ -78,36 +82,30 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
     },
-    // Testnet 13 (gno v0.9 / pre-interrealm-v2). On-wire chainId is "test-13"
-    // (HYPHEN) — it is embedded in the ADR-036 sign doc, so it MUST match the
-    // chain exactly or every login fails "invalid user signature". The map KEY
-    // ("test13") stays identifier-safe.
+    // Testnet 13 — the official Gno testnet (gno v0.9 / pre-interrealm-v2).
+    // On-wire chainId is "test-13" (HYPHEN) — it is embedded in the ADR-036 sign
+    // doc, so it MUST match the chain exactly or every login fails "invalid user
+    // signature". The map KEY ("test13") stays identifier-safe.
     //
-    // Canonical RPC is now onbloc's node (test13.rpc.onbloc.xyz) — Adena moved its
-    // test-13 default here in v1.19.5 (#856), replacing aeddi's personal node. We
-    // mirror it so Memba's wallet-RPC trust gate (TRUSTED_RPC_DOMAINS) and CSP
-    // accept what Adena hands back from GetNetwork(); keep env-overridable
-    // (VITE_TEST13_RPC_URL) with the old aeddi node as a fallback slot.
+    // Canonical RPC is gno-core's official node (rpc.test13.testnets.gno.land,
+    // verified live). Kept env-overridable (VITE_TEST13_RPC_URL); onbloc's node
+    // (Adena's GetNetwork() default since v1.19.5 #856) and aeddi's node remain as
+    // fallbacks — all three are CSP- and TRUSTED_RPC_DOMAINS-covered.
     //
-    // Hidden from the selector until the memba realms are deployed there
-    // (Phase 3); flip VITE_ENABLE_TEST13=true to surface it. Still reachable
-    // now via /test13/... URLs or VITE_GNO_CHAIN_ID=test13.
+    // Surfaced in the selector now that test13 is the official testnet. Memba's
+    // own realms are NOT deployed there yet (realmsDeployed:false → the app shows
+    // a notice instead of 404-ing on DAO features). Flip to true on deploy.
     test13: {
         chainId: "test-13",
-        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://test13.rpc.onbloc.xyz:443",
-        fallbackRpcUrls: ["https://rpc.test-13-aeddi-1.gnoland.network:443"],
+        rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
+        fallbackRpcUrls: [
+            "https://test13.rpc.onbloc.xyz:443",
+            "https://rpc.test-13-aeddi-1.gnoland.network:443",
+        ],
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
-        hidden: !import.meta.env.VITE_ENABLE_TEST13,
-    },
-    test11: {
-        chainId: "test11",
-        rpcUrl: "https://rpc.test11.testnets.gno.land:443",
-        fallbackRpcUrls: [],
-        label: "Testnet 11",
-        userRegistryPath: "gno.land/r/gnoland/users/v1",
-        faucetUrl: "https://faucet.gno.land",
+        realmsDeployed: false,
     },
     staging: {
         chainId: "staging",
@@ -164,11 +162,26 @@ const _activeNetwork = getActiveNetworkKey()
 
 /**
  * Returns the user registry realm path for the active network.
- * On legacy chains (test11) this is `gno.land/r/gnoland/users/v1`.
  * On test12+/betanet this is `gno.land/r/sys/users` (upstream migration).
  */
 export function getUserRegistryPath(): string {
     return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/sys/users"
+}
+
+/**
+ * Whether Memba's realms are deployed on the given network. A network may be
+ * official and reachable (e.g. test13) while Memba's own contracts are not yet
+ * deployed there — in that case DAO/channel features would 404. Returns false
+ * only when the network explicitly sets `realmsDeployed: false`; unknown
+ * networks default to true (don't gate the UI on a typo'd key).
+ */
+export function networkHasRealms(networkKey: string): boolean {
+    return NETWORKS[networkKey]?.realmsDeployed !== false
+}
+
+/** Whether Memba's realms are deployed on the currently active network. */
+export function areRealmsDeployed(): boolean {
+    return networkHasRealms(_activeNetwork)
 }
 
 
@@ -293,12 +306,6 @@ export interface GnoSwapPaths {
 
 /** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
-    test11: {
-        pool: "gno.land/r/gnoswap/pool",
-        router: "gno.land/r/gnoswap/router",
-        position: "gno.land/r/gnoswap/position",
-        gns: "gno.land/r/gnoswap/gns",
-    },
     staging: { pool: "", router: "", position: "", gns: "" },
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
     test12: { pool: "", router: "", position: "", gns: "" },
@@ -323,9 +330,8 @@ export function getGnoSwapPaths(): GnoSwapPaths | null {
  */
 export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
-    "testnets.gno.land",
+    "testnets.gno.land", // covers rpc.test13.testnets.gno.land (official test13) + others
     "rpc.gno.land",
-    "rpc.test11.testnets.gno.land",
     "rpc.test12.gno.land",
     "gnoland.network", // test-13 indexer/gnoweb + gnoland1 fallbacks, suffix-matched
     "onbloc.xyz",      // test-13 canonical RPC (test13.rpc.onbloc.xyz) — Adena moved here in v1.19.5 (#856)
