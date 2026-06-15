@@ -24,6 +24,8 @@ import { getQuestById } from "../../lib/gnobuilders"
 import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
+import { RealmsNotDeployedBanner } from "../ui/RealmsNotDeployedBanner"
+import { networkHasRealms } from "../../lib/config"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
 
@@ -286,6 +288,12 @@ export function Layout() {
                     <ChainHaltedBanner
                         networkKey={network.networkKey}
                         onSwitchNetwork={network.switchNetwork}
+                    />
+
+                    {/* ── test13 cutover: Memba realms not yet deployed on this network ── */}
+                    <RealmsNotDeployedBanner
+                        deployed={networkHasRealms(network.networkKey)}
+                        networkLabel={network.label}
                     />
 
                     {/* ── Main ─────────────────────────────────────── */}

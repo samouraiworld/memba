@@ -9,6 +9,7 @@ import {
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
+    networkHasRealms,
     TRUSTED_RPC_DOMAINS,
     getTelemetryRpcUrl,
     GNO_RPC_URL,
@@ -26,11 +27,14 @@ describe('config constants', () => {
 
     it('NETWORKS has the expected chain options', () => {
         expect(Object.keys(NETWORKS)).toContain('test12')
-        expect(Object.keys(NETWORKS)).toContain('test11')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
         expect(Object.keys(NETWORKS)).toContain('test13')
+    })
+
+    it('test11 is dropped (decommissioned official testnet)', () => {
+        expect(Object.keys(NETWORKS)).not.toContain('test11')
     })
 
     it('test13 map key is identifier-safe but on-wire chainId is hyphenated', () => {
@@ -40,11 +44,23 @@ describe('config constants', () => {
         expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 
-    it('test13 is hidden from the selector by default (VITE_ENABLE_TEST13 unset)', () => {
-        expect(NETWORKS.test13.hidden).toBe(true)
-        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('test13')
-        // …but still reachable by URL/env (present in the full map).
-        expect(Object.keys(NETWORKS)).toContain('test13')
+    it('test13 is visible in the selector (now the official testnet)', () => {
+        expect(NETWORKS.test13.hidden).toBeFalsy()
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('test13')
+    })
+
+    it('test13 points at the official testnets.gno.land RPC', () => {
+        expect(NETWORKS.test13.rpcUrl).toBe('https://rpc.test13.testnets.gno.land:443')
+    })
+
+    it('networkHasRealms reflects Memba contract deployment per network', () => {
+        // test13 is the official testnet, but Memba's realms are not deployed
+        // there yet — the app must signal that rather than 404 on DAO features.
+        expect(networkHasRealms('test13')).toBe(false)
+        // test12 (current default) has the realms deployed.
+        expect(networkHasRealms('test12')).toBe(true)
+        // Unknown networks default to "has realms" (don't gate the UI on a typo).
+        expect(networkHasRealms('nonexistent')).toBe(true)
     })
 
     it('test12 has correct chain config', () => {
