@@ -54,10 +54,9 @@ describe('config constants', () => {
     })
 
     it('networkHasRealms reflects Memba contract deployment per network', () => {
-        // test13 is the official testnet, but Memba's realms are not deployed
-        // there yet — the app must signal that rather than 404 on DAO features.
-        expect(networkHasRealms('test13')).toBe(false)
-        // test12 (current default) has the realms deployed.
+        // Memba's realms are deployed on both test12 and test13 (test13 realms
+        // landed 2026-06-16, interrealm-v2).
+        expect(networkHasRealms('test13')).toBe(true)
         expect(networkHasRealms('test12')).toBe(true)
         // Unknown networks default to "has realms" (don't gate the UI on a typo).
         expect(networkHasRealms('nonexistent')).toBe(true)

@@ -92,9 +92,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // (Adena's GetNetwork() default since v1.19.5 #856) and aeddi's node remain as
     // fallbacks — all three are CSP- and TRUSTED_RPC_DOMAINS-covered.
     //
-    // Surfaced in the selector now that test13 is the official testnet. Memba's
-    // own realms are NOT deployed there yet (realmsDeployed:false → the app shows
-    // a notice instead of 404-ing on DAO features). Flip to true on deploy.
+    // The official Gno testnet. Memba's frozen realm set (memba_dao,
+    // candidature_v2, channels_v2, agent_registry) + gnodaokit are deployed here
+    // (interrealm-v2, 2026-06-16), so DAO features are live — realmsDeployed
+    // omitted (defaults to deployed).
     test13: {
         chainId: "test-13",
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
@@ -105,7 +106,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
-        realmsDeployed: false,
     },
     staging: {
         chainId: "staging",
