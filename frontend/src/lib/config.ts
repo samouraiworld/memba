@@ -184,6 +184,42 @@ export function areRealmsDeployed(): boolean {
     return networkHasRealms(_activeNetwork)
 }
 
+/**
+ * Per-realm validity allowlist, keyed by network. `networkHasRealms` is coarse
+ * (all-or-nothing); test13 is the first "partial" network where some realms are
+ * deployed & valid (interrealm-v2) while others are stale v1 packages the v2 VM
+ * can't evaluate (calls throw "unexpected node …:0:0") or simply absent. List
+ * here ONLY the realms confirmed callable on that network; a network with no
+ * entry = all realms assumed valid (test12, betanet). When a realm is
+ * (re)deployed to a new valid path, add that path here.
+ */
+const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
+    test13: [
+        "gno.land/r/samcrew/memba_dao",
+        "gno.land/r/samcrew/memba_dao_candidature_v2",
+        "gno.land/r/samcrew/memba_dao_channels_v2",
+        "gno.land/r/samcrew/agent_registry",
+    ],
+}
+
+/**
+ * Is a realm callable on the given network? Networks without an allowlist entry
+ * default to true (don't gate test12/betanet).
+ */
+export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
+    const allow = REALM_ALLOWLIST[networkKey]
+    return !allow || allow.includes(realmPath)
+}
+
+/**
+ * Is a realm callable on the currently active network? Use this to hide
+ * features whose backing realm is missing or invalid on the active chain,
+ * instead of letting a maketx fail with a raw VM error.
+ */
+export function isRealmValid(realmPath: string): boolean {
+    return isRealmValidOn(_activeNetwork, realmPath)
+}
+
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
@@ -420,6 +456,18 @@ export const MEMBA_DAO = {
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
+
+/** Feedback board realm path (shared with FeedbackFeed). */
+export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback"
+
+// ── Per-feature validity predicates (back each feature by its realm) ──
+// These let a page short-circuit to a "not on this network" gate when its
+// realm isn't valid on the active chain. Env feature-flags (VITE_ENABLE_*)
+// are ANDed by the consuming page where they apply.
+export const isTokenFactoryValid = () => isRealmValid(GRC20_FACTORY_PATH)
+export const isEscrowValid = () => isRealmValid(MEMBA_DAO.escrowPath)
+export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
+export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
 
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {

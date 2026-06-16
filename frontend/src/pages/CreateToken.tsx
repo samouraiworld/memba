@@ -4,7 +4,8 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
-import { GNO_CHAIN_ID } from "../lib/config"
+import { GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { fetchAccountInfo } from "../lib/account"
 import {
     buildCreateTokenMsgs,
@@ -55,6 +56,21 @@ export function CreateToken() {
                 } catch { /* ignore */ }
             })()
     }, [auth.isAuthenticated, auth.token])
+
+    // The token factory realm isn't valid on every network (e.g. test13 carries
+    // a stale v1 tokenfactory the interrealm-v2 VM can't run — a New() call would
+    // fail with "unexpected node …:0:0"). Gate the whole page instead of letting
+    // the user submit a tx that's guaranteed to fail.
+    if (!isTokenFactoryValid()) {
+        return (
+            <ComingSoonGate
+                title="Token Factory"
+                icon="🪙"
+                description="Token creation isn't available on this network yet. The token factory contract is live on Testnet 12 — switch networks to create tokens."
+                features={["Create GRC20 tokens", "Mint, transfer & burn", "Built-in faucet & DAO treasury minting"]}
+            />
+        )
+    }
 
     let parsedMint = 0n
     try {

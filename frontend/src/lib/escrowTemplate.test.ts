@@ -24,6 +24,7 @@ import {
     buildDeployEscrowMsg,
     type EscrowConfig,
 } from "./escrowTemplate"
+import { toAdenaMessages } from "./grc20"
 
 // ── Fixtures ──────────────────────────────────────────────────
 
@@ -310,9 +311,21 @@ describe("MsgCall builders", () => {
     const caller = "g1testcaller"
     const escrowPath = "gno.land/r/test/escrow"
 
+    it("every escrow MsgCall builder survives toAdenaMessages (broadcast path)", () => {
+        const msgs = [
+            buildCreateContractMsg(caller, escrowPath, "g1freelancer", "Build app", "Full stack", "Design:1000"),
+            buildFundMilestoneMsg(caller, escrowPath, "0", 1, 5000000),
+            buildCompleteMilestoneMsg(caller, escrowPath, "0", 0),
+            buildReleaseFundsMsg(caller, escrowPath, "0", 2),
+            buildRaiseDisputeMsg(caller, escrowPath, "1", 0),
+        ]
+        expect(() => toAdenaMessages(msgs)).not.toThrow()
+        expect(toAdenaMessages(msgs).every((m) => m.type === "/vm.m_call")).toBe(true)
+    })
+
     it("buildCreateContractMsg has correct type and args", () => {
         const msg = buildCreateContractMsg(caller, escrowPath, "g1freelancer", "Build app", "Full stack", "Design:1000,Code:2000")
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.caller).toBe(caller)
         expect(msg.value.pkg_path).toBe(escrowPath)
         expect(msg.value.func).toBe("CreateContract")
@@ -321,7 +334,7 @@ describe("MsgCall builders", () => {
 
     it("buildFundMilestoneMsg includes send field", () => {
         const msg = buildFundMilestoneMsg(caller, escrowPath, "0", 1, 5000000)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.send).toBe("5000000ugnot")
         expect(msg.value.func).toBe("FundMilestone")
         expect(msg.value.args).toEqual(["0", "1"])
@@ -329,21 +342,21 @@ describe("MsgCall builders", () => {
 
     it("buildCompleteMilestoneMsg has no send field", () => {
         const msg = buildCompleteMilestoneMsg(caller, escrowPath, "0", 0)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.send).toBe("")
         expect(msg.value.func).toBe("CompleteMilestone")
     })
 
     it("buildReleaseFundsMsg structure is valid", () => {
         const msg = buildReleaseFundsMsg(caller, escrowPath, "0", 2)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("ReleaseFunds")
         expect(msg.value.args).toEqual(["0", "2"])
     })
 
     it("buildRaiseDisputeMsg structure is valid", () => {
         const msg = buildRaiseDisputeMsg(caller, escrowPath, "1", 0)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("RaiseDispute")
     })
 

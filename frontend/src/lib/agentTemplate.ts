@@ -507,7 +507,7 @@ export function buildRegisterAgentMsg(
     pricePerCall: number,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddress,
             send: "",
@@ -526,7 +526,7 @@ export function buildReviewAgentMsg(
     comment: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddress,
             send: "",
@@ -548,7 +548,7 @@ export function buildUpdateAgentMsg(
     pricePerCall: number,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddress,
             send: "",
@@ -566,7 +566,7 @@ export function buildDepositCreditsMsg(
     amountUgnot: number,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddress,
             send: `${amountUgnot}ugnot`,
@@ -583,7 +583,7 @@ export function buildRefundCreditsMsg(
     agentId: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddress,
             send: "",
