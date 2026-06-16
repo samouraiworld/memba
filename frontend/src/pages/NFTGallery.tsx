@@ -10,7 +10,7 @@
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
-import { ArrowRight, Storefront, Clock } from "@phosphor-icons/react"
+import { Storefront, Clock } from "@phosphor-icons/react"
 import {
     getCollectionInfo,
     listCollectionTokens,

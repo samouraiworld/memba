@@ -9,7 +9,7 @@
  *  5. isApprovedForAll result parsing
  */
 
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import {
     buildMintMsg,
     buildTransferMsg,
@@ -22,8 +22,6 @@ import {
     parseOwnerOfResult,
     parseTokenURIResult,
     parseIsApprovedForAllResult,
-    type NFTCollectionV2,
-    type NFTTokenInfo,
 } from "./grc721"
 import { toAdenaMessages } from "./grc20"
 

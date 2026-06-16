@@ -34,7 +34,7 @@ interface Props {
 
 type Step = "loading" | "approve" | "list" | "submitting-approve" | "submitting-list"
 
-export function ListForSaleModal({ nftRealm: _nftRealm, tokenId, callerAddress, onClose, onSuccess }: Props) {
+export function ListForSaleModal({ tokenId, callerAddress, onClose, onSuccess }: Props) {
     const [price, setPrice] = useState("")
     const [step, setStep] = useState<Step>("loading")
     const [error, setError] = useState<string | null>(null)
@@ -135,7 +135,7 @@ export function ListForSaleModal({ nftRealm: _nftRealm, tokenId, callerAddress, 
                             Approve marketplace
                         </div>
                         <div className="nft-modal__step-sep">→</div>
-                        <div className={`nft-modal__step${step === "list" || step === "submitting-list" ? " active" : " pending"}`}>
+                        <div className={`nft-modal__step${!needsApproval ? " active" : " pending"}`}>
                             <span className="nft-modal__step-num">2</span>
                             List for sale
                         </div>
