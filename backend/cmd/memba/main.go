@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -112,13 +113,27 @@ func main() {
 	// Start the NFT marketplace state-polling indexer (test13 realms).
 	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env
 	// (NFT_RPC_URL) — NOT the testnet12-defaulted GNO_RPC_URL.
+	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443")
+	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
+	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
 	indexer.StartNFTPoller(ctx, database, indexer.Config{
-		RPCURL:          envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443"),
-		CollectionRealm: envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2"),
-		MarketRealm:     envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2"),
+		RPCURL:          nftRPCURL,
+		CollectionRealm: collectionRealm,
+		MarketRealm:     marketRealm,
 		CollectionID:    envOr("NFT_COLLECTION_ID", "genesis"),
 		Interval:        durationOr("NFT_POLL_INTERVAL", 60*time.Second),
 		Logger:          logger,
+	})
+
+	// Start the event-tailing indexer: polls /block_results, parses chain.Emit
+	// GnoEvents from the NFT realms, and writes normalized listings/sales/offers/
+	// ownership. This is the source of truth for floor, activity and portfolio.
+	indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
+		RPCURL:        nftRPCURL,
+		WatchedRealms: splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm)),
+		StartBlock:    int64Or("NFT_START_BLOCK", 260000),
+		Interval:      durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
+		Logger:        logger,
 	})
 
 	// Initialize OAuth state store with app context for clean shutdown.
@@ -220,6 +235,16 @@ func durationOr(key string, fallback time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			return d
+		}
+	}
+	return fallback
+}
+
+// int64Or parses the env var as a base-10 int64, or returns fallback.
+func int64Or(key string, fallback int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return n
 		}
 	}
 	return fallback

@@ -76,6 +76,13 @@ func StartNFTPoller(ctx context.Context, database *sql.DB, cfg Config) {
 
 // pollOnce performs a single indexing cycle. Each section is independent: a
 // failure in one (logged) does not prevent the others from refreshing.
+//
+// As of the event-tailing upgrade (migration 012 / tailer.go), listings, sales,
+// floor, ownership and marketplace stats are written by the BlockTailer from
+// chain.Emit events. The poller now only fills the metadata the events don't
+// carry: collection name/symbol/supply/royalty and per-token URI. (Token owner
+// is also event-derived, but the per-token render is kept as a cheap reconcile
+// for the URI it provides alongside it.)
 func pollOnce(ctx context.Context, database *sql.DB, cfg Config) {
 	log := cfg.Logger
 	colID := cfg.CollectionID
@@ -93,7 +100,7 @@ func pollOnce(ctx context.Context, database *sql.DB, cfg Config) {
 		}
 	}
 
-	// (b) Per-token owner + URI (full, untruncated via per-token render).
+	// (b) Per-token URI (and owner) via the full, untruncated per-token render.
 	for tid := int64(1); tid <= supply; tid++ {
 		tokenID := strconv.FormatInt(tid, 10)
 		raw, err := queryRender(cfg.RPCURL, fmt.Sprintf("%s:%s/%s", cfg.CollectionRealm, colID, tokenID))
@@ -109,37 +116,6 @@ func pollOnce(ctx context.Context, database *sql.DB, cfg Config) {
 		if err := upsertToken(ctx, database, colID, tokenID, tok); err != nil {
 			log.Warn("nft indexer: token upsert failed", "token", tokenID, "error", err)
 		}
-	}
-
-	// (c) Marketplace stats (volume / sales counts / listings / offers).
-	if raw, err := queryRender(cfg.RPCURL, cfg.MarketRealm+":stats"); err != nil {
-		log.Warn("nft indexer: stats render failed", "error", err)
-	} else if stats, perr := parseStatsRender(raw); perr != nil {
-		log.Warn("nft indexer: stats parse failed", "error", perr)
-	} else if err := updateCollectionStats(ctx, database, colID, stats); err != nil {
-		log.Warn("nft indexer: stats update failed", "error", err)
-	}
-
-	// (d) Marketplace home (listings table + floor). GUARDED: the no-path
-	// Render route is known to 500 on test13 — on any error/empty we skip
-	// listings/floor for this cycle and keep the rest of the data fresh.
-	if raw, err := queryRender(cfg.RPCURL, cfg.MarketRealm); err != nil {
-		log.Info("nft indexer: market home unreachable (known test13 quirk) — skipping listings/floor", "error", err)
-	} else if listings, perr := parseListingsRender(raw); perr != nil {
-		log.Info("nft indexer: market home parse failed — skipping listings/floor", "error", perr)
-	} else {
-		if err := applyListings(ctx, database, colID, listings); err != nil {
-			log.Warn("nft indexer: listings apply failed", "error", err)
-		}
-	}
-
-	// (e) Recent sales → activity log (deduped by sale_no).
-	if raw, err := queryRender(cfg.RPCURL, cfg.MarketRealm+":sales"); err != nil {
-		log.Warn("nft indexer: sales render failed", "error", err)
-	} else if sales, perr := parseSalesRender(raw); perr != nil {
-		log.Warn("nft indexer: sales parse failed", "error", perr)
-	} else if err := insertSales(ctx, database, colID, sales); err != nil {
-		log.Warn("nft indexer: sales insert failed", "error", err)
 	}
 }
 
