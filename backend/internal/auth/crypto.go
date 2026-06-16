@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -451,11 +452,13 @@ func MakeToken(
 
 // ValidateToken checks the server signature and expiry of a token.
 //
-// AUTH-CHAINID-01: if expectedChainID is non-empty and the token carries a
-// non-empty ChainId, they must match — this rejects tokens issued for one
-// chain when used against another. Empty values on either side fall through
-// (24h legacy grace window).
-func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token, expectedChainID string) error {
+// AUTH-CHAINID-01: if any acceptedChainIDs are given and the token carries a
+// non-empty ChainId, the token's chain must be one of them — this rejects
+// tokens issued for a chain the server does not serve. Passing multiple chain
+// IDs supports a transition window (e.g. test12 -> test13) where the backend
+// serves both chains at once. Empty token.ChainId falls through (legacy grace),
+// and an empty acceptedChainIDs accepts any chain (legacy/unconfigured mode).
+func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token, acceptedChainIDs ...string) error {
 	if token == nil {
 		return errors.New("missing token")
 	}
@@ -481,18 +484,24 @@ func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token, expectedCh
 		return errors.New("invalid server signature on token")
 	}
 
-	// AUTH-CHAINID-01: enforce chain binding.
-	if expectedChainID != "" && token.ChainId != "" && token.ChainId != expectedChainID {
+	// AUTH-CHAINID-01: enforce chain binding against the accepted set.
+	accepted := make([]string, 0, len(acceptedChainIDs))
+	for _, c := range acceptedChainIDs {
+		if c != "" {
+			accepted = append(accepted, c)
+		}
+	}
+	if len(accepted) > 0 && token.ChainId != "" && !slices.Contains(accepted, token.ChainId) {
 		slog.Warn("auth: token chain mismatch",
 			"token_chain_id", token.ChainId,
-			"expected_chain_id", expectedChainID)
+			"accepted_chain_ids", accepted)
 		return errors.New("token issued for a different chain")
 	}
-	if expectedChainID != "" && token.ChainId == "" {
-		// Legacy token (issued pre-AUTH-CHAINID-01) — accept during 24h grace,
+	if len(accepted) > 0 && token.ChainId == "" {
+		// Legacy token (issued pre-AUTH-CHAINID-01) — accept during grace,
 		// log so we can monitor the legacy footprint.
 		slog.Info("auth: accepting legacy token without chain_id (grace window)",
-			"expected_chain_id", expectedChainID)
+			"accepted_chain_ids", accepted)
 	}
 
 	return nil

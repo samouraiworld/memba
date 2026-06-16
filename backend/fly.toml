@@ -23,6 +23,11 @@ primary_region = 'cdg'
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
   GNO_CHAIN_ID = 'test12'
+  # Token chain-id allowlist (validation). Additive: accept BOTH chains during
+  # the test12->test13 transition so a user on test13 isn't 401'd while test12 is
+  # still the default. New tokens are still stamped per the client's chain. At
+  # the hard cutover, set GNO_CHAIN_ID='test-13' and drop test12 from this list.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'test12,test-13'
   GNO_RPC_URL = 'https://rpc.testnet12.samourai.live:443'
   PORT = '8080'
 

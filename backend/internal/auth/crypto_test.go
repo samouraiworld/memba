@@ -392,3 +392,47 @@ func makeTestToken(priv ed25519.PrivateKey, duration time.Duration, chainID stri
 	token.ServerSignature = encodeBytes(ed25519.Sign(priv, tokenBytes))
 	return token, nil
 }
+
+// TestValidateToken_ChainIDAllowlist covers the test12<->test13 transition:
+// the backend must accept tokens for MULTIPLE chains at once, while still
+// rejecting any chain not on the allowlist. (AUTH-CHAINID-01 / B-cutover.)
+func TestValidateToken_ChainIDAllowlist(t *testing.T) {
+	pub, priv := generateTestKeypair(t)
+
+	t13, err := makeTestToken(priv, time.Hour, "test-13")
+	if err != nil {
+		t.Fatal("makeTestToken test-13:", err)
+	}
+	t12, err := makeTestToken(priv, time.Hour, "test12")
+	if err != nil {
+		t.Fatal("makeTestToken test12:", err)
+	}
+
+	// Single accepted chain (current behavior): a test-13 token is rejected
+	// when only test12 is accepted.
+	if err := ValidateToken(pub, t13, "test12"); err == nil {
+		t.Fatal("expected test-13 token rejected when only test12 is accepted")
+	}
+
+	// Allowlist: both chains accepted during the transition window.
+	if err := ValidateToken(pub, t13, "test12", "test-13"); err != nil {
+		t.Fatalf("test-13 token must be accepted by the {test12,test-13} allowlist: %v", err)
+	}
+	if err := ValidateToken(pub, t12, "test12", "test-13"); err != nil {
+		t.Fatalf("test12 token must be accepted by the {test12,test-13} allowlist: %v", err)
+	}
+
+	// A chain NOT on the allowlist is still rejected.
+	gnoland, err := makeTestToken(priv, time.Hour, "gnoland1")
+	if err != nil {
+		t.Fatal("makeTestToken gnoland1:", err)
+	}
+	if err := ValidateToken(pub, gnoland, "test12", "test-13"); err == nil {
+		t.Fatal("expected gnoland1 token rejected — not on the allowlist")
+	}
+
+	// Empty allowlist (no chain configured) accepts any chain (legacy mode).
+	if err := ValidateToken(pub, t13); err != nil {
+		t.Fatalf("empty allowlist should accept any chain (legacy): %v", err)
+	}
+}
