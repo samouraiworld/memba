@@ -99,23 +99,25 @@ export function Layout() {
                 console.warn("[Memba] login signature unavailable (declined/unsupported) — unsigned fallback")
             }
 
-            // No pubkey from the chain AND none from a signature → no ownership proof
-            // possible. Guide the user instead of failing with a generic 403.
-            if (!pubkey) {
-                throw new Error(
-                    "Approve the signature request in Adena to sign in. A brand-new wallet must transact on-chain once to register its key.",
-                )
+            // No pubkey: an untransacted wallet — Adena (#800) won't sign for it or
+            // reveal its pubkey. Fall through to ADDRESS-ONLY login so ANY wallet can
+            // sign in (the server gates this behind MEMBA_ALLOW_UNSIGNED_AUTH; on a
+            // chain where signed auth is enforced it returns a clear "activate your
+            // wallet" error). Only hard-fail if the wallet gave us no address at all.
+            if (!pubkey && !adena.address) {
+                throw new Error("Wallet address unavailable — reconnect your wallet to sign in.")
             }
 
             // 3. Build TokenRequestInfo (protojson). The challenge MUST be echoed with
             // all server-signed fields — including chainId — or ValidateChallenge fails.
+            // Transacted wallet → pubkey (ownership proof); untransacted → address-only.
             const info = buildTokenRequestInfo({
                 nonceB64,
                 expiration: challenge.expiration,
                 serverSignatureB64: bytesToBase64(challenge.serverSignature),
                 boundPubkeyHash: challenge.boundPubkeyHash || "",
                 chainId: challenge.chainId || network.chainId,
-                userPubkeyJson: pubkey,
+                ...(pubkey ? { userPubkeyJson: pubkey } : { userAddress: adena.address }),
             })
             const infoJson = JSON.stringify(info)
 

@@ -262,3 +262,63 @@ func TestMakeToken_TxShapedSignature_InvalidAllowedInPhase1(t *testing.T) {
 		t.Fatal("expected a token in phase 1")
 	}
 }
+
+// addressOnlyAuthInfo builds a TokenRequestInfo with ONLY an address (no pubkey,
+// no signature) — an untransacted wallet whose pubkey Adena won't reveal or sign
+// for (Adena #800). Unbound challenge.
+func addressOnlyAuthInfo(t *testing.T, serverPriv []byte, chainID string) (string, string) {
+	t.Helper()
+	priv := secp256k1.GenPrivKey()
+	pub := priv.PubKey().(*secp256k1.PubKey)
+	addr, err := bech32.ConvertAndEncode("g", pub.Address().Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	challenge, err := MakeChallenge(serverPriv, time.Hour, "", chainID)
+	if err != nil {
+		t.Fatalf("MakeChallenge: %v", err)
+	}
+	info := &membav1.TokenRequestInfo{
+		Kind: ClientMagic, UserBech32Prefix: "g", UserAddress: addr,
+		ChainId: chainID, Challenge: challenge,
+	}
+	b, err := protojson.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b), addr
+}
+
+// TestMakeToken_AddressOnly_AllowedWhenUnsigned: with unsigned auth allowed (the
+// testnet posture), an untransacted wallet signs in with just its address — the
+// only path possible since Adena won't sign/reveal a pubkey for it. The minted
+// token validates.
+func TestMakeToken_AddressOnly_AllowedWhenUnsigned(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "") // default-allow
+	serverPub, serverPriv := generateTestKeypair(t)
+	const chainID = "test-13"
+	infoJSON, _ := addressOnlyAuthInfo(t, serverPriv, chainID)
+
+	tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, "", chainID)
+	if err != nil {
+		t.Fatalf("address-only login must mint when unsigned auth is allowed, got: %v", err)
+	}
+	if tok == nil || tok.UserAddress == "" {
+		t.Fatal("expected a token bound to the address")
+	}
+	if err := ValidateToken(serverPub, tok, chainID); err != nil {
+		t.Fatalf("minted address-only token must validate: %v", err)
+	}
+}
+
+// TestMakeToken_AddressOnly_RejectedWhenEnforced: with signed auth enforced
+// (mainnet posture), address-only has no ownership proof and is rejected.
+func TestMakeToken_AddressOnly_RejectedWhenEnforced(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "0")
+	serverPub, serverPriv := generateTestKeypair(t)
+	infoJSON, _ := addressOnlyAuthInfo(t, serverPriv, "test-13")
+
+	if _, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, "", "test-13"); err == nil {
+		t.Fatal("address-only login must be rejected when signed auth is enforced")
+	}
+}
