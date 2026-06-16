@@ -29,6 +29,7 @@ import {
     SEED_AGENTS,
     AGENT_CATEGORIES,
 } from "./agentRegistry"
+import { toAdenaMessages } from "./grc20"
 
 // ── Fixtures ──────────────────────────────────────────────────
 
@@ -243,10 +244,30 @@ describe("MsgCall builders", () => {
 
     it("buildRegisterAgentMsg has correct type and func", () => {
         const msg = buildRegisterAgentMsg(caller, registryPath, "ai-1", "Agent", "Desc", "governance", "caps", "http://ep", "sse", "free", "1.0", 0)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("RegisterAgent")
         expect(msg.value.caller).toBe(caller)
         expect(msg.value.pkg_path).toBe(registryPath)
+    })
+
+    // Regression: agent writes were 100% broken because the builders emitted the
+    // Adena wire type "/vm.m_call" directly, but every broadcast goes through
+    // toAdenaMessages(), which ONLY accepts the Amino "vm/MsgCall" type and
+    // throws otherwise — so RegisterAgent/ReviewAgent/Deposit/Refund never
+    // reached the wallet. The builders must emit "vm/MsgCall" like every other
+    // builder and let toAdenaMessages do the wire conversion.
+    it("every agent MsgCall builder survives toAdenaMessages (broadcast path)", () => {
+        const msgs = [
+            buildRegisterAgentMsg(caller, registryPath, "ai-1", "Agent", "Desc", "governance", "caps", "http://ep", "sse", "free", "1.0", 0),
+            buildReviewAgentMsg(caller, registryPath, "ai-1", 5, "great"),
+            buildDepositCreditsMsg(caller, registryPath, "ai-1", 5000000),
+            buildRefundCreditsMsg(caller, registryPath, "ai-1"),
+        ]
+        expect(() => toAdenaMessages(msgs)).not.toThrow()
+        const adena = toAdenaMessages(msgs)
+        expect(adena.map((m) => m.type)).toEqual(["/vm.m_call", "/vm.m_call", "/vm.m_call", "/vm.m_call"])
+        expect(adena[0].value.func).toBe("RegisterAgent")
+        expect(adena[2].value.send).toBe("5000000ugnot")
     })
 
     it("buildRegisterAgentMsg passes all args in order", () => {
@@ -261,7 +282,7 @@ describe("MsgCall builders", () => {
 
     it("buildReviewAgentMsg has correct structure", () => {
         const msg = buildReviewAgentMsg(caller, registryPath, "agent-1", 5, "Great agent!")
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("ReviewAgent")
         expect(msg.value.args).toEqual(["agent-1", "5", "Great agent!"])
         expect(msg.value.send).toBe("")
@@ -269,7 +290,7 @@ describe("MsgCall builders", () => {
 
     it("buildDepositCreditsMsg includes send amount", () => {
         const msg = buildDepositCreditsMsg(caller, registryPath, "agent-1", 5000000)
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("DepositCredits")
         expect(msg.value.send).toBe("5000000ugnot")
         expect(msg.value.args).toEqual(["agent-1"])
@@ -277,7 +298,7 @@ describe("MsgCall builders", () => {
 
     it("buildRefundCreditsMsg has no send", () => {
         const msg = buildRefundCreditsMsg(caller, registryPath, "agent-1")
-        expect(msg.type).toBe("/vm.m_call")
+        expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("RefundCredits")
         expect(msg.value.send).toBe("")
     })

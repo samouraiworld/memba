@@ -18,7 +18,7 @@ import {
 import { parseMarketplaceRender, buildDelistMsg, buildCancelOfferMsg, type NFTListing } from "../lib/nftMarketplace"
 import { NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
 import { queryRender } from "../lib/dao/shared"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl, isNftMarketValid } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { NFTListingCard } from "../components/nft/NFTListingCard"
@@ -40,7 +40,9 @@ const SEED_COLLECTIONS = [
 const NFT_ENABLED = import.meta.env.VITE_ENABLE_NFT === "true"
 
 export function NFTGallery() {
-    if (!NFT_ENABLED) {
+    // Gate when the flag is off OR the nft_market realm isn't valid on the active
+    // network (list/buy/offer all target it — a stale v1 realm fails the tx).
+    if (!NFT_ENABLED || !isNftMarketValid()) {
         return (
             <ComingSoonGate
                 title="NFT Gallery"

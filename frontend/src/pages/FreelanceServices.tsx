@@ -14,7 +14,7 @@ import { Plus, Briefcase, FileText } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { queryRender } from "../lib/dao/shared"
 import { doContractBroadcast } from "../lib/grc20"
-import { GNO_RPC_URL, API_BASE_URL, MEMBA_DAO } from "../lib/config"
+import { GNO_RPC_URL, API_BASE_URL, MEMBA_DAO, isEscrowValid } from "../lib/config"
 import {
     buildCreateContractMsg,
     buildFundMilestoneMsg,
@@ -149,7 +149,10 @@ async function fetchServiceListings(category?: string): Promise<ServiceListing[]
 // ── Main Component ──────────────────────────────────────────
 
 export default function FreelanceServices() {
-    if (!SERVICES_ENABLED) {
+    // Gate when the feature flag is off OR the escrow realm isn't valid on the
+    // active network — escrow's FundMilestone moves real ugnot, so never let it
+    // reach a realm that can't honor it (e.g. test13's stale v1 escrow).
+    if (!SERVICES_ENABLED || !isEscrowValid()) {
         return (
             <ComingSoonGate
                 title="Freelance Services"

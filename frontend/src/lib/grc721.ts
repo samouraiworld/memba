@@ -136,7 +136,7 @@ export function buildMintMsg(
     tokenURI: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -156,7 +156,7 @@ export function buildTransferMsg(
     tokenId: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -175,7 +175,7 @@ export function buildApproveMsg(
     tokenId: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -193,7 +193,7 @@ export function buildBurnMsg(
     tokenId: string,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -213,7 +213,7 @@ export function buildListForSaleMsg(
     priceUgnot: number,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -233,7 +233,7 @@ export function buildBuyMsg(
     priceUgnot: number,
 ) {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: `${priceUgnot}ugnot`,

@@ -10,6 +10,7 @@ import {
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
     networkHasRealms,
+    isRealmValidOn,
     TRUSTED_RPC_DOMAINS,
     getTelemetryRpcUrl,
     GNO_RPC_URL,
@@ -60,6 +61,19 @@ describe('config constants', () => {
         expect(networkHasRealms('test12')).toBe(true)
         // Unknown networks default to "has realms" (don't gate the UI on a typo).
         expect(networkHasRealms('nonexistent')).toBe(true)
+    })
+
+    it('isRealmValidOn gates only the test13 invalid realms', () => {
+        // test13 (interrealm-v2): only the 4 DAO realms are deployed & valid.
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_dao')).toBe(true)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/agent_registry')).toBe(true)
+        // tokenfactory/escrow/nft_market/feedback are stale v1 → invalid on test13.
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow')).toBe(false)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
+        // test12 (and unknown networks) have no allowlist → everything valid.
+        expect(isRealmValidOn('test12', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
+        expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
     })
 
     it('test12 has correct chain config', () => {

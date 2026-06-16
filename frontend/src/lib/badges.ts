@@ -178,7 +178,7 @@ export function buildMintQuestBadgeMsg(
     tokenUri: string = "",
 ): { type: string; value: Record<string, unknown> } {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddr,
             send: "",
@@ -200,7 +200,7 @@ export function buildMintRankBadgeMsg(
     tokenUri: string = "",
 ): { type: string; value: Record<string, unknown> } {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller: callerAddr,
             send: "",

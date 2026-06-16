@@ -12,9 +12,7 @@
 import { useState, useEffect } from "react"
 import { getBoardThreads } from "../plugins/board/parser"
 import type { BoardThread } from "../plugins/board/parser"
-import { GNO_RPC_URL } from "../lib/config"
-
-const FEEDBACK_REALM = "gno.land/r/samcrew/memba_feedback"
+import { GNO_RPC_URL, FEEDBACK_REALM_PATH, isFeedbackValid } from "../lib/config"
 
 export function FeedbackFeed() {
     const [threads, setThreads] = useState<BoardThread[]>([])
@@ -22,7 +20,15 @@ export function FeedbackFeed() {
     const [available, setAvailable] = useState(true)
 
     useEffect(() => {
-        getBoardThreads(GNO_RPC_URL, FEEDBACK_REALM, "general")
+        // The feedback board realm isn't valid on every network (e.g. test13).
+        // Short-circuit: a query there returns [] (no throw), which would
+        // misleadingly render "No feedback yet" instead of the unavailable notice.
+        if (!isFeedbackValid()) {
+            setAvailable(false)
+            setLoading(false)
+            return
+        }
+        getBoardThreads(GNO_RPC_URL, FEEDBACK_REALM_PATH, "general")
             .then(t => { setThreads(t); setAvailable(true) })
             .catch(() => setAvailable(false))
             .finally(() => setLoading(false))

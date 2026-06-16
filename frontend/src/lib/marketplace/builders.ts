@@ -7,7 +7,7 @@
 
 /** Amino MsgCall shape for Adena broadcasting. */
 interface MsgCall {
-    type: "/vm.m_call"
+    type: "vm/MsgCall"
     value: {
         caller: string
         send: string
@@ -27,7 +27,7 @@ export function buildCreateContractMsg(
     milestones: string, // "title1:amount1,title2:amount2"
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -47,7 +47,7 @@ export function buildFundMilestoneMsg(
     amountUgnot: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: `${amountUgnot}ugnot`,
@@ -66,7 +66,7 @@ export function buildCompleteMilestoneMsg(
     milestoneIdx: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -85,7 +85,7 @@ export function buildReleaseFundsMsg(
     milestoneIdx: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -104,7 +104,7 @@ export function buildRaiseDisputeMsg(
     milestoneIdx: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -122,7 +122,7 @@ export function buildCancelContractMsg(
     contractId: string,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -141,7 +141,7 @@ export function buildClaimRefundMsg(
     milestoneIdx: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -160,7 +160,7 @@ export function buildClaimDisputeTimeoutMsg(
     milestoneIdx: number,
 ): MsgCall {
     return {
-        type: "/vm.m_call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
