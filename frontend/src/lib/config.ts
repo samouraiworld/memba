@@ -203,6 +203,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/tokenfactory_v2",
         "gno.land/r/samcrew/escrow_v2",
         "gno.land/r/samcrew/gnobuilders_badges_v2",
+        "gno.land/r/samcrew/memba_feedback_v2",
     ],
 }
 
@@ -462,7 +463,7 @@ export const MEMBA_DAO = {
 } as const
 
 /** Feedback board realm path (shared with FeedbackFeed). */
-export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback"
+export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 
 // ── Per-feature validity predicates (back each feature by its realm) ──
 // These let a page short-circuit to a "not on this network" gate when its
