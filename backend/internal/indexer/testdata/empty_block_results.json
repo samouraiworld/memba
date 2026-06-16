@@ -1,0 +1,19 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "height": "100",
+    "results": {
+      "deliver_tx": null,
+      "end_block": {
+        "ResponseBase": { "Error": null, "Data": null, "Events": null, "Log": "", "Info": "" },
+        "ValidatorUpdates": null,
+        "ConsensusParams": null,
+        "Events": null
+      },
+      "begin_block": {
+        "ResponseBase": { "Error": null, "Data": null, "Events": null, "Log": "", "Info": "" }
+      }
+    }
+  }
+}
