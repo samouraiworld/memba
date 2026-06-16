@@ -172,6 +172,12 @@ func main() {
 	// v6 SEC-02: auth required to prevent API key abuse
 	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", requireAuthMiddleware(svc, service.HandleIPFSUpload())))
 
+	// NFT media proxy — fetches from Lighthouse/IPFS gateways, caches server-side.
+	// Public read endpoints (no auth); rate-limited.
+	// SSRF-hardened: only ipfs:// and https:// public hosts are permitted.
+	mux.Handle("/api/nft/image", rateLimitMiddleware("nft", service.HandleNFTImage()))
+	mux.Handle("/api/nft/metadata", rateLimitMiddleware("nft", service.HandleNFTMetadata()))
+
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
