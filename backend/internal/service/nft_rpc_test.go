@@ -28,12 +28,16 @@ func seedNFTCollection(t *testing.T, h *testHarness) {
 	if err != nil {
 		t.Fatal("seed tokens:", err)
 	}
+	// Event-sourced sales (full untruncated addresses). Higher event position =
+	// newer; the handler orders by (event_block, event_tx_index, event_index) DESC.
 	_, err = h.db.Exec(`
-		INSERT INTO nft_activity (collection_id, sale_no, token_id, kind, price_ugnot, seller, buyer, created_at) VALUES
-			('genesis', 1, '1', 'sale', 500000,  'g1ab…xy', 'g1cd…zw', CURRENT_TIMESTAMP),
-			('genesis', 2, '3', 'sale', 1250000, 'g1ef…uv', 'g1gh…st', CURRENT_TIMESTAMP)`)
+		INSERT INTO nft_sales
+			(collection_id, token_id, seller, buyer, price_ugnot, fee_ugnot, royalty_ugnot,
+			 sale_block, kind, event_block, event_tx_index, event_index) VALUES
+			('genesis', '1', 'g1seller1', 'g1buyer1', 500000,  12500, 25000, 100, 'sale', 100, 0, 0),
+			('genesis', '3', 'g1seller2', 'g1buyer2', 1250000, 31250, 62500, 200, 'sale', 200, 0, 0)`)
 	if err != nil {
-		t.Fatal("seed activity:", err)
+		t.Fatal("seed sales:", err)
 	}
 }
 
@@ -102,15 +106,15 @@ func TestGetNFTActivity(t *testing.T) {
 	if len(resp.Msg.Items) != 2 {
 		t.Fatalf("expected 2 activity items, got %d", len(resp.Msg.Items))
 	}
-	// Newest first (sale_no DESC).
+	// Newest first (event position DESC). Block 200 sale is newest (id=2).
 	if resp.Msg.Items[0].SaleNo != 2 {
 		t.Errorf("first item sale_no = %d, want 2 (newest first)", resp.Msg.Items[0].SaleNo)
 	}
 	if resp.Msg.Items[0].PriceUgnot != 1250000 {
 		t.Errorf("price = %d", resp.Msg.Items[0].PriceUgnot)
 	}
-	if resp.Msg.Items[0].Seller != "g1ef…uv" {
-		t.Errorf("seller = %q", resp.Msg.Items[0].Seller)
+	if resp.Msg.Items[0].Seller != "g1seller2" {
+		t.Errorf("seller = %q, want g1seller2 (full untruncated)", resp.Msg.Items[0].Seller)
 	}
 }
 

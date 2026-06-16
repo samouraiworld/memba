@@ -56,8 +56,10 @@ func (s *MultisigService) GetNFTCollection(ctx context.Context, req *connect.Req
 	}), nil
 }
 
-// GetNFTActivity returns recent cached marketplace activity (sales) for a
-// collection, newest first. Public read — no auth.
+// GetNFTActivity returns recent marketplace sales for a collection, newest
+// first, from the event-sourced nft_sales table (full untruncated addresses).
+// Public read — no auth. A higher default/cap than the old Render-scraped path
+// since the event tables hold full history.
 func (s *MultisigService) GetNFTActivity(ctx context.Context, req *connect.Request[membav1.GetNFTActivityRequest]) (*connect.Response[membav1.GetNFTActivityResponse], error) {
 	colID := strings.TrimSpace(req.Msg.CollectionId)
 	if colID == "" || len(colID) > 100 {
@@ -66,16 +68,20 @@ func (s *MultisigService) GetNFTActivity(ctx context.Context, req *connect.Reque
 
 	limit := req.Msg.Limit
 	if limit == 0 {
-		limit = 20
+		limit = 50
 	}
-	if limit > 100 {
-		limit = 100
+	if limit > 500 {
+		limit = 500
 	}
 
+	// Order by event position (block, tx, event) so it is stable and matches
+	// on-chain ordering; id mirrors insertion order. sale_no exposed as the row
+	// id (monotonic, unique) for the proto's sale_no field.
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT sale_no, token_id, kind, price_ugnot, seller, buyer, created_at
-		FROM nft_activity WHERE collection_id = ?
-		ORDER BY sale_no DESC LIMIT ?`, colID, limit,
+		SELECT id, token_id, kind, price_ugnot, seller, buyer, sale_time
+		FROM nft_sales WHERE collection_id = ?
+		ORDER BY event_block DESC, event_tx_index DESC, event_index DESC
+		LIMIT ?`, colID, limit,
 	)
 	if err != nil {
 		return nil, internalError("GetNFTActivity", err)
