@@ -71,10 +71,11 @@ describe('config constants', () => {
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory_v2')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow_v2')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/gnobuilders_badges_v2')).toBe(true)
-        // The stale v1 paths and the not-redeployed realms stay invalid on test13.
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback_v2')).toBe(true)
+        // The stale v1 paths and the still-gated realms stay invalid on test13.
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
-        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
         // test12 (and unknown networks) have no allowlist → everything valid.
         expect(isRealmValidOn('test12', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
