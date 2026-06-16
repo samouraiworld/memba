@@ -12,6 +12,25 @@
 
 ---
 
+## Verified toolchain & conventions (AUTHORITATIVE — overrides any inline snippet)
+
+These were **empirically verified** on 2026-06-16 against the `chain/test13` gno toolchain (the local `gno`/`gnokey` were rebuilt from the `chain/test13` checkout; `escrow_v2`/`tokenfactory_v2` compile + lint clean; a two-realm cross-call probe proved the mechanism). Use these exact idioms; where an inline snippet below disagrees (e.g. test12-style bare `cross`), THIS section wins.
+
+- **gno version:** `chain/test13` (rebuilt via `cd <gno> && git checkout chain/test13 && go install ./gnovm/cmd/gno ./gno.land/cmd/gnokey`). `gnomod.toml` declares `gno = "0.9"`.
+- **Develop inside the examples workspace.** Canonical sources live at `gno/examples/gno.land/r/samcrew/{memba_nft_v2,memba_nft_market_v2}`. `examples/gnowork.toml` is empty → the whole tree is one auto-discovered workspace, so the marketplace's `import "gno.land/r/samcrew/memba_nft_v2"` and `grc721` both resolve under `gno test`/`gno lint`. (Outside the workspace, cross-realm imports trigger a node fetch and fail — that is why Task A0 sets this up.) Sources are **copied into the deployer** (`projects/memba/realms/…`) for deployment in Phase C.
+- **Stdlib imports** (mirror `escrow_v2`): `"chain"`, `"chain/banker"`, `"chain/runtime"`, `"chain/runtime/unsafe"`, plus `"gno.land/p/nt/avl/v0"`, `"gno.land/p/nt/ufmt/v0"`, `"gno.land/p/demo/tokens/grc721"`.
+- **Caller / realm / origin / height (exact):**
+  - caller EOA-or-realm: `unsafe.PreviousRealm().Address()`
+  - this realm's own address: `unsafe.CurrentRealm().Address()`
+  - coins sent with the call: `unsafe.OriginSend()` (returns `chain.Coins`)
+  - block height: `runtime.ChainHeight()`
+- **Banker payout (exact):** `bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)` (takes `cur`); `bnk.SendCoins(unsafe.CurrentRealm().Address(), recipient, chain.Coins{chain.NewCoin("ugnot", amt)})`. Any helper that sends coins (e.g. `refund`) MUST take `cur realm` to build the banker.
+- **Crossing functions:** declared `func F(cur realm, …)`. **Cross-realm call:** `Other.Fn(cross(cur), …)` (e.g. `nft.MarketTransfer(cross(cur), …)`).
+- **TEST convention (verified):** crossing-fn tests are declared `func TestX(cur realm, t *testing.T)` and call crossing fns as **`F(cross(cur), …)`** — NOT bare `cross`. Drive callers with `testing.SetRealm(testing.NewUserRealm(addr))`; set payment with `testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", n)})`; assert reverts with `uassert.AbortsWithMessage(t, "msg", func(){ F(cross(cur), …) })`. Test addresses via `testutils.TestAddress("label")`. **Every `(cross(cur), …)` / `(cross(cur))` in the inline test snippets below must be read as `(cross(cur), …)` / `(cross(cur))`.**
+- **grc721 composite:** `grc721.NewNFTWithRoyalty(name, symbol)` returns the royalty-capable NFT (embeds metadata+basic). Confirm the exact exported type/method names against `gno/examples/gno.land/p/demo/tokens/grc721/grc721_royalty.gno` in Task A1.
+
+---
+
 ## Scope of this plan (and the two follow-on plans)
 
 This plan covers **only the realms** (spec §4, §5, §6, §9, §10). It produces working, testable software on its own: two realms that lint clean and pass `gno test`, plus the deployer wiring to push them via multisig.
@@ -26,10 +45,10 @@ Deferred to separate plans (they depend on this one's deployed addresses + final
 
 ## File structure
 
-All realm sources live under the deployer repo (NOT the Memba repo):
+**Canonical dev location (where TDD runs):** `gno/examples/gno.land/r/samcrew/{memba_nft_v2,memba_nft_market_v2}` — inside the examples workspace so cross-realm imports + `grc721` resolve. **Deployed copy:** the same `.gno` + `gnomod.toml` are copied into `samcrew-deployer/projects/memba/realms/…` in Phase C (the deployer ships source; the chain compiles it). The file layout below applies to both locations:
 
 ```
-samcrew-deployer/projects/memba/realms/
+<dev: gno/examples/gno.land/r/samcrew/>   |   <deploy: samcrew-deployer/projects/memba/realms/>
 ├── memba_nft_v2/
 │   ├── gnomod.toml                 # module=gno.land/r/samcrew/memba_nft_v2, gno=0.9
 │   ├── collection.gno              # registry state, CreateCollection, Mint, admin
@@ -55,12 +74,33 @@ samcrew-deployer/projects/memba/realms/
 Deployer config touched: `projects/memba/manifest.toml`, `projects/memba/deploy.sh`.
 
 ### Testability boundary (from the reference tests)
-- **Unit-testable now** (`gno test`): pure helpers (esp. `splitProceeds`), all authorization **aborts** (`uassert.AbortsWithMessage`), state helpers, `Render`. Drive crossing fns with `testing.SetRealm(testing.NewUserRealm(addr))` + `Fn(cross, …)`; set payment with `testing.SetOriginSend`. Test fns that call crossing fns are declared `func TestX(cur realm, t *testing.T)`.
+- **Unit-testable now** (`gno test`): pure helpers (esp. `splitProceeds`), all authorization **aborts** (`uassert.AbortsWithMessage`), state helpers, `Render`. Drive crossing fns with `testing.SetRealm(testing.NewUserRealm(addr))` + `Fn(cross(cur), …)`; set payment with `testing.SetOriginSend`. Test fns that call crossing fns are declared `func TestX(cur realm, t *testing.T)`.
 - **On-chain integration only** (per `nft_market` precedent — coin-moving success needs a funded realm + the live collection import): the full atomic `BuyNFT`/`AcceptOffer` happy path. Unit tests assert the guards that fire **before** any banker/cross-realm interaction; the happy path is verified in Task C5.
 
 ---
 
 # Phase A — Collection realm `memba_nft_v2`
+
+### Task A0: Dev-environment setup (toolchain already switched)
+
+> The `chain/test13` toolchain is already installed (see the verified-conventions section). This task just creates the workspace dirs where TDD runs.
+
+- [ ] **Step 1: Confirm toolchain**
+
+Run: `gno version` → built from `chain/test13`. Run `(cd <gno>/examples/gno.land/r/samcrew/../../../.. && true)` and confirm `gno/examples/gnowork.toml` exists (empty = whole-tree workspace).
+
+- [ ] **Step 2: Create dev dirs in the examples workspace**
+
+```bash
+mkdir -p /Users/zxxma/Desktop/Code/Gno/gno/examples/gno.land/r/samcrew/memba_nft_v2
+mkdir -p /Users/zxxma/Desktop/Code/Gno/gno/examples/gno.land/r/samcrew/memba_nft_market_v2
+```
+
+- [ ] **Step 3: Smoke-test resolution** — after Task A1 lands the collection skeleton, verify `(cd .../memba_nft_v2 && gno lint .)` resolves `grc721`. (The marketplace's import of the collection is verified once both exist, Task B1.)
+
+> Note: the `gno/examples` checkout is on branch `chain/test13` (was `chain/test12` @ `8513a68f5` — rollback ref if ever needed). New dirs under examples are untracked; do not commit them to the gno repo. Phase C copies the finished sources into the deployer repo, which is where they're committed + deployed.
+
+---
 
 ### Task A1: Scaffold collection realm + state
 
@@ -181,7 +221,7 @@ var (
 func TestCreateCollection_AdminSucceeds(cur realm, t *testing.T) {
 	defer collections.Remove("c1")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	CreateCollection(cross, "c1", "Memba Genesis", "MGEN", 500, tAdmin, 100, 5)
+	CreateCollection(cross(cur), "c1", "Memba Genesis", "MGEN", 500, tAdmin, 100, 5)
 
 	c := mustGet("c1")
 	uassert.Equal(t, "MGEN", c.nft.Symbol(), "symbol stored")
@@ -191,7 +231,7 @@ func TestCreateCollection_AdminSucceeds(cur realm, t *testing.T) {
 func TestCreateCollection_NonAdminAborts(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(tStranger))
 	uassert.AbortsWithMessage(t, "admin only", func() {
-		CreateCollection(cross, "c2", "X", "X", 100, tStranger, 0, 0)
+		CreateCollection(cross(cur), "c2", "X", "X", 100, tStranger, 0, 0)
 	})
 	_, ok := collections.Get("c2")
 	uassert.False(t, ok, "non-admin must not create a collection")
@@ -201,7 +241,7 @@ func TestCreateCollection_RoyaltyClamped(cur realm, t *testing.T) {
 	defer collections.Remove("c3")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
 	uassert.AbortsWithMessage(t, "royalty exceeds max", func() {
-		CreateCollection(cross, "c3", "X", "X", MaxRoyaltyBPS+1, tAdmin, 0, 0)
+		CreateCollection(cross(cur), "c3", "X", "X", MaxRoyaltyBPS+1, tAdmin, 0, 0)
 	})
 }
 ```
@@ -285,32 +325,32 @@ git commit -m "memba_nft_v2: CreateCollection + royalty (multisig-only, clamped)
 func TestMint_AdminSucceeds(cur realm, t *testing.T) {
 	defer collections.Remove("cm")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	CreateCollection(cross, "cm", "M", "M", 0, tAdmin, 2, 0)
+	CreateCollection(cross(cur), "cm", "M", "M", 0, tAdmin, 2, 0)
 
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	Mint(cross, "cm", tAdmin, grc721tid("1"), "ipfs://meta/1")
+	Mint(cross(cur), "cm", tAdmin, grc721tid("1"), "ipfs://meta/1")
 	uassert.Equal(t, tAdmin.String(), OwnerOf("cm", grc721tid("1")).String(), "minted to admin")
 }
 
 func TestMint_NonAdminAborts(cur realm, t *testing.T) {
 	defer collections.Remove("cm2")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	CreateCollection(cross, "cm2", "M", "M", 0, tAdmin, 0, 0)
+	CreateCollection(cross(cur), "cm2", "M", "M", 0, tAdmin, 0, 0)
 	testing.SetRealm(testing.NewUserRealm(tStranger))
 	uassert.AbortsWithMessage(t, "admin only", func() {
-		Mint(cross, "cm2", tStranger, grc721tid("1"), "")
+		Mint(cross(cur), "cm2", tStranger, grc721tid("1"), "")
 	})
 }
 
 func TestMint_MaxSupplyAborts(cur realm, t *testing.T) {
 	defer collections.Remove("cm3")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	CreateCollection(cross, "cm3", "M", "M", 0, tAdmin, 1, 0)
+	CreateCollection(cross(cur), "cm3", "M", "M", 0, tAdmin, 1, 0)
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
-	Mint(cross, "cm3", tAdmin, grc721tid("1"), "")
+	Mint(cross(cur), "cm3", tAdmin, grc721tid("1"), "")
 	testing.SetRealm(testing.NewUserRealm(tAdmin))
 	uassert.AbortsWithMessage(t, "max supply reached", func() {
-		Mint(cross, "cm3", tAdmin, grc721tid("2"), "")
+		Mint(cross(cur), "cm3", tAdmin, grc721tid("2"), "")
 	})
 }
 ```
@@ -379,17 +419,17 @@ var (
 func seedTokenTo(owner address) {
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
 	if _, ok := collections.Get("t"); !ok {
-		CreateCollection(cross, "t", "T", "T", 500, address(AdminAddress), 0, 0)
+		CreateCollection(cross(cur), "t", "T", "T", 500, address(AdminAddress), 0, 0)
 	}
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	Mint(cross, "t", owner, grc721.TokenID("1"), "")
+	Mint(cross(cur), "t", owner, grc721.TokenID("1"), "")
 }
 
 func TestSetApprovalForAll_RecordsCaller(cur realm, t *testing.T) {
 	defer collections.Remove("t")
 	seedTokenTo(xOwner)
 	testing.SetRealm(testing.NewUserRealm(xOwner))
-	SetApprovalForAll(cross, "t", xMarket, true)
+	SetApprovalForAll(cross(cur), "t", xMarket, true)
 	uassert.True(t, IsApprovedForAll("t", xOwner, xMarket), "owner approved market as operator")
 }
 ```
@@ -479,16 +519,16 @@ func TestRegisterMarket_AdminOnly(cur realm, t *testing.T) {
 	defer registeredMarkets.Remove(xMarket.String())
 	testing.SetRealm(testing.NewUserRealm(xOwner))
 	uassert.AbortsWithMessage(t, "admin only", func() {
-		RegisterMarket(cross, xMarket)
+		RegisterMarket(cross(cur), xMarket)
 	})
 	uassert.False(t, isRegisteredMarket(xMarket), "stranger cannot register a market")
 
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	RegisterMarket(cross, xMarket)
+	RegisterMarket(cross(cur), xMarket)
 	uassert.True(t, isRegisteredMarket(xMarket), "admin registers a market")
 
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	UnregisterMarket(cross, xMarket)
+	UnregisterMarket(cross(cur), xMarket)
 	uassert.False(t, isRegisteredMarket(xMarket), "admin unregisters a market")
 }
 ```
@@ -537,11 +577,11 @@ func TestMarketTransfer_UnregisteredCallerAborts(cur realm, t *testing.T) {
 	defer collections.Remove("t")
 	seedTokenTo(xOwner)
 	testing.SetRealm(testing.NewUserRealm(xOwner))
-	SetApprovalForAll(cross, "t", xMarket, true)
+	SetApprovalForAll(cross(cur), "t", xMarket, true)
 	// caller (xMarket) is NOT registered
 	testing.SetRealm(testing.NewUserRealm(xMarket))
 	uassert.AbortsWithMessage(t, "unauthorized market", func() {
-		MarketTransfer(cross, "t", xOwner, xMarket, grc721.TokenID("1"))
+		MarketTransfer(cross(cur), "t", xOwner, xMarket, grc721.TokenID("1"))
 	})
 }
 
@@ -550,12 +590,12 @@ func TestMarketTransfer_WrongFromAborts(cur realm, t *testing.T) {
 	defer registeredMarkets.Remove(xMarket.String())
 	seedTokenTo(xOwner)
 	testing.SetRealm(testing.NewUserRealm(xOwner))
-	SetApprovalForAll(cross, "t", xMarket, true)
+	SetApprovalForAll(cross(cur), "t", xMarket, true)
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	RegisterMarket(cross, xMarket)
+	RegisterMarket(cross(cur), xMarket)
 	testing.SetRealm(testing.NewUserRealm(xMarket))
 	uassert.AbortsWithMessage(t, "from is not owner", func() {
-		MarketTransfer(cross, "t", xStranger2, xMarket, grc721.TokenID("1"))
+		MarketTransfer(cross(cur), "t", xStranger2, xMarket, grc721.TokenID("1"))
 	})
 }
 
@@ -564,10 +604,10 @@ func TestMarketTransfer_NoApprovalAborts(cur realm, t *testing.T) {
 	defer registeredMarkets.Remove(xMarket.String())
 	seedTokenTo(xOwner) // no approval granted
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	RegisterMarket(cross, xMarket)
+	RegisterMarket(cross(cur), xMarket)
 	testing.SetRealm(testing.NewUserRealm(xMarket))
 	uassert.AbortsWithMessage(t, "market not approved", func() {
-		MarketTransfer(cross, "t", xOwner, xBuyer2, grc721.TokenID("1"))
+		MarketTransfer(cross(cur), "t", xOwner, xBuyer2, grc721.TokenID("1"))
 	})
 }
 
@@ -576,11 +616,11 @@ func TestMarketTransfer_SuccessClearsApproval(cur realm, t *testing.T) {
 	defer registeredMarkets.Remove(xMarket.String())
 	seedTokenTo(xOwner)
 	testing.SetRealm(testing.NewUserRealm(xOwner))
-	SetApprovalForAll(cross, "t", xMarket, true)
+	SetApprovalForAll(cross(cur), "t", xMarket, true)
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	RegisterMarket(cross, xMarket)
+	RegisterMarket(cross(cur), xMarket)
 	testing.SetRealm(testing.NewUserRealm(xMarket))
-	MarketTransfer(cross, "t", xOwner, xBuyer2, grc721.TokenID("1"))
+	MarketTransfer(cross(cur), "t", xOwner, xBuyer2, grc721.TokenID("1"))
 	uassert.Equal(t, xBuyer2.String(), OwnerOf("t", grc721.TokenID("1")).String(), "ownership moved")
 	uassert.Equal(t, "", GetApproved("t", grc721.TokenID("1")).String(), "per-token approval cleared")
 }
@@ -935,7 +975,7 @@ func TestListNFT_RecordsListing(cur realm, t *testing.T) {
 	seller := testutils.TestAddress("mk_seller")
 	defer func() { k := listingKey(tcoll, "1"); listings.Remove(k); removeFromOrder(k) }()
 	testing.SetRealm(testing.NewUserRealm(seller))
-	ListNFT(cross, tcoll, grc721tid("1"), MinPrice)
+	ListNFT(cross(cur), tcoll, grc721tid("1"), MinPrice)
 	v, ok := listings.Get(listingKey(tcoll, "1"))
 	uassert.True(t, ok, "listing recorded")
 	uassert.Equal(t, MinPrice, v.(*Listing).Price, "price stored")
@@ -945,7 +985,7 @@ func TestListNFT_BelowMinPriceAborts(cur realm, t *testing.T) {
 	seller := testutils.TestAddress("mk_seller2")
 	testing.SetRealm(testing.NewUserRealm(seller))
 	uassert.AbortsWithMessage(t, "price below minimum", func() {
-		ListNFT(cross, tcoll, grc721tid("x"), MinPrice-1)
+		ListNFT(cross(cur), tcoll, grc721tid("x"), MinPrice-1)
 	})
 }
 
@@ -955,11 +995,11 @@ func TestDelistNFT_SellerOnly(cur realm, t *testing.T) {
 	k := listingKey(tcoll, "2")
 	defer func() { listings.Remove(k); removeFromOrder(k) }()
 	testing.SetRealm(testing.NewUserRealm(seller))
-	ListNFT(cross, tcoll, grc721tid("2"), MinPrice)
+	ListNFT(cross(cur), tcoll, grc721tid("2"), MinPrice)
 	testing.SetRealm(testing.NewUserRealm(stranger))
-	uassert.AbortsWithMessage(t, "only seller can delist", func() { DelistNFT(cross, tcoll, grc721tid("2")) })
+	uassert.AbortsWithMessage(t, "only seller can delist", func() { DelistNFT(cross(cur), tcoll, grc721tid("2")) })
 	testing.SetRealm(testing.NewUserRealm(seller))
-	DelistNFT(cross, tcoll, grc721tid("2"))
+	DelistNFT(cross(cur), tcoll, grc721tid("2"))
 	_, ok := listings.Get(k)
 	uassert.False(t, ok, "seller delists")
 }
@@ -971,12 +1011,12 @@ func TestListNFT_PerSellerCap(cur realm, t *testing.T) {
 	for i := 0; i < MaxListingsPerAddr; i++ {
 		tok := "cap-" + strconv.Itoa(i)
 		testing.SetRealm(testing.NewUserRealm(seller))
-		ListNFT(cross, tcoll, grc721tid(tok), MinPrice)
+		ListNFT(cross(cur), tcoll, grc721tid(tok), MinPrice)
 		created = append(created, listingKey(tcoll, tok))
 	}
 	testing.SetRealm(testing.NewUserRealm(seller))
 	uassert.AbortsWithMessage(t, "seller listing limit reached", func() {
-		ListNFT(cross, tcoll, grc721tid("cap-over"), MinPrice)
+		ListNFT(cross(cur), tcoll, grc721tid("cap-over"), MinPrice)
 	})
 }
 
@@ -1013,7 +1053,7 @@ func ListNFT(cur realm, collectionID string, tid grc721.TokenID, price int64) {
 	}
 	listings.Set(key, &Listing{
 		CollectionID: collectionID, TokenID: string(tid), Seller: seller,
-		Price: price, CreatedBlk: chain.ChainHeight(),
+		Price: price, CreatedBlk: runtime.ChainHeight(),
 	})
 	listingOrder = append(listingOrder, key)
 	chain.Emit("NFTListed", "collection", collectionID, "tokenId", string(tid),
@@ -1057,7 +1097,7 @@ func countListingsBySeller(s address) int {
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 ```
 
-Add `"strconv"` import to `market.gno`. Confirm the height fn name (`chain.ChainHeight()` vs `runtime.ChainHeight()`) against `escrow_v2` (`runtime.ChainHeight()`) and use that import consistently.
+Add `"strconv"` and `"chain/runtime"` imports to `market.gno`. Height fn is `runtime.ChainHeight()` (verified against `escrow_v2`).
 
 - [ ] **Step 4: Run, verify pass** — `gno test .` → PASS.
 
@@ -1075,7 +1115,7 @@ Add `"strconv"` import to `market.gno`. Confirm the height fn name (`chain.Chain
 func TestBuyNFT_NotListedAborts(cur realm, t *testing.T) {
 	buyer := testutils.TestAddress("mk_b1")
 	testing.SetRealm(testing.NewUserRealm(buyer))
-	uassert.AbortsWithMessage(t, "listing not found", func() { BuyNFT(cross, tcoll, grc721tid("nope")) })
+	uassert.AbortsWithMessage(t, "listing not found", func() { BuyNFT(cross(cur), tcoll, grc721tid("nope")) })
 }
 
 func TestBuyNFT_SelfBuyAborts(cur realm, t *testing.T) {
@@ -1083,10 +1123,10 @@ func TestBuyNFT_SelfBuyAborts(cur realm, t *testing.T) {
 	k := listingKey(tcoll, "sb")
 	defer func() { listings.Remove(k); removeFromOrder(k) }()
 	testing.SetRealm(testing.NewUserRealm(seller))
-	ListNFT(cross, tcoll, grc721tid("sb"), MinPrice)
+	ListNFT(cross(cur), tcoll, grc721tid("sb"), MinPrice)
 	testing.SetRealm(testing.NewUserRealm(seller))
 	testing.SetOriginSend(coins(MinPrice))
-	uassert.AbortsWithMessage(t, "cannot buy own listing", func() { BuyNFT(cross, tcoll, grc721tid("sb")) })
+	uassert.AbortsWithMessage(t, "cannot buy own listing", func() { BuyNFT(cross(cur), tcoll, grc721tid("sb")) })
 }
 
 func TestBuyNFT_WrongPaymentAborts(cur realm, t *testing.T) {
@@ -1095,10 +1135,10 @@ func TestBuyNFT_WrongPaymentAborts(cur realm, t *testing.T) {
 	k := listingKey(tcoll, "wp")
 	defer func() { listings.Remove(k); removeFromOrder(k) }()
 	testing.SetRealm(testing.NewUserRealm(seller))
-	ListNFT(cross, tcoll, grc721tid("wp"), MinPrice*2)
+	ListNFT(cross(cur), tcoll, grc721tid("wp"), MinPrice*2)
 	testing.SetRealm(testing.NewUserRealm(buyer))
 	testing.SetOriginSend(coins(MinPrice)) // underpay
-	uassert.AbortsWithMessage(t, "incorrect payment", func() { BuyNFT(cross, tcoll, grc721tid("wp")) })
+	uassert.AbortsWithMessage(t, "incorrect payment", func() { BuyNFT(cross(cur), tcoll, grc721tid("wp")) })
 }
 ```
 
@@ -1206,7 +1246,7 @@ import (
 func mkOffer(buyer address, tok string, amt int64) {
 	testing.SetRealm(testing.NewUserRealm(buyer))
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", amt)})
-	MakeOffer(cross, tcoll, grc721tid(tok))
+	MakeOffer(cross(cur), tcoll, grc721tid(tok))
 }
 
 func TestMakeOffer_EscrowsAndCaps(cur realm, t *testing.T) {
@@ -1221,14 +1261,14 @@ func TestMakeOffer_EscrowsAndCaps(cur realm, t *testing.T) {
 	uassert.Equal(t, MaxOffersPerAddr, countOffersByBuyer(buyer), "buyer at cap")
 	testing.SetRealm(testing.NewUserRealm(buyer))
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", MinPrice)})
-	uassert.AbortsWithMessage(t, "buyer offer limit reached", func() { MakeOffer(cross, tcoll, grc721tid("of-over")) })
+	uassert.AbortsWithMessage(t, "buyer offer limit reached", func() { MakeOffer(cross(cur), tcoll, grc721tid("of-over")) })
 }
 
 func TestMakeOffer_BelowMinAborts(cur realm, t *testing.T) {
 	buyer := testutils.TestAddress("of_min")
 	testing.SetRealm(testing.NewUserRealm(buyer))
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", MinPrice-1)})
-	uassert.AbortsWithMessage(t, "offer below minimum", func() { MakeOffer(cross, tcoll, grc721tid("m")) })
+	uassert.AbortsWithMessage(t, "offer below minimum", func() { MakeOffer(cross(cur), tcoll, grc721tid("m")) })
 }
 
 func TestCancelOffer_BeforeLifetimeAborts(cur realm, t *testing.T) {
@@ -1237,7 +1277,7 @@ func TestCancelOffer_BeforeLifetimeAborts(cur realm, t *testing.T) {
 	defer offers.Remove(k)
 	mkOffer(buyer, "lf", MinPrice) // CreatedBlk = current height
 	testing.SetRealm(testing.NewUserRealm(buyer))
-	uassert.AbortsWithMessage(t, "offer too new to cancel", func() { CancelOffer(cross, tcoll, grc721tid("lf")) })
+	uassert.AbortsWithMessage(t, "offer too new to cancel", func() { CancelOffer(cross(cur), tcoll, grc721tid("lf")) })
 }
 ```
 
@@ -1422,11 +1462,11 @@ import (
 func TestPause_AdminOnly(cur realm, t *testing.T) {
 	defer func() { paused = false }()
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("ad_str")))
-	uassert.AbortsWithMessage(t, "admin only", func() { Pause(cross) })
+	uassert.AbortsWithMessage(t, "admin only", func() { Pause(cross(cur)) })
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	Pause(cross)
+	Pause(cross(cur))
 	uassert.True(t, paused, "admin pauses")
-	Unpause(cross)
+	Unpause(cross(cur))
 	uassert.False(t, paused, "admin unpauses")
 }
 
@@ -1434,9 +1474,9 @@ func TestSetFeeRecipient_AdminOnly(cur realm, t *testing.T) {
 	defer func() { feeRecipient = address(AdminAddress) }()
 	newR := testutils.TestAddress("ad_fee")
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("ad_str2")))
-	uassert.AbortsWithMessage(t, "admin only", func() { SetFeeRecipient(cross, newR) })
+	uassert.AbortsWithMessage(t, "admin only", func() { SetFeeRecipient(cross(cur), newR) })
 	testing.SetRealm(testing.NewUserRealm(address(AdminAddress)))
-	SetFeeRecipient(cross, newR)
+	SetFeeRecipient(cross(cur), newR)
 	uassert.Equal(t, newR.String(), feeRecipient.String(), "admin updates fee recipient")
 }
 ```
@@ -1687,7 +1727,11 @@ maketx call -pkgpath gno.land/r/samcrew/memba_nft_v2 -func Mint \
 
 **Type consistency:** `collectionID string` + tokenId-as-`string` in marketplace state, public args `grc721.TokenID` converted via `string(tid)` — flagged in B3 to keep consistent across B3–B5. `splitProceeds(price, royaltyBPS) (fee, royalty, seller)` used identically in B2/B4/B5. `address`, `unsafe.PreviousRealm()/CurrentRealm()`, `banker.NewBanker(...,cur)` used consistently (one caller API, matching escrow_v2).
 
-**Known verification points to resolve in review (not guesses to ship blind):** (a) exact composite ctor/type name in grc721 (`NewNFTWithRoyalty`/`RoyaltyNFT`); (b) that `c.nft.TransferFrom` inside crossing `MarketTransfer` sees the market as `PreviousRealm()` (proven by A6 success test) — fallback noted; (c) `runtime.ChainHeight()` vs `chain.ChainHeight()`; (d) `testing` height-advance API name for the positive cancel test; (e) local lint resolution of the sibling-realm import. Each has an explicit fallback in-task.
+**Verification points — status after the 2026-06-16 toolchain spike:**
+- ✅ **RESOLVED — cross-realm `PreviousRealm()` resolution:** proven on `chain/test13` via a two-realm probe — the collection sees the *market* realm as `PreviousRealm()` across `cross(cur)`. The whole `MarketTransfer` design is sound. (A6 success test re-confirms in context.)
+- ✅ **RESOLVED — local cross-realm import:** resolves inside the `examples/gnowork.toml` workspace (Task A0); no node fetch.
+- ✅ **RESOLVED — `runtime.ChainHeight()`** (not `chain.*`); `unsafe.PreviousRealm/CurrentRealm/OriginSend`; `banker.NewBanker(…, cur)`; `cross(cur)` call form; `F(cross(cur), …)` test form — all verified against `escrow_v2` + the probe (see conventions section).
+- ⏳ **OPEN (in-task fallback):** (a) exact grc721 composite ctor/method names (`NewNFTWithRoyalty`) — confirm in A1 against `grc721_royalty.gno`; (b) that `c.nft.TransferFrom` *inside* the crossing `MarketTransfer` still sees the market as caller (the A6 success test proves it end-to-end; fallback = call the internal transfer path); (c) the `testing` height-advance API name for the positive cancel-after-lifetime test (grep the `testing` stdlib; else assert abort only + verify on-chain).
 
 ---
 
