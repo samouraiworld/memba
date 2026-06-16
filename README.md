@@ -196,7 +196,7 @@
 frontend/   → React + Vite + Vanilla CSS + Kodera design system (Netlify)
 backend/    → Go + ConnectRPC + SQLite (Fly.io)
 api/        → Protobuf service definitions (Buf)
-contracts/  → Gno realms (future)
+contracts/  → realm stubs for template CI only (NOT deployed; canonical: samcrew-deployer, state: realm-versions.json)
 docs/       → Architecture, API, deployment docs
 ```
 
