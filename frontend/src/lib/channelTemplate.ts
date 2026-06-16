@@ -94,7 +94,7 @@ export function defaultChannelConfig(daoRealmPath: string, daoName: string): Cha
         ],
         minPostInterval: 5,
         minTokenBalance: 0,
-        tokenFactoryPath: "gno.land/r/samcrew/tokenfactory",
+        tokenFactoryPath: "gno.land/r/samcrew/tokenfactory_v2",
         tokenSymbol: "",
         editWindowBlocks: 100,
     }

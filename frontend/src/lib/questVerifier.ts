@@ -194,7 +194,7 @@ async function verifyOnChain(
 
         case "create-token": {
             // Check token factory for tokens created by this address
-            const result = await queryRender(rpcUrl, "gno.land/r/samcrew/tokenfactory", "")
+            const result = await queryRender(rpcUrl, "gno.land/r/samcrew/tokenfactory_v2", "")
             if (result && result.includes(address)) return VERIFIED
             return NOT_VERIFIED("Create a token via the token factory")
         }

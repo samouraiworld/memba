@@ -77,7 +77,7 @@ describe('constants', () => {
     })
 
     it('GRC20_FACTORY_PATH is grc20factory realm', () => {
-        expect(GRC20_FACTORY_PATH).toBe('gno.land/r/samcrew/tokenfactory')
+        expect(GRC20_FACTORY_PATH).toBe('gno.land/r/samcrew/tokenfactory_v2')
     })
 })
 

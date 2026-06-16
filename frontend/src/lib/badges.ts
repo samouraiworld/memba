@@ -14,7 +14,7 @@ import { getQuestById, calculateRank, RANK_TIERS } from "./gnobuilders"
 
 // ── Constants ───────────────────────────────────────────────
 
-export const BADGE_REALM_PATH = "gno.land/r/samcrew/gnobuilders_badges"
+export const BADGE_REALM_PATH = "gno.land/r/samcrew/gnobuilders_badges_v2"
 
 // ── Types ───────────────────────────────────────────────────
 
