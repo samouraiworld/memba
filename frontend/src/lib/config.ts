@@ -199,6 +199,10 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/memba_dao_candidature_v2",
         "gno.land/r/samcrew/memba_dao_channels_v2",
         "gno.land/r/samcrew/agent_registry",
+        // Commerce realms redeployed to interrealm-v2 _v2 paths (2026-06-16).
+        "gno.land/r/samcrew/tokenfactory_v2",
+        "gno.land/r/samcrew/escrow_v2",
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
     ],
 }
 
@@ -420,7 +424,7 @@ export function validateActiveRpcDomain(): string | null {
 // ── 8. MembaDAO Token ────────────────────────────────────────
 
 /** GRC20 factory realm path (shared with grc20.ts). */
-export const GRC20_FACTORY_PATH = "gno.land/r/samcrew/tokenfactory"
+export const GRC20_FACTORY_PATH = "gno.land/r/samcrew/tokenfactory_v2"
 
 /** Memba token config for development (test12). */
 export const MEMBA_TOKEN_DEV = {
@@ -451,9 +455,9 @@ export const MEMBA_DAO = {
     channelsPath: import.meta.env.VITE_CHANNELS_REALM_PATH || "gno.land/r/samcrew/memba_dao_channels_v2",
     candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v2",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
-    escrowPath: "gno.land/r/samcrew/escrow",
+    escrowPath: "gno.land/r/samcrew/escrow_v2",
     nftMarketPath: "gno.land/r/samcrew/nft_market",
-    badgesPath: "gno.land/r/samcrew/gnobuilders_badges",
+    badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 

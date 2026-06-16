@@ -67,9 +67,13 @@ describe('config constants', () => {
         // test13 (interrealm-v2): only the 4 DAO realms are deployed & valid.
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_dao')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/agent_registry')).toBe(true)
-        // tokenfactory/escrow/nft_market/feedback are stale v1 → invalid on test13.
+        // Commerce realms redeployed to interrealm-v2 _v2 paths are valid.
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory_v2')).toBe(true)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow_v2')).toBe(true)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/gnobuilders_badges_v2')).toBe(true)
+        // The stale v1 paths and the not-redeployed realms stay invalid on test13.
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
-        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow')).toBe(false)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
         // test12 (and unknown networks) have no allowlist → everything valid.
         expect(isRealmValidOn('test12', 'gno.land/r/samcrew/tokenfactory')).toBe(true)

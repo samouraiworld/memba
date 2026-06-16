@@ -10,7 +10,7 @@ import {
 
 describe("badge constants", () => {
     it("badge realm path is correct", () => {
-        expect(BADGE_REALM_PATH).toBe("gno.land/r/samcrew/gnobuilders_badges")
+        expect(BADGE_REALM_PATH).toBe("gno.land/r/samcrew/gnobuilders_badges_v2")
     })
 })
 
