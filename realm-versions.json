@@ -1,64 +1,67 @@
 {
-  "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment.",
-  "lastVerified": "2026-05-11",
-  "verifiedDuring": "v7.1 Phase 0 close (docs/reports/v7.1-phase0-signoff.md). No realm deployments occurred during Phase 0; test12 state unchanged since the Phase B v2 deployment batch (2026-04-09, multisig seq 57-61). gnoland1 remains empty pending Phase 5 betanet activation.",
+  "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain — never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §3.1 / G5.",
+  "lastVerified": "2026-06-15",
+  "verifiedDuring": "AAA-1 G5 ledger overhaul. txHashes recovered from chain (base64(sha256(txbytes)) of the deploy tx at each recorded block) and confirmed against the previously-truncated values; nft_market's block corrected (237929 → 237926, the recorded block held no tx); ACL notes re-derived from live `vm/qfile` source. test12 realm SOURCE is hardened but NOT redeployed since the Phase B v2 batch (2026-04-09, multisig seq 57-61) — the on-chain bytecode is unchanged. gnoland1 remains empty pending betanet activation.",
+  "verificationMethod": "Per realm: `vm/qfile <pkgpath>` for live source + ACL guard counts; `/block?height=<block>` for the deploy tx, hashed as base64(sha256(txbytes)).",
+  "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) — tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
   "test12": {
     "memba_dao": {
       "path": "gno.land/r/samcrew/memba_dao",
       "version": "v1",
       "block": 150069,
       "date": "2026-03-29",
-      "txHash": "9TqViv0c..."
+      "txHash": "9TqViv0cQVJVkMJ97NR5C+4IM6UHSyBmiJy9NjQeMco="
     },
     "memba_dao_candidature": {
       "path": "gno.land/r/samcrew/memba_dao_candidature_v2",
       "version": "v2",
       "block": 237938,
       "date": "2026-04-09",
-      "txHash": "UBuoMqUe...",
-      "note": "v2 security fix — ACL needs verification"
+      "txHash": "UBuoMqUeBL7N4pdLLgj1yovPopj/j4MfGTgwW/1prCI=",
+      "note": "v2 security fix. ACL VERIFIED on live source (2026-06-15): 7 guard sites (4 assertCallerIsOwner, 3 assertCallerIsAdmin)."
     },
     "memba_dao_channels": {
       "path": "gno.land/r/samcrew/memba_dao_channels_v2",
       "version": "v2",
       "block": 237939,
       "date": "2026-04-09",
-      "txHash": "FVK+yC9z...",
-      "note": "CRITICAL: v2 still has zero ACL on all write functions — v3 fix pending"
+      "txHash": "FVK+yC9zxqt12g8Pvl87cN7dCBbCYNPsAQFwtQOMdF8=",
+      "note": "CORRECTION (G5, 2026-06-15): the prior 'zero ACL on all write functions' note was FALSE. Live `vm/qfile` source (778 lines) has 18 ACL guard sites: 4 assertCallerHasWriteAccess, 6 assertCallerIsOwner, 4 assertCallerIsAdminRole, 4 assertCallerIsMember. No emergency redeploy needed (see §3.1)."
     },
     "tokenfactory": {
       "path": "gno.land/r/samcrew/tokenfactory",
       "version": "v1",
-      "note": "Realm code not in repo — deployed externally"
+      "note": "Realm code not in the samcrew-deployer repo — deployed externally; block/txHash unrecorded."
     },
     "agent_registry": {
       "path": "gno.land/r/samcrew/agent_registry",
       "version": "v1",
       "block": 231189,
       "date": "2026-04-03",
-      "txHash": "pfTol4PB...",
-      "note": "UseCredit has no ACL — v2 fix pending"
+      "txHash": "pfTol4PB5zhVl/mjgwibgF2CMzprgF0k0YAg3rC3zwg=",
+      "note": "CONFIRMED (G5, 2026-06-15): UseCredit(cur realm, agentId, userAddr) has NO caller guard on the live source — anyone can burn any user's credits. Hardened source ready; awaiting redeploy (A5). Credits UI gated off for test12 in config.ts until then."
     },
     "escrow": {
       "path": "gno.land/r/samcrew/escrow",
       "version": "v1",
       "block": 232733,
       "date": "2026-04-03",
-      "txHash": "gAJ87Cbi..."
+      "txHash": "gAJ87CbixdMo9pV9kF5le0PZhcmr5SxQl+DBrejMFKs="
     },
     "nft_market": {
       "path": "gno.land/r/samcrew/nft_market",
       "version": "v1",
-      "block": 237929,
+      "block": 237926,
       "date": "2026-04-09",
-      "note": "BuyNFT missing TransferFrom — feature-gated"
+      "txHash": "WtbFSzirgfg/A4DrUmUVsU0khYymhqBHu+6xRTgUGrQ=",
+      "note": "Block corrected 237929 → 237926 (G5: the recorded block held no tx; the deploy is at 237926). BuyNFT missing TransferFrom — feature-gated off."
     },
     "gnobuilders_badges": {
       "path": "gno.land/r/samcrew/gnobuilders_badges",
       "version": "v1",
       "block": 237936,
       "date": "2026-04-09",
-      "txHash": "9ViPkv5L..."
+      "txHash": "9ViPkv5LvqiPht40zemsM6JNDliyn9ZX25DSGLk91lY="
     }
   },
   "gnoland1": {},
