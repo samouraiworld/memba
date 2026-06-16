@@ -15,24 +15,23 @@ import type { BoardThread } from "../plugins/board/parser"
 import { GNO_RPC_URL, FEEDBACK_REALM_PATH, isFeedbackValid } from "../lib/config"
 
 export function FeedbackFeed() {
+    // The feedback board realm isn't valid on every network (e.g. test13). When
+    // it isn't, skip the fetch entirely: a query there returns [] (no throw),
+    // which would misleadingly render "No feedback yet" instead of the
+    // unavailable notice. Derive initial state from validity so we don't call
+    // setState synchronously inside the effect.
+    const realmValid = isFeedbackValid()
     const [threads, setThreads] = useState<BoardThread[]>([])
-    const [loading, setLoading] = useState(true)
-    const [available, setAvailable] = useState(true)
+    const [loading, setLoading] = useState(realmValid)
+    const [available, setAvailable] = useState(realmValid)
 
     useEffect(() => {
-        // The feedback board realm isn't valid on every network (e.g. test13).
-        // Short-circuit: a query there returns [] (no throw), which would
-        // misleadingly render "No feedback yet" instead of the unavailable notice.
-        if (!isFeedbackValid()) {
-            setAvailable(false)
-            setLoading(false)
-            return
-        }
+        if (!realmValid) return
         getBoardThreads(GNO_RPC_URL, FEEDBACK_REALM_PATH, "general")
             .then(t => { setThreads(t); setAvailable(true) })
             .catch(() => setAvailable(false))
             .finally(() => setLoading(false))
-    }, [])
+    }, [realmValid])
 
     if (loading) {
         return (
