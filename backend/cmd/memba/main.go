@@ -20,6 +20,7 @@ import (
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
+	"github.com/samouraiworld/memba/backend/internal/indexer"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	"golang.org/x/net/http2"
@@ -108,6 +109,18 @@ func main() {
 	// Start SQLite backup scheduler with app context for clean shutdown.
 	db.StartBackupSchedule(ctx, database, dbPath, logger, backupInterval)
 
+	// Start the NFT marketplace state-polling indexer (test13 realms).
+	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env
+	// (NFT_RPC_URL) — NOT the testnet12-defaulted GNO_RPC_URL.
+	indexer.StartNFTPoller(ctx, database, indexer.Config{
+		RPCURL:          envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443"),
+		CollectionRealm: envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2"),
+		MarketRealm:     envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2"),
+		CollectionID:    envOr("NFT_COLLECTION_ID", "genesis"),
+		Interval:        durationOr("NFT_POLL_INTERVAL", 60*time.Second),
+		Logger:          logger,
+	})
+
 	// Initialize OAuth state store with app context for clean shutdown.
 	oauthStore := service.NewOAuthStateStore(ctx)
 
@@ -192,6 +205,24 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+// envOr returns the env var value, or fallback when unset/empty.
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// durationOr parses the env var as a Go duration, or returns fallback.
+func durationOr(key string, fallback time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return fallback
 }
 
 // splitOrigins splits a comma-separated CORS_ORIGINS string, trimming whitespace.
