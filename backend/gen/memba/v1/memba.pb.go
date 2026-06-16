@@ -4892,6 +4892,608 @@ func (x *UpdateServiceListingResponse) GetListing() *ServiceListing {
 	return nil
 }
 
+// NFTToken is a single token's cached state.
+type NFTToken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CollectionId  string                 `protobuf:"bytes,1,opt,name=collection_id,json=collectionId,proto3" json:"collection_id,omitempty"`
+	TokenId       string                 `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	Owner         string                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	Uri           string                 `protobuf:"bytes,4,opt,name=uri,proto3" json:"uri,omitempty"`
+	Listed        bool                   `protobuf:"varint,5,opt,name=listed,proto3" json:"listed,omitempty"`
+	PriceUgnot    uint64                 `protobuf:"varint,6,opt,name=price_ugnot,json=priceUgnot,proto3" json:"price_ugnot,omitempty"` // 0 when not listed / unknown
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NFTToken) Reset() {
+	*x = NFTToken{}
+	mi := &file_memba_v1_memba_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NFTToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NFTToken) ProtoMessage() {}
+
+func (x *NFTToken) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NFTToken.ProtoReflect.Descriptor instead.
+func (*NFTToken) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *NFTToken) GetCollectionId() string {
+	if x != nil {
+		return x.CollectionId
+	}
+	return ""
+}
+
+func (x *NFTToken) GetTokenId() string {
+	if x != nil {
+		return x.TokenId
+	}
+	return ""
+}
+
+func (x *NFTToken) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *NFTToken) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *NFTToken) GetListed() bool {
+	if x != nil {
+		return x.Listed
+	}
+	return false
+}
+
+func (x *NFTToken) GetPriceUgnot() uint64 {
+	if x != nil {
+		return x.PriceUgnot
+	}
+	return 0
+}
+
+// NFTActivity is a single cached marketplace event (currently sales).
+type NFTActivity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SaleNo        uint64                 `protobuf:"varint,1,opt,name=sale_no,json=saleNo,proto3" json:"sale_no,omitempty"`
+	TokenId       string                 `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"` // e.g. "sale"
+	PriceUgnot    uint64                 `protobuf:"varint,4,opt,name=price_ugnot,json=priceUgnot,proto3" json:"price_ugnot,omitempty"`
+	Seller        string                 `protobuf:"bytes,5,opt,name=seller,proto3" json:"seller,omitempty"`                        // may be empty/truncated (Render limitation)
+	Buyer         string                 `protobuf:"bytes,6,opt,name=buyer,proto3" json:"buyer,omitempty"`                          // may be empty/truncated (Render limitation)
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // RFC3339
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NFTActivity) Reset() {
+	*x = NFTActivity{}
+	mi := &file_memba_v1_memba_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NFTActivity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NFTActivity) ProtoMessage() {}
+
+func (x *NFTActivity) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NFTActivity.ProtoReflect.Descriptor instead.
+func (*NFTActivity) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *NFTActivity) GetSaleNo() uint64 {
+	if x != nil {
+		return x.SaleNo
+	}
+	return 0
+}
+
+func (x *NFTActivity) GetTokenId() string {
+	if x != nil {
+		return x.TokenId
+	}
+	return ""
+}
+
+func (x *NFTActivity) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *NFTActivity) GetPriceUgnot() uint64 {
+	if x != nil {
+		return x.PriceUgnot
+	}
+	return 0
+}
+
+func (x *NFTActivity) GetSeller() string {
+	if x != nil {
+		return x.Seller
+	}
+	return ""
+}
+
+func (x *NFTActivity) GetBuyer() string {
+	if x != nil {
+		return x.Buyer
+	}
+	return ""
+}
+
+func (x *NFTActivity) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type GetNFTCollectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CollectionId  string                 `protobuf:"bytes,1,opt,name=collection_id,json=collectionId,proto3" json:"collection_id,omitempty"` // no auth required — public read
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNFTCollectionRequest) Reset() {
+	*x = GetNFTCollectionRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTCollectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTCollectionRequest) ProtoMessage() {}
+
+func (x *GetNFTCollectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTCollectionRequest.ProtoReflect.Descriptor instead.
+func (*GetNFTCollectionRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetNFTCollectionRequest) GetCollectionId() string {
+	if x != nil {
+		return x.CollectionId
+	}
+	return ""
+}
+
+type GetNFTCollectionResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Symbol           string                 `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	Supply           uint64                 `protobuf:"varint,3,opt,name=supply,proto3" json:"supply,omitempty"`
+	FloorPriceUgnot  uint64                 `protobuf:"varint,4,opt,name=floor_price_ugnot,json=floorPriceUgnot,proto3" json:"floor_price_ugnot,omitempty"` // 0 = unknown (e.g. market home route unreachable)
+	TotalVolumeUgnot uint64                 `protobuf:"varint,5,opt,name=total_volume_ugnot,json=totalVolumeUgnot,proto3" json:"total_volume_ugnot,omitempty"`
+	TotalSales       uint64                 `protobuf:"varint,6,opt,name=total_sales,json=totalSales,proto3" json:"total_sales,omitempty"`
+	ActiveListings   uint64                 `protobuf:"varint,7,opt,name=active_listings,json=activeListings,proto3" json:"active_listings,omitempty"`
+	RoyaltyBps       uint64                 `protobuf:"varint,8,opt,name=royalty_bps,json=royaltyBps,proto3" json:"royalty_bps,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetNFTCollectionResponse) Reset() {
+	*x = GetNFTCollectionResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTCollectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTCollectionResponse) ProtoMessage() {}
+
+func (x *GetNFTCollectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTCollectionResponse.ProtoReflect.Descriptor instead.
+func (*GetNFTCollectionResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *GetNFTCollectionResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetNFTCollectionResponse) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *GetNFTCollectionResponse) GetSupply() uint64 {
+	if x != nil {
+		return x.Supply
+	}
+	return 0
+}
+
+func (x *GetNFTCollectionResponse) GetFloorPriceUgnot() uint64 {
+	if x != nil {
+		return x.FloorPriceUgnot
+	}
+	return 0
+}
+
+func (x *GetNFTCollectionResponse) GetTotalVolumeUgnot() uint64 {
+	if x != nil {
+		return x.TotalVolumeUgnot
+	}
+	return 0
+}
+
+func (x *GetNFTCollectionResponse) GetTotalSales() uint64 {
+	if x != nil {
+		return x.TotalSales
+	}
+	return 0
+}
+
+func (x *GetNFTCollectionResponse) GetActiveListings() uint64 {
+	if x != nil {
+		return x.ActiveListings
+	}
+	return 0
+}
+
+func (x *GetNFTCollectionResponse) GetRoyaltyBps() uint64 {
+	if x != nil {
+		return x.RoyaltyBps
+	}
+	return 0
+}
+
+type GetNFTActivityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CollectionId  string                 `protobuf:"bytes,1,opt,name=collection_id,json=collectionId,proto3" json:"collection_id,omitempty"` // no auth required — public read
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`                                  // default 20, max 100
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNFTActivityRequest) Reset() {
+	*x = GetNFTActivityRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTActivityRequest) ProtoMessage() {}
+
+func (x *GetNFTActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTActivityRequest.ProtoReflect.Descriptor instead.
+func (*GetNFTActivityRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetNFTActivityRequest) GetCollectionId() string {
+	if x != nil {
+		return x.CollectionId
+	}
+	return ""
+}
+
+func (x *GetNFTActivityRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetNFTActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*NFTActivity         `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNFTActivityResponse) Reset() {
+	*x = GetNFTActivityResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTActivityResponse) ProtoMessage() {}
+
+func (x *GetNFTActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTActivityResponse.ProtoReflect.Descriptor instead.
+func (*GetNFTActivityResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *GetNFTActivityResponse) GetItems() []*NFTActivity {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type GetNFTPortfolioRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"` // g1... address; no auth required — public read
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNFTPortfolioRequest) Reset() {
+	*x = GetNFTPortfolioRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTPortfolioRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTPortfolioRequest) ProtoMessage() {}
+
+func (x *GetNFTPortfolioRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTPortfolioRequest.ProtoReflect.Descriptor instead.
+func (*GetNFTPortfolioRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *GetNFTPortfolioRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+type GetNFTPortfolioResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tokens        []*NFTToken            `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNFTPortfolioResponse) Reset() {
+	*x = GetNFTPortfolioResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNFTPortfolioResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNFTPortfolioResponse) ProtoMessage() {}
+
+func (x *GetNFTPortfolioResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNFTPortfolioResponse.ProtoReflect.Descriptor instead.
+func (*GetNFTPortfolioResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *GetNFTPortfolioResponse) GetTokens() []*NFTToken {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
+type ListNFTTokensRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CollectionId  string                 `protobuf:"bytes,1,opt,name=collection_id,json=collectionId,proto3" json:"collection_id,omitempty"` // no auth required — public read
+	ListedOnly    bool                   `protobuf:"varint,2,opt,name=listed_only,json=listedOnly,proto3" json:"listed_only,omitempty"`      // when true, only return listed tokens
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNFTTokensRequest) Reset() {
+	*x = ListNFTTokensRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNFTTokensRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNFTTokensRequest) ProtoMessage() {}
+
+func (x *ListNFTTokensRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNFTTokensRequest.ProtoReflect.Descriptor instead.
+func (*ListNFTTokensRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *ListNFTTokensRequest) GetCollectionId() string {
+	if x != nil {
+		return x.CollectionId
+	}
+	return ""
+}
+
+func (x *ListNFTTokensRequest) GetListedOnly() bool {
+	if x != nil {
+		return x.ListedOnly
+	}
+	return false
+}
+
+type ListNFTTokensResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tokens        []*NFTToken            `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNFTTokensResponse) Reset() {
+	*x = ListNFTTokensResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNFTTokensResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNFTTokensResponse) ProtoMessage() {}
+
+func (x *ListNFTTokensResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNFTTokensResponse.ProtoReflect.Descriptor instead.
+func (*ListNFTTokensResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *ListNFTTokensResponse) GetTokens() []*NFTToken {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -5270,7 +5872,53 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x04tags\x18\b \x01(\tR\x04tags\x12\x16\n" +
 	"\x06active\x18\t \x01(\bR\x06active\"R\n" +
 	"\x1cUpdateServiceListingResponse\x122\n" +
-	"\alisting\x18\x01 \x01(\v2\x18.memba.v1.ServiceListingR\alisting*N\n" +
+	"\alisting\x18\x01 \x01(\v2\x18.memba.v1.ServiceListingR\alisting\"\xab\x01\n" +
+	"\bNFTToken\x12#\n" +
+	"\rcollection_id\x18\x01 \x01(\tR\fcollectionId\x12\x19\n" +
+	"\btoken_id\x18\x02 \x01(\tR\atokenId\x12\x14\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x10\n" +
+	"\x03uri\x18\x04 \x01(\tR\x03uri\x12\x16\n" +
+	"\x06listed\x18\x05 \x01(\bR\x06listed\x12\x1f\n" +
+	"\vprice_ugnot\x18\x06 \x01(\x04R\n" +
+	"priceUgnot\"\xc3\x01\n" +
+	"\vNFTActivity\x12\x17\n" +
+	"\asale_no\x18\x01 \x01(\x04R\x06saleNo\x12\x19\n" +
+	"\btoken_id\x18\x02 \x01(\tR\atokenId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1f\n" +
+	"\vprice_ugnot\x18\x04 \x01(\x04R\n" +
+	"priceUgnot\x12\x16\n" +
+	"\x06seller\x18\x05 \x01(\tR\x06seller\x12\x14\n" +
+	"\x05buyer\x18\x06 \x01(\tR\x05buyer\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\">\n" +
+	"\x17GetNFTCollectionRequest\x12#\n" +
+	"\rcollection_id\x18\x01 \x01(\tR\fcollectionId\"\xa3\x02\n" +
+	"\x18GetNFTCollectionResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12\x16\n" +
+	"\x06supply\x18\x03 \x01(\x04R\x06supply\x12*\n" +
+	"\x11floor_price_ugnot\x18\x04 \x01(\x04R\x0ffloorPriceUgnot\x12,\n" +
+	"\x12total_volume_ugnot\x18\x05 \x01(\x04R\x10totalVolumeUgnot\x12\x1f\n" +
+	"\vtotal_sales\x18\x06 \x01(\x04R\n" +
+	"totalSales\x12'\n" +
+	"\x0factive_listings\x18\a \x01(\x04R\x0eactiveListings\x12\x1f\n" +
+	"\vroyalty_bps\x18\b \x01(\x04R\n" +
+	"royaltyBps\"R\n" +
+	"\x15GetNFTActivityRequest\x12#\n" +
+	"\rcollection_id\x18\x01 \x01(\tR\fcollectionId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"E\n" +
+	"\x16GetNFTActivityResponse\x12+\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.memba.v1.NFTActivityR\x05items\".\n" +
+	"\x16GetNFTPortfolioRequest\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\"E\n" +
+	"\x17GetNFTPortfolioResponse\x12*\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x12.memba.v1.NFTTokenR\x06tokens\"\\\n" +
+	"\x14ListNFTTokensRequest\x12#\n" +
+	"\rcollection_id\x18\x01 \x01(\tR\fcollectionId\x12\x1f\n" +
+	"\vlisted_only\x18\x02 \x01(\bR\n" +
+	"listedOnly\"C\n" +
+	"\x15ListNFTTokensResponse\x12*\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x12.memba.v1.NFTTokenR\x06tokens*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -5282,7 +5930,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\bTeamRole\x12\x19\n" +
 	"\x15TEAM_ROLE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TEAM_ROLE_MEMBER\x10\x01\x12\x13\n" +
-	"\x0fTEAM_ROLE_ADMIN\x10\x022\xfe\x14\n" +
+	"\x0fTEAM_ROLE_ADMIN\x10\x022\xd8\x17\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -5319,7 +5967,11 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\rGetAgentStats\x12\x1e.memba.v1.GetAgentStatsRequest\x1a\x1f.memba.v1.GetAgentStatsResponse\x12e\n" +
 	"\x14CreateServiceListing\x12%.memba.v1.CreateServiceListingRequest\x1a&.memba.v1.CreateServiceListingResponse\x12_\n" +
 	"\x12GetServiceListings\x12#.memba.v1.GetServiceListingsRequest\x1a$.memba.v1.GetServiceListingsResponse\x12e\n" +
-	"\x14UpdateServiceListing\x12%.memba.v1.UpdateServiceListingRequest\x1a&.memba.v1.UpdateServiceListingResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\x14UpdateServiceListing\x12%.memba.v1.UpdateServiceListingRequest\x1a&.memba.v1.UpdateServiceListingResponse\x12Y\n" +
+	"\x10GetNFTCollection\x12!.memba.v1.GetNFTCollectionRequest\x1a\".memba.v1.GetNFTCollectionResponse\x12S\n" +
+	"\x0eGetNFTActivity\x12\x1f.memba.v1.GetNFTActivityRequest\x1a .memba.v1.GetNFTActivityResponse\x12V\n" +
+	"\x0fGetNFTPortfolio\x12 .memba.v1.GetNFTPortfolioRequest\x1a!.memba.v1.GetNFTPortfolioResponse\x12P\n" +
+	"\rListNFTTokens\x12\x1e.memba.v1.ListNFTTokensRequest\x1a\x1f.memba.v1.ListNFTTokensResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -5334,7 +5986,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 80)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 90)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                       // 0: memba.v1.JoinState
 	(ExecutionState)(0),                  // 1: memba.v1.ExecutionState
@@ -5419,6 +6071,16 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*GetServiceListingsResponse)(nil),   // 80: memba.v1.GetServiceListingsResponse
 	(*UpdateServiceListingRequest)(nil),  // 81: memba.v1.UpdateServiceListingRequest
 	(*UpdateServiceListingResponse)(nil), // 82: memba.v1.UpdateServiceListingResponse
+	(*NFTToken)(nil),                     // 83: memba.v1.NFTToken
+	(*NFTActivity)(nil),                  // 84: memba.v1.NFTActivity
+	(*GetNFTCollectionRequest)(nil),      // 85: memba.v1.GetNFTCollectionRequest
+	(*GetNFTCollectionResponse)(nil),     // 86: memba.v1.GetNFTCollectionResponse
+	(*GetNFTActivityRequest)(nil),        // 87: memba.v1.GetNFTActivityRequest
+	(*GetNFTActivityResponse)(nil),       // 88: memba.v1.GetNFTActivityResponse
+	(*GetNFTPortfolioRequest)(nil),       // 89: memba.v1.GetNFTPortfolioRequest
+	(*GetNFTPortfolioResponse)(nil),      // 90: memba.v1.GetNFTPortfolioResponse
+	(*ListNFTTokensRequest)(nil),         // 91: memba.v1.ListNFTTokensRequest
+	(*ListNFTTokensResponse)(nil),        // 92: memba.v1.ListNFTTokensResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,  // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -5478,75 +6140,86 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	76, // 54: memba.v1.GetServiceListingsResponse.listings:type_name -> memba.v1.ServiceListing
 	4,  // 55: memba.v1.UpdateServiceListingRequest.auth_token:type_name -> memba.v1.Token
 	76, // 56: memba.v1.UpdateServiceListingResponse.listing:type_name -> memba.v1.ServiceListing
-	6,  // 57: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
-	8,  // 58: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
-	11, // 59: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
-	13, // 60: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
-	15, // 61: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
-	19, // 62: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
-	23, // 63: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
-	21, // 64: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
-	25, // 65: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
-	27, // 66: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
-	30, // 67: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
-	32, // 68: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
-	36, // 69: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
-	38, // 70: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
-	40, // 71: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
-	43, // 72: memba.v1.MultisigService.GetUserRank:input_type -> memba.v1.GetUserRankRequest
-	46, // 73: memba.v1.MultisigService.GetLeaderboard:input_type -> memba.v1.GetLeaderboardRequest
-	48, // 74: memba.v1.MultisigService.SubmitQuestClaim:input_type -> memba.v1.SubmitQuestClaimRequest
-	50, // 75: memba.v1.MultisigService.ReviewQuestClaim:input_type -> memba.v1.ReviewQuestClaimRequest
-	53, // 76: memba.v1.MultisigService.ListPendingClaims:input_type -> memba.v1.ListPendingClaimsRequest
-	57, // 77: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
-	59, // 78: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
-	61, // 79: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
-	63, // 80: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
-	65, // 81: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
-	67, // 82: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
-	69, // 83: memba.v1.MultisigService.FavoriteAgent:input_type -> memba.v1.FavoriteAgentRequest
-	71, // 84: memba.v1.MultisigService.GetFavorites:input_type -> memba.v1.GetFavoritesRequest
-	74, // 85: memba.v1.MultisigService.GetAgentStats:input_type -> memba.v1.GetAgentStatsRequest
-	77, // 86: memba.v1.MultisigService.CreateServiceListing:input_type -> memba.v1.CreateServiceListingRequest
-	79, // 87: memba.v1.MultisigService.GetServiceListings:input_type -> memba.v1.GetServiceListingsRequest
-	81, // 88: memba.v1.MultisigService.UpdateServiceListing:input_type -> memba.v1.UpdateServiceListingRequest
-	7,  // 89: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	9,  // 90: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	12, // 91: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	14, // 92: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	16, // 93: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	20, // 94: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	24, // 95: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	22, // 96: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	26, // 97: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	28, // 98: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	31, // 99: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
-	33, // 100: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
-	37, // 101: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
-	39, // 102: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
-	41, // 103: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
-	44, // 104: memba.v1.MultisigService.GetUserRank:output_type -> memba.v1.GetUserRankResponse
-	47, // 105: memba.v1.MultisigService.GetLeaderboard:output_type -> memba.v1.GetLeaderboardResponse
-	49, // 106: memba.v1.MultisigService.SubmitQuestClaim:output_type -> memba.v1.SubmitQuestClaimResponse
-	51, // 107: memba.v1.MultisigService.ReviewQuestClaim:output_type -> memba.v1.ReviewQuestClaimResponse
-	54, // 108: memba.v1.MultisigService.ListPendingClaims:output_type -> memba.v1.ListPendingClaimsResponse
-	58, // 109: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
-	60, // 110: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
-	62, // 111: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
-	64, // 112: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
-	66, // 113: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
-	68, // 114: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
-	70, // 115: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
-	72, // 116: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
-	75, // 117: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
-	78, // 118: memba.v1.MultisigService.CreateServiceListing:output_type -> memba.v1.CreateServiceListingResponse
-	80, // 119: memba.v1.MultisigService.GetServiceListings:output_type -> memba.v1.GetServiceListingsResponse
-	82, // 120: memba.v1.MultisigService.UpdateServiceListing:output_type -> memba.v1.UpdateServiceListingResponse
-	89, // [89:121] is the sub-list for method output_type
-	57, // [57:89] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	84, // 57: memba.v1.GetNFTActivityResponse.items:type_name -> memba.v1.NFTActivity
+	83, // 58: memba.v1.GetNFTPortfolioResponse.tokens:type_name -> memba.v1.NFTToken
+	83, // 59: memba.v1.ListNFTTokensResponse.tokens:type_name -> memba.v1.NFTToken
+	6,  // 60: memba.v1.MultisigService.GetChallenge:input_type -> memba.v1.GetChallengeRequest
+	8,  // 61: memba.v1.MultisigService.GetToken:input_type -> memba.v1.GetTokenRequest
+	11, // 62: memba.v1.MultisigService.CreateOrJoinMultisig:input_type -> memba.v1.CreateOrJoinMultisigRequest
+	13, // 63: memba.v1.MultisigService.MultisigInfo:input_type -> memba.v1.MultisigInfoRequest
+	15, // 64: memba.v1.MultisigService.Multisigs:input_type -> memba.v1.MultisigsRequest
+	19, // 65: memba.v1.MultisigService.CreateTransaction:input_type -> memba.v1.CreateTransactionRequest
+	23, // 66: memba.v1.MultisigService.GetTransaction:input_type -> memba.v1.GetTransactionRequest
+	21, // 67: memba.v1.MultisigService.Transactions:input_type -> memba.v1.TransactionsRequest
+	25, // 68: memba.v1.MultisigService.SignTransaction:input_type -> memba.v1.SignTransactionRequest
+	27, // 69: memba.v1.MultisigService.CompleteTransaction:input_type -> memba.v1.CompleteTransactionRequest
+	30, // 70: memba.v1.MultisigService.GetProfile:input_type -> memba.v1.GetProfileRequest
+	32, // 71: memba.v1.MultisigService.UpdateProfile:input_type -> memba.v1.UpdateProfileRequest
+	36, // 72: memba.v1.MultisigService.CompleteQuest:input_type -> memba.v1.CompleteQuestRequest
+	38, // 73: memba.v1.MultisigService.GetUserQuests:input_type -> memba.v1.GetUserQuestsRequest
+	40, // 74: memba.v1.MultisigService.SyncQuests:input_type -> memba.v1.SyncQuestsRequest
+	43, // 75: memba.v1.MultisigService.GetUserRank:input_type -> memba.v1.GetUserRankRequest
+	46, // 76: memba.v1.MultisigService.GetLeaderboard:input_type -> memba.v1.GetLeaderboardRequest
+	48, // 77: memba.v1.MultisigService.SubmitQuestClaim:input_type -> memba.v1.SubmitQuestClaimRequest
+	50, // 78: memba.v1.MultisigService.ReviewQuestClaim:input_type -> memba.v1.ReviewQuestClaimRequest
+	53, // 79: memba.v1.MultisigService.ListPendingClaims:input_type -> memba.v1.ListPendingClaimsRequest
+	57, // 80: memba.v1.MultisigService.CreateTeam:input_type -> memba.v1.CreateTeamRequest
+	59, // 81: memba.v1.MultisigService.GetTeam:input_type -> memba.v1.GetTeamRequest
+	61, // 82: memba.v1.MultisigService.GetMyTeams:input_type -> memba.v1.GetMyTeamsRequest
+	63, // 83: memba.v1.MultisigService.JoinTeam:input_type -> memba.v1.JoinTeamRequest
+	65, // 84: memba.v1.MultisigService.LeaveTeam:input_type -> memba.v1.LeaveTeamRequest
+	67, // 85: memba.v1.MultisigService.UpdateTeamMemberRole:input_type -> memba.v1.UpdateTeamMemberRoleRequest
+	69, // 86: memba.v1.MultisigService.FavoriteAgent:input_type -> memba.v1.FavoriteAgentRequest
+	71, // 87: memba.v1.MultisigService.GetFavorites:input_type -> memba.v1.GetFavoritesRequest
+	74, // 88: memba.v1.MultisigService.GetAgentStats:input_type -> memba.v1.GetAgentStatsRequest
+	77, // 89: memba.v1.MultisigService.CreateServiceListing:input_type -> memba.v1.CreateServiceListingRequest
+	79, // 90: memba.v1.MultisigService.GetServiceListings:input_type -> memba.v1.GetServiceListingsRequest
+	81, // 91: memba.v1.MultisigService.UpdateServiceListing:input_type -> memba.v1.UpdateServiceListingRequest
+	85, // 92: memba.v1.MultisigService.GetNFTCollection:input_type -> memba.v1.GetNFTCollectionRequest
+	87, // 93: memba.v1.MultisigService.GetNFTActivity:input_type -> memba.v1.GetNFTActivityRequest
+	89, // 94: memba.v1.MultisigService.GetNFTPortfolio:input_type -> memba.v1.GetNFTPortfolioRequest
+	91, // 95: memba.v1.MultisigService.ListNFTTokens:input_type -> memba.v1.ListNFTTokensRequest
+	7,  // 96: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	9,  // 97: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	12, // 98: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	14, // 99: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	16, // 100: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	20, // 101: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	24, // 102: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	22, // 103: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	26, // 104: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	28, // 105: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	31, // 106: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	33, // 107: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	37, // 108: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
+	39, // 109: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
+	41, // 110: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
+	44, // 111: memba.v1.MultisigService.GetUserRank:output_type -> memba.v1.GetUserRankResponse
+	47, // 112: memba.v1.MultisigService.GetLeaderboard:output_type -> memba.v1.GetLeaderboardResponse
+	49, // 113: memba.v1.MultisigService.SubmitQuestClaim:output_type -> memba.v1.SubmitQuestClaimResponse
+	51, // 114: memba.v1.MultisigService.ReviewQuestClaim:output_type -> memba.v1.ReviewQuestClaimResponse
+	54, // 115: memba.v1.MultisigService.ListPendingClaims:output_type -> memba.v1.ListPendingClaimsResponse
+	58, // 116: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
+	60, // 117: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
+	62, // 118: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
+	64, // 119: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
+	66, // 120: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
+	68, // 121: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
+	70, // 122: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
+	72, // 123: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
+	75, // 124: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
+	78, // 125: memba.v1.MultisigService.CreateServiceListing:output_type -> memba.v1.CreateServiceListingResponse
+	80, // 126: memba.v1.MultisigService.GetServiceListings:output_type -> memba.v1.GetServiceListingsResponse
+	82, // 127: memba.v1.MultisigService.UpdateServiceListing:output_type -> memba.v1.UpdateServiceListingResponse
+	86, // 128: memba.v1.MultisigService.GetNFTCollection:output_type -> memba.v1.GetNFTCollectionResponse
+	88, // 129: memba.v1.MultisigService.GetNFTActivity:output_type -> memba.v1.GetNFTActivityResponse
+	90, // 130: memba.v1.MultisigService.GetNFTPortfolio:output_type -> memba.v1.GetNFTPortfolioResponse
+	92, // 131: memba.v1.MultisigService.ListNFTTokens:output_type -> memba.v1.ListNFTTokensResponse
+	96, // [96:132] is the sub-list for method output_type
+	60, // [60:96] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_memba_v1_memba_proto_init() }
@@ -5560,7 +6233,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   80,
+			NumMessages:   90,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

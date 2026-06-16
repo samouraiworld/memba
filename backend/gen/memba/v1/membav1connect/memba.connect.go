@@ -128,6 +128,18 @@ const (
 	// MultisigServiceUpdateServiceListingProcedure is the fully-qualified name of the MultisigService's
 	// UpdateServiceListing RPC.
 	MultisigServiceUpdateServiceListingProcedure = "/memba.v1.MultisigService/UpdateServiceListing"
+	// MultisigServiceGetNFTCollectionProcedure is the fully-qualified name of the MultisigService's
+	// GetNFTCollection RPC.
+	MultisigServiceGetNFTCollectionProcedure = "/memba.v1.MultisigService/GetNFTCollection"
+	// MultisigServiceGetNFTActivityProcedure is the fully-qualified name of the MultisigService's
+	// GetNFTActivity RPC.
+	MultisigServiceGetNFTActivityProcedure = "/memba.v1.MultisigService/GetNFTActivity"
+	// MultisigServiceGetNFTPortfolioProcedure is the fully-qualified name of the MultisigService's
+	// GetNFTPortfolio RPC.
+	MultisigServiceGetNFTPortfolioProcedure = "/memba.v1.MultisigService/GetNFTPortfolio"
+	// MultisigServiceListNFTTokensProcedure is the fully-qualified name of the MultisigService's
+	// ListNFTTokens RPC.
+	MultisigServiceListNFTTokensProcedure = "/memba.v1.MultisigService/ListNFTTokens"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -172,6 +184,11 @@ type MultisigServiceClient interface {
 	CreateServiceListing(context.Context, *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error)
 	GetServiceListings(context.Context, *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error)
 	UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error)
+	// NFT Marketplace — cached state from the on-chain indexer (public reads, no auth)
+	GetNFTCollection(context.Context, *connect.Request[v1.GetNFTCollectionRequest]) (*connect.Response[v1.GetNFTCollectionResponse], error)
+	GetNFTActivity(context.Context, *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error)
+	GetNFTPortfolio(context.Context, *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error)
+	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -377,6 +394,30 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("UpdateServiceListing")),
 			connect.WithClientOptions(opts...),
 		),
+		getNFTCollection: connect.NewClient[v1.GetNFTCollectionRequest, v1.GetNFTCollectionResponse](
+			httpClient,
+			baseURL+MultisigServiceGetNFTCollectionProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetNFTCollection")),
+			connect.WithClientOptions(opts...),
+		),
+		getNFTActivity: connect.NewClient[v1.GetNFTActivityRequest, v1.GetNFTActivityResponse](
+			httpClient,
+			baseURL+MultisigServiceGetNFTActivityProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetNFTActivity")),
+			connect.WithClientOptions(opts...),
+		),
+		getNFTPortfolio: connect.NewClient[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse](
+			httpClient,
+			baseURL+MultisigServiceGetNFTPortfolioProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetNFTPortfolio")),
+			connect.WithClientOptions(opts...),
+		),
+		listNFTTokens: connect.NewClient[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse](
+			httpClient,
+			baseURL+MultisigServiceListNFTTokensProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("ListNFTTokens")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -414,6 +455,10 @@ type multisigServiceClient struct {
 	createServiceListing *connect.Client[v1.CreateServiceListingRequest, v1.CreateServiceListingResponse]
 	getServiceListings   *connect.Client[v1.GetServiceListingsRequest, v1.GetServiceListingsResponse]
 	updateServiceListing *connect.Client[v1.UpdateServiceListingRequest, v1.UpdateServiceListingResponse]
+	getNFTCollection     *connect.Client[v1.GetNFTCollectionRequest, v1.GetNFTCollectionResponse]
+	getNFTActivity       *connect.Client[v1.GetNFTActivityRequest, v1.GetNFTActivityResponse]
+	getNFTPortfolio      *connect.Client[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse]
+	listNFTTokens        *connect.Client[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -576,6 +621,26 @@ func (c *multisigServiceClient) UpdateServiceListing(ctx context.Context, req *c
 	return c.updateServiceListing.CallUnary(ctx, req)
 }
 
+// GetNFTCollection calls memba.v1.MultisigService.GetNFTCollection.
+func (c *multisigServiceClient) GetNFTCollection(ctx context.Context, req *connect.Request[v1.GetNFTCollectionRequest]) (*connect.Response[v1.GetNFTCollectionResponse], error) {
+	return c.getNFTCollection.CallUnary(ctx, req)
+}
+
+// GetNFTActivity calls memba.v1.MultisigService.GetNFTActivity.
+func (c *multisigServiceClient) GetNFTActivity(ctx context.Context, req *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error) {
+	return c.getNFTActivity.CallUnary(ctx, req)
+}
+
+// GetNFTPortfolio calls memba.v1.MultisigService.GetNFTPortfolio.
+func (c *multisigServiceClient) GetNFTPortfolio(ctx context.Context, req *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error) {
+	return c.getNFTPortfolio.CallUnary(ctx, req)
+}
+
+// ListNFTTokens calls memba.v1.MultisigService.ListNFTTokens.
+func (c *multisigServiceClient) ListNFTTokens(ctx context.Context, req *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error) {
+	return c.listNFTTokens.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -618,6 +683,11 @@ type MultisigServiceHandler interface {
 	CreateServiceListing(context.Context, *connect.Request[v1.CreateServiceListingRequest]) (*connect.Response[v1.CreateServiceListingResponse], error)
 	GetServiceListings(context.Context, *connect.Request[v1.GetServiceListingsRequest]) (*connect.Response[v1.GetServiceListingsResponse], error)
 	UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error)
+	// NFT Marketplace — cached state from the on-chain indexer (public reads, no auth)
+	GetNFTCollection(context.Context, *connect.Request[v1.GetNFTCollectionRequest]) (*connect.Response[v1.GetNFTCollectionResponse], error)
+	GetNFTActivity(context.Context, *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error)
+	GetNFTPortfolio(context.Context, *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error)
+	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -819,6 +889,30 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("UpdateServiceListing")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetNFTCollectionHandler := connect.NewUnaryHandler(
+		MultisigServiceGetNFTCollectionProcedure,
+		svc.GetNFTCollection,
+		connect.WithSchema(multisigServiceMethods.ByName("GetNFTCollection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetNFTActivityHandler := connect.NewUnaryHandler(
+		MultisigServiceGetNFTActivityProcedure,
+		svc.GetNFTActivity,
+		connect.WithSchema(multisigServiceMethods.ByName("GetNFTActivity")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetNFTPortfolioHandler := connect.NewUnaryHandler(
+		MultisigServiceGetNFTPortfolioProcedure,
+		svc.GetNFTPortfolio,
+		connect.WithSchema(multisigServiceMethods.ByName("GetNFTPortfolio")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceListNFTTokensHandler := connect.NewUnaryHandler(
+		MultisigServiceListNFTTokensProcedure,
+		svc.ListNFTTokens,
+		connect.WithSchema(multisigServiceMethods.ByName("ListNFTTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -885,6 +979,14 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetServiceListingsHandler.ServeHTTP(w, r)
 		case MultisigServiceUpdateServiceListingProcedure:
 			multisigServiceUpdateServiceListingHandler.ServeHTTP(w, r)
+		case MultisigServiceGetNFTCollectionProcedure:
+			multisigServiceGetNFTCollectionHandler.ServeHTTP(w, r)
+		case MultisigServiceGetNFTActivityProcedure:
+			multisigServiceGetNFTActivityHandler.ServeHTTP(w, r)
+		case MultisigServiceGetNFTPortfolioProcedure:
+			multisigServiceGetNFTPortfolioHandler.ServeHTTP(w, r)
+		case MultisigServiceListNFTTokensProcedure:
+			multisigServiceListNFTTokensHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1020,4 +1122,20 @@ func (UnimplementedMultisigServiceHandler) GetServiceListings(context.Context, *
 
 func (UnimplementedMultisigServiceHandler) UpdateServiceListing(context.Context, *connect.Request[v1.UpdateServiceListingRequest]) (*connect.Response[v1.UpdateServiceListingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.UpdateServiceListing is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetNFTCollection(context.Context, *connect.Request[v1.GetNFTCollectionRequest]) (*connect.Response[v1.GetNFTCollectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetNFTCollection is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetNFTActivity(context.Context, *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetNFTActivity is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetNFTPortfolio(context.Context, *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetNFTPortfolio is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.ListNFTTokens is not implemented"))
 }
