@@ -238,8 +238,8 @@ export function getExplorerBaseUrl(): string {
         case "portal-loop": return "https://gno.land"
         case "gnoland1": return "https://betanet.gno.land"
         case "test12": return "https://test12.gno.land"
-        // test-13 explorer host not yet canonical; override when known.
-        case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.gno.land"
+        // Official test13 gnoweb (verified live). Env override stays available.
+        case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
 }

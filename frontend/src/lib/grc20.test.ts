@@ -22,6 +22,9 @@ import {
     PLATFORM_FEE_RATE,
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
+    doContractBroadcast,
+    setWalletRpcContext,
+    setTxConfirmationCallback,
 } from './grc20'
 
 // ── Fee Calculation (v2.1a: 2.5%) ───────────────────────────────
@@ -256,5 +259,26 @@ describe('toAdenaMessages', () => {
     it('throws on non-MsgCall messages (R2-M1 fix)', () => {
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
         expect(() => toAdenaMessages([addPkgMsg])).toThrow('only supports vm/MsgCall')
+    })
+})
+
+describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
+    // App network in the test env is the default (test12). A wallet reporting a
+    // different chainId must be blocked before any broadcast.
+    it('blocks broadcast when the wallet chainId != Memba network', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.testnet12.samourai.live:443', true, 'test-13')
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "test-13"/)
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('passes the chain guard when the wallet chainId matches (proceeds to wallet check)', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.testnet12.samourai.live:443', true, 'test12')
+        // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
     })
 })

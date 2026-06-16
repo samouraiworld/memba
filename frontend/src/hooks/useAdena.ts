@@ -195,7 +195,7 @@ export function useAdena() {
                 const cached = getCachedRpc();
                 if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
             }
-            setWalletRpcContext(rpcUrl || null, rpcTrusted);
+            setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null);
 
             setState({
                 connected: true,

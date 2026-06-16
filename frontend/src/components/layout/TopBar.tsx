@@ -158,7 +158,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
 
             {/* ── Auth error banner ──────────────────────────────── */}
             {authError && (
-                <div className="k-topbar-banner k-topbar-banner--error">
+                <div className="k-topbar-banner k-topbar-banner--error" role="alert">
                     <span className="k-topbar-banner__text k-topbar-banner__text--error">
                         ⚠ {authError}
                     </span>
@@ -182,7 +182,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
 
             {/* ── Untrusted wallet RPC warning ──────────────────── */}
             {adena.connected && !adena.rpcTrusted && (
-                <div className="k-security-banner">
+                <div className="k-security-banner" role="alert">
                     <div className="k-security-banner__header">
                         <span style={{ fontSize: 18 }}>🛡️</span>
                         <span className="k-security-banner__title">
@@ -259,7 +259,7 @@ function ThemeToggle() {
 
 // ── Chain Mismatch Banner ─────────────────────────────────────────────
 
-function ChainMismatchBanner({
+export function ChainMismatchBanner({
     walletChainId,
     membaChainId,
     networks,
@@ -276,7 +276,12 @@ function ChainMismatchBanner({
 }) {
     const [switching, setSwitching] = useState(false)
 
-    const walletInMemba = !!networks[walletChainId]
+    // NETWORKS is keyed by an identifier-safe KEY (e.g. "test13") while the
+    // on-wire chainId is hyphenated ("test-13"). Resolve the wallet's chainId to
+    // its KEY before treating it as a known network / calling switchMembaNetwork
+    // (which takes a KEY). Looking it up as a key breaks only for test13.
+    const walletKey = Object.keys(networks).find(k => networks[k].chainId === walletChainId)
+    const walletInMemba = !!walletKey
     const membaNet = networks[Object.keys(networks).find(k => networks[k].chainId === membaChainId) || ""]
 
     const handleAddAndSwitch = async () => {
@@ -295,12 +300,12 @@ function ChainMismatchBanner({
             <span className="k-topbar-banner__text k-topbar-banner__text--warning">
                 ⚠ Network mismatch — wallet is on <strong>{walletChainId}</strong>, Memba is on <strong>{membaChainId}</strong>
             </span>
-            {walletInMemba ? (
+            {walletInMemba && walletKey ? (
                 <button
                     className="k-topbar-banner__btn k-topbar-banner__btn--warning"
-                    onClick={() => switchMembaNetwork(walletChainId)}
+                    onClick={() => switchMembaNetwork(walletKey)}
                 >
-                    Switch Memba to {walletChainId}
+                    Switch Memba to {networks[walletKey].label}
                 </button>
             ) : addAndSwitchWallet && membaNet ? (
                 <button
