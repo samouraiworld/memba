@@ -162,16 +162,6 @@ var (
 // SSRF / URI validation
 // ──────────────────────────────────────────────────────────────────────────────
 
-// allowedGatewayPrefixes is the list of permitted HTTPS fetch targets for
-// ipfs:// URIs. Requests that don't map to one of these (or a valid https://
-// host that passes the private-IP check) are rejected to prevent SSRF.
-var allowedGatewayPrefixes = []string{
-	"https://gateway.lighthouse.storage/ipfs/",
-	"https://dweb.link/ipfs/",
-	"https://cloudflare-ipfs.com/ipfs/",
-	"https://ipfs.io/ipfs/",
-}
-
 // privateIPBlocks are CIDR ranges that are never fetched from.
 var privateIPBlocks []*net.IPNet
 
@@ -264,7 +254,8 @@ func validateCIDChars(cid string) error {
 		return fmt.Errorf("CID length out of range (%d chars)", len(cid))
 	}
 	for _, c := range cid {
-		if !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+		alnum := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		if !alnum {
 			return fmt.Errorf("invalid character %q in CID", c)
 		}
 	}
@@ -466,16 +457,6 @@ func HandleNFTImage(opts ...nftHandlerOptions) http.Handler {
 // ──────────────────────────────────────────────────────────────────────────────
 // GET /api/nft/metadata
 // ──────────────────────────────────────────────────────────────────────────────
-
-// nftMetadata is the standard NFT JSON metadata shape (ERC-721/1155 compatible).
-type nftMetadata struct {
-	Name        string          `json:"name,omitempty"`
-	Description string          `json:"description,omitempty"`
-	Image       string          `json:"image,omitempty"`
-	Attributes  json.RawMessage `json:"attributes,omitempty"`
-	// forward any unknown fields
-	Extra map[string]json.RawMessage `json:"-"`
-}
 
 // HandleNFTMetadata handles GET /api/nft/metadata
 //
