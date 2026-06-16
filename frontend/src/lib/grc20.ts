@@ -7,7 +7,7 @@
  * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
 
-import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN } from "./config"
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID } from "./config"
 import { getGasConfig } from "./gasConfig"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -76,11 +76,14 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
  */
 let _walletRpcUrl: string | null = null
 let _walletRpcTrusted = false
+let _walletChainId: string | null = null
 
-/** Called by useAdena to sync the wallet's active RPC validation state. */
-export function setWalletRpcContext(url: string | null, trusted: boolean) {
+/** Called by useAdena to sync the wallet's active RPC validation state +
+ *  the wallet's active chainId (used to block wrong-chain broadcasts). */
+export function setWalletRpcContext(url: string | null, trusted: boolean, chainId: string | null = null) {
     _walletRpcUrl = url
     _walletRpcTrusted = trusted
+    _walletChainId = chainId
 }
 
 /** Read current wallet RPC context (for UI components). */
@@ -140,6 +143,17 @@ export async function doContractBroadcast(
         throw new Error(
             `🛡️ Transaction blocked — ${detail}. ` +
             `Open Adena → Settings → Networks → switch to a trusted *.gno.land RPC.`
+        )
+    }
+
+    // SECURITY (defense-in-depth): never sign for the wrong chain. The wallet's
+    // active chainId must match Memba's active network, or the user could
+    // broadcast a Memba-built tx onto a different chain (e.g. during the
+    // test12↔test13 window). chainId is the on-wire value (e.g. "test-13").
+    if (_walletChainId && _walletChainId !== GNO_CHAIN_ID) {
+        throw new Error(
+            `🛡️ Transaction blocked — your wallet is on chain "${_walletChainId}" but Memba is on "${GNO_CHAIN_ID}". ` +
+            `Switch your wallet's network in Adena to match before signing.`
         )
     }
 
