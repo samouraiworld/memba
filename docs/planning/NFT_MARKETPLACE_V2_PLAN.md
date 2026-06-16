@@ -81,24 +81,21 @@ Deployer config touched: `projects/memba/manifest.toml`, `projects/memba/deploy.
 
 # Phase A — Collection realm `memba_nft_v2`
 
-### Task A0: Dev-environment setup (toolchain already switched)
+### Task A0: Dev-environment setup (toolchain already switched) — DONE by controller
 
-> The `chain/test13` toolchain is already installed (see the verified-conventions section). This task just creates the workspace dirs where TDD runs.
-
-- [ ] **Step 1: Confirm toolchain**
-
-Run: `gno version` → built from `chain/test13`. Run `(cd <gno>/examples/gno.land/r/samcrew/../../../.. && true)` and confirm `gno/examples/gnowork.toml` exists (empty = whole-tree workspace).
-
-- [ ] **Step 2: Create dev dirs in the examples workspace**
+> Already completed during the toolchain spike. Recorded here for reproducibility. **Workflow:** real realm files live in the **deployer repo** (`samcrew-deployer/projects/memba/realms/{memba_nft_v2,memba_nft_market_v2}`) — that is where every per-task `git commit` lands, on `feat/nft-marketplace-v2`. Each dir is **symlinked into the examples workspace** (`gno/examples/gno.land/r/samcrew/`) so `gno test`/`gno lint` resolve `grc721` and the sibling realm (verified: symlink resolution + `grc721.NewNFTWithRoyalty`/`RoyaltyNFT` both work).
 
 ```bash
-mkdir -p /Users/zxxma/Desktop/Code/Gno/gno/examples/gno.land/r/samcrew/memba_nft_v2
-mkdir -p /Users/zxxma/Desktop/Code/Gno/gno/examples/gno.land/r/samcrew/memba_nft_market_v2
+DEP=/Users/zxxma/Desktop/Code/Gno/samcrew-deployer/projects/memba/realms
+EX=/Users/zxxma/Desktop/Code/Gno/gno/examples/gno.land/r/samcrew
+mkdir -p "$DEP/memba_nft_v2" "$DEP/memba_nft_market_v2" "$EX"
+ln -sf "$DEP/memba_nft_v2" "$EX/memba_nft_v2"
+ln -sf "$DEP/memba_nft_market_v2" "$EX/memba_nft_market_v2"
 ```
 
-- [ ] **Step 3: Smoke-test resolution** — after Task A1 lands the collection skeleton, verify `(cd .../memba_nft_v2 && gno lint .)` resolves `grc721`. (The marketplace's import of the collection is verified once both exist, Task B1.)
-
-> Note: the `gno/examples` checkout is on branch `chain/test13` (was `chain/test12` @ `8513a68f5` — rollback ref if ever needed). New dirs under examples are untracked; do not commit them to the gno repo. Phase C copies the finished sources into the deployer repo, which is where they're committed + deployed.
+- **Run tests/lint from the symlinked workspace path:** `(cd "$EX/memba_nft_v2" && gno test . && gno lint .)`.
+- **Commit from the deployer repo:** `cd samcrew-deployer && git add projects/memba/realms/memba_nft_v2 && git commit -m "…"` (branch `feat/nft-marketplace-v2`).
+- The `gno` checkout is on `chain/test13` (rollback ref: branch `chain/test12` @ `8513a68f5`). The symlinks under `examples/` are untracked in the gno repo — do **not** commit them there. **Phase C needs no copy step** (files are already in the deployer repo).
 
 ---
 
