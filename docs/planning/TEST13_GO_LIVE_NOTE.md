@@ -1,33 +1,31 @@
-# Test13 go-live — what's left
+# Test13 go-live — DONE
 
-_Status (2026-06-16): off-chain + audit + hardening + allowlist all SHIPPED & LIVE. **test13's VM flipped to interrealm-v2 mid-deploy** → realms re-ported to v2 (done, on-chain-validated). **NOW BLOCKED on the `samcrew` namespace grant from aeddi** (requested). test12 stays default; banner shows on test13._
+_Status (2026-06-16): **Memba's realms are DEPLOYED and LIVE on the official test13** (interrealm-v2). The full migration shipped — off-chain cutover, expert audit, hardening, chain-id allowlist, the v2 re-port, and the realm deploy. test12 remains the default network; switching to test13 in Memba now gives full DAO functionality._
 
-## ⛔ Current blocker — `samcrew` namespace grant (aeddi)
-The realm deploy reaches the chain and **type-checks fine on v2**, but fails: `g1x7k4628… is not authorized to deploy to namespace 'samcrew'`. The genesis `p/samcrew/piechart` was seeded by gno-core — the namespace isn't bound to our deployer multisig. **Request sent to aeddi.** The moment it's granted, re-run the v2 deploy (below) — everything else is ready.
+## ✅ Live on test13
+- **Realms deployed + rendering** (`r/samcrew/`): `memba_dao`, `memba_dao_candidature_v2`, `memba_dao_channels_v2`, `agent_registry` — plus gnodaokit `p/samcrew/{realmid,daocond,daokit,basedao}`. ACL init verified on-chain (founder roles + owner = the deployer multisig).
+- **`realmsDeployed: true`** (Memba #416) → the "not deployed here" banner is gone; DAO/channels/marketplace enabled on test13.
+- **Off-chain + hardening + allowlist** (Memba #410–#413): official RPC, selector, test11 dropped, chain-mismatch/broadcast/a11y fixes, and the backend accepts `test12,test-13` tokens (no forced re-login).
+- **Deploy tooling** (deployer #21–#24): official RPC, frozen-scope, gnodaokit `/v0` guard, `_test.gno` excluded from addpkg, `samcrew-cla-sign.sh`, CI reclassification.
+- **Audit + fact-check**: GO-WITH-FIXES, all implement-now fixes shipped. See `TEST13_GOLIVE_AUDIT.md`.
 
-## ✅ Done & live
-- **Off-chain cutover** (#410/#411): official test13 RPC, test13 surfaced in the selector, test11 dropped, "realms not deployed here" banner.
-- **Deploy tooling** (deployer #21/#22/#23): repointed to the official RPC, aligned to the frozen v2 set, `memba_dao` ACL-tested (9 green), gnodaokit `/v0`-form guard. Deploy is a 3-step runbook.
-- **Expert audit + fact-check** (18 + 14 agents): verdict **GO-WITH-FIXES**; both reports in `docs/planning/TEST13_GOLIVE_AUDIT.md`.
-- **Go-live hardening** (#412): test13 chain-mismatch banner fix, wrong-chain broadcast guard, a11y `role=alert`, explorer host. Live via Netlify.
-- **Chain-id allowlist** (#413): backend now accepts **`test12,test-13`** tokens → **test13's authed features work now, no forced re-login.** Verified live (`accepted_chain_ids:["test12","test-13"]`).
-- **Deployer multisig FUNDED (10,000 GNOT)** — thanks Aeddi. (Namespace `samcrew` is NOT yet bound to it — see blocker above.)
-- **Unrestricted transfers on test13** (Jae/Manfred green light) → any wallet becomes signable via faucet + one send.
-- **Interrealm-v2 realm port** (deployer draft PR #24): 4 realms + gnodaokit #64; on-chain type-check PASSES; ACL guards byte-for-byte preserved (proven by diff; local executed tests blocked by an upstream uassert/v2 gap).
-
-## 🔶 What I (zxxma) have to do — in order
-1. **Get the `samcrew` namespace granted** (with aeddi — request sent). This is the only blocker to deploying.
-2. **Re-run the v2 realm deploy** once granted (gnodaokit is on `pr64`; run with the v2 toolchain so the lint gate doesn't reject v2 code):
+## 🔶 Remaining (yours — non-blocking)
+1. **`result=signed` check → enforce auth.** Switch Adena to a wallet **transacted on test13** (`g1jg8mtu`/test1 already is; or one tx from `g1747` — transfers are unrestricted), log in, confirm `auth_login result=signed`. Then set backend `MEMBA_ALLOW_UNSIGNED_AUTH=0` + `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1` in `backend/fly.toml`.
+2. **(Optional) executed ACL probe** for extra confidence: call a guarded fn as a non-member and confirm it aborts, e.g. from a funded non-admin key:
    ```
-   cd samcrew-deployer && export PATH=/tmp/gnov2:$PATH GNOROOT=/Users/zxxma/Desktop/Code/Gno/gno
-   MULTISIG_SIGNERS="zooma,adena-zxxma" DEPLOY_KEY=samcrew-core-test1 ./samcrew-deploy.sh test13 gnodaokit
-   MULTISIG_SIGNERS="zooma,adena-zxxma" DEPLOY_KEY=samcrew-core-test1 ./samcrew-deploy.sh test13 memba
+   gnokey maketx call -pkgpath gno.land/r/samcrew/memba_dao_candidature_v2 -func MarkApproved \
+     -args <some-addr> -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid test-13 \
+     -remote https://rpc.test13.testnets.gno.land:443 <non-admin-key>
    ```
-   smoke-test all 4 render → flip `realmsDeployed: true` for test13 (one-line PR) → banner gone.
-3. **`result=signed` check** (independent of the deploy): switch Adena to a wallet **transacted on test13** — `g1jg8mtu` (test1) already is; or send one tx from `g1747` (transfers unrestricted) — then log in → confirm `auth_login result=signed`. Then enforce: `MEMBA_ALLOW_UNSIGNED_AUTH=0` + `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1`.
-4. **Feature-validation on test13:** GovDAO (reads ✓), monitoring/alerting (✓), DAO/candidature/marketplace (need step-2 realms), settings.
-5. **Hard cutover (when test12 retired):** backend `GNO_CHAIN_ID='test-13'` + drop test12 from `MEMBA_ACCEPTED_CHAIN_IDS`; frontend `DEFAULT_NETWORK` → test13.
+   Expect an abort: `unauthorized: caller … is not an admin`. (The ACL logic is byte-identical to the audited v1, and the on-chain owner/role init is verified, so this is confirmation, not a gate.)
+3. **Hard cutover (later, when test12 is retired):** backend `GNO_CHAIN_ID='test-13'` + drop `test12` from `MEMBA_ACCEPTED_CHAIN_IDS`; frontend `DEFAULT_NETWORK` → test13.
 
-## 📩 Aeddi — the ask now
-Funding ✅ received; RPC ✅ live. **test13 already flipped to interrealm-v2** (we re-ported; no heads-up needed anymore). The one open ask:
-- **Grant the `samcrew` namespace on test13 to our deployer multisig `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0`** (as for aib/onbloc). Deploy currently fails `UnauthorizedUserError … namespace 'samcrew'`; genesis seeded `p/samcrew/piechart` but it isn't bound to us.
+## 🛠️ Re-deploying realms on test13 (for reference)
+The deploy needs the v2 toolchain (test13's VM is interrealm-v2). See `.remember/remember.md` for the exact setup:
+- build v2 gno (`go install …/gno@ba9da8eb…` → `/tmp/gnov2`), `gno` repo at `ba9da8eb`, `gnodaokit` on branch `pr64`;
+- `export PATH=/tmp/gnov2:$PATH GNOROOT=…/gno`;
+- `MULTISIG_SIGNERS="zooma,adena-zxxma" DEPLOY_KEY=samcrew-core-test1 ./samcrew-deploy.sh test13 {gnodaokit|memba}`.
+CLA already signed for `g1x7k4628…`; namespace `samcrew` bound to it by aeddi.
+
+## 📩 Aeddi — nothing outstanding
+Funding ✅, RPC ✅, namespace grant ✅, CLA ✅. test13 is on interrealm-v2 (`chain/test13.1+f45cc5c`).
