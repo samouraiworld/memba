@@ -1,9 +1,15 @@
 # Memba NFT Marketplace v2 — Design Spec
 
-**Status:** Design approved (pending written-spec review) — 2026-06-16
+**Status:** ✅ **LIVE on test13 (2026-06-17)** — both realms deployed, configured, security-reviewed (zero must-fix), frontend rewired. Design approved 2026-06-16.
 **Supersedes the gated v1:** [`NFT_MARKETPLACE_REDESIGN.md`](./NFT_MARKETPLACE_REDESIGN.md)
 **Target:** gno.land **test13** (gno 0.9 / interrealm-v2 "crossing" model)
 **Author trail:** design-first brainstorm + 4-perspective expert design review (Gno security/crossing-semantics, marketplace product, platform architecture/extensibility, economics/abuse).
+
+### Deployment status (live addresses)
+- Collection: `gno.land/r/samcrew/memba_nft_v2` (`g106ve73py5fk2q9enleautuvajf6y9l0pd6h3zg`) — Genesis drop: 3 tokens, 5% royalty.
+- Marketplace: `gno.land/r/samcrew/memba_nft_market_v2` (`g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u`) — registered on the collection.
+- **Dependency note:** `grc721` is **not in test13 genesis** (unlike `grc20`), so it was vendored to `gno.land/p/samcrew/grc721` and deployed first; both realms import that path (not `p/demo/tokens/grc721`). The deployed grc721 is the test13 Reader/Writer-split form (no writer interface; writes take an explicit `caller`).
+- PRs: realms+deployer = samcrew-deployer#28; docs+frontend = memba#422.
 
 ---
 
