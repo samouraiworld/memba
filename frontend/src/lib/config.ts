@@ -204,6 +204,9 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/escrow_v2",
         "gno.land/r/samcrew/gnobuilders_badges_v2",
         "gno.land/r/samcrew/memba_feedback_v2",
+        // NFT realms deployed 2026-06-16.
+        "gno.land/r/samcrew/memba_nft_v2",
+        "gno.land/r/samcrew/memba_nft_market_v2",
     ],
 }
 
@@ -457,7 +460,7 @@ export const MEMBA_DAO = {
     candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v2",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
     escrowPath: "gno.land/r/samcrew/escrow_v2",
-    nftMarketPath: "gno.land/r/samcrew/nft_market",
+    nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const

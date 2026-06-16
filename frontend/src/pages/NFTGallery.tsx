@@ -16,7 +16,7 @@ import {
     type NFTCollection,
 } from "../lib/grc721"
 import { parseMarketplaceRender, buildDelistMsg, buildCancelOfferMsg, type NFTListing } from "../lib/nftMarketplace"
-import { NFT_MARKETPLACE_PATH } from "../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID } from "../lib/nftConfig"
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl, isNftMarketValid } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -142,7 +142,7 @@ function NFTGalleryContent() {
         if (!adena.address) return
         try {
             const { doContractBroadcast } = await import("../lib/grc20")
-            const msg = buildDelistMsg(adena.address, NFT_MARKETPLACE_PATH, listing.nftRealm, listing.tokenId)
+            const msg = buildDelistMsg(adena.address, NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID, listing.tokenId)
             await doContractBroadcast([msg], `Delist NFT: ${listing.tokenId}`)
             refreshListings()
         } catch (err) {
@@ -154,7 +154,7 @@ function NFTGalleryContent() {
         if (!adena.address) return
         try {
             const { doContractBroadcast } = await import("../lib/grc20")
-            const msg = buildCancelOfferMsg(adena.address, NFT_MARKETPLACE_PATH, listing.nftRealm, listing.tokenId)
+            const msg = buildCancelOfferMsg(adena.address, NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID, listing.tokenId)
             await doContractBroadcast([msg], `Cancel offer on: ${listing.tokenId}`)
             refreshListings()
         } catch (err) {

@@ -2,15 +2,14 @@
  * ListForSaleModal — Modal for listing an owned NFT for sale.
  *
  * User sets a price, sees the fee breakdown (price - 2.5% fee = seller receives),
- * then broadcasts ListNFT MsgCall. Requires prior Approve() on the NFT realm.
+ * then broadcasts ListNFT MsgCall. Requires prior Approve() on the NFT collection realm.
  *
  * @module components/nft/ListForSaleModal
  */
 
 import { useState, useEffect } from "react"
-import { buildListForSaleMsg } from "../../lib/nftMarketplace"
-import { buildApproveMsg } from "../../lib/grc721"
-import { NFT_MARKETPLACE_PATH, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
+import { buildListForSaleMsg, buildApproveMsg } from "../../lib/nftMarketplace"
+import { NFT_MARKETPLACE_PATH, NFT_COLLECTION_PATH, NFT_MARKET_ADDR, DEFAULT_COLLECTION_ID, PLATFORM_FEE_BPS } from "../../lib/nftConfig"
 
 interface Props {
     nftRealm: string
@@ -20,7 +19,7 @@ interface Props {
     onSuccess: () => void
 }
 
-export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, onSuccess }: Props) {
+export function ListForSaleModal({ nftRealm: _nftRealm, tokenId, callerAddress, onClose, onSuccess }: Props) {
     const [price, setPrice] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -43,11 +42,12 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
 
-            // Step 1: Approve the marketplace to transfer this NFT
+            // Step 1: Approve the marketplace to transfer this specific NFT
             const approveMsg = buildApproveMsg(
                 callerAddress,
-                nftRealm,
-                NFT_MARKETPLACE_PATH,
+                NFT_COLLECTION_PATH,
+                DEFAULT_COLLECTION_ID,
+                NFT_MARKET_ADDR,
                 tokenId,
             )
             await doContractBroadcast([approveMsg], `Approve marketplace for ${tokenId}`)
@@ -56,7 +56,7 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
             const listMsg = buildListForSaleMsg(
                 callerAddress,
                 NFT_MARKETPLACE_PATH,
-                nftRealm,
+                DEFAULT_COLLECTION_ID,
                 tokenId,
                 priceUgnot,
             )
@@ -75,7 +75,7 @@ export function ListForSaleModal({ nftRealm, tokenId, callerAddress, onClose, on
                 <h3 className="nft-modal__title">List for Sale</h3>
 
                 <div className="nft-modal__info">
-                    <div><strong>Collection:</strong> {nftRealm}</div>
+                    <div><strong>Collection:</strong> {DEFAULT_COLLECTION_ID}</div>
                     <div><strong>Token:</strong> {tokenId}</div>
                 </div>
 

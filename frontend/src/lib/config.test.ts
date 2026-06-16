@@ -64,7 +64,7 @@ describe('config constants', () => {
     })
 
     it('isRealmValidOn gates only the test13 invalid realms', () => {
-        // test13 (interrealm-v2): only the 4 DAO realms are deployed & valid.
+        // test13 (interrealm-v2): DAO realms are deployed & valid.
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_dao')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/agent_registry')).toBe(true)
         // Commerce realms redeployed to interrealm-v2 _v2 paths are valid.
@@ -72,7 +72,10 @@ describe('config constants', () => {
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow_v2')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/gnobuilders_badges_v2')).toBe(true)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback_v2')).toBe(true)
-        // The stale v1 paths and the still-gated realms stay invalid on test13.
+        // NFT realms deployed 2026-06-16 are now valid on test13.
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_nft_v2')).toBe(true)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_nft_market_v2')).toBe(true)
+        // The stale v1 paths stay invalid on test13.
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)

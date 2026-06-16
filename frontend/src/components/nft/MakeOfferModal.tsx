@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react"
 import type { NFTListing } from "../../lib/nftMarketplace"
 import { buildMakeOfferMsg } from "../../lib/nftMarketplace"
-import { NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID } from "../../lib/nftConfig"
 
 interface Props {
     listing: NFTListing
@@ -42,7 +42,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
             const msg = buildMakeOfferMsg(
                 callerAddress,
                 NFT_MARKETPLACE_PATH,
-                listing.nftRealm,
+                DEFAULT_COLLECTION_ID,
                 listing.tokenId,
                 amountUgnot,
             )
