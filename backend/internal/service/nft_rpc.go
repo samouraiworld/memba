@@ -9,6 +9,16 @@ import (
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 )
 
+// u64 converts a non-negative on-chain amount (ugnot price/volume, supply, count)
+// to uint64 for the proto. These are non-negative by construction on-chain, so the
+// conversion cannot overflow; the guard makes that explicit for static analysis.
+func u64(v int64) uint64 {
+	if v < 0 {
+		return 0
+	}
+	return uint64(v) // #nosec G115 -- guarded non-negative; on-chain amounts are >= 0
+}
+
 // GetNFTCollection returns cached collection stats for a collection.
 // Public read — no auth. Values come from the NFT indexer cache; floor/listings
 // may be 0 when the marketplace home route is unreachable (known test13 quirk).
@@ -37,12 +47,12 @@ func (s *MultisigService) GetNFTCollection(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&membav1.GetNFTCollectionResponse{
 		Name:             name.String,
 		Symbol:           symbol.String,
-		Supply:           uint64(supply.Int64),
-		FloorPriceUgnot:  uint64(floor.Int64),
-		TotalVolumeUgnot: uint64(vol.Int64),
-		TotalSales:       uint64(sales.Int64),
-		ActiveListings:   uint64(lists.Int64),
-		RoyaltyBps:       uint64(royalty.Int64),
+		Supply:           u64(supply.Int64),
+		FloorPriceUgnot:  u64(floor.Int64),
+		TotalVolumeUgnot: u64(vol.Int64),
+		TotalSales:       u64(sales.Int64),
+		ActiveListings:   u64(lists.Int64),
+		RoyaltyBps:       u64(royalty.Int64),
 	}), nil
 }
 
@@ -82,10 +92,10 @@ func (s *MultisigService) GetNFTActivity(ctx context.Context, req *connect.Reque
 			return nil, internalError("GetNFTActivity/scan", err)
 		}
 		items = append(items, &membav1.NFTActivity{
-			SaleNo:     uint64(saleNo.Int64),
+			SaleNo:     u64(saleNo.Int64),
 			TokenId:    tokenID.String,
 			Kind:       kind.String,
-			PriceUgnot: uint64(price.Int64),
+			PriceUgnot: u64(price.Int64),
 			Seller:     seller.String,
 			Buyer:      buyer.String,
 			CreatedAt:  createdAt.String,
@@ -173,7 +183,7 @@ func scanTokens(rows *sql.Rows) ([]*membav1.NFTToken, error) {
 			Owner:        owner.String,
 			Uri:          uri.String,
 			Listed:       listed != 0,
-			PriceUgnot:   uint64(price.Int64),
+			PriceUgnot:   u64(price.Int64),
 		})
 	}
 	return tokens, rows.Err()
