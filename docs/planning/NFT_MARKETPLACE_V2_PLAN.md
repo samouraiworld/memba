@@ -27,7 +27,21 @@ These were **empirically verified** on 2026-06-16 against the `chain/test13` gno
 - **Banker payout (exact):** `bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)` (takes `cur`); `bnk.SendCoins(unsafe.CurrentRealm().Address(), recipient, chain.Coins{chain.NewCoin("ugnot", amt)})`. Any helper that sends coins (e.g. `refund`) MUST take `cur realm` to build the banker.
 - **Crossing functions:** declared `func F(cur realm, …)`. **Cross-realm call:** `Other.Fn(cross(cur), …)` (e.g. `nft.MarketTransfer(cross(cur), …)`).
 - **TEST convention (verified):** crossing-fn tests are declared `func TestX(cur realm, t *testing.T)` and call crossing fns as **`F(cross(cur), …)`** — NOT bare `cross`. Drive callers with `testing.SetRealm(testing.NewUserRealm(addr))`; set payment with `testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", n)})`; assert reverts with `uassert.AbortsWithMessage(t, "msg", func(){ F(cross(cur), …) })`. Test addresses via `testutils.TestAddress("label")`. **Every `(cross(cur), …)` / `(cross(cur))` in the inline test snippets below must be read as `(cross(cur), …)` / `(cross(cur))`.**
-- **grc721 composite:** `grc721.NewNFTWithRoyalty(name, symbol)` returns the royalty-capable NFT (embeds metadata+basic). Confirm the exact exported type/method names against `gno/examples/gno.land/p/demo/tokens/grc721/grc721_royalty.gno` in Task A1.
+- **`runtime.PreviousRealm` does NOT exist on test13** — it's `unsafe.PreviousRealm()` (verified: `runtime.PreviousRealm` is undefined). `chain/runtime` only provides `runtime.ChainHeight()`. Caller in a crossing fn = `unsafe.PreviousRealm().Address()` (helpers without `cur`) or `cur.Previous().Address()` (parity; either works).
+- **Payment guard (gno/CLAUDE.md, MANDATORY):** any function that trusts `unsafe.OriginSend()` (BuyNFT, MakeOffer) MUST first guard `if !unsafe.PreviousRealm().IsUserCall() { panic("must be a direct user call") }`. `IsUser()` is NOT sufficient — it accepts `maketx run` ephemeral realms that can consume the origin-send envelope.
+- **grc721 API on test13 — VERIFIED, DIFFERENT from older docs (read the actual source):** This is the security-hardened Reader/Writer-split design.
+  - The ONLY interface is `grc721.IGRC721Reader` (read-only: `Name/Symbol/TokenCount/BalanceOf/OwnerOf/GetApproved/IsApprovedForAll`). **There is no writer interface.** Writes are concrete methods on `*BasicNFT`/`*metadataNFT`/`*royaltyNFT` that take an **explicit `caller address`** — the owning realm derives `caller` (`unsafe.PreviousRealm().Address()`) and passes it; the method trusts the supplied caller.
+  - Constructor: `grc721.NewNFTWithRoyalty(_ int, rlm realm, name, symbol string) *royaltyNFT` — call as `grc721.NewNFTWithRoyalty(0, cur, name, symbol)` (it panics unless `rlm.IsCurrent()`; pass the collection realm's own `cur`).
+  - `*royaltyNFT` is **unexported** — cannot be named as a struct-field type. Hold it via a **local composite interface** (the `*royaltyNFT` value satisfies it structurally). Exact verified signatures:
+    - `Mint(to address, tid grc721.TokenID) error` (no caller)
+    - `TransferFrom(caller, from, to address, tid grc721.TokenID) error`
+    - `Approve(caller, to address, tid grc721.TokenID) error`
+    - `SetApprovalForAll(caller, operator address, approved bool) error`
+    - `SetTokenURI(caller address, tid grc721.TokenID, tURI grc721.TokenURI) (bool, error)`
+    - `RoyaltyInfo(tid grc721.TokenID, salePrice int64) (address, int64, error)`
+    - `SetTokenRoyalty(caller address, tid grc721.TokenID, info grc721.RoyaltyInfo) error`
+    - reads: `Name()/Symbol() string`, `TokenCount() int64`, `BalanceOf(address)(int64,error)`, `OwnerOf(tid)(address,error)`, `GetApproved(tid)(address,error)`, `IsApprovedForAll(owner,operator)bool`, `TokenURI(tid)(string,error)`
+  - `TransferFrom`'s internal `transfer()` clears `tokenApprovals[tid]` and checks `owner == from` — so `MarketTransfer` passing `caller=<market addr>` to `nft.TransferFrom(market, from, to, tid)` is auto-checked: grc721 verifies the market is owner-or-approved AND from==owner, and clears the approval. The collection wrapper just adds the registered-market gate.
 
 ---
 
@@ -140,8 +154,28 @@ var registeredMarkets = avl.NewTree() // addr.String() -> bool
 
 var paused bool // global pause
 
+// membaNFT is the local composite interface the unexported *grc721.royaltyNFT
+// satisfies structurally (grc721 exposes no writer interface — see conventions).
+type membaNFT interface {
+	Name() string
+	Symbol() string
+	TokenCount() int64
+	BalanceOf(addr address) (int64, error)
+	OwnerOf(tid grc721.TokenID) (address, error)
+	GetApproved(tid grc721.TokenID) (address, error)
+	IsApprovedForAll(owner, operator address) bool
+	TokenURI(tid grc721.TokenID) (string, error)
+	Mint(to address, tid grc721.TokenID) error
+	Approve(caller, to address, tid grc721.TokenID) error
+	SetApprovalForAll(caller, operator address, approved bool) error
+	TransferFrom(caller, from, to address, tid grc721.TokenID) error
+	SetTokenURI(caller address, tid grc721.TokenID, tURI grc721.TokenURI) (bool, error)
+	RoyaltyInfo(tid grc721.TokenID, salePrice int64) (address, int64, error)
+	SetTokenRoyalty(caller address, tid grc721.TokenID, info grc721.RoyaltyInfo) error
+}
+
 type collection struct {
-	nft          *grc721.RoyaltyNFT // basic+metadata+royalty composite (internal ledger)
+	nft          membaNFT // *grc721.royaltyNFT (unexported) held via composite interface
 	admin        address            // per-collection admin (v1: AdminAddress)
 	royaltyRecip address            // MUTABLE
 	royaltyBPS   int64              // <= MaxRoyaltyBPS
@@ -176,7 +210,7 @@ func assertNotPaused(c *collection) {
 var _ = chain.Emit // keep chain imported until first emit lands
 ```
 
-> Verify the exact composite constructor name before relying on it. `grc721.RoyaltyNFT`/`NewNFTWithRoyalty` come from `gno/examples/gno.land/p/demo/tokens/grc721/grc721_royalty.gno` — open it and match the real exported names (the explore step found `NewNFTWithRoyalty`). If the type is unexported, store the concrete pointer the constructor returns.
+> The `nft` field is populated in Task A2 via `grc721.NewNFTWithRoyalty(0, cur, name, symbol)` (returns the unexported `*royaltyNFT`, which satisfies `membaNFT`). The `var _ = chain.Emit` crutch is removed once `CollectionCreated`/`Mint` emit events land (A2/A3). The `membaNFT` interface signatures are verified against `grc721_royalty.gno` + `grc721_metadata.gno` + `basic_nft.gno` on `chain/test13`.
 
 - [ ] **Step 3: Lint to verify it compiles**
 
