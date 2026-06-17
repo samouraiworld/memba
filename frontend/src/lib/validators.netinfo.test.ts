@@ -11,8 +11,8 @@
  * See docs/planning/VALIDATORS_MONITORING_AUDIT_AND_PLAN.md
  */
 
-import { describe, test, expect } from "vitest"
-import { parseNetPeer, mergePeerLists, type PeerInfo } from "./validators"
+import { describe, test, expect, vi, afterEach } from "vitest"
+import { parseNetPeer, mergePeerLists, getAggregatedNetPeers, type PeerInfo } from "./validators"
 
 // Real shape of a gno test-13 /net_info peer (trimmed).
 const RAW_SENTRY = {
@@ -119,5 +119,75 @@ describe("mergePeerLists (multi-node aggregation)", () => {
         const merged = mergePeerLists([[noId1], [noId2]])
         expect(merged).toHaveLength(1)
         expect(merged[0].seenByCount).toBe(2)
+    })
+})
+
+// ── getAggregatedNetPeers routing (regression for the "always primary" bug) ──
+// The original getNetPeers routed through the resilient RPC layer, which ignores
+// the URL and always hits the global primary — so aggregation queried ONE node
+// N times and returned its 5 peers instead of the network's ~14. These tests
+// mock fetch per-URL and assert distinct nodes are actually contacted.
+
+function netInfoResponse(peers: unknown[]) {
+    return { ok: true, json: async () => ({ result: { listening: true, peers } }) } as unknown as Response
+}
+function peerRaw(id: string, moniker: string) {
+    return {
+        node_info: { net_address: `${id}@1.2.3.4:26656`, moniker, network: "test-13" },
+        remote_ip: "1.2.3.4",
+        is_outbound: false,
+    }
+}
+
+describe("getAggregatedNetPeers (per-node routing)", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    test("queries each distinct node and unions their peers", async () => {
+        const byUrl: Record<string, unknown[]> = {
+            "https://a.example/net_info": [peerRaw("g1a", "A"), peerRaw("g1shared", "S")],
+            "https://b.example/net_info": [peerRaw("g1b", "B"), peerRaw("g1shared", "S")],
+        }
+        const fetchMock = vi.fn(async (url: string | URL) => {
+            const key = String(url)
+            const match = Object.keys(byUrl).find((k) => key.startsWith(k))
+            if (!match) throw new Error("unexpected url " + key)
+            return netInfoResponse(byUrl[match])
+        })
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await getAggregatedNetPeers(["https://a.example", "https://b.example"])
+        expect(res).not.toBeNull()
+        expect(res!.peerCount).toBe(3) // A, B, shared (deduped)
+
+        const urls = fetchMock.mock.calls.map((c) => String(c[0]))
+        expect(urls.some((u) => u.startsWith("https://a.example"))).toBe(true)
+        expect(urls.some((u) => u.startsWith("https://b.example"))).toBe(true)
+
+        const shared = res!.peers.find((p) => p.nodeId === "g1shared")
+        expect(shared!.seenByCount).toBe(2)
+    })
+
+    test("skips a node that fails, still returns the others", async () => {
+        const fetchMock = vi.fn(async (url: string | URL) => {
+            if (String(url).startsWith("https://dead.example")) throw new Error("network")
+            return netInfoResponse([peerRaw("g1x", "X")])
+        })
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await getAggregatedNetPeers(["https://dead.example", "https://ok.example"])
+        expect(res!.peerCount).toBe(1)
+    })
+
+    test("returns null only when every node fails", async () => {
+        vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("down") }))
+        const res = await getAggregatedNetPeers(["https://a.example", "https://b.example"])
+        expect(res).toBeNull()
+    })
+
+    test("deduplicates repeated URLs so a node isn't queried twice", async () => {
+        const fetchMock = vi.fn(async () => netInfoResponse([peerRaw("g1a", "A")]))
+        vi.stubGlobal("fetch", fetchMock)
+        await getAggregatedNetPeers(["https://a.example", "https://a.example"])
+        expect(fetchMock).toHaveBeenCalledTimes(1)
     })
 })
