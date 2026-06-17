@@ -88,6 +88,8 @@ const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default:
 const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTCollectionView })))
 const NFTLaunchpad = lazy(() => import("./pages/NFTLaunchpad"))
 const CreateCollectionLaunchpad = lazy(() => import("./pages/CreateCollectionLaunchpad"))
+const CollectionDetail = lazy(() => import("./pages/CollectionDetail"))
+const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
 
 // ── AI Agent Marketplace (lazy — v3.0) ──
 const Marketplace = lazy(() => import("./pages/Marketplace"))
@@ -203,6 +205,10 @@ function App() {
           <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><CreateCollectionLaunchpad /></Suspense>} />
           {/* Model B (advanced): legacy code-gen wizard that deploys a standalone realm. */}
           <Route path="nft/create/advanced" element={<Suspense fallback={<PageLoader />}><NFTLaunchpad /></Suspense>} />
+          {/* Phase 2 registry: per-collection detail/mint/manage + creator profiles. */}
+          <Route path="nft/collection/:id" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
+          <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
+          <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
 
           {/* Freelance Services (v3.0) */}
