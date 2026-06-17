@@ -19,11 +19,13 @@ import type { CollectionDetail as CollectionDetailT } from "../lib/launchpad"
 import {
     Phase,
     buildMintPublicMsg,
+    buildMintAllowlistMsg,
     buildSetMintPhaseMsg,
     buildSetMintConfigMsg,
     buildAdminMintMsg,
     buildWithdrawProceedsMsg,
 } from "../lib/launchpad"
+import { parseAllowlistText, computeAllowlistRoot, getAllowlistProof } from "../lib/allowlistMerkle"
 import type { LayoutContext } from "../types/layout"
 
 const PHASE_LABELS: Record<number, string> = {
@@ -113,10 +115,11 @@ export function CollectionDetail() {
                     <MintPublicForm id={col.id} priceUgnot={isNative ? col.mintPrice : 0} caller={me} onRun={run} />
                 )}
                 {col.phase === Phase.Allowlist && (
-                    <p className="form-hint">
-                        Allowlist phase: minting requires an off-chain Merkle proof. Proof-input UI is a Phase 2.5
-                        follow-on (the builder + on-chain path are ready).
-                    </p>
+                    !me ? (
+                        <p className="form-hint">Connect your wallet to check the allowlist and mint.</p>
+                    ) : (
+                        <AllowlistMintForm id={col.id} priceUgnot={isNative ? col.mintPrice : 0} caller={me} onRun={run} />
+                    )
                 )}
             </section>
 
@@ -175,6 +178,8 @@ function ManagePanel({ id, caller, onRun }: { id: string; caller: string; onRun:
                 </button>
             </fieldset>
 
+            <AllowlistBuilder id={id} caller={caller} onRun={onRun} />
+
             <fieldset className="form-group">
                 <legend>Mint config</legend>
                 <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Mint price (ugnot, 0=free)" />
@@ -219,6 +224,92 @@ function ManagePanel({ id, caller, onRun }: { id: string; caller: string; onRun:
                 </button>
             </fieldset>
         </section>
+    )
+}
+
+// ── Minter: load the published allowlist, derive your proof, mint ────────────
+function AllowlistMintForm({ id, priceUgnot, caller, onRun }: { id: string; priceUgnot: number; caller: string; onRun: RunFn }) {
+    const [listText, setListText] = useState("")
+    const [uri, setUri] = useState("")
+    const [status, setStatus] = useState<string | null>(null)
+    const [derived, setDerived] = useState<{ maxQty: number; proof: string[] } | null>(null)
+
+    const check = useCallback(async () => {
+        setStatus(null)
+        setDerived(null)
+        const entries = parseAllowlistText(listText)
+        if (entries.length === 0) {
+            setStatus("No valid entries in the pasted list.")
+            return
+        }
+        const p = await getAllowlistProof(entries, caller)
+        if (!p) {
+            setStatus("Your address is not on this allowlist.")
+            return
+        }
+        setDerived(p)
+        setStatus(`✓ Allowlisted for ${p.maxQty}. Ready to mint.`)
+    }, [listText, caller])
+
+    return (
+        <div className="form-group">
+            <p className="form-hint">Allowlist phase — paste the creator's published list (one <code>address,qty</code> per line) to derive your proof.</p>
+            <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2\ng1def...,1"} rows={4} />
+            <button onClick={check}>Check allowlist</button>
+            {status && <small className="form-hint">{status}</small>}
+            {derived && (
+                <>
+                    <input value={uri} onChange={(e) => setUri(e.target.value)} placeholder="Token URI (ipfs://… or blank)" />
+                    <button
+                        className="btn-primary"
+                        onClick={() => onRun(buildMintAllowlistMsg(caller, NFT_COLLECTIONS_PATH, id, derived.proof, derived.maxQty, uri, priceUgnot), `Allowlist mint ${id}`)}
+                    >
+                        Mint (allowlist){priceUgnot > 0 ? ` (${priceUgnot / 1_000_000} GNOT)` : ""}
+                    </button>
+                </>
+            )}
+        </div>
+    )
+}
+
+// ── Creator: build the allowlist, compute the root, publish + set the phase ──
+function AllowlistBuilder({ id, caller, onRun }: { id: string; caller: string; onRun: RunFn }) {
+    const [listText, setListText] = useState("")
+    const [root, setRoot] = useState("")
+    const [count, setCount] = useState(0)
+
+    const compute = useCallback(async () => {
+        const entries = parseAllowlistText(listText)
+        setCount(entries.length)
+        setRoot(await computeAllowlistRoot(entries))
+    }, [listText])
+
+    const download = useCallback(() => {
+        const entries = parseAllowlistText(listText)
+        const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `allowlist-${id.replace(/\//g, "_")}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+    }, [listText, id])
+
+    return (
+        <fieldset className="form-group">
+            <legend>Allowlist (Merkle)</legend>
+            <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2  (one address,qty per line)"} rows={4} />
+            <button onClick={compute}>Compute root</button>
+            {root && (
+                <>
+                    <small className="form-hint">{count} entries · root <code>{root.slice(0, 16)}…</code></small>
+                    <button onClick={download}>Download allowlist.json (publish so minters can prove)</button>
+                    <button onClick={() => onRun(buildSetMintPhaseMsg(caller, NFT_COLLECTIONS_PATH, id, Phase.Allowlist, root), `Set allowlist phase ${id}`)}>
+                        Set allowlist phase with this root
+                    </button>
+                </>
+            )}
+        </fieldset>
     )
 }
 

@@ -27,5 +27,45 @@ The deploy needs the v2 toolchain (test13's VM is interrealm-v2). See `.remember
 - `MULTISIG_SIGNERS="zooma,adena-zxxma" DEPLOY_KEY=samcrew-core-test1 ./samcrew-deploy.sh test13 {gnodaokit|memba}`.
 CLA already signed for `g1x7k4628…`; namespace `samcrew` bound to it by aeddi.
 
+## 🚀 Deploy the NFT launchpad (memba_collections + market engine v3)
+Merged to `main` 2026-06-17 (deployer #29, Memba #422); **NOT yet deployed**. The
+new realms are wired into `manifest.toml` + `deploy.sh` under `--commerce-v2`
+(order: grc721 → memba_nft_v2 → memba_nft_market_v2 → **memba_collections** →
+**memba_nft_market_v3**). grc721 + the v2 NFT realms are already live, so the run
+is idempotent and only deploys the two new realms.
+
+**1. Deploy (multisig, idempotent):**
+```
+MULTISIG_SIGNERS="zooma,adena-zxxma" DEPLOY_KEY=samcrew-core-test1 \
+  ./samcrew-deploy.sh test13 memba --commerce-v2
+```
+`memba_collections` is the **ONE irreversible realm** (holds every collection's
+NFT ledger — never redeployable without orphaning). Deploys before the engine.
+
+**2. Post-deploy config (ONE required multisig call):** the launchpad is
+**open/permissionless**, so creators self-serve `CreateCollection` from the UI and
+`AllowDenom("ugnot")` is seeded in `init`. The only required call is authorizing
+the engine to move tokens (the drain key):
+```
+gnokey maketx call -pkgpath gno.land/r/samcrew/memba_collections -func RegisterMarket \
+  -args <memba_nft_market_v3 address> -gas-fee 1000000ugnot -gas-wanted 5000000 \
+  -chainid test-13 -remote https://rpc.test13.testnets.gno.land:443 <multisig>
+```
+The v3 address is the realm's deterministic address (printed in the deploy output;
+or `gnokey query auth/accounts/<addr>` after deploy). Optionally seed a first
+platform collection with `CreateCollection(slug,name,symbol,royaltyBPS,royaltyRecip,mintCustody,maxSupply,maxPerWallet)`
+(pays the 1 GNOT createFee) — not required for the open launchpad.
+
+**3. Surface the launchpad UI (frontend, after deploy):** add
+`"gno.land/r/samcrew/memba_collections"` to `REALM_ALLOWLIST.test13` in
+`frontend/src/lib/config.ts` so `isNftLaunchpadValid()` flips true and
+`/nft/create`, `/nft/collection/:id`, `/nft/creator/:address` go live (also needs
+`VITE_ENABLE_NFT=true` in the Netlify env, already set for the v2 gallery).
+
+**4. Verify:** `memba_collections:` renders the (empty) collection list;
+`memba_nft_market_v3:stats` renders **2.00%** platform fee; `IsRegisteredMarket(<v3 addr>)`
+→ true. (Note: the path-less realm-home render returns RPC 500 on all samcrew
+realms — a known test13 quirk; always use a render path.)
+
 ## 📩 Aeddi — nothing outstanding
 Funding ✅, RPC ✅, namespace grant ✅, CLA ✅. test13 is on interrealm-v2 (`chain/test13.1+f45cc5c`).
