@@ -608,6 +608,10 @@ export interface PeerInfo {
     remoteHeight: number | null
     /** RPC address (may be empty if not exposed) */
     rpcAddr: string
+    /** How many of the polled RPC nodes reported this peer (≥1). >1 means the
+     *  peer is well-connected; 1 means only one of our nodes can see it. Set by
+     *  {@link mergePeerLists}; a single-node fetch always yields 1. */
+    seenByCount: number
 }
 
 /** Network peer topology from `/net_info`. */
@@ -763,10 +767,85 @@ export async function getConsensusState(
 }
 
 /**
- * Fetch live peer information from `/net_info`.
+ * Parse a single raw `/net_info` peer object into a {@link PeerInfo}.
+ *
+ * IMPORTANT (gno tm2): the peer object has NO `node_info.id` field — the node
+ * ID is embedded in `node_info.net_address` as "<id>@<ip>:<port>". The previous
+ * parser read `node_info.id` and produced empty IDs for every peer, which broke
+ * deduplication. The observed remote IP comes from the top-level `remote_ip`.
+ *
+ * Pure and resilient: never throws on malformed input (returns empty fields).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseNetPeer(raw: any): PeerInfo {
+    const ni = raw?.node_info || {}
+    const netAddress: string = ni.net_address || ""
+    // net_address := "<nodeId>@<ip>:<port>" — split once on '@'.
+    const atIdx = netAddress.indexOf("@")
+    const nodeId: string = atIdx > 0 ? netAddress.slice(0, atIdx) : ""
+    const ip: string = raw?.remote_ip || (atIdx > 0 ? netAddress.slice(atIdx + 1).split(":")[0] : "")
+
+    const rawRpc: string = ni.other?.rpc_address || ""
+    // Drop loopback/wildcard defaults — they aren't reachable RPC endpoints.
+    const rpcAddr = /(?:127\.0\.0\.1|0\.0\.0\.0):/.test(rawRpc) ? "" : rawRpc
+
+    return {
+        nodeId,
+        ip,
+        p2pAddr: netAddress,
+        moniker: ni.moniker || "",
+        network: ni.network || "",
+        isOutbound: raw?.is_outbound === true,
+        remoteHeight: null, // not provided by /net_info directly
+        rpcAddr,
+        seenByCount: 1,
+    }
+}
+
+/** Stable dedup key for a peer: node ID when present, else moniker+ip. */
+function peerKey(p: PeerInfo): string {
+    return p.nodeId || `${p.moniker}|${p.ip}`
+}
+
+/**
+ * Union peer lists from multiple RPC nodes, deduping by {@link peerKey}.
+ *
+ * `/net_info` is node-local: each RPC only reports its own directly-connected
+ * peers. Poorly-connected public nodes (e.g. behind sentries) miss most of the
+ * network — including the validator nodes. Aggregating across several trusted
+ * nodes recovers the full topology. `seenByCount` records how many source nodes
+ * reported each peer (a coarse connectivity signal). Pure & order-stable: peers
+ * keep first-seen order; later sightings only bump the count and backfill blanks.
+ */
+export function mergePeerLists(lists: PeerInfo[][]): PeerInfo[] {
+    const byKey = new Map<string, PeerInfo>()
+    for (const list of lists) {
+        for (const peer of list || []) {
+            const key = peerKey(peer)
+            const existing = byKey.get(key)
+            if (!existing) {
+                byKey.set(key, { ...peer, seenByCount: 1 })
+                continue
+            }
+            existing.seenByCount += 1
+            // Backfill fields a later, better-informed node may have that an
+            // earlier one left blank (e.g. moniker, rpcAddr).
+            if (!existing.moniker && peer.moniker) existing.moniker = peer.moniker
+            if (!existing.rpcAddr && peer.rpcAddr) existing.rpcAddr = peer.rpcAddr
+            if (!existing.ip && peer.ip) existing.ip = peer.ip
+        }
+    }
+    return Array.from(byKey.values())
+}
+
+/**
+ * Fetch live peer information from `/net_info` on a single RPC node.
  *
  * Resilient: returns `null` if the endpoint is unavailable or restricted.
  * Note: peer IPs are intentionally exposed — they are public P2P addresses.
+ *
+ * For a complete network view prefer {@link getAggregatedNetPeers}, which polls
+ * several nodes; a single node only sees its own direct peers.
  *
  * @param rpcUrl  The RPC endpoint to query.
  * @param signal  AbortSignal for cancellation.
@@ -783,36 +862,43 @@ export async function getNetPeers(
         const listening: boolean = result.listening === true
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rawPeers: any[] = result.peers || []
-
-        const peers: PeerInfo[] = rawPeers.map((p) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ni: any = p.node_info || {}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const conn: any = p.remote_ip || ""
-            const nodeId: string = ni.id || ""
-            const ip: string = conn || ""
-            const listenAddr: string = ni.listen_addr || ""
-            const rpcAddr: string = ni.other?.rpc_address || ""
-
-            // Extract port from listen_addr for reconstruction if needed
-            const p2pAddr = nodeId && ip ? `${nodeId}@${ip}` : ""
-
-            return {
-                nodeId,
-                ip,
-                p2pAddr,
-                moniker: ni.moniker || "",
-                network: ni.network || "",
-                isOutbound: p.is_outbound === true,
-                remoteHeight: null, // not provided by /net_info directly
-                rpcAddr: rpcAddr === "tcp://0.0.0.0:26657" ? "" : rpcAddr, // filter generic defaults
-                listenAddr,
-            }
-        })
+        const peers: PeerInfo[] = rawPeers.map(parseNetPeer)
 
         return { listening, peers, peerCount: peers.length }
     } catch {
         return null
+    }
+}
+
+/**
+ * Fetch and union `/net_info` across several trusted RPC nodes for a complete
+ * network topology view.
+ *
+ * Why: `/net_info` is node-local — Memba's primary RPC (behind sentries) sees
+ * only ~5 peers and not the validators, while a well-connected core node sees
+ * the full set. Polling all configured nodes in parallel and merging recovers
+ * every reachable peer (the 2026-06-17 "missing peers" bug). Best-effort: nodes
+ * that fail/time out are skipped; returns `null` only if every node fails.
+ *
+ * @param rpcUrls  Trusted RPC endpoints to poll (e.g. `getTelemetryRpcUrls()`).
+ * @param signal   AbortSignal for cancellation.
+ */
+export async function getAggregatedNetPeers(
+    rpcUrls: string[],
+    signal?: AbortSignal,
+): Promise<NetInfo | null> {
+    const unique = Array.from(new Set(rpcUrls)).filter(Boolean)
+    if (unique.length === 0) return null
+
+    const results = await Promise.all(unique.map((url) => getNetPeers(url, signal)))
+    const reachable = results.filter((r): r is NetInfo => r !== null)
+    if (reachable.length === 0) return null
+
+    const peers = mergePeerLists(reachable.map((r) => r.peers))
+    return {
+        listening: reachable.some((r) => r.listening),
+        peers,
+        peerCount: peers.length,
     }
 }
 

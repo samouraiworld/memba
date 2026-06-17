@@ -22,12 +22,12 @@
  * All telemetry fetchers return null on failure (resilient, no crashes).
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { GNO_CHAIN_ID, getTelemetryRpcUrl } from "../lib/config"
+import { GNO_CHAIN_ID, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
 import {
     getConsensusState,
-    getNetPeers,
+    getAggregatedNetPeers,
     getMempoolStatus,
     fetchBlockHeatmap,
     getNodeStatus,
@@ -73,6 +73,10 @@ const NODESTATUS_MS = 60_000     // 60s: node identity (rarely changes)
 
 export default function ValidatorsHacker() {
     const rpcUrl = getTelemetryRpcUrl()
+    // Peer topology is aggregated across all trusted nodes: /net_info is
+    // node-local, so a single RPC misses most of the network (the "missing
+    // peers" bug). useMemo keeps the array reference stable across renders.
+    const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
     const isVisible = useRef(true)
     const mainAbort = useRef<AbortController | null>(null)
     const latestHeightRef = useRef<number>(0) // tracks height without setState for heatmap interval
@@ -131,7 +135,7 @@ export default function ValidatorsHacker() {
             // Phase 1: ALL data sources in single parallel burst (was sequential)
             const [csData, niData, nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
                 getConsensusState(rpcUrl, ctrl.signal),
-                getNetPeers(rpcUrl, ctrl.signal),
+                getAggregatedNetPeers(telemetryRpcUrls, ctrl.signal),
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
                 getValidators(rpcUrl),
@@ -181,7 +185,7 @@ export default function ValidatorsHacker() {
         } finally {
             if (!ctrl.signal.aborted) setLoading(false)
         }
-    }, [rpcUrl])
+    }, [rpcUrl, telemetryRpcUrls])
 
     // ── Mount: initial load + independent polling intervals ────
     useEffect(() => {
@@ -207,10 +211,10 @@ export default function ValidatorsHacker() {
             if (data && !abortCs.signal.aborted) setMempoolCount(data.count)
         }, 10_000)
 
-        // Peers: 15s
+        // Peers: 15s — aggregated across all trusted nodes (full topology)
         const peersInterval = setInterval(async () => {
             if (!isVisible.current) return
-            const data = await getNetPeers(rpcUrl, abortCs.signal)
+            const data = await getAggregatedNetPeers(telemetryRpcUrls, abortCs.signal)
             if (data && !abortCs.signal.aborted) setNetInfo(data)
         }, PEERS_MS)
 
@@ -273,7 +277,7 @@ export default function ValidatorsHacker() {
             mainAbort.current?.abort()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rpcUrl])
+    }, [rpcUrl, telemetryRpcUrls])
 
     return (
         <div className="vh-page" data-testid="validators-hacker-page">

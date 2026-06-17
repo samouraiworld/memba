@@ -61,6 +61,12 @@ interface NetworkConfig {
     chainId: string
     rpcUrl: string
     fallbackRpcUrls: string[]
+    /** Well-connected nodes to poll for network telemetry (peer topology via
+     *  /net_info, consensus state). `/net_info` is node-local, so the primary
+     *  RPC — often behind sentries — sees only a partial peer set; these nodes
+     *  see more and are unioned by getAggregatedNetPeers. Must be trusted
+     *  domains. Optional; falls back to rpcUrl + fallbackRpcUrls. */
+    telemetryRpcUrls?: string[]
     label: string
     userRegistryPath: string
     faucetUrl: string
@@ -102,6 +108,16 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
             "https://rpc.test-13-aeddi-1.gnoland.network:443",
+        ],
+        // Telemetry sources for the Validators monitoring view. The canonical RPC
+        // and onbloc sit behind sentries and each see only ~5 /net_info peers
+        // (not even the validator nodes). aeddi-1 (gno-core, what gnockpit uses)
+        // sees the full ~13-node topology; samourai-dev-sentry-1 is our own
+        // well-connected node. Unioned by getAggregatedNetPeers so the peer list
+        // matches the real network. Both are TRUSTED_RPC_DOMAINS-covered.
+        telemetryRpcUrls: [
+            "https://rpc.test-13-aeddi-1.gnoland.network:443",
+            "https://rpc.testnet13.samourai.live:443",
         ],
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
@@ -265,7 +281,47 @@ export function getTelemetryRpcUrl(): string {
             "Falling back to GNO_RPC_URL. Add the domain to TRUSTED_RPC_DOMAINS in config.ts if intentional."
         )
     }
-    return GNO_RPC_URL
+    // Prefer the best-connected telemetry node (fresher consensus state) over the
+    // sentry-fronted primary; falls back to GNO_RPC_URL if none configured.
+    return getTelemetryRpcUrls()[0] || GNO_RPC_URL
+}
+
+/**
+ * Ordered, deduped list of TRUSTED RPC nodes to poll for network telemetry.
+ *
+ * `/net_info` is node-local, so a single RPC gives a partial peer view. This
+ * unions the env sentry override, the network's dedicated telemetry nodes, the
+ * primary RPC, and the fallbacks — letting getAggregatedNetPeers reconstruct the
+ * full topology. Untrusted entries are dropped (the env override warns).
+ *
+ * Priority: VITE_SAMOURAI_SENTRY_RPC_URL → network.telemetryRpcUrls →
+ *           GNO_RPC_URL → GNO_FALLBACK_RPC_URLS
+ */
+export function getTelemetryRpcUrls(): string[] {
+    const net = NETWORKS[_activeNetwork]
+    const candidates = [
+        SAMOURAI_SENTRY_RPC_URL,
+        ...(net?.telemetryRpcUrls || []),
+        GNO_RPC_URL,
+        ...GNO_FALLBACK_RPC_URLS,
+    ]
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (const url of candidates) {
+        if (!url || seen.has(url)) continue
+        if (!isTrustedRpcDomain(url)) {
+            if (url === SAMOURAI_SENTRY_RPC_URL) {
+                console.warn(
+                    `[Memba] VITE_SAMOURAI_SENTRY_RPC_URL is not a trusted domain: ${url}. ` +
+                    "Excluding it from telemetry. Add the domain to TRUSTED_RPC_DOMAINS if intentional."
+                )
+            }
+            continue
+        }
+        seen.add(url)
+        out.push(url)
+    }
+    return out
 }
 
 /** External faucet URL for the active network (empty = no faucet). */
