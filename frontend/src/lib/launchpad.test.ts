@@ -20,6 +20,8 @@ import {
     buildSetCollectionAdminMsg,
     buildAcceptCollectionAdminMsg,
     buildWithdrawProceedsMsg,
+    buildSetCollectionMetaMsg,
+    buildSetVerifiedMsg,
     parseCollectionList,
     parseCollectionDetail,
     joinProof,
@@ -28,6 +30,7 @@ import {
     Phase,
     CREATE_FEE_UGNOT,
     ROYALTY_SENTINEL,
+    META_VERIFIED_KEY,
 } from "./launchpad"
 
 const PATH = "gno.land/r/samcrew/memba_collections"
@@ -176,6 +179,20 @@ describe("launchpad builders — admin / royalty / proceeds", () => {
         const msg = buildWithdrawProceedsMsg(CALLER, PATH, "g1/c", "ugnot")
         expect(msg.value.func).toBe("WithdrawProceeds")
         expect(msg.value.args).toEqual(["g1/c", "ugnot"])
+    })
+})
+
+describe("launchpad builders — verified badge", () => {
+    it("SetCollectionMeta args = id,key,value", () => {
+        const msg = buildSetCollectionMetaMsg(CALLER, PATH, "g1/c", "verified", "true")
+        expect(msg.value.func).toBe("SetCollectionMeta")
+        expect(msg.value.args).toEqual(["g1/c", "verified", "true"])
+    })
+
+    it("buildSetVerifiedMsg sets 'true' / revokes with '' on the verified key", () => {
+        expect(buildSetVerifiedMsg(CALLER, PATH, "g1/c", true).value.args).toEqual(["g1/c", META_VERIFIED_KEY, "true"])
+        expect(buildSetVerifiedMsg(CALLER, PATH, "g1/c", false).value.args).toEqual(["g1/c", META_VERIFIED_KEY, ""])
+        expect(META_VERIFIED_KEY).toBe("verified")
     })
 })
 

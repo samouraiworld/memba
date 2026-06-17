@@ -14,7 +14,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
 import { NFT_COLLECTIONS_PATH } from "../lib/nftConfig"
-import { fetchCollectionDetail } from "../lib/launchpadReads"
+import { fetchCollectionDetail, isCollectionVerified } from "../lib/launchpadReads"
+import { VerifiedBadge } from "../components/nft/VerifiedBadge"
 import type { CollectionDetail as CollectionDetailT } from "../lib/launchpad"
 import {
     Phase,
@@ -47,6 +48,7 @@ export function CollectionDetail() {
     const me = adena?.address || ""
 
     const [col, setCol] = useState<CollectionDetailT | null>(null)
+    const [verified, setVerified] = useState(false)
     const [loading, setLoading] = useState(true)
     const [notice, setNotice] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -54,7 +56,12 @@ export function CollectionDetail() {
     const reload = useCallback(async () => {
         setLoading(true)
         try {
-            setCol(await fetchCollectionDetail(id))
+            const [detail, isVerified] = await Promise.all([
+                fetchCollectionDetail(id),
+                isCollectionVerified(id).catch(() => false),
+            ])
+            setCol(detail)
+            setVerified(isVerified)
         } catch {
             setCol(null)
         } finally {
@@ -90,7 +97,7 @@ export function CollectionDetail() {
 
     return (
         <div className="collection-detail">
-            <h1>{col.name} <small>({col.symbol})</small></h1>
+            <h1>{col.name} <small>({col.symbol})</small> <VerifiedBadge verified={verified} /></h1>
             <ul className="collection-meta">
                 <li>ID: <code>{col.id}</code></li>
                 <li>Creator: <code>{col.creator}</code></li>

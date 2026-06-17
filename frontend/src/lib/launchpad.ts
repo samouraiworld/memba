@@ -30,6 +30,9 @@ export const DEFAULT_ROYALTY_BPS = 500
 /** Minimum non-zero mint price (0.001 GNOT) — anti-truncation. */
 export const MIN_MINT_PRICE = 1000
 
+/** Collection-meta key for the team/DAO-curated "verified" trust badge (Phase 1). */
+export const META_VERIFIED_KEY = "verified"
+
 /** Sale phases (mirror config.gno). */
 export const Phase = {
     Draft: 0,
@@ -240,6 +243,29 @@ export function buildWithdrawProceedsMsg(
     denom: string,
 ): AminoMsg {
     return msgCall(caller, collectionsPath, "WithdrawProceeds", [id, denom])
+}
+
+// ── Verified badge (Phase 1, platformAdmin-only curation) ────────────────────
+
+/** SetCollectionMeta(id,key,value) — extensible per-collection flag (platformAdmin). */
+export function buildSetCollectionMetaMsg(
+    caller: string,
+    collectionsPath: string,
+    id: string,
+    key: string,
+    value: string,
+): AminoMsg {
+    return msgCall(caller, collectionsPath, "SetCollectionMeta", [id, key, value])
+}
+
+/** Set ("true") or revoke ("") the team/DAO-curated verified badge on a collection. */
+export function buildSetVerifiedMsg(
+    caller: string,
+    collectionsPath: string,
+    id: string,
+    verified: boolean,
+): AminoMsg {
+    return buildSetCollectionMetaMsg(caller, collectionsPath, id, META_VERIFIED_KEY, verified ? "true" : "")
 }
 
 // ── Render parsers ───────────────────────────────────────────────────────────
