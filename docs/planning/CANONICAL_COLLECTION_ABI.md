@@ -62,28 +62,29 @@
 - `IsUserCall()` guard on every fn trusting `OriginSend` OR a grc20 approval (both mint branches).
 - No persisted `realm` values.
 
-### 1a. FROZEN `membaNFT` interface (compiles against `*grc721.metadataNFT` — NO royalty methods)
+### 1a. FROZEN `membaNFT` interface (verified against vendored `*grc721.metadataNFT` — NO royalty methods)
 ```go
-// Exactly the subset of *grc721.metadataNFT the realm calls. Adding a royalty
-// method here would break the metadata-composite assignment — do not.
+// Exactly the subset of *grc721.metadataNFT the realm calls, VERIFIED against
+// grc721_metadata.gno. Uses grc721.TokenID/TokenURI types. Note: Burn takes NO
+// caller (realm must own-check first); SetTokenURI returns (bool, error).
+// Adding a royalty method would break the metadata-composite assignment — do not.
 type membaNFT interface {
-    Mint(to address, tid string) error                 // explicit-caller writer (mint to `to`)
-    TransferFrom(caller, from, to address, tid string) error
-    Approve(caller, approved address, tid string) error
-    SetApprovalForAll(caller, operator address, approved bool) error
-    Burn(caller address, tid string) error
-    OwnerOf(tid string) (address, error)
-    BalanceOf(owner address) (int64, error)
-    IsApprovedForAll(owner, operator address) bool
-    GetApproved(tid string) (address, error)
-    TokenCount() int64                                 // reads only; NOT used for supply gating (see S-2)
-    SetTokenURI(caller address, tid string, uri string) error
-    TokenURI(tid string) (string, error)
     Name() string
     Symbol() string
+    TokenCount() int64                                              // reads only; NOT supply gating (S-2)
+    BalanceOf(owner address) (int64, error)
+    OwnerOf(tid grc721.TokenID) (address, error)
+    GetApproved(tid grc721.TokenID) (address, error)
+    IsApprovedForAll(owner, operator address) bool
+    TokenURI(tid grc721.TokenID) (string, error)
+    Mint(to address, tid grc721.TokenID) error                      // no caller (mint authority = realm wrapper)
+    Approve(caller, to address, tid grc721.TokenID) error
+    SetApprovalForAll(caller, operator address, approved bool) error
+    TransferFrom(caller, from, to address, tid grc721.TokenID) error
+    SetTokenURI(caller address, tid grc721.TokenID, tURI grc721.TokenURI) (bool, error)
+    Burn(tid grc721.TokenID) error                                  // NO caller — wrapper own-checks (H-4)
 }
 ```
-> Verify each signature against the vendored `gno.land/p/samcrew/grc721` `*metadataNFT` during Task 1; adjust the list to match the real methods (the constraint is: **only methods the concrete type implements, and zero royalty methods**).
 
 ## 2. State
 ```go
@@ -208,3 +209,24 @@ Deploy `memba_collections`; engines statically import BOTH it and live `memba_nf
 
 ## 10. Re-audit verdict (v2 → v3)
 v2 re-audit returned **2 HIGH blockers (B-1 GRC20 CEI/teller, B-2 slug spoof)** + 8 must-fix-before-code (S-1..S-5, E-1..E-8). All folded in above. **v3 is build-ready.** Implementation order: Task 1 verify `membaNFT` vs vendored `*metadataNFT` → Task 2 state+CreateCollection (slug validation TDD) → Task 3 mint branches (CEI/teller TDD) → Task 4 royalty resolution → Task 5 governance/events → Task 6 Merkle → Task 7 Render/reads.
+
+## 11. BUILD STATUS — realm implemented & tested (2026-06-17)
+The `memba_collections` realm is implemented per this v3 freeze in
+`samcrew-deployer/projects/memba/realms/memba_collections/` (8 source files:
+collection, payment, royalty, config, mint, merkle, transfer, governance,
+render). **60 tests green, `gno lint` clean**, CI-classified in deployer
+`test.yml`. All v3 blockers/must-fixes covered by tests: slug charset (B-2),
+GRC20 RealmTeller + CEI end-to-end (B-1, incl. registry key + minter Approve),
+royalty presence-wins incl. explicit-zero (S-1), supply gate on nextAutoTokenID
+(S-2), primaryFeeBPS bound (S-3), Merkle 1/2/4-leaf + bad-hex (S-5), MarketTransfer
+moat (registered-only + paused), proceeds CEI withdrawal, all governance auth +
+param events. **Test-harness note:** `IsUserCall` payable entrypoints are split
+into a thin guarded wrapper + an internal helper (explicit caller/sent) so logic
+is unit-testable; the bare `IsUserCall` one-liner is verified on-chain (same as
+live `memba_nft_market_v2`). PreviousRealm address checks are exercised via
+in-package `do*(arg, rlm realm, …)` helpers that `SetRealm(user)` then cross.
+**Remaining (user-gated):** (a) multisig deploy — order: `grc721` (already live)
+then `memba_collections`; post-deploy config = RegisterMarket(engine) +
+AllowDenom(ugnot seeded) + per-creator CreateCollection. (b) launchpad UI +
+creator profiles (Phase 2). (c) marketplace engine v3 wiring (statically import
+this realm; FeeBPS 250→200; denom in settlement events; dedupe OfferAccepted+TokenSold).
