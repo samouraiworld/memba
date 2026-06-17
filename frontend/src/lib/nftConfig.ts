@@ -18,6 +18,13 @@ export const NFT_MARKETPLACE_PATH = "gno.land/r/samcrew/memba_nft_market_v2"
 export const NFT_COLLECTION_PATH = "gno.land/r/samcrew/memba_nft_v2"
 
 /**
+ * On-chain path to the canonical multi-collection registry (Phase 2 launchpad).
+ * Creators register collections INTO this shared realm (Model A); the market
+ * trades every launch. NOT YET DEPLOYED — gated by isNftLaunchpadValid().
+ */
+export const NFT_COLLECTIONS_PATH = "gno.land/r/samcrew/memba_collections"
+
+/**
  * Bech32 address of the marketplace realm.
  * Used as `operator` in SetApprovalForAll / Approve calls on the collection.
  */

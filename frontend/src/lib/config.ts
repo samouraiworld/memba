@@ -207,6 +207,9 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // NFT realms deployed 2026-06-16.
         "gno.land/r/samcrew/memba_nft_v2",
         "gno.land/r/samcrew/memba_nft_market_v2",
+        // Phase 2 canonical launchpad registry — NOT YET DEPLOYED. Uncomment
+        // (add "gno.land/r/samcrew/memba_collections") once the multisig deploy
+        // lands so isNftLaunchpadValid() flips true and the launchpad surfaces.
     ],
 }
 
@@ -461,6 +464,7 @@ export const MEMBA_DAO = {
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
     escrowPath: "gno.land/r/samcrew/escrow_v2",
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
+    nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
@@ -475,6 +479,8 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 export const isTokenFactoryValid = () => isRealmValid(GRC20_FACTORY_PATH)
 export const isEscrowValid = () => isRealmValid(MEMBA_DAO.escrowPath)
 export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
+/** Phase 2 launchpad — backed by the canonical memba_collections registry. */
+export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
 
 /** Token allocation percentages (total = 100%). */
