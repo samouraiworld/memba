@@ -905,6 +905,65 @@ export async function getAggregatedNetPeers(
     }
 }
 
+// ── Network Nodes roster (Phase 2b) ───────────────────────────
+//
+// Consensus validators (/validators), valopers (r/gnops/valopers) and peers
+// (/net_info) live in THREE different address spaces — consensus address ≠
+// valoper address ≠ P2P node-id — so they cannot be joined by address. The
+// roster is therefore peer-based (like gnockpit's table): every reachable node,
+// tagged with a best-effort role from its moniker + the valoper moniker set.
+
+/** Coarse role of a network node, inferred from its moniker. */
+export type NodeRole = "validator" | "sentry" | "rpc" | "snapshot" | "node"
+
+/** A peer plus its inferred role, for the Network Nodes roster table. */
+export interface NodeRosterRow extends PeerInfo {
+    role: NodeRole
+}
+
+/** Display order for roles (validators first, generic nodes last). */
+const ROLE_ORDER: Record<NodeRole, number> = {
+    validator: 0, sentry: 1, rpc: 2, snapshot: 3, node: 4,
+}
+
+// "val", "val-01", "validator" as a token — avoids matching "naval"/"interval".
+const VALIDATOR_MONIKER_RE = /(?:^|[-_ ])val(?:idator)?(?:[-_ ]|\d|$)/i
+
+/**
+ * Infer a node's role from its moniker. A node counts as a validator if its
+ * moniker is in the valoper registry (case-insensitive) or matches the
+ * validator token pattern; otherwise sentry/rpc/snapshot by keyword, else a
+ * generic node. Pure.
+ */
+export function deriveNodeRole(moniker: string, validatorMonikers: Set<string>): NodeRole {
+    const m = (moniker || "").toLowerCase()
+    const valopers = validatorMonikers instanceof Set ? validatorMonikers : new Set<string>()
+    if ((m && valopers.has(m)) || VALIDATOR_MONIKER_RE.test(m)) return "validator"
+    if (m.includes("sentry")) return "sentry"
+    if (m.includes("rpc")) return "rpc"
+    if (m.includes("snapshot")) return "snapshot"
+    return "node"
+}
+
+/**
+ * Build the Network Nodes roster from aggregated peers: tag each with a role and
+ * sort validators → sentry → rpc → snapshot → node, then by moniker. Pure;
+ * returns [] for null netInfo. `validatorMonikers` should be the lowercased
+ * valoper moniker set (from {@link fetchValoperMonikers} values).
+ */
+export function buildNodeRoster(
+    netInfo: NetInfo | null,
+    validatorMonikers: Set<string>,
+): NodeRosterRow[] {
+    if (!netInfo) return []
+    return netInfo.peers
+        .map((p) => ({ ...p, role: deriveNodeRole(p.moniker, validatorMonikers) }))
+        .sort((a, b) =>
+            ROLE_ORDER[a.role] - ROLE_ORDER[b.role] ||
+            (a.moniker || "~").localeCompare(b.moniker || "~"),
+        )
+}
+
 /**
  * Fetch mempool status (pending unconfirmed transaction count).
  * Resilient: returns null if endpoint unavailable.

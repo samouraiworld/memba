@@ -142,5 +142,11 @@ The live smoke-test after #423 showed **Network Nodes: 5**, not 14. Root cause: 
 - `https://memba.samourai.app/test13/validators/hacker` → **Peers: 14**, all node families present (val / sentry / rpc / snapshot / samourai / onbloc / moul / gfanton / aeddi).
 - Shipped via #423 → #425 → #426. test13 is the pre-mainnet testnet; the validator set may grow over time and the page reads it live.
 
-### Not done — Phase 2b (deferred)
-Full main-table roster reframe (validators ∪ valopers ∪ peers + Status column) — larger UX change; revisit if desired.
+### Done — Phase 2b (Network Nodes roster)
+**Data constraint found:** consensus validators (`/validators`), valopers (`r/gnops/valopers`) and peers (`/net_info`) live in **three different address spaces** — consensus addr (`g15sysd…`) ≠ valoper addr (`g1aeddl…`) ≠ P2P node-id (`g142k7z…`). They **cannot be joined by address**, so a literal "one merged table" is infeasible. gnockpit's table is itself peer-based.
+
+Faithful realization: a **peer-based Network Nodes roster** added below the validator-metrics table (which keeps VP/Sign%/uptime for the consensus set):
+- `lib/validators.ts`: `deriveNodeRole` + `buildNodeRoster` (pure, tested) — role = validator / sentry / rpc / snapshot / node, from moniker heuristics + the valoper moniker set; sorted validators-first. `NodeRole` / `NodeRosterRow` types.
+- `components/validators/NetworkNodesRoster.tsx`: premium-styled table (Name / Role / Node-ID / IP / seen-by) with search; `validators.css` role badges.
+- `pages/Validators.tsx`: stores aggregated `NetInfo` + valoper moniker set; "Network Nodes" stat now anchors down to the roster.
+- Verified: tsc/eslint clean, 2086 tests (10 new roster tests), build OK.
