@@ -846,3 +846,94 @@
 .val-block-strip .val-block-tick {
     width: 2px;
 }
+/* ── Network Nodes roster (Phase 2b) ─────────────────────────── */
+.val-roster {
+    margin-top: 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.val-roster__head { margin-bottom: 12px; }
+
+.val-roster__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.val-roster__count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    padding: 1px 9px;
+}
+
+.val-roster__hint { font-size: 11px; color: var(--color-text-secondary); }
+
+.val-roster__sub {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    margin-top: 3px;
+}
+
+.val-roster__search { margin: 4px 0 12px; max-width: 320px; }
+
+.val-roster__table-wrap { overflow-x: auto; }
+
+.val-roster__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.val-roster__table th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.val-roster__table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    white-space: nowrap;
+}
+
+.val-roster__table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+.val-roster__name { font-weight: 500; }
+.val-roster__dim { color: var(--color-text-secondary); }
+.val-roster__seen { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+
+.val-roster__empty {
+    padding: 18px 10px;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+/* Role badges */
+.val-role-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+.val-role-badge--validator { color: #00d4aa; background: rgba(0, 212, 170, 0.12); border-color: rgba(0, 212, 170, 0.25); }
+.val-role-badge--sentry    { color: #60a5fa; background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.22); }
+.val-role-badge--rpc       { color: #c084fc; background: rgba(192, 132, 252, 0.12); border-color: rgba(192, 132, 252, 0.22); }
+.val-role-badge--snapshot  { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.22); }
+.val-role-badge--node      { color: var(--color-text-secondary); background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }

@@ -35,7 +35,9 @@ import {
     formatRelativeTime,
     type ValidatorInfo,
     type NetworkStats,
+    type NetInfo,
 } from "../lib/validators"
+import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -79,10 +81,12 @@ export default function Validators() {
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)
-    // Full network node count (peers aggregated across trusted RPCs). Distinct
-    // from the consensus validator set, which is small; this matches the node
-    // roster shown by gnockpit. Best-effort — null when no node is reachable.
-    const [networkNodeCount, setNetworkNodeCount] = useState<number | null>(null)
+    // Full network roster (peers aggregated across trusted RPCs). Distinct from
+    // the consensus validator set, which is small; this matches the node roster
+    // shown by gnockpit. Best-effort — null when no node is reachable.
+    const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
+    // Lowercased valoper monikers — used to tag community validators in the roster.
+    const [valoperMonikers, setValoperMonikers] = useState<Set<string>>(new Set())
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -113,12 +117,16 @@ export default function Validators() {
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
             ])
 
+            // Valoper monikers (lowercased) — lets the roster tag community
+            // validators by name (e.g. gfanton-1, aeddi-1) beyond the heuristic.
+            setValoperMonikers(new Set([...valoperMap.values()].map(m => m.toLowerCase())))
+
             // Aggregated peer roster across trusted nodes — fire-and-forget so a
             // slow or dead telemetry node (e.g. gnoland1's aeddi.org → 8s timeout)
             // never delays the validators table. The "Network Nodes" stat fills in
             // when it resolves; null on total failure.
             getAggregatedNetPeers(telemetryRpcUrls, controller.signal)
-                .then(np => { if (!controller.signal.aborted) setNetworkNodeCount(np?.peerCount ?? null) })
+                .then(ni => { if (!controller.signal.aborted) setNetInfo(ni) })
                 .catch(() => { /* best-effort */ })
 
             // Sequential: stats needs validator count from prefetched data
@@ -298,12 +306,12 @@ export default function Validators() {
                         <span className="val-stat-hint">Consensus set</span>
                     </div>
 
-                    {networkNodeCount != null && (
-                        <Link to="/validators/hacker" className="val-stat-card val-stat-card--link" title="View the full network node roster">
+                    {netInfo != null && (
+                        <a href="#network-nodes" className="val-stat-card val-stat-card--link" title="Jump to the full network node roster">
                             <span className="val-stat-label">Network Nodes</span>
-                            <span className="val-stat-value">{networkNodeCount}</span>
-                            <span className="val-stat-hint">Peers seen · view roster →</span>
-                        </Link>
+                            <span className="val-stat-value">{netInfo.peerCount}</span>
+                            <span className="val-stat-hint">Peers seen · view roster ↓</span>
+                        </a>
                     )}
 
                     <div className="val-stat-card">
@@ -607,6 +615,9 @@ export default function Validators() {
                     </button>
                 </div>
             )}
+
+            {/* ── Network Nodes roster (Phase 2b) ─────────────────── */}
+            <NetworkNodesRoster netInfo={netInfo} validatorMonikers={valoperMonikers} loading={loading} />
         </div>
     )
 }
