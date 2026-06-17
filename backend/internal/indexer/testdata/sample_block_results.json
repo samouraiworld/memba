@@ -1,0 +1,82 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "height": "263900",
+    "results": {
+      "deliver_tx": [
+        {
+          "ResponseBase": {
+            "Error": null,
+            "Data": null,
+            "Events": [
+              {
+                "type": "NFTListed",
+                "attrs": [
+                  { "key": "collection", "value": "genesis" },
+                  { "key": "tokenId", "value": "1" },
+                  { "key": "seller", "value": "g1seller00000000000000000000000000000abc" },
+                  { "key": "price", "value": "1500000" }
+                ],
+                "pkg_path": "gno.land/r/samcrew/memba_nft_market_v2",
+                "func": "List"
+              }
+            ],
+            "Log": "",
+            "Info": ""
+          },
+          "GasWanted": 0,
+          "GasUsed": 0
+        },
+        {
+          "ResponseBase": {
+            "Error": null,
+            "Data": null,
+            "Events": [
+              {
+                "type": "MarketTransfer",
+                "attrs": [
+                  { "key": "collection", "value": "genesis" },
+                  { "key": "from", "value": "g1seller00000000000000000000000000000abc" },
+                  { "key": "to", "value": "g1buyer000000000000000000000000000000xyz" },
+                  { "key": "tokenId", "value": "1" }
+                ],
+                "pkg_path": "gno.land/r/samcrew/memba_nft_v2",
+                "func": "TransferFrom"
+              },
+              {
+                "type": "PurchaseConfirmed",
+                "attrs": [
+                  { "key": "collection", "value": "genesis" },
+                  { "key": "tokenId", "value": "1" },
+                  { "key": "buyer", "value": "g1buyer000000000000000000000000000000xyz" },
+                  { "key": "seller", "value": "g1seller00000000000000000000000000000abc" },
+                  { "key": "price", "value": "1500000" },
+                  { "key": "fee", "value": "37500" },
+                  { "key": "royalty", "value": "75000" },
+                  { "key": "royaltyRecipient", "value": "g1royalty0000000000000000000000000000aaa" },
+                  { "key": "sellerAmount", "value": "1387500" }
+                ],
+                "pkg_path": "gno.land/r/samcrew/memba_nft_market_v2",
+                "func": "Buy"
+              }
+            ],
+            "Log": "",
+            "Info": ""
+          },
+          "GasWanted": 0,
+          "GasUsed": 0
+        }
+      ],
+      "end_block": {
+        "ResponseBase": { "Error": null, "Data": null, "Events": null, "Log": "", "Info": "" },
+        "ValidatorUpdates": null,
+        "ConsensusParams": null,
+        "Events": null
+      },
+      "begin_block": {
+        "ResponseBase": { "Error": null, "Data": null, "Events": null, "Log": "", "Info": "" }
+      }
+    }
+  }
+}

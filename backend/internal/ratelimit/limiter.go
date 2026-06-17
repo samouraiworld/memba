@@ -27,8 +27,10 @@ func DefaultConfigs() map[string]Config {
 		"tx":     {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"oauth":   {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
 		"analyst": {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
-		"upload":  {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
-		"default": {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
+		"upload":      {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
+		"nft":         {MaxRequests: 60, Window: time.Minute}, // NFT image/metadata proxy — cacheable reads
+		"marketplace": {MaxRequests: 30, Window: time.Minute}, // Marketplace agents/escrow render
+		"default":     {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }
 

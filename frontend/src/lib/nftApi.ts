@@ -1,0 +1,129 @@
+/**
+ * nftApi.ts — typed wrappers over the 4 ConnectRPC NFT endpoints.
+ * Each function returns data or null on failure (graceful degradation).
+ * Callers MUST NOT crash when these return null — backend may not be deployed yet.
+ */
+import { api } from "./api"
+import { API_BASE_URL } from "./config"
+
+// Re-export proto types for convenience
+export type { NFTToken, NFTActivity, GetNFTCollectionResponse } from "../gen/memba/v1/memba_pb"
+
+export interface NFTCollectionStats {
+    name: string
+    symbol: string
+    supply: bigint
+    floorPriceUgnot: bigint
+    totalVolumeUgnot: bigint
+    totalSales: bigint
+    activeListings: bigint
+    royaltyBps: bigint
+}
+
+export interface NFTActivityItem {
+    saleNo: bigint
+    tokenId: string
+    kind: string
+    priceUgnot: bigint
+    seller: string
+    buyer: string
+    createdAt: string
+}
+
+export interface NFTPortfolioToken {
+    collectionId: string
+    tokenId: string
+    owner: string
+    uri: string
+    listed: boolean
+    priceUgnot: bigint
+}
+
+/** Fetch collection stats. Returns null on any error (endpoint may be absent). */
+export async function fetchNFTCollection(collectionId: string): Promise<NFTCollectionStats | null> {
+    try {
+        const res = await api.getNFTCollection({ collectionId })
+        return {
+            name: res.name,
+            symbol: res.symbol,
+            supply: res.supply,
+            floorPriceUgnot: res.floorPriceUgnot,
+            totalVolumeUgnot: res.totalVolumeUgnot,
+            totalSales: res.totalSales,
+            activeListings: res.activeListings,
+            royaltyBps: res.royaltyBps,
+        }
+    } catch {
+        return null
+    }
+}
+
+/** Fetch recent activity. Returns [] on any error. */
+export async function fetchNFTActivity(collectionId: string, limit = 50): Promise<NFTActivityItem[]> {
+    try {
+        const res = await api.getNFTActivity({ collectionId, limit })
+        return res.items.map(item => ({
+            saleNo: item.saleNo,
+            tokenId: item.tokenId,
+            kind: item.kind,
+            priceUgnot: item.priceUgnot,
+            seller: item.seller,
+            buyer: item.buyer,
+            createdAt: item.createdAt,
+        }))
+    } catch {
+        return []
+    }
+}
+
+/** Fetch portfolio for a wallet. Returns [] on error. */
+export async function fetchNFTPortfolio(owner: string): Promise<NFTPortfolioToken[]> {
+    try {
+        const res = await api.getNFTPortfolio({ owner })
+        return res.tokens.map(t => ({
+            collectionId: t.collectionId,
+            tokenId: t.tokenId,
+            owner: t.owner,
+            uri: t.uri,
+            listed: t.listed,
+            priceUgnot: t.priceUgnot,
+        }))
+    } catch {
+        return []
+    }
+}
+
+/** Fetch tokens in a collection. listedOnly=false returns all. Returns [] on error. */
+export async function fetchNFTTokens(collectionId: string, listedOnly = false): Promise<NFTPortfolioToken[]> {
+    try {
+        const res = await api.listNFTTokens({ collectionId, listedOnly })
+        return res.tokens.map(t => ({
+            collectionId: t.collectionId,
+            tokenId: t.tokenId,
+            owner: t.owner,
+            uri: t.uri,
+            listed: t.listed,
+            priceUgnot: t.priceUgnot,
+        }))
+    } catch {
+        return []
+    }
+}
+
+/**
+ * Build a proxied image URL for a tokenURI.
+ * Handles ipfs://, https://, and plain CID strings.
+ * Falls back gracefully when API_BASE_URL is empty (dev proxy).
+ */
+export function nftImageUrl(uriOrCid: string): string {
+    const base = API_BASE_URL || ""
+    return `${base}/api/nft/image?uri=${encodeURIComponent(uriOrCid)}`
+}
+
+/**
+ * Build a proxied metadata URL for a tokenURI.
+ */
+export function nftMetadataUrl(uri: string): string {
+    const base = API_BASE_URL || ""
+    return `${base}/api/nft/metadata?uri=${encodeURIComponent(uri)}`
+}

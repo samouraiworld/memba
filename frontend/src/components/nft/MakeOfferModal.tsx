@@ -2,7 +2,8 @@
  * MakeOfferModal — Modal for placing an offer (bid) on an NFT.
  *
  * User enters a custom amount to escrow. Funds are held by the
- * marketplace realm until the offer is accepted or cancelled.
+ * marketplace realm. If not accepted within ~7 days, you can reclaim
+ * via CancelOffer (or ClaimExpiredOffer after expiry).
  *
  * @module components/nft/MakeOfferModal
  */
@@ -10,7 +11,7 @@
 import { useState, useEffect } from "react"
 import type { NFTListing } from "../../lib/nftMarketplace"
 import { buildMakeOfferMsg } from "../../lib/nftMarketplace"
-import { NFT_MARKETPLACE_PATH } from "../../lib/nftConfig"
+import { NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID } from "../../lib/nftConfig"
 
 interface Props {
     listing: NFTListing
@@ -32,6 +33,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
 
     const amountUgnot = Math.floor(parseFloat(amount || "0") * 1_000_000)
     const isValid = amountUgnot > 0
+    const listedPriceGnot = (listing.priceUgnot / 1_000_000).toFixed(2)
 
     const handleSubmit = async () => {
         if (!isValid) return
@@ -42,7 +44,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
             const msg = buildMakeOfferMsg(
                 callerAddress,
                 NFT_MARKETPLACE_PATH,
-                listing.nftRealm,
+                DEFAULT_COLLECTION_ID,
                 listing.tokenId,
                 amountUgnot,
             )
@@ -63,7 +65,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
                 <div className="nft-modal__info">
                     <div><strong>Collection:</strong> {listing.nftRealm}</div>
                     <div><strong>Token:</strong> {listing.tokenId}</div>
-                    <div><strong>Listed Price:</strong> {(listing.priceUgnot / 1_000_000).toFixed(2)} GNOT</div>
+                    <div><strong>Listed Price:</strong> {listedPriceGnot} GNOT</div>
                 </div>
 
                 <div className="nft-modal__field">
@@ -78,8 +80,16 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
                         onChange={e => setAmount(e.target.value)}
                         className="nft-modal__input"
                     />
+                </div>
+
+                <div className="nft-modal__escrow-info">
                     <p className="nft-modal__hint">
-                        Funds will be held in escrow by the marketplace. You can cancel anytime to reclaim.
+                        Your offer amount is held in escrow by the marketplace realm.
+                        The seller has ~7 days to accept. If they don't, cancel anytime to reclaim your funds —
+                        or use "Claim Expired Offer" after the window closes.
+                    </p>
+                    <p className="nft-modal__hint">
+                        Minimum offer: &gt;0 GNOT. Submitting a higher offer than the listed price will trigger an immediate sale.
                     </p>
                 </div>
 
@@ -90,7 +100,7 @@ export function MakeOfferModal({ listing, callerAddress, onClose, onSuccess }: P
                         Cancel
                     </button>
                     <button className="nft-modal__confirm" onClick={handleSubmit} disabled={submitting || !isValid}>
-                        {submitting ? "Submitting..." : `Offer ${isValid ? (amountUgnot / 1_000_000).toFixed(2) : "0.00"} GNOT`}
+                        {submitting ? "Submitting…" : `Offer ${isValid ? (amountUgnot / 1_000_000).toFixed(2) : "0.00"} GNOT`}
                     </button>
                 </div>
             </div>

@@ -53,6 +53,12 @@ service MultisigService {
   rpc CreateServiceListing(CreateServiceListingRequest) returns (CreateServiceListingResponse);
   rpc GetServiceListings(GetServiceListingsRequest) returns (GetServiceListingsResponse);
   rpc UpdateServiceListing(UpdateServiceListingRequest) returns (UpdateServiceListingResponse);
+
+  // NFT Marketplace — cached state from the on-chain indexer (public reads, no auth)
+  rpc GetNFTCollection(GetNFTCollectionRequest) returns (GetNFTCollectionResponse);
+  rpc GetNFTActivity(GetNFTActivityRequest) returns (GetNFTActivityResponse);
+  rpc GetNFTPortfolio(GetNFTPortfolioRequest) returns (GetNFTPortfolioResponse);
+  rpc ListNFTTokens(ListNFTTokensRequest) returns (ListNFTTokensResponse);
 }
 
 // --- Auth Messages ---
@@ -564,4 +570,68 @@ message UpdateServiceListingRequest {
 
 message UpdateServiceListingResponse {
   ServiceListing listing = 1;
+}
+
+// --- NFT Marketplace Messages ---
+
+// NFTToken is a single token's cached state.
+message NFTToken {
+  string collection_id = 1;
+  string token_id = 2;
+  string owner = 3;
+  string uri = 4;
+  bool listed = 5;
+  uint64 price_ugnot = 6; // 0 when not listed / unknown
+}
+
+// NFTActivity is a single cached marketplace event (currently sales).
+message NFTActivity {
+  uint64 sale_no = 1;
+  string token_id = 2;
+  string kind = 3; // e.g. "sale"
+  uint64 price_ugnot = 4;
+  string seller = 5; // may be empty/truncated (Render limitation)
+  string buyer = 6; // may be empty/truncated (Render limitation)
+  string created_at = 7; // RFC3339
+}
+
+message GetNFTCollectionRequest {
+  string collection_id = 1; // no auth required — public read
+}
+
+message GetNFTCollectionResponse {
+  string name = 1;
+  string symbol = 2;
+  uint64 supply = 3;
+  uint64 floor_price_ugnot = 4; // 0 = unknown (e.g. market home route unreachable)
+  uint64 total_volume_ugnot = 5;
+  uint64 total_sales = 6;
+  uint64 active_listings = 7;
+  uint64 royalty_bps = 8;
+}
+
+message GetNFTActivityRequest {
+  string collection_id = 1; // no auth required — public read
+  uint32 limit = 2; // default 20, max 100
+}
+
+message GetNFTActivityResponse {
+  repeated NFTActivity items = 1;
+}
+
+message GetNFTPortfolioRequest {
+  string owner = 1; // g1... address; no auth required — public read
+}
+
+message GetNFTPortfolioResponse {
+  repeated NFTToken tokens = 1;
+}
+
+message ListNFTTokensRequest {
+  string collection_id = 1; // no auth required — public read
+  bool listed_only = 2; // when true, only return listed tokens
+}
+
+message ListNFTTokensResponse {
+  repeated NFTToken tokens = 1;
 }

@@ -624,3 +624,281 @@
     .nft-header { flex-direction: column; gap: 8px; }
     .nft-modal { max-width: 100%; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   NFT Phase 1 UX overhaul — image-first cards, stats, badges,
+   tx toast, connect banner, My Items, activity feed enhancements
+   ════════════════════════════════════════════════════════════ */
+
+/* ── NFTImage component ──────────────────────────── */
+.nft-img-skeleton {
+    background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-hover) 50%, var(--color-surface) 75%);
+    background-size: 200% 100%;
+    animation: nft-shimmer 1.4s infinite;
+    border-radius: 8px;
+    width: 100%;
+    aspect-ratio: 1;
+}
+
+@keyframes nft-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.nft-img-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    width: 100%;
+    aspect-ratio: 1;
+}
+
+.nft-img-placeholder__icon { font-size: 28px; opacity: 0.5; }
+.nft-img-hidden { display: none; }
+
+/* ── Listing card image ──────────────────────────── */
+.nft-listing-card__image-wrap {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.nft-listing-card__image {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+}
+
+/* ── Royalty badge / notice ──────────────────────── */
+.nft-royalty-badge {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: rgba(139,92,246,0.85);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: help;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+}
+
+.nft-royalty-notice {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #8b5cf6;
+    font-family: "JetBrains Mono", monospace;
+    background: rgba(139,92,246,0.08);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(139,92,246,0.2);
+    cursor: help;
+}
+
+.nft-royalty-enforced-icon { font-size: 12px; }
+
+/* ── Token card image + price ────────────────────── */
+.nft-token-card__image-wrap {
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: var(--color-surface);
+    position: relative;
+}
+
+.nft-token-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.nft-token-card__price {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: "JetBrains Mono", monospace;
+    margin-top: 2px;
+}
+
+/* ── Collection stats bar ────────────────────────── */
+.nft-stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+.nft-stats-bar__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.nft-stats-bar__value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.nft-stats-bar__label {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nft-stats-bar__royalty {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    color: #8b5cf6;
+    font-family: "JetBrains Mono", monospace;
+    background: rgba(139,92,246,0.08);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(139,92,246,0.2);
+    cursor: help;
+    white-space: nowrap;
+}
+
+/* ── Connect banner ──────────────────────────────── */
+.nft-connect-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: rgba(139,92,246,0.06);
+    border: 1px solid rgba(139,92,246,0.2);
+}
+
+.nft-connect-banner__icon { font-size: 22px; flex-shrink: 0; }
+.nft-connect-banner__body { flex: 1; }
+
+.nft-connect-banner__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 3px;
+}
+
+.nft-connect-banner__hint {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    font-family: "JetBrains Mono", monospace;
+    margin: 0;
+}
+
+.nft-connect-banner__btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+.nft-connect-banner__btn:hover { opacity: 0.85; }
+
+/* ── My Items tab ────────────────────────────────── */
+.nft-my-items { display: flex; flex-direction: column; gap: 14px; }
+
+.nft-my-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.nft-my-tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.nft-my-tab.active {
+    background: rgba(139,92,246,0.12);
+    border-color: rgba(139,92,246,0.3);
+    color: #8b5cf6;
+}
+
+.nft-my-tab:hover:not(.active) { border-color: rgba(255,255,255,0.12); color: var(--color-text); }
+
+/* ── Delist button ───────────────────────────────── */
+.nft-listing-card__delist {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.3);
+    background: transparent;
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.nft-listing-card__delist:hover { background: rgba(239,68,68,0.08); }
+
+/* ── Activity: copy-on-click addresses + time ────── */
+.nft-addr-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.1s;
+}
+.nft-addr-btn:hover { color: var(--color-text-secondary); }
+
+.nft-activity__arrow {
+    font-size: 10px;
+    color: var(--color-text-dim);
+}
+
+.nft-activity__time {
+    font-size: 10px;
+    color: var(--color-text-dim);
+    font-family: "JetBrains Mono", monospace;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.nft-activity__kind {
+    font-size: 9px;
+    color: var(--color-text-dim);
+    font-family: "JetBrains Mono", monospace;
+    margin-left: 4px;
+}

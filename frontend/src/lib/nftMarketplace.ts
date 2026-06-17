@@ -1,11 +1,22 @@
 /**
  * NFT Marketplace data layer — ABCI queries, parsers, and message builders.
  *
- * v3.1: Integrates with the nft_market realm for:
- * - Listing browsing via Render("") parsing
- * - Individual listing detail via Render("listing/realm:tokenId")
- * - Sales history via Render("sales")
- * - MsgCall builders for List, Delist, Buy, MakeOffer, CancelOffer
+ * v4.0: Repointed to live test13 realms (memba_nft_market_v2, memba_nft_v2).
+ * Builders now take `collectionID` (e.g. "genesis") instead of a realm path
+ * as the first collection argument, matching the on-chain ABI exactly.
+ *
+ * On-chain ABI (memba_nft_market_v2):
+ *   ListNFT(collectionID, tid, price)   — no send
+ *   DelistNFT(collectionID, tid)        — no send
+ *   BuyNFT(collectionID, tid)           — send = priceUgnot + "ugnot"
+ *   MakeOffer(collectionID, tid)        — send = offerUgnot + "ugnot"
+ *   CancelOffer(collectionID, tid)      — no send
+ *   AcceptOffer(collectionID, tid, buyer)
+ *   ClaimExpiredOffer(collectionID, buyer)
+ *
+ * On-chain ABI (memba_nft_v2 — approve-before-list):
+ *   SetApprovalForAll(collectionID, operator, approved)
+ *   Approve(collectionID, operator, tid)
  *
  * @module lib/nftMarketplace
  */
@@ -118,16 +129,16 @@ export function parseSalesRender(data: string): NFTSale[] {
     return sales
 }
 
-// ── MsgCall Builders ─────────────────────────────────────────
+// ── MsgCall Builders — Marketplace (memba_nft_market_v2) ─────
 
 /**
- * Build MsgCall for nft_market.ListNFT().
- * Caller must have Approve(marketplace, tokenId) on the NFT realm first.
+ * Build MsgCall for ListNFT(collectionID, tid, price).
+ * Caller must have SetApprovalForAll or Approve on the collection realm first.
  */
 export function buildListForSaleMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
     priceUgnot: number,
 ): AminoMsg {
@@ -138,18 +149,18 @@ export function buildListForSaleMsg(
             send: "",
             pkg_path: marketplacePath,
             func: "ListNFT",
-            args: [nftRealm, tokenId, String(priceUgnot)],
+            args: [collectionID, tokenId, String(priceUgnot)],
         },
     }
 }
 
 /**
- * Build MsgCall for nft_market.DelistNFT().
+ * Build MsgCall for DelistNFT(collectionID, tid).
  */
 export function buildDelistMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
 ): AminoMsg {
     return {
@@ -159,19 +170,19 @@ export function buildDelistMsg(
             send: "",
             pkg_path: marketplacePath,
             func: "DelistNFT",
-            args: [nftRealm, tokenId],
+            args: [collectionID, tokenId],
         },
     }
 }
 
 /**
- * Build MsgCall for nft_market.BuyNFT().
- * Sends the price amount in ugnot.
+ * Build MsgCall for BuyNFT(collectionID, tid).
+ * Sends the price amount in ugnot as payment.
  */
 export function buildBuyNFTMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
     priceUgnot: number,
 ): AminoMsg {
@@ -182,19 +193,19 @@ export function buildBuyNFTMsg(
             send: `${priceUgnot}ugnot`,
             pkg_path: marketplacePath,
             func: "BuyNFT",
-            args: [nftRealm, tokenId],
+            args: [collectionID, tokenId],
         },
     }
 }
 
 /**
- * Build MsgCall for nft_market.MakeOffer().
+ * Build MsgCall for MakeOffer(collectionID, tid).
  * Sends the offer amount in ugnot (held in escrow).
  */
 export function buildMakeOfferMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
     offerAmountUgnot: number,
 ): AminoMsg {
@@ -205,19 +216,19 @@ export function buildMakeOfferMsg(
             send: `${offerAmountUgnot}ugnot`,
             pkg_path: marketplacePath,
             func: "MakeOffer",
-            args: [nftRealm, tokenId],
+            args: [collectionID, tokenId],
         },
     }
 }
 
 /**
- * Build MsgCall for nft_market.CancelOffer().
+ * Build MsgCall for CancelOffer(collectionID, tid).
  * Returns escrowed funds to the offerer.
  */
 export function buildCancelOfferMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
 ): AminoMsg {
     return {
@@ -227,16 +238,18 @@ export function buildCancelOfferMsg(
             send: "",
             pkg_path: marketplacePath,
             func: "CancelOffer",
-            args: [nftRealm, tokenId],
+            args: [collectionID, tokenId],
         },
     }
 }
 
-/** Build MsgCall to accept an offer on a listed NFT (seller action). */
+/**
+ * Build MsgCall for AcceptOffer(collectionID, tid, buyer) — seller action.
+ */
 export function buildAcceptOfferMsg(
     caller: string,
     marketplacePath: string,
-    nftRealm: string,
+    collectionID: string,
     tokenId: string,
     buyerAddr: string,
 ): AminoMsg {
@@ -247,7 +260,78 @@ export function buildAcceptOfferMsg(
             send: "",
             pkg_path: marketplacePath,
             func: "AcceptOffer",
-            args: [nftRealm, tokenId, buyerAddr],
+            args: [collectionID, tokenId, buyerAddr],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for ClaimExpiredOffer(collectionID, buyer) — reclaim funds after expiry.
+ */
+export function buildClaimExpiredOfferMsg(
+    caller: string,
+    marketplacePath: string,
+    collectionID: string,
+    buyerAddr: string,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: marketplacePath,
+            func: "ClaimExpiredOffer",
+            args: [collectionID, buyerAddr],
+        },
+    }
+}
+
+// ── MsgCall Builders — Collection (memba_nft_v2) ─────────────
+
+/**
+ * Build MsgCall for SetApprovalForAll(collectionID, operator, approved).
+ * pkg_path = collection realm path (NOT the marketplace).
+ * Use this to approve the marketplace to transfer ALL tokens in a collection.
+ */
+export function buildSetApprovalForAllMsg(
+    caller: string,
+    collectionPath: string,
+    collectionID: string,
+    operatorAddr: string,
+    approved: boolean,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: collectionPath,
+            func: "SetApprovalForAll",
+            args: [collectionID, operatorAddr, String(approved)],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for Approve(collectionID, operator, tid) — per-token approval.
+ * pkg_path = collection realm path (NOT the marketplace).
+ * Alternative to SetApprovalForAll for single-token approval before listing.
+ */
+export function buildApproveMsg(
+    caller: string,
+    collectionPath: string,
+    collectionID: string,
+    operatorAddr: string,
+    tokenId: string,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: collectionPath,
+            func: "Approve",
+            args: [collectionID, operatorAddr, tokenId],
         },
     }
 }

@@ -104,6 +104,53 @@ const ERROR_PATTERNS: ErrorPattern[] = [
             message: "You don't have permission to perform this action.",
         },
     },
+    // NFT-specific errors (must be checked before generic "not found" / "invalid")
+    {
+        test: (m) => m.includes("errinvalidapproval") || m.includes("not approved"),
+        result: {
+            title: "Approval required",
+            message: "Approve the marketplace first (Step 1)",
+            action: "Use 'List for Sale' which guides you through the approval step.",
+        },
+    },
+    {
+        test: (m) => m.includes("errnotowner") || (m.includes("you don") && m.includes("own")),
+        result: {
+            title: "Not your NFT",
+            message: "You don't own this NFT",
+        },
+    },
+    {
+        test: (m) => m.includes("errcallerisnotownerorapproved") || m.includes("caller is not owner or approved"),
+        result: {
+            title: "Approval expired",
+            message: "Token approval expired — re-approve",
+            action: "List for Sale again to re-approve the marketplace.",
+        },
+    },
+    {
+        test: (m) => m.includes("cannot buy own listing"),
+        result: {
+            title: "Own listing",
+            message: "You can't buy your own listing",
+        },
+    },
+    {
+        test: (m) => m.includes("incorrect payment"),
+        result: {
+            title: "Wrong payment",
+            message: "Payment amount doesn't match the price",
+            action: "Refresh the listing and try again.",
+        },
+    },
+    {
+        test: (m) => m.includes("must be a direct user call"),
+        result: {
+            title: "Wallet required",
+            message: "Please retry from your wallet",
+            action: "Ensure you are signing directly with Adena.",
+        },
+    },
     // Adena wallet errors
     {
         test: (m) => m.includes("adena") || m.includes("wallet") || m.includes("rejected"),
