@@ -23,9 +23,18 @@ func atoiSafe(s string) int64 {
 // no-op. Unknown event types are ignored. Returns an error only on a real DB
 // failure (the caller logs and continues).
 //
+// blockHash is the block-level hash threaded from the tailer; pass "" when
+// unavailable (e.g. legacy callers — Task 6 wires the real per-height value).
+//
 // onMint, when non-nil, is invoked (outside the tx, by the caller) after a Mint
 // is recorded so the Render-scraper can backfill the token's URI/metadata.
-func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string) error {
+	// Raw ledger first — the immutable source of truth. Idempotent; a later
+	// projection failure is recoverable by rebuild-from-raw.
+	if err := recordRawEvent(ctx, db, ev, blockHash); err != nil {
+		return err
+	}
+
 	switch ev.Type {
 	case "NFTListed":
 		return applyNFTListed(ctx, db, ev)

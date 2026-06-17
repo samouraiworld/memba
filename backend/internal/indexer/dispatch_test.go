@@ -31,7 +31,7 @@ func TestDispatch_NFTListed_SetsFloor(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "seller": "g1sellerfull", "price": "1500000",
-	})))
+	}), ""))
 
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_listings`); n != 1 {
 		t.Fatalf("listings = %d, want 1", n)
@@ -62,10 +62,10 @@ func TestDispatch_FloorRecomputeAcrossListings(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "seller": "g1a", "price": "3000000",
-	})))
+	}), ""))
 	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 101, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "2", "seller": "g1b", "price": "1000000",
-	})))
+	}), ""))
 
 	var floor int64
 	must(t, db.QueryRow(`SELECT floor_price_ugnot FROM nft_collections WHERE collection_id='genesis'`).Scan(&floor))
@@ -76,7 +76,7 @@ func TestDispatch_FloorRecomputeAcrossListings(t *testing.T) {
 	// Delist the cheaper one → floor rises to the remaining listing.
 	must(t, dispatchEvent(ctx, db, ev("NFTDelisted", marketPkg, 102, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "2", "seller": "g1b",
-	})))
+	}), ""))
 	must(t, db.QueryRow(`SELECT floor_price_ugnot FROM nft_collections WHERE collection_id='genesis'`).Scan(&floor))
 	if floor != 3000000 {
 		t.Fatalf("floor after delist = %d, want 3000000", floor)
@@ -90,11 +90,11 @@ func TestDispatch_PurchaseConfirmed(t *testing.T) {
 	// List then buy.
 	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "seller": "g1seller", "price": "1500000",
-	})))
+	}), ""))
 	must(t, dispatchEvent(ctx, db, ev("PurchaseConfirmed", marketPkg, 101, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "buyer": "g1buyer", "seller": "g1seller",
 		"price": "1500000", "fee": "37500", "royalty": "75000", "sellerAmount": "1387500",
-	})))
+	}), ""))
 
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
 		t.Fatalf("sales = %d, want 1", n)
@@ -148,9 +148,9 @@ func TestDispatch_PurchaseIdempotent(t *testing.T) {
 		"collection": "genesis", "tokenId": "1", "buyer": "g1buyer", "seller": "g1seller",
 		"price": "1500000", "fee": "37500", "royalty": "75000",
 	})
-	must(t, dispatchEvent(ctx, db, purchase))
+	must(t, dispatchEvent(ctx, db, purchase, ""))
 	// Re-process the SAME event (replay).
-	must(t, dispatchEvent(ctx, db, purchase))
+	must(t, dispatchEvent(ctx, db, purchase, ""))
 
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
 		t.Fatalf("sales after replay = %d, want 1 (idempotent)", n)
@@ -169,7 +169,7 @@ func TestDispatch_OfferLifecycle(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("OfferMade", marketPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000",
-	})))
+	}), ""))
 	var status string
 	must(t, db.QueryRow(`SELECT status FROM nft_offers WHERE collection_id='genesis' AND token_id='1' AND buyer='g1bidder'`).Scan(&status))
 	if status != "active" {
@@ -178,7 +178,7 @@ func TestDispatch_OfferLifecycle(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("OfferCancelled", marketPkg, 101, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000",
-	})))
+	}), ""))
 	must(t, db.QueryRow(`SELECT status FROM nft_offers WHERE collection_id='genesis' AND token_id='1' AND buyer='g1bidder'`).Scan(&status))
 	if status != "cancelled" {
 		t.Fatalf("offer status = %q, want cancelled", status)
@@ -191,11 +191,11 @@ func TestDispatch_OfferAccepted(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("OfferMade", marketPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000",
-	})))
+	}), ""))
 	must(t, dispatchEvent(ctx, db, ev("OfferAccepted", marketPkg, 101, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "seller": "g1owner", "buyer": "g1bidder",
 		"amount": "900000", "fee": "22500", "royalty": "45000", "sellerAmount": "832500",
-	})))
+	}), ""))
 
 	var kind string
 	var price int64
@@ -223,7 +223,7 @@ func TestDispatch_MarketTransfer(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("MarketTransfer", colPkg, 100, 0, 0, map[string]string{
 		"collection": "genesis", "from": "g1from", "to": "g1to", "tokenId": "5",
-	})))
+	}), ""))
 
 	var owner string
 	must(t, db.QueryRow(`SELECT owner FROM nft_tokens WHERE collection_id='genesis' AND token_id='5'`).Scan(&owner))
@@ -241,7 +241,7 @@ func TestDispatch_Mint(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("Mint", colPkg, 50, 0, 0, map[string]string{
 		"collection": "genesis", "to": "g1minter", "tokenId": "1",
-	})))
+	}), ""))
 
 	var owner string
 	var minted sql.NullInt64
@@ -261,7 +261,7 @@ func TestDispatch_CollectionCreated(t *testing.T) {
 	must(t, dispatchEvent(ctx, db, ev("CollectionCreated", colPkg, 10, 0, 0, map[string]string{
 		"collection": "genesis", "name": "Memba Genesis", "symbol": "MGEN",
 		"royaltyBPS": "500", "royaltyRecipient": "g1royalty",
-	})))
+	}), ""))
 
 	var name, symbol string
 	var royalty int64
@@ -283,7 +283,7 @@ func TestDispatch_Sale_v3_Ingests(t *testing.T) {
 		"price": "1000000", "fee": "20000", "royalty": "50000",
 		"royaltyRecipient": "g1roy", "sellerAmount": "930000",
 		"denom": "ugnot", "schemaVersion": "1",
-	})))
+	}), ""))
 
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
 		t.Fatalf("sales = %d, want 1 (Sale must ingest, not be dropped)", n)
@@ -305,10 +305,10 @@ func TestDispatch_Sale_v3_Ingests(t *testing.T) {
 func TestDispatch_UnknownTypeIgnored(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
-	if err := dispatchEvent(ctx, db, ev("CollectionPaused", colPkg, 1, 0, 0, map[string]string{"collection": "genesis"})); err != nil {
+	if err := dispatchEvent(ctx, db, ev("CollectionPaused", colPkg, 1, 0, 0, map[string]string{"collection": "genesis"}), ""); err != nil {
 		t.Fatalf("unknown type should be a no-op, got %v", err)
 	}
-	if err := dispatchEvent(ctx, db, ev("TokenSold", marketPkg, 1, 0, 0, map[string]string{"collection": "genesis"})); err != nil {
+	if err := dispatchEvent(ctx, db, ev("TokenSold", marketPkg, 1, 0, 0, map[string]string{"collection": "genesis"}), ""); err != nil {
 		t.Fatalf("TokenSold should be skipped, got %v", err)
 	}
 }
@@ -321,7 +321,7 @@ func TestDispatch_Sale_PersistsEngineColumns(t *testing.T) {
 	must(t, dispatchEvent(ctx, db, ev("Sale", v3, 600, 0, 0, map[string]string{
 		"via": "buy", "collection": "genesis", "tokenId": "1", "seller": "g1s", "buyer": "g1b",
 		"price": "1000000", "fee": "20000", "royalty": "0", "schemaVersion": "1",
-	})))
+	}), ""))
 	var pkg, sv string
 	must(t, db.QueryRow(`SELECT pkg_path, schema_version FROM nft_sales`).Scan(&pkg, &sv))
 	if pkg != v3 || sv != "1" {
@@ -330,10 +330,24 @@ func TestDispatch_Sale_PersistsEngineColumns(t *testing.T) {
 
 	must(t, dispatchEvent(ctx, db, ev("OfferMade", v3, 601, 0, 0, map[string]string{
 		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000", "schemaVersion": "1",
-	})))
+	}), ""))
 	must(t, db.QueryRow(`SELECT pkg_path, schema_version FROM nft_offers`).Scan(&pkg, &sv))
 	if pkg != v3 || sv != "1" {
 		t.Fatalf("offer engine cols = %q %q, want v3 / 1", pkg, sv)
+	}
+}
+
+func TestDispatch_WritesRawLedgerFirst(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 100, 0, 0, map[string]string{
+		"collection": "genesis", "tokenId": "1", "seller": "g1s", "price": "1500000",
+	}), "BLKHASH100"))
+
+	var name, hash string
+	must(t, db.QueryRow(`SELECT event_name, block_hash FROM nft_raw_events WHERE event_block=100`).Scan(&name, &hash))
+	if name != "NFTListed" || hash != "BLKHASH100" {
+		t.Fatalf("raw ledger row = %q %q", name, hash)
 	}
 }
 

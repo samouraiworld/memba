@@ -123,7 +123,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			if _, ok := watched[ev.PkgPath]; !ok {
 				continue
 			}
-			if err := dispatchEvent(ctx, db, ev); err != nil {
+			if err := dispatchEvent(ctx, db, ev, ""); err != nil {
 				log.Warn("nft tailer: dispatch failed",
 					"height", h, "type", ev.Type, "error", err)
 				// Continue: idempotent writes mean a later replay is safe.
