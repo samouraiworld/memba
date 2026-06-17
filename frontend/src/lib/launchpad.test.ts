@@ -23,6 +23,8 @@ import {
     parseCollectionList,
     parseCollectionDetail,
     joinProof,
+    isValidSlug,
+    deriveCollectionID,
     Phase,
     CREATE_FEE_UGNOT,
     ROYALTY_SENTINEL,
@@ -138,6 +140,23 @@ describe("launchpad builders — mints", () => {
         expect(joinProof([])).toBe("")
         expect(joinProof(["aa"])).toBe("aa")
         expect(joinProof(["aa", "bb"])).toBe("aa,bb")
+    })
+})
+
+describe("launchpad — slug validation + id derivation", () => {
+    it("isValidSlug mirrors the realm charset ^[a-z0-9-]{1,64}$", () => {
+        for (const ok of ["genesis", "a", "my-collection", "abc123", "0", "x-y-z"]) {
+            expect(isValidSlug(ok)).toBe(true)
+        }
+        for (const bad of ["", "Genesis", "my_collection", "a/b", "a:b", "café", "UPPER"]) {
+            expect(isValidSlug(bad)).toBe(false)
+        }
+        expect(isValidSlug("a".repeat(64))).toBe(true)
+        expect(isValidSlug("a".repeat(65))).toBe(false)
+    })
+
+    it("deriveCollectionID joins creator/slug like the realm", () => {
+        expect(deriveCollectionID("g1abc", "genesis")).toBe("g1abc/genesis")
     })
 })
 

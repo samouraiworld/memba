@@ -61,6 +61,17 @@ export function joinProof(proof: string[]): string {
     return proof.join(",")
 }
 
+/** Mirror of the realm's validSlug: ^[a-z0-9-]{1,64}$ (lowercase, digits, hyphen). */
+const SLUG_RE = /^[a-z0-9-]{1,64}$/
+export function isValidSlug(slug: string): boolean {
+    return SLUG_RE.test(slug)
+}
+
+/** Derive the collectionID the realm will assign: `creator/slug`. */
+export function deriveCollectionID(creator: string, slug: string): string {
+    return `${creator}/${slug}`
+}
+
 // ── Launchpad: CreateCollection + 2-step admin ──────────────────────────────
 
 export interface CreateCollectionParams {
