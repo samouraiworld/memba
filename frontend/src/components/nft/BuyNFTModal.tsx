@@ -100,6 +100,15 @@ export function BuyNFTModal({ listing, callerAddress, onClose, onSuccess }: Prop
                     </div>
                 </div>
 
+                {royaltyBPS > 0 && (
+                    <div
+                        className="nft-royalty-notice"
+                        title={`${royaltyBPS / 100}% goes to the creator on every sale — enforced atomically in the gno.land realm; no marketplace can bypass it.`}
+                    >
+                        ⬡ {royaltyBPS / 100}% royalty enforced on-chain
+                    </div>
+                )}
+
                 {error && <p className="nft-modal__error" role="alert">{error}</p>}
 
                 <div className="nft-modal__actions">
