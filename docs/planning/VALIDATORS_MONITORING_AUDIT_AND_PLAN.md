@@ -2,8 +2,7 @@
 
 **Date:** 2026-06-17
 **Scope:** `/test13/validators` and `/test13/validators/hacker` not matching the network's real state vs reference dashboard **gnockpit** (`https://gnockpit.test-13-aeddi-1.gnoland.network/`).
-**Status:** Audit complete + **Phase 0/1 implemented & verified** (2026-06-17). Phase 2 (main-page roster reframe) proposed, pending decision.
-**Branch:** `fix/test13-validators-peer-aggregation` (isolated worktree; Marketplace session untouched).
+**Status:** ✅ **SHIPPED & live-verified** (2026-06-17) via #423 → #425 → #426. Network Nodes shows 14 on test13. Phase 2b (full roster reframe) deferred.
 **Non-goal / coordination:** Touches monitoring code only (`config.ts`, `lib/validators.ts`, `pages/ValidatorsHacker.tsx`). **Does not touch NFT Marketplace** (parallel effort).
 
 ---
@@ -124,6 +123,24 @@ A small ConnectRPC handler that polls multiple nodes server-side and serves a un
 test13 genuinely has **2 consensus validators**, so the main `/validators` count is correct. Phase 2a surfaces the fuller picture without redefining "validators":
 - `pages/Validators.tsx`: new **"Network Nodes"** stat card (aggregated peer count via `getAggregatedNetPeers(getTelemetryRpcUrls())`, best-effort) that links to the node roster (`/validators/hacker`). `pages/validators.css`: `.val-stat-card--link`.
 - Verified: tsc/eslint clean, 1994 tests, build OK.
+
+### Done — routing fix (#425, CRITICAL follow-up)
+The live smoke-test after #423 showed **Network Nodes: 5**, not 14. Root cause: `getNetPeers` routed through `rpcCall → resilientRpcCall`, whose resilient layer **ignores the URL argument** and always queries the global primary — so `getAggregatedNetPeers` hit one node N times. Fix:
+- `lib/rpcFallback.ts`: new `directRpcCall(rpcUrl, …)` — single-node fetch, no failover.
+- `lib/validators.ts`: `getNetPeers` now uses `directRpcCall`.
+- `lib/validators.netinfo.test.ts`: +4 fetch-routing regression tests (mock `fetch` per URL) — the pure parse/merge tests and the curl-based "live" check both bypassed this layer, which is why #423 looked green but failed in prod.
+- Browser CORS verified: aeddi-1 / samourai / onbloc / testnets all return 200 cross-origin (CSP `connect-src` already covers them).
+
+### Done — non-blocking fix (#426)
+`getAggregatedNetPeers` (up to 8s/node) was inside the blocking initial `Promise.all` on both pages → a slow/dead telemetry node (e.g. gnoland1's dead `aeddi.org`) delayed the whole render. Now fire-and-forget on both `Validators.tsx` and `ValidatorsHacker.tsx`; table/dashboard render immediately, peer count fills in async.
+
+### Other networks — no change needed
+`getTelemetryRpcUrls()` already unions each network's primary + fallbacks, so gnoland1 aggregation already spans its nodes (samourai 8 / moul 7 / betanet.testnets 6; dead aeddi.org skipped). test12 is legacy single-node; mainnet not live. Explicit `telemetryRpcUrls` only added for test13 (to include the samourai sentry, not otherwise a fallback, and prioritise aeddi-1).
+
+### Final live verification (2026-06-17, deployed)
+- `https://memba.samourai.app/test13/validators` → **Network Nodes: 14**, Active Validators: 2 (correct — test13 has exactly 2 consensus validators).
+- `https://memba.samourai.app/test13/validators/hacker` → **Peers: 14**, all node families present (val / sentry / rpc / snapshot / samourai / onbloc / moul / gfanton / aeddi).
+- Shipped via #423 → #425 → #426. test13 is the pre-mainnet testnet; the validator set may grow over time and the page reads it live.
 
 ### Not done — Phase 2b (deferred)
 Full main-table roster reframe (validators ∪ valopers ∪ peers + Status column) — larger UX change; revisit if desired.
