@@ -133,9 +133,8 @@ export default function ValidatorsHacker() {
 
         try {
             // Phase 1: ALL data sources in single parallel burst (was sequential)
-            const [csData, niData, nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
+            const [csData, nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
                 getConsensusState(rpcUrl, ctrl.signal),
-                getAggregatedNetPeers(telemetryRpcUrls, ctrl.signal),
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
                 getValidators(rpcUrl),
@@ -146,8 +145,13 @@ export default function ValidatorsHacker() {
 
             if (ctrl.signal.aborted) return
 
+            // Aggregated peers — fire-and-forget so a slow/dead telemetry node
+            // (8s timeout) never blocks the consensus dashboard's initial render.
+            getAggregatedNetPeers(telemetryRpcUrls, ctrl.signal)
+                .then(ni => { if (!ctrl.signal.aborted) setNetInfo(ni) })
+                .catch(() => { /* resilient */ })
+
             setCs(csData)
-            setNetInfo(niData)
             setNodeStatus(nsData)
             setNetworkStats(statsData)
             if (incidentsData) setIncidents(incidentsData)

@@ -106,15 +106,21 @@ export default function Validators() {
             // v3.0: Fetch validators + enrichment data in parallel, then stats sequentially
             // H-11 fix: getNetworkStats needs prefetched validators to avoid race condition
             // where the separate /validators?per_page=1 RPC fallback returns total=0
-            const [vals, monitoringMap, valoperMap, sigMap, netPeers] = await Promise.all([
+            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
-                // Aggregated peer roster across trusted nodes (best-effort).
-                getAggregatedNetPeers(telemetryRpcUrls, controller.signal),
             ])
-            setNetworkNodeCount(netPeers?.peerCount ?? null)
+
+            // Aggregated peer roster across trusted nodes — fire-and-forget so a
+            // slow or dead telemetry node (e.g. gnoland1's aeddi.org → 8s timeout)
+            // never delays the validators table. The "Network Nodes" stat fills in
+            // when it resolves; null on total failure.
+            getAggregatedNetPeers(telemetryRpcUrls, controller.signal)
+                .then(np => { if (!controller.signal.aborted) setNetworkNodeCount(np?.peerCount ?? null) })
+                .catch(() => { /* best-effort */ })
+
             // Sequential: stats needs validator count from prefetched data
             const netStats = await getNetworkStats(GNO_RPC_URL, vals, controller.signal)
 
