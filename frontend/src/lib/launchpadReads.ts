@@ -9,10 +9,11 @@
 
 import { GNO_RPC_URL } from "./config"
 import { NFT_COLLECTIONS_PATH } from "./nftConfig"
-import { queryRender } from "./dao/shared"
+import { queryRender, queryEval } from "./dao/shared"
 import {
     parseCollectionList,
     parseCollectionDetail,
+    META_VERIFIED_KEY,
     type CollectionListRow,
     type CollectionDetail,
 } from "./launchpad"
@@ -44,4 +45,26 @@ export async function fetchCollectionsByCreator(
 ): Promise<CollectionListRow[]> {
     const all = await fetchCollectionList(rpcUrl, collectionsPath)
     return all.filter((c) => c.creator === creator)
+}
+
+/** Read a per-collection meta value via qeval GetCollectionMeta(id,key). "" if unset. */
+export async function fetchCollectionMeta(
+    id: string,
+    key: string,
+    rpcUrl: string = GNO_RPC_URL,
+    collectionsPath: string = NFT_COLLECTIONS_PATH,
+): Promise<string> {
+    const res = await queryEval(rpcUrl, collectionsPath, `GetCollectionMeta(${JSON.stringify(id)}, ${JSON.stringify(key)})`)
+    if (!res) return ""
+    const m = res.match(/"([^"]*)"/)
+    return m ? m[1] : ""
+}
+
+/** Whether a collection carries the team/DAO-curated verified badge. */
+export async function isCollectionVerified(
+    id: string,
+    rpcUrl: string = GNO_RPC_URL,
+    collectionsPath: string = NFT_COLLECTIONS_PATH,
+): Promise<boolean> {
+    return (await fetchCollectionMeta(id, META_VERIFIED_KEY, rpcUrl, collectionsPath)) === "true"
 }

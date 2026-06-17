@@ -5,9 +5,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 const queryRender = vi.fn()
-vi.mock("./dao/shared", () => ({ queryRender: (...a: unknown[]) => queryRender(...a) }))
+const queryEval = vi.fn()
+vi.mock("./dao/shared", () => ({
+    queryRender: (...a: unknown[]) => queryRender(...a),
+    queryEval: (...a: unknown[]) => queryEval(...a),
+}))
 
-import { fetchCollectionList, fetchCollectionDetail, fetchCollectionsByCreator } from "./launchpadReads"
+import {
+    fetchCollectionList,
+    fetchCollectionDetail,
+    fetchCollectionsByCreator,
+    fetchCollectionMeta,
+    isCollectionVerified,
+} from "./launchpadReads"
 
 const LIST = `# Memba Collections
 
@@ -18,7 +28,10 @@ const LIST = `# Memba Collections
 _Page 1 — 3 of 3 collections._
 `
 
-beforeEach(() => queryRender.mockReset())
+beforeEach(() => {
+    queryRender.mockReset()
+    queryEval.mockReset()
+})
 
 describe("launchpadReads", () => {
     it("fetchCollectionList parses Render(\"\") output", async () => {
@@ -60,5 +73,24 @@ describe("launchpadReads", () => {
         queryRender.mockResolvedValue(LIST)
         const mine = await fetchCollectionsByCreator("g1abc")
         expect(mine.map((c) => c.slug)).toEqual(["genesis", "more"])
+    })
+
+    it("fetchCollectionMeta parses the qeval string value; null → ''", async () => {
+        queryEval.mockResolvedValue(`("true" string)`)
+        expect(await fetchCollectionMeta("g1abc/genesis", "verified")).toBe("true")
+        expect(queryEval).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.any(String),
+            `GetCollectionMeta("g1abc/genesis", "verified")`,
+        )
+        queryEval.mockResolvedValue(null)
+        expect(await fetchCollectionMeta("g1/x", "verified")).toBe("")
+    })
+
+    it("isCollectionVerified is true only when meta == 'true'", async () => {
+        queryEval.mockResolvedValue(`("true" string)`)
+        expect(await isCollectionVerified("g1abc/genesis")).toBe(true)
+        queryEval.mockResolvedValue(`("" string)`)
+        expect(await isCollectionVerified("g1abc/genesis")).toBe(false)
     })
 })

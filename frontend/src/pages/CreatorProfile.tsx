@@ -10,9 +10,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useOutletContext, Link } from "react-router-dom"
-import { fetchCollectionsByCreator } from "../lib/launchpadReads"
+import { fetchCollectionsByCreator, isCollectionVerified } from "../lib/launchpadReads"
 import type { CollectionListRow } from "../lib/launchpad"
 import { Phase } from "../lib/launchpad"
+import { VerifiedBadge } from "../components/nft/VerifiedBadge"
 import type { LayoutContext } from "../types/layout"
 
 const PHASE_LABELS: Record<number, string> = {
@@ -29,6 +30,8 @@ export function CreatorProfile() {
     const isMe = creator !== "" && creator === adena?.address
 
     const [rows, setRows] = useState<CollectionListRow[]>([])
+    const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set())
+    const [verifiedOnly, setVerifiedOnly] = useState(false)
     const [loading, setLoading] = useState(true)
 
     const load = useCallback(async () => {
@@ -38,9 +41,13 @@ export function CreatorProfile() {
         }
         setLoading(true)
         try {
-            setRows(await fetchCollectionsByCreator(creator))
+            const list = await fetchCollectionsByCreator(creator)
+            setRows(list)
+            const flags = await Promise.all(list.map((c) => isCollectionVerified(c.id).catch(() => false)))
+            setVerifiedIds(new Set(list.filter((_, i) => flags[i]).map((c) => c.id)))
         } catch {
             setRows([])
+            setVerifiedIds(new Set())
         } finally {
             setLoading(false)
         }
@@ -59,20 +66,29 @@ export function CreatorProfile() {
             <p className="form-hint">Creator: <code>{creator}</code></p>
             {isMe && <Link to="/nft/create" className="btn-primary">+ Launch a collection</Link>}
 
+            {verifiedIds.size > 0 && (
+                <label className="form-hint">
+                    <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} /> Verified only
+                </label>
+            )}
+
             {loading ? (
                 <p>Loading…</p>
             ) : rows.length === 0 ? (
                 <p>No collections yet.</p>
             ) : (
                 <ul className="collection-list">
-                    {rows.map((c) => (
-                        <li key={c.id}>
-                            <Link to={`/nft/collection/${encodeURIComponent(c.id)}`}>
-                                <strong>{c.name}</strong>
-                            </Link>{" "}
-                            <code>{c.slug}</code> — {PHASE_LABELS[c.phase] ?? c.phase}, minted {c.minted}
-                        </li>
-                    ))}
+                    {rows
+                        .filter((c) => !verifiedOnly || verifiedIds.has(c.id))
+                        .map((c) => (
+                            <li key={c.id}>
+                                <Link to={`/nft/collection/${encodeURIComponent(c.id)}`}>
+                                    <strong>{c.name}</strong>
+                                </Link>{" "}
+                                <VerifiedBadge verified={verifiedIds.has(c.id)} compact />{" "}
+                                <code>{c.slug}</code> — {PHASE_LABELS[c.phase] ?? c.phase}, minted {c.minted}
+                            </li>
+                        ))}
                 </ul>
             )}
         </div>
