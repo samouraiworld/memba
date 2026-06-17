@@ -167,6 +167,17 @@
     border-color: rgba(0, 212, 170, 0.15);
 }
 
+/* Stat card that links to the node roster (Hacker view). */
+.val-stat-card--link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.val-stat-card--link:hover {
+    border-color: rgba(0, 212, 170, 0.35);
+}
+
 .val-stat-label {
     font-size: 10px;
     color: var(--color-text-secondary);
