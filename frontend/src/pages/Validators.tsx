@@ -20,10 +20,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls } from "../lib/config"
 import {
     getValidators,
     getNetworkStats,
+    getAggregatedNetPeers,
     formatVotingPower,
     formatBlockTime,
     truncateValidatorAddr,
@@ -78,6 +79,11 @@ export default function Validators() {
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)
+    // Full network node count (peers aggregated across trusted RPCs). Distinct
+    // from the consensus validator set, which is small; this matches the node
+    // roster shown by gnockpit. Best-effort — null when no node is reachable.
+    const [networkNodeCount, setNetworkNodeCount] = useState<number | null>(null)
+    const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -100,12 +106,15 @@ export default function Validators() {
             // v3.0: Fetch validators + enrichment data in parallel, then stats sequentially
             // H-11 fix: getNetworkStats needs prefetched validators to avoid race condition
             // where the separate /validators?per_page=1 RPC fallback returns total=0
-            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
+            const [vals, monitoringMap, valoperMap, sigMap, netPeers] = await Promise.all([
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(controller.signal),
                 fetchValoperMonikers(GNO_RPC_URL),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
+                // Aggregated peer roster across trusted nodes (best-effort).
+                getAggregatedNetPeers(telemetryRpcUrls, controller.signal),
             ])
+            setNetworkNodeCount(netPeers?.peerCount ?? null)
             // Sequential: stats needs validator count from prefetched data
             const netStats = await getNetworkStats(GNO_RPC_URL, vals, controller.signal)
 
@@ -141,7 +150,7 @@ export default function Validators() {
             setLoading(false)
             setRefreshing(false)
         }
-    }, [])
+    }, [telemetryRpcUrls])
 
     // Page Visibility API: pause polling when tab is hidden (C2/M8 fix)
     useEffect(() => {
@@ -282,6 +291,14 @@ export default function Validators() {
                         <span className="val-stat-value">{stats.totalValidators}</span>
                         <span className="val-stat-hint">Consensus set</span>
                     </div>
+
+                    {networkNodeCount != null && (
+                        <Link to="/validators/hacker" className="val-stat-card val-stat-card--link" title="View the full network node roster">
+                            <span className="val-stat-label">Network Nodes</span>
+                            <span className="val-stat-value">{networkNodeCount}</span>
+                            <span className="val-stat-hint">Peers seen · view roster →</span>
+                        </Link>
+                    )}
 
                     <div className="val-stat-card">
                         <span className="val-stat-label">Total Voting Power</span>

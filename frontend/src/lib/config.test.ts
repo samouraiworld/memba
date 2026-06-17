@@ -13,6 +13,7 @@ import {
     isRealmValidOn,
     TRUSTED_RPC_DOMAINS,
     getTelemetryRpcUrl,
+    getTelemetryRpcUrls,
     GNO_RPC_URL,
     getUserRegistryPath,
 } from './config'
@@ -253,6 +254,38 @@ describe('getTelemetryRpcUrl', () => {
 
     it('GNO_RPC_URL is always a trusted domain', () => {
         expect(isTrustedRpcDomain(GNO_RPC_URL)).toBe(true)
+    })
+})
+
+describe('getTelemetryRpcUrls', () => {
+    it('returns a non-empty list that includes the primary RPC', () => {
+        const urls = getTelemetryRpcUrls()
+        expect(urls.length).toBeGreaterThan(0)
+        expect(urls).toContain(GNO_RPC_URL)
+    })
+
+    it('only contains trusted RPC domains', () => {
+        for (const url of getTelemetryRpcUrls()) {
+            expect(isTrustedRpcDomain(url)).toBe(true)
+        }
+    })
+
+    it('contains no duplicates', () => {
+        const urls = getTelemetryRpcUrls()
+        expect(new Set(urls).size).toBe(urls.length)
+    })
+
+    it('getTelemetryRpcUrl() returns the first telemetry node', () => {
+        expect(getTelemetryRpcUrl()).toBe(getTelemetryRpcUrls()[0])
+    })
+
+    it('test13 config declares well-connected telemetry nodes covering aeddi-1', () => {
+        // The fix: test13's primary RPC sits behind sentries and sees a partial
+        // peer set; aeddi-1 (gno-core) sees the full topology. It must be in the
+        // declared telemetry set so getAggregatedNetPeers can reach it.
+        const t13 = NETWORKS.test13.telemetryRpcUrls || []
+        expect(t13.some((u) => u.includes('aeddi-1'))).toBe(true)
+        for (const u of t13) expect(isTrustedRpcDomain(u)).toBe(true)
     })
 })
 
