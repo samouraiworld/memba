@@ -271,6 +271,37 @@ func TestDispatch_CollectionCreated(t *testing.T) {
 	}
 }
 
+func TestDispatch_Sale_v3_Ingests(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	const v3 = "gno.land/r/samcrew/memba_nft_market_v3"
+
+	// The canonical v3 settlement event (via="buy"). Previously DROPPED.
+	must(t, dispatchEvent(ctx, db, ev("Sale", v3, 600, 0, 0, map[string]string{
+		"via": "buy", "collection": "genesis", "tokenId": "1",
+		"seller": "g1seller", "buyer": "g1buyer",
+		"price": "1000000", "fee": "20000", "royalty": "50000",
+		"royaltyRecipient": "g1roy", "sellerAmount": "930000",
+		"denom": "ugnot", "schemaVersion": "1",
+	})))
+
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
+		t.Fatalf("sales = %d, want 1 (Sale must ingest, not be dropped)", n)
+	}
+	var kind string
+	var price, fee, royalty int64
+	must(t, db.QueryRow(`SELECT kind, price_ugnot, fee_ugnot, royalty_ugnot FROM nft_sales`).
+		Scan(&kind, &price, &fee, &royalty))
+	if kind != "buy" || price != 1000000 || fee != 20000 || royalty != 50000 {
+		t.Errorf("sale = %q %d %d %d", kind, price, fee, royalty)
+	}
+	var vol, sales int64
+	must(t, db.QueryRow(`SELECT total_volume_ugnot, total_sales FROM nft_collections WHERE collection_id='genesis'`).Scan(&vol, &sales))
+	if vol != 1000000 || sales != 1 {
+		t.Errorf("aggregates vol%d sales%d", vol, sales)
+	}
+}
+
 func TestDispatch_UnknownTypeIgnored(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

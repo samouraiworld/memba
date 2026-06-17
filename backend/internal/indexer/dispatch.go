@@ -41,6 +41,8 @@ func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 		return applyOfferResolved(ctx, db, ev, "expired")
 	case "OfferAccepted":
 		return applyOfferAccepted(ctx, db, ev)
+	case "Sale":
+		return applySale(ctx, db, ev)
 	case "MarketTransfer":
 		return applyMarketTransfer(ctx, db, ev)
 	case "Mint":
@@ -233,6 +235,22 @@ func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 		ev.Block, col, tok, buyer,
 	)
 	return err
+}
+
+// applySale ingests the canonical v3+ settlement event (one Sale per sale, keyed
+// by `via`). Replaces the retired v2 PurchaseConfirmed/OfferAccepted/TokenSold
+// volume paths. Volume is counted HERE only — the OfferAccepted companion event
+// is metadata, never a second sale row.
+func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+	col := ev.Attr("collection")
+	tok := ev.Attr("tokenId")
+	seller := ev.Attr("seller")
+	buyer := ev.Attr("buyer")
+	price := atoiSafe(ev.Attr("price"))
+	fee := atoiSafe(ev.Attr("fee"))
+	royalty := atoiSafe(ev.Attr("royalty"))
+	via := ev.Attr("via") // "buy" | "offer" | "auction" | "sweep"
+	return settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via)
 }
 
 // settleSale records a sale (purchase or accepted offer): inserts nft_sales,
