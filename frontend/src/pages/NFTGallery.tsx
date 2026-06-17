@@ -25,6 +25,11 @@ import { GNO_RPC_URL, getExplorerBaseUrl, isNftMarketValid } from "../lib/config
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { NFTListingCard } from "../components/nft/NFTListingCard"
+import { NFTImage } from "../components/nft/NFTImage"
+import { CollectionStatsBar } from "../components/nft/CollectionStatsBar"
+import { ConnectBanner } from "../components/nft/ConnectBanner"
+import { MyItemsTab } from "../components/nft/MyItemsTab"
+import { NFTTxToast, type NFTTxState } from "../components/nft/NFTTxToast"
 import { BuyNFTModal } from "../components/nft/BuyNFTModal"
 import { MakeOfferModal } from "../components/nft/MakeOfferModal"
 import { ListForSaleModal } from "../components/nft/ListForSaleModal"
@@ -57,7 +62,7 @@ export function NFTGallery() {
     return <NFTGalleryContent />
 }
 
-type NFTTab = "gallery" | "marketplace" | "activity"
+type NFTTab = "gallery" | "marketplace" | "activity" | "my-items"
 
 function NFTGalleryContent() {
     const navigate = useNetworkNav()
@@ -67,6 +72,7 @@ function NFTGalleryContent() {
     const [genesisTokens, setGenesisTokens] = useState<NFTTokenInfo[]>([])
     const [loading, setLoading] = useState(true)
     const [customPath, setCustomPath] = useState("")
+    const [royaltyBps, setRoyaltyBps] = useState(0)
 
     // Marketplace state
     const [listings, setListings] = useState<NFTListing[]>([])
@@ -74,6 +80,7 @@ function NFTGalleryContent() {
     const [buyModal, setBuyModal] = useState<NFTListing | null>(null)
     const [offerModal, setOfferModal] = useState<NFTListing | null>(null)
     const [listForSaleModal, setListForSaleModal] = useState<{ nftRealm: string; tokenId: string } | null>(null)
+    const [nftTx, setNftTx] = useState<NFTTxState | null>(null)
 
     useEffect(() => { document.title = "NFT Gallery — Memba" }, [])
 
@@ -139,11 +146,14 @@ function NFTGalleryContent() {
         if (!adena.address) return
         try {
             const { doContractBroadcast } = await import("../lib/grc20")
+            setNftTx({ status: "pending" })
             const msg = buildDelistMsg(adena.address, NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID, listing.tokenId)
             await doContractBroadcast([msg], `Delist NFT: ${listing.tokenId}`)
+            setNftTx({ status: "success", message: "Delisted successfully" })
             refreshListings()
         } catch (err) {
             console.error("Delist failed:", err)
+            setNftTx({ status: "error", message: err instanceof Error ? err.message : "Delist failed" })
         }
     }
 
@@ -151,11 +161,14 @@ function NFTGalleryContent() {
         if (!adena.address) return
         try {
             const { doContractBroadcast } = await import("../lib/grc20")
+            setNftTx({ status: "pending" })
             const msg = buildCancelOfferMsg(adena.address, NFT_MARKETPLACE_PATH, DEFAULT_COLLECTION_ID, listing.tokenId)
             await doContractBroadcast([msg], `Cancel offer on: ${listing.tokenId}`)
+            setNftTx({ status: "success", message: "Offer cancelled" })
             refreshListings()
         } catch (err) {
             console.error("Cancel offer failed:", err)
+            setNftTx({ status: "error", message: err instanceof Error ? err.message : "Cancel failed" })
         }
     }
 
@@ -173,6 +186,9 @@ function NFTGalleryContent() {
                 )}
             </div>
 
+            {/* Unauthenticated CTA — browse freely, connect to trade */}
+            {!auth.isAuthenticated && <ConnectBanner />}
+
             {/* Tabs */}
             <div className="nft-tabs">
                 <button className={`nft-tab${tab === "gallery" ? " active" : ""}`} onClick={() => setTab("gallery")}>
@@ -184,6 +200,11 @@ function NFTGalleryContent() {
                 <button className={`nft-tab${tab === "activity" ? " active" : ""}`} onClick={() => setTab("activity")}>
                     <Clock size={14} /> Activity
                 </button>
+                {auth.isAuthenticated && (
+                    <button className={`nft-tab${tab === "my-items" ? " active" : ""}`} onClick={() => setTab("my-items")}>
+                        My Items
+                    </button>
+                )}
             </div>
 
             {/* Gallery Tab */}
@@ -224,6 +245,16 @@ function NFTGalleryContent() {
                         </div>
                     )}
 
+                    {/* Collection stats bar (Floor / Volume / Items / Listed + royalty) */}
+                    {genesisCollection && (
+                        <CollectionStatsBar
+                            collectionId={DEFAULT_COLLECTION_ID}
+                            fallback={genesisCollection}
+                            onChainListingCount={listings.length}
+                            onRoyaltyBpsChange={setRoyaltyBps}
+                        />
+                    )}
+
                     {!genesisCollection && !loading && (
                         <h2 className="nft-section-title">Genesis Collection</h2>
                     )}
@@ -245,18 +276,13 @@ function NFTGalleryContent() {
                                 const activeListing = listings.find(l => l.tokenId === token.tokenId)
                                 return (
                                     <div key={token.tokenId} className="nft-token-card">
-                                        {token.tokenURI ? (
-                                            <div className="nft-token-card__image-wrap">
-                                                <img
-                                                    src={token.tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")}
-                                                    alt={`Token #${token.tokenId}`}
-                                                    className="nft-token-card__image"
-                                                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="nft-token-card__icon">🖼️</div>
-                                        )}
+                                        <div className="nft-token-card__image-wrap">
+                                            <NFTImage
+                                                uri={token.tokenURI}
+                                                alt={`Token #${token.tokenId}`}
+                                                className="nft-token-card__image"
+                                            />
+                                        </div>
                                         <div className="nft-token-card__body">
                                             <div className="nft-token-card__name">Token #{token.tokenId}</div>
                                             <div className="nft-token-card__owner" title={token.owner}>
@@ -313,19 +339,9 @@ function NFTGalleryContent() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h2 className="nft-section-title">Active Listings</h2>
                         {auth.isAuthenticated && (
-                            <button
-                                className="k-btn-primary"
-                                style={{ fontSize: 13, padding: "6px 14px" }}
-                                onClick={() => {
-                                    const realm = prompt("Enter NFT realm path (e.g., gno.land/r/user/my_nft):")
-                                    const tokenId = realm ? prompt("Enter Token ID:") : null
-                                    if (realm && tokenId) {
-                                        setListForSaleModal({ nftRealm: realm, tokenId })
-                                    }
-                                }}
-                            >
-                                List for Sale
-                            </button>
+                            <span className="nft-empty__hint">
+                                Own an NFT? List it from the Gallery or My Items tab.
+                            </span>
                         )}
                     </div>
 
@@ -333,6 +349,8 @@ function NFTGalleryContent() {
                         <div className="nft-grid">
                             <SkeletonCard /><SkeletonCard /><SkeletonCard />
                         </div>
+                    ) : !auth.isAuthenticated && listings.length === 0 ? (
+                        <ConnectBanner />
                     ) : listings.length === 0 ? (
                         <div className="nft-empty">
                             <span className="nft-empty__icon">🏪</span>
@@ -347,6 +365,7 @@ function NFTGalleryContent() {
                                     listing={l}
                                     connected={auth.isAuthenticated}
                                     currentAddress={adena.address}
+                                    royaltyBps={royaltyBps}
                                     onBuy={setBuyModal}
                                     onMakeOffer={setOfferModal}
                                     onDelist={handleDelist}
@@ -364,6 +383,15 @@ function NFTGalleryContent() {
                     <h2 className="nft-section-title">Recent Activity</h2>
                     <NFTActivityFeed />
                 </>
+            )}
+
+            {/* My Items Tab */}
+            {tab === "my-items" && adena.address && (
+                <MyItemsTab
+                    address={adena.address}
+                    onListForSale={(nftRealm, tokenId) => setListForSaleModal({ nftRealm, tokenId })}
+                    onTxStart={setNftTx}
+                />
             )}
 
             {/* Modals */}
@@ -392,6 +420,9 @@ function NFTGalleryContent() {
                     onSuccess={refreshListings}
                 />
             )}
+
+            {/* Transaction feedback toast */}
+            <NFTTxToast tx={nftTx} onDismiss={() => setNftTx(null)} />
         </div>
     )
 }
