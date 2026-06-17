@@ -120,8 +120,10 @@ A small ConnectRPC handler that polls multiple nodes server-side and serves a un
 - Unit: `validators.netinfo.test.ts` (12) + `config.test.ts` additions (5) — green. Full suite **1989 passing**, `tsc -b` clean, eslint clean.
 - **Live** (height ~274k): single-node `/net_info` = 13/6/5/5 (aeddi/samourai/testnets/onbloc); **aggregated = 14 unique peers**, including both `gno-core-val-01/02` that the primary RPC never reported. Matches/exceeds gnockpit (13). Node IDs now populate; `seenByCount` correct.
 
-### Proposed — Phase 2 (decision needed)
-test13 genuinely has **2 consensus validators**, so the main `/validators` page count is correct. Options for closing the perceived gap with gnockpit's roster:
-- **2a (recommended, light):** add a "Network nodes: N" stat + a link/section surfacing the aggregated roster, without redefining "validators." Low risk.
-- **2b (heavier):** rebuild the main table as a full node roster (validators ∪ valopers ∪ peers) with a Status column, mirroring gnockpit exactly. Larger UX change; redefines the page.
-Deferred pending user choice.
+### Done — Phase 2a (chosen)
+test13 genuinely has **2 consensus validators**, so the main `/validators` count is correct. Phase 2a surfaces the fuller picture without redefining "validators":
+- `pages/Validators.tsx`: new **"Network Nodes"** stat card (aggregated peer count via `getAggregatedNetPeers(getTelemetryRpcUrls())`, best-effort) that links to the node roster (`/validators/hacker`). `pages/validators.css`: `.val-stat-card--link`.
+- Verified: tsc/eslint clean, 1994 tests, build OK.
+
+### Not done — Phase 2b (deferred)
+Full main-table roster reframe (validators ∪ valopers ∪ peers + Status column) — larger UX change; revisit if desired.
