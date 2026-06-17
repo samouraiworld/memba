@@ -4,7 +4,7 @@ import type { ValidatorHealthMeta } from "./validatorHealth"
 import { hexToBech32 } from "./dao/realmAddress"
 import { queryRender } from "./dao/shared"
 import { getExplorerBaseUrl } from "./config"
-import { resilientRpcCall } from "./rpcFallback"
+import { resilientRpcCall, directRpcCall } from "./rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -855,8 +855,11 @@ export async function getNetPeers(
     signal?: AbortSignal,
 ): Promise<NetInfo | null> {
     try {
+        // Direct (no-failover) call: aggregation needs THIS node's peers. The
+        // resilient layer ignores the URL and always hits the primary, which
+        // would make getAggregatedNetPeers query one node N times.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await rpcCall(rpcUrl, "/net_info", {}, signal) as any
+        const result = await directRpcCall(rpcUrl, "/net_info", {}, signal) as any
         if (!result) return null
 
         const listening: boolean = result.listening === true

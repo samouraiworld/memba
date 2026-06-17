@@ -139,3 +139,41 @@ export async function resilientRpcCall(
     if (json.error) throw new Error(`RPC error: ${json.error.message || json.error}`)
     return json.result
 }
+
+/**
+ * Tendermint RPC call (GET-style) against ONE SPECIFIC node — no failover.
+ *
+ * Unlike {@link resilientRpcCall}, this queries exactly the URL passed and does
+ * not fall back to the global primary. Required when the caller needs results
+ * from a *particular* node (e.g. aggregating node-local `/net_info` across the
+ * network — failover would silently query the primary N times instead).
+ * Single 8s timeout; throws on HTTP/RPC error so callers can treat a node as
+ * unreachable.
+ */
+export async function directRpcCall(
+    rpcUrl: string,
+    method: string,
+    params: Record<string, string> = {},
+    signal?: AbortSignal,
+): Promise<unknown> {
+    const url = new URL(rpcUrl)
+    url.pathname = method
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT)
+    if (signal) signal.addEventListener("abort", () => controller.abort(), { once: true })
+
+    try {
+        const res = await fetch(url.toString(), {
+            headers: { Accept: "application/json" },
+            signal: controller.signal,
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        if (json.error) throw new Error(`RPC error: ${json.error.message || json.error}`)
+        return json.result
+    } finally {
+        clearTimeout(timeout)
+    }
+}
