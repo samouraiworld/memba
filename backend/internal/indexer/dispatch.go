@@ -186,9 +186,10 @@ func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	_, err := db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO nft_offers
 			(collection_id, token_id, buyer, amount_ugnot, created_block, status,
-			 event_block, event_tx_index, event_index)
-		VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
-		col, tok, buyer, amount, ev.Block, ev.Block, ev.TxIndex, ev.EventIdx,
+			 pkg_path, schema_version, event_block, event_tx_index, event_index)
+		VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+		col, tok, buyer, amount, ev.Block, ev.PkgPath, ev.Attr("schemaVersion"),
+		ev.Block, ev.TxIndex, ev.EventIdx,
 	)
 	return err
 }
@@ -266,9 +267,10 @@ func settleSale(ctx context.Context, db *sql.DB, ev GnoEvent, col, tok, seller, 
 	res, err := tx.ExecContext(ctx, `
 		INSERT OR IGNORE INTO nft_sales
 			(collection_id, token_id, seller, buyer, price_ugnot, fee_ugnot, royalty_ugnot,
-			 sale_block, kind, event_block, event_tx_index, event_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 sale_block, kind, pkg_path, schema_version, event_block, event_tx_index, event_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		col, tok, seller, buyer, price, fee, royalty, ev.Block, kind,
+		ev.PkgPath, ev.Attr("schemaVersion"),
 		ev.Block, ev.TxIndex, ev.EventIdx,
 	)
 	if err != nil {

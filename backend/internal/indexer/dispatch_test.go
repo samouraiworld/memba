@@ -313,6 +313,30 @@ func TestDispatch_UnknownTypeIgnored(t *testing.T) {
 	}
 }
 
+func TestDispatch_Sale_PersistsEngineColumns(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	const v3 = "gno.land/r/samcrew/memba_nft_market_v3"
+
+	must(t, dispatchEvent(ctx, db, ev("Sale", v3, 600, 0, 0, map[string]string{
+		"via": "buy", "collection": "genesis", "tokenId": "1", "seller": "g1s", "buyer": "g1b",
+		"price": "1000000", "fee": "20000", "royalty": "0", "schemaVersion": "1",
+	})))
+	var pkg, sv string
+	must(t, db.QueryRow(`SELECT pkg_path, schema_version FROM nft_sales`).Scan(&pkg, &sv))
+	if pkg != v3 || sv != "1" {
+		t.Fatalf("sale engine cols = %q %q, want v3 / 1", pkg, sv)
+	}
+
+	must(t, dispatchEvent(ctx, db, ev("OfferMade", v3, 601, 0, 0, map[string]string{
+		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000", "schemaVersion": "1",
+	})))
+	must(t, db.QueryRow(`SELECT pkg_path, schema_version FROM nft_offers`).Scan(&pkg, &sv))
+	if pkg != v3 || sv != "1" {
+		t.Fatalf("offer engine cols = %q %q, want v3 / 1", pkg, sv)
+	}
+}
+
 func must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
