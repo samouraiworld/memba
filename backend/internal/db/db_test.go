@@ -165,3 +165,30 @@ func TestMigrate_ForeignKeysEnforced(t *testing.T) {
 		t.Fatalf("expected foreign_keys=1 after migration, got %d", fkEnabled)
 	}
 }
+
+func TestMigrate_013_RawLedgerAndColumns(t *testing.T) {
+	database, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	if err := Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+	// Raw ledger table exists and accepts a row.
+	if _, err := database.Exec(`INSERT INTO nft_raw_events
+		(event_block, event_tx_index, event_index, pkg_path, event_name, schema_version, attrs_json, block_hash, ingest_ts)
+		VALUES (1,0,0,'gno.land/r/x','Sale','1','{}','abc', CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("nft_raw_events insert: %v", err)
+	}
+	// New disambiguation columns exist on sales + offers.
+	for _, q := range []string{
+		`SELECT pkg_path, schema_version FROM nft_sales LIMIT 0`,
+		`SELECT pkg_path, schema_version FROM nft_offers LIMIT 0`,
+		`SELECT block_hash FROM nft_indexer_state LIMIT 0`,
+	} {
+		if _, err := database.Exec(q); err != nil {
+			t.Fatalf("column missing: %q: %v", q, err)
+		}
+	}
+}
