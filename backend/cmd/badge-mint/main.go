@@ -99,14 +99,14 @@ func pendingMints(db *sql.DB) ([]pendingMint, error) {
 // tokenURI arg is left empty — set it (or UpdateTokenURI post-mint) once badge
 // metadata is pinned to IPFS.
 func emitMintCalls(w *os.File, mints []pendingMint, realm, key, chainID, remote string) {
-	fmt.Fprintf(w, "# %d pending badge mint(s). Sign+broadcast each with the multisig, then run -mark-minted -id <id> -tx <hash>.\n", len(mints))
+	_, _ = fmt.Fprintf(w, "# %d pending badge mint(s). Sign+broadcast each with the multisig, then run -mark-minted -id <id> -tx <hash>.\n", len(mints))
 	for _, m := range mints {
-		fmt.Fprintf(w, "\n# mint #%d  addr=%s  quest=%s\n", m.ID, m.Address, m.QuestID)
+		_, _ = fmt.Fprintf(w, "\n# mint #%d  addr=%s  quest=%s\n", m.ID, m.Address, m.QuestID)
 		fn, arg2 := "MintQuestBadge", m.QuestID
 		if tier, ok := rankTier(m.QuestID); ok {
 			fn, arg2 = "MintRankBadge", strconv.Itoa(tier)
 		}
-		fmt.Fprintf(w,
+		_, _ = fmt.Fprintf(w,
 			"gnokey maketx call -pkgpath %q -func %s -args %q -args %q -args %q -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid %q -remote %q -broadcast %s\n",
 			realm, fn, m.Address, arg2, "", chainID, remote, key)
 	}

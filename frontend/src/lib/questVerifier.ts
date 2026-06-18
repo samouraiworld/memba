@@ -11,7 +11,7 @@
  * Verification is non-blocking: if the chain is down, results are "pending".
  */
 
-import { queryRender } from "./dao/shared"
+import { queryRender, queryEval } from "./dao/shared"
 import { fetchAccountInfo } from "./account"
 import { getDAOMembers } from "./dao/members"
 import { fetchBackendProfile } from "./profile"
@@ -113,13 +113,15 @@ async function verifyOnChain(
             return NOT_VERIFIED("Provide your deployed realm path to verify")
 
         case "register-username": {
-            const result = await queryRender(rpcUrl, "gno.land/r/sys/users", address)
-            if (result && result.length > 0 && !result.includes("not found")) {
-                return VERIFIED
+            // r/sys/users.Render IGNORES its path arg — a qrender returns the same
+            // home page for ANY address, so the old length>0 check always passed.
+            // ResolveAddress returns *UserData, printed as "(nil ...)" when no
+            // @username is registered. Mirrors the backend verifier (quest_verify.go).
+            if (!/^g1[a-z0-9]{38}$/.test(address)) {
+                return NOT_VERIFIED("Connect a wallet to verify your @username")
             }
-            // Fallback: try legacy path
-            const legacy = await queryRender(rpcUrl, "gno.land/r/gnoland/users", address)
-            if (legacy && legacy.length > 0 && !legacy.includes("not found")) {
+            const result = await queryEval(rpcUrl, "gno.land/r/sys/users", `ResolveAddress(${JSON.stringify(address)})`)
+            if (result && !result.trimStart().startsWith("(nil")) {
                 return VERIFIED
             }
             return NOT_VERIFIED("No @username registered for your address")
