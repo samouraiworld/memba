@@ -8,7 +8,8 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { screen } from "@testing-library/react"
+import { screen, fireEvent } from "@testing-library/react"
+import { useState } from "react"
 import { renderWithProviders } from "../../test/test-utils"
 import { StateBoard, PanelBoundary } from "./StateBoard"
 
@@ -190,5 +191,108 @@ describe("PanelBoundary — standalone", () => {
             </PanelBoundary>,
         )
         expect(screen.getByTestId("inner")).toBeInTheDocument()
+    })
+})
+
+describe("StateBoard — stable panel keys", () => {
+    it("panels with explicit keys render under their own identity", () => {
+        renderWithProviders(
+            <StateBoard>
+                <GoodPanel key="alpha" label="alpha" />
+                <GoodPanel key="beta" label="beta" />
+            </StateBoard>,
+        )
+        expect(screen.getByTestId("good-panel-alpha")).toBeInTheDocument()
+        expect(screen.getByTestId("good-panel-beta")).toBeInTheDocument()
+    })
+
+    it("a throwing panel's fallback stays bound to that slot; sibling with explicit key is unaffected", () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+        renderWithProviders(
+            <StateBoard>
+                <GoodPanel key="healthy" label="healthy" />
+                <BadPanel key="broken" />
+            </StateBoard>,
+        )
+
+        // Healthy panel renders normally under its own key
+        expect(screen.getByTestId("good-panel-healthy")).toBeInTheDocument()
+        // Broken panel shows the boundary fallback
+        expect(screen.getByTestId("panel-boundary-fallback")).toBeInTheDocument()
+        // Only one fallback — the healthy slot is unaffected
+        expect(screen.getAllByTestId("panel-boundary-fallback")).toHaveLength(1)
+
+        consoleSpy.mockRestore()
+        warnSpy.mockRestore()
+    })
+})
+
+describe("PanelBoundary — retry", () => {
+    it("shows the Retry button in the fallback", () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+        renderWithProviders(
+            <StateBoard>
+                <BadPanel key="bad" />
+            </StateBoard>,
+        )
+
+        expect(screen.getByTestId("panel-boundary-retry")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+
+        consoleSpy.mockRestore()
+        warnSpy.mockRestore()
+    })
+
+    it("clicking Retry clears the fallback and re-mounts the child when it no longer throws", () => {
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+        // Mutable flag shared between the FlakyPanel definition and the test body.
+        // On first mount it throws; after the flag is flipped it renders normally.
+        let failOnRender = true
+
+        function FlakyPanel() {
+            if (failOnRender) throw new Error("flaky first render")
+            return <div data-testid="flaky-recovered">recovered</div>
+        }
+
+        // Wrapper using React state so we can force PanelBoundary to remount
+        // cleanly after clicking Retry (simulating a parent re-render cycle).
+        function Wrapper() {
+            const [key, setKey] = useState(0)
+            return (
+                <div>
+                    <button
+                        data-testid="force-remount"
+                        onClick={() => setKey((k) => k + 1)}
+                    />
+                    <PanelBoundary key={key}>
+                        <FlakyPanel />
+                    </PanelBoundary>
+                </div>
+            )
+        }
+
+        renderWithProviders(<Wrapper />)
+
+        // Boundary caught the error — fallback + retry visible
+        expect(screen.getByTestId("panel-boundary-fallback")).toBeInTheDocument()
+        const retryBtn = screen.getByTestId("panel-boundary-retry")
+
+        // Flip the flag so FlakyPanel won't throw on next mount
+        failOnRender = false
+
+        // Click Retry — boundary sets hasError=false, child re-mounts successfully
+        fireEvent.click(retryBtn)
+
+        expect(screen.getByTestId("flaky-recovered")).toBeInTheDocument()
+        expect(screen.queryByTestId("panel-boundary-fallback")).not.toBeInTheDocument()
+
+        consoleSpy.mockRestore()
+        warnSpy.mockRestore()
     })
 })

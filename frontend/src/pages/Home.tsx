@@ -46,7 +46,7 @@ export function Home({ mode }: HomeProps) {
             {/* Zone 3: STATE BOARD — realtime status panels */}
             <div className="home-state-board" data-testid="home-state-board">
                 <StateBoard eagerIndices={[0]}>
-                    <NetworkPulsePanel />
+                    <NetworkPulsePanel key="pulse" />
                 </StateBoard>
             </div>
         </div>

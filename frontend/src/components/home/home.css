@@ -212,6 +212,20 @@ button.action-card:focus-visible {
   min-width: 0;
 }
 
+/* ── PanelBoundary retry affordance ──────────────────────────────── */
+
+.panel-boundary__retry {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
 /* ── NetworkPulsePanel ────────────────────────────────────────────── */
 
 .network-pulse-panel {

@@ -26,7 +26,8 @@ interface PanelBoundaryState {
 
 /**
  * PanelBoundary — catches render errors thrown by a single panel.
- * Renders a compact neutral "couldn't load" ActionCard as fallback.
+ * Renders a compact neutral "couldn't load" ActionCard as fallback,
+ * with a Retry button that clears the error state so the child re-mounts.
  * Sibling panels are unaffected.
  */
 export class PanelBoundary extends React.Component<
@@ -36,6 +37,7 @@ export class PanelBoundary extends React.Component<
     constructor(props: React.PropsWithChildren<{ label?: string }>) {
         super(props)
         this.state = { hasError: false }
+        this.handleRetry = this.handleRetry.bind(this)
     }
 
     static getDerivedStateFromError(): PanelBoundaryState {
@@ -50,16 +52,28 @@ export class PanelBoundary extends React.Component<
         }
     }
 
+    handleRetry() {
+        this.setState({ hasError: false })
+    }
+
     override render() {
         if (this.state.hasError) {
             return (
-                <ActionCard
-                    accent="neutral"
-                    eyebrow="panel"
-                    title={this.props.label ?? "couldn't load"}
-                    meta="—"
-                    data-testid="panel-boundary-fallback"
-                />
+                <div data-testid="panel-boundary-fallback">
+                    <ActionCard
+                        accent="neutral"
+                        eyebrow="panel"
+                        title={this.props.label ?? "couldn't load"}
+                        meta="—"
+                    />
+                    <button
+                        className="panel-boundary__retry"
+                        onClick={this.handleRetry}
+                        data-testid="panel-boundary-retry"
+                    >
+                        Retry
+                    </button>
+                </div>
             )
         }
         return this.props.children
@@ -164,17 +178,30 @@ export interface StateBoardProps {
 /**
  * StateBoard — generic grid host for home status panels.
  * Does NOT know about specific panels. Tasks 1.5-1.10 plug panels in here.
+ *
+ * Keying: each PanelSlot is keyed by the child element's own React key
+ * (set via `<Panel key="..." />` at the call-site), not by array index.
+ * This prevents error/mount state from migrating to the wrong slot when
+ * panels are conditional or reordered (Tasks 1.5-1.10).
  */
 export function StateBoard({ children, eagerIndices = [0] }: StateBoardProps) {
+    // React.Children.toArray assigns stable internal keys to each child.
+    // element.key carries the caller-supplied key (e.g. "pulse" from
+    // `<NetworkPulsePanel key="pulse" />`), prefixed with the parent's key
+    // context (e.g. ".$pulse"). We use it verbatim — it is unique and stable.
     const childArray = React.Children.toArray(children)
 
     return (
         <div className="state-board" data-testid="state-board">
-            {childArray.map((child, i) => (
-                <PanelSlot key={i} eager={eagerIndices.includes(i)}>
-                    {child}
-                </PanelSlot>
-            ))}
+            {childArray.map((child, i) => {
+                const element = child as React.ReactElement
+                const slotKey = element.key ?? i
+                return (
+                    <PanelSlot key={slotKey} eager={eagerIndices.includes(i)}>
+                        {child}
+                    </PanelSlot>
+                )
+            })}
         </div>
     )
 }
