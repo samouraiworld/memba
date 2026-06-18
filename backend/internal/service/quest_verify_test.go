@@ -187,8 +187,8 @@ func TestCompleteQuest_Deploy_VerifiesAndStoresProof(t *testing.T) {
 
 func TestCompleteQuest_Deploy_RejectedWithoutProof(t *testing.T) {
 	h := setup(t)
-	// No stub -> real verifyDeployQuest; empty proof -> namespaceOf fails -> reject
-	// with no network call.
+	// No stub -> real verifyDeployQuest; empty proof -> canonicalizeProof fails ->
+	// reject with no network call.
 	token := h.makeToken(t, "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
 	ctx := context.Background()
 	_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
@@ -196,6 +196,58 @@ func TestCompleteQuest_Deploy_RejectedWithoutProof(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("expected deploy quest with no proof to be rejected")
+	}
+}
+
+// C1 regression: a single realm's string aliases must collapse to ONE dedup key,
+// so one deploy can't farm multiple deploy quests.
+func TestCanonicalizeProof(t *testing.T) {
+	const canon = "gno.land/r/alice/foo"
+	for _, in := range []string{
+		"gno.land/r/alice/foo",
+		"gno.land/r/alice/foo/",
+		"gno.land/r/alice/foo//",
+		"  gno.land/r/alice/foo  ",
+		"gno.land/r/alice/foo/render.gno",
+		"gno.land/r/alice/foo/gnomod.toml",
+		"gno.land/r/alice//foo",
+	} {
+		if got, ok := canonicalizeProof(in); !ok || got != canon {
+			t.Errorf("canonicalizeProof(%q) = (%q,%v), want (%q,true)", in, got, ok, canon)
+		}
+	}
+	for _, in := range []string{
+		"", "gno.land/r/alice", "gno.land/x/alice/foo",
+		"http://evil/r/alice/foo", `gno.land/r/a"b/foo`,
+	} {
+		if got, ok := canonicalizeProof(in); ok {
+			t.Errorf("canonicalizeProof(%q) = (%q,true), want invalid", in, got)
+		}
+	}
+	if got, ok := canonicalizeProof("gno.land/p/bob_dev/utils/math/"); !ok || got != "gno.land/p/bob_dev/utils/math" {
+		t.Errorf("subpkg: got (%q,%v)", got, ok)
+	}
+}
+
+func TestProofUsedForOtherDeploy_CanonicalVariants(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := h.db.ExecContext(ctx,
+		`INSERT INTO quest_completions (address, quest_id, completed_at, proof) VALUES (?,?,?,?)`,
+		"g1alice", "deploy-hello-pkg", now, "gno.land/r/alice/foo"); err != nil {
+		t.Fatal(err)
+	}
+	canon, ok := canonicalizeProof("gno.land/r/alice/foo/render.gno")
+	if !ok {
+		t.Fatal("expected variant to canonicalize")
+	}
+	used, err := h.svc.proofUsedForOtherDeploy(ctx, "g1alice", "deploy-counter-pkg", canon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !used {
+		t.Fatal("a different deploy quest using an alias of the same realm must be blocked")
 	}
 }
 

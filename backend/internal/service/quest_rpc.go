@@ -194,6 +194,14 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 	if len(proof) > maxProofURLLen {
 		proof = proof[:maxProofURLLen]
 	}
+	// Store deploy proofs in canonical package-root form so the distinct-path key
+	// (which verifyDeployQuest compares against) matches regardless of aliasing.
+	// A non-canonicalizable proof is left as-is and rejected by verification.
+	if strings.HasPrefix(questID, "deploy-") {
+		if canon, ok := canonicalizeProof(proof); ok {
+			proof = canon
+		}
+	}
 
 	// P0-1: server-side verification. The client's claim that it passed the
 	// frontend verifier is never trusted — self_report/social quests require
