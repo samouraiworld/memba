@@ -206,7 +206,7 @@ function App() {
           {/* Model B (advanced): legacy code-gen wizard that deploys a standalone realm. */}
           <Route path="nft/create/advanced" element={<Suspense fallback={<PageLoader />}><NFTLaunchpad /></Suspense>} />
           {/* Phase 2 registry: per-collection detail/mint/manage + creator profiles. */}
-          <Route path="nft/collection/:id" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
+          <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
           <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />

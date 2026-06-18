@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useOutletContext, Link } from "react-router-dom"
+import { useNetworkPath } from "../hooks/useNetworkNav"
 import { fetchCollectionsByCreator, isCollectionVerified } from "../lib/launchpadReads"
 import type { CollectionListRow } from "../lib/launchpad"
 import { Phase } from "../lib/launchpad"
@@ -27,6 +28,7 @@ const PHASE_LABELS: Record<number, string> = {
 export function CreatorProfile() {
     const { address: routeAddr } = useParams<{ address: string }>()
     const { adena } = useOutletContext<LayoutContext>()
+    const np = useNetworkPath()
     const creator = routeAddr || adena?.address || ""
     const isMe = creator !== "" && creator === adena?.address
 
@@ -83,7 +85,7 @@ export function CreatorProfile() {
                         .filter((c) => !verifiedOnly || verifiedIds.has(c.id))
                         .map((c) => (
                             <li key={c.id}>
-                                <Link to={`/nft/collection/${encodeURIComponent(c.id)}`}>
+                                <Link to={np(`nft/collection/${c.id}`)}>
                                     <strong>{c.name}</strong>
                                 </Link>{" "}
                                 <VerifiedBadge verified={verifiedIds.has(c.id)} compact />{" "}

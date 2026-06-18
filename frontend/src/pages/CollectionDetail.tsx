@@ -6,7 +6,7 @@
  *  - Manage panel (admin only): set mint phase, set mint config, admin-mint,
  *    withdraw proceeds — all wired to the tested launchpad builders.
  *
- * Route: /nft/collection/:id   (:id = encodeURIComponent("creator/slug"))
+ * Route: /nft/collection/:creator/:slug   (id = "creator/slug")
  *
  * @module pages/CollectionDetail
  */
@@ -48,8 +48,8 @@ async function broadcast(msg: ReturnType<typeof buildMintPublicMsg>, memo: strin
 }
 
 export function CollectionDetail() {
-    const { id: rawId } = useParams<{ id: string }>()
-    const id = rawId ? decodeURIComponent(rawId) : ""
+    const { creator, slug } = useParams<{ creator: string; slug: string }>()
+    const id = creator && slug ? `${creator}/${slug}` : ""
     const { adena } = useOutletContext<LayoutContext>()
     const me = adena?.address || ""
 
