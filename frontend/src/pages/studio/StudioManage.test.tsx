@@ -1,15 +1,17 @@
 /**
- * StudioManage — unit tests (Task 5)
+ * StudioManage — unit tests (Task 5 + Task 11)
  *
  * Covers:
  *  - non-admin sees the gate message
  *  - admin sees all five section labels; default section is Mint
+ *  - admin clicking Settings shows the GNOT hint (real SettingsSection)
+ *  - admin clicking Withdraw shows the Withdraw proceeds button (real WithdrawSection)
  *  - loading state
  *  - collection not found state
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { StudioManage } from "./StudioManage"
 import type { CollectionAdminResult } from "./useCollectionAdmin"
@@ -210,5 +212,17 @@ describe("StudioManage — admin shell", () => {
             "href",
             `/test13/nft/collection/${COL_ID}`,
         )
+    })
+
+    it("clicking Settings shows the GNOT mint-price hint from SettingsSection", () => {
+        renderManage()
+        fireEvent.click(screen.getByRole("button", { name: /^settings$/i }))
+        expect(screen.getByText(/minimum 0\.001 GNOT/i)).toBeInTheDocument()
+    })
+
+    it("clicking Withdraw shows the Withdraw proceeds button from WithdrawSection", () => {
+        renderManage()
+        fireEvent.click(screen.getByRole("button", { name: /^withdraw$/i }))
+        expect(screen.getByRole("button", { name: /withdraw proceeds/i })).toBeInTheDocument()
     })
 })

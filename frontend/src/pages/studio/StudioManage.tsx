@@ -2,6 +2,11 @@ import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { useCollectionAdmin } from "./useCollectionAdmin"
+import { MintSection } from "./sections/MintSection"
+import { PhasesSection } from "./sections/PhasesSection"
+import { AllowlistSection } from "./sections/AllowlistSection"
+import { WithdrawSection } from "./sections/WithdrawSection"
+import { SettingsSection } from "./sections/SettingsSection"
 
 // ── Phase labels ────────────────────────────────────────────────────────
 
@@ -35,7 +40,7 @@ export function StudioManage() {
     const id = creator && slug ? `${creator}/${slug}` : ""
     const np = useNetworkPath()
 
-    const { col, isAdmin, loading } = useCollectionAdmin(id)
+    const { col, isAdmin, me, loading, run } = useCollectionAdmin(id)
 
     const [section, setSection] = useState<SectionKey>("mint")
 
@@ -94,7 +99,21 @@ export function StudioManage() {
             </nav>
 
             <div className="studio-section" data-section={section}>
-                {activeSection.label} — coming soon
+                {section === "mint" && (
+                    <MintSection id={id} caller={me} col={col!} run={run} />
+                )}
+                {section === "phases" && (
+                    <PhasesSection id={id} caller={me} col={col!} run={run} />
+                )}
+                {section === "settings" && (
+                    <SettingsSection id={id} caller={me} run={run} />
+                )}
+                {section === "allowlist" && (
+                    <AllowlistSection id={id} caller={me} run={run} />
+                )}
+                {section === "withdraw" && (
+                    <WithdrawSection id={id} caller={me} run={run} />
+                )}
             </div>
         </div>
     )
