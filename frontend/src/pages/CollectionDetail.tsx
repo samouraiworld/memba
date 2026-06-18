@@ -28,6 +28,11 @@ import {
 } from "../lib/launchpad"
 import { parseAllowlistText, computeAllowlistRoot, getAllowlistProof } from "../lib/allowlistMerkle"
 import type { LayoutContext } from "../types/layout"
+import { tradeEngineFor } from "../lib/tradeEngine"
+import { fetchV3Tokens, fetchV3Listings, listingKey, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
+import { NFTImage } from "../components/nft/NFTImage"
+import { V3ListForSaleModal } from "../components/nft/V3ListForSaleModal"
+import { V3BuyNFTModal } from "../components/nft/V3BuyNFTModal"
 
 const PHASE_LABELS: Record<number, string> = {
     [Phase.Draft]: "Draft",
@@ -53,6 +58,14 @@ export function CollectionDetail() {
     const [notice, setNotice] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
+    // ── v3 token grid state ──────────────────────────────────────────────────
+    const [v3Tokens, setV3Tokens] = useState<V3Token[]>([])
+    const [v3Listings, setV3Listings] = useState<V3ListingMap>(new Map())
+    const [v3Loading, setV3Loading] = useState(false)
+    const [listModal, setListModal] = useState<{ tokenId: string } | null>(null)
+    const [buyModal, setBuyModal] = useState<{ tokenId: string; priceUgnot: number; seller: string } | null>(null)
+    const v3Engine = tradeEngineFor("v3")
+
     const reload = useCallback(async () => {
         setLoading(true)
         try {
@@ -69,10 +82,32 @@ export function CollectionDetail() {
         }
     }, [id])
 
+    // Reload the v3 token grid + listings (called after list/buy success)
+    const reloadV3 = useCallback(async (supply: number) => {
+        setV3Loading(true)
+        try {
+            const [tokens, listings] = await Promise.all([
+                fetchV3Tokens(id, supply),
+                fetchV3Listings(id),
+            ])
+            setV3Tokens(tokens)
+            setV3Listings(listings)
+        } finally {
+            setV3Loading(false)
+        }
+    }, [id])
+
     useEffect(() => {
         document.title = `${id} — Memba`
         reload()
     }, [id, reload])
+
+    // Load v3 token grid once we know the minted supply
+    useEffect(() => {
+        if (col && col.minted > 0) {
+            reloadV3(col.minted)
+        }
+    }, [col, reloadV3])
 
     const run = useCallback(
         async (msg: ReturnType<typeof buildMintPublicMsg>, memo: string) => {
@@ -94,6 +129,18 @@ export function CollectionDetail() {
 
     const isAdmin = me !== "" && me === col.admin
     const isNative = col.payDenom === "ugnot" || col.payDenom === ""
+
+    const handleListSuccess = () => {
+        setListModal(null)
+        reload()
+        reloadV3(col.minted)
+    }
+
+    const handleBuySuccess = () => {
+        setBuyModal(null)
+        reload()
+        reloadV3(col.minted)
+    }
 
     return (
         <div className="collection-detail">
@@ -132,6 +179,101 @@ export function CollectionDetail() {
 
             {/* ── Manage (admin only) ── */}
             {isAdmin && <ManagePanel id={col.id} caller={me} onRun={run} />}
+
+            {/* ── v3 Token Grid ── */}
+            <section className="v3-token-grid-section">
+                <h2>Tokens</h2>
+                {v3Loading && <p className="form-hint">Loading tokens…</p>}
+                {!v3Loading && col.minted === 0 && (
+                    <p className="form-hint">No tokens minted yet.</p>
+                )}
+                {!v3Loading && v3Tokens.length > 0 && (
+                    <div className="v3-token-grid">
+                        {v3Tokens.map((token) => {
+                            const lk = listingKey(col.id, token.tokenId)
+                            const listed = v3Listings.get(lk)
+                            const isOwner = me !== "" && me === token.owner
+                            const isSeller = me !== "" && listed?.seller === me
+                            const canBuy = listed !== undefined && !isSeller
+
+                            return (
+                                <div key={token.tokenId} className="v3-token-card">
+                                    <NFTImage
+                                        uri={token.uri}
+                                        alt={`Token ${token.tokenId}`}
+                                        className="v3-token-card__img"
+                                    />
+                                    <div className="v3-token-card__body">
+                                        <div className="v3-token-card__id">#{token.tokenId}</div>
+                                        <div className="v3-token-card__owner" title={token.owner}>
+                                            {token.owner.slice(0, 8)}…{token.owner.slice(-4)}
+                                        </div>
+                                        {listed && (
+                                            <div className="v3-token-card__price">
+                                                {(listed.priceUgnot / 1_000_000).toFixed(4)} GNOT
+                                            </div>
+                                        )}
+                                        {!listed && <div className="v3-token-card__status">Unlisted</div>}
+                                    </div>
+                                    <div className="v3-token-card__actions">
+                                        {isOwner && !listed && me && (
+                                            <button
+                                                className="btn-primary"
+                                                onClick={() => setListModal({ tokenId: token.tokenId })}
+                                            >
+                                                List for sale
+                                            </button>
+                                        )}
+                                        {canBuy && me && (
+                                            <button
+                                                className="btn-primary"
+                                                onClick={() =>
+                                                    setBuyModal({
+                                                        tokenId: token.tokenId,
+                                                        priceUgnot: listed.priceUgnot,
+                                                        seller: listed.seller,
+                                                    })
+                                                }
+                                            >
+                                                Buy
+                                            </button>
+                                        )}
+                                        {(isOwner && !listed && !me) || (listed && !me) ? (
+                                            <span className="form-hint">Connect wallet</span>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+            </section>
+
+            {/* ── v3 Modals ── */}
+            {listModal && me && (
+                <V3ListForSaleModal
+                    collectionID={col.id}
+                    tokenId={listModal.tokenId}
+                    royaltyBps={col.royaltyBps}
+                    callerAddress={me}
+                    engine={v3Engine}
+                    onClose={() => setListModal(null)}
+                    onSuccess={handleListSuccess}
+                />
+            )}
+            {buyModal && me && (
+                <V3BuyNFTModal
+                    collectionID={col.id}
+                    tokenId={buyModal.tokenId}
+                    priceUgnot={buyModal.priceUgnot}
+                    seller={buyModal.seller}
+                    royaltyBps={col.royaltyBps}
+                    callerAddress={me}
+                    engine={v3Engine}
+                    onClose={() => setBuyModal(null)}
+                    onSuccess={handleBuySuccess}
+                />
+            )}
         </div>
     )
 }
