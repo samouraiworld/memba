@@ -189,6 +189,14 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
+	// P0-1: server-side verification. The client's claim that it passed the
+	// frontend verifier is never trusted — self_report/social quests require
+	// the SubmitQuestClaim review flow, and on_chain quests are re-verified
+	// on-chain at grant time. This closes direct-RPC leaderboard fabrication.
+	if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// INSERT OR IGNORE — idempotent, completing twice is a no-op.
@@ -249,6 +257,13 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		questID := strings.TrimSpace(c.QuestId)
 		if _, ok := validQuests[questID]; !ok {
 			continue // skip unknown quests
+		}
+
+		// P0-1: apply the same server-side gate as CompleteQuest — skip
+		// self_report/social entries and on_chain entries whose condition
+		// isn't met. Prevents SyncQuests being a bulk forgery amplifier.
+		if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+			continue
 		}
 
 		completedAt := strings.TrimSpace(c.CompletedAt)

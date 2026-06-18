@@ -68,3 +68,33 @@ func TestQuestRegistryParity(t *testing.T) {
 		}
 	}
 }
+
+// TestQuestVerificationParity guards the backend questVerification map (the
+// authority for what CompleteQuest grants without proof) against the frontend
+// `verification:` field. Drift here would let the server grant XP for a quest
+// the frontend treats as proof-only, or vice-versa.
+func TestQuestVerificationParity(t *testing.T) {
+	const frontendPath = "../../../frontend/src/lib/gnobuilders.ts"
+	data, err := os.ReadFile(frontendPath)
+	if err != nil {
+		t.Fatalf("read frontend quests (%s): %v", frontendPath, err)
+	}
+
+	re := regexp.MustCompile(`id:\s*"([a-z0-9-]+)"[^\n]*?verification:\s*"(\w+)"`)
+	matches := re.FindAllStringSubmatch(string(data), -1)
+	if len(matches) < 85 {
+		t.Fatalf("parsed only %d (id, verification) pairs, expected >= 85", len(matches))
+	}
+
+	for _, m := range matches {
+		id, vtype := m[1], m[2]
+		got, ok := questVerification[id]
+		if !ok {
+			t.Errorf("quest %q missing from backend questVerification map", id)
+			continue
+		}
+		if got != vtype {
+			t.Errorf("verification mismatch for %q: frontend=%q backend=%q", id, vtype, got)
+		}
+	}
+}
