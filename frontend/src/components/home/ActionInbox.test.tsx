@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { screen } from "@testing-library/react"
+import { screen, fireEvent, act } from "@testing-library/react"
 import { renderWithProviders } from "../../test/test-utils"
 import { ActionInbox } from "./ActionInbox"
 
@@ -88,6 +88,9 @@ vi.mock("../../lib/errorLog", () => ({
 
 const homeActionsMod = await import("../../hooks/home/useHomeActions")
 const unvotedMod = await import("../../hooks/useUnvotedProposals")
+const grc20Mod = await import("../../lib/grc20")
+const daoMod = await import("../../lib/dao")
+const voteScannerMod = await import("../../lib/dao/voteScanner")
 
 // ── Tests ─────────────────────────────────────────────────────
 
@@ -190,6 +193,61 @@ describe("ActionInbox — with vote actions", () => {
     it("shows the count badge", () => {
         renderWithProviders(<ActionInbox />)
         expect(screen.getByText(/1 awaits/i)).toBeInTheDocument()
+    })
+})
+
+describe("ActionInbox — inline vote fires broadcast", () => {
+    beforeEach(() => {
+        vi.mocked(homeActionsMod.useHomeActions).mockReturnValue({
+            actions: [
+                {
+                    id: "vote:gno.land/r/memba/dao:1",
+                    kind: "vote",
+                    accent: "teal",
+                    eyebrow: "vote · Memba DAO",
+                    title: "Proposal Alpha",
+                    meta: "open",
+                    href: "/dao/memba/proposal/1",
+                },
+            ],
+            loading: false,
+            allCaughtUp: false,
+        })
+        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
+            proposals: [
+                {
+                    daoName: "Memba DAO",
+                    daoSlug: "memba",
+                    realmPath: "gno.land/r/memba/dao",
+                    proposalId: 1,
+                    proposalTitle: "Proposal Alpha",
+                    proposalStatus: "open",
+                },
+            ],
+            loading: false,
+            refresh: vi.fn(),
+        })
+        vi.mocked(grc20Mod.doContractBroadcast).mockResolvedValue({ hash: "tx123" })
+        vi.mocked(daoMod.buildVoteMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
+        vi.mocked(voteScannerMod.clearVoteCache).mockReset()
+    })
+
+    it("clicking YES calls doContractBroadcast and buildVoteMsg with the proposal id", async () => {
+        renderWithProviders(<ActionInbox />)
+
+        const yesButton = screen.getByRole("button", { name: /vote yes on proposal 1/i })
+        await act(async () => {
+            fireEvent.click(yesButton)
+        })
+
+        expect(daoMod.buildVoteMsg).toHaveBeenCalledWith(
+            "g1testaddress",
+            "gno.land/r/memba/dao",
+            1,
+            "YES",
+        )
+        expect(grc20Mod.doContractBroadcast).toHaveBeenCalledTimes(1)
+        expect(voteScannerMod.clearVoteCache).toHaveBeenCalledTimes(1)
     })
 })
 
