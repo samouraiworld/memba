@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -124,6 +125,26 @@ func main() {
 		Interval:        durationOr("NFT_POLL_INTERVAL", 60*time.Second),
 		Logger:          logger,
 	})
+
+	// Seed realm cursors from NFT_SEED_REALM_CURSOR (one-time operator backfill
+	// lever). Format: comma-separated "realm@deployHeight" pairs. Each call is
+	// INSERT OR IGNORE — will NOT rewind a realm whose cursor already exists.
+	// Leave empty (the default) for normal operation.
+	if seedSpec := os.Getenv("NFT_SEED_REALM_CURSOR"); seedSpec != "" {
+		specs, parseErrs := parseSeedCursorSpec(seedSpec)
+		for _, pe := range parseErrs {
+			slog.Warn("NFT_SEED_REALM_CURSOR: skipping malformed entry", "error", pe)
+		}
+		for _, spec := range specs {
+			if err := indexer.SeedRealmCursor(ctx, database, spec.Realm, spec.Height); err != nil {
+				slog.Error("NFT_SEED_REALM_CURSOR: failed to seed realm cursor",
+					"realm", spec.Realm, "deployHeight", spec.Height, "error", err)
+			} else {
+				slog.Info("NFT_SEED_REALM_CURSOR: seeded realm cursor (INSERT OR IGNORE)",
+					"realm", spec.Realm, "deployHeight", spec.Height)
+			}
+		}
+	}
 
 	// Start the event-tailing indexer: polls /block_results, parses chain.Emit
 	// GnoEvents from the NFT realms, and writes normalized listings/sales/offers/
@@ -256,6 +277,50 @@ func int64Or(key string, fallback int64) int64 {
 		}
 	}
 	return fallback
+}
+
+// SeedSpec holds a parsed realm@height pair from NFT_SEED_REALM_CURSOR.
+type SeedSpec struct {
+	Realm  string
+	Height int64
+}
+
+// parseSeedCursorSpec parses a comma-separated list of "realm@height" pairs
+// from the NFT_SEED_REALM_CURSOR env var. Valid entries are returned in the
+// first slice; one error per malformed entry is returned in the second slice.
+// Callers should Warn-log errors and skip the offending entry — never fatal.
+func parseSeedCursorSpec(s string) ([]SeedSpec, []error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	parts := strings.Split(s, ",")
+	var specs []SeedSpec
+	var errs []error
+	for _, raw := range parts {
+		entry := strings.TrimSpace(raw)
+		if entry == "" {
+			continue
+		}
+		idx := strings.LastIndex(entry, "@")
+		if idx < 0 {
+			errs = append(errs, fmt.Errorf("NFT_SEED_REALM_CURSOR: missing '@' in %q", entry))
+			continue
+		}
+		realm := strings.TrimSpace(entry[:idx])
+		heightStr := strings.TrimSpace(entry[idx+1:])
+		if realm == "" {
+			errs = append(errs, fmt.Errorf("NFT_SEED_REALM_CURSOR: empty realm in %q", entry))
+			continue
+		}
+		height, err := strconv.ParseInt(heightStr, 10, 64)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("NFT_SEED_REALM_CURSOR: non-integer height in %q: %w", entry, err))
+			continue
+		}
+		specs = append(specs, SeedSpec{Realm: realm, Height: height})
+	}
+	return specs, errs
 }
 
 // splitOrigins splits a comma-separated CORS_ORIGINS string, trimming whitespace.

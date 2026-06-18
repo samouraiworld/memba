@@ -61,10 +61,54 @@ Phase-0 green → finalize `NFT_FLOOR_OFFERS_DESIGN.md` as the engine spec (pane
 The floor-offers engine realm; the frontend offers UI; trait-scoped offers; GRC20 desk; the on-chain points claim (all later phases).
 
 ## 9. v3 Sale-gap backfill (operator step, before declaring accrual authoritative)
+
 The Task-3 `Sale` handler shipped after v3 was already live, so v3 `Sale` events
-between the v3 deploy block and the handler-deploy block were never ingested. To
-close the gap: set `NFT_START_BLOCK` (or seed the v3 realm cursor via
-`SeedRealmCursor`) to the v3 deploy height and let the tailer re-scan — writes are
-idempotent, so already-ingested rows are no-ops and the gap fills. Confirm
-`SELECT COUNT(*) FROM nft_raw_events WHERE event_name='Sale'` is non-zero and the
-recompute harness reads them before flipping `accrual_start_block` to authoritative.
+between the v3 deploy block and the handler-deploy block were never ingested. The
+executable procedure to close the gap:
+
+### 9.1 Prerequisites
+
+Confirm v3 is in `NFT_WATCHED_REALMS` (it is by default in the current config).
+Confirm the v3 deploy height — query the chain or check the deploy TX; at time of
+writing the v3 engine (`memba_nft_market_v3`) was deployed around block **280000**
+on test13.
+
+### 9.2 First-time seed (no existing cursor row)
+
+If the v3 realm has never been indexed and has no row in `nft_indexer_state`:
+
+1. Set `NFT_SEED_REALM_CURSOR=gno.land/r/samcrew/memba_nft_market_v3@280000` in
+   the backend environment (`.env` / Fly.io secrets).
+2. Restart the backend. On startup `SeedRealmCursor` inserts the cursor at
+   `deployHeight-1` (279999) via `INSERT OR IGNORE`. The tailer then scans forward
+   from that height, ingesting the previously-dropped `Sale` events. All writes are
+   idempotent — already-ingested rows are silent no-ops.
+3. Remove `NFT_SEED_REALM_CURSOR` (or leave it empty) for subsequent restarts.
+
+### 9.3 Re-seed when the cursor has already advanced (important caveat)
+
+`SeedRealmCursor` is `INSERT OR IGNORE` and **will not rewind** a realm whose
+`nft_indexer_state` row already exists (even if the cursor advanced past the gap).
+If the v3 realm is already being indexed and its row is past the gap, seeding is a
+no-op.
+
+To force a full re-scan from the deploy block:
+
+```sql
+-- Connect to the SQLite DB (sqlite3 $DB_PATH) and run:
+DELETE FROM nft_indexer_state WHERE realm_path='gno.land/r/samcrew/memba_nft_market_v3';
+```
+
+Then set `NFT_SEED_REALM_CURSOR` and restart as in §9.2. Re-ingest is safe — all
+event-write queries use `INSERT OR IGNORE` on the `(realm_path, tx_hash, event_name)`
+triple, so duplicate rows are impossible.
+
+### 9.4 Confirmation
+
+Before flipping `accrual_start_block` to authoritative, confirm the gap filled:
+
+```sql
+SELECT COUNT(*) FROM nft_raw_events WHERE event_name='Sale';
+```
+
+The count should be non-zero and the recompute harness should read those rows.
