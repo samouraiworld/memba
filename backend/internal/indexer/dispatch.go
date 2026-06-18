@@ -17,23 +17,39 @@ func atoiSafe(s string) int64 {
 	return v
 }
 
-// dispatchEvent applies a single normalized GnoEvent to the database inside one
-// transaction. Writes are idempotent: event-keyed tables use INSERT OR IGNORE on
-// (event_block, event_tx_index, event_index), so re-processing a block is a
-// no-op. Unknown event types are ignored. Returns an error only on a real DB
-// failure (the caller logs and continues).
+// dispatchEvent applies a single normalized GnoEvent to the database. It
+// delegates to dispatchEventScoped with an empty saleVolumeRealms set, which
+// preserves the legacy behavior (OfferAccepted and PurchaseConfirmed both write
+// volume rows). All existing callers and tests use this signature unchanged.
 //
 // blockHash is the block-level hash threaded from the tailer; pass "" when
 // unavailable (e.g. legacy callers — Task 6 wires the real per-height value).
-//
-// onMint, when non-nil, is invoked (outside the tx, by the caller) after a Mint
-// is recorded so the Render-scraper can backfill the token's URI/metadata.
 func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string) error {
+	return dispatchEventScoped(ctx, db, ev, blockHash, nil)
+}
+
+// dispatchEventScoped applies a single normalized GnoEvent to the database,
+// with engine-scoped volume-counting. Writes are idempotent: event-keyed tables
+// use INSERT OR IGNORE on (event_block, event_tx_index, event_index), so
+// re-processing a block is a no-op. Unknown event types are ignored. Returns an
+// error only on a real DB failure (the caller logs and continues).
+//
+// saleVolumeRealms is the set of pkg_paths whose volume must come from Sale
+// events only (v3+ engines). For events whose PkgPath is in this set:
+//   - OfferAccepted: resolves the offer (metadata) but does NOT write a sale row
+//     or bump collection aggregates — Sale already wrote the volume row.
+//   - PurchaseConfirmed: no-op (Sale already wrote the volume row).
+//
+// When saleVolumeRealms is nil or empty (legacy callers / v2 engines not in the
+// set), OfferAccepted and PurchaseConfirmed behave as before and write volume.
+func dispatchEventScoped(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string, saleVolumeRealms map[string]struct{}) error {
 	// Raw ledger first — the immutable source of truth. Idempotent; a later
 	// projection failure is recoverable by rebuild-from-raw.
 	if err := recordRawEvent(ctx, db, ev, blockHash); err != nil {
 		return err
 	}
+
+	_, inSaleSet := saleVolumeRealms[ev.PkgPath]
 
 	switch ev.Type {
 	case "NFTListed":
@@ -41,6 +57,10 @@ func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash strin
 	case "NFTDelisted", "AdminDelisted":
 		return applyNFTDelisted(ctx, db, ev)
 	case "PurchaseConfirmed":
+		if inSaleSet {
+			// Sale already wrote the volume row for this engine — skip.
+			return nil
+		}
 		return applyPurchaseConfirmed(ctx, db, ev)
 	case "OfferMade":
 		return applyOfferMade(ctx, db, ev)
@@ -49,6 +69,11 @@ func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash strin
 	case "OfferExpiredClaimed":
 		return applyOfferResolved(ctx, db, ev, "expired")
 	case "OfferAccepted":
+		if inSaleSet {
+			// Metadata-only: resolve the offer without writing a sale row or
+			// bumping aggregates (Sale already recorded volume for this engine).
+			return applyOfferResolved(ctx, db, ev, "accepted")
+		}
 		return applyOfferAccepted(ctx, db, ev)
 	case "Sale":
 		return applySale(ctx, db, ev)
@@ -248,9 +273,10 @@ func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 // applySale ingests the canonical v3+ settlement event (one Sale per sale, keyed
-// by `via`). Replaces the retired v2 PurchaseConfirmed/OfferAccepted/TokenSold
-// volume paths. Volume is counted HERE only — the OfferAccepted companion event
-// is metadata, never a second sale row.
+// by `via`). Volume is counted HERE for Sale-volume engines (see
+// dispatchEventScoped): their companion OfferAccepted/PurchaseConfirmed events
+// are metadata-only and do not write a second sale row. Legacy v2 engines (not
+// in saleVolumeRealms) still source volume from OfferAccepted/PurchaseConfirmed.
 func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	col := ev.Attr("collection")
 	tok := ev.Attr("tokenId")

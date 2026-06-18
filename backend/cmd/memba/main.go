@@ -129,12 +129,13 @@ func main() {
 	// GnoEvents from the NFT realms, and writes normalized listings/sales/offers/
 	// ownership. This is the source of truth for floor, activity and portfolio.
 	indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
-		RPCURL:        nftRPCURL,
-		WatchedRealms: splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm)),
-		StartBlock:    int64Or("NFT_START_BLOCK", 260000),
-		Confirmations: int64Or("NFT_CONFIRMATIONS", 5),
-		Interval:      durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
-		Logger:        logger,
+		RPCURL:           nftRPCURL,
+		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm)),
+		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", "gno.land/r/samcrew/memba_nft_market_v3")),
+		StartBlock:       int64Or("NFT_START_BLOCK", 260000),
+		Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
+		Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
+		Logger:           logger,
 	})
 
 	// Initialize OAuth state store with app context for clean shutdown.

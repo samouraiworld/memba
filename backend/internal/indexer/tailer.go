@@ -26,12 +26,13 @@ const (
 
 // TailerConfig holds the block-tailer's runtime configuration (env-driven).
 type TailerConfig struct {
-	RPCURL        string        // NFT_RPC_URL
-	WatchedRealms []string      // NFT_WATCHED_REALMS (market + collection pkg paths)
-	StartBlock    int64         // NFT_START_BLOCK (first-run cursor floor)
-	Interval      time.Duration // NFT_POLL_INTERVAL (reused; tailer sleep when caught up)
-	Confirmations int64         // NFT_CONFIRMATIONS (blocks behind tip before processing; default 5)
-	Logger        *slog.Logger
+	RPCURL           string        // NFT_RPC_URL
+	WatchedRealms    []string      // NFT_WATCHED_REALMS (market + collection pkg paths)
+	SaleVolumeRealms []string      // NFT_SALE_VOLUME_REALMS (engines whose volume comes from Sale only)
+	StartBlock       int64         // NFT_START_BLOCK (first-run cursor floor)
+	Interval         time.Duration // NFT_POLL_INTERVAL (reused; tailer sleep when caught up)
+	Confirmations    int64         // NFT_CONFIRMATIONS (blocks behind tip before processing; default 5)
+	Logger           *slog.Logger
 }
 
 // StartNFTTailer launches a background goroutine that tails gno.land
@@ -63,12 +64,20 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 		}
 	}
 
+	saleVolumeSet := make(map[string]struct{}, len(cfg.SaleVolumeRealms))
+	for _, r := range cfg.SaleVolumeRealms {
+		if r = strings.TrimSpace(r); r != "" {
+			saleVolumeSet[r] = struct{}{}
+		}
+	}
+
 	client := &http.Client{Timeout: 15 * time.Second}
 
 	go func() {
 		cfg.Logger.Info("nft tailer: started",
 			"rpc", cfg.RPCURL,
 			"watched_realms", cfg.WatchedRealms,
+			"sale_volume_realms", cfg.SaleVolumeRealms,
 			"start_block", cfg.StartBlock,
 		)
 
@@ -76,7 +85,7 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 		defer ticker.Stop()
 
 		for {
-			tailOnce(ctx, database, cfg, watched, client)
+			tailOnce(ctx, database, cfg, watched, saleVolumeSet, client)
 			select {
 			case <-ctx.Done():
 				cfg.Logger.Info("nft tailer: stopped")
@@ -90,7 +99,7 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 // tailOnce advances the cursor toward the chain tip, processing up to
 // maxBlocksPerCycle confirmed blocks. All errors are logged and swallowed so
 // the loop keeps running.
-func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[string]struct{}, client *http.Client) {
+func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[string]struct{}, saleVolumeSet map[string]struct{}, client *http.Client) {
 	log := cfg.Logger
 
 	latest, err := fetchLatestHeight(ctx, client, cfg.RPCURL)
@@ -163,7 +172,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			if _, ok := watched[ev.PkgPath]; !ok {
 				continue
 			}
-			if err := dispatchEvent(ctx, db, ev, hash); err != nil {
+			if err := dispatchEventScoped(ctx, db, ev, hash, saleVolumeSet); err != nil {
 				log.Warn("nft tailer: dispatch failed",
 					"height", h, "type", ev.Type, "error", err)
 				// Continue: idempotent writes mean a later replay is safe.

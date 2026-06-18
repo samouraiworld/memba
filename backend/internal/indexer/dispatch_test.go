@@ -351,6 +351,88 @@ func TestDispatch_WritesRawLedgerFirst(t *testing.T) {
 	}
 }
 
+// TestDispatch_Sale_OfferAccepted_NoDoubleCount verifies that for a Sale-volume
+// engine (v3), dispatching a canonical Sale followed by its companion
+// OfferAccepted at the same block (different event_index) produces exactly one
+// nft_sales row and no double-counting on collection aggregates.
+func TestDispatch_Sale_OfferAccepted_NoDoubleCount(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	const v3 = "gno.land/r/samcrew/memba_nft_market_v3"
+	saleSet := map[string]struct{}{v3: {}}
+
+	// First, create an active offer so OfferAccepted has something to resolve.
+	must(t, dispatchEventScoped(ctx, db, ev("OfferMade", v3, 500, 0, 0, map[string]string{
+		"collection": "genesis", "tokenId": "42", "buyer": "g1bidder", "amount": "2000000",
+	}), "", saleSet))
+
+	// Canonical v3 Sale event (via="offer") — this is the volume row.
+	must(t, dispatchEventScoped(ctx, db, ev("Sale", v3, 600, 1, 0, map[string]string{
+		"via": "offer", "collection": "genesis", "tokenId": "42",
+		"seller": "g1owner", "buyer": "g1bidder",
+		"price": "2000000", "fee": "40000", "royalty": "100000",
+		"schemaVersion": "1",
+	}), "", saleSet))
+
+	// Companion OfferAccepted at the same block but different event_index.
+	// In Sale-volume mode this must resolve the offer WITHOUT writing a second
+	// sale row or bumping aggregates.
+	must(t, dispatchEventScoped(ctx, db, ev("OfferAccepted", v3, 600, 1, 1, map[string]string{
+		"collection": "genesis", "tokenId": "42",
+		"seller": "g1owner", "buyer": "g1bidder",
+		"amount": "2000000", "fee": "40000", "royalty": "100000",
+		"schemaVersion": "1",
+	}), "", saleSet))
+
+	// Exactly ONE sale row (no double-count).
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
+		t.Fatalf("nft_sales rows = %d, want 1 (OfferAccepted must not add a second row for v3)", n)
+	}
+
+	// Aggregates reflect ONE sale only.
+	var vol, sales int64
+	must(t, db.QueryRow(`SELECT total_volume_ugnot, total_sales FROM nft_collections WHERE collection_id='genesis'`).Scan(&vol, &sales))
+	if vol != 2000000 || sales != 1 {
+		t.Errorf("aggregates vol=%d sales=%d, want vol=2000000 sales=1", vol, sales)
+	}
+
+	// The offer row was resolved (status='accepted').
+	var status string
+	must(t, db.QueryRow(`SELECT status FROM nft_offers WHERE buyer='g1bidder' AND collection_id='genesis' AND token_id='42'`).Scan(&status))
+	if status != "accepted" {
+		t.Errorf("offer status = %q, want accepted", status)
+	}
+}
+
+// TestDispatch_LegacyVolume_Preserved verifies that for a legacy v2 engine (not
+// in the saleVolumeRealms set), OfferAccepted still writes a sale/volume row
+// (unchanged legacy behavior).
+func TestDispatch_LegacyVolume_Preserved(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	const v3 = "gno.land/r/samcrew/memba_nft_market_v3"
+	saleSet := map[string]struct{}{v3: {}}
+
+	// v2 pkg — NOT in saleSet, so volume must still come from OfferAccepted.
+	must(t, dispatchEventScoped(ctx, db, ev("OfferMade", marketPkg, 100, 0, 0, map[string]string{
+		"collection": "genesis", "tokenId": "1", "buyer": "g1bidder", "amount": "900000",
+	}), "", saleSet))
+	must(t, dispatchEventScoped(ctx, db, ev("OfferAccepted", marketPkg, 101, 0, 0, map[string]string{
+		"collection": "genesis", "tokenId": "1", "seller": "g1owner", "buyer": "g1bidder",
+		"amount": "900000", "fee": "22500", "royalty": "45000",
+	}), "", saleSet))
+
+	// A sale row MUST exist (legacy v2 volume preserved).
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales`); n != 1 {
+		t.Fatalf("nft_sales rows = %d, want 1 (legacy v2 OfferAccepted must still write volume)", n)
+	}
+	var vol, sales int64
+	must(t, db.QueryRow(`SELECT total_volume_ugnot, total_sales FROM nft_collections WHERE collection_id='genesis'`).Scan(&vol, &sales))
+	if vol != 900000 || sales != 1 {
+		t.Errorf("legacy v2 aggregates vol=%d sales=%d, want vol=900000 sales=1", vol, sales)
+	}
+}
+
 func must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
