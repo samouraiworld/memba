@@ -24,6 +24,8 @@ func TestConfirmedEnd(t *testing.T) {
 func TestRollbackFromHeight(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
+
+	// --- nft_sales + nft_raw_events (via Sale events) ---
 	must(t, dispatchEvent(ctx, db, ev("Sale", "gno.land/r/x", 100, 0, 0, map[string]string{
 		"via": "buy", "collection": "c", "tokenId": "1", "seller": "s", "buyer": "b", "price": "100",
 	}), "H100"))
@@ -31,8 +33,31 @@ func TestRollbackFromHeight(t *testing.T) {
 		"via": "buy", "collection": "c", "tokenId": "2", "seller": "s", "buyer": "b", "price": "100",
 	}), "H200"))
 
+	// --- nft_listings (via NFTListed events) ---
+	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 100, 0, 0, map[string]string{
+		"collection": "c", "tokenId": "10", "seller": "g1s", "price": "500000",
+	}), "H100"))
+	must(t, dispatchEvent(ctx, db, ev("NFTListed", marketPkg, 200, 0, 0, map[string]string{
+		"collection": "c", "tokenId": "11", "seller": "g1s", "price": "600000",
+	}), "H200"))
+
+	// --- nft_offers (via OfferMade events) ---
+	must(t, dispatchEvent(ctx, db, ev("OfferMade", marketPkg, 100, 0, 0, map[string]string{
+		"collection": "c", "tokenId": "20", "buyer": "g1bidder", "amount": "400000",
+	}), "H100"))
+	must(t, dispatchEvent(ctx, db, ev("OfferMade", marketPkg, 200, 0, 0, map[string]string{
+		"collection": "c", "tokenId": "21", "buyer": "g1bidder", "amount": "450000",
+	}), "H200"))
+
+	// --- nft_ownership_history: Sale at block 100 already writes a row (kind='buy');
+	//     seed an explicit transfer row at block 200 for a distinct survivor check. ---
+	must(t, dispatchEvent(ctx, db, ev("MarketTransfer", colPkg, 200, 0, 0, map[string]string{
+		"collection": "c", "from": "g1from", "to": "g1to", "tokenId": "30",
+	}), "H200"))
+
 	must(t, rollbackFromHeight(ctx, db, 200))
 
+	// nft_sales
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales WHERE event_block >= 200`); n != 0 {
 		t.Errorf("sales >= 200 after rollback = %d, want 0", n)
 	}
@@ -41,5 +66,29 @@ func TestRollbackFromHeight(t *testing.T) {
 	}
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_sales WHERE event_block < 200`); n != 1 {
 		t.Errorf("sales < 200 = %d, want 1 (kept)", n)
+	}
+
+	// nft_listings
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_listings WHERE event_block >= 200`); n != 0 {
+		t.Errorf("listings >= 200 after rollback = %d, want 0", n)
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_listings WHERE event_block < 200`); n != 1 {
+		t.Errorf("listings < 200 = %d, want 1 (kept)", n)
+	}
+
+	// nft_offers
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_offers WHERE event_block >= 200`); n != 0 {
+		t.Errorf("offers >= 200 after rollback = %d, want 0", n)
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_offers WHERE event_block < 200`); n != 1 {
+		t.Errorf("offers < 200 = %d, want 1 (kept)", n)
+	}
+
+	// nft_ownership_history (column is 'block', not 'event_block')
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_ownership_history WHERE block >= 200`); n != 0 {
+		t.Errorf("ownership_history >= 200 after rollback = %d, want 0", n)
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_ownership_history WHERE block < 200`); n != 1 {
+		t.Errorf("ownership_history < 200 = %d, want 1 (kept, from Sale at block 100)", n)
 	}
 }

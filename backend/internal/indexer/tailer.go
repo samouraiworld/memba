@@ -121,6 +121,21 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 				log.Warn("nft tailer: rollback failed", "height", cursor, "error", err)
 				return
 			}
+			// Walk the cursor back exactly one block per cycle. The replay loop
+			// below re-processes from cursor+1 on the next call to tailOnce.
+			//
+			// If confirmedEnd returns <= cursor this cycle (e.g. the reorg
+			// landed inside the confirmation window), nft_indexer_state still
+			// holds the old hash so the next cycle re-detects the mismatch and
+			// re-runs rollbackFromHeight as a harmless no-op (rows are already
+			// gone) before walking back again. This self-heals within a couple of
+			// cycles and is data-safe: idempotent inserts on replay mean we never
+			// double-count.
+			//
+			// We do NOT synthesise a hash for cursor-1 here to suppress the
+			// re-check: cursor-1 may itself lie on the reorged fork. Only blocks
+			// we actually re-fetch and re-process have their hash persisted,
+			// which is what keeps deep (multi-block) reorgs correct.
 			cursor--
 		}
 	}
@@ -268,6 +283,9 @@ func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, hei
 	var b blockResponse
 	if err := json.Unmarshal(body, &b); err != nil {
 		return "", fmt.Errorf("decode block: %w", err)
+	}
+	if b.Result.BlockID.Hash == "" {
+		return "", fmt.Errorf("block %d: empty block hash", height)
 	}
 	return b.Result.BlockID.Hash, nil
 }
