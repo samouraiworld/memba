@@ -15,6 +15,7 @@
 import { useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../types/layout"
 import { StatusStrip } from "../components/home/StatusStrip"
+import { ActionInbox } from "../components/home/ActionInbox"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -35,7 +36,8 @@ export function Home({ mode }: HomeProps) {
                 className="home-spine"
                 data-testid={mode === "member" ? "home-spine-member" : "home-spine-visitor"}
             >
-                {/* Spine components injected by Task 1.2 (member) / 1.3 (visitor) */}
+                {mode === "member" && <ActionInbox />}
+                {/* Visitor spine injected by Task 1.3 */}
             </div>
 
             {/* Zone 3: STATE BOARD — realtime status panels */}

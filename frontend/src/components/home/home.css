@@ -199,3 +199,39 @@ button.action-card:focus-visible {
 .home-state-board {
   padding: 16px;
 }
+
+/* ── ActionInbox ──────────────────────────────────────────────────── */
+
+.action-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-inbox__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.action-inbox__title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  margin: 0;
+}
+
+.action-inbox__count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.action-inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
