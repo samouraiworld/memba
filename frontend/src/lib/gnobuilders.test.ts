@@ -12,6 +12,10 @@ import {
     getVisibleQuests,
     isQuestAvailable,
     buildQuestXPMap,
+    LIVE_QUEST_IDS,
+    isQuestLive,
+    getLiveQuests,
+    getComingSoonQuests,
     type GnoQuest,
 } from "./gnobuilders"
 
@@ -305,5 +309,40 @@ describe("buildQuestXPMap", () => {
     it("connect-wallet has 10 XP", () => {
         const map = buildQuestXPMap()
         expect(map["connect-wallet"]).toBe(10)
+    })
+})
+
+// ── Catalog Curation Tests (Phase 0) ────────────────────────
+
+describe("catalog curation", () => {
+    it("exposes a curated live set of completable quests", () => {
+        const live = getLiveQuests()
+        expect(live.length).toBe(LIVE_QUEST_IDS.size)
+        expect(live.length).toBeGreaterThanOrEqual(12) // sane floor; 15 today
+        // every live quest is a real quest id
+        for (const q of live) {
+            expect(isQuestLive(q.id)).toBe(true)
+        }
+    })
+
+    it("every live quest id resolves to a real quest", () => {
+        for (const id of LIVE_QUEST_IDS) {
+            expect(getQuestById(id), `live id ${id}`).toBeDefined()
+        }
+    })
+
+    it("coming-soon excludes live and hidden quests", () => {
+        const comingSoon = getComingSoonQuests()
+        for (const q of comingSoon) {
+            expect(isQuestLive(q.id), `${q.id} should not be live`).toBe(false)
+            expect(q.hidden, `${q.id} should not be hidden`).toBeFalsy()
+        }
+    })
+
+    it("live + coming-soon + hidden partition the full registry", () => {
+        const live = getLiveQuests().length
+        const comingSoon = getComingSoonQuests().length
+        const hidden = ALL_QUESTS.filter(q => q.hidden).length
+        expect(live + comingSoon + hidden).toBe(ALL_QUESTS.length)
     })
 })

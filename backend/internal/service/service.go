@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/ed25519"
 	srand "crypto/rand"
 	"database/sql"
@@ -29,6 +30,10 @@ type MultisigService struct {
 	// separated) to serve multiple chains during a transition (e.g. test12->test13)
 	// so flipping the frontend default doesn't 401 the other chain's sessions.
 	acceptedChainIDs []string
+	// verifyOnChainQuest is a test seam for server-side quest verification.
+	// nil in production (the real defaultVerifyOnChainQuest is used); tests
+	// inject a deterministic stub so they never hit the network. See quest_verify.go.
+	verifyOnChainQuest func(ctx context.Context, addr, questID string) (bool, error)
 }
 
 // parseAcceptedChainIDs splits a comma-separated env value into a trimmed,

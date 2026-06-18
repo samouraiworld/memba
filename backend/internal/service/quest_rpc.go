@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -189,6 +190,14 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
+	// P0-1: server-side verification. The client's claim that it passed the
+	// frontend verifier is never trusted — self_report/social quests require
+	// the SubmitQuestClaim review flow, and on_chain quests are re-verified
+	// on-chain at grant time. This closes direct-RPC leaderboard fabrication.
+	if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// INSERT OR IGNORE — idempotent, completing twice is a no-op.
@@ -249,6 +258,13 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		questID := strings.TrimSpace(c.QuestId)
 		if _, ok := validQuests[questID]; !ok {
 			continue // skip unknown quests
+		}
+
+		// P0-1: apply the same server-side gate as CompleteQuest — skip
+		// self_report/social entries and on_chain entries whose condition
+		// isn't met. Prevents SyncQuests being a bulk forgery amplifier.
+		if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+			continue
 		}
 
 		completedAt := strings.TrimSpace(c.CompletedAt)
@@ -361,13 +377,34 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 		}), nil
 	}
 
-	// First try from cache table (fast path), joining profiles for usernames
+	// Staleness check: if the cache holds fewer users than exist in
+	// quest_completions, it's incomplete/stale — rebuild from source rather than
+	// serving a short or wrong page. (Previously the recompute only fired when
+	// the cache was entirely empty, so a partially-populated cache could
+	// silently diverge from quest_completions.)
+	var cachedCount uint32
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_ranks`).Scan(&cachedCount); err != nil {
+		return nil, internalError("GetLeaderboard.cacheCount", err)
+	}
+	if cachedCount < totalCount {
+		entries, err := s.computeLeaderboard(ctx, limit, offset)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(&membav1.GetLeaderboardResponse{
+			Entries:    entries,
+			TotalCount: totalCount,
+		}), nil
+	}
+
+	// Fast path: read from the (fresh) cache with deterministic ordering so
+	// pagination is stable across requests (ties broken by quests then address).
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT ur.address, ur.rank_tier, ur.rank_name, ur.total_xp, ur.quests_completed,
 		        COALESCE(p.title, '') as username, COALESCE(p.avatar_url, '') as avatar_url
 		 FROM user_ranks ur
 		 LEFT JOIN profiles p ON ur.address = p.address
-		 ORDER BY ur.total_xp DESC
+		 ORDER BY ur.total_xp DESC, ur.quests_completed DESC, ur.address ASC
 		 LIMIT ? OFFSET ?`,
 		limit, offset,
 	)
@@ -386,14 +423,6 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 	}
 	if err := rows.Err(); err != nil {
 		return nil, internalError("GetLeaderboard.cacheRows", err)
-	}
-
-	// If cache is empty, compute from quest_completions (slow path, one-time)
-	if len(entries) == 0 && totalCount > 0 {
-		entries, err = s.computeLeaderboard(ctx, limit, offset)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return connect.NewResponse(&membav1.GetLeaderboardResponse{
@@ -464,18 +493,17 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 		)
 	}
 
-	// Sort by XP descending using sort package
-	for i := 0; i < len(users)-1; i++ {
-		maxIdx := i
-		for j := i + 1; j < len(users); j++ {
-			if users[j].totalXP > users[maxIdx].totalXP {
-				maxIdx = j
-			}
+	// Sort by XP desc, with a deterministic tiebreak (quests desc, address asc)
+	// so pagination is stable and matches the cache fast-path ordering.
+	sort.Slice(users, func(i, j int) bool {
+		if users[i].totalXP != users[j].totalXP {
+			return users[i].totalXP > users[j].totalXP
 		}
-		if maxIdx != i {
-			users[i], users[maxIdx] = users[maxIdx], users[i]
+		if users[i].questsComplete != users[j].questsComplete {
+			return users[i].questsComplete > users[j].questsComplete
 		}
-	}
+		return users[i].addr < users[j].addr
+	})
 
 	// Apply pagination
 	start := int(offset)

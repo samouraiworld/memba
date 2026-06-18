@@ -151,17 +151,28 @@ export function Layout() {
         }
     }, [adena.connected, adena.address, adena.reconnecting])
 
-    // GnoBuilders: Konami code easter egg detector
+    // GnoBuilders: Konami code easter egg detector. The toast is surfaced by
+    // the general quest-completed listener below (completeQuest dispatches it).
     useEffect(() => {
         const cleanup = setupKonamiDetector(() => {
-            const result = completeQuest("easter-egg-konami", auth.token ?? undefined)
-            if (result) {
-                const quest = getQuestById("easter-egg-konami")
-                if (quest) setQuestToast({ title: quest.title, icon: quest.icon, xp: quest.xp })
-            }
+            completeQuest("easter-egg-konami", auth.token ?? undefined)
         })
         return cleanup
     }, [auth.token])
+
+    // GnoBuilders: surface a completion toast for ANY quest completion. This is
+    // the single bridge that gives feedback for every completion — previously
+    // only the Konami easter egg ever toasted, so most progress was silent.
+    useEffect(() => {
+        const onQuestComplete = (e: Event) => {
+            const questId = (e as CustomEvent<{ questId: string }>).detail?.questId
+            if (!questId) return
+            const quest = getQuestById(questId)
+            if (quest) setQuestToast({ title: quest.title, icon: quest.icon, xp: quest.xp })
+        }
+        window.addEventListener("quest-completed", onQuestComplete)
+        return () => window.removeEventListener("quest-completed", onQuestComplete)
+    }, [])
 
     useEffect(() => {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {

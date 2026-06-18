@@ -226,6 +226,53 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
     })
 }
 
+// ── Catalog Curation (Phase 0: honest test13 launch) ────────
+//
+// LIVE_QUEST_IDS is the curated set of quests that genuinely complete
+// end-to-end on test13 today: off-chain quests auto-tracked by real UI
+// actions or backend checks, on-chain quests with a working server-side
+// verifier, and computed milestones. Everything else shows behind a
+// "Coming soon" curtain (data kept, not deleted) until its verifier/UI
+// lands (Phase 3).
+//
+// Must stay aligned with the backend: every LIVE on_chain quest needs a
+// working server-side verifier in backend/internal/service/quest_verify.go.
+// join-dao / create-token are intentionally NOT live yet — their checks need
+// structured render parsing (a substring scan is spoofable), deferred to Phase 3.
+export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
+    // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
+    "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
+    "view-validator", "share-link", "submit-feedback", "browse-proposals",
+    "visit-5-pages",
+    // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
+    "register-username", "first-transaction", "faucet-claim", "submit-candidature",
+    // Computed / backend milestones
+    "create-team", "earn-500-xp",
+    // Self-report (proof submitted via SelfReportForm -> admin review). Excludes
+    // the hidden bug-hunter quest so it stays discoverable.
+    "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
+    "audit-realm", "build-mcp-tool", "gas-optimization", "gnodaokit-extension",
+    "mentor-developer",
+])
+
+/** True if a quest is part of the curated, completable launch set. */
+export function isQuestLive(id: string): boolean {
+    return LIVE_QUEST_IDS.has(id)
+}
+
+/** The curated, completable quests shown in the catalog grid. */
+export function getLiveQuests(): GnoQuest[] {
+    return ALL_QUESTS.filter(q => LIVE_QUEST_IDS.has(q.id))
+}
+
+/**
+ * Visible-but-not-yet-live quests, shown dimmed under "Season 2 — Coming soon".
+ * Hidden quests stay hidden (discovered via play), so they're excluded here.
+ */
+export function getComingSoonQuests(): GnoQuest[] {
+    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !q.hidden)
+}
+
 /** Get quests by category */
 export function getQuestsByCategory(category: QuestCategory): GnoQuest[] {
     return ALL_QUESTS.filter(q => q.category === category)

@@ -114,6 +114,16 @@ export function QuestProgress({ compact, address }: QuestProgressProps) {
         return () => { cancelled = true }
     }, [address])
 
+    // Own-profile mode (no address prop) reads localStorage — refresh it on any
+    // completion so the ring/XP/eligibility update immediately instead of
+    // staying stale until remount (P1-10).
+    useEffect(() => {
+        if (address) return
+        const onQuestComplete = () => setState(loadQuestProgress())
+        window.addEventListener("quest-completed", onQuestComplete)
+        return () => window.removeEventListener("quest-completed", onQuestComplete)
+    }, [address])
+
     const completedIds = new Set(state.completed.map(c => c.questId))
     const completedCount = state.completed.length
     const totalQuests = ALL_QUESTS.length > 0 ? ALL_QUESTS.length : QUESTS.length // v2 authoritative, v1 fallback

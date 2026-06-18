@@ -761,3 +761,169 @@
     from { transform: scale(0.5); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
+
+/* ── Phase 0: badges-coming-soon chip + Season 2 curtain ──── */
+
+.k-questhub-badges-soon {
+    margin-top: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    font-size: 0.78rem;
+    color: var(--color-k-muted);
+    background: var(--color-k-elevated);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+.k-questhub-syncing {
+    font-size: 0.72rem;
+    color: var(--color-k-muted);
+    font-style: italic;
+}
+
+.k-questhub-comingsoon {
+    margin: var(--space-8) 0 var(--space-4);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    background: var(--color-k-panel);
+    padding: var(--space-3) var(--space-4);
+}
+
+.k-questhub-comingsoon > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--color-k-text);
+}
+
+.k-questhub-comingsoon-note {
+    margin: var(--space-3) 0;
+    font-size: 0.85rem;
+    color: var(--color-k-muted);
+}
+
+.k-questhub-comingsoon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-2);
+}
+
+.k-questhub-comingsoon-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
+    background: var(--color-k-elevated);
+    opacity: 0.65;
+    cursor: default;
+}
+
+.k-questhub-comingsoon-icon { font-size: 1.1rem; }
+
+.k-questhub-comingsoon-title {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--color-k-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.k-questhub-comingsoon-xp {
+    font-size: 0.72rem;
+    color: var(--color-k-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Self-report proof form ─────────────────────────────────── */
+
+.k-questdetail-selfreport {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.k-questdetail-proof-text {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-k-elevated);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
+    color: var(--color-k-text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.k-questdetail-result--pending {
+    color: var(--color-k-warning);
+}
+
+/* ── Quest admin review queue ───────────────────────────────── */
+
+.k-questadmin-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.k-questadmin-claim {
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    background: var(--color-k-panel);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.k-questadmin-claim-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.k-questadmin-claim-quest {
+    font-weight: 600;
+    color: var(--color-k-text);
+}
+
+.k-questadmin-claim-meta {
+    display: flex;
+    gap: var(--space-3);
+    font-size: 0.78rem;
+    color: var(--color-k-muted);
+}
+
+.k-questadmin-claim-url {
+    color: var(--color-k-accent);
+    word-break: break-all;
+    font-size: 0.85rem;
+}
+
+.k-questadmin-claim-text {
+    font-size: 0.85rem;
+    color: var(--color-k-text);
+    white-space: pre-wrap;
+}
+
+.k-questadmin-claim-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.k-questadmin-reject {
+    padding: var(--space-2) var(--space-4);
+    background: transparent;
+    color: var(--color-k-danger);
+    border: 1px solid var(--color-k-danger);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.k-questadmin-reject:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

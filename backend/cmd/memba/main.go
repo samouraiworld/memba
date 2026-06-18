@@ -182,7 +182,9 @@ func main() {
 	}
 	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
 	if escrowRealmPath == "" {
-		escrowRealmPath = "gno.land/r/samcrew/escrow"
+		// escrow (v1) was redeployed to escrow_v2 on test13; the v1 path returns
+		// InvalidPkgPathError there. gno paths are immutable, hence the _v2 suffix.
+		escrowRealmPath = "gno.land/r/samcrew/escrow_v2"
 	}
 	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(agentRegistryPath)))
 	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(escrowRealmPath)))

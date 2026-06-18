@@ -138,8 +138,10 @@ type abciResponse struct {
 	Result struct {
 		Response struct {
 			ResponseBase struct {
-				Data  string `json:"Data"`
-				Error string `json:"Error"`
+				Data string `json:"Data"`
+				// RawMessage, not string: gno.land encodes a present ABCI error as a
+				// JSON object for some failures, which would crash a string unmarshal.
+				Error json.RawMessage `json:"Error"`
 			} `json:"ResponseBase"`
 		} `json:"response"`
 	} `json:"result"`
@@ -150,12 +152,16 @@ type abciResponse struct {
 
 // queryRender issues a vm/qrender ABCI query for the given data string and
 // returns the decoded Render() output. Mirrors abciQuery in render_proxy.go.
+//
+// The `data` param is base64-encoded on the wire (gno.land decodes it as base64;
+// raw bytes fail with "Invalid params"). Callers pass the "<pkgpath>:<path>"
+// colon syntax that vm/qrender requires.
 func queryRender(rpcURL, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
 		Method:  "abci_query",
-		Params:  abciQueryParams{Path: "vm/qrender", Data: data},
+		Params:  abciQueryParams{Path: "vm/qrender", Data: base64.StdEncoding.EncodeToString([]byte(data))},
 	}
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
@@ -182,8 +188,10 @@ func queryRender(rpcURL, data string) (string, error) {
 	if result.Error != nil {
 		return "", fmt.Errorf("rpc error: %s", result.Error.Message)
 	}
-	if result.Result.Response.ResponseBase.Error != "" {
-		return "", fmt.Errorf("abci error: %s", result.Result.Response.ResponseBase.Error)
+	// gno.land sends "no error" as JSON null; a present error (string or object)
+	// means the render failed — surface it so the caller can log + skip.
+	if errMsg := strings.TrimSpace(string(result.Result.Response.ResponseBase.Error)); errMsg != "" && errMsg != "null" {
+		return "", fmt.Errorf("abci error: %s", errMsg)
 	}
 	if result.Result.Response.ResponseBase.Data == "" {
 		return "", nil

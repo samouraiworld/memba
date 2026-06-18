@@ -26,19 +26,51 @@ func gnoRPCURL() string {
 	return "https://rpc.testnet12.samourai.live:443"
 }
 
+// marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read
+// by the marketplace proxies and the analyst credit check (agent_registry,
+// escrow_v2, …). These realms live on test13 — NOT the testnet12-defaulted
+// GNO_RPC_URL (kept as-is for legacy back-compat; see quest_verify.go's
+// questRPCURL note) — so this reads its own var and defaults to test13,
+// mirroring the quest/NFT verification RPC pattern. Falls back to NFT_RPC_URL
+// since that already points at test13 in deployed environments.
+func marketplaceRPCURL() string {
+	for _, env := range []string{"MARKETPLACE_RPC_URL", "NFT_RPC_URL"} {
+		if url := os.Getenv(env); url != "" {
+			return url
+		}
+	}
+	return "https://rpc.test13.testnets.gno.land:443"
+}
+
 // abciResponse represents the relevant subset of a Gno ABCI query response.
+//
+// ResponseBase.Error is json.RawMessage, not string: gno.land encodes a present
+// ABCI error as a JSON *object* for some failures (e.g. an unfunded/invalid
+// account yields {"@type":"/std.InvalidAddressError"}). Typing it as string
+// makes json.Unmarshal fail outright ("cannot unmarshal object into Go struct
+// field ...ResponseBase.Error of type string"), turning a benign "no record"
+// answer into an opaque parse error. RawMessage tolerates string OR object.
 type abciResponse struct {
 	Result struct {
 		Response struct {
 			ResponseBase struct {
-				Data  string `json:"Data"`
-				Error string `json:"Error"`
+				Data  string          `json:"Data"`
+				Error json.RawMessage `json:"Error"`
 			} `json:"ResponseBase"`
 		} `json:"response"`
 	} `json:"result"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
+}
+
+// abciErrorPresent reports whether an ABCI ResponseBase.Error represents a real
+// error. gno.land sends "no error" as JSON null; a present error may be a string
+// ("not found") OR an object ({"@type":"/std.InvalidAddressError"}). Anything
+// that is not empty/null is treated as present.
+func abciErrorPresent(raw json.RawMessage) bool {
+	s := strings.TrimSpace(string(raw))
+	return s != "" && s != "null" && s != `""`
 }
 
 // abciQueryRequest is the JSON-RPC request for ABCI queries.
@@ -57,12 +89,17 @@ type abciQueryParams struct {
 }
 
 // abciQuery sends a JSON-RPC ABCI query to the Gno RPC and returns the decoded result.
+//
+// The `data` param is base64-encoded on the wire: gno.land's abci_query decodes
+// it as base64 (raw bytes fail with "Invalid params"/"illegal base64 data").
+// Render-path queries must therefore use the "<pkgpath>:<renderpath>" colon
+// syntax (a newline yields "expected <pkgpath>:<path> syntax").
 func abciQuery(rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
 		Method:  "abci_query",
-		Params:  abciQueryParams{Path: path, Data: data},
+		Params:  abciQueryParams{Path: path, Data: base64.StdEncoding.EncodeToString([]byte(data))},
 	}
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
@@ -90,8 +127,12 @@ func abciQuery(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("rpc error: %s", result.Error.Message)
 	}
 
-	if result.Result.Response.ResponseBase.Error != "" {
-		return "", fmt.Errorf("abci error: %s", result.Result.Response.ResponseBase.Error)
+	// A present ABCI ResponseBase.Error (e.g. /std.InvalidAddressError for an
+	// unfunded/invalid account, or a "not found" render) means the chain has no
+	// record to return — surface it as a clean empty result, not a hard error.
+	// Genuine transport/parse/decode failures above still return an error.
+	if abciErrorPresent(result.Result.Response.ResponseBase.Error) {
+		return "", nil
 	}
 
 	if result.Result.Response.ResponseBase.Data == "" {
@@ -138,7 +179,8 @@ func HandleRenderProxy() http.Handler {
 			http.Error(w, `{"error":"invalid path characters"}`, http.StatusBadRequest)
 			return
 		}
-		data := realm + "\n" + renderPath
+		// vm/qrender wire format: "<pkgpath>:<renderpath>" (colon separator).
+		data := realm + ":" + renderPath
 
 		result, err := abciQuery(gnoRPCURL(), "vm/qrender", data)
 		if err != nil {
@@ -202,10 +244,10 @@ func HandleBalanceProxy() http.Handler {
 // so multiple frontend clients don't each hit the RPC node.
 func HandleMarketplaceAgentsProxy(registryPath string) http.Handler {
 	var (
-		mu        sync.RWMutex
-		cached    string
-		cachedAt  time.Time
-		cacheTTL  = 60 * time.Second
+		mu       sync.RWMutex
+		cached   string
+		cachedAt time.Time
+		cacheTTL = 60 * time.Second
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -222,8 +264,8 @@ func HandleMarketplaceAgentsProxy(registryPath string) http.Handler {
 				http.Error(w, `{"error":"invalid agent ID characters"}`, http.StatusBadRequest)
 				return
 			}
-			data := registryPath + "\nagent/" + agentID
-			result, err := abciQuery(gnoRPCURL(), "vm/qrender", data)
+			data := registryPath + ":agent/" + agentID
+			result, err := abciQuery(marketplaceRPCURL(), "vm/qrender", data)
 			if err != nil {
 				slog.Warn("marketplace agent detail failed", "id", agentID, "error", err)
 				w.Header().Set("Content-Type", "application/json")
@@ -251,8 +293,8 @@ func HandleMarketplaceAgentsProxy(registryPath string) http.Handler {
 		mu.RUnlock()
 
 		// Cache miss — fetch from chain
-		data := registryPath + "\n"
-		result, err := abciQuery(gnoRPCURL(), "vm/qrender", data)
+		data := registryPath + ":"
+		result, err := abciQuery(marketplaceRPCURL(), "vm/qrender", data)
 		if err != nil {
 			slog.Warn("marketplace agents listing failed", "error", err)
 			// Serve stale cache if available
