@@ -79,6 +79,18 @@ vi.mock("../hooks/home/useEcosystemCounts", () => ({
     })),
 }))
 
+// ── Mock useValidatorHealth so ValidatorsPanel renders without RPC calls ─
+vi.mock("../hooks/home/useValidatorHealth", () => ({
+    useValidatorHealth: vi.fn(() => ({
+        status: "healthy",
+        active: 5,
+        total: 5,
+        avgUptime: null,
+        latestIncident: null,
+        loading: false,
+    })),
+}))
+
 // Resolve mocks before tests (vi.mock + await import pattern)
 const _networkMock = await import("../hooks/useNetwork")
 const _pulseMock = await import("../hooks/home/useNetworkPulse")
