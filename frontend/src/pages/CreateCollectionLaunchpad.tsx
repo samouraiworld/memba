@@ -12,7 +12,8 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { useOutletContext } from "react-router-dom"
+import { useOutletContext, Link } from "react-router-dom"
+import { useNetworkPath } from "../hooks/useNetworkNav"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { isNftLaunchpadValid } from "../lib/config"
 import { NFT_COLLECTIONS_PATH } from "../lib/nftConfig"
@@ -51,6 +52,7 @@ export function CreateCollectionLaunchpad() {
 
 function CreateCollectionContent() {
     const { adena } = useOutletContext<LayoutContext>()
+    const np = useNetworkPath()
     const connectedAddress = adena?.address || ""
 
     const [slug, setSlug] = useState("")
@@ -121,7 +123,7 @@ function CreateCollectionContent() {
                     Your collection <code>{createdId}</code> is live in the Memba registry. Next, configure its mint
                     phase and price, then mint or open it to the public.
                 </p>
-                <a href={`#/nft/collection/${encodeURIComponent(createdId)}`}>Open collection →</a>
+                <Link to={np(`nft/collection/${createdId}`)}>Open collection →</Link>
             </div>
         )
     }
