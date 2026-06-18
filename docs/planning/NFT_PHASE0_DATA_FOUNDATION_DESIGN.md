@@ -103,8 +103,8 @@ DELETE FROM nft_indexer_state WHERE realm_path='gno.land/r/samcrew/memba_nft_mar
 ```
 
 Then set `NFT_SEED_REALM_CURSOR` and restart as in §9.2. Re-ingest is safe — all
-event-write queries use `INSERT OR IGNORE` on the `(realm_path, tx_hash, event_name)`
-triple, so duplicate rows are impossible.
+event-write queries use `INSERT OR IGNORE` on the `(event_block, event_tx_index, event_index)`
+key, so duplicate rows are impossible.
 
 ### 9.4 Confirmation
 
