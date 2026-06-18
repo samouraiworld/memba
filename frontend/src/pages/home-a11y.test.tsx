@@ -112,6 +112,7 @@ vi.mock("../hooks/home/useHomeActions", () => ({
         actions: [],
         loading: false,
         allCaughtUp: true,
+        unvotedProposals: [],
     })),
 }))
 

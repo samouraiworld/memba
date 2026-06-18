@@ -27,7 +27,7 @@ import type { LayoutContext } from "../../types/layout"
 
 export function ActionInbox() {
     const { auth } = useOutletContext<LayoutContext>()
-    const { actions, loading, allCaughtUp, unvotedProposals } = useHomeActions(auth)
+    const { actions, loading, allCaughtUp, unvotedProposals = [] } = useHomeActions(auth)
     const buildPath = useNetworkPath()
 
     // Inline vote state — mirrors Dashboard.tsx handleQuickVote
