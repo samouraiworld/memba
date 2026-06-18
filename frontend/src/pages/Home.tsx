@@ -19,6 +19,7 @@ import { ActionInbox } from "../components/home/ActionInbox"
 import { VisitorHero } from "../components/home/VisitorHero"
 import { StateBoard } from "../components/home/StateBoard"
 import { NetworkPulsePanel } from "../components/home/panels/NetworkPulsePanel"
+import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -47,6 +48,7 @@ export function Home({ mode }: HomeProps) {
             <div className="home-state-board" data-testid="home-state-board">
                 <StateBoard eagerIndices={[0]}>
                     <NetworkPulsePanel key="pulse" />
+                    {mode === "member" && <YourWorldsPanel key="your-worlds" />}
                 </StateBoard>
             </div>
         </div>
