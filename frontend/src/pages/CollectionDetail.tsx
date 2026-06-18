@@ -28,6 +28,7 @@ import {
 } from "../lib/launchpad"
 import { parseAllowlistText, computeAllowlistRoot, getAllowlistProof } from "../lib/allowlistMerkle"
 import type { LayoutContext } from "../types/layout"
+import "./nft-launchpad.css"
 import { tradeEngineFor } from "../lib/tradeEngine"
 import { fetchV3Tokens, fetchV3Listings, listingKey, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
 import { NFTImage } from "../components/nft/NFTImage"
