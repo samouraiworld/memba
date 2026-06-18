@@ -253,6 +253,16 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
     "audit-realm", "build-mcp-tool", "gas-optimization", "gnodaokit-extension",
     "mentor-developer",
+    // Deploy quests: backend verifies the submitted realm/package path is under
+    // the user's @username namespace, exists on-chain, and is distinct per quest.
+    // (deploy-3-chains/deploy-ibc-realm/render-masterclass stay coming-soon — one
+    // path can't prove "3 chains"/IBC, and render-masterclass isn't deploy-prefixed.)
+    "deploy-hello-pkg", "deploy-counter-pkg", "deploy-avl-pkg", "deploy-interface-pkg",
+    "deploy-import-pkg", "deploy-event-pkg", "deploy-ownable-pkg", "deploy-upgradable-pkg",
+    "deploy-governance-pkg",
+    "deploy-hello-realm", "deploy-grc20-realm", "deploy-grc721-realm", "deploy-board-realm",
+    "deploy-dao-realm", "deploy-crossing-realm", "deploy-escrow-realm",
+    "deploy-marketplace-realm", "deploy-multisig-realm",
 ])
 
 /** True if a quest is part of the curated, completable launch set. */

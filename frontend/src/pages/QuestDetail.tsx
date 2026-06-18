@@ -11,14 +11,14 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useAdena } from "../hooks/useAdena"
 import { useNetworkKey } from "../hooks/useNetworkNav"
-import { loadQuestProgress, completeQuest } from "../lib/quests"
+import { loadQuestProgress, completeQuest, completeQuestVerified } from "../lib/quests"
 import {
     getQuestById,
     isQuestAvailable,
     isQuestLive,
     type GnoQuest,
 } from "../lib/gnobuilders"
-import { verifyQuest, verifyDeployment, type QuestVerificationResult } from "../lib/questVerifier"
+import { verifyQuest, type QuestVerificationResult } from "../lib/questVerifier"
 import { SelfReportForm } from "../components/quests/SelfReportForm"
 import { GNO_RPC_URL } from "../lib/config"
 import { trackPageVisit } from "../lib/quests"
@@ -99,23 +99,30 @@ export default function QuestDetail() {
     }, [questId, address, auth.token, isCompleted])
 
     const handleDeploymentVerify = useCallback(async () => {
-        if (!realmPath.trim() || !address) return
+        if (!realmPath.trim() || !address || !questId) return
+        if (!auth.token) {
+            setVerification({ status: "not_verified", message: "Connect your wallet to verify." })
+            return
+        }
         setVerifying(true)
+        setVerification(null)
         try {
-            const result = await verifyDeployment(GNO_RPC_URL, realmPath.trim(), address)
-            setVerification(result)
-
-            if (result.status === "verified" && questId && !isCompleted) {
-                completeQuest(questId, auth.token ?? undefined)
-                setShowCelebration(true)
-                setTimeout(() => setShowCelebration(false), 4000)
-            }
+            // Backend-gated: the server verifies the realm path is under your
+            // registered @username namespace, exists on-chain, and isn't already
+            // used for another deploy quest. It throws if any check fails.
+            await completeQuestVerified(questId, realmPath.trim(), auth.token)
+            setVerification({ status: "verified", message: "Verified!" })
+            setShowCelebration(true)
+            setTimeout(() => setShowCelebration(false), 4000)
         } catch {
-            setVerification({ status: "error", message: "Verification failed" })
+            setVerification({
+                status: "not_verified",
+                message: "Couldn't verify — the realm must exist and be under your registered @username namespace (and not already used for another deploy quest).",
+            })
         } finally {
             setVerifying(false)
         }
-    }, [realmPath, address, questId, auth.token, isCompleted])
+    }, [realmPath, address, questId, auth.token])
 
     if (!quest) {
         return (

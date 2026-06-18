@@ -223,6 +223,38 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
 }
 
 /**
+ * Complete an on-chain quest that the BACKEND must verify (e.g. deploy quests,
+ * where `proof` is the deployed realm/package path). Unlike completeQuest
+ * (optimistic, fire-and-forget), this AWAITS the server and only records the
+ * completion locally if the server grants it. Throws if the server rejects.
+ */
+export async function completeQuestVerified(
+    questId: string,
+    proof: string,
+    authToken: Token,
+): Promise<QuestResult> {
+    // Server is authoritative — it re-verifies the proof on-chain (namespace
+    // ownership + existence). This throws on rejection.
+    await api.completeQuest(create(CompleteQuestRequestSchema, { authToken, questId, proof }))
+
+    const quest = _findQuest(questId)
+    const state = loadQuestProgress()
+    if (state.completed.some(q => q.questId === questId)) {
+        return { state, unlockedCandidature: false }
+    }
+    const wasBelowThreshold = state.totalXP < CANDIDATURE_XP_THRESHOLD
+    state.completed.push({ questId, completedAt: Date.now() })
+    state.totalXP += quest?.xp ?? 0
+    saveQuestProgress(state)
+    window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
+    trackEvent("Quest Completed", { questId, xp: quest?.xp ?? 0 })
+    return {
+        state,
+        unlockedCandidature: wasBelowThreshold && state.totalXP >= CANDIDATURE_XP_THRESHOLD,
+    }
+}
+
+/**
  * Check if user has enough XP for candidature.
  * Grandfathering: users who reached 100 XP before GnoBuilders v4.0
  * are still eligible even if below the new 350 XP threshold.
