@@ -296,3 +296,37 @@ describe("useHomeActions — unauthenticated", () => {
         expect(result.current.actions).toHaveLength(0)
     })
 })
+
+describe("useHomeActions — exposes unvotedProposals for consumers", () => {
+    it("returns unvotedProposals so callers need not call useUnvotedProposals separately", async () => {
+        const proposals = [
+            {
+                daoName: "Memba DAO",
+                daoSlug: "memba",
+                realmPath: "gno.land/r/memba/dao",
+                proposalId: 7,
+                proposalTitle: "Singleton scan check",
+                proposalStatus: "open",
+            },
+        ]
+
+        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
+            proposals,
+            loading: false,
+            refresh: vi.fn(),
+        })
+        vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [] })
+        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+
+        const { result } = renderHook(
+            () => useHomeActions(makeAuth()),
+            { wrapper: makeWrapper() },
+        )
+
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // unvotedProposals surfaces the raw scan result for consumers (e.g. ActionInbox)
+        // so they don't need a second useUnvotedProposals call
+        expect(result.current.unvotedProposals).toEqual(proposals)
+    })
+})

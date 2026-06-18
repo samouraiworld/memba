@@ -8,6 +8,9 @@
  *
  * Inline vote wiring mirrors Dashboard.tsx exactly:
  *   buildVoteMsg → doContractBroadcast → setVotedIds + clearVoteCache
+ *
+ * Proposals come from useHomeActions (single useUnvotedProposals call shared
+ * with the action-builder — no duplicate cold-load scan).
  */
 
 import { useState } from "react"
@@ -15,7 +18,6 @@ import { useOutletContext } from "react-router-dom"
 import { useHomeActions } from "../../hooks/home/useHomeActions"
 import { ActionCard } from "./ActionCard"
 import { QuickVoteWidget } from "../dashboard/QuickVoteWidget"
-import { useUnvotedProposals } from "../../hooks/useUnvotedProposals"
 import { buildVoteMsg } from "../../lib/dao"
 import { doContractBroadcast } from "../../lib/grc20"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
@@ -25,12 +27,11 @@ import type { LayoutContext } from "../../types/layout"
 
 export function ActionInbox() {
     const { auth } = useOutletContext<LayoutContext>()
-    const { actions, loading, allCaughtUp } = useHomeActions(auth)
+    const { actions, loading, allCaughtUp, unvotedProposals } = useHomeActions(auth)
     const buildPath = useNetworkPath()
 
     // Inline vote state — mirrors Dashboard.tsx handleQuickVote
     const userAddress = auth.isAuthenticated ? (auth.address || null) : null
-    const { proposals: unvotedProposals } = useUnvotedProposals(userAddress)
     const [votingId, setVotingId] = useState<string | null>(null)
     const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
 

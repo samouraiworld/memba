@@ -2,8 +2,9 @@
  * ActionInbox.test.tsx — component tests for the ActionInbox member spine.
  *
  * Mocks:
- *   - useHomeActions (the aggregator hook)
- *   - useUnvotedProposals (used directly for QuickVoteWidget proposals)
+ *   - useHomeActions (the single aggregator hook — drives both actions and
+ *     unvotedProposals fed to QuickVoteWidget; useUnvotedProposals is NOT
+ *     called directly by ActionInbox any more)
  *   - react-router-dom useOutletContext (layout context)
  *   - useNetworkNav / useNetworkPath (route prefix)
  *   - doContractBroadcast / buildVoteMsg / clearVoteCache (chain calls)
@@ -21,14 +22,7 @@ vi.mock("../../hooks/home/useHomeActions", () => ({
         actions: [],
         loading: false,
         allCaughtUp: true,
-    })),
-}))
-
-vi.mock("../../hooks/useUnvotedProposals", () => ({
-    useUnvotedProposals: vi.fn(() => ({
-        proposals: [],
-        loading: false,
-        refresh: vi.fn(),
+        unvotedProposals: [],
     })),
 }))
 
@@ -87,7 +81,6 @@ vi.mock("../../lib/errorLog", () => ({
 // ── Resolve mocked modules for per-test control ───────────────
 
 const homeActionsMod = await import("../../hooks/home/useHomeActions")
-const unvotedMod = await import("../../hooks/useUnvotedProposals")
 const grc20Mod = await import("../../lib/grc20")
 const daoMod = await import("../../lib/dao")
 const voteScannerMod = await import("../../lib/dao/voteScanner")
@@ -100,6 +93,7 @@ describe("ActionInbox — loading", () => {
             actions: [],
             loading: true,
             allCaughtUp: false,
+            unvotedProposals: [],
         })
     })
 
@@ -116,11 +110,7 @@ describe("ActionInbox — all caught up", () => {
             actions: [],
             loading: false,
             allCaughtUp: true,
-        })
-        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
-            proposals: [],
-            loading: false,
-            refresh: vi.fn(),
+            unvotedProposals: [],
         })
     })
 
@@ -156,10 +146,7 @@ describe("ActionInbox — with vote actions", () => {
             ],
             loading: false,
             allCaughtUp: false,
-        })
-
-        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
-            proposals: [
+            unvotedProposals: [
                 {
                     daoName: "Memba DAO",
                     daoSlug: "memba",
@@ -169,8 +156,6 @@ describe("ActionInbox — with vote actions", () => {
                     proposalStatus: "open",
                 },
             ],
-            loading: false,
-            refresh: vi.fn(),
         })
     })
 
@@ -212,9 +197,7 @@ describe("ActionInbox — inline vote fires broadcast", () => {
             ],
             loading: false,
             allCaughtUp: false,
-        })
-        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
-            proposals: [
+            unvotedProposals: [
                 {
                     daoName: "Memba DAO",
                     daoSlug: "memba",
@@ -224,8 +207,6 @@ describe("ActionInbox — inline vote fires broadcast", () => {
                     proposalStatus: "open",
                 },
             ],
-            loading: false,
-            refresh: vi.fn(),
         })
         vi.mocked(grc20Mod.doContractBroadcast).mockResolvedValue({ hash: "tx123" })
         vi.mocked(daoMod.buildVoteMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
@@ -267,11 +248,7 @@ describe("ActionInbox — with sign action", () => {
             ],
             loading: false,
             allCaughtUp: false,
-        })
-        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
-            proposals: [],
-            loading: false,
-            refresh: vi.fn(),
+            unvotedProposals: [],
         })
     })
 
@@ -317,9 +294,7 @@ describe("ActionInbox — mixed actions (vote + sign)", () => {
             ],
             loading: false,
             allCaughtUp: false,
-        })
-        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
-            proposals: [
+            unvotedProposals: [
                 {
                     daoName: "Memba DAO",
                     daoSlug: "memba",
@@ -329,8 +304,6 @@ describe("ActionInbox — mixed actions (vote + sign)", () => {
                     proposalStatus: "open",
                 },
             ],
-            loading: false,
-            refresh: vi.fn(),
         })
     })
 

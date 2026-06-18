@@ -12,11 +12,14 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useUnvotedProposals } from "../useUnvotedProposals"
+import type { UnvotedProposal } from "../../lib/dao/voteScanner"
 import { api } from "../../lib/api"
 import { ExecutionState } from "../../gen/memba/v1/memba_pb"
 import { canApplyForMembership } from "../../lib/quests"
 import type { LayoutContext } from "../../types/layout"
 import type { ActionAccent } from "../../components/home/ActionCard"
+
+export type { UnvotedProposal }
 
 // ── Public types ──────────────────────────────────────────────
 
@@ -36,6 +39,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
     actions: HomeAction[]
     loading: boolean
     allCaughtUp: boolean
+    unvotedProposals: UnvotedProposal[]
 } {
     const address = auth.isAuthenticated ? (auth.address || null) : null
     const token = auth.isAuthenticated ? auth.token : null
@@ -109,5 +113,5 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
     const loading = votesLoading || (!!token && txLoading)
     const allCaughtUp = !loading && actions.length === 0
 
-    return { actions, loading, allCaughtUp }
+    return { actions, loading, allCaughtUp, unvotedProposals }
 }
