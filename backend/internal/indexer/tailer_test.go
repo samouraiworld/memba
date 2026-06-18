@@ -10,7 +10,7 @@ func TestCursor_DefaultsToStartBlockMinusOne(t *testing.T) {
 	ctx := context.Background()
 	realms := []string{marketPkg, colPkg}
 
-	got, err := loadCursor(ctx, db, realms, 260000)
+	got, _, err := loadCursor(ctx, db, realms, 260000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,15 +24,18 @@ func TestCursor_SaveThenLoad(t *testing.T) {
 	ctx := context.Background()
 	realms := []string{marketPkg, colPkg}
 
-	if err := saveCursor(ctx, db, realms, 263500); err != nil {
+	if err := saveCursor(ctx, db, realms, 263500, "HASH263500"); err != nil {
 		t.Fatal("saveCursor:", err)
 	}
-	got, err := loadCursor(ctx, db, realms, 260000)
+	got, hash, err := loadCursor(ctx, db, realms, 260000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got != 263500 {
 		t.Fatalf("cursor = %d, want 263500", got)
+	}
+	if hash != "HASH263500" {
+		t.Fatalf("hash = %q, want HASH263500", hash)
 	}
 }
 
@@ -41,10 +44,10 @@ func TestCursor_TakesMinAcrossRealms(t *testing.T) {
 	ctx := context.Background()
 
 	// Advance only one realm; the other is unset → cursor must not skip ahead.
-	if err := saveCursor(ctx, db, []string{marketPkg}, 263500); err != nil {
+	if err := saveCursor(ctx, db, []string{marketPkg}, 263500, "H263500"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := loadCursor(ctx, db, []string{marketPkg, colPkg}, 260000)
+	got, _, err := loadCursor(ctx, db, []string{marketPkg, colPkg}, 260000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,13 +62,13 @@ func TestCursor_Monotonic(t *testing.T) {
 	ctx := context.Background()
 	realms := []string{marketPkg}
 
-	if err := saveCursor(ctx, db, realms, 100); err != nil {
+	if err := saveCursor(ctx, db, realms, 100, "H100"); err != nil {
 		t.Fatal(err)
 	}
-	if err := saveCursor(ctx, db, realms, 200); err != nil {
+	if err := saveCursor(ctx, db, realms, 200, "H200"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := loadCursor(ctx, db, realms, 1)
+	got, _, err := loadCursor(ctx, db, realms, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

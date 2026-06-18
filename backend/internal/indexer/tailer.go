@@ -30,6 +30,7 @@ type TailerConfig struct {
 	WatchedRealms []string      // NFT_WATCHED_REALMS (market + collection pkg paths)
 	StartBlock    int64         // NFT_START_BLOCK (first-run cursor floor)
 	Interval      time.Duration // NFT_POLL_INTERVAL (reused; tailer sleep when caught up)
+	Confirmations int64         // NFT_CONFIRMATIONS (blocks behind tip before processing; default 5)
 	Logger        *slog.Logger
 }
 
@@ -46,6 +47,9 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	if cfg.Confirmations <= 0 {
+		cfg.Confirmations = 5
 	}
 	if len(cfg.WatchedRealms) == 0 {
 		cfg.Logger.Warn("nft tailer: no watched realms configured — not starting")
@@ -84,8 +88,8 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 }
 
 // tailOnce advances the cursor toward the chain tip, processing up to
-// maxBlocksPerCycle blocks. All errors are logged and swallowed so the loop
-// keeps running.
+// maxBlocksPerCycle confirmed blocks. All errors are logged and swallowed so
+// the loop keeps running.
 func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[string]struct{}, client *http.Client) {
 	log := cfg.Logger
 
@@ -95,23 +99,44 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		return
 	}
 
-	cursor, err := loadCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
+	cursor, storedHash, err := loadCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
 	if err != nil {
 		log.Warn("nft tailer: load cursor failed", "error", err)
 		return
 	}
 
-	if cursor >= latest {
-		return // caught up
+	// Reorg detection: if we have a stored hash for the cursor block, re-fetch
+	// the chain's hash for that block and compare. A mismatch means the cursor
+	// block was replaced — roll back and replay from cursor-1.
+	if storedHash != "" {
+		chainHash, err := fetchBlockHash(ctx, client, cfg.RPCURL, cursor)
+		if err != nil {
+			log.Warn("nft tailer: block hash fetch failed (reorg check)", "height", cursor, "error", err)
+			return
+		}
+		if chainHash != storedHash {
+			log.Warn("nft tailer: reorg detected — rolling back",
+				"height", cursor, "stored_hash", storedHash, "chain_hash", chainHash)
+			if err := rollbackFromHeight(ctx, db, cursor); err != nil {
+				log.Warn("nft tailer: rollback failed", "height", cursor, "error", err)
+				return
+			}
+			cursor--
+		}
 	}
 
-	end := latest
-	if end > cursor+maxBlocksPerCycle {
-		end = cursor + maxBlocksPerCycle
+	end := confirmedEnd(latest, cfg.Confirmations, cursor, maxBlocksPerCycle)
+	if end <= cursor {
+		return // no confirmed work this cycle
 	}
 
 	for h := cursor + 1; h <= end; h++ {
 		if ctx.Err() != nil {
+			return
+		}
+		hash, err := fetchBlockHash(ctx, client, cfg.RPCURL, h)
+		if err != nil {
+			log.Warn("nft tailer: block hash fetch failed", "height", h, "error", err)
 			return
 		}
 		events, err := fetchBlockEvents(ctx, client, cfg.RPCURL, h)
@@ -123,13 +148,13 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			if _, ok := watched[ev.PkgPath]; !ok {
 				continue
 			}
-			if err := dispatchEvent(ctx, db, ev, ""); err != nil {
+			if err := dispatchEvent(ctx, db, ev, hash); err != nil {
 				log.Warn("nft tailer: dispatch failed",
 					"height", h, "type", ev.Type, "error", err)
 				// Continue: idempotent writes mean a later replay is safe.
 			}
 		}
-		if err := saveCursor(ctx, db, cfg.WatchedRealms, h); err != nil {
+		if err := saveCursor(ctx, db, cfg.WatchedRealms, h, hash); err != nil {
 			log.Warn("nft tailer: save cursor failed", "height", h, "error", err)
 			return
 		}
@@ -137,51 +162,61 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 }
 
 // loadCursor returns the minimum last_processed_block across the watched realms
-// (so no realm's events are skipped), defaulting to startBlock-1 when unset.
-func loadCursor(ctx context.Context, db *sql.DB, realms []string, startBlock int64) (int64, error) {
+// (so no realm's events are skipped), plus the block_hash stored for the row
+// that produced the minimum. Defaults to (startBlock-1, "", nil) when unset.
+func loadCursor(ctx context.Context, db *sql.DB, realms []string, startBlock int64) (int64, string, error) {
 	min := int64(-1)
+	minHash := ""
 	for _, realm := range realms {
 		realm = strings.TrimSpace(realm)
 		if realm == "" {
 			continue
 		}
 		var last sql.NullInt64
+		var hash sql.NullString
 		err := db.QueryRowContext(ctx,
-			`SELECT last_processed_block FROM nft_indexer_state WHERE realm_path = ?`, realm).
-			Scan(&last)
+			`SELECT last_processed_block, block_hash FROM nft_indexer_state WHERE realm_path = ?`, realm).
+			Scan(&last, &hash)
 		var v int64
+		var h string
 		switch {
 		case err == sql.ErrNoRows || !last.Valid:
 			v = startBlock - 1
+			h = ""
 		case err != nil:
-			return 0, err
+			return 0, "", err
 		default:
 			v = last.Int64
+			h = hash.String
 		}
 		if min < 0 || v < min {
 			min = v
+			minHash = h
 		}
 	}
 	if min < 0 {
 		min = startBlock - 1
+		minHash = ""
 	}
-	return min, nil
+	return min, minHash, nil
 }
 
-// saveCursor records height as the last processed block for every watched realm.
-func saveCursor(ctx context.Context, db *sql.DB, realms []string, height int64) error {
+// saveCursor records height and blockHash as the last processed block for every
+// watched realm.
+func saveCursor(ctx context.Context, db *sql.DB, realms []string, height int64, blockHash string) error {
 	for _, realm := range realms {
 		realm = strings.TrimSpace(realm)
 		if realm == "" {
 			continue
 		}
 		if _, err := db.ExecContext(ctx, `
-			INSERT INTO nft_indexer_state (realm_path, last_processed_block, updated_at)
-			VALUES (?, ?, CURRENT_TIMESTAMP)
+			INSERT INTO nft_indexer_state (realm_path, last_processed_block, block_hash, updated_at)
+			VALUES (?, ?, ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(realm_path) DO UPDATE SET
 				last_processed_block = excluded.last_processed_block,
+				block_hash = excluded.block_hash,
 				updated_at = CURRENT_TIMESTAMP`,
-			realm, height,
+			realm, height, blockHash,
 		); err != nil {
 			return err
 		}
@@ -214,6 +249,27 @@ func fetchLatestHeight(ctx context.Context, client *http.Client, rpcURL string) 
 		return 0, fmt.Errorf("parse latest height %q: %w", s.Result.SyncInfo.LatestBlockHeight, err)
 	}
 	return h, nil
+}
+
+type blockResponse struct {
+	Result struct {
+		BlockID struct {
+			Hash string `json:"hash"`
+		} `json:"block_id"`
+	} `json:"result"`
+}
+
+// fetchBlockHash fetches the block hash for a given height from /block?height=h.
+func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, height int64) (string, error) {
+	body, err := httpGet(ctx, client, fmt.Sprintf("%s/block?height=%d", rpcURL, height))
+	if err != nil {
+		return "", err
+	}
+	var b blockResponse
+	if err := json.Unmarshal(body, &b); err != nil {
+		return "", fmt.Errorf("decode block: %w", err)
+	}
+	return b.Result.BlockID.Hash, nil
 }
 
 // fetchBlockEvents fetches and parses the watched GnoEvents at a height.
