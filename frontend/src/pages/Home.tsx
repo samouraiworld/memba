@@ -49,16 +49,19 @@ export function Home({ mode }: HomeProps) {
                 {mode === "visitor" && <VisitorHero />}
             </div>
 
-            {/* Zone 3: STATE BOARD — realtime status panels */}
+            {/* Zone 3: STATE BOARD — realtime status panels.
+                DOM order = mobile priority column:
+                NetworkPulse → YourWorlds (member) → FeaturedDao → Validators
+                → Gnolove → Directory → Ecosystem */}
             <div className="home-state-board" data-testid="home-state-board">
                 <StateBoard eagerIndices={[0]}>
                     <NetworkPulsePanel key="pulse" />
-                    <EcosystemPanel key="ecosystem" />
-                    <ValidatorsPanel key="validators" />
+                    {mode === "member" && <YourWorldsPanel key="your-worlds" />}
                     <FeaturedDaoPanel key="featured-dao" />
+                    <ValidatorsPanel key="validators" />
                     <GnolovePanel key="gnolove" />
                     <DirectoryPanel key="directory" />
-                    {mode === "member" && <YourWorldsPanel key="your-worlds" />}
+                    <EcosystemPanel key="ecosystem" />
                 </StateBoard>
             </div>
         </div>

@@ -212,6 +212,70 @@ button.action-card:focus-visible {
   min-width: 0;
 }
 
+/* ── Mobile-first breakpoints ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .home-spine,
+  .home-state-board {
+    padding: 12px;
+  }
+
+  /* Force single-column layout — panels follow DOM order */
+  .state-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-spine,
+  .home-state-board {
+    padding: 10px;
+  }
+
+  .action-card__body {
+    padding: 10px 10px 10px 8px;
+  }
+
+  .action-card__title {
+    font-size: 13px;
+  }
+
+  .action-card__action-label {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .status-strip {
+    padding: 5px 10px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .status-strip__wordmark {
+    font-size: 12px;
+  }
+}
+
+/* ── Focus rings (global for home interactive elements) ───────────── */
+
+.visitor-hero__cta:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .status-strip__dot {
+    animation: none;
+  }
+
+  .action-card--skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 /* ── PanelBoundary retry affordance ──────────────────────────────── */
 
 .panel-boundary__retry {

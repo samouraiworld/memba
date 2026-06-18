@@ -8,11 +8,7 @@ import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
-import { Dashboard } from "./pages/Dashboard"
 import { Home } from "./pages/Home"
-
-// ── Landing page (lazy — only for unauthenticated visitors) ──
-const Landing = lazy(() => import("./pages/Landing").then(m => ({ default: m.Landing })))
 
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
