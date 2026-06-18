@@ -1,0 +1,180 @@
+/**
+ * StateBoard — responsive grid wrapper for home status panels.
+ *
+ * Responsibilities (panel-agnostic):
+ *   1. Grid layout: repeat(auto-fit, minmax(220px, 1fr))
+ *   2. Per-panel error isolation via PanelBoundary (class ErrorBoundary)
+ *   3. Lazy-mount for below-the-fold panels via useInViewport (IntersectionObserver)
+ *
+ * Panel contract:
+ *   - Pass children as <SomePanel /> nodes
+ *   - Wrap each child in <PanelSlot eager?> — or let StateBoard do it automatically
+ *   - `eager` panels mount immediately (above-the-fold); omit for lazy-mount
+ *
+ * @module components/home/StateBoard
+ */
+
+import React, { useEffect, useRef, useState } from "react"
+import { ActionCard } from "./ActionCard"
+import "./home.css"
+
+// ── Per-panel error boundary ─────────────────────────────────────────────
+
+interface PanelBoundaryState {
+    hasError: boolean
+}
+
+/**
+ * PanelBoundary — catches render errors thrown by a single panel.
+ * Renders a compact neutral "couldn't load" ActionCard as fallback.
+ * Sibling panels are unaffected.
+ */
+export class PanelBoundary extends React.Component<
+    React.PropsWithChildren<{ label?: string }>,
+    PanelBoundaryState
+> {
+    constructor(props: React.PropsWithChildren<{ label?: string }>) {
+        super(props)
+        this.state = { hasError: false }
+    }
+
+    static getDerivedStateFromError(): PanelBoundaryState {
+        return { hasError: true }
+    }
+
+    override componentDidCatch(error: Error) {
+        // Intentionally minimal — panels are expected to self-degrade (show "—")
+        // rather than throw. Log only in dev to avoid noise in prod.
+        if (import.meta.env.DEV) {
+            console.warn("[PanelBoundary] panel threw during render:", error)
+        }
+    }
+
+    override render() {
+        if (this.state.hasError) {
+            return (
+                <ActionCard
+                    accent="neutral"
+                    eyebrow="panel"
+                    title={this.props.label ?? "couldn't load"}
+                    meta="—"
+                    data-testid="panel-boundary-fallback"
+                />
+            )
+        }
+        return this.props.children
+    }
+}
+
+// ── Lazy-mount via IntersectionObserver ──────────────────────────────────
+
+interface UseInViewportResult {
+    ref: React.RefCallback<HTMLElement>
+    inView: boolean
+}
+
+/**
+ * useInViewport — returns true once the container element scrolls near
+ * the viewport. Uses IntersectionObserver with a small rootMargin so panels
+ * start mounting just before they appear.
+ *
+ * In environments without IntersectionObserver (jsdom / old browsers), falls
+ * back to inView=true immediately so panels still render.
+ */
+function useInViewport(rootMargin = "120px"): UseInViewportResult {
+    const [inView, setInView] = useState(false)
+    const observerRef = useRef<IntersectionObserver | null>(null)
+
+    const ref: React.RefCallback<HTMLElement> = (el) => {
+        if (!el) return
+        if (typeof IntersectionObserver === "undefined") {
+            // jsdom / legacy: mount immediately
+            setInView(true)
+            return
+        }
+        observerRef.current?.disconnect()
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setInView(true)
+                    observer.disconnect()
+                }
+            },
+            { rootMargin },
+        )
+        observer.observe(el)
+        observerRef.current = observer
+    }
+
+    useEffect(() => {
+        return () => observerRef.current?.disconnect()
+    }, [])
+
+    return { ref, inView }
+}
+
+// ── PanelSlot — wraps one panel with error isolation + optional lazy-mount
+
+interface PanelSlotProps {
+    /** Mount immediately (above the fold). Omit for lazy-mount. */
+    eager?: boolean
+    label?: string
+    children: React.ReactNode
+}
+
+function PanelSlot({ eager = false, label, children }: PanelSlotProps) {
+    const { ref, inView } = useInViewport()
+    const shouldMount = eager || inView
+
+    return (
+        <div ref={eager ? undefined : ref} className="state-board__slot">
+            <PanelBoundary label={label}>
+                {shouldMount ? children : null}
+            </PanelBoundary>
+        </div>
+    )
+}
+
+// ── StateBoard ───────────────────────────────────────────────────────────
+
+export interface StateBoardProps {
+    /**
+     * Panel elements. Each child is automatically wrapped in a PanelBoundary
+     * and a lazy-mount container. Use the `eager` prop on a child slot to opt
+     * out of lazy-mount for above-the-fold panels.
+     *
+     * Example:
+     *   <StateBoard>
+     *     <NetworkPulsePanel />          {/* lazy-mounted  *\/}
+     *   </StateBoard>
+     *
+     *   — or wrap manually for eager: —
+     *   <StateBoard eager={[0]}>
+     *     <NetworkPulsePanel />          {/* first child = eager *\/}
+     *   </StateBoard>
+     */
+    children: React.ReactNode
+    /**
+     * Indices of children that should mount eagerly (above the fold).
+     * Defaults to [0] — the first panel is always eager.
+     */
+    eagerIndices?: number[]
+}
+
+/**
+ * StateBoard — generic grid host for home status panels.
+ * Does NOT know about specific panels. Tasks 1.5-1.10 plug panels in here.
+ */
+export function StateBoard({ children, eagerIndices = [0] }: StateBoardProps) {
+    const childArray = React.Children.toArray(children)
+
+    return (
+        <div className="state-board" data-testid="state-board">
+            {childArray.map((child, i) => (
+                <PanelSlot key={i} eager={eagerIndices.includes(i)}>
+                    {child}
+                </PanelSlot>
+            ))}
+        </div>
+    )
+}

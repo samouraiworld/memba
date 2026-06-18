@@ -200,6 +200,26 @@ button.action-card:focus-visible {
   padding: 16px;
 }
 
+/* ── StateBoard ───────────────────────────────────────────────────── */
+
+.state-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.state-board__slot {
+  min-width: 0;
+}
+
+/* ── NetworkPulsePanel ────────────────────────────────────────────── */
+
+.network-pulse-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── ActionInbox ──────────────────────────────────────────────────── */
 
 .action-inbox {

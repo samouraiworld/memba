@@ -17,6 +17,8 @@ import type { LayoutContext } from "../types/layout"
 import { StatusStrip } from "../components/home/StatusStrip"
 import { ActionInbox } from "../components/home/ActionInbox"
 import { VisitorHero } from "../components/home/VisitorHero"
+import { StateBoard } from "../components/home/StateBoard"
+import { NetworkPulsePanel } from "../components/home/panels/NetworkPulsePanel"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -43,7 +45,9 @@ export function Home({ mode }: HomeProps) {
 
             {/* Zone 3: STATE BOARD — realtime status panels */}
             <div className="home-state-board" data-testid="home-state-board">
-                {/* Board panels injected by Task 1.4+ */}
+                <StateBoard eagerIndices={[0]}>
+                    <NetworkPulsePanel />
+                </StateBoard>
             </div>
         </div>
     )
