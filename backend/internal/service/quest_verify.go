@@ -99,6 +99,11 @@ var (
 var (
 	seqRe    = regexp.MustCompile(`"sequence":\s*"?(\d+)"?`)
 	accNumRe = regexp.MustCompile(`"account_number":\s*"?(\d+)"?`)
+	// addrRe matches a well-formed bech32 gno address. We only ever interpolate
+	// a matching address into an on-chain query expression/path (defence-in-depth
+	// against VM-eval injection — the address comes from a validated token, but
+	// is never trusted raw into a qeval string).
+	addrRe = regexp.MustCompile(`^g1[a-z0-9]{38}$`)
 )
 
 // verifyQuestCompletable returns nil if `questID` may be granted to `addr`
@@ -144,13 +149,19 @@ func (s *MultisigService) runOnChainVerify(ctx context.Context, addr, questID st
 // (a substring scan over full render output could be spoofed by a realm that
 // echoes an attacker-controlled address) and are deferred to Phase 3.
 func (s *MultisigService) defaultVerifyOnChainQuest(_ context.Context, addr, questID string) (bool, error) {
+	if !addrRe.MatchString(addr) {
+		return false, nil // malformed address — never interpolate into a query
+	}
 	switch questID {
 	case "register-username":
-		out, err := questRender(verifyUserRegistryPath, addr)
+		// r/sys/users.Render IGNORES its path arg, so a qrender returns the same
+		// content for any address (an always-passes bug). ResolveAddress returns
+		// *UserData — "(nil ...)" when the address has no @username registered.
+		out, err := questEval(verifyUserRegistryPath + `.ResolveAddress("` + addr + `")`)
 		if err != nil {
 			return false, err
 		}
-		return renderExists(out), nil
+		return out != "" && !strings.HasPrefix(strings.TrimSpace(out), "(nil"), nil
 	case "submit-candidature":
 		out, err := questRender(verifyCandidaturePath, "application/"+addr)
 		if err != nil {
@@ -189,6 +200,12 @@ func renderExists(out string) bool {
 // quest RPC and returns the rendered text ("" when the realm/path is absent).
 func questRender(pkgPath, renderArg string) (string, error) {
 	return questAbciQuery(questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
+}
+
+// questEval runs a vm/qeval expression (e.g. `pkg.Func("arg")`) against the
+// quest RPC, returning the printed result ("" when the realm/expr is absent).
+func questEval(expr string) (string, error) {
+	return questAbciQuery(questRPCURL(), "vm/qeval", expr)
 }
 
 // accountInfo reads sequence + account_number for an address from the chain.

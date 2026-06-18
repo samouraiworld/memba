@@ -91,7 +91,9 @@ func TestCompleteQuest_OnChain_RejectedWhenNotMet(t *testing.T) {
 // network call (default switch falls through to false).
 func TestCompleteQuest_OnChain_NoVerifier_Rejected(t *testing.T) {
 	h := setup(t)
-	token := h.makeToken(t, "g1alice")
+	// Well-formed address so it passes the addr guard and reaches the default
+	// (no-verifier) switch arm, which returns false without any network call.
+	token := h.makeToken(t, "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
 	ctx := context.Background()
 
 	_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
