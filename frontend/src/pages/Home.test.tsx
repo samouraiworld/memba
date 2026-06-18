@@ -104,6 +104,17 @@ vi.mock("../hooks/home/useGnoloveHighlights", () => ({
     })),
 }))
 
+// ── Mock useDirectoryHighlights so DirectoryPanel renders without network calls ──
+vi.mock("../hooks/home/useDirectoryHighlights", () => ({
+    useDirectoryHighlights: vi.fn(() => ({
+        memberCount: 12,
+        members: [
+            { name: "alice", address: "g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+        ],
+        loading: false,
+    })),
+}))
+
 // Resolve mocks before tests (vi.mock + await import pattern)
 const _networkMock = await import("../hooks/useNetwork")
 const _pulseMock = await import("../hooks/home/useNetworkPulse")
