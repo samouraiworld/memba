@@ -125,4 +125,17 @@ func TestTailOnce_TipReorg_RollsBackAndReplays(t *testing.T) {
 	if storedHash != "b3" {
 		t.Errorf("stored hash after reorg = %q, want b3", storedHash)
 	}
+
+	// RR-2: collection aggregates must reflect ONLY the NEW sale (price 200),
+	// not OLD+NEW stacked — proving no inflation from reorg rollback+replay.
+	var totalVol, totalSales int64
+	if err := db.QueryRow(`SELECT COALESCE(total_volume_ugnot,0), COALESCE(total_sales,0) FROM nft_collections WHERE collection_id='c'`).Scan(&totalVol, &totalSales); err != nil {
+		t.Fatalf("reading collection aggregates after reorg: %v", err)
+	}
+	if totalVol != 200 {
+		t.Errorf("total_volume_ugnot after reorg = %d, want 200 (only NEW sale)", totalVol)
+	}
+	if totalSales != 1 {
+		t.Errorf("total_sales after reorg = %d, want 1 (only NEW sale, no inflation)", totalSales)
+	}
 }

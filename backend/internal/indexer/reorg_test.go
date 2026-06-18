@@ -91,4 +91,17 @@ func TestRollbackFromHeight(t *testing.T) {
 	if n := countRows(t, db, `SELECT COUNT(*) FROM nft_ownership_history WHERE block < 200`); n != 1 {
 		t.Errorf("ownership_history < 200 = %d, want 1 (kept, from Sale at block 100)", n)
 	}
+
+	// RR-2: collection aggregates must reflect only the surviving sale (block 100,
+	// price 100). The rolled-back sale at block 200 must not be counted.
+	var totalVol, totalSales int64
+	if err := db.QueryRow(`SELECT COALESCE(total_volume_ugnot,0), COALESCE(total_sales,0) FROM nft_collections WHERE collection_id='c'`).Scan(&totalVol, &totalSales); err != nil {
+		t.Fatalf("reading collection aggregates: %v", err)
+	}
+	if totalVol != 100 {
+		t.Errorf("total_volume_ugnot after rollback = %d, want 100 (only block-100 sale survives)", totalVol)
+	}
+	if totalSales != 1 {
+		t.Errorf("total_sales after rollback = %d, want 1 (only block-100 sale survives)", totalSales)
+	}
 }

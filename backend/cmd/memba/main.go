@@ -114,6 +114,7 @@ func main() {
 	// Start the NFT marketplace state-polling indexer (test13 realms).
 	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env
 	// (NFT_RPC_URL) — NOT the testnet12-defaulted GNO_RPC_URL.
+	const defaultV3Market = "gno.land/r/samcrew/memba_nft_market_v3"
 	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443")
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
@@ -151,8 +152,8 @@ func main() {
 	// ownership. This is the source of truth for floor, activity and portfolio.
 	indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
 		RPCURL:           nftRPCURL,
-		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm)),
-		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", "gno.land/r/samcrew/memba_nft_market_v3")),
+		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm+","+defaultV3Market)),
+		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultV3Market)),
 		StartBlock:       int64Or("NFT_START_BLOCK", 260000),
 		Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
 		Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),

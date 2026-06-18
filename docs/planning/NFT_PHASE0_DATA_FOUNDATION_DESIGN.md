@@ -69,7 +69,9 @@ executable procedure to close the gap:
 
 ### 9.1 Prerequisites
 
-Confirm v3 is in `NFT_WATCHED_REALMS` (it is by default in the current config).
+Confirm v3 is in `NFT_WATCHED_REALMS` (the default watched set now includes
+`gno.land/r/samcrew/memba_nft_market_v3`, so no override is required on a fresh
+deployment).
 Confirm the v3 deploy height — query the chain or check the deploy TX; at time of
 writing the v3 engine (`memba_nft_market_v3`) was deployed around block **280000**
 on test13.
