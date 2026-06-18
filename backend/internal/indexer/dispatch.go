@@ -17,21 +17,50 @@ func atoiSafe(s string) int64 {
 	return v
 }
 
-// dispatchEvent applies a single normalized GnoEvent to the database inside one
-// transaction. Writes are idempotent: event-keyed tables use INSERT OR IGNORE on
-// (event_block, event_tx_index, event_index), so re-processing a block is a
-// no-op. Unknown event types are ignored. Returns an error only on a real DB
-// failure (the caller logs and continues).
+// dispatchEvent applies a single normalized GnoEvent to the database. It
+// delegates to dispatchEventScoped with an empty saleVolumeRealms set, which
+// preserves the legacy behavior (OfferAccepted and PurchaseConfirmed both write
+// volume rows). All existing callers and tests use this signature unchanged.
 //
-// onMint, when non-nil, is invoked (outside the tx, by the caller) after a Mint
-// is recorded so the Render-scraper can backfill the token's URI/metadata.
-func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+// blockHash is the block-level hash threaded from the tailer; pass "" when
+// unavailable (e.g. legacy callers — Task 6 wires the real per-height value).
+func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string) error {
+	return dispatchEventScoped(ctx, db, ev, blockHash, nil)
+}
+
+// dispatchEventScoped applies a single normalized GnoEvent to the database,
+// with engine-scoped volume-counting. Writes are idempotent: event-keyed tables
+// use INSERT OR IGNORE on (event_block, event_tx_index, event_index), so
+// re-processing a block is a no-op. Unknown event types are ignored. Returns an
+// error only on a real DB failure (the caller logs and continues).
+//
+// saleVolumeRealms is the set of pkg_paths whose volume must come from Sale
+// events only (v3+ engines). For events whose PkgPath is in this set:
+//   - OfferAccepted: resolves the offer (metadata) but does NOT write a sale row
+//     or bump collection aggregates — Sale already wrote the volume row.
+//   - PurchaseConfirmed: no-op (Sale already wrote the volume row).
+//
+// When saleVolumeRealms is nil or empty (legacy callers / v2 engines not in the
+// set), OfferAccepted and PurchaseConfirmed behave as before and write volume.
+func dispatchEventScoped(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string, saleVolumeRealms map[string]struct{}) error {
+	// Raw ledger first — the immutable source of truth. Idempotent; a later
+	// projection failure is recoverable by rebuild-from-raw.
+	if err := recordRawEvent(ctx, db, ev, blockHash); err != nil {
+		return err
+	}
+
+	_, inSaleSet := saleVolumeRealms[ev.PkgPath]
+
 	switch ev.Type {
 	case "NFTListed":
 		return applyNFTListed(ctx, db, ev)
 	case "NFTDelisted", "AdminDelisted":
 		return applyNFTDelisted(ctx, db, ev)
 	case "PurchaseConfirmed":
+		if inSaleSet {
+			// Sale already wrote the volume row for this engine — skip.
+			return nil
+		}
 		return applyPurchaseConfirmed(ctx, db, ev)
 	case "OfferMade":
 		return applyOfferMade(ctx, db, ev)
@@ -40,7 +69,14 @@ func dispatchEvent(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	case "OfferExpiredClaimed":
 		return applyOfferResolved(ctx, db, ev, "expired")
 	case "OfferAccepted":
+		if inSaleSet {
+			// Metadata-only: resolve the offer without writing a sale row or
+			// bumping aggregates (Sale already recorded volume for this engine).
+			return applyOfferResolved(ctx, db, ev, "accepted")
+		}
 		return applyOfferAccepted(ctx, db, ev)
+	case "Sale":
+		return applySale(ctx, db, ev)
 	case "MarketTransfer":
 		return applyMarketTransfer(ctx, db, ev)
 	case "Mint":
@@ -184,9 +220,10 @@ func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	_, err := db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO nft_offers
 			(collection_id, token_id, buyer, amount_ugnot, created_block, status,
-			 event_block, event_tx_index, event_index)
-		VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
-		col, tok, buyer, amount, ev.Block, ev.Block, ev.TxIndex, ev.EventIdx,
+			 pkg_path, schema_version, event_block, event_tx_index, event_index)
+		VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+		col, tok, buyer, amount, ev.Block, ev.PkgPath, ev.Attr("schemaVersion"),
+		ev.Block, ev.TxIndex, ev.EventIdx,
 	)
 	return err
 }
@@ -235,6 +272,23 @@ func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	return err
 }
 
+// applySale ingests the canonical v3+ settlement event (one Sale per sale, keyed
+// by `via`). Volume is counted HERE for Sale-volume engines (see
+// dispatchEventScoped): their companion OfferAccepted/PurchaseConfirmed events
+// are metadata-only and do not write a second sale row. Legacy v2 engines (not
+// in saleVolumeRealms) still source volume from OfferAccepted/PurchaseConfirmed.
+func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+	col := ev.Attr("collection")
+	tok := ev.Attr("tokenId")
+	seller := ev.Attr("seller")
+	buyer := ev.Attr("buyer")
+	price := atoiSafe(ev.Attr("price"))
+	fee := atoiSafe(ev.Attr("fee"))
+	royalty := atoiSafe(ev.Attr("royalty"))
+	via := ev.Attr("via") // "buy" | "offer" | "auction" | "sweep"
+	return settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via)
+}
+
 // settleSale records a sale (purchase or accepted offer): inserts nft_sales,
 // closes any open listing, updates token ownership + collection volume/last
 // sale, writes ownership history, and recomputes the floor — all in one tx.
@@ -248,9 +302,10 @@ func settleSale(ctx context.Context, db *sql.DB, ev GnoEvent, col, tok, seller, 
 	res, err := tx.ExecContext(ctx, `
 		INSERT OR IGNORE INTO nft_sales
 			(collection_id, token_id, seller, buyer, price_ugnot, fee_ugnot, royalty_ugnot,
-			 sale_block, kind, event_block, event_tx_index, event_index)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 sale_block, kind, pkg_path, schema_version, event_block, event_tx_index, event_index)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		col, tok, seller, buyer, price, fee, royalty, ev.Block, kind,
+		ev.PkgPath, ev.Attr("schemaVersion"),
 		ev.Block, ev.TxIndex, ev.EventIdx,
 	)
 	if err != nil {
