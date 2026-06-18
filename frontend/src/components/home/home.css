@@ -124,3 +124,78 @@ button.action-card:focus-visible {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.45; }
 }
+
+/* ── StatusStrip ──────────────────────────────────────────────────── */
+
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--color-k-panel);
+  border-bottom: 1px solid var(--color-k-edge);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-strip__wordmark {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.01em;
+}
+
+.status-strip__chain {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-accent);
+  font-weight: 500;
+}
+
+.status-strip__sep {
+  color: var(--color-k-edge);
+}
+
+.status-strip__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+  flex-shrink: 0;
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+.status-strip__dot--syncing {
+  background: var(--color-k-dim);
+  animation: none;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.status-strip__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+/* ── Home page zones ──────────────────────────────────────────────── */
+
+.home-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.home-spine,
+.home-state-board {
+  padding: 16px;
+}

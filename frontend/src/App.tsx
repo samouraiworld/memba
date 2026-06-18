@@ -9,6 +9,7 @@ import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 import { Dashboard } from "./pages/Dashboard"
+import { Home } from "./pages/Home"
 
 // ── Landing page (lazy — only for unauthenticated visitors) ──
 const Landing = lazy(() => import("./pages/Landing").then(m => ({ default: m.Landing })))
@@ -118,14 +119,10 @@ function ProfileRedirect() {
   return <Navigate to={`/${networkKey}/`} replace />
 }
 
-/** Redirects /:network/ → /:network/dashboard when connected, shows Landing when not. */
+/** Renders the mode-aware Control Room Home for both visitors and members. */
 function HomeRedirect() {
   const adena = useAdena()
-  const networkKey = useNetworkKey()
-  if (adena.connected) {
-    return <Navigate to={`/${networkKey}/dashboard`} replace />
-  }
-  return <Suspense fallback={<PageLoader />}><Landing /></Suspense>
+  return <Home mode={adena.connected ? "member" : "visitor"} />
 }
 
 /** Redirects bare / to /:defaultNetwork/ */
@@ -162,8 +159,8 @@ function App() {
           {/* Landing page (public) — redirects to /dashboard when connected */}
           <Route index element={<HomeRedirect />} />
 
-          {/* Dashboard (authenticated hub) */}
-          <Route path="dashboard" element={<Dashboard />} />
+          {/* Dashboard — old /dashboard links land on the new home */}
+          <Route path="dashboard" element={<Navigate to=".." replace />} />
 
           {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
           <Route path="multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
