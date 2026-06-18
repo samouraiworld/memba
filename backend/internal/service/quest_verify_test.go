@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
@@ -11,7 +12,7 @@ import (
 // stubChainVerify installs a deterministic on-chain verifier so these tests
 // never hit the network. Returns whatever `ok` says for any on_chain quest.
 func (h *testHarness) stubChainVerify(ok bool) {
-	h.svc.verifyOnChainQuest = func(_ context.Context, _, _ string) (bool, error) {
+	h.svc.verifyOnChainQuest = func(_ context.Context, _, _, _ string) (bool, error) {
 		return ok, nil
 	}
 }
@@ -91,16 +92,110 @@ func TestCompleteQuest_OnChain_RejectedWhenNotMet(t *testing.T) {
 // network call (default switch falls through to false).
 func TestCompleteQuest_OnChain_NoVerifier_Rejected(t *testing.T) {
 	h := setup(t)
-	// Well-formed address so it passes the addr guard and reaches the default
-	// (no-verifier) switch arm, which returns false without any network call.
+	// vote-proposal is on_chain with no server verifier (and not a deploy quest),
+	// so it hits the default switch arm: false, without any network call. Uses a
+	// well-formed address so it passes the addr guard first.
 	token := h.makeToken(t, "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
 	ctx := context.Background()
 
 	_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "deploy-hello-pkg",
+		AuthToken: token, QuestId: "vote-proposal",
 	}))
 	if err == nil {
 		t.Fatal("expected on_chain quest without a server verifier to be rejected")
+	}
+}
+
+// ── Deploy-quest verification ───────────────────────────────
+
+func TestNamespaceOf(t *testing.T) {
+	cases := []struct {
+		in, ns string
+		ok     bool
+	}{
+		{"gno.land/r/alice/myrealm", "alice", true},
+		{"gno.land/p/bob_dev/utils", "bob_dev", true},
+		{"gno.land/r/alice/sub/deep", "alice", true},
+		{"gno.land/r/alice", "", false},     // no realm segment
+		{"gno.land/x/alice/foo", "", false}, // not r/ or p/
+		{"http://evil/r/alice/foo", "", false},
+		{"", "", false},
+		{`gno.land/r/a"b/foo`, "", false}, // quote -> no match (injection-safe)
+	}
+	for _, c := range cases {
+		ns, ok := namespaceOf(c.in)
+		if ok != c.ok || ns != c.ns {
+			t.Errorf("namespaceOf(%q) = (%q,%v), want (%q,%v)", c.in, ns, ok, c.ns, c.ok)
+		}
+	}
+}
+
+func TestProofUsedForOtherDeploy(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := h.db.ExecContext(ctx,
+		`INSERT INTO quest_completions (address, quest_id, completed_at, proof) VALUES (?,?,?,?)`,
+		"g1alice", "deploy-hello-pkg", now, "gno.land/r/alice/foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same path for a DIFFERENT deploy quest -> already used.
+	used, err := h.svc.proofUsedForOtherDeploy(ctx, "g1alice", "deploy-counter-pkg", "gno.land/r/alice/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !used {
+		t.Fatal("expected path already used for another deploy quest")
+	}
+	// A fresh path -> not used.
+	if used, _ := h.svc.proofUsedForOtherDeploy(ctx, "g1alice", "deploy-counter-pkg", "gno.land/r/alice/bar"); used {
+		t.Fatal("a fresh path should not be 'used'")
+	}
+	// Same quest id (re-verify) -> not "other".
+	if used, _ := h.svc.proofUsedForOtherDeploy(ctx, "g1alice", "deploy-hello-pkg", "gno.land/r/alice/foo"); used {
+		t.Fatal("same quest id should not count as 'other'")
+	}
+}
+
+func TestCompleteQuest_Deploy_VerifiesAndStoresProof(t *testing.T) {
+	h := setup(t)
+	h.stubChainVerify(true) // stub the on-chain namespace/existence verdict
+	addr := "g1abcdefghijklmnopqrstuvwxyz0123456789ab"
+	token := h.makeToken(t, addr)
+	ctx := context.Background()
+
+	resp, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+		AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "gno.land/r/alice/foo",
+	}))
+	if err != nil {
+		t.Fatal("CompleteQuest(deploy-hello-pkg):", err)
+	}
+	if resp.Msg.State.TotalXp != 20 {
+		t.Fatalf("expected 20 XP, got %d", resp.Msg.State.TotalXp)
+	}
+	var proof string
+	if err := h.db.QueryRowContext(ctx,
+		`SELECT proof FROM quest_completions WHERE address=? AND quest_id=?`,
+		addr, "deploy-hello-pkg").Scan(&proof); err != nil {
+		t.Fatal(err)
+	}
+	if proof != "gno.land/r/alice/foo" {
+		t.Fatalf("expected stored proof, got %q", proof)
+	}
+}
+
+func TestCompleteQuest_Deploy_RejectedWithoutProof(t *testing.T) {
+	h := setup(t)
+	// No stub -> real verifyDeployQuest; empty proof -> namespaceOf fails -> reject
+	// with no network call.
+	token := h.makeToken(t, "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
+	ctx := context.Background()
+	_, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+		AuthToken: token, QuestId: "deploy-hello-pkg", Proof: "",
+	}))
+	if err == nil {
+		t.Fatal("expected deploy quest with no proof to be rejected")
 	}
 }
 
