@@ -28,6 +28,16 @@
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-slide-up: slide-up 0.35s ease-out both;
   --animate-glow: glow 2.5s ease-in-out infinite;
+
+  /* ── Radius scale ────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* ── Hover surface conventions ───────────────────────────────── */
+  --color-k-hover-surface: rgba(255,255,255,0.04);
+  /* --color-k-edge-hover is already defined above (#333333) */
 }
 
 /* ── Kodera Light Theme ──────────────────────────────────────────── */
