@@ -24,6 +24,35 @@ const (
 	maxBlocksPerCycle = 500
 )
 
+// blockSource is the RPC seam used by tailOnce. The production implementation
+// delegates to the package-level HTTP helpers; tests substitute a fake.
+type blockSource interface {
+	LatestHeight(ctx context.Context) (int64, error)
+	BlockHash(ctx context.Context, height int64) (string, error)
+	BlockEvents(ctx context.Context, height int64) ([]GnoEvent, error)
+}
+
+// httpBlockSource is the production blockSource: thin wrappers around the
+// existing fetchLatestHeight / fetchBlockHash / fetchBlockEvents helpers. It
+// deliberately does not inline their logic so those helpers remain testable
+// independently and their signatures stay stable.
+type httpBlockSource struct {
+	client *http.Client
+	rpcURL string
+}
+
+func (s *httpBlockSource) LatestHeight(ctx context.Context) (int64, error) {
+	return fetchLatestHeight(ctx, s.client, s.rpcURL)
+}
+
+func (s *httpBlockSource) BlockHash(ctx context.Context, height int64) (string, error) {
+	return fetchBlockHash(ctx, s.client, s.rpcURL, height)
+}
+
+func (s *httpBlockSource) BlockEvents(ctx context.Context, height int64) ([]GnoEvent, error) {
+	return fetchBlockEvents(ctx, s.client, s.rpcURL, height)
+}
+
 // TailerConfig holds the block-tailer's runtime configuration (env-driven).
 type TailerConfig struct {
 	RPCURL           string        // NFT_RPC_URL
@@ -72,6 +101,7 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
+	src := &httpBlockSource{client: client, rpcURL: cfg.RPCURL}
 
 	go func() {
 		cfg.Logger.Info("nft tailer: started",
@@ -85,7 +115,7 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 		defer ticker.Stop()
 
 		for {
-			tailOnce(ctx, database, cfg, watched, saleVolumeSet, client)
+			tailOnce(ctx, database, cfg, watched, saleVolumeSet, src)
 			select {
 			case <-ctx.Done():
 				cfg.Logger.Info("nft tailer: stopped")
@@ -99,10 +129,10 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 // tailOnce advances the cursor toward the chain tip, processing up to
 // maxBlocksPerCycle confirmed blocks. All errors are logged and swallowed so
 // the loop keeps running.
-func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[string]struct{}, saleVolumeSet map[string]struct{}, client *http.Client) {
+func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[string]struct{}, saleVolumeSet map[string]struct{}, src blockSource) {
 	log := cfg.Logger
 
-	latest, err := fetchLatestHeight(ctx, client, cfg.RPCURL)
+	latest, err := src.LatestHeight(ctx)
 	if err != nil {
 		log.Warn("nft tailer: latest height fetch failed", "error", err)
 		return
@@ -117,8 +147,17 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 	// Reorg detection: if we have a stored hash for the cursor block, re-fetch
 	// the chain's hash for that block and compare. A mismatch means the cursor
 	// block was replaced — roll back and replay from cursor-1.
+	//
+	// Recovery depth: this is intentionally SINGLE-BLOCK-DEEP. Only the cursor
+	// block's hash is stored and re-validated each cycle; a reorg whose divergence
+	// is below the cursor (i.e. a non-tip block whose events changed) would leave
+	// stale rows because we only check the most-recently-processed height. This is
+	// acceptable: the Confirmations depth (default 5) means any already-confirmed
+	// block would require a fork ≥ Confirmations deep to reorg, which is
+	// implausibly deep on gno.land's consensus. Full multi-block recovery would
+	// require storing per-height block hashes in nft_indexer_state.
 	if storedHash != "" {
-		chainHash, err := fetchBlockHash(ctx, client, cfg.RPCURL, cursor)
+		chainHash, err := src.BlockHash(ctx, cursor)
 		if err != nil {
 			log.Warn("nft tailer: block hash fetch failed (reorg check)", "height", cursor, "error", err)
 			return
@@ -158,12 +197,12 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		if ctx.Err() != nil {
 			return
 		}
-		hash, err := fetchBlockHash(ctx, client, cfg.RPCURL, h)
+		hash, err := src.BlockHash(ctx, h)
 		if err != nil {
 			log.Warn("nft tailer: block hash fetch failed", "height", h, "error", err)
 			return
 		}
-		events, err := fetchBlockEvents(ctx, client, cfg.RPCURL, h)
+		events, err := src.BlockEvents(ctx, h)
 		if err != nil {
 			log.Warn("nft tailer: block_results fetch failed", "height", h, "error", err)
 			return // retry from this height next cycle (don't advance cursor past a gap)

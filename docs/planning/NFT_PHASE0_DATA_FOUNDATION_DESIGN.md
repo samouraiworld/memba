@@ -25,7 +25,8 @@ Add `pkg_path` and `schema_version` columns to `nft_sales` and `nft_offers` (and
 
 ### 3.4 Reorg-safety + indexed-through watermark (HIGH-3)
 - **Confirmation depth:** tail to `latest - NFT_CONFIRMATIONS` (env, default e.g. 5), not the bleeding edge.
-- **Block-hash tracking** per processed height; on hash mismatch at re-tail, `DELETE FROM <projections + raw_events> WHERE event_block >= forkHeight` and re-ingest (delete/replay-by-height — a **tested** capability, currently absent).
+- **Block-hash tracking** per processed height; on hash mismatch at re-tail, `DELETE FROM <projections + raw_events> WHERE event_block >= forkHeight` and re-ingest (delete/replay-by-height — a **tested** capability, tested in `TestTailOnce_TipReorg_RollsBackAndReplays`).
+- **Single-block recovery depth:** only the cursor block's hash (the last-processed height) is stored and re-validated each cycle, so recovery is single-block-deep — a reorg that changed a non-tip confirmed block's events would not be caught. This is sufficient because the Confirmations depth (default 5) makes a reorg of an already-confirmed block require an implausibly deep fork on gno.land's consensus; full multi-block recovery would require storing per-height block hashes in `nft_indexer_state`.
 - **`indexed_through` watermark** = max safe (confirmed) height. The points recompute harness reads this, never the raw cursor — so it never counts a partial/unconfirmed block.
 
 ### 3.5 Backfill-from-deploy-height (HIGH-4)
@@ -48,7 +49,7 @@ Forward-only runner (already the pattern). New migration: `nft_raw_events` + `pk
 
 ## 6. Testing (TDD)
 - Unit: `applySale` parses every `SaleArgs` key; raw-ledger write precedes projection in the same tx; pkg_path scoping; dedupe (Sale = volume, OfferAccepted = metadata).
-- Reorg: synthetic fork → delete/replay-by-height restores correct projections; watermark never exceeds confirmed height.
+- Reorg: synthetic fork → delete/replay-by-height restores correct projections; watermark never exceeds confirmed height. Recovery is single-block-deep (cursor block only); Confirmations depth makes a deeper reorg implausibly rare.
 - Backfill: seed deploy-height, re-tail a range, assert idempotent + complete; adding a realm doesn't drag others.
 - Recompute determinism: fixture snapshot → identical points across two runs.
 - **Smoke gate (guardrail #5):** the synthetic-event ingest test asserts a `Sale` ingests end-to-end (not just `OfferMade`) — otherwise the gate is theater.
