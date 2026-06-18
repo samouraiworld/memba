@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+func TestConfirmedEnd_DefaultDepth(t *testing.T) {
+	// StartNFTTailer applies Confirmations<=0 → 5. Here we assert the arithmetic
+	// the env value drives: with depth 5, latest=1000 yields a safe tip of 995.
+	if got := confirmedEnd(1000, 5, 990, 500); got != 995 {
+		t.Fatalf("confirmedEnd with default depth = %d, want 995", got)
+	}
+}
+
 func TestCursor_DefaultsToStartBlockMinusOne(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

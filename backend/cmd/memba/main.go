@@ -132,6 +132,7 @@ func main() {
 		RPCURL:        nftRPCURL,
 		WatchedRealms: splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm)),
 		StartBlock:    int64Or("NFT_START_BLOCK", 260000),
+		Confirmations: int64Or("NFT_CONFIRMATIONS", 5),
 		Interval:      durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
 		Logger:        logger,
 	})
