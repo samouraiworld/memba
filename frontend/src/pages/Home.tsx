@@ -23,6 +23,7 @@ import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
 import { EcosystemPanel } from "../components/home/panels/EcosystemPanel"
 import { FeaturedDaoPanel } from "../components/home/panels/FeaturedDaoPanel"
 import { ValidatorsPanel } from "../components/home/panels/ValidatorsPanel"
+import { GnolovePanel } from "../components/home/panels/GnolovePanel"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -54,6 +55,7 @@ export function Home({ mode }: HomeProps) {
                     <EcosystemPanel key="ecosystem" />
                     <ValidatorsPanel key="validators" />
                     <FeaturedDaoPanel key="featured-dao" />
+                    <GnolovePanel key="gnolove" />
                     {mode === "member" && <YourWorldsPanel key="your-worlds" />}
                 </StateBoard>
             </div>

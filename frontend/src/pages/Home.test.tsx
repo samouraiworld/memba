@@ -91,6 +91,19 @@ vi.mock("../hooks/home/useValidatorHealth", () => ({
     })),
 }))
 
+// ── Mock useGnoloveHighlights so GnolovePanel renders without API calls ──
+vi.mock("../hooks/home/useGnoloveHighlights", () => ({
+    useGnoloveHighlights: vi.fn(() => ({
+        top: [
+            { login: "charlie", score: 300 },
+            { login: "bob", score: 250 },
+            { login: "eve", score: 175 },
+        ],
+        contributorCount: 5,
+        loading: false,
+    })),
+}))
+
 // Resolve mocks before tests (vi.mock + await import pattern)
 const _networkMock = await import("../hooks/useNetwork")
 const _pulseMock = await import("../hooks/home/useNetworkPulse")
