@@ -15,6 +15,7 @@ import { loadQuestProgress, completeQuest } from "../lib/quests"
 import {
     getQuestById,
     isQuestAvailable,
+    isQuestLive,
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, verifyDeployment, type QuestVerificationResult } from "../lib/questVerifier"
@@ -37,7 +38,7 @@ export default function QuestDetail() {
     const nk = useNetworkKey()
 
     const quest = questId ? getQuestById(questId) : undefined
-    const state = useMemo(() => loadQuestProgress(), [])
+    const [state, setState] = useState(() => loadQuestProgress())
     const completedIds = useMemo(() => new Set(state.completed.map(c => c.questId)), [state])
 
     const [verification, setVerification] = useState<QuestVerificationResult | null>(null)
@@ -48,10 +49,20 @@ export default function QuestDetail() {
     useEffect(() => {
         document.title = quest ? `${quest.title} — GnoBuilders` : "Quest Not Found"
         trackPageVisit("quest-detail")
+
+        // Refresh local quest state when any quest completes, so the status pill
+        // and verification section reflect the new state immediately (no longer
+        // celebrating success while the page still says "Available").
+        const onQuestComplete = () => setState(loadQuestProgress())
+        window.addEventListener("quest-completed", onQuestComplete)
+        return () => window.removeEventListener("quest-completed", onQuestComplete)
     }, [quest])
 
     const isCompleted = questId ? completedIds.has(questId) : false
     const isAvailable = questId ? isQuestAvailable(questId, completedIds) : false
+    // Phase 0: only curated "live" quests expose a verification path. Non-live
+    // quests show a "coming soon" note instead of a button that can't succeed.
+    const isLive = questId ? isQuestLive(questId) : false
 
     // Get prerequisite chain
     const prereqChain = useMemo(() => {
@@ -153,6 +164,10 @@ export default function QuestDetail() {
                     <div className="k-questdetail-completed">
                         <span>Completed</span>
                     </div>
+                ) : !isLive ? (
+                    <div className="k-questdetail-locked">
+                        <span>Coming soon — Season 2</span>
+                    </div>
                 ) : isAvailable ? (
                     <div className="k-questdetail-available">
                         <span>Available</span>
@@ -163,6 +178,16 @@ export default function QuestDetail() {
                     </div>
                 )}
             </div>
+
+            {/* Coming-soon explanation — non-live quests have no verify path yet */}
+            {!isCompleted && !isLive && (
+                <div className="k-questdetail-verify">
+                    <p className="k-questdetail-hint">
+                        This quest isn&apos;t live on test13 yet — its verification or reward is still
+                        being wired up. It&apos;ll open in a future season.
+                    </p>
+                </div>
+            )}
 
             {/* Prerequisite chain */}
             {prereqChain.length > 0 && (
@@ -185,8 +210,8 @@ export default function QuestDetail() {
                 </div>
             )}
 
-            {/* Verification section */}
-            {!isCompleted && isAvailable && (
+            {/* Verification section (live + available quests only) */}
+            {!isCompleted && isAvailable && isLive && (
                 <div className="k-questdetail-verify">
                     <h3>Verification</h3>
 
