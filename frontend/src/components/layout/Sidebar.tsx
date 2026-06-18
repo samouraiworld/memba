@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
+import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -201,6 +202,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 <SidebarLink to="/multisig" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/gnolove" icon={<Heart size={18} />} label="Gnolove" connected={connected} collapsed={collapsed} />
                 <SidebarLink to="/quests" icon={<GameController size={18} />} label="Quests" connected={connected} collapsed={collapsed} />
+                {address === ZOOMA_ADDRESS && (
+                    <SidebarLink to="/quest-admin" icon={<Gear size={18} />} label="Quest Admin" connected={connected} collapsed={collapsed} />
+                )}
                 {!collapsed && <CmdKHint />}
             </nav>
 

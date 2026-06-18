@@ -19,6 +19,7 @@ import {
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, verifyDeployment, type QuestVerificationResult } from "../lib/questVerifier"
+import { SelfReportForm } from "../components/quests/SelfReportForm"
 import { GNO_RPC_URL } from "../lib/config"
 import { trackPageVisit } from "../lib/quests"
 import { useAuth } from "../hooks/useAuth"
@@ -128,6 +129,7 @@ export default function QuestDetail() {
 
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
     const isDeployQuest = quest.id.startsWith("deploy-")
+    const isSelfReport = quest.verification === "self_report"
 
     return (
         <div className="k-questhub">
@@ -215,7 +217,9 @@ export default function QuestDetail() {
                 <div className="k-questdetail-verify">
                     <h3>Verification</h3>
 
-                    {isDeployQuest && quest.verification === "on_chain" && (
+                    {isSelfReport ? (
+                        <SelfReportForm questId={quest.id} address={address ?? ""} authToken={auth.token ?? null} />
+                    ) : isDeployQuest && quest.verification === "on_chain" ? (
                         <div className="k-questdetail-deploy-form">
                             <label>Enter your deployed realm/package path:</label>
                             <div className="k-questdetail-deploy-row">
@@ -235,9 +239,7 @@ export default function QuestDetail() {
                                 </button>
                             </div>
                         </div>
-                    )}
-
-                    {!isDeployQuest && (
+                    ) : (
                         <button
                             className="k-questdetail-verify-btn"
                             onClick={handleVerify}
@@ -247,7 +249,7 @@ export default function QuestDetail() {
                         </button>
                     )}
 
-                    {!address && (
+                    {!address && !isSelfReport && (
                         <p className="k-questdetail-hint">Connect your wallet to verify this quest.</p>
                     )}
 

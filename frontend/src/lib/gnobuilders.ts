@@ -248,6 +248,11 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     "register-username", "first-transaction", "faucet-claim", "submit-candidature",
     // Computed / backend milestones
     "create-team", "earn-500-xp",
+    // Self-report (proof submitted via SelfReportForm -> admin review). Excludes
+    // the hidden bug-hunter quest so it stays discoverable.
+    "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
+    "audit-realm", "build-mcp-tool", "gas-optimization", "gnodaokit-extension",
+    "mentor-developer",
 ])
 
 /** True if a quest is part of the curated, completable launch set. */
