@@ -232,19 +232,20 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
 // end-to-end on test13 today: off-chain quests auto-tracked by real UI
 // actions or backend checks, on-chain quests with a working server-side
 // verifier, and computed milestones. Everything else shows behind a
-// "Season 2 — Coming soon" curtain (data kept, not deleted) until its
-// verifier/UI lands (Phase 3).
+// "Coming soon" curtain (data kept, not deleted) until its verifier/UI
+// lands (Phase 3).
 //
 // Must stay aligned with the backend: every LIVE on_chain quest needs a
-// server-side verifier in backend/internal/service/quest_verify.go.
+// working server-side verifier in backend/internal/service/quest_verify.go.
+// join-dao / create-token are intentionally NOT live yet — their checks need
+// structured render parsing (a substring scan is spoofable), deferred to Phase 3.
 export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
     "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
     "view-validator", "share-link", "submit-feedback", "browse-proposals",
     "visit-5-pages",
-    // On-chain (server-verified in quest_verify.go)
-    "register-username", "first-transaction", "faucet-claim", "join-dao",
-    "create-token", "submit-candidature",
+    // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
+    "register-username", "first-transaction", "faucet-claim", "submit-candidature",
     // Computed / backend milestones
     "create-team", "earn-500-xp",
 ])

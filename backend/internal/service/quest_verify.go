@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 )
@@ -68,17 +74,18 @@ var questVerification = map[string]string{
 // test13 realm paths used by server-side verification (mirror config.ts).
 const (
 	verifyUserRegistryPath = "gno.land/r/sys/users"
-	verifyDAOPath          = "gno.land/r/samcrew/memba_dao"
 	verifyCandidaturePath  = "gno.land/r/samcrew/memba_dao_candidature_v2"
-	verifyTokenFactoryPath = "gno.land/r/samcrew/tokenfactory_v2"
 )
 
 // questRPCURL returns the RPC endpoint for server-side quest verification.
-// Prefers GNO_RPC_URL; falls back to the test13 default — NOT test12, which is
-// gnoRPCURL()'s legacy default (render_proxy.go). Set GNO_RPC_URL in prod.
+// It deliberately does NOT read GNO_RPC_URL — that var is set to test12 in
+// prod (fly.toml), while every realm we verify lives on test13. Mirrors the
+// dedicated NFT_RPC_URL pattern in cmd/memba/main.go.
 func questRPCURL() string {
-	if url := os.Getenv("GNO_RPC_URL"); url != "" {
-		return url
+	for _, env := range []string{"QUEST_RPC_URL", "NFT_RPC_URL"} {
+		if url := os.Getenv(env); url != "" {
+			return url
+		}
 	}
 	return "https://rpc.test13.testnets.gno.land:443"
 }
@@ -97,7 +104,8 @@ var (
 // verifyQuestCompletable returns nil if `questID` may be granted to `addr`
 // through the auto-complete path, or a connect error explaining why not.
 // This is the server-side authority that closes the direct-RPC fabrication
-// hole (P0-1): the client's claim that it "verified" is never trusted.
+// hole (P0-1): the client's claim that it passed the frontend verifier is
+// never trusted.
 func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, questID string) error {
 	switch questVerification[questID] {
 	case "self_report", "social":
@@ -126,17 +134,29 @@ func (s *MultisigService) runOnChainVerify(ctx context.Context, addr, questID st
 }
 
 // defaultVerifyOnChainQuest re-queries the chain to confirm an on_chain quest's
-// condition, mirroring frontend/src/lib/questVerifier.ts. on_chain quests with
-// no case here are NOT grantable (return false) — they stay "coming soon" in
-// the curated catalog until a verifier lands (Phase 3).
+// condition. on_chain quests with no case here are NOT grantable (return false)
+// — they stay "coming soon" in the curated catalog until a verifier lands.
+//
+// Only path-keyed checks are implemented here: register-username and
+// submit-candidature query a render path that embeds the user's address, and
+// the account checks are keyed by address — none are spoofable. Membership /
+// ownership quests (join-dao, create-token, …) need structured render parsing
+// (a substring scan over full render output could be spoofed by a realm that
+// echoes an attacker-controlled address) and are deferred to Phase 3.
 func (s *MultisigService) defaultVerifyOnChainQuest(_ context.Context, addr, questID string) (bool, error) {
 	switch questID {
 	case "register-username":
-		out, err := abciQuery(questRPCURL(), "vm/qrender", verifyUserRegistryPath+"\n"+addr)
+		out, err := questRender(verifyUserRegistryPath, addr)
 		if err != nil {
 			return false, err
 		}
-		return out != "" && !strings.Contains(strings.ToLower(out), "not found") && !strings.Contains(out, "404"), nil
+		return renderExists(out), nil
+	case "submit-candidature":
+		out, err := questRender(verifyCandidaturePath, "application/"+addr)
+		if err != nil {
+			return false, err
+		}
+		return renderExists(out), nil
 	case "first-transaction":
 		seq, _, err := accountInfo(addr)
 		if err != nil {
@@ -149,33 +169,33 @@ func (s *MultisigService) defaultVerifyOnChainQuest(_ context.Context, addr, que
 			return false, err
 		}
 		return seq > 0 || accNum > 0, nil
-	case "join-dao":
-		out, err := abciQuery(questRPCURL(), "vm/qrender", verifyDAOPath+"\n")
-		if err != nil {
-			return false, err
-		}
-		return strings.Contains(out, addr), nil
-	case "create-token":
-		out, err := abciQuery(questRPCURL(), "vm/qrender", verifyTokenFactoryPath+"\n")
-		if err != nil {
-			return false, err
-		}
-		return strings.Contains(out, addr), nil
-	case "submit-candidature":
-		out, err := abciQuery(questRPCURL(), "vm/qrender", verifyCandidaturePath+"\napplication/"+addr)
-		if err != nil {
-			return false, err
-		}
-		return out != "" && !strings.Contains(out, "Not Found") && !strings.Contains(out, "404"), nil
 	default:
 		// on_chain quest without a server verifier yet — not grantable.
 		return false, nil
 	}
 }
 
+// renderExists reports whether a vm/qrender result represents a present record
+// (non-empty and not a "not found" / 404 page).
+func renderExists(out string) bool {
+	if out == "" {
+		return false
+	}
+	lower := strings.ToLower(out)
+	return !strings.Contains(lower, "not found") && !strings.Contains(lower, "404")
+}
+
+// questRender runs a vm/qrender query (pkgPath + ":" + renderArg) against the
+// quest RPC and returns the rendered text ("" when the realm/path is absent).
+func questRender(pkgPath, renderArg string) (string, error) {
+	return questAbciQuery(questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
+}
+
 // accountInfo reads sequence + account_number for an address from the chain.
+// An unfunded/non-existent account yields ("", nil) -> (0, 0) (requirement not
+// met), not an error.
 func accountInfo(addr string) (seq, accNum int, err error) {
-	out, err := abciQuery(questRPCURL(), "auth/accounts/"+addr, "")
+	out, err := questAbciQuery(questRPCURL(), "auth/accounts/"+addr, "")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -186,4 +206,78 @@ func accountInfo(addr string) (seq, accNum int, err error) {
 		accNum, _ = strconv.Atoi(m[1])
 	}
 	return seq, accNum, nil
+}
+
+// questAbciResponse is like abciResponse (render_proxy.go) but tolerates an
+// ABCI ResponseBase.Error that is a JSON object (e.g. /std.InvalidAddressError
+// for an unfunded account) rather than a string — which would otherwise fail
+// to unmarshal and look like a transport error.
+type questAbciResponse struct {
+	Result struct {
+		Response struct {
+			ResponseBase struct {
+				Data  string          `json:"Data"`
+				Error json.RawMessage `json:"Error"`
+			} `json:"ResponseBase"`
+		} `json:"response"`
+	} `json:"result"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+// questAbciQuery sends an ABCI query for server-side verification using the
+// wire format gno.land requires: the `data` param base64-encoded. A non-empty
+// ABCI ResponseBase.Error (missing account, "not found" render) is treated as
+// an EMPTY result — "requirement not met" — not a transport failure. Only
+// genuine transport/RPC errors return a non-nil error, which the caller maps
+// to errVerifyUnavailable (reject, don't grant).
+func questAbciQuery(rpcURL, path, data string) (string, error) {
+	reqBody := abciQueryRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "abci_query",
+		Params: abciQueryParams{
+			Path: path,
+			Data: base64.StdEncoding.EncodeToString([]byte(data)),
+		},
+	}
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
+	if err != nil {
+		return "", fmt.Errorf("rpc request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read response: %w", err)
+	}
+
+	var result questAbciResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("parse response: %w", err)
+	}
+	if result.Error != nil {
+		return "", fmt.Errorf("rpc error: %s", result.Error.Message)
+	}
+
+	rb := result.Result.Response.ResponseBase
+	if len(rb.Error) > 0 && string(rb.Error) != "null" {
+		// ABCI-level error (missing account / not found) = requirement not met.
+		return "", nil
+	}
+	if rb.Data == "" {
+		return "", nil
+	}
+	decoded, err := base64.StdEncoding.DecodeString(rb.Data)
+	if err != nil {
+		return "", fmt.Errorf("decode base64: %w", err)
+	}
+	return string(decoded), nil
 }

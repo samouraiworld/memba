@@ -166,7 +166,7 @@ export default function QuestDetail() {
                     </div>
                 ) : !isLive ? (
                     <div className="k-questdetail-locked">
-                        <span>Coming soon — Season 2</span>
+                        <span>Coming soon</span>
                     </div>
                 ) : isAvailable ? (
                     <div className="k-questdetail-available">

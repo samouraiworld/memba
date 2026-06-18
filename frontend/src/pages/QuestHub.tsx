@@ -215,7 +215,7 @@ export default function QuestHub() {
             {/* Season 2 — Coming soon (curated-out quests, shown dimmed, non-clickable) */}
             {comingSoon.length > 0 && (
                 <details className="k-questhub-comingsoon">
-                    <summary>Season 2 — Coming soon ({comingSoon.length})</summary>
+                    <summary>Coming soon ({comingSoon.length})</summary>
                     <p className="k-questhub-comingsoon-note">
                         These quests aren&apos;t live on test13 yet — their verification or rewards are still being wired up.
                     </p>

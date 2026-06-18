@@ -98,3 +98,21 @@ func TestQuestVerificationParity(t *testing.T) {
 		}
 	}
 }
+
+// TestSelfReportSetsConsistent guards the two hand-maintained sources of truth
+// for "is this a self-report quest": selfReportQuests (gates SubmitQuestClaim,
+// quest_rpc.go) and questVerification[id]=="self_report" (gates CompleteQuest,
+// quest_verify.go). A desync would let a self-report quest bypass admin review
+// via CompleteQuest, or block a legitimate claim.
+func TestSelfReportSetsConsistent(t *testing.T) {
+	for id := range selfReportQuests {
+		if questVerification[id] != "self_report" {
+			t.Errorf("%q is in selfReportQuests but questVerification=%q (want self_report)", id, questVerification[id])
+		}
+	}
+	for id, vtype := range questVerification {
+		if vtype == "self_report" && !selfReportQuests[id] {
+			t.Errorf("%q is questVerification=self_report but missing from selfReportQuests", id)
+		}
+	}
+}
