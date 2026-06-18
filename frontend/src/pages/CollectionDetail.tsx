@@ -287,8 +287,12 @@ type RunFn = (msg: ReturnType<typeof buildMintPublicMsg>, memo: string) => Promi
 function MintPublicForm({ id, priceUgnot, caller, onRun }: { id: string; priceUgnot: number; caller: string; onRun: RunFn }) {
     const [uri, setUri] = useState("")
     return (
-        <div className="form-group">
-            <input value={uri} onChange={(e) => setUri(e.target.value)} placeholder="Token URI (ipfs://… or blank)" />
+        <div className="manage-fields">
+            <label className="form-group">
+                <span>Token URI</span>
+                <input value={uri} onChange={(e) => setUri(e.target.value)} placeholder="ipfs://… (leave blank for on-chain default)" />
+                <small className="form-hint">IPFS or HTTP URI for the token's metadata. Optional.</small>
+            </label>
             <button className="btn-primary" onClick={() => onRun(buildMintPublicMsg(caller, NFT_COLLECTIONS_PATH, id, uri, priceUgnot), `Mint ${id}`)}>
                 Mint{priceUgnot > 0 ? ` (${priceUgnot / 1_000_000} GNOT)` : " (free)"}
             </button>
@@ -315,67 +319,138 @@ function ManagePanel({ id, caller, onRun }: { id: string; caller: string; onRun:
         <section className="manage-panel">
             <h2>Manage (admin)</h2>
 
-            <fieldset className="form-group">
-                <legend>Mint phase</legend>
-                <select value={phase} onChange={(e) => setPhase(parseInt(e.target.value, 10))}>
-                    <option value={Phase.Draft}>Draft</option>
-                    <option value={Phase.Allowlist}>Allowlist</option>
-                    <option value={Phase.Public}>Public</option>
-                    <option value={Phase.Closed}>Closed</option>
-                </select>
-                {phase === Phase.Allowlist && (
-                    <input value={root} onChange={(e) => setRoot(e.target.value)} placeholder="Allowlist Merkle root (hex)" />
-                )}
-                <button onClick={() => onRun(buildSetMintPhaseMsg(caller, NFT_COLLECTIONS_PATH, id, phase as 0 | 1 | 2 | 3, root), `Set phase ${id}`)}>
-                    Set phase
-                </button>
-            </fieldset>
+            {/* ── PRIMARY ACTION: Admin Mint ── */}
+            <div className="manage-section manage-section--primary">
+                <h3 className="manage-section__heading">Admin mint</h3>
+                <p className="manage-section__desc">
+                    Mint a token straight to a wallet — no payment, works in any phase. The quickest way to seed your collection.
+                </p>
+                <div className="manage-fields">
+                    <label className="form-group">
+                        <span>Recipient address</span>
+                        <input value={mintTo} onChange={(e) => setMintTo(e.target.value)} placeholder="g1… (defaults to your connected wallet)" />
+                        <small className="form-hint">The wallet that will receive the minted token.</small>
+                    </label>
+                    <label className="form-group">
+                        <span>Token URI</span>
+                        <input value={mintUri} onChange={(e) => setMintUri(e.target.value)} placeholder="ipfs://… or any URI (leave blank for default)" />
+                        <small className="form-hint">Metadata URI for this token, e.g. <code>ipfs://Qm…</code>. Optional.</small>
+                    </label>
+                    <button className="btn-primary" onClick={() => onRun(buildAdminMintMsg(caller, NFT_COLLECTIONS_PATH, id, mintTo.trim(), mintUri), `Admin mint ${id}`)}>
+                        Mint to recipient
+                    </button>
+                </div>
+            </div>
 
-            <AllowlistBuilder id={id} caller={caller} onRun={onRun} />
+            {/* ── ADVANCED: collapsed by default ── */}
+            <details className="manage-advanced">
+                <summary className="manage-advanced__summary">Advanced — public/allowlist mint setup</summary>
 
-            <fieldset className="form-group">
-                <legend>Mint config</legend>
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Mint price (ugnot, 0=free)" />
-                <input value={denom} onChange={(e) => setDenom(e.target.value)} placeholder="Pay denom (blank=ugnot, else grc20 key)" />
-                <input value={maxSupply} onChange={(e) => setMaxSupply(e.target.value)} placeholder="Max supply (0=unlimited)" />
-                <input value={maxPerWallet} onChange={(e) => setMaxPerWallet(e.target.value)} placeholder="Max per wallet (0=unlimited)" />
-                <input value={startBlock} onChange={(e) => setStartBlock(e.target.value)} placeholder="Mint start block (0=now)" />
-                <input value={cooldown} onChange={(e) => setCooldown(e.target.value)} placeholder="Cooldown blocks (0=none)" />
-                <button
-                    onClick={() =>
-                        onRun(
-                            buildSetMintConfigMsg(caller, NFT_COLLECTIONS_PATH, id, {
-                                mintPrice: num(price),
-                                payDenom: denom.trim(),
-                                maxSupply: num(maxSupply),
-                                maxPerWallet: num(maxPerWallet),
-                                mintStartBlock: num(startBlock),
-                                mintCooldownBlocks: num(cooldown),
-                            }),
-                            `Set mint config ${id}`,
-                        )
-                    }
-                >
-                    Save config
-                </button>
-            </fieldset>
+                {/* Mint phase */}
+                <div className="manage-section">
+                    <h3 className="manage-section__heading">Mint phase</h3>
+                    <p className="manage-section__desc">Controls who can public-mint. Draft = nobody; Allowlist = approved wallets only; Public = anyone; Closed = minting stopped.</p>
+                    <div className="manage-fields">
+                        <label className="form-group">
+                            <span>Phase</span>
+                            <select value={phase} onChange={(e) => setPhase(parseInt(e.target.value, 10))}>
+                                <option value={Phase.Draft}>Draft</option>
+                                <option value={Phase.Allowlist}>Allowlist</option>
+                                <option value={Phase.Public}>Public</option>
+                                <option value={Phase.Closed}>Closed</option>
+                            </select>
+                        </label>
+                        {phase === Phase.Allowlist && (
+                            <label className="form-group">
+                                <span>Allowlist Merkle root</span>
+                                <input value={root} onChange={(e) => setRoot(e.target.value)} placeholder="0x… (hex, compute with the builder below)" />
+                                <small className="form-hint">Hex root hash produced by the Allowlist builder below.</small>
+                            </label>
+                        )}
+                        <button onClick={() => onRun(buildSetMintPhaseMsg(caller, NFT_COLLECTIONS_PATH, id, phase as 0 | 1 | 2 | 3, root), `Set phase ${id}`)}>
+                            Set phase
+                        </button>
+                    </div>
+                </div>
 
-            <fieldset className="form-group">
-                <legend>Admin mint (no payment)</legend>
-                <input value={mintTo} onChange={(e) => setMintTo(e.target.value)} placeholder="Recipient address" />
-                <input value={mintUri} onChange={(e) => setMintUri(e.target.value)} placeholder="Token URI" />
-                <button onClick={() => onRun(buildAdminMintMsg(caller, NFT_COLLECTIONS_PATH, id, mintTo.trim(), mintUri), `Admin mint ${id}`)}>
-                    Mint to recipient
-                </button>
-            </fieldset>
+                {/* Mint config */}
+                <div className="manage-section">
+                    <h3 className="manage-section__heading">Mint config</h3>
+                    <p className="manage-section__desc">Price and limits for public minting — applied when the phase is Public or Allowlist.</p>
+                    <div className="manage-fields">
+                        <label className="form-group">
+                            <span>Mint price</span>
+                            <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. 1000000" />
+                            <small className="form-hint">Amount in the smallest unit of the pay denom (ugnot = 1 GNOT × 10⁻⁶). 0 = free.</small>
+                        </label>
+                        <label className="form-group">
+                            <span>Pay denom</span>
+                            <input value={denom} onChange={(e) => setDenom(e.target.value)} placeholder="ugnot (leave blank for GNOT)" />
+                            <small className="form-hint">Leave blank for native GNOT (ugnot). Enter a GRC-20 token key for token-gated minting.</small>
+                        </label>
+                        <label className="form-group">
+                            <span>Max supply</span>
+                            <input value={maxSupply} onChange={(e) => setMaxSupply(e.target.value)} placeholder="e.g. 1000" />
+                            <small className="form-hint">Hard cap on total tokens. 0 = unlimited.</small>
+                        </label>
+                        <label className="form-group">
+                            <span>Max per wallet</span>
+                            <input value={maxPerWallet} onChange={(e) => setMaxPerWallet(e.target.value)} placeholder="e.g. 5" />
+                            <small className="form-hint">Maximum tokens a single wallet may mint. 0 = unlimited.</small>
+                        </label>
+                        <label className="form-group">
+                            <span>Mint start block</span>
+                            <input value={startBlock} onChange={(e) => setStartBlock(e.target.value)} placeholder="e.g. 0" />
+                            <small className="form-hint">Block number when minting opens. 0 = immediately.</small>
+                        </label>
+                        <label className="form-group">
+                            <span>Cooldown (blocks)</span>
+                            <input value={cooldown} onChange={(e) => setCooldown(e.target.value)} placeholder="e.g. 0" />
+                            <small className="form-hint">Minimum blocks between two mints from the same wallet. 0 = no cooldown.</small>
+                        </label>
+                        <button
+                            onClick={() =>
+                                onRun(
+                                    buildSetMintConfigMsg(caller, NFT_COLLECTIONS_PATH, id, {
+                                        mintPrice: num(price),
+                                        payDenom: denom.trim(),
+                                        maxSupply: num(maxSupply),
+                                        maxPerWallet: num(maxPerWallet),
+                                        mintStartBlock: num(startBlock),
+                                        mintCooldownBlocks: num(cooldown),
+                                    }),
+                                    `Set mint config ${id}`,
+                                )
+                            }
+                        >
+                            Save config
+                        </button>
+                    </div>
+                </div>
 
-            <fieldset className="form-group">
-                <legend>Withdraw proceeds → custody</legend>
-                <input value={denomW} onChange={(e) => setDenomW(e.target.value)} placeholder="Denom (ugnot or grc20 key)" />
-                <button onClick={() => onRun(buildWithdrawProceedsMsg(caller, NFT_COLLECTIONS_PATH, id, denomW.trim()), `Withdraw ${id}`)}>
-                    Withdraw
-                </button>
-            </fieldset>
+                {/* Allowlist builder */}
+                <div className="manage-section">
+                    <h3 className="manage-section__heading">Allowlist (Merkle)</h3>
+                    <p className="manage-section__desc">Build the list of approved addresses for the Allowlist phase. Paste addresses, compute the root, then set the phase above.</p>
+                    <AllowlistBuilder id={id} caller={caller} onRun={onRun} />
+                </div>
+
+                {/* Withdraw proceeds */}
+                <div className="manage-section">
+                    <h3 className="manage-section__heading">Withdraw proceeds</h3>
+                    <p className="manage-section__desc">Pull collected mint fees from the collection contract to the admin custody address.</p>
+                    <div className="manage-fields">
+                        <label className="form-group">
+                            <span>Denom</span>
+                            <input value={denomW} onChange={(e) => setDenomW(e.target.value)} placeholder="ugnot" />
+                            <small className="form-hint">The token to withdraw. Use <code>ugnot</code> for GNOT, or a GRC-20 key.</small>
+                        </label>
+                        <button onClick={() => onRun(buildWithdrawProceedsMsg(caller, NFT_COLLECTIONS_PATH, id, denomW.trim()), `Withdraw ${id}`)}>
+                            Withdraw
+                        </button>
+                    </div>
+                </div>
+            </details>
         </section>
     )
 }
@@ -405,14 +480,21 @@ function AllowlistMintForm({ id, priceUgnot, caller, onRun }: { id: string; pric
     }, [listText, caller])
 
     return (
-        <div className="form-group">
-            <p className="form-hint">Allowlist phase — paste the creator's published list (one <code>address,qty</code> per line) to derive your proof.</p>
-            <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2\ng1def...,1"} rows={4} />
+        <div className="manage-fields">
+            <label className="form-group">
+                <span>Allowlist (paste to verify)</span>
+                <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2\ng1def...,1"} rows={4} />
+                <small className="form-hint">Allowlist phase — paste the creator's published list (one <code>address,qty</code> per line) to derive your proof.</small>
+            </label>
             <button onClick={check}>Check allowlist</button>
             {status && <small className="form-hint">{status}</small>}
             {derived && (
                 <>
-                    <input value={uri} onChange={(e) => setUri(e.target.value)} placeholder="Token URI (ipfs://… or blank)" />
+                    <label className="form-group">
+                        <span>Token URI</span>
+                        <input value={uri} onChange={(e) => setUri(e.target.value)} placeholder="ipfs://… (leave blank for on-chain default)" />
+                        <small className="form-hint">IPFS or HTTP URI for the token's metadata. Optional.</small>
+                    </label>
                     <button
                         className="btn-primary"
                         onClick={() => onRun(buildMintAllowlistMsg(caller, NFT_COLLECTIONS_PATH, id, derived.proof, derived.maxQty, uri, priceUgnot), `Allowlist mint ${id}`)}
@@ -449,9 +531,12 @@ function AllowlistBuilder({ id, caller, onRun }: { id: string; caller: string; o
     }, [listText, id])
 
     return (
-        <fieldset className="form-group">
-            <legend>Allowlist (Merkle)</legend>
-            <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2  (one address,qty per line)"} rows={4} />
+        <div className="manage-fields">
+            <label className="form-group">
+                <span>Address list</span>
+                <textarea value={listText} onChange={(e) => setListText(e.target.value)} placeholder={"g1abc...,2  (one address,qty per line)"} rows={4} />
+                <small className="form-hint">One entry per line in <code>address,maxQty</code> format.</small>
+            </label>
             <button onClick={compute}>Compute root</button>
             {root && (
                 <>
@@ -462,7 +547,7 @@ function AllowlistBuilder({ id, caller, onRun }: { id: string; caller: string; o
                     </button>
                 </>
             )}
-        </fieldset>
+        </div>
     )
 }
 
