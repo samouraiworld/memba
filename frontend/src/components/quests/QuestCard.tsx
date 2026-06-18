@@ -7,7 +7,7 @@
 
 import { Link } from "react-router-dom"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
-import type { GnoQuest } from "../../lib/gnobuilders"
+import { getQuestById, type GnoQuest } from "../../lib/gnobuilders"
 
 interface QuestCardProps {
     quest: GnoQuest
@@ -54,7 +54,7 @@ export function QuestCard({ quest, completed, available }: QuestCardProps) {
                     <span className="k-quest-card-status k-quest-card-status--available">Available</span>
                 ) : (
                     <span className="k-quest-card-status k-quest-card-status--locked">
-                        🔒 {quest.prerequisite ? `Requires: ${quest.prerequisite}` : "Locked"}
+                        🔒 {quest.prerequisite ? `Requires: ${getQuestById(quest.prerequisite)?.title ?? quest.prerequisite}` : "Locked"}
                     </span>
                 )}
             </div>
