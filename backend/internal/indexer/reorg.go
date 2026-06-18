@@ -47,7 +47,7 @@ func rollbackFromHeight(ctx context.Context, db *sql.DB, height int64) error {
 	for rows.Next() {
 		var colID string
 		if err := rows.Scan(&colID); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return err
 		}
 		affectedCollections = append(affectedCollections, colID)
