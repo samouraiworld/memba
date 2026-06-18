@@ -239,6 +239,19 @@ func saveCursor(ctx context.Context, db *sql.DB, realms []string, height int64, 
 	return nil
 }
 
+// SeedRealmCursor records a realm's first-tail cursor at deployHeight-1 so a
+// newly deployed engine is indexed from its deploy block (not genesis) without
+// dragging the global min cursor backward. INSERT OR IGNORE: never rewinds a
+// realm that has already advanced.
+func SeedRealmCursor(ctx context.Context, db *sql.DB, realm string, deployHeight int64) error {
+	_, err := db.ExecContext(ctx, `
+		INSERT OR IGNORE INTO nft_indexer_state (realm_path, last_processed_block, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP)`,
+		realm, deployHeight-1,
+	)
+	return err
+}
+
 // ── RPC helpers ──────────────────────────────────────────────────────────────
 
 type statusResponse struct {
