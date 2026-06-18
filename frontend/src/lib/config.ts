@@ -223,9 +223,14 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // NFT realms deployed 2026-06-16.
         "gno.land/r/samcrew/memba_nft_v2",
         "gno.land/r/samcrew/memba_nft_market_v2",
-        // Phase 2 canonical launchpad registry — NOT YET DEPLOYED. Uncomment
-        // (add "gno.land/r/samcrew/memba_collections") once the multisig deploy
-        // lands so isNftLaunchpadValid() flips true and the launchpad surfaces.
+        // Phase 2 canonical launchpad registry — deployed 2026-06-17 (multisig
+        // seq 43). isNftLaunchpadValid() now flips true so /nft/create,
+        // /nft/collection/:id and /nft/creator/:address surface, along with the
+        // verified-collection badge (both key off this registry). The v3 trading
+        // engine (memba_nft_market_v3) is live but not yet frontend-wired — it
+        // lands with the Phase 3 multi-engine router, so it stays out of the
+        // allowlist until then.
+        "gno.land/r/samcrew/memba_collections",
     ],
 }
 
