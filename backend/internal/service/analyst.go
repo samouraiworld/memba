@@ -81,7 +81,10 @@ func checkProCredits(userAddr string) int64 {
 	}
 
 	expr := fmt.Sprintf(`GetCredits(%q, %q)`, daoAnalystAgentID, userAddr)
-	result, err := abciQuery(gnoRPCURL(), "vm/qeval", registryPath+"\n"+expr)
+	// vm/qeval wire format: "<pkgpath>.<expression>" (dot separator). The shared
+	// abciQuery base64-encodes the data param as gno.land requires. agent_registry
+	// lives on test13, so use marketplaceRPCURL (not the testnet12 GNO_RPC_URL).
+	result, err := abciQuery(marketplaceRPCURL(), "vm/qeval", registryPath+"."+expr)
 	if err != nil {
 		slog.Warn("failed to check pro credits", "user", userAddr, "error", err)
 		return 0
