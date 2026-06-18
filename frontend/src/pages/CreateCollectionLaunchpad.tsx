@@ -26,6 +26,7 @@ import {
     ROYALTY_SENTINEL,
 } from "../lib/launchpad"
 import type { LayoutContext } from "../types/layout"
+import "./nft-launchpad.css"
 
 const NFT_ENABLED = import.meta.env.VITE_ENABLE_NFT === "true"
 

@@ -15,6 +15,7 @@ import type { CollectionListRow } from "../lib/launchpad"
 import { Phase } from "../lib/launchpad"
 import { VerifiedBadge } from "../components/nft/VerifiedBadge"
 import type { LayoutContext } from "../types/layout"
+import "./nft-launchpad.css"
 
 const PHASE_LABELS: Record<number, string> = {
     [Phase.Draft]: "Draft",

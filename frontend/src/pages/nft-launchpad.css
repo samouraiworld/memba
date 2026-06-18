@@ -421,3 +421,339 @@
     .nft-form-row { grid-template-columns: 1fr; }
     .nft-step__label { display: none; }
 }
+
+/* ═══════════════════════════════════════════════
+   SHARED FORM UTILITIES
+   Used across CreateCollectionLaunchpad, CollectionDetail,
+   CreatorProfile, and NFTLaunchpad.
+   ══════════════════════════════════════════════ */
+
+/* ── form-group: label wrapping span + input/select/textarea ── */
+/*    <label class="form-group">                                 */
+/*      <span>Label text</span>                                  */
+/*      <input ... />                                            */
+/*    </label>                                                   */
+/*    Also used as <div class="form-group"> and <fieldset>.      */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* label text (the <span> inside a label.form-group) */
+.form-group > span,
+.form-group > legend {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* all input/select/textarea descendants */
+.form-group input:not([type="checkbox"]):not([type="radio"]),
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-border, #1a1a1a);
+    background: var(--color-surface-input, rgba(255, 255, 255, 0.05));
+    color: var(--color-text, #f0f0f0);
+    font-size: 13px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast, 0.15s ease);
+    resize: vertical;
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]):focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--color-primary-border, rgba(0, 212, 170, 0.3));
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--color-text-dim, #444);
+}
+
+/* ── form-hint: small muted helper / status text ── */
+
+.form-hint {
+    display: block;
+    font-size: 10px;
+    color: var(--color-text-muted, #555);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    line-height: 1.5;
+}
+
+/* When form-hint is on a <p>, remove margin */
+p.form-hint {
+    margin: 4px 0 0;
+}
+
+/* ── form-error: inline validation / error text ── */
+
+.form-error {
+    display: block;
+    font-size: 11px;
+    color: var(--color-danger, #f44336);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    line-height: 1.4;
+    padding: 8px 12px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-danger-bg, rgba(244, 67, 54, 0.06));
+    border: 1px solid rgba(244, 67, 54, 0.15);
+}
+
+/* Inline error variant (small, no box) — inside a .form-group */
+.form-group .form-error {
+    padding: 2px 0;
+    background: none;
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════
+   LAUNCHPAD CREATE PAGE
+   Route: /nft/create (CreateCollectionLaunchpad)
+   ══════════════════════════════════════════════ */
+
+.launchpad-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 16px);
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--space-2, 8px) 0;
+}
+
+.launchpad-page h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text, #f0f0f0);
+    margin: 0;
+}
+
+.launchpad-subtitle {
+    font-size: 13px;
+    color: var(--color-text-secondary, #888);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.launchpad-warning {
+    padding: 12px 16px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.06));
+    border: 1px solid rgba(245, 166, 35, 0.18);
+    color: var(--color-warning, #f5a623);
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════
+   COLLECTION DETAIL PAGE
+   Route: /nft/collection/:id (CollectionDetail)
+   ══════════════════════════════════════════════ */
+
+.collection-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6, 24px);
+    max-width: 800px;
+}
+
+.collection-detail h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text, #f0f0f0);
+    margin: 0;
+}
+
+.collection-detail h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text, #f0f0f0);
+    margin: 0 0 12px;
+}
+
+.collection-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    padding: 14px 16px;
+    margin: 0;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--color-border, #1a1a1a);
+    font-size: 12px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+}
+
+.collection-meta li { line-height: 1.5; }
+.collection-meta code { color: var(--color-text, #f0f0f0); }
+.collection-meta strong { color: var(--color-text, #f0f0f0); font-weight: 600; }
+
+.manage-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-border, #1a1a1a);
+    background: var(--color-surface, rgba(255, 255, 255, 0.03));
+}
+
+.manage-panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-secondary, #888);
+    margin: 0 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* v3 token grid */
+.v3-token-grid-section h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text, #f0f0f0);
+    margin: 0 0 12px;
+}
+
+.v3-token-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.v3-token-card {
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-border, #1a1a1a);
+    background: var(--color-surface, rgba(255, 255, 255, 0.03));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.v3-token-card__img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+}
+
+.v3-token-card__body {
+    padding: 10px 12px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.v3-token-card__id {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text, #f0f0f0);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.v3-token-card__owner {
+    font-size: 10px;
+    color: var(--color-text-muted, #555);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.v3-token-card__price {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-primary, #00d4aa);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.v3-token-card__status {
+    font-size: 10px;
+    color: var(--color-text-dim, #444);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.v3-token-card__actions {
+    padding: 6px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════
+   CREATOR PROFILE PAGE
+   Route: /nft/creator/:address (CreatorProfile)
+   ══════════════════════════════════════════════ */
+
+.creator-profile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 16px);
+    max-width: 640px;
+}
+
+.creator-profile h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text, #f0f0f0);
+    margin: 0;
+}
+
+.collection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.collection-list li {
+    padding: 12px 16px;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-border, #1a1a1a);
+    background: var(--color-surface, rgba(255, 255, 255, 0.03));
+    font-size: 13px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: var(--color-text-secondary, #888);
+    transition: background var(--transition-fast, 0.15s ease);
+}
+
+.collection-list li:hover {
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+}
+
+.collection-list a {
+    color: var(--color-primary, #00d4aa);
+    text-decoration: none;
+}
+
+.collection-list a:hover { text-decoration: underline; }
+
+/* ── Responsive additions ─────────────────────── */
+
+@media (max-width: 600px) {
+    .launchpad-page,
+    .creator-profile { padding: 0 4px; }
+
+    .v3-token-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
+}
