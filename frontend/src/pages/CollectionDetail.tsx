@@ -187,6 +187,9 @@ export function CollectionDetail() {
                 {!v3Loading && col.minted === 0 && (
                     <p className="form-hint">No tokens minted yet.</p>
                 )}
+                {!v3Loading && col.minted > 0 && v3Tokens.length === 0 && (
+                    <p className="form-hint">No tokens found.</p>
+                )}
                 {!v3Loading && v3Tokens.length > 0 && (
                     <div className="v3-token-grid">
                         {v3Tokens.map((token) => {

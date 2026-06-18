@@ -55,13 +55,17 @@ export function V3ListForSaleModal({
     useEffect(() => {
         let cancelled = false
         const init = async () => {
-            const approved = await isApprovedForAll(
-                engine.collectionPath,
-                collectionID,
-                callerAddress,
-                engine.marketAddr,
-            )
-            if (!cancelled) setStep(approved ? "list" : "approve")
+            try {
+                const approved = await isApprovedForAll(
+                    engine.collectionPath,
+                    collectionID,
+                    callerAddress,
+                    engine.marketAddr,
+                )
+                if (!cancelled) setStep(approved ? "list" : "approve")
+            } catch {
+                if (!cancelled) setStep("approve")
+            }
         }
         init()
         return () => {
