@@ -20,6 +20,7 @@ import { VisitorHero } from "../components/home/VisitorHero"
 import { StateBoard } from "../components/home/StateBoard"
 import { NetworkPulsePanel } from "../components/home/panels/NetworkPulsePanel"
 import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
+import { EcosystemPanel } from "../components/home/panels/EcosystemPanel"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -48,6 +49,7 @@ export function Home({ mode }: HomeProps) {
             <div className="home-state-board" data-testid="home-state-board">
                 <StateBoard eagerIndices={[0]}>
                     <NetworkPulsePanel key="pulse" />
+                    <EcosystemPanel key="ecosystem" />
                     {mode === "member" && <YourWorldsPanel key="your-worlds" />}
                 </StateBoard>
             </div>
