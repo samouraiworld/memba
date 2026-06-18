@@ -204,10 +204,11 @@ func renderExists(out string) bool {
 
 // ── Deploy-quest verification ───────────────────────────────
 
-var nsRe = regexp.MustCompile(`^gno\.land/[rp]/([a-z0-9_]+)/`)
+var nsRe = regexp.MustCompile(`^gno\.land/[rp]/([a-z0-9_-]+)/`)
 
 // namespaceOf extracts the <ns> segment from a gno.land/{r,p}/<ns>/... path.
-// The captured ns is [a-z0-9_]+, so it is safe to interpolate into a query.
+// The captured ns is [a-z0-9_-]+ (no quote/paren/backslash), so it is safe to
+// interpolate into a query; a non-existent ns is caught by namespaceOwnedBy.
 func namespaceOf(path string) (string, bool) {
 	m := nsRe.FindStringSubmatch(strings.TrimSpace(path))
 	if m == nil {
@@ -217,8 +218,9 @@ func namespaceOf(path string) (string, bool) {
 }
 
 // pkgPathRe matches a canonical gno package path: a namespace + at least one
-// package segment, all [a-z0-9_], no trailing slash, no dots.
-var pkgPathRe = regexp.MustCompile(`^gno\.land/[rp]/[a-z0-9_]+/[a-z0-9_]+(?:/[a-z0-9_]+)*$`)
+// package segment, all [a-z0-9_-] (gno allows hyphens in path segments), no
+// trailing slash, no dots.
+var pkgPathRe = regexp.MustCompile(`^gno\.land/[rp]/[a-z0-9_-]+/[a-z0-9_-]+(?:/[a-z0-9_-]+)*$`)
 
 // canonicalizeProof reduces a user-supplied realm/package path to its canonical
 // package-root form, so that trailing slashes, repeated slashes, and individual

@@ -115,6 +115,7 @@ func TestNamespaceOf(t *testing.T) {
 	}{
 		{"gno.land/r/alice/myrealm", "alice", true},
 		{"gno.land/p/bob_dev/utils", "bob_dev", true},
+		{"gno.land/r/al-ice/my-realm", "al-ice", true}, // hyphens allowed
 		{"gno.land/r/alice/sub/deep", "alice", true},
 		{"gno.land/r/alice", "", false},     // no realm segment
 		{"gno.land/x/alice/foo", "", false}, // not r/ or p/
@@ -226,6 +227,9 @@ func TestCanonicalizeProof(t *testing.T) {
 	}
 	if got, ok := canonicalizeProof("gno.land/p/bob_dev/utils/math/"); !ok || got != "gno.land/p/bob_dev/utils/math" {
 		t.Errorf("subpkg: got (%q,%v)", got, ok)
+	}
+	if got, ok := canonicalizeProof("gno.land/r/al-ice/my-realm/"); !ok || got != "gno.land/r/al-ice/my-realm" {
+		t.Errorf("hyphen: got (%q,%v)", got, ok)
 	}
 }
 
