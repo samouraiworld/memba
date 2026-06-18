@@ -59,3 +59,12 @@ Phase-0 green → finalize `NFT_FLOOR_OFFERS_DESIGN.md` as the engine spec (pane
 
 ## 8. Out of scope
 The floor-offers engine realm; the frontend offers UI; trait-scoped offers; GRC20 desk; the on-chain points claim (all later phases).
+
+## 9. v3 Sale-gap backfill (operator step, before declaring accrual authoritative)
+The Task-3 `Sale` handler shipped after v3 was already live, so v3 `Sale` events
+between the v3 deploy block and the handler-deploy block were never ingested. To
+close the gap: set `NFT_START_BLOCK` (or seed the v3 realm cursor via
+`SeedRealmCursor`) to the v3 deploy height and let the tailer re-scan — writes are
+idempotent, so already-ingested rows are no-ops and the gap fills. Confirm
+`SELECT COUNT(*) FROM nft_raw_events WHERE event_name='Sale'` is non-zero and the
+recompute harness reads them before flipping `accrual_start_block` to authoritative.
