@@ -104,7 +104,7 @@ function FeaturedDaoPanelInner({ networkKey, rpcUrl, realmPath }: FeaturedDaoPan
     const proposal = data?.latestOpenProposal ?? null
     const proposalTitle = proposal?.title ?? "—"
     const proposalHref = proposal
-        ? `/${networkKey}/dao/${encodeURIComponent(realmPath)}/proposal/${proposal.id}`
+        ? `/${networkKey}/dao/${realmPath}/proposal/${proposal.id}`
         : undefined
 
     return (

@@ -176,6 +176,18 @@ describe("FeaturedDaoPanel — with data", () => {
         })
     })
 
+    it("in-app proposal link uses raw realm path with literal slashes (not %2F-encoded)", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            const links = screen.getAllByRole("link")
+            const hrefs = links.map(l => l.getAttribute("href") ?? "")
+            // Must contain a link with raw slashes: /test13/dao/gno.land/r/samcrew/memba_dao/proposal/42
+            expect(hrefs.some(h => h.includes("/dao/gno.land/r/samcrew/memba_dao/proposal/42"))).toBe(true)
+            // Must NOT contain %2F-encoded version (would 404 on the splat route)
+            expect(hrefs.some(h => h.includes("%2F"))).toBe(false)
+        })
+    })
+
     it("renders the member count", async () => {
         renderWithProviders(<FeaturedDaoPanel />)
         await waitFor(() => {
