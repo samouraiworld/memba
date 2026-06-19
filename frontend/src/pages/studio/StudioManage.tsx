@@ -7,6 +7,7 @@ import { PhasesSection } from "./sections/PhasesSection"
 import { AllowlistSection } from "./sections/AllowlistSection"
 import { WithdrawSection } from "./sections/WithdrawSection"
 import { SettingsSection } from "./sections/SettingsSection"
+import "./studio.css"
 
 // ── Phase labels ────────────────────────────────────────────────────────
 
@@ -68,9 +69,6 @@ export function StudioManage() {
             </div>
         )
     }
-
-    // Narrow: col is non-null here (isAdmin implies col exists)
-    const activeSection = SECTIONS.find((s) => s.key === section)!
 
     return (
         <div className="studio-page">

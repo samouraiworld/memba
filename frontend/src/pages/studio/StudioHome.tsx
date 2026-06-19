@@ -4,6 +4,7 @@ import type { LayoutContext } from "../../types/layout"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { fetchCollectionList } from "../../lib/launchpadReads"
 import type { CollectionListRow } from "../../lib/launchpad"
+import "./studio.css"
 
 const PHASE_LABELS: Record<number, string> = {
     0: "Draft",

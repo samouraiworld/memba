@@ -46,26 +46,30 @@ export function useCollectionAdmin(id: string): CollectionAdminResult {
 
     useEffect(() => {
         cancelledRef.current = false
-        setLoading(true)
 
-        fetchCollectionDetail(id)
-            .then((detail) => {
-                if (cancelledRef.current) return
+        let active = true
+        async function load() {
+            if (!active) return
+            setLoading(true)
+            try {
+                const detail = await fetchCollectionDetail(id)
+                if (!active) return
                 setCol(detail)
                 setError(null)
-            })
-            .catch((e: unknown) => {
-                if (cancelledRef.current) return
+            } catch (e: unknown) {
+                if (!active) return
                 setCol(null)
                 setError(friendlyError(e))
-            })
-            .finally(() => {
-                if (!cancelledRef.current) {
+            } finally {
+                if (active) {
                     setLoading(false)
                 }
-            })
+            }
+        }
+        void load()
 
         return () => {
+            active = false
             cancelledRef.current = true
         }
     }, [id, fetchEpoch])

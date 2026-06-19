@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest"
-import { render, screen, fireEvent, findByText, waitFor } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { AllowlistSection } from "./AllowlistSection"
 
 // ── Constants ──────────────────────────────────────────────────────────

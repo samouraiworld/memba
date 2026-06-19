@@ -53,7 +53,7 @@ let mockResult: CollectionAdminResult = {
 }
 
 vi.mock("./useCollectionAdmin", () => ({
-    useCollectionAdmin: (_id: string) => mockResult,
+    useCollectionAdmin: () => mockResult,
 }))
 
 // useNetworkPath returns a path builder; mock useParams is not needed since

@@ -3,8 +3,7 @@
  *
  *  - Reads the collection via Render (fetchCollectionDetail).
  *  - Mint panel: public mint for anyone while the collection is in the public phase.
- *  - Manage panel (admin only): set mint phase, set mint config, admin-mint,
- *    withdraw proceeds — all wired to the tested launchpad builders.
+ *  - Admin management is handled in the Creator Studio (/nft/studio/:creator/:slug).
  *
  * Route: /nft/collection/:creator/:slug   (id = "creator/slug")
  *
