@@ -315,11 +315,15 @@ describe("FeaturedDaoPanel — snapshot path (usable snapshot)", () => {
         })
     })
 
-    it("renders the latest proposal title from snapshot", async () => {
+    it("does NOT render a /proposal/undefined href on the snapshot path", async () => {
         renderWithProviders(<FeaturedDaoPanel />)
         await waitFor(() => {
-            expect(screen.getByText("Snapshot proposal title")).toBeInTheDocument()
+            expect(screen.getByTestId("featured-dao-panel")).toBeInTheDocument()
         })
+        const links = screen.getAllByRole("link")
+        const hrefs = links.map(l => l.getAttribute("href") ?? "")
+        // Snapshot v1 has no proposal id — must not produce a broken deep-link
+        expect(hrefs.some(h => h.includes("proposal/undefined"))).toBe(false)
     })
 
     it("renders the panel container", async () => {
@@ -332,6 +336,7 @@ describe("FeaturedDaoPanel — snapshot path (usable snapshot)", () => {
 
 describe("FeaturedDaoPanel — snapshot usable but featuredDao empty", () => {
     beforeEach(() => {
+        vi.clearAllMocks()
         setupHappy()
     })
 

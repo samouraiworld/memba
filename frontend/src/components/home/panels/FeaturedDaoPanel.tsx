@@ -82,7 +82,6 @@ function useFeaturedDao(networkKey: string, rpcUrl: string) {
         if (!fd?.realmPath || !fd?.name) {
             return { data: null, isLoading: false }
         }
-        const title = fd.latestProposalTitle
         return {
             data: {
                 realmPath: fd.realmPath,
@@ -90,7 +89,10 @@ function useFeaturedDao(networkKey: string, rpcUrl: string) {
                 // members is 0 in v1 snapshot — panel shows "—" which is acceptable
                 memberCount: Number(fd.members ?? 0),
                 openCount: Number(fd.openProposals ?? 0),
-                latestOpenProposal: title ? { title } : null,
+                // Snapshot v1 carries no proposal id — suppress the per-proposal
+                // deep-link to avoid rendering /proposal/undefined; open-proposal
+                // COUNT is still shown via openCount above.
+                latestOpenProposal: null,
             },
             isLoading: false,
         }
