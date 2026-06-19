@@ -13,7 +13,6 @@
 
 import { queryRender, queryEval } from "./dao/shared"
 import { fetchAccountInfo } from "./account"
-import { getDAOMembers } from "./dao/members"
 import { fetchBackendProfile } from "./profile"
 import { api } from "./api"
 import { create } from "@bufbuild/protobuf"
@@ -144,15 +143,11 @@ async function verifyOnChain(
             return NOT_VERIFIED("Claim tokens from the testnet faucet first")
         }
 
-        case "join-dao": {
-            // Check MembaDAO membership as a default check
-            const daoPath = "gno.land/r/samcrew/memba_dao"
-            try {
-                const members = await getDAOMembers(rpcUrl, daoPath)
-                if (members.some(m => m.address === address)) return VERIFIED
-            } catch { /* fallthrough */ }
-            return NOT_VERIFIED("Join a DAO to complete this quest")
-        }
+        case "join-dao":
+            // Verified server-side: the backend parses memba_dao's authoritative
+            // :members render. Completion goes through completeQuestVerified (see
+            // isBackendVerifiedQuest / QuestDetail), not this client path.
+            return NOT_VERIFIED("Verified on-chain by the server")
 
         case "3-dao-member":
             // Requires checking multiple DAOs — self-report with proof
@@ -194,12 +189,12 @@ async function verifyOnChain(
             return NOT_VERIFIED("Submit a candidature application to verify")
         }
 
-        case "create-token": {
-            // Check token factory for tokens created by this address
-            const result = await queryRender(rpcUrl, "gno.land/r/samcrew/tokenfactory_v2", "")
-            if (result && result.includes(address)) return VERIFIED
-            return NOT_VERIFIED("Create a token via the token factory")
-        }
+        case "create-token":
+            // Verified server-side: the backend checks the token factory's
+            // per-token **Admin** field. The old client substring scan over the
+            // full factory render was spoofable; completion now goes through
+            // completeQuestVerified (see isBackendVerifiedQuest / QuestDetail).
+            return NOT_VERIFIED("Verified on-chain by the server")
 
         case "send-tokens":
             // Requires tx history which we can't easily verify via ABCI

@@ -14,10 +14,28 @@ import {
     buildQuestXPMap,
     LIVE_QUEST_IDS,
     isQuestLive,
+    isBackendVerifiedQuest,
     getLiveQuests,
     getComingSoonQuests,
     type GnoQuest,
 } from "./gnobuilders"
+
+// ── Phase 3 backend-verified quests ─────────────────────────
+
+describe("Phase 3 backend-verified quests", () => {
+    it("join-dao and create-token are live", () => {
+        expect(isQuestLive("join-dao")).toBe(true)
+        expect(isQuestLive("create-token")).toBe(true)
+    })
+
+    it("isBackendVerifiedQuest flags only the address-only on_chain quests", () => {
+        expect(isBackendVerifiedQuest("join-dao")).toBe(true)
+        expect(isBackendVerifiedQuest("create-token")).toBe(true)
+        // deploy quests are backend-verified but via a PROOF input, not this flow
+        expect(isBackendVerifiedQuest("deploy-hello-pkg")).toBe(false)
+        expect(isBackendVerifiedQuest("connect-wallet")).toBe(false)
+    })
+})
 
 // ── Quest Registry Tests ────────────────────────────────────
 

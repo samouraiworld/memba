@@ -186,6 +186,15 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 			return false, err
 		}
 		return seq > 0 || accNum > 0, nil
+	case "join-dao":
+		// Structured membership check against memba_dao's authoritative
+		// :members render (un-spoofable; see verifyJoinDAO).
+		return verifyJoinDAO(addr)
+	case "create-token":
+		// Structured creator check against the token factory's per-token
+		// **Admin** field (see verifyCreateToken). Format is live-unverified
+		// (factory empty on test13) — guarded by the gated live test.
+		return verifyCreateToken(addr)
 	default:
 		// on_chain quest without a server verifier yet — not grantable.
 		return false, nil
