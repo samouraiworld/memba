@@ -263,7 +263,27 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     "deploy-hello-realm", "deploy-grc20-realm", "deploy-grc721-realm", "deploy-board-realm",
     "deploy-dao-realm", "deploy-crossing-realm", "deploy-escrow-realm",
     "deploy-marketplace-realm", "deploy-multisig-realm",
+    // Phase 3 on-chain verifiers (backend confirms from the user's address alone,
+    // no proof input): join-dao parses memba_dao's authoritative :members render;
+    // create-token checks the token factory's per-token **Admin** field.
+    "join-dao", "create-token",
 ])
+
+/**
+ * BACKEND_VERIFIED_QUESTS are on_chain quests the server verifies from the
+ * authenticated user's address alone — no proof input and no (spoofable, wrong-
+ * chain) client pre-check. They complete via completeQuestVerified, which awaits
+ * the server's verdict. Deploy quests are also backend-verified but carry a proof
+ * path, so they use their own input flow and are NOT in this set.
+ */
+export const BACKEND_VERIFIED_QUESTS: ReadonlySet<string> = new Set([
+    "join-dao", "create-token",
+])
+
+/** True if a quest is verified server-side from the user's address (no input). */
+export function isBackendVerifiedQuest(id: string): boolean {
+    return BACKEND_VERIFIED_QUESTS.has(id)
+}
 
 /** True if a quest is part of the curated, completable launch set. */
 export function isQuestLive(id: string): boolean {
