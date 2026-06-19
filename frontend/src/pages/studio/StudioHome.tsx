@@ -23,13 +23,21 @@ export function StudioHome() {
     const np = useNetworkPath()
 
     const [rows, setRows] = useState<CollectionListRow[] | null>(null)
+    const [fetchError, setFetchError] = useState(false)
 
     useEffect(() => {
         if (!me) return
         let cancelled = false
-        fetchCollectionList().then((list) => {
-            if (!cancelled) setRows(list.filter((r) => r.creator === me))
-        })
+        fetchCollectionList()
+            .then((list) => {
+                if (!cancelled) setRows(list.filter((r) => r.creator === me))
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setRows([])
+                    setFetchError(true)
+                }
+            })
         return () => { cancelled = true }
     }, [me])
 
@@ -52,6 +60,10 @@ export function StudioHome() {
 
             {rows === null ? (
                 <p className="studio-loading">Loading…</p>
+            ) : fetchError ? (
+                <p className="studio-empty">
+                    Couldn't load your collections.
+                </p>
             ) : rows.length === 0 ? (
                 <p className="studio-empty">
                     You haven't launched any collections yet.

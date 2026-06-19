@@ -167,3 +167,29 @@ describe("StudioHome — loading state", () => {
         expect(screen.getByText(/loading/i)).toBeInTheDocument()
     })
 })
+
+describe("StudioHome — fetch error", () => {
+    beforeEach(() => {
+        mockAddress = ME
+        mockFetchCollectionList.mockRejectedValue(new Error("network error"))
+    })
+
+    it("does not stay on Loading when fetch rejects", async () => {
+        renderStudio()
+        // Initially shows loading
+        expect(screen.getByText(/loading/i)).toBeInTheDocument()
+        // After rejection, loading disappears
+        await waitFor(() =>
+            expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
+        )
+    })
+
+    it("shows an error message when fetch rejects", async () => {
+        renderStudio()
+        await waitFor(() =>
+            expect(
+                screen.getByText(/couldn't load your collections/i),
+            ).toBeInTheDocument()
+        )
+    })
+})

@@ -282,6 +282,142 @@
 }
 
 /* ═══════════════════════════════════════════════
+   MANAGE SECTION BLOCKS
+   .manage-section — titled content block used in
+   Studio section components. Mirrors the launchpad
+   panel visual language but restated on tokens so
+   the Studio is CSS-self-contained.
+   ══════════════════════════════════════════════ */
+
+.manage-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.manage-section--primary {
+    border-color: var(--color-primary-border);
+    background: var(--color-primary-bg);
+}
+
+.manage-section__heading {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+    font-family: var(--font-mono);
+}
+
+.manage-section--primary .manage-section__heading {
+    color: var(--color-primary);
+}
+
+.manage-section__desc {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    line-height: 1.5;
+    margin: 0 0 var(--space-1);
+}
+
+/* ── manage-fields: vertical stack of form-group rows ── */
+
+.manage-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   FORM PRIMITIVES
+   .form-group / .form-hint / .form-error — shared
+   form controls used within Studio section forms.
+   ══════════════════════════════════════════════ */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group > span,
+.form-group > legend {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-family: var(--font-mono);
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]),
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input, var(--color-surface));
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast);
+    resize: vertical;
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]):focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--color-primary-border);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--color-text-dim, var(--color-text-muted));
+}
+
+.form-hint {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    line-height: 1.5;
+}
+
+p.form-hint {
+    margin: var(--space-1) 0 0;
+}
+
+.form-error {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-danger, #e55);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-bg, rgba(220, 50, 50, 0.06));
+    border: 1px solid var(--color-danger-border, rgba(220, 50, 50, 0.15));
+}
+
+.form-group .form-error {
+    padding: 2px 0;
+    background: none;
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════
    FORM VALIDATION — inline warning (not an error)
    .form-validation appears when input is present
    but the parse produces no valid entries.
