@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { useCollectionPublic } from "./useCollectionPublic"
+import { listingKey } from "../lib/v3TokenGrid"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ const BASE_TOKENS = [
 ]
 
 const BASE_LISTINGS = new Map([
-    [`${COL_ID}/0`, { priceUgnot: 2_000_000, seller: "g1owner000000000000000000000000000001" }],
+    [listingKey(COL_ID, TOKEN_ID), { priceUgnot: 2_000_000, seller: "g1owner000000000000000000000000000001" }],
 ])
 
 const BASE_ACTIVITY = [
@@ -84,10 +85,10 @@ vi.mock("../lib/nftApi", () => ({
     fetchNFTActivity: (...args: unknown[]) => mockFetchNFTActivity(...args),
 }))
 
-vi.mock("../lib/v3TokenGrid", () => ({
+vi.mock("../lib/v3TokenGrid", async (orig) => ({
+    ...(await orig<typeof import("../lib/v3TokenGrid")>()),
     fetchV3Tokens: (...args: unknown[]) => mockFetchV3Tokens(...args),
     fetchV3Listings: (...args: unknown[]) => mockFetchV3Listings(...args),
-    listingKey: (collectionID: string, tokenId: string) => `${collectionID}/${tokenId}`,
 }))
 
 // tradeEngineFor is called at module level — stub it so it doesn't blow up in tests
@@ -129,13 +130,16 @@ describe("useCollectionPublic — happy path", () => {
 
         await waitFor(() => expect(result.current.loading).toBe(false))
 
-        // The Map key mirrors listingKey(id, tokenId)
-        const key = `${COL_ID}/${TOKEN_ID}`
+        // The Map key uses the real listingKey(collectionID, tokenId)
+        const key = listingKey(COL_ID, TOKEN_ID)
         const listing = result.current.listings.get(key)
 
         expect(listing).toBeDefined()
         expect(listing?.priceUgnot).toBe(2_000_000)
         expect(listing?.seller).toBe("g1owner000000000000000000000000000001")
+
+        // Pin arity/arg: fetchV3Listings must be called with (COL_ID, marketPath)
+        expect(mockFetchV3Listings).toHaveBeenCalledWith(COL_ID, expect.any(String))
     })
 
     it("passes supply (minted) to fetchV3Tokens", async () => {
@@ -181,6 +185,27 @@ describe("useCollectionPublic — error handling", () => {
         expect(result.current.stats).toBeNull()
         expect(result.current.tokens).toHaveLength(3)
         expect(result.current.activity).toHaveLength(0)
+    })
+
+    it("REJECTED stats/activity (not just null/[]) still degrade gracefully via .catch()", async () => {
+        // This locks the .catch(() => null) / .catch(() => []) branches in the hook.
+        // If those branches are removed, this test fails because the Promise.all rejects.
+        mockFetchCollectionDetail.mockResolvedValue({ ...BASE_DETAIL })
+        mockFetchNFTCollection.mockRejectedValue(new Error("stats down"))
+        mockFetchV3Tokens.mockResolvedValue([...BASE_TOKENS])
+        mockFetchV3Listings.mockResolvedValue(new Map(BASE_LISTINGS))
+        mockFetchNFTActivity.mockRejectedValue(new Error("activity down"))
+
+        const { result } = renderHook(() => useCollectionPublic(COL_ID))
+
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // Core still resolves; non-core rejections are swallowed by .catch()
+        expect(result.current.error).toBeNull()
+        expect(result.current.detail).not.toBeNull()
+        expect(result.current.stats).toBeNull()
+        expect(result.current.activity).toHaveLength(0)
+        expect(result.current.loading).toBe(false)
     })
 })
 
