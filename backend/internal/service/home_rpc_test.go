@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,5 +244,171 @@ On-chain AI Agent Marketplace for the Gno ecosystem.
 	}
 	if n != 2 {
 		t.Fatalf("agent count from synthetic = %d, want 2", n)
+	}
+}
+
+// ── Featured DAO tests ────────────────────────────────────────────────────────
+
+// TestFetchFeaturedDao_FromFixture verifies parsing the live-captured render.
+// Name must be "MembaDAO"; proposals fixture has 0 open proposals.
+func TestFetchFeaturedDao_FromFixture(t *testing.T) {
+	bareRaw, err := os.ReadFile("testdata/home/featured_dao_render.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposalsRaw, err := os.ReadFile("testdata/home/featured_dao_proposals_render.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) {
+			// Decode the base64 data to distinguish bare render from proposals page.
+			decoded, _ := base64.StdEncoding.DecodeString(data)
+			if strings.HasSuffix(string(decoded), ":proposals") {
+				return string(proposalsRaw), nil
+			}
+			// bare render ends with ":" (and bank/balances path won't have a ":"
+			// suffix in data, so this also handles the treasury best-effort call)
+			return string(bareRaw), nil
+		},
+	}
+
+	dao, err := s.fetchFeaturedDao(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dao == nil {
+		t.Fatal("expected non-nil FeaturedDao")
+	}
+	if dao.Name != "MembaDAO" {
+		t.Fatalf("Name = %q, want MembaDAO", dao.Name)
+	}
+	if dao.RealmPath == "" {
+		t.Fatal("RealmPath should not be empty")
+	}
+	if dao.OpenProposals != 0 {
+		t.Fatalf("OpenProposals = %d, want 0 (live fixture has 0 active proposals)", dao.OpenProposals)
+	}
+}
+
+// TestFetchFeaturedDao_SyntheticProposals verifies open-proposal counting + title extraction.
+// Uses 2 ACTIVE proposals in synthetic markdown.
+func TestFetchFeaturedDao_SyntheticProposals(t *testing.T) {
+	bare := "# SyntheticDAO\n\n> Realm address: g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+	proposals := `# SyntheticDAO - Proposals
+
+## Active Proposals (2)
+
+### [Prop #2 - Upgrade treasury](link)
+Author: [@alice](profile)
+Status: ACTIVE
+Tiers eligible to vote: T1, T2
+
+### [Prop #1 - Onboard new member](link)
+Author: [@bob](profile)
+Status: ACTIVE
+Tiers eligible to vote: T1
+`
+
+	// Fake homeQuery: returns bare render when data contains ":" suffix (base64 'd...Og==')
+	// and proposals render for all other calls.
+	callCount := 0
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return bare, nil
+			}
+			return proposals, nil
+		},
+	}
+
+	dao, err := s.fetchFeaturedDao(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dao.Name != "SyntheticDAO" {
+		t.Fatalf("Name = %q, want SyntheticDAO", dao.Name)
+	}
+	if dao.OpenProposals != 2 {
+		t.Fatalf("OpenProposals = %d, want 2", dao.OpenProposals)
+	}
+	if dao.LatestProposalTitle != "Upgrade treasury" {
+		t.Fatalf("LatestProposalTitle = %q, want 'Upgrade treasury'", dao.LatestProposalTitle)
+	}
+}
+
+// ── Directory members tests ──────────────────────────────────────────────────
+
+// TestFetchDirectoryMembers_FromFixture verifies the stats-only live fixture yields [].
+func TestFetchDirectoryMembers_FromFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/home/registry_render.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return string(raw), nil },
+	}
+	members, err := s.fetchDirectoryMembers(context.Background(), "ignored", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 0 {
+		t.Fatalf("expected 0 members from stats-only fixture, got %d", len(members))
+	}
+}
+
+// TestFetchDirectoryMembers_Synthetic verifies the parser can extract entries
+// from a populated registry render matching parseUserRegistry's expected format.
+func TestFetchDirectoryMembers_Synthetic(t *testing.T) {
+	// Mirrors the two line formats from frontend/src/lib/directory.ts:parseUserRegistry
+	synthetic := `# r/sys/users
+
+## Members
+
+* [alice](/u/alice) - g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1
+* bob g1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2
+`
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return synthetic, nil },
+	}
+	members, err := s.fetchDirectoryMembers(context.Background(), "ignored", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %d", len(members))
+	}
+	if members[0].Name != "alice" {
+		t.Fatalf("member[0].Name = %q, want alice", members[0].Name)
+	}
+	if members[0].Address != "g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1" {
+		t.Fatalf("member[0].Address = %q", members[0].Address)
+	}
+	if members[1].Name != "bob" {
+		t.Fatalf("member[1].Name = %q, want bob", members[1].Name)
+	}
+}
+
+// TestFetchDirectoryMembers_Limit verifies the limit parameter truncates the list.
+func TestFetchDirectoryMembers_Limit(t *testing.T) {
+	synthetic := `# r/sys/users
+
+* [alice](/u/alice) - g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1
+* [bob](/u/bob) - g1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2
+* [carol](/u/carol) - g1cccccccccccccccccccccccccccccccccccc3
+* [dave](/u/dave) - g1dddddddddddddddddddddddddddddddddddd4
+* [eve](/u/eve) - g1eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee5
+`
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return synthetic, nil },
+	}
+	members, err := s.fetchDirectoryMembers(context.Background(), "ignored", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 3 {
+		t.Fatalf("expected 3 members after limit, got %d", len(members))
 	}
 }

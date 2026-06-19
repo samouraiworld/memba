@@ -158,6 +158,20 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 		snap.IndexerLastBlock = b
 	}
 
+	// On-chain source: featured DAO summary (name, open proposals, treasury).
+	if dao, err := s.fetchFeaturedDao(ctx, rpcURL); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "featured_dao")
+	} else {
+		snap.FeaturedDao = dao
+	}
+
+	// On-chain source: directory members preview (up to 4 entries).
+	if members, err := s.fetchDirectoryMembers(ctx, rpcURL, 4); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "directory_members")
+	} else {
+		snap.DirectoryMembers = members
+	}
+
 	return snap
 }
 
@@ -254,6 +268,179 @@ func (s *MultisigService) maxIndexerBlock(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return b.Int64, nil
+}
+
+// featuredDaoRealmPath returns the on-chain path for the featured DAO.
+// Env FEATURED_DAO_REALM overrides the default (gno.land/r/samcrew/memba_dao).
+func featuredDaoRealmPath() string {
+	if v := os.Getenv("FEATURED_DAO_REALM"); v != "" {
+		return v
+	}
+	return "gno.land/r/samcrew/memba_dao"
+}
+
+// userRegistryRealmPath returns the on-chain path for the user registry.
+// Env USER_REGISTRY_REALM overrides the default (gno.land/r/sys/users).
+func userRegistryRealmPath() string {
+	if v := os.Getenv("USER_REGISTRY_REALM"); v != "" {
+		return v
+	}
+	return "gno.land/r/sys/users"
+}
+
+// reDAOName matches the "# Name" heading line at the start of a bare DAO render.
+var reDAOName = regexp.MustCompile(`(?m)^#\s+(.+)$`)
+
+// reRealmAddress matches "> Realm address: g1..." from the bare DAO render.
+var reRealmAddress = regexp.MustCompile(`>\s*Realm\s+address:\s*(g1[a-z0-9]+)`)
+
+// reProposalHeader matches GovDAO v3 proposal headers: "### [Prop #N - Title](link)".
+var reProposalHeader = regexp.MustCompile(`###\s+\[Prop\s+#(\d+)\s*-\s*(.+?)\]`)
+
+// reProposalStatus matches "Status: ACTIVE" etc. within a proposal section.
+var reProposalStatus = regexp.MustCompile(`(?i)Status:\s*(\w+)`)
+
+// isOpenProposalStatus returns true for proposal statuses considered "open/active".
+// Mirrors frontend/src/lib/dao/shared.ts:normalizeStatus.
+func isOpenProposalStatus(s string) bool {
+	lower := strings.ToLower(s)
+	return lower == "active" || lower == "open" || lower == ""
+}
+
+// parseProposalList parses a GovDAO v3 proposals render (the ":proposals" page)
+// and returns (openCount, firstOpenTitle). Mirrors frontend proposals.ts:parseProposalList.
+func parseProposalList(raw string) (openCount uint32, firstTitle string) {
+	sections := strings.Split(raw, "### ")
+	for _, section := range sections {
+		m := reProposalHeader.FindStringSubmatch("### " + section)
+		if m == nil {
+			continue
+		}
+		title := strings.TrimSpace(m[2])
+
+		status := "open"
+		sm := reProposalStatus.FindStringSubmatch(section)
+		if sm != nil {
+			status = sm[1]
+		}
+		if isOpenProposalStatus(status) {
+			openCount++
+			if firstTitle == "" {
+				firstTitle = title
+			}
+		}
+	}
+	return openCount, firstTitle
+}
+
+// reUserWithLink matches "* [username](link) - address" (Format 1 from parseUserRegistry).
+var reUserWithLink = regexp.MustCompile(`\*\s*\[([^\]]+)\]\([^)]*\)\s*-?\s*` + "`?" + `([a-z0-9]+)` + "`?")
+
+// reUserSimple matches "* username address" where address starts with "g1" (Format 2).
+var reUserSimple = regexp.MustCompile(`\*\s*(\S+)\s+(\S+)`)
+
+// parseUserRegistryMembers mirrors frontend/src/lib/directory.ts:parseUserRegistry.
+// Returns a list of DirectoryMember from a user registry render.
+func parseUserRegistryMembers(raw string) []*membav1.DirectoryMember {
+	var entries []*membav1.DirectoryMember
+	for _, line := range strings.Split(raw, "\n") {
+		// Format 1: "* [username](link) - address"
+		m := reUserWithLink.FindStringSubmatch(line)
+		if m != nil {
+			entries = append(entries, &membav1.DirectoryMember{
+				Name:    m[1],
+				Address: m[2],
+			})
+			continue
+		}
+		// Format 2: "* username address"
+		s2 := reUserSimple.FindStringSubmatch(line)
+		if s2 != nil && strings.HasPrefix(s2[2], "g1") {
+			entries = append(entries, &membav1.DirectoryMember{
+				Name:    s2[1],
+				Address: s2[2],
+			})
+		}
+	}
+	return entries
+}
+
+// fetchFeaturedDao fetches the featured DAO summary from the chain.
+// Sub-parts (proposals, treasury) are best-effort: a failure degrades that field to 0/""
+// without failing the whole source.
+func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (*membav1.FeaturedDao, error) {
+	realmPath := featuredDaoRealmPath()
+
+	// --- bare render (name + realm address) ---
+	bareData := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	bareRaw, err := s.homeQuery(rpcURL, "vm/qrender", bareData)
+	if err != nil {
+		return nil, fmt.Errorf("fetchFeaturedDao bare render: %w", err)
+	}
+
+	// Parse name from "# ..." heading (primary, reliable).
+	name := ""
+	if nm := reDAOName.FindStringSubmatch(bareRaw); nm != nil {
+		name = strings.TrimSpace(nm[1])
+	}
+
+	// Parse treasury address — best-effort.
+	var treasuryUgnot uint64
+	if am := reRealmAddress.FindStringSubmatch(bareRaw); am != nil {
+		addr := am[1]
+		// bank/balances uses empty data param; result format is e.g. "1000000ugnot"
+		balRaw, berr := s.homeQuery(rpcURL, "bank/balances/"+addr, "")
+		if berr == nil {
+			// Format: "1000000ugnot" (one or more coin entries, comma-separated)
+			for _, coin := range strings.Split(balRaw, ",") {
+				coin = strings.TrimSpace(strings.Trim(coin, `"`))
+				if strings.HasSuffix(coin, "ugnot") {
+					numStr := strings.TrimSuffix(coin, "ugnot")
+					if n, perr := strconv.ParseUint(numStr, 10, 64); perr == nil {
+						treasuryUgnot += n
+					}
+				}
+			}
+		}
+		// treasury failure is silent — best-effort 0 is acceptable
+	}
+
+	// --- proposals render (open count + latest title) — best-effort ---
+	var openProposals uint32
+	var latestTitle string
+	propData := base64.StdEncoding.EncodeToString([]byte(realmPath + ":proposals"))
+	if propRaw, perr := s.homeQuery(rpcURL, "vm/qrender", propData); perr == nil {
+		openProposals, latestTitle = parseProposalList(propRaw)
+	}
+	// proposal failure is silent — best-effort 0/"" is acceptable
+
+	return &membav1.FeaturedDao{
+		RealmPath:           realmPath,
+		Name:                name,
+		OpenProposals:       openProposals,
+		LatestProposalTitle: latestTitle,
+		TreasuryUgnot:       treasuryUgnot,
+		// Members: best-effort 0 — a cheap members count would require
+		// reading the :members render and memberstore; deferred (YAGNI).
+	}, nil
+}
+
+// fetchDirectoryMembers fetches the user registry bare render and parses member entries.
+// Mirrors frontend/src/lib/directory.ts:parseUserRegistry.
+// The live test13 registry yields a stats-only render → [] (correct, expected).
+// Results are sliced to limit (use 4 for MEMBER_PREVIEW_COUNT).
+func (s *MultisigService) fetchDirectoryMembers(ctx context.Context, rpcURL string, limit int) ([]*membav1.DirectoryMember, error) {
+	realmPath := userRegistryRealmPath()
+	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
+	if err != nil {
+		return nil, fmt.Errorf("fetchDirectoryMembers query: %w", err)
+	}
+	members := parseUserRegistryMembers(raw)
+	if limit > 0 && len(members) > limit {
+		members = members[:limit]
+	}
+	return members, nil
 }
 
 // httpGetJSON performs a GET to url, decodes the JSON body into out.
