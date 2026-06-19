@@ -159,3 +159,88 @@ func TestFetchValidatorsHealth_FromFixture(t *testing.T) {
 		t.Fatalf("validators not parsed: %+v", v)
 	}
 }
+
+// ── Token count tests ────────────────────────────────────────────────────────
+
+// TestCountTokens_FromFixture asserts the parser handles the real captured render
+// (currently 0 tokens on test13).
+func TestCountTokens_FromFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/home/tokens_render.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return string(raw), nil },
+	}
+	n, err := s.countTokens(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Live fixture: "# Samcrew Token Factory (0 tokens)"
+	if n != 0 {
+		t.Fatalf("token count from fixture = %d, want 0", n)
+	}
+}
+
+// TestCountTokens_Synthetic asserts the parser extracts a non-zero count so we
+// prove it can actually count, not just return 0 on every input.
+func TestCountTokens_Synthetic(t *testing.T) {
+	synthetic := "# Samcrew Token Factory (3 tokens)\n\n*Platform fee: 2.5%*\n"
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return synthetic, nil },
+	}
+	n, err := s.countTokens(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("token count from synthetic = %d, want 3", n)
+	}
+}
+
+// ── Agent count tests ────────────────────────────────────────────────────────
+
+// TestCountAgents_FromFixture asserts the parser handles the real captured render
+// (currently 0 agents on test13).
+func TestCountAgents_FromFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/home/agents_render.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return string(raw), nil },
+	}
+	n, err := s.countAgents(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Live fixture: "*No agents registered yet.*" → 0 rows
+	if n != 0 {
+		t.Fatalf("agent count from fixture = %d, want 0", n)
+	}
+}
+
+// TestCountAgents_Synthetic asserts the parser counts real table rows, mirroring
+// the frontend parseAgentTable logic in frontend/src/lib/agentRegistry.ts:158.
+func TestCountAgents_Synthetic(t *testing.T) {
+	// Two-row agent table matching the format documented in parseAgentTable's JSDoc.
+	synthetic := `# Memba Agent Registry
+
+On-chain AI Agent Marketplace for the Gno ecosystem.
+
+| ID | Name | Category | Rating | Pricing |
+| --- | --- | --- | --- | --- |
+| memba-mcp | [Memba MCP Server](:agent/memba-mcp) | development | 5.0 (1) | free |
+| helper-bot | [Helper Bot](:agent/helper-bot) | utility | unrated | free |
+`
+	s := &MultisigService{
+		homeQuery: func(rpc, path, data string) (string, error) { return synthetic, nil },
+	}
+	n, err := s.countAgents(context.Background(), "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("agent count from synthetic = %d, want 2", n)
+	}
+}

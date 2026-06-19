@@ -3,13 +3,16 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -127,6 +130,20 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 		snap.Counts.Validators = v.Total
 	}
 
+	// On-chain source: token count from tokenfactory_v2 render.
+	if n, err := s.countTokens(ctx, rpcURL); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "tokens")
+	} else {
+		snap.Counts.Tokens = n
+	}
+
+	// On-chain source: agent count from agent_registry render.
+	if n, err := s.countAgents(ctx, rpcURL); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "agents")
+	} else {
+		snap.Counts.Agents = n
+	}
+
 	// DB source: collection count.
 	if n, err := s.countCollections(ctx); err != nil {
 		snap.StaleSources = append(snap.StaleSources, "collections")
@@ -142,6 +159,83 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 	}
 
 	return snap
+}
+
+// tokenfactoryRealmPath returns the on-chain path for the Samcrew token factory.
+// Matches the TOKENFACTORY_REALM env used by the frontend lib/config.ts.
+func tokenfactoryRealmPath() string {
+	if v := os.Getenv("TOKENFACTORY_REALM"); v != "" {
+		return v
+	}
+	return "gno.land/r/samcrew/tokenfactory_v2"
+}
+
+// agentRegistryRealmPath returns the on-chain path for the Memba agent registry.
+// Reuses the same env name as analyst.go (AGENT_REGISTRY_REALM).
+func agentRegistryRealmPath() string {
+	if v := os.Getenv("AGENT_REGISTRY_REALM"); v != "" {
+		return v
+	}
+	return "gno.land/r/samcrew/agent_registry"
+}
+
+var reTokenCount = regexp.MustCompile(`(\d+)\s+tokens?`)
+
+// countTokens fetches the tokenfactory bare render via vm/qrender and parses
+// the self-reported count from the header line, e.g. "# Samcrew Token Factory (3 tokens)".
+// The data parameter MUST be base64(realmPath + ":") — test13 requires this encoding.
+func (s *MultisigService) countTokens(ctx context.Context, rpcURL string) (uint32, error) {
+	realmPath := tokenfactoryRealmPath()
+	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
+	if err != nil {
+		return 0, fmt.Errorf("countTokens query: %w", err)
+	}
+	m := reTokenCount.FindStringSubmatch(raw)
+	if m == nil {
+		return 0, nil // tolerate unexpected render format
+	}
+	n, err := strconv.ParseUint(m[1], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("countTokens parse: %w", err)
+	}
+	return uint32(n), nil
+}
+
+// countAgents fetches the agent_registry bare render via vm/qrender and counts
+// agent table rows. Mirrors the frontend parseAgentTable logic in
+// frontend/src/lib/agentRegistry.ts:158 — a valid row must split on "|" into
+// ≥5 non-empty trimmed columns AND have a markdown link in the name column.
+// The empty-state render ("*No agents registered yet.*") yields 0.
+func (s *MultisigService) countAgents(ctx context.Context, rpcURL string) (uint32, error) {
+	realmPath := agentRegistryRealmPath()
+	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
+	if err != nil {
+		return 0, fmt.Errorf("countAgents query: %w", err)
+	}
+	var count uint32
+	for _, line := range strings.Split(raw, "\n") {
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cols := make([]string, 0, 6)
+		for _, c := range strings.Split(line, "|") {
+			t := strings.TrimSpace(c)
+			if t != "" {
+				cols = append(cols, t)
+			}
+		}
+		if len(cols) < 5 {
+			continue
+		}
+		// Skip header and separator rows; accept only rows with a markdown link in name column.
+		if !strings.Contains(cols[1], "[") {
+			continue
+		}
+		count++
+	}
+	return count, nil
 }
 
 // countCollections returns the number of NFT collections tracked in the DB.
