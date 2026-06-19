@@ -397,8 +397,10 @@
     color: var(--color-k-text);
 }
 
-.k-achievements-badge-icon {
-    font-size: 1rem;
+.k-achievements-badge-art {
+    width: 44px;
+    height: 44px;
+    display: block;
 }
 
 .k-achievements-badge-name {
