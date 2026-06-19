@@ -8,7 +8,6 @@ import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
-import { Home } from "./pages/Home"
 
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
@@ -16,6 +15,9 @@ import { ImportMultisig } from "./pages/ImportMultisig"
 import { MultisigView } from "./pages/MultisigView"
 import { ProposeTransaction } from "./pages/ProposeTransaction"
 import { TransactionView } from "./pages/TransactionView"
+
+// ── Home — the Control Room landing (lazy so it stays out of the main entry chunk) ──
+const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })))
 
 // ── Token pages (lazy — loaded on /tokens or /create-token) ──
 const CreateToken = lazy(() => import("./pages/CreateToken").then(m => ({ default: m.CreateToken })))
@@ -118,7 +120,11 @@ function ProfileRedirect() {
 /** Renders the mode-aware Control Room Home for both visitors and members. */
 function HomeRedirect() {
   const adena = useAdena()
-  return <Home mode={adena.connected ? "member" : "visitor"} />
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Home mode={adena.connected ? "member" : "visitor"} />
+    </Suspense>
+  )
 }
 
 /** Redirects bare / to /:defaultNetwork/ */
