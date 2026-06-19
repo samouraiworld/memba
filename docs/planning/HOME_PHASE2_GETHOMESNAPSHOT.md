@@ -1,7 +1,7 @@
 # Home Phase 2 — `GetHomeSnapshot` (server-side home aggregation)
 
 - Date: 2026-06-19
-- Status: **spec for review** (design only — implementation plan follows separately)
+- Status: **IMPLEMENTED** on `feat/home-phase2` (plan: `docs/superpowers/plans/2026-06-19-home-phase2-gethomesnapshot.md`). End-to-end smoke green vs live test13 (all 8 sources populated, no stale). Non-breaking / additive — the endpoint may be left undeployed to keep full Phase-1 fidelity. See §13 for the as-built deltas.
 - Depends on: Phase 0/1 (the Control Room home — PR #439). Phase 2 builds on the existing panels/hooks.
 - Decisions locked: snapshot = **global chain/DB data only**; `ListProfiles`/"newest members" = **separate follow-up** (not this spec).
 
@@ -109,3 +109,21 @@ Additive and reversible: ship the backend endpoint first (no frontend change →
 - `ListProfiles` + `profiles.created_at` migration → Directory "newest members" (separate small task).
 - Server-side Gnolove proxying; per-user personalized snapshot.
 - Phase 3 live cross-feature activity ledger (needs the indexer widened beyond NFT events).
+
+---
+
+## 13. As-built deltas (from the spec, decided during implementation)
+
+Recon against the live chain + codebase corrected three spec assumptions:
+
+1. **RPC target = test13 via a dedicated `homeSnapshotRPCURL()`** (env `HOME_SNAPSHOT_RPC_URL` → `NFT_RPC_URL` → test13 default). The spec implied reusing `marketplaceRPCURL()`, which does not exist; the only helper, `gnoRPCURL()`, defaults to **testnet12** — wrong chain for the home.
+2. **`counts.daos` is OMITTED from the snapshot and stays client-side.** There is no `daos` DB table and no on-chain DAO-registry render; today the count is a gnoweb-namespace HTML scrape (`traction.ts`), cached client-side — the same class as Gnolove, which the spec already keeps client-side. `useEcosystemCounts` keeps `daos` from traction; the other 4 counts come from the snapshot.
+3. **On-chain `vm/qrender` data must be `base64("<pkgpath>:<path>")` — base64-encoded, COLON separator.** Verified against live test13: the existing `abciQuery`'s plain-newline form is rejected. `abciQuery` was left unchanged (shared with the marketplace proxy); the home sources base64+colon-encode their data argument. (qeval, unused here, is base64 + dot.)
+
+**Implementation shape:** cache lifted onto the `MultisigService` struct (a ConnectRPC method can't hold closure state like the REST marketplace proxy); an injectable `queryFunc` seam over `abciQuery` makes `assembleHomeSnapshot` unit-testable; each of the 8 sources is individually fault-wrapped (failure → `stale_sources`, never aborts); frontend integration bakes "snapshot-first, Phase-1 fallback" **into each Phase-1 hook** (gating its on-chain query with `enabled: !usable`) so panels are untouched and only activate the snapshot on the configured network (`SNAPSHOT_NETWORK = "test13"`).
+
+**Known v1 best-effort fields** (panels degrade to "—"/omit when the snapshot is active; all additive — leave the endpoint undeployed for full Phase-1 fidelity):
+- `network.avg_block_time_ms = 0` (not computed v1) → NetworkPulse avg-block-time shows "—".
+- `validators_health` is the cheap subset (status/active/total only) — no `avg_uptime`/incidents (need the monitoring API) → ValidatorsPanel uptime "—", incident card hidden.
+- `featured_dao.members = 0` (memberstore tier read deferred) → members "—"; `treasury_ugnot = 0` (DAO unfunded; parser handles funded); no `latest_proposal_id` in the payload → the per-proposal deep-link is suppressed on the snapshot path (open-proposal **count** still shown).
+- `directory_members = []` in production because `r/sys/users` renders stats-only (no member list) — matches the live Phase-1 frontend exactly.
