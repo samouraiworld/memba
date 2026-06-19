@@ -84,12 +84,11 @@ const GnoloveTeamProfile = lazy(() => import("./pages/gnolove/GnoloveTeamProfile
 const GnoloveAIReports = lazy(() => import("./pages/gnolove/GnoloveAIReports"))
 const GnoloveMilestone = lazy(() => import("./pages/gnolove/GnoloveMilestone"))
 
-// ── NFT Gallery (lazy — v3.0) ──
-const NFTGallery = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTGallery })))
-const NFTCollectionView = lazy(() => import("./pages/NFTGallery").then(m => ({ default: m.NFTCollectionView })))
-const NFTLaunchpad = lazy(() => import("./pages/NFTLaunchpad"))
+// ── NFT section (lazy — v3.0 gallery → v3.1 launchpad → Phase 2 marketplace) ──
+const MarketplaceHub = lazy(() => import("./pages/MarketplaceHub").then(m => ({ default: m.MarketplaceHub })))
+const CollectionPublic = lazy(() => import("./pages/CollectionPublic").then(m => ({ default: m.CollectionPublic })))
+const LegacyCollectionView = lazy(() => import("./pages/LegacyCollectionView").then(m => ({ default: m.LegacyCollectionView })))
 const CreateCollectionLaunchpad = lazy(() => import("./pages/CreateCollectionLaunchpad"))
-const CollectionDetail = lazy(() => import("./pages/CollectionDetail"))
 const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
 const StudioHome = lazy(() => import("./pages/studio/StudioHome").then(m => ({ default: m.StudioHome })))
 const StudioManage = lazy(() => import("./pages/studio/StudioManage").then(m => ({ default: m.StudioManage })))
@@ -136,6 +135,16 @@ function RootRedirect() {
   const stored = localStorage.getItem("memba_network")
   const network = (stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK
   return <Navigate to={`/${network}/`} replace />
+}
+
+/**
+ * Retires the standalone code-gen wizard (nft/create/advanced).
+ * Redirects to the network-scoped /nft/create, preserving the :network prefix.
+ * e.g. /test13/nft/create/advanced → /test13/nft/create
+ */
+function AdvancedWizardRedirect() {
+  const networkKey = useNetworkKey()
+  return <Navigate to={`/${networkKey}/nft/create`} replace />
 }
 
 /** Validates the /:network param. If invalid, treats as legacy URL and redirects. */
@@ -202,20 +211,23 @@ function App() {
           <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
           <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
-          {/* NFT section (v3.0 gallery, v3.1 launchpad) — ORDER MATTERS: /nft/create before /nft/:realmPath */}
-          <Route path="nft" element={<Suspense fallback={<PageLoader />}><NFTGallery /></Suspense>} />
-          {/* Model A (primary): register into the shared memba_collections registry. */}
+          {/* NFT section (Phase 2) — ORDER MATTERS: specific routes before /nft/:realmPath catch-all */}
+          {/* Hub: Phase 2 marketplace browse/discover entry point. */}
+          <Route path="nft" element={<Suspense fallback={<PageLoader />}><MarketplaceHub /></Suspense>} />
+          {/* Create: register into the shared memba_collections registry. */}
           <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><CreateCollectionLaunchpad /></Suspense>} />
-          {/* Model B (advanced): legacy code-gen wizard that deploys a standalone realm. */}
-          <Route path="nft/create/advanced" element={<Suspense fallback={<PageLoader />}><NFTLaunchpad /></Suspense>} />
-          {/* Phase 2 registry: per-collection detail/mint/manage + creator profiles. */}
-          <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
+          {/* Advanced wizard retired — redirect to /nft/create, preserving :network prefix. */}
+          <Route path="nft/create/advanced" element={<AdvancedWizardRedirect />} />
+          {/* Collection public page: detail / mint / activity. */}
+          <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionPublic /></Suspense>} />
+          {/* Creator profiles — must be before nft/:realmPath catch-all */}
           <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           {/* Creator Studio — must be before nft/:realmPath catch-all */}
           <Route path="nft/studio" element={<Suspense fallback={<PageLoader />}><StudioHome /></Suspense>} />
           <Route path="nft/studio/:creator/:slug" element={<Suspense fallback={<PageLoader />}><StudioManage /></Suspense>} />
-          <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
+          {/* LAST: legacy catch-all for standalone realm paths (e.g. /nft/gno.land/r/...). */}
+          <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><LegacyCollectionView /></Suspense>} />
 
           {/* Freelance Services (v3.0) */}
           <Route path="services" element={<Suspense fallback={<PageLoader />}><FreelanceServices /></Suspense>} />
