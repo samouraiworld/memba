@@ -121,16 +121,23 @@ func TestMaxIndexerBlock(t *testing.T) {
 }
 
 func TestFetchNetworkPulse_FromFixture(t *testing.T) {
-	body, err := os.ReadFile("testdata/home/status.json")
+	statusBody, err := os.ReadFile("testdata/home/status.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	blockBody, err := os.ReadFile("testdata/home/block_earlier.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/status" {
-			w.Write(body)
-			return
+		switch r.URL.Path {
+		case "/status":
+			w.Write(statusBody)
+		case "/block":
+			w.Write(blockBody)
+		default:
+			w.WriteHeader(404)
 		}
-		w.WriteHeader(404)
 	}))
 	defer srv.Close()
 	p, err := fetchNetworkPulse(context.Background(), srv.URL)
@@ -139,6 +146,79 @@ func TestFetchNetworkPulse_FromFixture(t *testing.T) {
 	}
 	if p.BlockHeight <= 0 {
 		t.Fatalf("block height not parsed: %d", p.BlockHeight)
+	}
+	if p.AvgBlockTimeMs <= 0 || p.AvgBlockTimeMs < 100 || p.AvgBlockTimeMs > 60000 {
+		t.Fatalf("avg_block_time_ms out of range [100,60000]: %d", p.AvgBlockTimeMs)
+	}
+}
+
+// TestFetchNetworkPulse_SyntheticExactMath verifies the avg-block-time formula
+// exactly: 20s spread over 10 blocks must produce 2000ms per block.
+func TestFetchNetworkPulse_SyntheticExactMath(t *testing.T) {
+	// T is the "latest" block time; T-20s is the block at H-10.
+	T := time.Date(2026, 1, 1, 12, 0, 20, 0, time.UTC)
+	Tearlier := T.Add(-20 * time.Second)
+
+	statusJSON := fmt.Sprintf(`{"result":{"sync_info":{"latest_block_height":"100","latest_block_time":%q}}}`,
+		T.UTC().Format(time.RFC3339Nano))
+	blockJSON := fmt.Sprintf(`{"result":{"block":{"header":{"time":%q}}}}`,
+		Tearlier.UTC().Format(time.RFC3339Nano))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/status":
+			w.Write([]byte(statusJSON))
+		case "/block":
+			// Verify the query param requests H-10 = 90.
+			if h := r.URL.Query().Get("height"); h != "90" {
+				t.Errorf("expected height=90, got %q", h)
+			}
+			w.Write([]byte(blockJSON))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	p, err := fetchNetworkPulse(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.BlockHeight != 100 {
+		t.Fatalf("BlockHeight = %d, want 100", p.BlockHeight)
+	}
+	if p.AvgBlockTimeMs != 2000 {
+		t.Fatalf("AvgBlockTimeMs = %d, want 2000 (20s / 10 blocks)", p.AvgBlockTimeMs)
+	}
+}
+
+// TestFetchNetworkPulse_BlockFetchFailureDegrades verifies that when the /block
+// endpoint returns 404, fetchNetworkPulse still succeeds (best-effort) with
+// BlockHeight > 0 and AvgBlockTimeMs == 0.
+func TestFetchNetworkPulse_BlockFetchFailureDegrades(t *testing.T) {
+	T := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	statusJSON := fmt.Sprintf(`{"result":{"sync_info":{"latest_block_height":"500","latest_block_time":%q}}}`,
+		T.UTC().Format(time.RFC3339Nano))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			w.Write([]byte(statusJSON))
+			return
+		}
+		// Simulate /block being unavailable.
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	p, err := fetchNetworkPulse(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("expected no error on /block failure, got: %v", err)
+	}
+	if p.BlockHeight != 500 {
+		t.Fatalf("BlockHeight = %d, want 500", p.BlockHeight)
+	}
+	if p.AvgBlockTimeMs != 0 {
+		t.Fatalf("AvgBlockTimeMs = %d, want 0 on block fetch failure", p.AvgBlockTimeMs)
 	}
 }
 

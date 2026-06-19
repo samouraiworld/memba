@@ -474,12 +474,16 @@ func httpGetJSON(ctx context.Context, url string, out any) error {
 	return json.Unmarshal(body, out)
 }
 
-// fetchNetworkPulse calls rpcURL+"/status" and returns the current block height.
+// fetchNetworkPulse calls rpcURL+"/status" and returns the current block height
+// plus a best-effort average block time in milliseconds computed from the last
+// N=min(10, H-1) blocks. If the /block fetch or timestamp parse fails, the
+// function still succeeds with AvgBlockTimeMs==0 (best-effort degradation).
 func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPulse, error) {
 	var s struct {
 		Result struct {
 			SyncInfo struct {
 				LatestBlockHeight string `json:"latest_block_height"`
+				LatestBlockTime   string `json:"latest_block_time"`
 			} `json:"sync_info"`
 		} `json:"result"`
 	}
@@ -490,7 +494,44 @@ func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPuls
 	if err != nil {
 		return nil, fmt.Errorf("parse block height: %w", err)
 	}
-	return &membav1.NetworkPulse{BlockHeight: h}, nil
+
+	pulse := &membav1.NetworkPulse{BlockHeight: h}
+
+	// Best-effort: compute avg block time over the last N blocks (mirrors
+	// frontend/src/lib/validators.ts:getNetworkStats window of 10 blocks).
+	if h > 1 {
+		n := int64(10)
+		if h-1 < n {
+			n = h - 1
+		}
+		latestTime, tErr := time.Parse(time.RFC3339Nano, s.Result.SyncInfo.LatestBlockTime)
+		if tErr != nil {
+			slog.Debug("fetchNetworkPulse: parse latest_block_time", "err", tErr)
+		} else {
+			var b struct {
+				Result struct {
+					Block struct {
+						Header struct {
+							Time string `json:"time"`
+						} `json:"header"`
+					} `json:"block"`
+				} `json:"result"`
+			}
+			url := fmt.Sprintf("%s/block?height=%d", rpcURL, h-n)
+			if bErr := httpGetJSON(ctx, url, &b); bErr != nil {
+				slog.Debug("fetchNetworkPulse: fetch /block", "height", h-n, "err", bErr)
+			} else {
+				earlierTime, pErr := time.Parse(time.RFC3339Nano, b.Result.Block.Header.Time)
+				if pErr != nil {
+					slog.Debug("fetchNetworkPulse: parse block header time", "err", pErr)
+				} else if latestTime.After(earlierTime) {
+					pulse.AvgBlockTimeMs = (latestTime.UnixMilli() - earlierTime.UnixMilli()) / n
+				}
+			}
+		}
+	}
+
+	return pulse, nil
 }
 
 // fetchValidatorsHealth calls rpcURL+"/validators" and returns the validator-set
