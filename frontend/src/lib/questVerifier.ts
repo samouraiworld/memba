@@ -11,9 +11,8 @@
  * Verification is non-blocking: if the chain is down, results are "pending".
  */
 
-import { queryRender } from "./dao/shared"
+import { queryRender, queryEval } from "./dao/shared"
 import { fetchAccountInfo } from "./account"
-import { getDAOMembers } from "./dao/members"
 import { fetchBackendProfile } from "./profile"
 import { api } from "./api"
 import { create } from "@bufbuild/protobuf"
@@ -113,13 +112,15 @@ async function verifyOnChain(
             return NOT_VERIFIED("Provide your deployed realm path to verify")
 
         case "register-username": {
-            const result = await queryRender(rpcUrl, "gno.land/r/sys/users", address)
-            if (result && result.length > 0 && !result.includes("not found")) {
-                return VERIFIED
+            // r/sys/users.Render IGNORES its path arg — a qrender returns the same
+            // home page for ANY address, so the old length>0 check always passed.
+            // ResolveAddress returns *UserData, printed as "(nil ...)" when no
+            // @username is registered. Mirrors the backend verifier (quest_verify.go).
+            if (!/^g1[a-z0-9]{38}$/.test(address)) {
+                return NOT_VERIFIED("Connect a wallet to verify your @username")
             }
-            // Fallback: try legacy path
-            const legacy = await queryRender(rpcUrl, "gno.land/r/gnoland/users", address)
-            if (legacy && legacy.length > 0 && !legacy.includes("not found")) {
+            const result = await queryEval(rpcUrl, "gno.land/r/sys/users", `ResolveAddress(${JSON.stringify(address)})`)
+            if (result && !result.trimStart().startsWith("(nil")) {
                 return VERIFIED
             }
             return NOT_VERIFIED("No @username registered for your address")
@@ -142,15 +143,11 @@ async function verifyOnChain(
             return NOT_VERIFIED("Claim tokens from the testnet faucet first")
         }
 
-        case "join-dao": {
-            // Check MembaDAO membership as a default check
-            const daoPath = "gno.land/r/samcrew/memba_dao"
-            try {
-                const members = await getDAOMembers(rpcUrl, daoPath)
-                if (members.some(m => m.address === address)) return VERIFIED
-            } catch { /* fallthrough */ }
-            return NOT_VERIFIED("Join a DAO to complete this quest")
-        }
+        case "join-dao":
+            // Verified server-side: the backend parses memba_dao's authoritative
+            // :members render. Completion goes through completeQuestVerified (see
+            // isBackendVerifiedQuest / QuestDetail), not this client path.
+            return NOT_VERIFIED("Verified on-chain by the server")
 
         case "3-dao-member":
             // Requires checking multiple DAOs — self-report with proof
@@ -192,12 +189,12 @@ async function verifyOnChain(
             return NOT_VERIFIED("Submit a candidature application to verify")
         }
 
-        case "create-token": {
-            // Check token factory for tokens created by this address
-            const result = await queryRender(rpcUrl, "gno.land/r/samcrew/tokenfactory_v2", "")
-            if (result && result.includes(address)) return VERIFIED
-            return NOT_VERIFIED("Create a token via the token factory")
-        }
+        case "create-token":
+            // Verified server-side: the backend checks the token factory's
+            // per-token **Admin** field. The old client substring scan over the
+            // full factory render was spoofable; completion now goes through
+            // completeQuestVerified (see isBackendVerifiedQuest / QuestDetail).
+            return NOT_VERIFIED("Verified on-chain by the server")
 
         case "send-tokens":
             // Requires tx history which we can't easily verify via ABCI
@@ -379,44 +376,9 @@ function verifySocial(quest: GnoQuest): QuestVerificationResult {
     }
 }
 
-// ── Deployment Verifier (for developer quests) ──────────────
-
-/**
- * Verify a deployment quest by checking if a realm/package exists at the given path.
- * Used when the user provides their deployed realm path.
- */
-export async function verifyDeployment(
-    rpcUrl: string,
-    realmPath: string,
-    address: string,
-): Promise<QuestVerificationResult> {
-    try {
-        // Ownership check: verify the realm path contains the user's address or namespace.
-        // Gno realm paths are namespaced (e.g., gno.land/r/username/realm), so a deployed
-        // realm should be under the deployer's namespace. We check if the address appears
-        // in the Render() output (many realms include the admin/owner address).
-        const result = await queryRender(rpcUrl, realmPath, "")
-        if (!result || result.length === 0 || result.includes("not found")) {
-            return NOT_VERIFIED("No realm found at path: " + realmPath)
-        }
-
-        // Check if the user's address appears in the realm output (admin/owner display)
-        // or if the realm path contains a segment matching the user's address prefix
-        const addrPrefix = address.slice(0, 10) // g1xxxxxxxx
-        const pathContainsAddr = realmPath.toLowerCase().includes(addrPrefix.toLowerCase())
-        const renderContainsAddr = result.includes(address) || result.includes(addrPrefix)
-
-        if (pathContainsAddr || renderContainsAddr) {
-            return VERIFIED
-        }
-
-        // If we can't confirm ownership but realm exists, still credit it but warn
-        // (some realms don't display owner in Render output)
-        return VERIFIED // Realm exists — benefit of the doubt for testnet quests
-    } catch {
-        return PENDING("Chain unavailable — will verify when accessible")
-    }
-}
+// Deploy quests are now verified server-side (the backend checks the proof realm
+// path is under the user's @username namespace + exists). The old client-side
+// verifyDeployment was removed — it credited any existing realm.
 
 // ── Tracking Helpers (for off-chain auto-complete quests) ────
 

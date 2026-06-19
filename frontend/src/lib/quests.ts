@@ -223,6 +223,38 @@ export function completeQuest(questId: string, authToken?: Token): QuestResult |
 }
 
 /**
+ * Complete an on-chain quest that the BACKEND must verify (e.g. deploy quests,
+ * where `proof` is the deployed realm/package path). Unlike completeQuest
+ * (optimistic, fire-and-forget), this AWAITS the server and only records the
+ * completion locally if the server grants it. Throws if the server rejects.
+ */
+export async function completeQuestVerified(
+    questId: string,
+    proof: string,
+    authToken: Token,
+): Promise<QuestResult> {
+    // Server is authoritative — it re-verifies the proof on-chain (namespace
+    // ownership + existence). This throws on rejection.
+    await api.completeQuest(create(CompleteQuestRequestSchema, { authToken, questId, proof }))
+
+    const quest = _findQuest(questId)
+    const state = loadQuestProgress()
+    if (state.completed.some(q => q.questId === questId)) {
+        return { state, unlockedCandidature: false }
+    }
+    const wasBelowThreshold = state.totalXP < CANDIDATURE_XP_THRESHOLD
+    state.completed.push({ questId, completedAt: Date.now() })
+    state.totalXP += quest?.xp ?? 0
+    saveQuestProgress(state)
+    window.dispatchEvent(new CustomEvent("quest-completed", { detail: { questId } }))
+    trackEvent("Quest Completed", { questId, xp: quest?.xp ?? 0 })
+    return {
+        state,
+        unlockedCandidature: wasBelowThreshold && state.totalXP >= CANDIDATURE_XP_THRESHOLD,
+    }
+}
+
+/**
  * Check if user has enough XP for candidature.
  * Grandfathering: users who reached 100 XP before GnoBuilders v4.0
  * are still eligible even if below the new 350 XP threshold.
@@ -295,19 +327,28 @@ export async function syncQuestsToBackend(authToken: Token): Promise<UserQuestSt
         }))
 
         if (resp.state) {
-            // Server state is authoritative — merge back to localStorage
-            const serverState: UserQuestState = {
-                completed: resp.state.completed.map(c => ({
-                    questId: c.questId,
-                    completedAt: new Date(c.completedAt).getTime(),
-                })),
-                totalXP: resp.state.totalXp,
-            }
-            saveQuestProgress(serverState)
-            return serverState
+            const serverCompleted = resp.state.completed.map(c => ({
+                questId: c.questId,
+                completedAt: new Date(c.completedAt).getTime(),
+            }))
+            // Merge, never overwrite: keep every local completion (a legitimately
+            // earned one the server hasn't recorded yet — e.g. rejected by a
+            // transient on-chain verify, or never uploaded — must NOT be silently
+            // dropped; it can sync on a later retry). Add server completions we
+            // lack (e.g. earned on another device). Recompute XP from the union.
+            const byId = new Map<string, QuestProgress>()
+            for (const c of local.completed) byId.set(c.questId, c)
+            for (const c of serverCompleted) if (!byId.has(c.questId)) byId.set(c.questId, c)
+            const completed = Array.from(byId.values())
+            const totalXP = completed.reduce((sum, c) => sum + (_findQuest(c.questId)?.xp ?? 0), 0)
+            const merged: UserQuestState = { completed, totalXP }
+            saveQuestProgress(merged)
+            return merged
         }
-    } catch {
-        // Offline-first: if backend is unreachable, local state is still valid
+    } catch (err) {
+        // Offline-first: local state stays valid. Surface (don't swallow) the
+        // failure so a persistent sync problem is observable in logs.
+        console.warn("syncQuestsToBackend failed; keeping local state", err)
     }
 
     return local

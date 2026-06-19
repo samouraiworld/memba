@@ -226,6 +226,83 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
     })
 }
 
+// ── Catalog Curation (Phase 0: honest test13 launch) ────────
+//
+// LIVE_QUEST_IDS is the curated set of quests that genuinely complete
+// end-to-end on test13 today: off-chain quests auto-tracked by real UI
+// actions or backend checks, on-chain quests with a working server-side
+// verifier, and computed milestones. Everything else shows behind a
+// "Coming soon" curtain (data kept, not deleted) until its verifier/UI
+// lands (Phase 3).
+//
+// Must stay aligned with the backend: every LIVE on_chain quest needs a
+// working server-side verifier in backend/internal/service/quest_verify.go.
+// join-dao / create-token are intentionally NOT live yet — their checks need
+// structured render parsing (a substring scan is spoofable), deferred to Phase 3.
+export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
+    // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
+    "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
+    "view-validator", "share-link", "submit-feedback", "browse-proposals",
+    "visit-5-pages",
+    // On-chain (path-keyed server verifiers in quest_verify.go — non-spoofable)
+    "register-username", "first-transaction", "faucet-claim", "submit-candidature",
+    // Computed / backend milestones
+    "create-team", "earn-500-xp",
+    // Self-report (proof submitted via SelfReportForm -> admin review). Excludes
+    // the hidden bug-hunter quest so it stays discoverable.
+    "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
+    "audit-realm", "build-mcp-tool", "gas-optimization", "gnodaokit-extension",
+    "mentor-developer",
+    // Deploy quests: backend verifies the submitted realm/package path is under
+    // the user's @username namespace, exists on-chain, and is distinct per quest.
+    // (deploy-3-chains/deploy-ibc-realm/render-masterclass stay coming-soon — one
+    // path can't prove "3 chains"/IBC, and render-masterclass isn't deploy-prefixed.)
+    "deploy-hello-pkg", "deploy-counter-pkg", "deploy-avl-pkg", "deploy-interface-pkg",
+    "deploy-import-pkg", "deploy-event-pkg", "deploy-ownable-pkg", "deploy-upgradable-pkg",
+    "deploy-governance-pkg",
+    "deploy-hello-realm", "deploy-grc20-realm", "deploy-grc721-realm", "deploy-board-realm",
+    "deploy-dao-realm", "deploy-crossing-realm", "deploy-escrow-realm",
+    "deploy-marketplace-realm", "deploy-multisig-realm",
+    // Phase 3 on-chain verifiers (backend confirms from the user's address alone,
+    // no proof input): join-dao parses memba_dao's authoritative :members render;
+    // create-token checks the token factory's per-token **Admin** field.
+    "join-dao", "create-token",
+])
+
+/**
+ * BACKEND_VERIFIED_QUESTS are on_chain quests the server verifies from the
+ * authenticated user's address alone — no proof input and no (spoofable, wrong-
+ * chain) client pre-check. They complete via completeQuestVerified, which awaits
+ * the server's verdict. Deploy quests are also backend-verified but carry a proof
+ * path, so they use their own input flow and are NOT in this set.
+ */
+export const BACKEND_VERIFIED_QUESTS: ReadonlySet<string> = new Set([
+    "join-dao", "create-token",
+])
+
+/** True if a quest is verified server-side from the user's address (no input). */
+export function isBackendVerifiedQuest(id: string): boolean {
+    return BACKEND_VERIFIED_QUESTS.has(id)
+}
+
+/** True if a quest is part of the curated, completable launch set. */
+export function isQuestLive(id: string): boolean {
+    return LIVE_QUEST_IDS.has(id)
+}
+
+/** The curated, completable quests shown in the catalog grid. */
+export function getLiveQuests(): GnoQuest[] {
+    return ALL_QUESTS.filter(q => LIVE_QUEST_IDS.has(q.id))
+}
+
+/**
+ * Visible-but-not-yet-live quests, shown dimmed under "Season 2 — Coming soon".
+ * Hidden quests stay hidden (discovered via play), so they're excluded here.
+ */
+export function getComingSoonQuests(): GnoQuest[] {
+    return ALL_QUESTS.filter(q => !LIVE_QUEST_IDS.has(q.id) && !q.hidden)
+}
+
 /** Get quests by category */
 export function getQuestsByCategory(category: QuestCategory): GnoQuest[] {
     return ALL_QUESTS.filter(q => q.category === category)

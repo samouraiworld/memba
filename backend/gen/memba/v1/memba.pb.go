@@ -2271,9 +2271,12 @@ func (x *UserQuestState) GetTotalXp() uint32 {
 }
 
 type CompleteQuestRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AuthToken     *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
-	QuestId       string                 `protobuf:"bytes,2,opt,name=quest_id,json=questId,proto3" json:"quest_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AuthToken *Token                 `protobuf:"bytes,1,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
+	QuestId   string                 `protobuf:"bytes,2,opt,name=quest_id,json=questId,proto3" json:"quest_id,omitempty"`
+	// proof is an optional realm/package path for deploy quests, verified
+	// server-side against the user's registered @username namespace.
+	Proof         string `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2318,6 +2321,13 @@ func (x *CompleteQuestRequest) GetAuthToken() *Token {
 func (x *CompleteQuestRequest) GetQuestId() string {
 	if x != nil {
 		return x.QuestId
+	}
+	return ""
+}
+
+func (x *CompleteQuestRequest) GetProof() string {
+	if x != nil {
+		return x.Proof
 	}
 	return ""
 }
@@ -5675,11 +5685,12 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x02 \x01(\tR\vcompletedAt\"d\n" +
 	"\x0eUserQuestState\x127\n" +
 	"\tcompleted\x18\x01 \x03(\v2\x19.memba.v1.QuestCompletionR\tcompleted\x12\x19\n" +
-	"\btotal_xp\x18\x02 \x01(\rR\atotalXp\"a\n" +
+	"\btotal_xp\x18\x02 \x01(\rR\atotalXp\"w\n" +
 	"\x14CompleteQuestRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x19\n" +
-	"\bquest_id\x18\x02 \x01(\tR\aquestId\"G\n" +
+	"\bquest_id\x18\x02 \x01(\tR\aquestId\x12\x14\n" +
+	"\x05proof\x18\x03 \x01(\tR\x05proof\"G\n" +
 	"\x15CompleteQuestResponse\x12.\n" +
 	"\x05state\x18\x01 \x01(\v2\x18.memba.v1.UserQuestStateR\x05state\"0\n" +
 	"\x14GetUserQuestsRequest\x12\x18\n" +

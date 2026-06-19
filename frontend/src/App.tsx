@@ -62,6 +62,7 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
+const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
 const Leaderboard = lazy(() => import("./pages/Leaderboard"))
 
 // ── Alerts page (lazy — v2.18.0) ──
@@ -89,6 +90,8 @@ const NFTLaunchpad = lazy(() => import("./pages/NFTLaunchpad"))
 const CreateCollectionLaunchpad = lazy(() => import("./pages/CreateCollectionLaunchpad"))
 const CollectionDetail = lazy(() => import("./pages/CollectionDetail"))
 const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
+const StudioHome = lazy(() => import("./pages/studio/StudioHome").then(m => ({ default: m.StudioHome })))
+const StudioManage = lazy(() => import("./pages/studio/StudioManage").then(m => ({ default: m.StudioManage })))
 
 // ── AI Agent Marketplace (lazy — v3.0) ──
 const Marketplace = lazy(() => import("./pages/Marketplace"))
@@ -214,6 +217,9 @@ function App() {
           <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
           <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
           <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
+          {/* Creator Studio — must be before nft/:realmPath catch-all */}
+          <Route path="nft/studio" element={<Suspense fallback={<PageLoader />}><StudioHome /></Suspense>} />
+          <Route path="nft/studio/:creator/:slug" element={<Suspense fallback={<PageLoader />}><StudioManage /></Suspense>} />
           <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
 
           {/* Freelance Services (v3.0) */}
@@ -248,6 +254,7 @@ function App() {
           {/* GnoBuilders — Quest catalog and leaderboard (v4.0) */}
           <Route path="quests" element={<Suspense fallback={<PageLoader />}><QuestHub /></Suspense>} />
           <Route path="quests/:questId" element={<Suspense fallback={<PageLoader />}><QuestDetail /></Suspense>} />
+          <Route path="quest-admin" element={<Suspense fallback={<PageLoader />}><QuestAdmin /></Suspense>} />
           <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><Leaderboard /></Suspense>} />
 
           {/* Candidature — Memba DAO membership application (v2.28) */}

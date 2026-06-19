@@ -13,6 +13,7 @@ import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyV
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
 import { QuestProgress } from "../components/ui/QuestProgress"
+import { AchievementGrid } from "../components/quests/AchievementGrid"
 import { completeQuest, trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./profile.css"
@@ -290,6 +291,13 @@ export function ProfilePage() {
             {address && (
                 <div className="k-card profile-quest-card">
                     <QuestProgress address={isOwnProfile ? undefined : address} />
+                </div>
+            )}
+
+            {/* ── Achievement Badges (gated until badges are minted) ── */}
+            {address && import.meta.env.VITE_ENABLE_BADGES === "true" && (
+                <div className="k-card profile-quest-card">
+                    <AchievementGrid address={address} />
                 </div>
             )}
 
