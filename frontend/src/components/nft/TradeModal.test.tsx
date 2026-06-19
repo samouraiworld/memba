@@ -145,8 +145,15 @@ describe("TradeModal — list (v3, not approved)", () => {
 
         await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
 
-        // The first broadcast must be approval, NOT listing
-        expect(mockBuildSetApprovalForAllV3Msg).toHaveBeenCalled()
+        // The first broadcast must be approval with the correct arg order, NOT listing
+        // v3 signature: buildSetApprovalForAllV3Msg(caller, collectionID, operatorAddr, approved)
+        // engine.marketAddr for v3 = NFT_MARKET_V3_ADDR = "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj"
+        expect(mockBuildSetApprovalForAllV3Msg).toHaveBeenCalledWith(
+            CALLER,
+            COLLECTION_ID,
+            "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj",
+            true,
+        )
         expect(mockBuildListForSaleV3Msg).not.toHaveBeenCalled()
     })
 
@@ -166,11 +173,11 @@ describe("TradeModal — list (v3, not approved)", () => {
 })
 
 describe("TradeModal — accept (v3)", () => {
-    it("(d) builds buildAcceptOfferV3Msg with (caller, collectionID, tokenId, buyer)", async () => {
+    it("(d) builds buildAcceptOfferV3Msg with (caller, collectionID, tokenId, buyerAddr)", async () => {
         const onSuccess = vi.fn()
         render(
             <TradeModal
-                {...makeProps({ action: "accept", source: "v3", seller: BUYER_ADDR, onSuccess })}
+                {...makeProps({ action: "accept", source: "v3", buyerAddr: BUYER_ADDR, onSuccess })}
             />,
         )
 
@@ -196,7 +203,7 @@ describe("TradeModal — offer", () => {
         const input = screen.getByLabelText(/your offer/i)
         fireEvent.change(input, { target: { value: "1.5" } })
 
-        const submitBtn = screen.getByRole("button", { name: /offer/i })
+        const submitBtn = screen.getByRole("button", { name: /offer 1\.50 gnot/i })
         fireEvent.click(submitBtn)
 
         await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
@@ -214,6 +221,19 @@ describe("TradeModal — offer", () => {
 
         expect(screen.getByText(/escrow/i)).toBeInTheDocument()
         expect(screen.getByText(/7 day/i)).toBeInTheDocument()
+    })
+})
+
+describe("TradeModal — buy, price unavailable", () => {
+    it("shows alert and no confirm button when action=buy and priceUgnot is omitted", () => {
+        render(
+            <TradeModal
+                {...makeProps({ action: "buy", source: "v3", priceUgnot: undefined })}
+            />,
+        )
+
+        expect(screen.getByRole("alert")).toHaveTextContent(/price unavailable/i)
+        expect(screen.queryByRole("button", { name: /confirm purchase/i })).not.toBeInTheDocument()
     })
 })
 

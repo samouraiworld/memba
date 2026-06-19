@@ -8,6 +8,12 @@
  * Plumbing (approval check, broadcast call, coin attachment, error handling) is
  * taken verbatim from the existing modals. See those files for original patterns.
  *
+ * Props:
+ *  - `seller`    — displayed as "Seller" for buy, omit or leave for accept.
+ *  - `buyerAddr` — for action="accept": the address of the buyer whose offer is
+ *                  being accepted; passed directly to buildAcceptOfferV3Msg /
+ *                  buildAcceptOfferMsg as the buyer argument.
+ *
  * @module components/nft/TradeModal
  */
 
@@ -31,8 +37,10 @@ export interface TradeModalProps {
     collectionID: string
     tokenId: string
     priceUgnot?: number
-    /** For accept: the buyer address whose offer the seller is accepting. */
+    /** Seller address — displayed in the info block for action="buy". */
     seller?: string
+    /** For action="accept": the buyer address whose offer is being accepted. */
+    buyerAddr?: string
     royaltyBps: number
     callerAddress: string
     onClose: () => void
@@ -52,6 +60,7 @@ export function TradeModal({
     tokenId,
     priceUgnot,
     seller,
+    buyerAddr,
     royaltyBps,
     callerAddress,
     onClose,
@@ -189,15 +198,13 @@ export function TradeModal({
     const handleAccept = async () => {
         setConfirming(true)
         setError(null)
-        // `seller` prop carries the buyer address when action="accept"
-        // (the person who made the offer whose offer the NFT owner is accepting)
-        const buyerAddr = seller ?? ""
+        const offerBuyer = buyerAddr ?? ""
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
             const msg =
                 engine.engine === "v3"
-                    ? buildAcceptOfferV3Msg(callerAddress, collectionID, tokenId, buyerAddr)
-                    : buildAcceptOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, buyerAddr)
+                    ? buildAcceptOfferV3Msg(callerAddress, collectionID, tokenId, offerBuyer)
+                    : buildAcceptOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerBuyer)
             await doContractBroadcast([msg], `Accept offer on ${collectionID}/${tokenId}`)
             onSuccess()
         } catch (err) {
@@ -237,10 +244,15 @@ export function TradeModal({
                     <div><strong>Collection:</strong> {collectionID}</div>
                     <div><strong>Token:</strong> {tokenId}</div>
                     {action === "buy" && seller && <div><strong>Seller:</strong> {seller}</div>}
-                    {action === "accept" && seller && <div><strong>Buyer:</strong> {seller}</div>}
+                    {action === "accept" && buyerAddr && <div><strong>Buyer:</strong> {buyerAddr}</div>}
                 </div>
 
                 {/* ── BUY ─────────────────────────────────────────── */}
+                {action === "buy" && priceUgnot === undefined && (
+                    <p className="trade-modal__error" role="alert">
+                        Price unavailable — cannot complete this purchase.
+                    </p>
+                )}
                 {action === "buy" && priceUgnot !== undefined && (
                     <>
                         <PriceBreakdown

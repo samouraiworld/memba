@@ -198,7 +198,7 @@
     border: none;
     border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-4);
-    color: var(--color-on-primary, #fff);
+    color: var(--color-bg);
     cursor: pointer;
     font-size: var(--text-sm);
     font-weight: 600;
@@ -216,7 +216,7 @@
 /* ── Royalty notice ──────────────────────────────────────────── */
 
 .trade-modal__royalty-notice {
-    font-size: var(--text-xs, 11px);
+    font-size: var(--text-xs);
     color: var(--color-text-secondary);
     font-family: var(--font-mono);
 }
