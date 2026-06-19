@@ -56,9 +56,7 @@ function useFeaturedDao(networkKey: string, rpcUrl: string) {
                 getDAOProposals(rpcUrl, realmPath),
             ])
             if (!config) return null
-            const openProposals = proposals.filter(p =>
-                p.status === "open" || p.status === "active"
-            )
+            const openProposals = proposals.filter(p => p.status === "open")
             return {
                 realmPath,
                 name: config.name,
