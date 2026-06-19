@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { PriceBreakdown } from "./PriceBreakdown"
 
 describe("PriceBreakdown", () => {
@@ -39,13 +39,14 @@ describe("PriceBreakdown", () => {
     })
 
     it("handles zero fees correctly", () => {
-        render(<PriceBreakdown priceUgnot={1_000_000} feeBps={0} royaltyBps={0} />)
+        const { container } = render(<PriceBreakdown priceUgnot={1_000_000} feeBps={0} royaltyBps={0} />)
+        const view = within(container)
 
-        expect(screen.getByText("Price")).toBeInTheDocument()
-        expect(screen.getByText(/Platform Fee/)).toBeInTheDocument()
-        expect(screen.getByText("Seller Receives")).toBeInTheDocument()
-        expect(screen.getAllByText("1 GNOT")).toHaveLength(2) // Price and Seller receives (both 1 GNOT)
-        expect(screen.getAllByText("0 GNOT")).toHaveLength(2) // Platform fee and Creator royalty (both 0 GNOT)
+        expect(view.getByText("Price")).toBeInTheDocument()
+        expect(view.getByText(/Platform Fee/)).toBeInTheDocument()
+        expect(view.getByText("Seller Receives")).toBeInTheDocument()
+        expect(view.getAllByText("1 GNOT")).toHaveLength(2) // Price and Seller receives (both 1 GNOT)
+        expect(view.getAllByText("0 GNOT")).toHaveLength(2) // Platform fee and Creator royalty (both 0 GNOT)
     })
 
     it("displays fee percentages correctly in labels", () => {

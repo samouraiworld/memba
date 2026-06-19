@@ -7,7 +7,7 @@
  * - Creator royalty
  * - Seller receives
  *
- * Uses existing modal styling from nft-gallery.css.
+ * Imports its own PriceBreakdown.css for layout and token-based styling.
  */
 
 import { formatGnotCompact } from "../../lib/formatGnot"
@@ -31,7 +31,7 @@ export function PriceBreakdown({ priceUgnot, feeBps, royaltyBps }: PriceBreakdow
 
     return (
         <div className="price-breakdown">
-            <div className="price-breakdown__row price-breakdown__row--total">
+            <div className="price-breakdown__row">
                 <span>Price</span>
                 <span>{formatGnotCompact(priceUgnot)}</span>
             </div>
@@ -43,7 +43,7 @@ export function PriceBreakdown({ priceUgnot, feeBps, royaltyBps }: PriceBreakdow
                 <span>Creator Royalty ({royaltyPercent}%)</span>
                 <span>{formatGnotCompact(royaltyFee)}</span>
             </div>
-            <div className="price-breakdown__row price-breakdown__row--seller">
+            <div className="price-breakdown__row price-breakdown__row--seller price-breakdown__row--total">
                 <span>Seller Receives</span>
                 <span>{formatGnotCompact(sellerReceives)}</span>
             </div>
