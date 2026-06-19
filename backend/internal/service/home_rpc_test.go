@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/db"
 )
@@ -413,5 +415,70 @@ func TestFetchDirectoryMembers_Limit(t *testing.T) {
 	}
 	if len(members) != 3 {
 		t.Fatalf("expected 3 members after limit, got %d", len(members))
+	}
+}
+
+// ── Fault-tolerance + chain_id default tests ─────────────────────────────────
+
+// TestAssembleHomeSnapshot_PartialFailureIsTolerated asserts that when on-chain
+// and RPC sources fail, assembleHomeSnapshot still returns a non-nil snapshot
+// with the DB-backed fields populated and the failed sources listed in StaleSources.
+//
+// RPC sources are forced to fail by pointing at an unreachable address (port 1,
+// connection-refused, fast failure). On-chain sources fail via the injected
+// homeQuery that always returns an error. Only the two DB sources (countCollections,
+// maxIndexerBlock) succeed, so Counts.Collections must reflect the seeded row.
+func TestAssembleHomeSnapshot_PartialFailureIsTolerated(t *testing.T) {
+	s := newTestService(t)
+	// Inject failing homeQuery so all on-chain sources error immediately.
+	s.homeQuery = func(rpc, path, data string) (string, error) {
+		return "", fmt.Errorf("chain down")
+	}
+	// Seed one collection so the DB source has something to count.
+	if _, err := s.db.Exec(`INSERT INTO nft_collections (collection_id, name) VALUES ('a','A')`); err != nil {
+		t.Fatal("seed nft_collections:", err)
+	}
+
+	// Use an unreachable address so fetchNetworkPulse / fetchValidatorsHealth
+	// fail fast (connection refused, no 10s hang).
+	snap := s.assembleHomeSnapshot(context.Background(), "http://127.0.0.1:1")
+
+	if snap == nil {
+		t.Fatal("snapshot must never be nil")
+	}
+	if snap.Counts == nil || snap.Counts.Collections != 1 {
+		t.Fatalf("DB source should still populate Collections=1: Counts=%+v", snap.Counts)
+	}
+	if len(snap.StaleSources) == 0 {
+		t.Fatal("failed sources must be recorded in StaleSources")
+	}
+}
+
+// TestGetHomeSnapshot_DefaultsChainID asserts that when chain_id is omitted from
+// the request, GetHomeSnapshot falls back to s.chainID and returns a non-nil
+// snapshot (even when all on-chain / RPC sources are offline).
+//
+// Both RPC sources (network pulse, validators) and on-chain sources (homeQuery)
+// are forced offline so the test never touches the real test13 network.
+func TestGetHomeSnapshot_DefaultsChainID(t *testing.T) {
+	s := newTestService(t)
+	s.chainID = "test13"
+	// Force all on-chain sources to fail immediately (offline homeQuery).
+	s.homeQuery = func(rpc, path, data string) (string, error) {
+		return "", fmt.Errorf("offline")
+	}
+	// Force RPC sources (network pulse, validators) to fail fast via connection-refused.
+	os.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
+	defer os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
+
+	resp, err := s.GetHomeSnapshot(
+		context.Background(),
+		connect.NewRequest(&membav1.GetHomeSnapshotRequest{}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.Snapshot == nil {
+		t.Fatal("snapshot must be present even on full failure")
 	}
 }
