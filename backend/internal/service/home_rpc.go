@@ -3,8 +3,13 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -101,15 +106,31 @@ func (s *MultisigService) GetHomeSnapshot(
 // Each source is independently fault-tolerant (see Phase C). Returns a non-nil
 // snapshot even when sources fail (their names go in stale_sources).
 func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL string) *membav1.HomeSnapshot {
-	snap := &membav1.HomeSnapshot{GeneratedAt: time.Now().UTC().Format(time.RFC3339)}
+	snap := &membav1.HomeSnapshot{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Counts:      &membav1.EcosystemCounts{}, // initialise once; failed sources leave their field 0
+	}
+
+	// RPC source: network pulse (block height) from /status.
+	if p, err := fetchNetworkPulse(ctx, rpcURL); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "network")
+	} else {
+		snap.Network = p
+		snap.AsOfBlock = p.BlockHeight
+	}
+
+	// RPC source: validator-set health from /validators.
+	if v, err := fetchValidatorsHealth(ctx, rpcURL); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "validators")
+	} else {
+		snap.ValidatorsHealth = v
+		snap.Counts.Validators = v.Total
+	}
 
 	// DB source: collection count.
 	if n, err := s.countCollections(ctx); err != nil {
 		snap.StaleSources = append(snap.StaleSources, "collections")
 	} else {
-		if snap.Counts == nil {
-			snap.Counts = &membav1.EcosystemCounts{}
-		}
 		snap.Counts.Collections = n
 	}
 
@@ -139,4 +160,67 @@ func (s *MultisigService) maxIndexerBlock(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return b.Int64, nil
+}
+
+// httpGetJSON performs a GET to url, decodes the JSON body into out.
+// Local replica of the indexer's unexported httpGet so we avoid a cross-package dep.
+func httpGetJSON(ctx context.Context, url string, out any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, out)
+}
+
+// fetchNetworkPulse calls rpcURL+"/status" and returns the current block height.
+func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPulse, error) {
+	var s struct {
+		Result struct {
+			SyncInfo struct {
+				LatestBlockHeight string `json:"latest_block_height"`
+			} `json:"sync_info"`
+		} `json:"result"`
+	}
+	if err := httpGetJSON(ctx, rpcURL+"/status", &s); err != nil {
+		return nil, err
+	}
+	h, err := strconv.ParseInt(s.Result.SyncInfo.LatestBlockHeight, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse block height: %w", err)
+	}
+	return &membav1.NetworkPulse{BlockHeight: h}, nil
+}
+
+// fetchValidatorsHealth calls rpcURL+"/validators" and returns the validator-set
+// health. Active and Total are set from the set size; Status is "healthy" unless
+// the set is empty ("down"). AvgBlockTimeMs and per-validator uptime are not
+// computed in v1 (left 0 per YAGNI).
+func fetchValidatorsHealth(ctx context.Context, rpcURL string) (*membav1.ValidatorsHealth, error) {
+	var v struct {
+		Result struct {
+			Validators []json.RawMessage `json:"validators"`
+		} `json:"result"`
+	}
+	if err := httpGetJSON(ctx, rpcURL+"/validators", &v); err != nil {
+		return nil, err
+	}
+	total := uint32(len(v.Result.Validators))
+	status := "healthy"
+	if total == 0 {
+		status = "down"
+	}
+	return &membav1.ValidatorsHealth{Status: status, Active: total, Total: total}, nil
 }

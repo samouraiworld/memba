@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -111,5 +113,49 @@ func TestMaxIndexerBlock(t *testing.T) {
 	b, err := s.maxIndexerBlock(context.Background())
 	if err != nil || b != 250 {
 		t.Fatalf("got b=%d err=%v, want 250", b, err)
+	}
+}
+
+func TestFetchNetworkPulse_FromFixture(t *testing.T) {
+	body, err := os.ReadFile("testdata/home/status.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			w.Write(body)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+	p, err := fetchNetworkPulse(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.BlockHeight <= 0 {
+		t.Fatalf("block height not parsed: %d", p.BlockHeight)
+	}
+}
+
+func TestFetchValidatorsHealth_FromFixture(t *testing.T) {
+	body, err := os.ReadFile("testdata/home/validators.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/validators" {
+			w.Write(body)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+	v, err := fetchValidatorsHealth(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Total == 0 || v.Status == "" {
+		t.Fatalf("validators not parsed: %+v", v)
 	}
 }
