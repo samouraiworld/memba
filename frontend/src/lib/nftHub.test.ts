@@ -131,6 +131,49 @@ describe("fetchVerifiedCollections", () => {
         expect(mockFetchNFTCollection).toHaveBeenCalledTimes(2)
         expect(mockIsCollectionVerified).toHaveBeenCalledTimes(2)
     })
+
+    it("graceful failure: one collection's isCollectionVerified rejecting does not reject the batch", async () => {
+        mockFetchCollectionList.mockResolvedValue([COL_A, COL_B])
+        // Alpha's verified-check throws; Beta resolves normally
+        mockIsCollectionVerified.mockImplementation((id: string) =>
+            id === "g1creator/alpha"
+                ? Promise.reject(new Error("RPC timeout"))
+                : Promise.resolve(true),
+        )
+        mockFetchNFTCollection.mockResolvedValue(null)
+
+        // Must resolve (not reject) even when one collection errors
+        const result = await fetchVerifiedCollections()
+
+        expect(result).toHaveLength(2)
+
+        // The failing collection falls back to safe defaults
+        const alpha = result.find((c) => c.id === "g1creator/alpha")!
+        expect(alpha.verified).toBe(false)
+        expect(alpha.floorUgnot).toBe(0n)
+
+        // The passing collection is unaffected
+        const beta = result.find((c) => c.id === "g1creator/beta")!
+        expect(beta.verified).toBe(true)
+    })
+
+    it("logs cap message after enrichment with the actual collection count", async () => {
+        const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {})
+
+        // Provide 3 collections but cap at 2 → cap message should fire
+        const COL_C = { id: "g1creator/gamma", name: "Gamma", creator: "g1creator", slug: "gamma", phase: 1, minted: 2 }
+        mockFetchCollectionList.mockResolvedValue([COL_A, COL_B, COL_C])
+        mockIsCollectionVerified.mockResolvedValue(false)
+        mockFetchNFTCollection.mockResolvedValue(null)
+
+        await fetchVerifiedCollections(2)
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining("2 of 3"),
+        )
+
+        consoleSpy.mockRestore()
+    })
 })
 
 // ---------------------------------------------------------------------------

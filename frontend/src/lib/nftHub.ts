@@ -64,20 +64,33 @@ export async function fetchVerifiedCollections(limit = MAX_COLLECTIONS): Promise
 
     const enriched = await Promise.all(
         capped.map(async (col): Promise<HubCollection> => {
-            // Parallelise the two independent fetches for each collection
-            const [verified, stats] = await Promise.all([
-                isCollectionVerified(col.id),
-                fetchNFTCollection(col.id),
-            ])
+            try {
+                // Parallelise the two independent fetches for each collection
+                const [verified, stats] = await Promise.all([
+                    isCollectionVerified(col.id),
+                    fetchNFTCollection(col.id),
+                ])
 
-            return {
-                id: col.id,
-                name: col.name,
-                creator: col.creator,
-                slug: col.slug,
-                verified,
-                floorUgnot: stats?.floorPriceUgnot ?? 0n,
-                volumeUgnot: stats?.totalVolumeUgnot ?? 0n,
+                return {
+                    id: col.id,
+                    name: col.name,
+                    creator: col.creator,
+                    slug: col.slug,
+                    verified,
+                    floorUgnot: stats?.floorPriceUgnot ?? 0n,
+                    volumeUgnot: stats?.totalVolumeUgnot ?? 0n,
+                }
+            } catch {
+                // One collection failing must not reject the entire batch
+                return {
+                    id: col.id,
+                    name: col.name,
+                    creator: col.creator,
+                    slug: col.slug,
+                    verified: false,
+                    floorUgnot: 0n,
+                    volumeUgnot: 0n,
+                }
             }
         }),
     )
@@ -104,15 +117,15 @@ export async function fetchRecentActivity(
 ): Promise<NFTActivityItem[]> {
     if (collectionIds.length === 0) return []
 
-    console.info(
-        `nftHub: aggregated activity across ${collectionIds.length} collections (cap ${perCollection} items each)`,
-    )
-
     const perCollectionArrays = await Promise.all(
-        collectionIds.map((id) => fetchNFTActivity(id, perCollection)),
+        collectionIds.map((id) => fetchNFTActivity(id, perCollection).catch(() => [])),
     )
 
     const merged = perCollectionArrays.flat()
+
+    console.info(
+        `nftHub: aggregated ${merged.length} activity items across ${collectionIds.length} collections (cap ${perCollection} items each)`,
+    )
 
     // Sort by createdAt descending — parse to Date for robustness
     merged.sort((a, b) => {
