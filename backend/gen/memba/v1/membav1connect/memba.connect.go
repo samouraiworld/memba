@@ -140,6 +140,9 @@ const (
 	// MultisigServiceListNFTTokensProcedure is the fully-qualified name of the MultisigService's
 	// ListNFTTokens RPC.
 	MultisigServiceListNFTTokensProcedure = "/memba.v1.MultisigService/ListNFTTokens"
+	// MultisigServiceGetHomeSnapshotProcedure is the fully-qualified name of the MultisigService's
+	// GetHomeSnapshot RPC.
+	MultisigServiceGetHomeSnapshotProcedure = "/memba.v1.MultisigService/GetHomeSnapshot"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -189,6 +192,8 @@ type MultisigServiceClient interface {
 	GetNFTActivity(context.Context, *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error)
 	GetNFTPortfolio(context.Context, *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error)
 	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
+	// Home — aggregated dashboard snapshot (public read, server-cached)
+	GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -418,6 +423,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("ListNFTTokens")),
 			connect.WithClientOptions(opts...),
 		),
+		getHomeSnapshot: connect.NewClient[v1.GetHomeSnapshotRequest, v1.GetHomeSnapshotResponse](
+			httpClient,
+			baseURL+MultisigServiceGetHomeSnapshotProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetHomeSnapshot")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -459,6 +470,7 @@ type multisigServiceClient struct {
 	getNFTActivity       *connect.Client[v1.GetNFTActivityRequest, v1.GetNFTActivityResponse]
 	getNFTPortfolio      *connect.Client[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse]
 	listNFTTokens        *connect.Client[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse]
+	getHomeSnapshot      *connect.Client[v1.GetHomeSnapshotRequest, v1.GetHomeSnapshotResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -641,6 +653,11 @@ func (c *multisigServiceClient) ListNFTTokens(ctx context.Context, req *connect.
 	return c.listNFTTokens.CallUnary(ctx, req)
 }
 
+// GetHomeSnapshot calls memba.v1.MultisigService.GetHomeSnapshot.
+func (c *multisigServiceClient) GetHomeSnapshot(ctx context.Context, req *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error) {
+	return c.getHomeSnapshot.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -688,6 +705,8 @@ type MultisigServiceHandler interface {
 	GetNFTActivity(context.Context, *connect.Request[v1.GetNFTActivityRequest]) (*connect.Response[v1.GetNFTActivityResponse], error)
 	GetNFTPortfolio(context.Context, *connect.Request[v1.GetNFTPortfolioRequest]) (*connect.Response[v1.GetNFTPortfolioResponse], error)
 	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
+	// Home — aggregated dashboard snapshot (public read, server-cached)
+	GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -913,6 +932,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("ListNFTTokens")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetHomeSnapshotHandler := connect.NewUnaryHandler(
+		MultisigServiceGetHomeSnapshotProcedure,
+		svc.GetHomeSnapshot,
+		connect.WithSchema(multisigServiceMethods.ByName("GetHomeSnapshot")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -987,6 +1012,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetNFTPortfolioHandler.ServeHTTP(w, r)
 		case MultisigServiceListNFTTokensProcedure:
 			multisigServiceListNFTTokensHandler.ServeHTTP(w, r)
+		case MultisigServiceGetHomeSnapshotProcedure:
+			multisigServiceGetHomeSnapshotHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1138,4 +1165,8 @@ func (UnimplementedMultisigServiceHandler) GetNFTPortfolio(context.Context, *con
 
 func (UnimplementedMultisigServiceHandler) ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.ListNFTTokens is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetHomeSnapshot is not implemented"))
 }
