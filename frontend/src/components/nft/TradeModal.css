@@ -95,7 +95,7 @@
     height: 20px;
     border-radius: 50%;
     border: 1px solid currentColor;
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-family: var(--font-mono);
 }
 
