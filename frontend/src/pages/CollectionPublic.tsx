@@ -272,7 +272,10 @@ export function CollectionPublic() {
                                     className="mhub-activity-row"
                                 >
                                     <div className="mhub-activity-row__thumb">
-                                        <NFTMedia uri="" alt={`Token #${item.tokenId}`} />
+                                        <NFTMedia
+                                            uri={tokens.find(t => t.tokenId === item.tokenId)?.uri ?? ""}
+                                            alt={`Token #${item.tokenId}`}
+                                        />
                                     </div>
                                     <div className="mhub-activity-row__info">
                                         <span className="mhub-activity-row__token">
@@ -331,7 +334,7 @@ export function CollectionPublic() {
             )}
 
             {/* ── TradeModal ───────────────────────────────────────── */}
-            {modal && me && (
+            {modal && me !== "" && (
                 <TradeModal
                     action={modal.action}
                     source="v3"

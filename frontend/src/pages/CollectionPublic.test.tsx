@@ -314,6 +314,7 @@ describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
             action: "offer",
             source: "v3",
             collectionID: COL_ID,
+            tokenId: "1",
         })
     })
 })
