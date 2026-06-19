@@ -34,6 +34,11 @@ import { listingKey } from "../lib/v3TokenGrid"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
 
+// ── Feature flags ─────────────────────────────────────────────────────
+
+// Phase 3: re-enable when accept-offer is wired (hook needs per-token offer data)
+const OFFERS_ENABLED = false
+
 // ── Tab types ─────────────────────────────────────────────────────────
 
 type Tab = "items" | "activity" | "about"
@@ -237,7 +242,7 @@ export function CollectionPublic() {
                                                 >
                                                     Buy
                                                 </button>
-                                            ) : !isListed && !isOwner ? (
+                                            ) : !isListed && !isOwner && OFFERS_ENABLED ? (
                                                 <button
                                                     className="cpub-action-btn"
                                                     onClick={() =>

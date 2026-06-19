@@ -295,27 +295,20 @@ describe("CollectionPublic — Items tab: listed token → Buy", () => {
     })
 })
 
-describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
-    it("opens TradeModal with action='offer' for an unlisted token not owned by viewer", async () => {
+describe("CollectionPublic — Items tab: unlisted token → Offer (OFFERS_ENABLED=false)", () => {
+    it("does NOT render a Make-offer button for an unlisted token not owned by viewer (gated until Phase 3)", async () => {
         renderPage()
 
-        // Token #1 is not listed, owned by TOKEN_OWNER_1 (not ME)
+        // Token #1 is not listed, owned by TOKEN_OWNER_1 (not ME).
+        // With OFFERS_ENABLED=false, no Make-offer button should appear and the
+        // offer modal must not open. The "Not listed" label should still be visible.
         await waitFor(() => {
-            expect(screen.getAllByRole("button", { name: /Make offer/i }).length).toBeGreaterThan(0)
+            expect(screen.getAllByText(/Cool NFTs/).length).toBeGreaterThan(0)
         })
 
-        fireEvent.click(screen.getAllByRole("button", { name: /Make offer/i })[0])
-
-        await waitFor(() => {
-            expect(screen.getByTestId("trade-modal")).toBeInTheDocument()
-        })
-
-        expect(capturedTradeProps.at(-1)).toMatchObject({
-            action: "offer",
-            source: "v3",
-            collectionID: COL_ID,
-            tokenId: "1",
-        })
+        expect(screen.queryAllByRole("button", { name: /Make offer/i })).toHaveLength(0)
+        expect(screen.queryByTestId("trade-modal")).not.toBeInTheDocument()
+        expect(screen.getAllByText(/Not listed/i).length).toBeGreaterThan(0)
     })
 })
 
