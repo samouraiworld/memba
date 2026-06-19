@@ -29,19 +29,29 @@ export function LegacyCollectionView() {
     const [collection, setCollection] = useState<NFTCollection | null>(null)
     const [renderOutput, setRenderOutput] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!realmPath) return
         let cancelled = false
         const load = async () => {
-            const [info, raw] = await Promise.all([
-                getCollectionInfo(realmPath),
-                queryRender(GNO_RPC_URL, realmPath, ""),
-            ])
-            if (!cancelled) {
-                setCollection(info)
-                setRenderOutput(raw)
-                setLoading(false)
+            try {
+                const [info, raw] = await Promise.all([
+                    getCollectionInfo(realmPath),
+                    queryRender(GNO_RPC_URL, realmPath, ""),
+                ])
+                if (!cancelled) {
+                    setCollection(info)
+                    setRenderOutput(raw)
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : "Failed to load collection.")
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false)
+                }
             }
         }
         load()
@@ -60,6 +70,14 @@ export function LegacyCollectionView() {
         return (
             <div className="nft-page animate-fade-in" data-testid="lcv-loading">
                 <SkeletonCard /><SkeletonCard />
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="nft-page animate-fade-in">
+                <p className="mhub-error" role="alert">{error}</p>
             </div>
         )
     }
@@ -109,7 +127,7 @@ export function LegacyCollectionView() {
                         className="nft-render-output"
                         dangerouslySetInnerHTML={{
                             __html: DOMPurify.sanitize(
-                                (renderOutput || "")
+                                renderOutput
                                     .replace(/^# (.+)$/gm, '<h2>$1</h2>')
                                     .replace(/^## (.+)$/gm, '<h3>$1</h3>')
                                     .replace(/^\*\*(.+?)\*\*$/gm, '<strong>$1</strong>')

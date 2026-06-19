@@ -94,9 +94,8 @@ describe("LegacyCollectionView — legacy banner", () => {
     it("shows the 'Legacy collection — read only' banner", async () => {
         renderView()
         await waitFor(() => {
-            expect(screen.getByText(/legacy collection/i)).toBeInTheDocument()
+            expect(screen.getByText(/legacy collection.*read only/i)).toBeInTheDocument()
         })
-        expect(screen.getByText(/read only/i)).toBeInTheDocument()
     })
 })
 
@@ -177,5 +176,17 @@ describe("LegacyCollectionView — loading state", () => {
         renderView()
         // Something that indicates loading is visible immediately
         expect(screen.getByTestId("lcv-loading")).toBeInTheDocument()
+    })
+})
+
+describe("LegacyCollectionView — error state", () => {
+    it("shows an error alert and no skeleton when the load rejects", async () => {
+        mockGetCollectionInfo.mockRejectedValue(new Error("network failure"))
+        renderView()
+        await waitFor(() => {
+            expect(screen.getByRole("alert")).toBeInTheDocument()
+        })
+        expect(screen.getByRole("alert")).toHaveTextContent("network failure")
+        expect(screen.queryByTestId("lcv-loading")).not.toBeInTheDocument()
     })
 })
