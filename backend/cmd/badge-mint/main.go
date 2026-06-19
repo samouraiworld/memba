@@ -32,6 +32,7 @@ func main() {
 		key        = flag.String("key", "samcrew-multisig", "gnokey key name for the multisig signer")
 		chainID    = flag.String("chain-id", "test-13", "gno chain id")
 		remote     = flag.String("remote", "https://rpc.test13.testnets.gno.land:443", "gno RPC endpoint")
+		metaBase   = flag.String("metadata-base", "", "base URI for badge metadata; tokenURI = <base>/<questId>.json (quest) or <base>/rank-<tier>.json (rank). Empty = no tokenURI (set later via UpdateTokenURI). Pin assets first — see docs/BADGE_MINT_RUNBOOK.md")
 		markMinted = flag.Bool("mark-minted", false, "mark a queued mint as minted (needs -id, -tx)")
 		markFailed = flag.Bool("mark-failed", false, "mark a queued mint as failed (needs -id)")
 		id         = flag.Int64("id", 0, "badge_mints row id")
@@ -64,7 +65,7 @@ func main() {
 		if err != nil {
 			fatal("%v", err)
 		}
-		emitMintCalls(os.Stdout, mints, *realm, *key, *chainID, *remote)
+		emitMintCalls(os.Stdout, mints, *realm, *key, *chainID, *remote, *metaBase)
 	}
 }
 
@@ -96,9 +97,8 @@ func pendingMints(db *sql.DB) ([]pendingMint, error) {
 
 // emitMintCalls writes a gnokey mint command per pending row. Rank badges
 // (quest_id "rank:N") use MintRankBadge; everything else MintQuestBadge. The
-// tokenURI arg is left empty — set it (or UpdateTokenURI post-mint) once badge
-// metadata is pinned to IPFS.
-func emitMintCalls(w *os.File, mints []pendingMint, realm, key, chainID, remote string) {
+// tokenURI is derived from metaBase (empty -> "", set later via UpdateTokenURI).
+func emitMintCalls(w *os.File, mints []pendingMint, realm, key, chainID, remote, metaBase string) {
 	_, _ = fmt.Fprintf(w, "# %d pending badge mint(s). Sign+broadcast each with the multisig, then run -mark-minted -id <id> -tx <hash>.\n", len(mints))
 	for _, m := range mints {
 		_, _ = fmt.Fprintf(w, "\n# mint #%d  addr=%s  quest=%s\n", m.ID, m.Address, m.QuestID)
@@ -108,8 +108,22 @@ func emitMintCalls(w *os.File, mints []pendingMint, realm, key, chainID, remote 
 		}
 		_, _ = fmt.Fprintf(w,
 			"gnokey maketx call -pkgpath %q -func %s -args %q -args %q -args %q -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid %q -remote %q -broadcast %s\n",
-			realm, fn, m.Address, arg2, "", chainID, remote, key)
+			realm, fn, m.Address, arg2, tokenURIFor(metaBase, m.QuestID), chainID, remote, key)
 	}
+}
+
+// tokenURIFor builds the metadata URI for a badge: <base>/<questId>.json for
+// quest badges, <base>/rank-<tier>.json for rank badges. Returns "" when base is
+// empty (the operator sets the tokenURI later via UpdateTokenURI).
+func tokenURIFor(base, questID string) string {
+	if base == "" {
+		return ""
+	}
+	base = strings.TrimRight(base, "/")
+	if tier, ok := rankTier(questID); ok {
+		return base + "/rank-" + strconv.Itoa(tier) + ".json"
+	}
+	return base + "/" + questID + ".json"
 }
 
 // rankTier parses a "rank:N" quest_id into its tier number.

@@ -58,3 +58,15 @@ func TestPendingMints(t *testing.T) {
 		t.Fatalf("unexpected pending content: %+v", mints)
 	}
 }
+
+func TestTokenURIFor(t *testing.T) {
+	if got := tokenURIFor("", "deploy-hello-pkg"); got != "" {
+		t.Errorf("empty base -> %q, want \"\"", got)
+	}
+	if got := tokenURIFor("ipfs://CID", "connect-wallet"); got != "ipfs://CID/connect-wallet.json" {
+		t.Errorf("quest -> %q", got)
+	}
+	if got := tokenURIFor("ipfs://CID/", "rank:3"); got != "ipfs://CID/rank-3.json" {
+		t.Errorf("rank (trailing slash) -> %q", got)
+	}
+}

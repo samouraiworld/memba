@@ -10,8 +10,9 @@ import { useMemo, useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { loadQuestProgress } from "../../lib/quests"
-import { ALL_QUESTS, calculateRank } from "../../lib/gnobuilders"
+import { ALL_QUESTS, calculateRank, getQuestById } from "../../lib/gnobuilders"
 import { fetchUserBadges, type BadgeSummary } from "../../lib/badges"
+import { questBadgeSvg, rankBadgeSvg, rankTierOf, svgDataUri } from "../../lib/badgeArt"
 import { RankBadge } from "./RankBadge"
 import { GNO_RPC_URL } from "../../lib/config"
 
@@ -19,6 +20,13 @@ interface AchievementGridProps {
     address: string
     /** If true, show the "View All Quests" link */
     showLink?: boolean
+}
+
+/** SVG art for a badge: a rank medallion for "rank:N", else a category shield. */
+function badgeSvgFor(questId: string, icon: string): string {
+    const tier = rankTierOf(questId)
+    if (tier !== null) return rankBadgeSvg(tier)
+    return questBadgeSvg(getQuestById(questId)?.category ?? "everyone", icon)
 }
 
 export function AchievementGrid({ address, showLink = true }: AchievementGridProps) {
@@ -45,12 +53,12 @@ export function AchievementGrid({ address, showLink = true }: AchievementGridPro
     const totalBadges = badgeSummary?.totalBadges ?? completedQuests.length
     const displayBadges = badgeSummary?.badges?.length
         ? badgeSummary.badges.slice(0, 12).map(b => ({
-            icon: b.questIcon || "🏅",
+            svg: badgeSvgFor(b.questId, b.questIcon || "🏅"),
             title: b.questTitle || b.questId,
             soulbound: b.soulbound,
         }))
         : completedQuests.slice(0, 12).map(q => ({
-            icon: q.icon,
+            svg: questBadgeSvg(q.category, q.icon),
             title: q.title,
             soulbound: false,
         }))
@@ -78,7 +86,7 @@ export function AchievementGrid({ address, showLink = true }: AchievementGridPro
                             className={`k-achievements-badge${badge.soulbound ? " k-achievements-badge--soulbound" : ""}`}
                             title={badge.title + (badge.soulbound ? " (soulbound)" : "")}
                         >
-                            <span className="k-achievements-badge-icon">{badge.icon}</span>
+                            <img className="k-achievements-badge-art" src={svgDataUri(badge.svg)} alt="" aria-hidden="true" />
                             <span className="k-achievements-badge-name">{badge.title}</span>
                         </div>
                     ))}
