@@ -534,6 +534,12 @@ export const MEMBA_DAO = {
 export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 
 /**
+ * The network key the backend home snapshot is scoped to.
+ * useHomeSnapshot gates its query on this key so it never fires on other networks.
+ */
+export const SNAPSHOT_NETWORK = "test13"
+
+/**
  * Featured DAO realm path per network key — the DAO surfaced on the home
  * StateBoard for everyone (members + visitors). Null means the panel
  * self-hides on that network.
