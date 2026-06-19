@@ -1,0 +1,41 @@
+/**
+ * PriceBreakdown.css — Styling for the PriceBreakdown component.
+ *
+ * Uses design tokens from tokens.css; follows nft-modal styling patterns.
+ */
+
+.price-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--color-overlay-light);
+    border: 1px solid var(--color-border);
+}
+
+.price-breakdown__row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+}
+
+.price-breakdown__row--fee {
+    color: #ef4444;
+    font-size: 11px;
+}
+
+.price-breakdown__row--seller {
+    color: var(--color-primary);
+    font-size: 11px;
+}
+
+.price-breakdown__row--total {
+    border-top: 1px solid var(--color-border);
+    padding-top: 6px;
+    margin-top: 2px;
+    font-weight: 700;
+    color: var(--color-text);
+}
