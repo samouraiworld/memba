@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"os"
 	"time"
@@ -53,6 +54,9 @@ func (s *MultisigService) cachedHomeSnapshot(
 		return cached // HIT
 	}
 
+	// The snapshot is single-network (test13) per spec §6, so the same RPC URL
+	// serves every chain_id today. A future multi-chain deployment would resolve
+	// the RPC URL from chainID here instead of calling homeSnapshotRPCURL().
 	fresh := assemble(ctx, homeSnapshotRPCURL()) // MISS
 	if fresh == nil {
 		// Serve stale if we have any prior value.
@@ -97,5 +101,42 @@ func (s *MultisigService) GetHomeSnapshot(
 // Each source is independently fault-tolerant (see Phase C). Returns a non-nil
 // snapshot even when sources fail (their names go in stale_sources).
 func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL string) *membav1.HomeSnapshot {
-	return &membav1.HomeSnapshot{GeneratedAt: time.Now().UTC().Format(time.RFC3339)}
+	snap := &membav1.HomeSnapshot{GeneratedAt: time.Now().UTC().Format(time.RFC3339)}
+
+	// DB source: collection count.
+	if n, err := s.countCollections(ctx); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "collections")
+	} else {
+		if snap.Counts == nil {
+			snap.Counts = &membav1.EcosystemCounts{}
+		}
+		snap.Counts.Collections = n
+	}
+
+	// DB source: highest block seen by the NFT indexer.
+	if b, err := s.maxIndexerBlock(ctx); err != nil {
+		snap.StaleSources = append(snap.StaleSources, "indexer_block")
+	} else {
+		snap.IndexerLastBlock = b
+	}
+
+	return snap
+}
+
+// countCollections returns the number of NFT collections tracked in the DB.
+func (s *MultisigService) countCollections(ctx context.Context) (uint32, error) {
+	var n uint32
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nft_collections`).Scan(&n)
+	return n, err
+}
+
+// maxIndexerBlock returns the highest last_processed_block across all indexed
+// realms. Returns 0 when the table is empty (MAX returns NULL on an empty set).
+func (s *MultisigService) maxIndexerBlock(ctx context.Context) (int64, error) {
+	var b sql.NullInt64
+	err := s.db.QueryRowContext(ctx, `SELECT MAX(last_processed_block) FROM nft_indexer_state`).Scan(&b)
+	if err != nil {
+		return 0, err
+	}
+	return b.Int64, nil
 }

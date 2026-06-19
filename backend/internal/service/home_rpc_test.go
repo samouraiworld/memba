@@ -7,7 +7,33 @@ import (
 	"time"
 
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/db"
 )
+
+// newTestService returns a *MultisigService backed by an in-memory SQLite DB
+// (migrated) with the home-snapshot cache fields initialised. Mirror of setup()
+// in service_test.go but returns the service directly instead of a testHarness.
+func newTestService(t *testing.T) *MultisigService {
+	t.Helper()
+	database, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatal("open db:", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+	t.Cleanup(func() {
+		if err := database.Close(); err != nil {
+			t.Errorf("failed to close database: %v", err)
+		}
+	})
+	return &MultisigService{
+		db:           database,
+		homeCached:   make(map[string]*membav1.HomeSnapshot),
+		homeCachedAt: make(map[string]time.Time),
+		homeQuery:    abciQuery,
+	}
+}
 
 func TestHomeSnapshotRPCURL_DefaultsToTest13(t *testing.T) {
 	os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
@@ -61,5 +87,29 @@ func TestCachedHomeSnapshot_MissThenHitThenStale(t *testing.T) {
 	got = s.cachedHomeSnapshot(context.Background(), "test13", fail)
 	if got == nil || got.AsOfBlock != 1 {
 		t.Fatalf("stale: expected last-good block=1, got %+v", got)
+	}
+}
+
+func TestCountCollections(t *testing.T) {
+	s := newTestService(t)
+	_, err := s.db.Exec(`INSERT INTO nft_collections (collection_id, name) VALUES ('a','A'),('b','B')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.countCollections(context.Background())
+	if err != nil || n != 2 {
+		t.Fatalf("got n=%d err=%v, want 2", n, err)
+	}
+}
+
+func TestMaxIndexerBlock(t *testing.T) {
+	s := newTestService(t)
+	_, err := s.db.Exec(`INSERT INTO nft_indexer_state (realm_path, last_processed_block) VALUES ('r1', 100), ('r2', 250)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.maxIndexerBlock(context.Background())
+	if err != nil || b != 250 {
+		t.Fatalf("got b=%d err=%v, want 250", b, err)
 	}
 }
