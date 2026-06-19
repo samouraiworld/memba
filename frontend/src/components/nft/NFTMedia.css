@@ -1,0 +1,65 @@
+/**
+ * NFTMedia.css — Self-contained styles for the NFTMedia component.
+ * Uses tokens.css variables; no dependency on any global stylesheet.
+ */
+
+.nft-media-root {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+/* ── Placeholder (empty uri or load error) ───────────────── */
+.nft-media-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 80px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+}
+
+.nft-media-placeholder__icon {
+    display: block;
+    opacity: 0.4;
+}
+
+/* ── Skeleton shimmer while loading ─────────────────────── */
+.nft-media-skeleton {
+    width: 100%;
+    height: 100%;
+    min-height: 80px;
+    background: linear-gradient(
+        90deg,
+        var(--color-surface) 0%,
+        var(--color-surface-hover) 50%,
+        var(--color-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: nft-shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-md);
+}
+
+@keyframes nft-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ── Image (hidden until loaded) ─────────────────────────── */
+.nft-media-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+}
+
+.nft-media-img--hidden {
+    display: none;
+}
