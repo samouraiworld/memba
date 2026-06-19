@@ -111,12 +111,12 @@ var (
 // This is the server-side authority that closes the direct-RPC fabrication
 // hole (P0-1): the client's claim that it passed the frontend verifier is
 // never trusted.
-func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, questID string) error {
+func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, questID, proof string) error {
 	switch questVerification[questID] {
 	case "self_report", "social":
 		return connect.NewError(connect.CodeInvalidArgument, errProofRequired)
 	case "on_chain":
-		ok, err := s.runOnChainVerify(ctx, addr, questID)
+		ok, err := s.runOnChainVerify(ctx, addr, questID, proof)
 		if err != nil {
 			return connect.NewError(connect.CodeFailedPrecondition, errVerifyUnavailable)
 		}
@@ -131,11 +131,11 @@ func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, ques
 }
 
 // runOnChainVerify dispatches to the test seam if present, else the real impl.
-func (s *MultisigService) runOnChainVerify(ctx context.Context, addr, questID string) (bool, error) {
+func (s *MultisigService) runOnChainVerify(ctx context.Context, addr, questID, proof string) (bool, error) {
 	if s.verifyOnChainQuest != nil {
-		return s.verifyOnChainQuest(ctx, addr, questID)
+		return s.verifyOnChainQuest(ctx, addr, questID, proof)
 	}
-	return s.defaultVerifyOnChainQuest(ctx, addr, questID)
+	return s.defaultVerifyOnChainQuest(ctx, addr, questID, proof)
 }
 
 // defaultVerifyOnChainQuest re-queries the chain to confirm an on_chain quest's
@@ -148,9 +148,15 @@ func (s *MultisigService) runOnChainVerify(ctx context.Context, addr, questID st
 // ownership quests (join-dao, create-token, …) need structured render parsing
 // (a substring scan over full render output could be spoofed by a realm that
 // echoes an attacker-controlled address) and are deferred to Phase 3.
-func (s *MultisigService) defaultVerifyOnChainQuest(_ context.Context, addr, questID string) (bool, error) {
+func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, questID, proof string) (bool, error) {
 	if !addrRe.MatchString(addr) {
 		return false, nil // malformed address — never interpolate into a query
+	}
+	// Deploy quests: the proof is a realm/package path the user must own (under
+	// their registered @username namespace) and that exists on-chain, distinct
+	// per deploy quest so one deploy can't satisfy all of them.
+	if strings.HasPrefix(questID, "deploy-") {
+		return s.verifyDeployQuest(ctx, addr, questID, proof)
 	}
 	switch questID {
 	case "register-username":
@@ -194,6 +200,121 @@ func renderExists(out string) bool {
 	}
 	lower := strings.ToLower(out)
 	return !strings.Contains(lower, "not found") && !strings.Contains(lower, "404")
+}
+
+// ── Deploy-quest verification ───────────────────────────────
+
+var nsRe = regexp.MustCompile(`^gno\.land/[rp]/([a-z0-9_-]+)/`)
+
+// namespaceOf extracts the <ns> segment from a gno.land/{r,p}/<ns>/... path.
+// The captured ns is [a-z0-9_-]+ (no quote/paren/backslash), so it is safe to
+// interpolate into a query; a non-existent ns is caught by namespaceOwnedBy.
+func namespaceOf(path string) (string, bool) {
+	m := nsRe.FindStringSubmatch(strings.TrimSpace(path))
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
+// pkgPathRe matches a canonical gno package path: a namespace + at least one
+// package segment, all [a-z0-9_-] (gno allows hyphens in path segments), no
+// trailing slash, no dots.
+var pkgPathRe = regexp.MustCompile(`^gno\.land/[rp]/[a-z0-9_-]+/[a-z0-9_-]+(?:/[a-z0-9_-]+)*$`)
+
+// canonicalizeProof reduces a user-supplied realm/package path to its canonical
+// package-root form, so that trailing slashes, repeated slashes, and individual
+// file paths all collapse to ONE dedup key (e.g. "…/foo/", "…/foo//", and
+// "…/foo/render.gno" → "…/foo"). Both the existence check and the distinct-path
+// key use this — otherwise a single realm's many string aliases would each farm
+// a different deploy quest. Returns false if the result isn't a valid pkg path.
+func canonicalizeProof(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	for strings.Contains(raw, "//") {
+		raw = strings.ReplaceAll(raw, "//", "/")
+	}
+	raw = strings.TrimRight(raw, "/")
+	// Drop a trailing filename segment (one containing a dot) -> package dir.
+	if i := strings.LastIndex(raw, "/"); i >= 0 && strings.Contains(raw[i+1:], ".") {
+		raw = raw[:i]
+	}
+	if !pkgPathRe.MatchString(raw) {
+		return "", false
+	}
+	return raw, true
+}
+
+// verifyDeployQuest confirms a deploy quest's proof path is (1) under the user's
+// registered @username namespace, (2) live on-chain, and (3) not already counted
+// for another of this user's deploy quests (so one deploy can't farm all 19).
+func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, proof string) (bool, error) {
+	// Canonicalize so a single realm's string aliases (trailing/repeated slashes,
+	// file paths) can't each farm a different deploy quest. CompleteQuest stores
+	// the same canonical form, so the distinct-path key matches.
+	canon, ok := canonicalizeProof(proof)
+	if !ok {
+		return false, nil // not a valid gno.land/{r,p}/<ns>/<pkg> path
+	}
+	ns, _ := namespaceOf(canon) // canon is a valid pkg path -> ns present
+	owned, err := s.namespaceOwnedBy(ns, addr)
+	if err != nil {
+		return false, err
+	}
+	if !owned {
+		return false, nil
+	}
+	exists, err := pathExists(canon)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+	used, err := s.proofUsedForOtherDeploy(ctx, addr, questID, canon)
+	if err != nil {
+		return false, err
+	}
+	return !used, nil
+}
+
+// namespaceOwnedBy reports whether the @username namespace `ns` resolves to
+// `addr` via r/sys/users.ResolveName — i.e. the user owns that namespace.
+// ResolveName returns (*UserData, bool); the UserData prints the owner address,
+// so the namespace is the user's iff that address is theirs.
+func (s *MultisigService) namespaceOwnedBy(ns, addr string) (bool, error) {
+	out, err := questEval(verifyUserRegistryPath + `.ResolveName("` + ns + `")`)
+	if err != nil {
+		return false, err
+	}
+	// Match the address as the typed owner FIELD, not as a raw substring, so a
+	// (hypothetical) lookalike username field can't false-positive. ResolveName's
+	// UserData prints the owner as `("<addr>" .uverse.address)`.
+	return strings.Contains(out, `("`+addr+`" .uverse.address)`), nil
+}
+
+// pathExists reports whether a realm/package exists at `path` (vm/qfile lists
+// its files; an absent path yields an ABCI error -> empty result).
+func pathExists(path string) (bool, error) {
+	out, err := questAbciQuery(questRPCURL(), "vm/qfile", path)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+// proofUsedForOtherDeploy reports whether this user already completed a DIFFERENT
+// deploy quest with the same proof path.
+func (s *MultisigService) proofUsedForOtherDeploy(ctx context.Context, addr, questID, proof string) (bool, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM quest_completions
+		 WHERE address = ? AND quest_id LIKE 'deploy-%' AND quest_id != ? AND proof = ?`,
+		addr, questID, proof,
+	).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 // questRender runs a vm/qrender query (pkgPath + ":" + renderArg) against the

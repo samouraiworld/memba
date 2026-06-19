@@ -2,11 +2,18 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { create } from "@bufbuild/protobuf"
 import { TokenSchema } from "../gen/memba/v1/memba_pb"
 
-// Mock the backend client so syncQuestsToBackend hits a controllable stub.
+// Mock the backend client so syncQuestsToBackend / completeQuestVerified hit
+// controllable stubs.
 const syncQuestsMock = vi.fn()
-vi.mock("./api", () => ({ api: { syncQuests: (...args: unknown[]) => syncQuestsMock(...args) } }))
+const completeQuestMock = vi.fn()
+vi.mock("./api", () => ({
+    api: {
+        syncQuests: (...args: unknown[]) => syncQuestsMock(...args),
+        completeQuest: (...args: unknown[]) => completeQuestMock(...args),
+    },
+}))
 
-import { syncQuestsToBackend } from "./quests"
+import { syncQuestsToBackend, completeQuestVerified } from "./quests"
 
 const STORAGE_KEY = "memba_quests"
 
@@ -62,5 +69,32 @@ describe("syncQuestsToBackend merge (P1-2)", () => {
         const result = await syncQuestsToBackend(create(TokenSchema, {}))
         expect(result.completed.map(c => c.questId).sort()).toEqual(["connect-wallet", "use-cmdk"])
         expect(result.totalXP).toBe(20) // connect-wallet(10) + use-cmdk(10)
+    })
+})
+
+describe("completeQuestVerified (backend-gated)", () => {
+    beforeEach(() => {
+        localStorage.clear()
+        completeQuestMock.mockReset()
+    })
+
+    it("records the completion locally only when the server grants it", async () => {
+        completeQuestMock.mockResolvedValue({ state: { completed: [], totalXp: 0 } })
+
+        const result = await completeQuestVerified("deploy-hello-pkg", "gno.land/r/alice/foo", create(TokenSchema, {}))
+
+        expect(result.state.completed.some(c => c.questId === "deploy-hello-pkg")).toBe(true)
+        expect(result.state.totalXP).toBe(20) // deploy-hello-pkg xp
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+        expect(saved.completed.map((c: { questId: string }) => c.questId)).toContain("deploy-hello-pkg")
+    })
+
+    it("throws and records nothing when the server rejects", async () => {
+        completeQuestMock.mockRejectedValue(new Error("requirements not met"))
+
+        await expect(
+            completeQuestVerified("deploy-hello-pkg", "gno.land/r/alice/foo", create(TokenSchema, {})),
+        ).rejects.toThrow()
+        expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
     })
 })

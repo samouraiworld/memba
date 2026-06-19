@@ -381,44 +381,9 @@ function verifySocial(quest: GnoQuest): QuestVerificationResult {
     }
 }
 
-// ── Deployment Verifier (for developer quests) ──────────────
-
-/**
- * Verify a deployment quest by checking if a realm/package exists at the given path.
- * Used when the user provides their deployed realm path.
- */
-export async function verifyDeployment(
-    rpcUrl: string,
-    realmPath: string,
-    address: string,
-): Promise<QuestVerificationResult> {
-    try {
-        // Ownership check: verify the realm path contains the user's address or namespace.
-        // Gno realm paths are namespaced (e.g., gno.land/r/username/realm), so a deployed
-        // realm should be under the deployer's namespace. We check if the address appears
-        // in the Render() output (many realms include the admin/owner address).
-        const result = await queryRender(rpcUrl, realmPath, "")
-        if (!result || result.length === 0 || result.includes("not found")) {
-            return NOT_VERIFIED("No realm found at path: " + realmPath)
-        }
-
-        // Check if the user's address appears in the realm output (admin/owner display)
-        // or if the realm path contains a segment matching the user's address prefix
-        const addrPrefix = address.slice(0, 10) // g1xxxxxxxx
-        const pathContainsAddr = realmPath.toLowerCase().includes(addrPrefix.toLowerCase())
-        const renderContainsAddr = result.includes(address) || result.includes(addrPrefix)
-
-        if (pathContainsAddr || renderContainsAddr) {
-            return VERIFIED
-        }
-
-        // If we can't confirm ownership but realm exists, still credit it but warn
-        // (some realms don't display owner in Render output)
-        return VERIFIED // Realm exists — benefit of the doubt for testnet quests
-    } catch {
-        return PENDING("Chain unavailable — will verify when accessible")
-    }
-}
+// Deploy quests are now verified server-side (the backend checks the proof realm
+// path is under the user's @username namespace + exists). The old client-side
+// verifyDeployment was removed — it credited any existing realm.
 
 // ── Tracking Helpers (for off-chain auto-complete quests) ────
 

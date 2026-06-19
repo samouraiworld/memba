@@ -190,20 +190,35 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
+	proof := strings.TrimSpace(req.Msg.Proof)
+	if len(proof) > maxProofURLLen {
+		proof = proof[:maxProofURLLen]
+	}
+	// Store deploy proofs in canonical package-root form so the distinct-path key
+	// (which verifyDeployQuest compares against) matches regardless of aliasing.
+	// A non-canonicalizable proof is left as-is and rejected by verification.
+	if strings.HasPrefix(questID, "deploy-") {
+		if canon, ok := canonicalizeProof(proof); ok {
+			proof = canon
+		}
+	}
+
 	// P0-1: server-side verification. The client's claim that it passed the
 	// frontend verifier is never trusted — self_report/social quests require
 	// the SubmitQuestClaim review flow, and on_chain quests are re-verified
-	// on-chain at grant time. This closes direct-RPC leaderboard fabrication.
-	if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+	// on-chain at grant time (deploy quests verify the proof realm path is under
+	// the user's namespace). This closes direct-RPC leaderboard fabrication.
+	if err := s.verifyQuestCompletable(ctx, userAddr, questID, proof); err != nil {
 		return nil, err
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// INSERT OR IGNORE — idempotent, completing twice is a no-op.
+	// INSERT OR IGNORE — idempotent, completing twice is a no-op. proof is the
+	// deploy realm path (empty for non-deploy quests).
 	_, err = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, ?)`,
-		userAddr, questID, now,
+		`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at, proof) VALUES (?, ?, ?, ?)`,
+		userAddr, questID, now, proof,
 	)
 	if err != nil {
 		return nil, internalError("CompleteQuest", err)
@@ -263,7 +278,9 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		// P0-1: apply the same server-side gate as CompleteQuest — skip
 		// self_report/social entries and on_chain entries whose condition
 		// isn't met. Prevents SyncQuests being a bulk forgery amplifier.
-		if err := s.verifyQuestCompletable(ctx, userAddr, questID); err != nil {
+		// Sync carries no proof, so deploy quests can't sync-complete (they
+		// must go through CompleteQuest with the realm path).
+		if err := s.verifyQuestCompletable(ctx, userAddr, questID, ""); err != nil {
 			continue
 		}
 

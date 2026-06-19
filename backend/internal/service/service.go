@@ -33,7 +33,7 @@ type MultisigService struct {
 	// verifyOnChainQuest is a test seam for server-side quest verification.
 	// nil in production (the real defaultVerifyOnChainQuest is used); tests
 	// inject a deterministic stub so they never hit the network. See quest_verify.go.
-	verifyOnChainQuest func(ctx context.Context, addr, questID string) (bool, error)
+	verifyOnChainQuest func(ctx context.Context, addr, questID, proof string) (bool, error)
 }
 
 // parseAcceptedChainIDs splits a comma-separated env value into a trimmed,
