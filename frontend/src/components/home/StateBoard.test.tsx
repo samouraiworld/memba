@@ -18,15 +18,12 @@ import { StateBoard, PanelBoundary } from "./StateBoard"
 // jsdom has no real IO. We provide a class-based stub that immediately
 // fires isIntersecting=true so lazy panels mount synchronously in tests.
 
-let capturedObserveEl: Element | null = null
-
 class IoStub {
     private callback: IntersectionObserverCallback
     constructor(callback: IntersectionObserverCallback) {
         this.callback = callback
     }
     observe(el: Element) {
-        capturedObserveEl = el
         // Fire immediately so lazy panels mount during the test
         this.callback(
             [{ isIntersecting: true, target: el } as IntersectionObserverEntry],
@@ -39,7 +36,6 @@ class IoStub {
 }
 
 beforeEach(() => {
-    capturedObserveEl = null
     vi.stubGlobal("IntersectionObserver", IoStub)
 })
 

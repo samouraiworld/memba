@@ -22,15 +22,6 @@ import { useNetwork } from "../../../hooks/useNetwork"
 import { ActionCard } from "../ActionCard"
 import "../home.css"
 
-/** CSS dot class by status */
-function statusDotClass(status: "healthy" | "degraded" | "down"): string {
-    switch (status) {
-        case "healthy": return "val-health-healthy"
-        case "degraded": return "val-health-degraded"
-        case "down": return "val-health-down"
-    }
-}
-
 /** Human-readable label for status */
 function statusLabel(status: "healthy" | "degraded" | "down"): string {
     switch (status) {
