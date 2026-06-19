@@ -23,7 +23,7 @@ vi.mock("./nftApi", () => ({
     fetchNFTActivity: (...a: unknown[]) => mockFetchNFTActivity(...a),
 }))
 
-import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "./nftHub"
+import { fetchVerifiedCollections, fetchRecentActivity } from "./nftHub"
 import type { NFTActivityItem } from "./nftApi"
 
 // ---------------------------------------------------------------------------

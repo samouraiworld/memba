@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { fetchVerifiedCollections, fetchRecentActivity, HubCollection } from "../lib/nftHub"
+import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "../lib/nftHub"
 import { NFTMedia } from "../components/nft/NFTMedia"
 import { VerifiedBadge } from "../components/nft/VerifiedBadge"
 import { formatGnotCompact } from "../lib/formatGnot"

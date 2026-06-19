@@ -97,6 +97,9 @@ export function useCollectionPublic(id: string): CollectionPublicResult {
 
             // ── Second wave: token enumeration (needs supply) ─────────────────
             // supply = detail.minted (0-based count as CollectionDetail does)
+            // (resolvedDetail is non-null here — the null case returned above; this
+            //  guard satisfies tsc -b's cross-try/catch control-flow analysis.)
+            if (!resolvedDetail) return
             const supply = resolvedDetail.minted
             if (supply > 0) {
                 try {
