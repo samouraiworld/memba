@@ -31,6 +31,7 @@ export function MarketplaceHub() {
     // ── Data state ──────────────────────────────────────────────────
     const [collections, setCollections] = useState<HubCollection[]>([])
     const [activity, setActivity] = useState<NFTActivityItem[]>([])
+    const [activityError, setActivityError] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -48,9 +49,16 @@ export function MarketplaceHub() {
 
                 // Load activity for all collections in parallel
                 const ids = cols.map((c) => c.id)
-                const acts = await fetchRecentActivity(ids).catch(() => [])
+                let acts: NFTActivityItem[] = []
+                let actFailed = false
+                try {
+                    acts = await fetchRecentActivity(ids)
+                } catch {
+                    actFailed = true
+                }
                 if (!cancelled) {
                     setActivity(acts)
+                    setActivityError(actFailed)
                 }
             })
             .catch((err: unknown) => {
@@ -103,7 +111,6 @@ export function MarketplaceHub() {
                 <input
                     className="mhub-search"
                     type="search"
-                    role="searchbox"
                     placeholder="Search collections…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -118,9 +125,9 @@ export function MarketplaceHub() {
                 </Link>
             </header>
 
-            {/* ── Verified collections ────────────────────────────── */}
+            {/* ── Collections ─────────────────────────────────────── */}
             <section className="mhub-collections">
-                <h2 className="mhub-section-title">Verified collections</h2>
+                <h2 className="mhub-section-title">Collections</h2>
                 {filteredCollections.length === 0 ? (
                     <p className="mhub-empty">
                         {query.trim()
@@ -134,7 +141,6 @@ export function MarketplaceHub() {
                                 key={col.id}
                                 to={np(`nft/collection/${col.id}`)}
                                 className="mhub-collection-card"
-                                aria-label={col.name}
                             >
                                 <div className="mhub-collection-card__thumb">
                                     <NFTMedia uri="" alt={col.name} />
@@ -157,7 +163,9 @@ export function MarketplaceHub() {
             {/* ── Recent activity ─────────────────────────────────── */}
             <section className="mhub-activity">
                 <h2 className="mhub-section-title">Recent activity</h2>
-                {activity.length === 0 ? (
+                {activityError ? (
+                    <p className="mhub-activity-error">Activity unavailable.</p>
+                ) : activity.length === 0 ? (
                     <p className="mhub-empty">No recent activity.</p>
                 ) : (
                     <div className="mhub-activity-list">

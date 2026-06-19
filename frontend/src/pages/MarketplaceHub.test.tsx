@@ -219,6 +219,20 @@ describe("MarketplaceHub — activity feed", () => {
     })
 })
 
+describe("MarketplaceHub — activity error state", () => {
+    it("shows 'Activity unavailable' when fetchRecentActivity rejects, not 'No recent activity.'", async () => {
+        mockFetchActivity.mockRejectedValue(new Error("timeout"))
+        renderHub()
+
+        await waitFor(() => {
+            expect(screen.getAllByText("Alpha Apes").length).toBeGreaterThan(0)
+        })
+
+        expect(screen.getByText(/activity unavailable/i)).toBeInTheDocument()
+        expect(screen.queryByText(/no recent activity/i)).not.toBeInTheDocument()
+    })
+})
+
 describe("MarketplaceHub — loading state", () => {
     it("shows a loading indicator before data resolves", () => {
         mockFetchCollections.mockReturnValue(new Promise(() => {}))
