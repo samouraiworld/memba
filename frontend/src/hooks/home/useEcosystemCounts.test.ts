@@ -5,6 +5,10 @@
  * 1. Normal case — all sources return counts
  * 2. One source throws — that count is null, others still resolve (allSettled)
  * 3. Realm not valid on network — that count is null (no network call made)
+ * 4. Snapshot usable — tokens/agents/validators/collections from snapshot.counts;
+ *    daos STILL from fetchTractionMetrics; heavy on-chain fetches NOT called.
+ * 5. Snapshot usable but a source in staleSources — that field is null.
+ * 6. Snapshot NOT usable — full on-chain path runs; daos from traction.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -14,6 +18,10 @@ import type { ReactNode } from "react"
 import React from "react"
 
 // ── Module-level mocks (hoisted) ──────────────────────────────
+
+vi.mock("./useHomeSnapshot", () => ({
+    useHomeSnapshot: vi.fn(),
+}))
 
 vi.mock("../../lib/grc20", () => ({
     listFactoryTokens: vi.fn(),
@@ -54,6 +62,7 @@ vi.mock("../useNetwork", () => ({
 
 // ── Resolve mocked modules for per-test control ───────────────
 
+const snapshotMod = await import("./useHomeSnapshot")
 const grc20Mod = await import("../../lib/grc20")
 const agentMod = await import("../../lib/agentRegistry")
 const validatorMod = await import("../../lib/validators")
@@ -72,7 +81,18 @@ function makeWrapper() {
 
 // ── Helpers ───────────────────────────────────────────────────
 
+/** Default: snapshot NOT usable (fallback to on-chain path). */
+function setupSnapshotNotUsable() {
+    vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+        snapshot: null,
+        usable: false,
+        isLoading: false,
+    })
+}
+
 function setupHappyPath() {
+    setupSnapshotNotUsable()
+
     vi.mocked(configMod.isTokenFactoryValid).mockReturnValue(true)
     vi.mocked(configMod.isNftLaunchpadValid).mockReturnValue(true)
     vi.mocked(configMod.isRealmValid).mockReturnValue(true)
@@ -234,5 +254,247 @@ describe("useEcosystemCounts — network gating", () => {
         // Ungated sources always run
         expect(result.current.validators).toBe(5)
         expect(result.current.daos).toBe(7)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────
+// Phase E2: snapshot-first tests
+// ─────────────────────────────────────────────────────────────
+
+describe("useEcosystemCounts — snapshot usable", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        // traction always runs (daos path)
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue({
+            daoCount: 9, contributorCount: 50, repoCount: 10, fetchedAt: Date.now(),
+        })
+        // Heavy on-chain fns: mock to reject so any accidental call fails the test
+        vi.mocked(grc20Mod.listFactoryTokens).mockRejectedValue(
+            new Error("MUST NOT BE CALLED: listFactoryTokens"),
+        )
+        vi.mocked(agentMod.fetchAgents).mockRejectedValue(
+            new Error("MUST NOT BE CALLED: fetchAgents"),
+        )
+        vi.mocked(validatorMod.getValidators).mockRejectedValue(
+            new Error("MUST NOT BE CALLED: getValidators"),
+        )
+        vi.mocked(launchpadMod.fetchCollectionList).mockRejectedValue(
+            new Error("MUST NOT BE CALLED: fetchCollectionList"),
+        )
+    })
+
+    it("reads tokens/agents/validators/collections from snapshot.counts", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 10, agents: 3, validators: 7, collections: 5 },
+                staleSources: [],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.tokens).toBe(10)
+        expect(result.current.agents).toBe(3)
+        expect(result.current.validators).toBe(7)
+        expect(result.current.collections).toBe(5)
+    })
+
+    it("daos comes from fetchTractionMetrics even when snapshot is usable", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 10, agents: 3, validators: 7, collections: 5 },
+                staleSources: [],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        // daosQuery is async — wait for it to settle (loading is false immediately in snapshot path)
+        await waitFor(() => expect(result.current.daos).not.toBeNull())
+
+        expect(result.current.daos).toBe(9)
+        expect(tractionMod.fetchTractionMetrics).toHaveBeenCalled()
+    })
+
+    it("heavy on-chain fetches are NOT called when snapshot is usable", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 10, agents: 3, validators: 7, collections: 5 },
+                staleSources: [],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(grc20Mod.listFactoryTokens).not.toHaveBeenCalled()
+        expect(agentMod.fetchAgents).not.toHaveBeenCalled()
+        expect(validatorMod.getValidators).not.toHaveBeenCalled()
+        expect(launchpadMod.fetchCollectionList).not.toHaveBeenCalled()
+    })
+
+    it("loading is false when snapshot is usable", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 10, agents: 3, validators: 7, collections: 5 },
+                staleSources: [],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.loading).toBe(false)
+    })
+})
+
+describe("useEcosystemCounts — snapshot usable with staleSources", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue({
+            daoCount: 9, contributorCount: 50, repoCount: 10, fetchedAt: Date.now(),
+        })
+        // Heavy fetches should not be called in snapshot path
+        vi.mocked(grc20Mod.listFactoryTokens).mockRejectedValue(new Error("MUST NOT BE CALLED"))
+        vi.mocked(agentMod.fetchAgents).mockRejectedValue(new Error("MUST NOT BE CALLED"))
+        vi.mocked(validatorMod.getValidators).mockRejectedValue(new Error("MUST NOT BE CALLED"))
+        vi.mocked(launchpadMod.fetchCollectionList).mockRejectedValue(new Error("MUST NOT BE CALLED"))
+    })
+
+    it("tokens is null when 'tokens' is in staleSources", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 0, agents: 3, validators: 7, collections: 5 },
+                staleSources: ["tokens"],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.tokens).toBeNull()
+        // Others unaffected
+        expect(result.current.agents).toBe(3)
+        expect(result.current.validators).toBe(7)
+        expect(result.current.collections).toBe(5)
+    })
+
+    it("agents is null when 'agents' is in staleSources; others still resolve", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 10, agents: 0, validators: 7, collections: 5 },
+                staleSources: ["agents"],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.agents).toBeNull()
+        expect(result.current.tokens).toBe(10)
+        expect(result.current.validators).toBe(7)
+    })
+
+    it("multiple staleSources produce multiple null fields", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                counts: { tokens: 0, agents: 0, validators: 7, collections: 5 },
+                staleSources: ["tokens", "agents"],
+            } as never,
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.tokens).toBeNull()
+        expect(result.current.agents).toBeNull()
+        expect(result.current.validators).toBe(7)
+        expect(result.current.collections).toBe(5)
+    })
+})
+
+describe("useEcosystemCounts — snapshot NOT usable (fallback path)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        setupSnapshotNotUsable()
+        vi.mocked(configMod.isTokenFactoryValid).mockReturnValue(true)
+        vi.mocked(configMod.isNftLaunchpadValid).mockReturnValue(true)
+        vi.mocked(configMod.isRealmValid).mockReturnValue(true)
+    })
+
+    it("runs full on-chain path when snapshot is not usable", async () => {
+        vi.mocked(grc20Mod.listFactoryTokens).mockResolvedValue(
+            Array.from({ length: 6 }, (_, i) => ({
+                name: `T${i}`, symbol: `T${i}`, decimals: 6, totalSupply: "0", admin: "",
+            })),
+        )
+        vi.mocked(agentMod.fetchAgents).mockResolvedValue(
+            Array.from({ length: 4 }, (_, i) => ({ id: `a-${i}` }) as never),
+        )
+        vi.mocked(validatorMod.getValidators).mockResolvedValue(
+            Array.from({ length: 12 }, (_, i) => ({ address: `g1v${i}` }) as never),
+        )
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue({
+            daoCount: 11, contributorCount: 60, repoCount: 15, fetchedAt: Date.now(),
+        })
+        vi.mocked(launchpadMod.fetchCollectionList).mockResolvedValue(
+            Array.from({ length: 8 }, (_, i) => ({ id: `c-${i}` }) as never),
+        )
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.tokens).toBe(6)
+        expect(result.current.agents).toBe(4)
+        expect(result.current.validators).toBe(12)
+        expect(result.current.daos).toBe(11)
+        expect(result.current.collections).toBe(8)
+
+        // Heavy fetches were called (fallback path)
+        expect(grc20Mod.listFactoryTokens).toHaveBeenCalled()
+        expect(agentMod.fetchAgents).toHaveBeenCalled()
+        expect(validatorMod.getValidators).toHaveBeenCalled()
+        expect(launchpadMod.fetchCollectionList).toHaveBeenCalled()
+        // traction always called
+        expect(tractionMod.fetchTractionMetrics).toHaveBeenCalled()
+    })
+
+    it("daos comes from traction (not snapshot) in fallback path", async () => {
+        vi.mocked(grc20Mod.listFactoryTokens).mockResolvedValue([])
+        vi.mocked(agentMod.fetchAgents).mockResolvedValue([])
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([])
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue({
+            daoCount: 42, contributorCount: 1, repoCount: 1, fetchedAt: Date.now(),
+        })
+        vi.mocked(launchpadMod.fetchCollectionList).mockResolvedValue([])
+
+        const { useEcosystemCounts } = await import("./useEcosystemCounts")
+        const { result } = renderHook(() => useEcosystemCounts(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.daos).toBe(42)
+        expect(tractionMod.fetchTractionMetrics).toHaveBeenCalled()
     })
 })
