@@ -44,10 +44,10 @@ function PlaceholderIcon() {
     )
 }
 
-function Placeholder({ alt, className }: { alt: string; className?: string }) {
+function Placeholder({ alt }: { alt: string }) {
     return (
         <div
-            className={`nft-media-placeholder ${className ?? ""}`.trim()}
+            className="nft-media-placeholder"
             aria-label={alt}
             data-testid="nft-media-placeholder"
         >
@@ -59,34 +59,45 @@ function Placeholder({ alt, className }: { alt: string; className?: string }) {
 export function NFTMedia({ uri, alt, className }: Props) {
     const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
 
+    const rootClass = ["nft-media-root", className].filter(Boolean).join(" ")
+
     // Empty URI → placeholder immediately, never render an <img>
     if (!uri) {
-        return <Placeholder alt={alt} className={className} />
+        return (
+            <div className={rootClass}>
+                <Placeholder alt={alt} />
+            </div>
+        )
     }
 
     const src = nftImageUrl(uri)
 
     // Error state → swap to placeholder
     if (status === "error") {
-        return <Placeholder alt={alt} className={className} />
+        return (
+            <div className={rootClass}>
+                <Placeholder alt={alt} />
+            </div>
+        )
     }
 
     return (
-        <>
+        <div className={rootClass}>
             {status === "loading" && (
                 <div
-                    className={`nft-media-skeleton ${className ?? ""}`.trim()}
+                    className="nft-media-skeleton"
                     aria-label="Loading image"
+                    data-testid="nft-media-skeleton"
                 />
             )}
             <img
                 src={src}
                 alt={alt}
                 loading="lazy"
-                className={`nft-media-img ${status !== "loaded" ? "nft-media-img--hidden" : ""} ${className ?? ""}`.trim()}
+                className={`nft-media-img${status !== "loaded" ? " nft-media-img--hidden" : ""}`}
                 onLoad={() => setStatus("loaded")}
                 onError={() => setStatus("error")}
             />
-        </>
+        </div>
     )
 }
