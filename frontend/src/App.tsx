@@ -127,6 +127,12 @@ function HomeRedirect() {
   )
 }
 
+/** Legacy /:network/dashboard → the network home (canonical trailing-slash URL). */
+function DashboardRedirect() {
+  const networkKey = useNetworkKey()
+  return <Navigate to={`/${networkKey}/`} replace />
+}
+
 /** Redirects bare / to /:defaultNetwork/ */
 function RootRedirect() {
   const stored = localStorage.getItem("memba_network")
@@ -162,7 +168,7 @@ function App() {
           <Route index element={<HomeRedirect />} />
 
           {/* Dashboard — old /dashboard links land on the new home */}
-          <Route path="dashboard" element={<Navigate to=".." replace />} />
+          <Route path="dashboard" element={<DashboardRedirect />} />
 
           {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
           <Route path="multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
