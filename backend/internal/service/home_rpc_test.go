@@ -454,6 +454,49 @@ func TestAssembleHomeSnapshot_PartialFailureIsTolerated(t *testing.T) {
 	}
 }
 
+// TestGetHomeSnapshot_CacheKeyBounded asserts that unknown/junk chain_ids are
+// collapsed to s.chainID so the homeCached map never grows beyond the accepted
+// set — preventing unbounded map growth / cache-busting on this unauthenticated
+// endpoint. Both "junk-1" and "junk-2" requests must land in the same "test13"
+// cache slot, leaving len(s.homeCached) == 1.
+func TestGetHomeSnapshot_CacheKeyBounded(t *testing.T) {
+	s := newTestService(t)
+	s.chainID = "test13"
+	s.acceptedChainIDs = []string{"test13"}
+	// Force all on-chain sources to fail fast (offline).
+	s.homeQuery = func(rpc, path, data string) (string, error) {
+		return "", fmt.Errorf("offline")
+	}
+	os.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
+	defer os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
+
+	for _, junk := range []string{"junk-1", "junk-2"} {
+		resp, err := s.GetHomeSnapshot(
+			context.Background(),
+			connect.NewRequest(&membav1.GetHomeSnapshotRequest{ChainId: junk}),
+		)
+		if err != nil {
+			t.Fatalf("chain_id=%q: unexpected error: %v", junk, err)
+		}
+		if resp.Msg.Snapshot == nil {
+			t.Fatalf("chain_id=%q: snapshot must be non-nil", junk)
+		}
+	}
+
+	s.homeCacheMu.RLock()
+	mapLen := len(s.homeCached)
+	s.homeCacheMu.RUnlock()
+	if mapLen != 1 {
+		t.Fatalf("homeCached map len = %d, want 1 (both junk chain_ids must collapse to 'test13')", mapLen)
+	}
+	s.homeCacheMu.RLock()
+	_, hasTest13 := s.homeCached["test13"]
+	s.homeCacheMu.RUnlock()
+	if !hasTest13 {
+		t.Fatal("homeCached must have key 'test13', not junk keys")
+	}
+}
+
 // TestGetHomeSnapshot_DefaultsChainID asserts that when chain_id is omitted from
 // the request, GetHomeSnapshot falls back to s.chainID and returns a non-nil
 // snapshot (even when all on-chain / RPC sources are offline).

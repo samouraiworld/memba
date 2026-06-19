@@ -122,6 +122,8 @@ Recon against the live chain + codebase corrected three spec assumptions:
 
 **Implementation shape:** cache lifted onto the `MultisigService` struct (a ConnectRPC method can't hold closure state like the REST marketplace proxy); an injectable `queryFunc` seam over `abciQuery` makes `assembleHomeSnapshot` unit-testable; each of the 8 sources is individually fault-wrapped (failure → `stale_sources`, never aborts); frontend integration bakes "snapshot-first, Phase-1 fallback" **into each Phase-1 hook** (gating its on-chain query with `enabled: !usable`) so panels are untouched and only activate the snapshot on the configured network (`SNAPSHOT_NETWORK = "test13"`).
 
+**chain_id handling (closes spec §6 validation requirement):** `GetHomeSnapshot` is a public, unauthenticated endpoint. Rather than rejecting unknown or empty `chain_id` values (which would break legacy callers), an empty or unrecognised `chain_id` is collapsed to `s.chainID` — bounding every cache key to the accepted set and preventing unbounded map growth / cache-busting. An unknown chain_id is served the configured chain's snapshot, not an error.
+
 **Known v1 best-effort fields** (panels degrade to "—"/omit when the snapshot is active; all additive — leave the endpoint undeployed for full Phase-1 fidelity):
 - `network.avg_block_time_ms = 0` (not computed v1) → NetworkPulse avg-block-time shows "—".
 - `validators_health` is the cheap subset (status/active/total only) — no `avg_uptime`/incidents (need the monitoring API) → ValidatorsPanel uptime "—", incident card hidden.

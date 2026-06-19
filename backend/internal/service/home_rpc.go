@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -65,6 +66,9 @@ func (s *MultisigService) cachedHomeSnapshot(
 	// The snapshot is single-network (test13) per spec §6, so the same RPC URL
 	// serves every chain_id today. A future multi-chain deployment would resolve
 	// the RPC URL from chainID here instead of calling homeSnapshotRPCURL().
+	// NOTE: concurrent cache misses may each call assemble — deliberate (mirrors
+	// HandleMarketplaceAgentsProxy pattern); bounded by the endpoint's rate limit.
+	// A singleflight.Group is a future option if thundering-herd becomes an issue.
 	fresh := assemble(ctx, homeSnapshotRPCURL()) // MISS
 	if fresh == nil {
 		// Serve stale if we have any prior value.
@@ -92,7 +96,11 @@ func (s *MultisigService) GetHomeSnapshot(
 	req *connect.Request[membav1.GetHomeSnapshotRequest],
 ) (*connect.Response[membav1.GetHomeSnapshotResponse], error) {
 	chainID := req.Msg.GetChainId()
-	if chainID == "" {
+	// HOME-CHAINID: this is a public, unauthenticated endpoint. Collapse empty,
+	// unknown, or (legacy) any chain_id to the server's configured chain so the
+	// cache map key is bounded to the accepted set — prevents cache-busting /
+	// unbounded map growth, and matches spec §6 (chain_id validated vs acceptedChainIDs).
+	if chainID == "" || len(s.acceptedChainIDs) == 0 || !slices.Contains(s.acceptedChainIDs, chainID) {
 		chainID = s.chainID
 	}
 
