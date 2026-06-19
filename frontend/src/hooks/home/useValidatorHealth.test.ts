@@ -17,6 +17,7 @@ import type { ReactNode } from "react"
 import React from "react"
 import type { ValidatorInfo } from "../../lib/validators"
 import { ValidatorHealthStatus } from "../../lib/validatorHealth"
+import type { HomeSnapshot } from "../../lib/homeApi"
 
 // ── Module-level mocks ────────────────────────────────────────
 
@@ -259,7 +260,7 @@ describe("useValidatorHealth — snapshot usable", () => {
         vi.mocked(homeSnapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: {
                 validatorsHealth: { status: "degraded", active: 12, total: 14 },
-            } as any,
+            } as unknown as HomeSnapshot,
             usable: true,
             isLoading: false,
         })
