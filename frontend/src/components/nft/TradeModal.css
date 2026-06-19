@@ -1,0 +1,222 @@
+/**
+ * TradeModal.css — Self-contained modal shell for TradeModal.
+ *
+ * Uses design tokens from tokens.css only — no hardcoded colours or px spacing.
+ * Follows the same structural patterns as the existing nft-modal classes to stay
+ * visually consistent without sharing a global stylesheet.
+ */
+
+/* ── Overlay ─────────────────────────────────────────────────── */
+
+.trade-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--color-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* ── Modal shell ─────────────────────────────────────────────── */
+
+.trade-modal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    width: min(480px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* ── Title ───────────────────────────────────────────────────── */
+
+.trade-modal__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+/* ── Info block ──────────────────────────────────────────────── */
+
+.trade-modal__info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+/* ── Section ─────────────────────────────────────────────────── */
+
+.trade-modal__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+/* ── Two-step indicator ──────────────────────────────────────── */
+
+.trade-modal__steps {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.trade-modal__step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text-secondary);
+}
+
+.trade-modal__step.active {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.trade-modal__step.done {
+    color: var(--color-primary);
+}
+
+.trade-modal__step.pending {
+    opacity: 0.45;
+}
+
+.trade-modal__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    font-size: 11px;
+    font-family: var(--font-mono);
+}
+
+.trade-modal__step-sep {
+    color: var(--color-text-secondary);
+    opacity: 0.4;
+}
+
+/* ── Hint / description text ─────────────────────────────────── */
+
+.trade-modal__hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ── Escrow info note ────────────────────────────────────────── */
+
+.trade-modal__escrow-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-overlay-light);
+    border: 1px solid var(--color-border);
+}
+
+/* ── Field / label / input ───────────────────────────────────── */
+
+.trade-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.trade-modal__field label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.trade-modal__input {
+    background: var(--color-input-bg, var(--color-overlay-light));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.trade-modal__input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* ── Error ───────────────────────────────────────────────────── */
+
+.trade-modal__error {
+    font-size: var(--text-sm);
+    color: var(--color-danger);
+    margin: 0;
+}
+
+/* ── Actions row ─────────────────────────────────────────────── */
+
+.trade-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+
+.trade-modal__cancel {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--text-sm);
+}
+
+.trade-modal__cancel:hover:not(:disabled) {
+    border-color: var(--color-text-secondary);
+    color: var(--color-text);
+}
+
+.trade-modal__cancel:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.trade-modal__confirm {
+    background: var(--color-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    color: var(--color-on-primary, #fff);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.trade-modal__confirm:hover:not(:disabled) {
+    opacity: 0.88;
+}
+
+.trade-modal__confirm:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ── Royalty notice ──────────────────────────────────────────── */
+
+.trade-modal__royalty-notice {
+    font-size: var(--text-xs, 11px);
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+}
