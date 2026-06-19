@@ -311,16 +311,16 @@ Status: ACTIVE
 Tiers eligible to vote: T1
 `
 
-	// Fake homeQuery: returns bare render when data contains ":" suffix (base64 'd...Og==')
-	// and proposals render for all other calls.
-	callCount := 0
+	// Fake homeQuery: dispatch by decoded data content, not call order.
+	// Mirrors TestFetchFeaturedDao_FromFixture: bare render when decoded data ends with ":"
+	// (no sub-path), proposals render when it ends with ":proposals".
 	s := &MultisigService{
 		homeQuery: func(rpc, path, data string) (string, error) {
-			callCount++
-			if callCount == 1 {
-				return bare, nil
+			decoded, _ := base64.StdEncoding.DecodeString(data)
+			if strings.HasSuffix(string(decoded), ":proposals") {
+				return proposals, nil
 			}
-			return proposals, nil
+			return bare, nil
 		},
 	}
 
@@ -388,6 +388,9 @@ func TestFetchDirectoryMembers_Synthetic(t *testing.T) {
 	}
 	if members[1].Name != "bob" {
 		t.Fatalf("member[1].Name = %q, want bob", members[1].Name)
+	}
+	if members[1].Address != "g1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2" {
+		t.Fatalf("member[1].Address = %q, want g1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2", members[1].Address)
 	}
 }
 
