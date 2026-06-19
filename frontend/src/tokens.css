@@ -95,6 +95,14 @@
     --transition-fast: 0.15s ease;
     --transition-medium: 0.2s ease;
     --transition-slow: 0.3s ease;
+
+    /* ── Kodera aliases — converge divergent vars to canonical values ── */
+    /* Resolves: #0a0a0a→#000, #f44336→#ff4757, #f5a623→#ffa502, #1a1a1a→#222 */
+    --color-bg: var(--color-k-bg);
+    --color-danger: var(--color-k-danger);
+    --color-warning: var(--color-k-warning);
+    --color-border: var(--color-k-edge);
+    --color-text-secondary: var(--color-k-dim);
 }
 
 /* ── Light Theme Overrides ──────────────────────────────── */

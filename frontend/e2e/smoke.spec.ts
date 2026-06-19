@@ -42,16 +42,15 @@ test.describe('Smoke Tests', () => {
  */
 
 test.describe('v1.4.0 — Landing Page', () => {
-    test('feature showcase cards visible (logged-out)', async ({ page }) => {
+    test('VisitorHero renders with Explore DAOs CTA (logged-out)', async ({ page }) => {
         await page.goto('/')
         await page.waitForLoadState('networkidle')
-        // Should show feature cards for Multisig, DAO, Token
-        await expect(page.locator('body')).toContainText('Multisig Wallets', { timeout: 10_000 })
-        await expect(page.locator('body')).toContainText('DAO Governance')
-        await expect(page.locator('body')).toContainText('Token Factory')
+        // Home rework: Landing page is now the VisitorHero Control Room
+        await expect(page.getByTestId('visitor-hero'), { timeout: 10_000 }).toBeVisible()
+        await expect(page.getByTestId('visitor-hero-explore')).toContainText('Explore DAOs')
     })
 
-    test('"gno.land" reference visible', async ({ page }) => {
+    test('"gno.land" reference visible in VisitorHero subtitle', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('body')).toContainText('gno.land')
     })
@@ -135,17 +134,18 @@ test.describe('v1.4.0 — ProposeDAO', () => {
     })
 })
 
-test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
-    test('hero text includes DAO Operating System + メンバー', async ({ page }) => {
+test.describe('v1.4.0 — Home structure (logged-out)', () => {
+    test('StatusStrip wordmark メンバー and VisitorHero conviction headline visible', async ({ page }) => {
         await page.goto('/')
-        await expect(page.locator('body')).toContainText('The DAO Operating System')
+        // Home rework: StatusStrip carries メンバー; VisitorHero has the conviction headline
         await expect(page.locator('body')).toContainText('メンバー')
+        await expect(page.getByTestId('visitor-hero')).toBeVisible()
     })
 
-    test('CTA links to Adena wallet', async ({ page }) => {
+    test('Install Adena CTA visible when wallet not installed', async ({ page }) => {
         await page.goto('/')
-        // In Playwright (no Adena extension), the CTA shows "Install Adena wallet..."
-        await expect(page.locator('body')).toContainText('Adena wallet')
+        // In Playwright (no Adena extension), the secondary CTA shows "Install Adena"
+        await expect(page.locator('body')).toContainText('Adena')
     })
 
     test('Dashboard nav hidden when logged out', async ({ page }) => {
@@ -154,11 +154,12 @@ test.describe('v1.4.0 — Dashboard structure (logged-out)', () => {
         await expect(dashboardLink).not.toBeVisible()
     })
 
-    test('Dashboard page content NOT shown when logged out', async ({ page }) => {
+    test('Control Room home shown instead of old Dashboard heading when logged out', async ({ page }) => {
         await page.goto('/')
-        // Dashboard main-content heading should not appear for logged-out users
+        // Home rework: there is no "Dashboard" h2 in main — home-root renders instead
         const dashboardHeading = page.locator('main h2', { hasText: 'Dashboard' })
         await expect(dashboardHeading).not.toBeVisible()
+        await expect(page.getByTestId('home-root')).toBeVisible()
     })
 })
 

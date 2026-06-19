@@ -1,0 +1,335 @@
+/* ── ActionCard ──────────────────────────────────────────────────── */
+
+.action-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--color-k-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  font-family: inherit;
+}
+
+a.action-card,
+button.action-card {
+  cursor: pointer;
+}
+
+a.action-card:hover,
+button.action-card:hover {
+  background: var(--color-k-hover-surface);
+  border-color: var(--color-k-edge-hover);
+}
+
+a.action-card:focus-visible,
+button.action-card:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Left accent rail ─────────────────────────────────────────────── */
+
+.action-card__rail {
+  width: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.action-card__rail--teal    { background: var(--color-k-accent); }
+.action-card__rail--amber   { background: var(--color-k-warning); }
+.action-card__rail--danger  { background: var(--color-k-danger); }
+.action-card__rail--neutral { background: var(--color-k-edge); }
+
+/* ── Card body ────────────────────────────────────────────────────── */
+
+.action-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 12px 12px 10px;
+  min-width: 0;
+}
+
+.action-card__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-card__title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-card__icon {
+  font-size: 16px;
+  color: var(--color-k-dim);
+  flex-shrink: 0;
+}
+
+.action-card__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-card__action-label {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-k-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Skeleton variant ─────────────────────────────────────────────── */
+
+.action-card--skeleton {
+  height: 64px;
+  background: var(--color-k-panel);
+  border-color: var(--color-k-edge);
+  cursor: default;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* ── StatusStrip ──────────────────────────────────────────────────── */
+
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--color-k-panel);
+  border-bottom: 1px solid var(--color-k-edge);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-strip__wordmark {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.01em;
+}
+
+.status-strip__chain {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-accent);
+  font-weight: 500;
+}
+
+.status-strip__sep {
+  color: var(--color-k-edge);
+}
+
+.status-strip__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+  flex-shrink: 0;
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+.status-strip__dot--syncing {
+  background: var(--color-k-dim);
+  animation: none;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.status-strip__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+/* ── Home page zones ──────────────────────────────────────────────── */
+
+.home-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.home-spine,
+.home-state-board {
+  padding: 16px;
+}
+
+/* ── StateBoard ───────────────────────────────────────────────────── */
+
+.state-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.state-board__slot {
+  min-width: 0;
+}
+
+/* ── Mobile-first breakpoints ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .home-spine,
+  .home-state-board {
+    padding: 12px;
+  }
+
+  /* Force single-column layout — panels follow DOM order */
+  .state-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-spine,
+  .home-state-board {
+    padding: 10px;
+  }
+
+  .action-card__body {
+    padding: 10px 10px 10px 8px;
+  }
+
+  .action-card__title {
+    font-size: 13px;
+  }
+
+  .action-card__action-label {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .status-strip {
+    padding: 5px 10px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .status-strip__wordmark {
+    font-size: 12px;
+  }
+}
+
+/* ── Focus rings (global for home interactive elements) ───────────── */
+
+.visitor-hero__cta:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .status-strip__dot {
+    animation: none;
+  }
+
+  .action-card--skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ── PanelBoundary retry affordance ──────────────────────────────── */
+
+.panel-boundary__retry {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* ── NetworkPulsePanel ────────────────────────────────────────────── */
+
+.network-pulse-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── ActionInbox ──────────────────────────────────────────────────── */
+
+.action-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-inbox__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.action-inbox__title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  margin: 0;
+}
+
+.action-inbox__count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.action-inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

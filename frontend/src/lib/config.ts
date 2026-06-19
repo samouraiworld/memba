@@ -533,6 +533,34 @@ export const MEMBA_DAO = {
 /** Feedback board realm path (shared with FeedbackFeed). */
 export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 
+/**
+ * Featured DAO realm path per network key — the DAO surfaced on the home
+ * StateBoard for everyone (members + visitors). Null means the panel
+ * self-hides on that network.
+ *
+ * Only networks where the realm is confirmed callable are populated; an
+ * absent/null entry causes FeaturedDaoPanel to render null (no error).
+ */
+export const FEATURED_DAO_REALM: Record<string, string | null> = {
+    test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
+    test12: null,                // Memba DAO not the canonical featured DAO on test12
+    gnoland1: null,
+    staging: null,
+    "portal-loop": null,
+}
+
+/**
+ * Get the featured DAO realm path for a given network key.
+ * Returns null when no featured DAO is configured or the realm is not valid.
+ */
+export function getFeaturedDaoRealm(networkKey: string): string | null {
+    const path = FEATURED_DAO_REALM[networkKey] ?? null
+    if (!path) return null
+    // Guard: realm must also be valid on the network (covers REALM_ALLOWLIST)
+    if (!isRealmValidOn(networkKey, path)) return null
+    return path
+}
+
 // ── Per-feature validity predicates (back each feature by its realm) ──
 // These let a page short-circuit to a "not on this network" gate when its
 // realm isn't valid on the active chain. Env feature-flags (VITE_ENABLE_*)
