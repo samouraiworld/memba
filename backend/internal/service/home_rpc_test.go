@@ -42,23 +42,22 @@ func newTestService(t *testing.T) *MultisigService {
 }
 
 func TestHomeSnapshotRPCURL_DefaultsToTest13(t *testing.T) {
-	os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
-	os.Unsetenv("NFT_RPC_URL")
+	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
+	t.Setenv("NFT_RPC_URL", "")
 	if got := homeSnapshotRPCURL(); got != "https://rpc.test13.testnets.gno.land:443" {
 		t.Fatalf("default = %q, want test13 rpc", got)
 	}
 }
 
 func TestHomeSnapshotRPCURL_PrefersExplicitEnv(t *testing.T) {
-	os.Setenv("HOME_SNAPSHOT_RPC_URL", "https://example/rpc")
-	defer os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
+	t.Setenv("HOME_SNAPSHOT_RPC_URL", "https://example/rpc")
 	if got := homeSnapshotRPCURL(); got != "https://example/rpc" {
 		t.Fatalf("got %q, want explicit env", got)
 	}
 }
 
 func TestHomeSnapshotTTL_Default(t *testing.T) {
-	os.Unsetenv("HOME_SNAPSHOT_TTL")
+	t.Setenv("HOME_SNAPSHOT_TTL", "")
 	if got := homeSnapshotTTL(); got != 30*time.Second {
 		t.Fatalf("default ttl = %v, want 30s", got)
 	}
@@ -132,9 +131,9 @@ func TestFetchNetworkPulse_FromFixture(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/status":
-			w.Write(statusBody)
+			_, _ = w.Write(statusBody)
 		case "/block":
-			w.Write(blockBody)
+			_, _ = w.Write(blockBody)
 		default:
 			w.WriteHeader(404)
 		}
@@ -167,13 +166,13 @@ func TestFetchNetworkPulse_SyntheticExactMath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/status":
-			w.Write([]byte(statusJSON))
+			_, _ = w.Write([]byte(statusJSON))
 		case "/block":
 			// Verify the query param requests H-10 = 90.
 			if h := r.URL.Query().Get("height"); h != "90" {
 				t.Errorf("expected height=90, got %q", h)
 			}
-			w.Write([]byte(blockJSON))
+			_, _ = w.Write([]byte(blockJSON))
 		default:
 			w.WriteHeader(404)
 		}
@@ -202,7 +201,7 @@ func TestFetchNetworkPulse_BlockFetchFailureDegrades(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/status" {
-			w.Write([]byte(statusJSON))
+			_, _ = w.Write([]byte(statusJSON))
 			return
 		}
 		// Simulate /block being unavailable.
@@ -229,7 +228,7 @@ func TestFetchValidatorsHealth_FromFixture(t *testing.T) {
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/validators" {
-			w.Write(body)
+			_, _ = w.Write(body)
 			return
 		}
 		w.WriteHeader(404)
@@ -547,8 +546,7 @@ func TestGetHomeSnapshot_CacheKeyBounded(t *testing.T) {
 	s.homeQuery = func(rpc, path, data string) (string, error) {
 		return "", fmt.Errorf("offline")
 	}
-	os.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
-	defer os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
+	t.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
 
 	for _, junk := range []string{"junk-1", "junk-2"} {
 		resp, err := s.GetHomeSnapshot(
@@ -591,8 +589,7 @@ func TestGetHomeSnapshot_DefaultsChainID(t *testing.T) {
 		return "", fmt.Errorf("offline")
 	}
 	// Force RPC sources (network pulse, validators) to fail fast via connection-refused.
-	os.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
-	defer os.Unsetenv("HOME_SNAPSHOT_RPC_URL")
+	t.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
 
 	resp, err := s.GetHomeSnapshot(
 		context.Background(),

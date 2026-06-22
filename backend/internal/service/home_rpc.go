@@ -547,7 +547,7 @@ func fetchValidatorsHealth(ctx context.Context, rpcURL string) (*membav1.Validat
 	if err := httpGetJSON(ctx, rpcURL+"/validators", &v); err != nil {
 		return nil, err
 	}
-	total := uint32(len(v.Result.Validators))
+	total := uint32(len(v.Result.Validators)) // #nosec G115 -- validator set size is tiny (tens of nodes), never overflows uint32
 	status := "healthy"
 	if total == 0 {
 		status = "down"
