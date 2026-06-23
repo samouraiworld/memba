@@ -54,10 +54,17 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
     const { snapshot, usable, isLoading: snapshotLoading } = useHomeSnapshot()
     const rpcUrl: string = NETWORKS[networkKey]?.rpcUrl ?? ""
 
-    // On-chain query — enabled only when snapshot is not usable, realm is
-    // configured+valid, and we have an rpcUrl. The `enabled` flag keeps the
-    // hook call unconditional (rules-of-hooks safe) while suppressing the
-    // fetch on every non-on-chain path.
+    // Does the usable snapshot actually carry a featured DAO? The backend marks
+    // "featured_dao" stale and leaves the field empty when its fetch fails, so a
+    // usable snapshot does NOT guarantee a featured DAO is present.
+    const fd = usable ? snapshot?.featuredDao : undefined
+    const hasSnapshotFeatured = !!fd?.realmPath && !!fd?.name
+
+    // On-chain query — runs whenever there is no usable snapshot featured DAO
+    // but a realm IS configured+valid. This covers both non-snapshot networks
+    // AND snapshot networks whose featuredDao came back empty/stale (otherwise
+    // a real on-chain DAO would be hidden behind an "Explore DAOs" invitation).
+    // The `enabled` flag keeps the hook call unconditional (rules-of-hooks safe).
     const onChainQuery = useQuery({
         queryKey: ["useFeaturedDao", networkKey, realmPath],
         queryFn: async () => {
@@ -70,7 +77,7 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
             const openCount = proposals.filter(p => p.status === "open").length
             return { name: config.name, memberCount: config.memberCount, openCount }
         },
-        enabled: !usable && !snapshotLoading && !!realmPath && !!rpcUrl,
+        enabled: !snapshotLoading && !hasSnapshotFeatured && !!realmPath && !!rpcUrl,
         staleTime: 60_000,
     })
 
@@ -80,12 +87,8 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
     // can unconditionally wire it to onRetry.
     const refetch = () => { onChainQuery.refetch() }
 
-    // ── Snapshot path ─────────────────────────────────────────
-    if (usable) {
-        const fd = snapshot?.featuredDao
-        if (!fd?.realmPath || !fd?.name) {
-            return { state: "empty", invitationHref, refetch }
-        }
+    // ── Snapshot path (only when the snapshot carries a featured DAO) ──
+    if (fd?.realmPath && fd?.name) {
         return {
             state: "ready",
             dao: {

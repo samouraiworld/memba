@@ -26,6 +26,14 @@ vi.mock("../../lib/daoSlug", () => ({
 vi.mock("../../lib/dao", () => ({
     getDAOConfig: vi.fn(),
     getDAOProposals: vi.fn(),
+    getMemberRole: vi.fn(),
+    deriveRoleLabel: vi.fn(),
+}))
+
+// useAuth reads localStorage directly; stub it. Default = disconnected, so the
+// role query stays disabled (role undefined) for the pre-existing specs.
+vi.mock("../useAuth", () => ({
+    useAuth: vi.fn(() => ({ isAuthenticated: false, address: "", token: null, loading: false, error: null })),
 }))
 
 vi.mock("../../lib/config", async (importOriginal) => {
@@ -48,6 +56,7 @@ vi.mock("../../hooks/useNetworkNav", () => ({
 
 const daoSlugMod = await import("../../lib/daoSlug")
 const daoMod = await import("../../lib/dao")
+const authMod = await import("../useAuth")
 
 // ── Shared fixtures ───────────────────────────────────────────
 
@@ -96,6 +105,17 @@ function makeWrapper() {
 }
 
 // ── Tests ─────────────────────────────────────────────────────
+
+// mockReturnValue/mockResolvedValue survive vi.clearAllMocks(), so reset the
+// auth + role mocks to safe defaults before every test (a test that needs a
+// connected wallet / a role opts in explicitly).
+beforeEach(() => {
+    vi.mocked(authMod.useAuth).mockReturnValue({
+        isAuthenticated: false, address: "", token: null, loading: false, error: null,
+    } as unknown as ReturnType<typeof authMod.useAuth>)
+    vi.mocked(daoMod.getMemberRole).mockResolvedValue(null)
+    vi.mocked(daoMod.deriveRoleLabel).mockReturnValue(undefined)
+})
 
 describe("useYourWorlds — saved worlds with data", () => {
     beforeEach(() => {
@@ -161,6 +181,70 @@ describe("useYourWorlds — honesty guard: 0-count metrics omitted", () => {
         await waitFor(() => expect(result.current.state).toBe("ready"))
 
         expect(result.current.worlds[0].openCount).toBeUndefined()
+    })
+})
+
+describe("useYourWorlds — members enrichment", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000 },
+        ])
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+    })
+
+    it("populates members from getDAOConfig.memberCount", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue({ ...MOCK_DAO_CONFIG, memberCount: 128 })
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds[0].members).toBe(128)
+    })
+
+    it("omits members (undefined, not 0) when the DAO reports 0 members", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue({ ...MOCK_DAO_CONFIG, memberCount: 0 })
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds[0].members).toBeUndefined()
+    })
+})
+
+describe("useYourWorlds — role badge (connected wallet only)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000 },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+    })
+
+    it("populates role from getMemberRole + deriveRoleLabel when connected", async () => {
+        vi.mocked(authMod.useAuth).mockReturnValue({
+            isAuthenticated: true, address: "g1me", token: null, loading: false, error: null,
+        } as unknown as ReturnType<typeof authMod.useAuth>)
+        vi.mocked(daoMod.getMemberRole).mockResolvedValue({
+            address: "g1me", roles: ["admin"], tier: "", votingPower: 0, username: "",
+        })
+        vi.mocked(daoMod.deriveRoleLabel).mockReturnValue("admin")
+
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.worlds[0]?.role).toBe("admin"))
+    })
+
+    it("omits role and skips the lookup when the wallet is disconnected", async () => {
+        // default useAuth mock = disconnected
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds[0].role).toBeUndefined()
+        expect(daoMod.getMemberRole).not.toHaveBeenCalled()
     })
 })
 

@@ -22,7 +22,19 @@ import {
     _unescapeMarkdown,
     _parseMemberstoreTiers,
     _parseMembersFromRender,
+    _parseMemberstoreRows,
+    deriveRoleLabel,
+    type DAOMember,
 } from './index'
+
+const mkMember = (over: Partial<DAOMember> = {}): DAOMember => ({
+    address: 'g1abc',
+    roles: [],
+    tier: '',
+    votingPower: 0,
+    username: '',
+    ...over,
+})
 
 // ── normalizeStatus ─────────────────────────────────────────────
 
@@ -279,6 +291,55 @@ describe('parseMembersFromRender', () => {
 
     it('returns empty array for no members', () => {
         expect(_parseMembersFromRender('No members')).toEqual([])
+    })
+})
+
+// ── parseMemberstoreRows ────────────────────────────────────────
+
+describe('parseMemberstoreRows', () => {
+    it('parses tier + address from memberstore table rows', () => {
+        const data = `| ![T1 chip](data:img) T1 | g1aaa |
+| ![T2 chip](data:img) T2 | g1bbb |`
+        expect(_parseMemberstoreRows(data)).toEqual([
+            { tier: 'T1', address: 'g1aaa' },
+            { tier: 'T2', address: 'g1bbb' },
+        ])
+    })
+
+    it('uppercases the tier', () => {
+        expect(_parseMemberstoreRows('x t3 | g1ccc |')).toEqual([{ tier: 'T3', address: 'g1ccc' }])
+    })
+
+    it('returns [] when there are no rows', () => {
+        expect(_parseMemberstoreRows('no table here')).toEqual([])
+    })
+})
+
+// ── deriveRoleLabel ─────────────────────────────────────────────
+
+describe('deriveRoleLabel', () => {
+    it('returns undefined for a null member (not a member / unresolved)', () => {
+        expect(deriveRoleLabel(null)).toBeUndefined()
+    })
+
+    it('prefers a recognised privileged role over a plain one', () => {
+        expect(deriveRoleLabel(mkMember({ roles: ['member', 'admin'] }))).toBe('admin')
+    })
+
+    it('is case-insensitive on privileged roles', () => {
+        expect(deriveRoleLabel(mkMember({ roles: ['OWNER'] }))).toBe('owner')
+    })
+
+    it('falls back to the first explicit role when none are privileged', () => {
+        expect(deriveRoleLabel(mkMember({ roles: ['finance'] }))).toBe('finance')
+    })
+
+    it('falls back to the power tier when there are no roles', () => {
+        expect(deriveRoleLabel(mkMember({ roles: [], tier: 'T1' }))).toBe('T1')
+    })
+
+    it('falls back to "member" when there are no roles and no tier', () => {
+        expect(deriveRoleLabel(mkMember({ roles: [], tier: '' }))).toBe('member')
     })
 })
 
