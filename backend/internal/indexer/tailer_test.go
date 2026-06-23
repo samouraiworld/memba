@@ -114,3 +114,19 @@ func TestSeedRealmCursor(t *testing.T) {
 		t.Fatalf("cursor after re-seed = %d, want 285000 (no rewind)", got)
 	}
 }
+
+// TestParseBlockHash_RealTest13Block guards the /block JSON shape: test13/tm2
+// nests the hash under result.block_meta.block_id.hash (NOT result.block_id).
+// Reading the wrong path yields "" -> "empty block hash" -> the tailer livelocks
+// at its start cursor (the production freeze at block 259999). Fixture captured
+// live from rpc.test13.testnets.gno.land /block?height=260001.
+func TestParseBlockHash_RealTest13Block(t *testing.T) {
+	body := loadFixture(t, "block_260001.json")
+	hash, err := parseBlockHash(body, 260001)
+	if err != nil {
+		t.Fatalf("parseBlockHash on a real test13 /block body must succeed, got: %v", err)
+	}
+	if hash == "" {
+		t.Fatal("parseBlockHash returned an empty hash for a real block (wrong JSON path)")
+	}
+}

@@ -327,8 +327,16 @@ func fetchLatestHeight(ctx context.Context, client *http.Client, rpcURL string) 
 	return h, nil
 }
 
+// blockResponse decodes a tm2/gno /block response. The canonical block hash is
+// nested under result.block_meta.block_id.hash on test13/tm2; some forks hoist it
+// directly to result.block_id. Decode both; parseBlockHash prefers block_meta.
 type blockResponse struct {
 	Result struct {
+		BlockMeta struct {
+			BlockID struct {
+				Hash string `json:"hash"`
+			} `json:"block_id"`
+		} `json:"block_meta"`
 		BlockID struct {
 			Hash string `json:"hash"`
 		} `json:"block_id"`
@@ -341,14 +349,23 @@ func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, hei
 	if err != nil {
 		return "", err
 	}
+	return parseBlockHash(body, height)
+}
+
+// parseBlockHash extracts the canonical block hash from a /block response body.
+func parseBlockHash(body []byte, height int64) (string, error) {
 	var b blockResponse
 	if err := json.Unmarshal(body, &b); err != nil {
 		return "", fmt.Errorf("decode block: %w", err)
 	}
-	if b.Result.BlockID.Hash == "" {
+	hash := b.Result.BlockMeta.BlockID.Hash
+	if hash == "" {
+		hash = b.Result.BlockID.Hash // fallback for forks that hoist block_id
+	}
+	if hash == "" {
 		return "", fmt.Errorf("block %d: empty block hash", height)
 	}
-	return b.Result.BlockID.Hash, nil
+	return hash, nil
 }
 
 // fetchBlockEvents fetches and parses the watched GnoEvents at a height.
