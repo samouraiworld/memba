@@ -38,9 +38,10 @@ const VISITOR_TABS: TabDef[] = [
     { to: "/directory", Icon: FolderOpen, label: "Directory" },
 ]
 
-// Member tab set: DAOs · Tokens · Activity · More
-// (Home is omitted — member lands on the Control Room which is the home route)
+// Member tab set: Home · DAOs · Tokens · Activity · More
+// (Home returns the member to their Control Room / act-now inbox)
 const MEMBER_TABS: TabDef[] = [
+    { to: "/", Icon: House, label: "Home" },
     { to: "/dao", Icon: Buildings, label: "DAOs" },
     { to: "/tokens", Icon: Coins, label: "Tokens" },
     { to: "/alerts", Icon: Bell, label: "Activity" },

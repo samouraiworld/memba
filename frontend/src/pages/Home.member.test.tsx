@@ -388,6 +388,16 @@ describe("MobileTabBar — member tab set includes Activity", () => {
         // Has the label "Activity"
         expect(activityTab).toHaveTextContent("Activity")
     })
+
+    it("renders a Home tab linking to the home route when connected", () => {
+        renderWithProviders(
+            <MobileTabBar connected={true} address="g1abc" network={mockNetwork} />,
+            { route: "/test13/" },
+        )
+        const homeTab = screen.getByRole("link", { name: /^home$/i })
+        expect(homeTab).toBeInTheDocument()
+        expect(homeTab).toHaveAttribute("href", "/test13/")
+    })
 })
 
 describe("MobileTabBar — visitor tab set unchanged (no Activity tab)", () => {
