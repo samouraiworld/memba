@@ -59,6 +59,9 @@ service MultisigService {
   rpc GetNFTActivity(GetNFTActivityRequest) returns (GetNFTActivityResponse);
   rpc GetNFTPortfolio(GetNFTPortfolioRequest) returns (GetNFTPortfolioResponse);
   rpc ListNFTTokens(ListNFTTokensRequest) returns (ListNFTTokensResponse);
+
+  // Home — aggregated dashboard snapshot (public read, server-cached)
+  rpc GetHomeSnapshot(GetHomeSnapshotRequest) returns (GetHomeSnapshotResponse);
 }
 
 // --- Auth Messages ---
@@ -637,4 +640,69 @@ message ListNFTTokensRequest {
 
 message ListNFTTokensResponse {
   repeated NFTToken tokens = 1;
+}
+
+// --- Home Snapshot Messages ---
+
+// NetworkPulse is the chain liveness summary.
+message NetworkPulse {
+  int64 block_height = 1; // 0 = unknown
+  int64 avg_block_time_ms = 2; // 0 = unknown / not computed in v1
+  uint32 validators_total = 3;
+}
+
+// EcosystemCounts are the per-feature live counts that feed the Ecosystem tiles.
+// NOTE: `daos` is intentionally absent — it is sourced client-side from the
+// gnoweb namespace (same class as gnolove), not from the on-chain stampede.
+message EcosystemCounts {
+  uint32 tokens = 1; // 0 = unknown / source failed
+  uint32 collections = 2;
+  uint32 agents = 3;
+  uint32 validators = 4;
+}
+
+// FeaturedDao is the configured headline DAO's summary state.
+message FeaturedDao {
+  string realm_path = 1;
+  string name = 2;
+  uint32 members = 3;
+  uint64 treasury_ugnot = 4; // 0 = unknown (best-effort bank query)
+  uint32 open_proposals = 5;
+  string latest_proposal_title = 6;
+}
+
+// ValidatorsHealth is the cheap network-health subset (no per-validator signatures).
+message ValidatorsHealth {
+  string status = 1; // "healthy" | "degraded" | "down"
+  uint32 active = 2;
+  uint32 total = 3;
+}
+
+// DirectoryMember is one on-chain users-registry entry (preview).
+message DirectoryMember {
+  string name = 1;
+  string address = 2;
+  string avatar_url = 3;
+}
+
+// HomeSnapshot is the assembled global home payload. Every field tolerates its
+// source failing (zero/empty + listed in stale_sources); the call never fails wholesale.
+message HomeSnapshot {
+  NetworkPulse network = 1;
+  EcosystemCounts counts = 2;
+  FeaturedDao featured_dao = 3;
+  ValidatorsHealth validators_health = 4;
+  repeated DirectoryMember directory_members = 5;
+  int64 as_of_block = 6;
+  int64 indexer_last_block = 7; // max(last_processed_block) across indexed realms
+  string generated_at = 8; // RFC3339
+  repeated string stale_sources = 9; // names of sources that failed this assembly
+}
+
+message GetHomeSnapshotRequest {
+  string chain_id = 1; // no auth required — public read
+}
+
+message GetHomeSnapshotResponse {
+  HomeSnapshot snapshot = 1;
 }

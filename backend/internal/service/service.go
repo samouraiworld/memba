@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
@@ -34,6 +36,13 @@ type MultisigService struct {
 	// nil in production (the real defaultVerifyOnChainQuest is used); tests
 	// inject a deterministic stub so they never hit the network. See quest_verify.go.
 	verifyOnChainQuest func(ctx context.Context, addr, questID, proof string) (bool, error)
+
+	// Home snapshot cache (Phase 2) — single entry per chain_id, in-memory,
+	// serve-stale-on-error. See home_rpc.go.
+	homeCacheMu  sync.RWMutex
+	homeCached   map[string]*membav1.HomeSnapshot
+	homeCachedAt map[string]time.Time
+	homeQuery    queryFunc
 }
 
 // parseAcceptedChainIDs splits a comma-separated env value into a trimmed,
@@ -95,6 +104,9 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 		privateKey:       privateKey,
 		chainID:          chainID,
 		acceptedChainIDs: acceptedChainIDs,
+		homeCached:       make(map[string]*membav1.HomeSnapshot),
+		homeCachedAt:     make(map[string]time.Time),
+		homeQuery:        abciQuery,
 	}, nil
 }
 

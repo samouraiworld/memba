@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { getFeaturedDaoRealm, getExplorerBaseUrl } from "../../../lib/config"
 import { getDAOConfig, getDAOProposals } from "../../../lib/dao"
+import { useHomeSnapshot } from "../../../hooks/home/useHomeSnapshot"
 import { ActionCard } from "../ActionCard"
 import "../home.css"
 
@@ -42,11 +43,15 @@ function fmt(n: number | undefined | null): string {
 /**
  * Internal hook — fetches featured DAO headline data (config + first open
  * proposal). Returns null when the realm is absent on this network.
+ *
+ * Snapshot-first: when useHomeSnapshot is usable, returns data mapped from
+ * the snapshot and skips the on-chain getDAOConfig/getDAOProposals calls.
  */
 function useFeaturedDao(networkKey: string, rpcUrl: string) {
     const realmPath = getFeaturedDaoRealm(networkKey)
+    const { snapshot, usable } = useHomeSnapshot()
 
-    return useQuery({
+    const query = useQuery({
         queryKey: ["featured-dao", networkKey, realmPath],
         queryFn: async () => {
             if (!realmPath) return null
@@ -65,10 +70,35 @@ function useFeaturedDao(networkKey: string, rpcUrl: string) {
                 latestOpenProposal: openProposals[0] ?? null,
             }
         },
-        enabled: !!realmPath,
+        // Skip on-chain fetch when the snapshot is usable
+        enabled: !!realmPath && !usable,
         staleTime: 60_000,
         retry: 1,
     })
+
+    if (usable) {
+        const fd = snapshot?.featuredDao
+        // Self-hide when featuredDao is missing or has no realm
+        if (!fd?.realmPath || !fd?.name) {
+            return { data: null, isLoading: false }
+        }
+        return {
+            data: {
+                realmPath: fd.realmPath,
+                name: fd.name,
+                // members is 0 in v1 snapshot — panel shows "—" which is acceptable
+                memberCount: Number(fd.members ?? 0),
+                openCount: Number(fd.openProposals ?? 0),
+                // Snapshot v1 carries no proposal id — suppress the per-proposal
+                // deep-link to avoid rendering /proposal/undefined; open-proposal
+                // COUNT is still shown via openCount above.
+                latestOpenProposal: null,
+            },
+            isLoading: false,
+        }
+    }
+
+    return query
 }
 
 /**

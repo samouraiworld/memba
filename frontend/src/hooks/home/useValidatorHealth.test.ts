@@ -17,6 +17,7 @@ import type { ReactNode } from "react"
 import React from "react"
 import type { ValidatorInfo } from "../../lib/validators"
 import { ValidatorHealthStatus } from "../../lib/validatorHealth"
+import type { HomeSnapshot } from "../../lib/homeApi"
 
 // ── Module-level mocks ────────────────────────────────────────
 
@@ -43,10 +44,16 @@ vi.mock("../useNetwork", () => ({
     })),
 }))
 
+// Default: snapshot not usable → on-chain path active for existing tests
+vi.mock("./useHomeSnapshot", () => ({
+    useHomeSnapshot: vi.fn(() => ({ snapshot: null, usable: false, isLoading: false })),
+}))
+
 // ── Resolve mocked modules for per-test control ───────────────
 
 const validatorMod = await import("../../lib/validators")
 const healthMod = await import("../../lib/validatorHealth")
+const homeSnapshotMod = await import("./useHomeSnapshot")
 
 // ── Wrapper ───────────────────────────────────────────────────
 
@@ -244,5 +251,81 @@ describe("useValidatorHealth — cheap subset only", () => {
         await waitFor(() => expect(result.current.loading).toBe(false))
 
         expect(validatorMod.getAggregatedNetPeers).not.toHaveBeenCalled()
+    })
+})
+
+describe("useValidatorHealth — snapshot usable", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(homeSnapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                validatorsHealth: { status: "degraded", active: 12, total: 14 },
+            } as unknown as HomeSnapshot,
+            usable: true,
+            isLoading: false,
+        })
+    })
+
+    it("returns status/active/total from snapshot.validatorsHealth", async () => {
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.status).toBe("degraded")
+        expect(result.current.active).toBe(12)
+        expect(result.current.total).toBe(14)
+    })
+
+    it("returns avgUptime=null and latestIncident=null (not in snapshot v1)", async () => {
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.avgUptime).toBeNull()
+        expect(result.current.latestIncident).toBeNull()
+    })
+
+    it("does NOT call getValidators when snapshot is usable (query gated off)", async () => {
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(validatorMod.getValidators).not.toHaveBeenCalled()
+    })
+})
+
+describe("useValidatorHealth — snapshot NOT usable (fallback to on-chain)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(homeSnapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: null,
+            usable: false,
+            isLoading: false,
+        })
+    })
+
+    it("calls getValidators and returns on-chain values when snapshot is not usable", async () => {
+        const validators = Array.from({ length: 10 }, () =>
+            makeValidator({ healthStatus: ValidatorHealthStatus.Healthy }),
+        )
+        vi.mocked(validatorMod.getValidators).mockResolvedValue(validators)
+        vi.mocked(healthMod.computeNetworkHealth).mockReturnValue({
+            total: 10,
+            healthy: 10,
+            degraded: 0,
+            down: 0,
+            unknown: 0,
+            avgUptime: null,
+            latestIncident: null,
+        })
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(validatorMod.getValidators).toHaveBeenCalled()
+        expect(result.current.status).toBe("healthy")
+        expect(result.current.active).toBe(10)
+        expect(result.current.total).toBe(10)
     })
 })

@@ -1,0 +1,127 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "block_meta": {
+      "block_id": {
+        "hash": "ZqkxoIG1kkQ0nCHBrIKOEpCRnRu123jrtqEUHh1MWpQ=",
+        "parts": {
+          "total": "1",
+          "hash": "2+zCMSkAZsHoYV2g6f1Z6D15AP98HwjfTlSHHDlVayI="
+        }
+      },
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "test-13",
+        "height": "321290",
+        "time": "2026-06-19T10:48:48.997596947Z",
+        "num_txs": "0",
+        "total_txs": "7858",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+          "parts": {
+            "total": "1",
+            "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+          }
+        },
+        "last_commit_hash": "6B/B1CqyRcbyXAUCg2iuiIIMsJvP3++HH6OORu/VT2c=",
+        "data_hash": null,
+        "validators_hash": "vIP/14EXSzmZYv3FI0B1/cCQ1qMvM+vR7Fo7JLhNseQ=",
+        "next_validators_hash": "vIP/14EXSzmZYv3FI0B1/cCQ1qMvM+vR7Fo7JLhNseQ=",
+        "consensus_hash": "FbaDuQmTJVlL7kHV3wzVYqYndcGaDAYbpldbm+DKjDs=",
+        "app_hash": "rUm+S8sB8apM+N7lFP2d7OTbF01fsi/QuHtXVfv/iWY=",
+        "last_results_hash": "ENmpuysn9umHUX7HLkgUNd4/VbEn1VP+6IX33nlKzeU=",
+        "proposer_address": "g1zhmw2fzprflze5qfqs8hxm9vdawvmvrejk3z25"
+      }
+    },
+    "block": {
+      "header": {
+        "version": "v1.0.0-rc.0",
+        "chain_id": "test-13",
+        "height": "321290",
+        "time": "2026-06-19T10:48:48.997596947Z",
+        "num_txs": "0",
+        "total_txs": "7858",
+        "app_version": "",
+        "last_block_id": {
+          "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+          "parts": {
+            "total": "1",
+            "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+          }
+        },
+        "last_commit_hash": "6B/B1CqyRcbyXAUCg2iuiIIMsJvP3++HH6OORu/VT2c=",
+        "data_hash": null,
+        "validators_hash": "vIP/14EXSzmZYv3FI0B1/cCQ1qMvM+vR7Fo7JLhNseQ=",
+        "next_validators_hash": "vIP/14EXSzmZYv3FI0B1/cCQ1qMvM+vR7Fo7JLhNseQ=",
+        "consensus_hash": "FbaDuQmTJVlL7kHV3wzVYqYndcGaDAYbpldbm+DKjDs=",
+        "app_hash": "rUm+S8sB8apM+N7lFP2d7OTbF01fsi/QuHtXVfv/iWY=",
+        "last_results_hash": "ENmpuysn9umHUX7HLkgUNd4/VbEn1VP+6IX33nlKzeU=",
+        "proposer_address": "g1zhmw2fzprflze5qfqs8hxm9vdawvmvrejk3z25"
+      },
+      "data": {
+        "txs": null
+      },
+      "last_commit": {
+        "block_id": {
+          "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+          "parts": {
+            "total": "1",
+            "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+          }
+        },
+        "precommits": [
+          {
+            "type": 2,
+            "height": "321289",
+            "round": "0",
+            "block_id": {
+              "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+              "parts": {
+                "total": "1",
+                "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+              }
+            },
+            "timestamp": "2026-06-19T10:48:49.001860320Z",
+            "validator_address": "g1zhmw2fzprflze5qfqs8hxm9vdawvmvrejk3z25",
+            "validator_index": "0",
+            "signature": "2uLkW5gjU4eqb5QleROvlaMwXPRDpj60RIiM1GjBCSE9KhA2S0MjiXg+iaz3xKPUBy5QNA+yCRuCTBoL8YsTBA=="
+          },
+          {
+            "type": 2,
+            "height": "321289",
+            "round": "0",
+            "block_id": {
+              "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+              "parts": {
+                "total": "1",
+                "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+              }
+            },
+            "timestamp": "2026-06-19T10:48:48.996290814Z",
+            "validator_address": "g15sysd4jcpsw7t0n4ffe2hn8ndfup2ae2vwpves",
+            "validator_index": "1",
+            "signature": "Dd/eTAT5O8qEK1baNnIMgTqTQ3d2cav8t9lN0F5JckzvLHboHAjuKqqdr4gDgKpQWDKD/fpjj3wDxgOGiuvIAA=="
+          },
+          {
+            "type": 2,
+            "height": "321289",
+            "round": "0",
+            "block_id": {
+              "hash": "blI8wYQrSUutzZyR0XwCvFXj0kFifPgRgZuRNijxTjU=",
+              "parts": {
+                "total": "1",
+                "hash": "Z0ITcWQU9HWA+VGgZ2/g37koLGHRve/1V2NcfzBZVu4="
+              }
+            },
+            "timestamp": "2026-06-19T10:48:48.997596947Z",
+            "validator_address": "g1ahsucf2e2g95n7xufes8mqtuucw5829t044s22",
+            "validator_index": "2",
+            "signature": "iBT9tn8KDAsfksu3rds5VOhOZzxDo70/0ONRhKCSM6AXS4DSVkqcdeQj+PZNZq+MQBX8zxElH/O2pfMcuRBZCw=="
+          }
+        ]
+      }
+    }
+  }
+}

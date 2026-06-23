@@ -1,0 +1,61 @@
+{
+  "jsonrpc": "2.0",
+  "id": "",
+  "result": {
+    "node_info": {
+      "version_set": [
+        {
+          "Name": "abci",
+          "Version": "v1.0.0-rc.0",
+          "Optional": false
+        },
+        {
+          "Name": "app",
+          "Version": "",
+          "Optional": false
+        },
+        {
+          "Name": "bft",
+          "Version": "v1.0.0-rc.0",
+          "Optional": false
+        },
+        {
+          "Name": "blockchain",
+          "Version": "v1.0.0-rc.0",
+          "Optional": false
+        },
+        {
+          "Name": "p2p",
+          "Version": "v1.0.0-rc.0",
+          "Optional": false
+        }
+      ],
+      "net_address": "g1k5wq2auv8xnydrhtxdf0pl8hehh285u5akcn9m@0.0.0.0:26656",
+      "network": "test-13",
+      "software": "",
+      "version": "v1.0.0-rc.0",
+      "channels": "QCAhIiMwUA==",
+      "moniker": "gno-core-rpc-i-08482a40da823aa2f",
+      "other": {
+        "tx_index": "off",
+        "rpc_address": "tcp://0.0.0.0:26657"
+      }
+    },
+    "sync_info": {
+      "latest_block_hash": "VvAYOC12MsK1YqjuX5vVGDUqwU9//xIVY7/cutBntnw=",
+      "latest_app_hash": "0dKOrcr2cKl1OeQF/OA8/iRK3rkf9DwZ9hiu90h+ZmU=",
+      "latest_block_height": "321300",
+      "latest_block_time": "2026-06-19T10:49:25.946026517Z",
+      "catching_up": false
+    },
+    "validator_info": {
+      "address": "g19t46u36xy2ac0lm5nk4004jzecva0aasyzpph3",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "zwJnVJ1d9/dKqhsnKlFH+EGAYug6FdR66hZ/89FR7eA="
+      },
+      "voting_power": "0"
+    },
+    "build_version": "chain/test13"
+  }
+}

@@ -16,6 +16,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
+import { useHomeSnapshot } from "./useHomeSnapshot"
 import { getValidators } from "../../lib/validators"
 import { computeNetworkHealth } from "../../lib/validatorHealth"
 
@@ -71,15 +72,33 @@ async function fetchValidatorHealth(rpcUrl: string): Promise<Omit<ValidatorHealt
  * useValidatorHealth — React Query hook for network-wide validator health.
  *
  * Never throws: returns loading=true while fetching, graceful defaults on error.
+ *
+ * Snapshot-first: when the home snapshot is available, returns the cheap
+ * validatorsHealth subset (status/active/total). avgUptime and latestIncident
+ * are null under the snapshot (v1 limitation — panel shows "—" for uptime and
+ * hides the incident card, which is expected per spec).
  */
 export function useValidatorHealth(): ValidatorHealth {
     const { rpcUrl } = useNetwork()
+    const { snapshot, usable } = useHomeSnapshot()
 
     const query = useQuery({
         queryKey: ["home", "validators", rpcUrl],
         queryFn: () => fetchValidatorHealth(rpcUrl),
         staleTime: STALE_TIME,
+        enabled: !usable,
     })
+
+    if (usable) {
+        return {
+            status: (snapshot?.validatorsHealth?.status as ValidatorHealth["status"]) ?? "healthy",
+            active: Number(snapshot?.validatorsHealth?.active ?? 0),
+            total: Number(snapshot?.validatorsHealth?.total ?? 0),
+            avgUptime: null,
+            latestIncident: null,
+            loading: false,
+        }
+    }
 
     return {
         status: query.data?.status ?? "healthy",

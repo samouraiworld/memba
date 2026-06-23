@@ -7,9 +7,12 @@
  * 3. No featured realm (null) — panel self-hides
  * 4. Loading state — shows skeleton cards
  * 5. No open proposals — renders "—" for proposal count without crashing
+ * 6. Snapshot usable with populated featuredDao → renders snapshot data, no on-chain calls
+ * 7. Snapshot usable but featuredDao empty/realmPath blank → panel self-hides
+ * 8. Snapshot NOT usable → on-chain path fires (existing tests cover this)
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { screen, waitFor } from "@testing-library/react"
 import { renderWithProviders } from "../../../test/test-utils"
 import { FeaturedDaoPanel } from "./FeaturedDaoPanel"
@@ -44,11 +47,21 @@ vi.mock("../../../lib/dao", () => ({
     getDAOProposals: vi.fn(),
 }))
 
+// Mock useHomeSnapshot — default: not usable, so existing on-chain tests are unaffected
+vi.mock("../../../hooks/home/useHomeSnapshot", () => ({
+    useHomeSnapshot: vi.fn(() => ({
+        snapshot: null,
+        usable: false,
+        isLoading: false,
+    })),
+}))
+
 // ── Resolve mocked modules for per-test control ───────────────
 
 const networkMod = await import("../../../hooks/useNetwork")
 const configMod = await import("../../../lib/config")
 const daoMod = await import("../../../lib/dao")
+const snapshotMod = await import("../../../hooks/home/useHomeSnapshot")
 
 // ── Shared fixtures ───────────────────────────────────────────
 
@@ -249,6 +262,119 @@ describe("FeaturedDaoPanel — config error / null config", () => {
     })
 
     it("self-hides when config returns null", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.queryByTestId("featured-dao-panel")).not.toBeInTheDocument()
+        })
+    })
+})
+
+describe("FeaturedDaoPanel — snapshot path (usable snapshot)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        setupHappy()
+        // Provide a usable snapshot with a populated featuredDao
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                featuredDao: {
+                    realmPath: "gno.land/r/samcrew/memba_dao",
+                    name: "Snapshot DAO",
+                    members: 7,
+                    treasuryUgnot: BigInt(0),
+                    openProposals: 3,
+                    latestProposalTitle: "Snapshot proposal title",
+                },
+            } as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            usable: true,
+            isLoading: false,
+        })
+    })
+
+    afterEach(() => {
+        // Reset to non-usable default after snapshot tests
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: null,
+            usable: false,
+            isLoading: false,
+        })
+    })
+
+    it("renders snapshot DAO name without calling getDAOConfig or getDAOProposals", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.getByText("Snapshot DAO")).toBeInTheDocument()
+        })
+        expect(daoMod.getDAOConfig).not.toHaveBeenCalled()
+        expect(daoMod.getDAOProposals).not.toHaveBeenCalled()
+    })
+
+    it("renders the open-proposals count from snapshot", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.getByText("3")).toBeInTheDocument()
+        })
+    })
+
+    it("does NOT render a /proposal/undefined href on the snapshot path", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.getByTestId("featured-dao-panel")).toBeInTheDocument()
+        })
+        const links = screen.getAllByRole("link")
+        const hrefs = links.map(l => l.getAttribute("href") ?? "")
+        // Snapshot v1 has no proposal id — must not produce a broken deep-link
+        expect(hrefs.some(h => h.includes("proposal/undefined"))).toBe(false)
+    })
+
+    it("renders the panel container", async () => {
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.getByTestId("featured-dao-panel")).toBeInTheDocument()
+        })
+    })
+})
+
+describe("FeaturedDaoPanel — snapshot usable but featuredDao empty", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        setupHappy()
+    })
+
+    afterEach(() => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: null,
+            usable: false,
+            isLoading: false,
+        })
+    })
+
+    it("self-hides when snapshot featuredDao has blank realmPath", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                featuredDao: {
+                    realmPath: "",
+                    name: "",
+                    members: 0,
+                    treasuryUgnot: BigInt(0),
+                    openProposals: 0,
+                    latestProposalTitle: "",
+                },
+            } as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            usable: true,
+            isLoading: false,
+        })
+        renderWithProviders(<FeaturedDaoPanel />)
+        await waitFor(() => {
+            expect(screen.queryByTestId("featured-dao-panel")).not.toBeInTheDocument()
+        })
+    })
+
+    it("self-hides when snapshot has no featuredDao field", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {} as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            usable: true,
+            isLoading: false,
+        })
         renderWithProviders(<FeaturedDaoPanel />)
         await waitFor(() => {
             expect(screen.queryByTestId("featured-dao-panel")).not.toBeInTheDocument()
