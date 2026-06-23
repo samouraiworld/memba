@@ -97,10 +97,12 @@ describe("ActionInbox — loading", () => {
         })
     })
 
-    it("renders 3 skeleton action cards while loading", () => {
-        renderWithProviders(<ActionInbox />)
-        const skeletons = screen.getAllByTestId("action-card-skeleton")
-        expect(skeletons).toHaveLength(3)
+    it("renders 3 skeleton action doors while loading", () => {
+        const { container } = renderWithProviders(<ActionInbox />)
+        // ActionDoorSkeleton renders Door variant="action" state="loading",
+        // which outputs .door__sk bars (3 per door × 3 doors = 9 bars).
+        const skBars = container.querySelectorAll(".door__sk")
+        expect(skBars.length).toBeGreaterThanOrEqual(9)
     })
 })
 
@@ -124,9 +126,9 @@ describe("ActionInbox — all caught up", () => {
         expect(screen.getByText(/browse daos/i)).toBeInTheDocument()
     })
 
-    it("does NOT render skeleton cards when all caught up", () => {
-        renderWithProviders(<ActionInbox />)
-        expect(screen.queryByTestId("action-card-skeleton")).not.toBeInTheDocument()
+    it("does NOT render skeleton doors when all caught up", () => {
+        const { container } = renderWithProviders(<ActionInbox />)
+        expect(container.querySelectorAll(".door__sk").length).toBe(0)
     })
 })
 
@@ -159,9 +161,11 @@ describe("ActionInbox — with vote actions", () => {
         })
     })
 
-    it("renders the QuickVoteWidget with the proposal title", () => {
+    it("renders the vote action with the proposal title", () => {
         renderWithProviders(<ActionInbox />)
-        expect(screen.getByText(/Proposal Alpha/i)).toBeInTheDocument()
+        // Title appears in the door body; QuickVoteWidget also renders it.
+        const matches = screen.getAllByText(/Proposal Alpha/i)
+        expect(matches.length).toBeGreaterThanOrEqual(1)
     })
 
     it("shows YES and NO vote buttons", () => {
@@ -257,9 +261,9 @@ describe("ActionInbox — with sign action", () => {
         expect(screen.getByText("Pay the team")).toBeInTheDocument()
     })
 
-    it("renders a Sign label on the card", () => {
+    it("renders a 'Review & sign' CTA on the action door", () => {
         renderWithProviders(<ActionInbox />)
-        expect(screen.getByText("Sign")).toBeInTheDocument()
+        expect(screen.getByText(/review & sign/i)).toBeInTheDocument()
     })
 
     it("card links to the tx page", () => {
@@ -307,11 +311,12 @@ describe("ActionInbox — mixed actions (vote + sign)", () => {
         })
     })
 
-    it("renders both the QuickVoteWidget and the sign ActionCard", () => {
+    it("renders both the vote action door and the sign action door", () => {
         renderWithProviders(<ActionInbox />)
-        // Vote widget
-        expect(screen.getByText(/Proposal Alpha/i)).toBeInTheDocument()
-        // Sign card
+        // Vote door — title may appear in door body + QuickVoteWidget
+        const proposals = screen.getAllByText(/Proposal Alpha/i)
+        expect(proposals.length).toBeGreaterThanOrEqual(1)
+        // Sign door
         expect(screen.getByText("Pay the team")).toBeInTheDocument()
     })
 

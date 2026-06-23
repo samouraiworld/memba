@@ -1,23 +1,28 @@
 /**
  * ActionInbox — "Act now" section of the member Control Room spine.
  *
- * - VOTE actions: render QuickVoteWidget for inline voting (no page navigation)
- * - SIGN/CANDIDATURE actions: render ActionCards that deep-link to their pages
- * - loading: 3 skeleton ActionCards
- * - allCaughtUp: one neutral "You're all caught up" ActionCard with browse DAOs link
+ * Each pending action is rendered as an ActionDoor (Door variant="action"):
+ *   - VOTE:        icon chip + eyebrow + inline QuickVoteWidget (approve/reject)
+ *   - SIGN:        icon chip + eyebrow + title + meta + "Review & sign" link
+ *   - CANDIDATURE: icon chip + eyebrow + title + "Apply" link
+ *   - CLAIM:       icon chip + eyebrow + title + "Claim" link (LIVE rewards only)
+ *
+ * States:
+ *   - loading:      3 ActionDoorSkeleton cards (Door variant="action" state="loading")
+ *   - allCaughtUp:  single "You're all caught up." action door
+ *   - ready:        one ActionDoor per action, count pill, "view all activity" footer
  *
  * Inline vote wiring mirrors Dashboard.tsx exactly:
  *   buildVoteMsg → doContractBroadcast → setVotedIds + clearVoteCache
  *
- * Proposals come from useHomeActions (single useUnvotedProposals call shared
- * with the action-builder — no duplicate cold-load scan).
+ * Actions come from useHomeActions (single aggregator hook — no duplicate scan).
  */
 
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { useOutletContext } from "react-router-dom"
 import { useHomeActions } from "../../hooks/home/useHomeActions"
-import { ActionCard } from "./ActionCard"
-import { QuickVoteWidget } from "../dashboard/QuickVoteWidget"
+import { ActionDoor, ActionDoorSkeleton } from "./doors/ActionDoor"
 import { buildVoteMsg } from "../../lib/dao"
 import { doContractBroadcast } from "../../lib/grc20"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
@@ -65,10 +70,6 @@ export function ActionInbox() {
         p => !votedIds.has(`${p.realmPath}:${p.proposalId}`)
     )
 
-    // Separate vote actions (shown via QuickVoteWidget) from deep-link actions
-    const deepLinkActions = actions.filter(a => a.kind !== "vote")
-    const hasVoteActions = actions.some(a => a.kind === "vote")
-
     const totalCount = actions.length
 
     // ── Loading ───────────────────────────────────────────────
@@ -79,9 +80,9 @@ export function ActionInbox() {
                     <h2 className="action-inbox__title">Act now</h2>
                 </div>
                 <div className="action-inbox__list">
-                    <ActionCard loading title="" />
-                    <ActionCard loading title="" />
-                    <ActionCard loading title="" />
+                    <ActionDoorSkeleton />
+                    <ActionDoorSkeleton />
+                    <ActionDoorSkeleton />
                 </div>
             </section>
         )
@@ -95,13 +96,17 @@ export function ActionInbox() {
                     <h2 className="action-inbox__title">Act now</h2>
                 </div>
                 <div className="action-inbox__list">
-                    <ActionCard
-                        accent="neutral"
-                        eyebrow="inbox"
-                        title="You're all caught up"
-                        actionLabel="Browse DAOs"
-                        href={buildPath("dao")}
-                    />
+                    <div className="action-door action-door--caught-up">
+                        <span className="action-door__caught-up-msg">
+                            {"You're all caught up."}
+                        </span>
+                        <Link
+                            to={buildPath("dao")}
+                            className="action-door__caught-up-link"
+                        >
+                            Browse DAOs
+                        </Link>
+                    </div>
                 </div>
             </section>
         )
@@ -118,26 +123,17 @@ export function ActionInbox() {
             </div>
 
             <div className="action-inbox__list">
-                {/* Inline vote widget for vote-kind actions */}
-                {hasVoteActions && visibleUnvoted.length > 0 && (
-                    <QuickVoteWidget
-                        proposals={visibleUnvoted}
+                {actions.map(action => (
+                    <ActionDoor
+                        key={action.id}
+                        action={{
+                            ...action,
+                            href: buildPath(action.href.replace(/^\//, "")),
+                        }}
                         votingId={votingId}
                         votedIds={votedIds}
+                        unvotedProposals={visibleUnvoted}
                         onVote={handleQuickVote}
-                    />
-                )}
-
-                {/* Deep-link cards for sign + candidature */}
-                {deepLinkActions.map(action => (
-                    <ActionCard
-                        key={action.id}
-                        accent={action.accent}
-                        eyebrow={action.eyebrow}
-                        title={action.title}
-                        meta={action.meta}
-                        href={buildPath(action.href.replace(/^\//, ""))}
-                        actionLabel={action.kind === "sign" ? "Sign" : "Apply"}
                     />
                 ))}
             </div>
