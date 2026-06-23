@@ -23,6 +23,7 @@ import { Link } from "react-router-dom"
 import { useOutletContext } from "react-router-dom"
 import { useHomeActions } from "../../hooks/home/useHomeActions"
 import { ActionDoor, ActionDoorSkeleton } from "./doors/ActionDoor"
+import { Door } from "./Door"
 import { buildVoteMsg } from "../../lib/dao"
 import { doContractBroadcast } from "../../lib/grc20"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
@@ -96,7 +97,7 @@ export function ActionInbox() {
                     <h2 className="action-inbox__title">Act now</h2>
                 </div>
                 <div className="action-inbox__list">
-                    <div className="action-door action-door--caught-up">
+                    <Door variant="action" state="ready" eyebrow="all caught up">
                         <span className="action-door__caught-up-msg">
                             {"You're all caught up."}
                         </span>
@@ -106,7 +107,7 @@ export function ActionInbox() {
                         >
                             Browse DAOs
                         </Link>
-                    </div>
+                    </Door>
                 </div>
             </section>
         )

@@ -25,19 +25,14 @@
 import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useDirectoryHighlights } from "../../../hooks/home/useDirectoryHighlights"
-import { useNetwork } from "../../../hooks/useNetwork"
 import "../home.css"
 
 export interface DirectoryDoorProps {
     networkKey: string
 }
 
-// networkKey prop accepted for ShowcaseBoard slot compatibility; useNetwork()
-// provides the same value from context without prop threading.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function DirectoryDoor({ networkKey: _ }: DirectoryDoorProps) {
+export function DirectoryDoor({ networkKey }: DirectoryDoorProps) {
     const { memberCount, loading } = useDirectoryHighlights()
-    const { networkKey } = useNetwork()
 
     const directoryHref = `/${networkKey}/directory`
 

@@ -118,7 +118,8 @@ describe("ActionInbox — all caught up", () => {
 
     it("renders the 'all caught up' card (never blank)", () => {
         renderWithProviders(<ActionInbox />)
-        expect(screen.getByText(/all caught up/i)).toBeInTheDocument()
+        // Door eyebrow says "all caught up"; body span says "You're all caught up."
+        expect(screen.getByText("You're all caught up.")).toBeInTheDocument()
     })
 
     it("shows a Browse DAOs link", () => {

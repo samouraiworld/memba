@@ -121,7 +121,9 @@ describe("ActionDoor — empty / all caught up", () => {
 
     it("renders 'You're all caught up.' and never shows blank/dash", () => {
         renderWithProviders(<ActionInbox />)
-        expect(screen.getByText(/all caught up/i)).toBeInTheDocument()
+        // The eyebrow reads "all caught up" and the body span reads "You're all caught up."
+        expect(screen.getAllByText(/all caught up/i).length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText("You're all caught up.")).toBeInTheDocument()
     })
 })
 

@@ -29,7 +29,6 @@
 import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useValidatorHealth } from "../../../hooks/home/useValidatorHealth"
-import { useNetwork } from "../../../hooks/useNetwork"
 import "../home.css"
 
 export interface NetworkHealthDoorProps {
@@ -45,13 +44,8 @@ function statusLabel(status: "healthy" | "degraded" | "down" | "unknown"): strin
     }
 }
 
-// networkKey prop is accepted for ShowcaseBoard slot compatibility but not used
-// directly — useNetwork() provides it from context (same value, avoids prop
-// threading through every lazy slot without the NetworkProvider reachable).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function NetworkHealthDoor({ networkKey: _ }: NetworkHealthDoorProps) {
+export function NetworkHealthDoor({ networkKey }: NetworkHealthDoorProps) {
     const { status, active, total, loading } = useValidatorHealth()
-    const { networkKey } = useNetwork()
 
     const validatorsHref = `/${networkKey}/validators`
 

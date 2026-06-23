@@ -238,3 +238,27 @@ describe("useYourWorlds — loading state", () => {
         expect(result.current.state).toBe("loading")
     })
 })
+
+describe("useYourWorlds — refetch is always exposed", () => {
+    it("exposes a refetch function when state is empty (no saved DAOs)", async () => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([])
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("empty"))
+        expect(typeof result.current.refetch).toBe("function")
+    })
+
+    it("exposes a refetch function when state is ready", async () => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue(MOCK_PROPOSALS)
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(typeof result.current.refetch).toBe("function")
+    })
+})
