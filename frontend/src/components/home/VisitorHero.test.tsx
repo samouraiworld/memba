@@ -139,3 +139,30 @@ describe("VisitorHero — hint text", () => {
         expect(screen.getByText(/no wallet needed to look around/i)).toBeInTheDocument()
     })
 })
+
+describe("VisitorHero — two distinct, accessible CTAs", () => {
+    it("renders Explore DAOs and the wallet CTA as two separate accessible elements", () => {
+        // Default context: adena not installed → Install Adena link visible
+        renderWithProviders(<VisitorHero />)
+        const explore = screen.getByRole("link", { name: /explore daos/i })
+        // wallet CTA: "Install Adena" link when adena not installed (default mock)
+        const wallet = screen.getByRole("link", { name: /install adena/i })
+        expect(explore).toBeInTheDocument()
+        expect(wallet).toBeInTheDocument()
+        // They must be two separate DOM nodes, not the same run-together element
+        expect(explore).not.toBe(wallet)
+    })
+
+    it("renders Explore DAOs and Connect wallet as two separate elements when adena installed", () => {
+        const connectFn = vi.fn().mockResolvedValue(true)
+        vi.mocked(routerMod.useOutletContext).mockReturnValue(
+            mockLayoutContext({ adena: { installed: true, connect: connectFn } }),
+        )
+        renderWithProviders(<VisitorHero />)
+        const explore = screen.getByRole("link", { name: /explore daos/i })
+        const wallet = screen.getByRole("button", { name: /connect wallet/i })
+        expect(explore).toBeInTheDocument()
+        expect(wallet).toBeInTheDocument()
+        expect(explore).not.toBe(wallet)
+    })
+})
