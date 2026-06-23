@@ -175,6 +175,11 @@ button.action-card:focus-visible {
   animation: none;
 }
 
+.status-strip__dot--offline {
+  background: var(--color-k-danger, #e5484d);
+  animation: none;
+}
+
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }

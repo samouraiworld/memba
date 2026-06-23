@@ -13,7 +13,11 @@ import "./home.css"
 
 export function StatusStrip() {
     const { label } = useNetwork()
-    const { blockHeight, totalValidators, loading } = useNetworkPulse()
+    const { blockHeight, totalValidators, loading, offline } = useNetworkPulse()
+
+    // Truthful dot: offline (RPC error) → distinct state, never a "live" dot.
+    const dotState = offline ? "offline" : loading ? "syncing" : "live"
+    const dotModifier = offline ? " status-strip__dot--offline" : loading ? " status-strip__dot--syncing" : ""
 
     return (
         <div className="status-strip" data-testid="status-strip">
@@ -21,11 +25,12 @@ export function StatusStrip() {
             <span className="status-strip__sep" aria-hidden="true">·</span>
             <span className="status-strip__chain">{label}</span>
             <span
-                className={`status-strip__dot${loading ? " status-strip__dot--syncing" : ""}`}
-                aria-label={loading ? "syncing" : "live"}
-                title={loading ? "syncing" : "live"}
+                className={`status-strip__dot${dotModifier}`}
+                role="img"
+                aria-label={dotState}
+                title={dotState}
             />
-            {!loading && (
+            {!loading && !offline && (
                 <>
                     <span className="status-strip__stat" data-testid="status-block-height">
                         #{blockHeight.toLocaleString()}

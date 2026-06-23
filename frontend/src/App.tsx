@@ -167,7 +167,7 @@ function App() {
 
         {/* ── Network-scoped routes ─────────────────────────── */}
         <Route path="/:network" element={<NetworkGate />}>
-          {/* Landing page (public) — redirects to /dashboard when connected */}
+          {/* Network index → the Control Room home (mode-aware: visitor / member) */}
           <Route index element={<HomeRedirect />} />
 
           {/* Dashboard — old /dashboard links land on the new home */}
