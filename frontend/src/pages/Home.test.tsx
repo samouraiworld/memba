@@ -134,9 +134,9 @@ describe("Home — member mode", () => {
         expect(screen.queryByTestId("home-spine-visitor")).not.toBeInTheDocument()
     })
 
-    it("renders the state board container", () => {
+    it("renders the board container", () => {
         renderWithProviders(<Home mode="member" />, { route: "/test13/" })
-        expect(screen.getByTestId("home-state-board")).toBeInTheDocument()
+        expect(screen.getByTestId("home-board-member")).toBeInTheDocument()
     })
 
     it("renders StatusStrip with the chain label", () => {

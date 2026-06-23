@@ -98,7 +98,7 @@ export function Home({ mode }: HomeProps) {
             </div>
 
             {/* Zone 3: BOARD — your worlds → explore */}
-            <div className="home-state-board" data-testid="home-state-board">
+            <div className="home-state-board" data-testid="home-board-member">
                 {/* Your worlds section — member-only saved-DAO panel */}
                 <YourWorldsPanel />
 

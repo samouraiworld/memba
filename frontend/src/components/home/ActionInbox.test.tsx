@@ -321,9 +321,9 @@ describe("ActionInbox — mixed actions (vote + sign)", () => {
 
     it("renders both the vote action door and the sign action door", () => {
         renderWithProviders(<ActionInbox />)
-        // Vote door — title may appear in door body + QuickVoteWidget
+        // Vote door — title appears only in QuickVoteWidget (door body is suppressed for vote kind).
         const proposals = screen.getAllByText(/Proposal Alpha/i)
-        expect(proposals.length).toBeGreaterThanOrEqual(1)
+        expect(proposals.length).toBe(1)
         // Sign door
         expect(screen.getByText("Pay the team")).toBeInTheDocument()
     })
