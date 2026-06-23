@@ -145,7 +145,62 @@ export function buildWithdrawCandidatureMsg(
     }
 }
 
+/**
+ * Build MsgCall for an admin to approve a pending application.
+ * Calls deployed realm: MarkApproved(applicant) — admin-only; returns the
+ * applicant's deposit and sets status to "approved".
+ */
+export function buildMarkApprovedMsg(
+    callerAddress: string,
+    applicant: string,
+    realmPath: string = MEMBA_DAO.candidaturePath,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller: callerAddress,
+            send: "",
+            pkg_path: realmPath,
+            func: "MarkApproved",
+            args: [applicant],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for an admin to reject a pending application.
+ * Calls deployed realm: MarkRejected(applicant) — admin-only; returns the
+ * applicant's deposit and sets status to "rejected".
+ */
+export function buildMarkRejectedMsg(
+    callerAddress: string,
+    applicant: string,
+    realmPath: string = MEMBA_DAO.candidaturePath,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller: callerAddress,
+            send: "",
+            pkg_path: realmPath,
+            func: "MarkRejected",
+            args: [applicant],
+        },
+    }
+}
+
 // ── ABCI Query Parsers ────────────────────────────────────────
+
+/**
+ * Parse the result of a `vm/qeval` call to `IsAdmin(addr)` on the candidature
+ * realm. gno renders a bool as `(true bool)` / `(false bool)` (or bare
+ * `true`/`false`). Fails closed: null/empty/unexpected → false (so the admin
+ * UI never appears on a failed or malformed check).
+ */
+export function parseIsAdminResult(raw: string | null): boolean {
+    if (!raw) return false
+    return /^\(?\s*true\b/.test(raw.trim())
+}
 
 /**
  * Parse candidature list from the deployed realm's Render("") output.
