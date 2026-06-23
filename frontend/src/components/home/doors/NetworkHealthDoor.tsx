@@ -26,6 +26,7 @@
  * @module components/home/doors/NetworkHealthDoor
  */
 
+import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import { useNetwork } from "../../../hooks/useNetwork"
@@ -89,15 +90,9 @@ export function NetworkHealthDoor({ networkKey: _ }: NetworkHealthDoorProps) {
                         {label}
                     </span>
                 )}
-                <a
-                    href={validatorsHref}
-                    className="network-health-door__link"
-                    // Internal href: use <a> here; the Door primitive handles
-                    // internal/external routing when the Door itself has an href.
-                    // The content link is kept simple.
-                >
+                <Link to={validatorsHref} className="network-health-door__link">
                     View validators
-                </a>
+                </Link>
             </div>
         </Door>
     )

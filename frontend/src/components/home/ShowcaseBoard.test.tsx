@@ -62,6 +62,7 @@ describe("ShowcaseBoard — featured-first", () => {
             state: "ready",
             dao: { name: "Memba DAO", members: 42, href: "/test13/dao/r/memba" },
             invitationHref: "/test13/dao",
+            refetch: vi.fn(),
         })
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
         expect(screen.getByTestId("showcase-board")).toBeInTheDocument()
@@ -72,6 +73,7 @@ describe("ShowcaseBoard — featured-first", () => {
             state: "ready",
             dao: { name: "Memba DAO", members: 42, href: "/test13/dao/r/memba" },
             invitationHref: "/test13/dao",
+            refetch: vi.fn(),
         })
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
 
@@ -90,6 +92,7 @@ describe("ShowcaseBoard — featured-first", () => {
             state: "ready",
             dao: { name: "NoMembers DAO", href: "/test13/dao/r/x" },
             invitationHref: "/test13/dao",
+            refetch: vi.fn(),
         })
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
         expect(screen.getByText("NoMembers DAO")).toBeInTheDocument()
@@ -127,6 +130,7 @@ describe("ShowcaseBoard — empty → invitation", () => {
         mockUseFeaturedDao.mockReturnValue({
             state: "empty",
             invitationHref: "/test13/dao",
+            refetch: vi.fn(),
         })
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
 
