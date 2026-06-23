@@ -639,6 +639,12 @@ button.action-card:focus-visible {
   margin: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .visitor-hero__cta {
+    transition: none;
+  }
+}
+
 /* ── Focus rings (global for home interactive elements) ───────────── */
 
 .visitor-hero__cta:focus-visible {
@@ -1048,12 +1054,6 @@ button.door:focus-visible {
 }
 
 .quick-vote-btn--no {
-  background: var(--color-k-danger-tint);
-  color: var(--color-k-danger);
-  border-color: var(--color-k-danger-border);
-}
-
-[data-theme="light"] .quick-vote-btn--no {
   background: var(--color-k-danger-tint);
   color: var(--color-k-danger);
   border-color: var(--color-k-danger-border);
