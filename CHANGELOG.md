@@ -4,9 +4,17 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased — since v6.3.1 (2026-05-28 → 2026-06-19)
+## Unreleased — since v6.3.1 (2026-05-28 → 2026-06-23)
 
-> Large multi-workstream wave merged to `main` after v6.3.1 (~50 PRs). No version tag cut yet — release/version number is a pending decision. Grouped by workstream; PR numbers are the source of truth.
+> Large multi-workstream wave merged to `main` after v6.3.1 (~60 PRs). No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
+
+### test12 → test13 cutover + auth enforcement + indexer (2026-06-23)
+- **Production cutover to test13.** Chain flip `GNO_CHAIN_ID test12 → test-13` + RPC + accepted-chain-ids (#450); retire test12 from the network selector (#453); backfill `realm-versions.json` with the live test13 realms (#451); fix the gnoweb test13 URL (#454).
+- **test13 feature completeness:** candidature admin approve/reject UI (#448); channel thread author edit/delete (#449); owner-only Create Channel (#452); truthful home network-status states (#447).
+- **Auth — login signatures now ENFORCED in prod.** Root-caused the long-standing `result=signed_invalid`: the backend reconstructed the login sign-doc with `"args":null`, but Adena's proto-roundtrip omits an empty `args`; `args,omitempty` makes real Adena signatures verify (#456). Confirmed `result=signed` live, then flipped `MEMBA_ALLOW_UNSIGNED_AUTH=0` — empty/invalid/address-only logins are now rejected, closing the impersonation window (#460). `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` held pending live A3 validation.
+- **NFT indexer unfrozen.** Read the block hash from `result.block_meta.block_id.hash` — test13 nests it there, and the wrong path had frozen the tailer at block 259,999 (#457); retry past the public node's intermittent empty responses (#462); pin the tailer to samourai's own RPC node after the resulting fast catch-up tripped the public node's per-IP rate limit (#466).
+- **Fixes/docs:** Candidature "Go to Quest Hub" button → `/quests` (was `/profile`) (#463); consolidated test13 live cross-perspective audit (#464).
+- **Home — Atlas redesign (concurrent session):** visitor "board of doors" home, member home, polish, vendored fonts (#455/#458/#459/#461).
 
 ### gnolove (#371–#380, 06-04 → 06-05)
 - Default Home + Report to "This Month" (#371); order Teams index by this-month contributor score (#372).
@@ -41,8 +49,10 @@ Full changelogs are split by version range for easier navigation:
 - Action-first home (Phase 0+1): mode-aware Home, ActionInbox/VisitorHero spine, 7 lazy error-isolated StateBoard panels, Landing + Remotion retired (#439). *(Phase 2 server-side `GetHomeSnapshot` in-flight on PR #445.)*
 
 ### Known carry-forward (not yet shipped)
-- Release tag/version still to cut. CHANGELOG had drifted ~4 weeks before this refresh.
-- NFT marketplace/launchpad + Services gated OFF in repo (`VITE_ENABLE_NFT`/`VITE_ENABLE_SERVICES=false`); GnoBuilders badges deployed but never minted; quests need server-side verification breadth. `test12` still the default in prod config (cutover pending).
+- Release tag/version still to cut.
+- **test12 cutover DONE** (prod now `test-13`) and **login auth enforcement LIVE** (#460); multisig A3 enforcement (`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY`) still held pending live A3 validation.
+- NFT marketplace/launchpad + Services still gated OFF in repo (`VITE_ENABLE_NFT`/`VITE_ENABLE_SERVICES=false`); GnoBuilders badges deployed but never minted. NFT #443 (marketplace Phase 2) open, pending on-chain E2E.
+- 28 Dependabot alerts (1 critical) pending a dependency refresh; rotate the OpenRouter key in `.env`; observability (metrics/log-drain) still to stand up.
 
 ---
 

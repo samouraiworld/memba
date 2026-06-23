@@ -1,6 +1,6 @@
 # test12 → test13 Winddown / Cutover Runbook
 
-> **Status:** STAGED (this PR is the chain-flip). **DO NOT MERGE until Precondition 1 passes.** The flip is reversible (revert this PR) but a premature merge can 401 logins if a test13 wallet doesn't produce valid signatures. Derived from `MEMBA_STATE_AUDIT_AND_PLAN_2026-06-23.md` Track 3 (decision **D3 = staged**).
+> **Status: ✅ COMPLETE (2026-06-23).** Chain flip merged (#450) + test12 retired from config (#453); Precondition 1 (`auth_login result=signed` from a test13 wallet) confirmed live; **Follow-up A — login enforcement DONE**: `MEMBA_ALLOW_UNSIGNED_AUTH=0` flipped (#460) and verified (post-flip `result=signed`), so empty/invalid/address-only logins are now rejected. **`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` deliberately HELD** pending live A3 validation (flipping it blind could reject a legit multisig tx if A3 reconstruction diverges, as the login doc did). Follow-up B (config.ts test12 cleanup) largely absorbed by #453 + the Atlas network reduction (#455). The original staged plan is kept below for reference.
 
 ## Why staged
 The on-wire `chain_id` is embedded in the ADR-036 auth sign-doc, so **backend and frontend must flip together** (same release) or authed RPCs 401. Auth currently runs in the deliberate **lockout-safe Phase 1** (unsigned accepted + logged). The chain flip alone keeps Phase 1 (no lockout); the **auth-enforce flip is a separate, later step** done only after signed logins are observed.

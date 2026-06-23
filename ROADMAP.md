@@ -13,14 +13,14 @@
 | **Shipped Versions** | 50+ (v0.1.0 → v6.3.1) + unreleased post-6.3.1 wave |
 | **Test Suite** | 140 Vitest files / **2,399 tests** + Go backend suite (auth/db/indexer/points/service) + `FuzzMakeADR36SignDoc` + Gno realm tests + Playwright E2E (verified green locally 2026-06-23) |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **test13 — all `_v2` realms LIVE** (DAO + commerce + feedback + NFT launchpad); **test12 still the prod default (cutover pending — see audit plan)**; gnoland1 (live, transfer-locked — betanet activation later) |
+| **Networks** | **test13 is the prod default — cutover DONE 2026-06-23** (#450/#453; test12 retired from config); all `_v2` realms LIVE (DAO + commerce + feedback + NFT launchpad); gnoland1 (live, transfer-locked — betanet activation later) |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror), React 19 + Vite frontend (Netlify), SQLite, OpenRouter AI |
-| **Security** | ⚠️ **28 open Dependabot alerts on default branch (1 critical, 5 high, 14 moderate, 8 low)** — dependency refresh needed; 1 own advisory (MEMBA-2026-001). Auth: tm2 sign-bytes verify shipped (#397–#399), enforce-flip pending (test12 cutover gate) |
+| **Security** | Auth: tm2 sign-bytes verify shipped (#397–#399); **login sign-doc fixed (#456) and login enforcement LIVE — `MEMBA_ALLOW_UNSIGNED_AUTH=0`, `result=signed` verified (#460)**; multisig A3 enforce held pending live validation. ⚠️ **28 open Dependabot alerts (1 critical, 5 high, 14 moderate, 8 low)** — dependency refresh needed; 1 own advisory (MEMBA-2026-001) |
 | **On-Chain** | Full Memba `_v2` realm set live on test13 (memba_dao, candidature_v2, channels_v2, agent_registry, tokenfactory_v2, escrow_v2, gnobuilders_badges_v2, memba_feedback_v2, memba_nft_v2/_market_v2, memba_collections, memba_nft_market_v3); legacy realms on test12 |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`) — badges deployed but not yet minted; quest server-side verification partial |
 | **Active program** | Post-6.3.1 feature wave shipped; current focus per `docs/planning/MEMBA_STATE_AUDIT_AND_PLAN_2026-06-23.md` |
-| **Next Priority** | (a) wind down test12 / make test13 the safe default; (b) test13 functional completeness (enable NFT + Services, finish candidature accept-reject + channel admin, GnoBuilders badge mint + quest integrity); (c) Home Phase 2 (#445) + polish |
+| **Next Priority** | (a) **test12 winddown DONE + login auth enforced** — next: validate A3 vs a real multisig sig → flip `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY`; merge NFT-RPC pin (#466) so the indexer catches up; (b) test13 commerce go-live (NFT #443 E2E → `VITE_ENABLE_NFT`, badge mint + `VITE_ENABLE_BADGES`, Services); (c) observability/metrics + dependency refresh (1 critical) + rotate OpenRouter key |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
