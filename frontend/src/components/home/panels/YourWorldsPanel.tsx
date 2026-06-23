@@ -35,7 +35,7 @@ export function YourWorldsPanel() {
         <div className="your-worlds-panel" data-testid="your-worlds-panel">
             {/* Panel title header */}
             <div className="panel-title-row" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <span style={{ fontSize: 14 }}>🌐</span>
+                <i className="ti ti-world" aria-hidden="true" style={{ fontSize: 16 }} />
                 <h3 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Your worlds</h3>
                 {savedDAOs.length > 0 && (
                     <span className="k-label" style={{ marginLeft: "auto" }}>

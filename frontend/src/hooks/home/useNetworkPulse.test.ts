@@ -155,6 +155,24 @@ describe("useNetworkPulse — snapshot NOT usable (on-chain fallback)", () => {
         expect(result.current.avgBlockTime).toBeCloseTo(2.0)
     })
 
+    it("sets offline=true when getNetworkStats errors (RPC down), false otherwise", async () => {
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: null,
+            usable: false,
+            isLoading: false,
+        })
+        vi.mocked(validatorMod.getNetworkStats).mockRejectedValue(new Error("RPC down"))
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
+
+        const { useNetworkPulse } = await import("./useNetworkPulse")
+        const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        // Truthful UI: the StatusStrip must be able to show "offline" rather than
+        // a "live" dot when the network stats query failed.
+        expect(result.current.offline).toBe(true)
+    })
+
     it("still returns daoCount and memberCount from traction on fallback", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: null,

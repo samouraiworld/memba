@@ -22,12 +22,13 @@ import { useNetwork } from "../../../hooks/useNetwork"
 import { ActionCard } from "../ActionCard"
 import "../home.css"
 
-/** Human-readable label for status */
-function statusLabel(status: "healthy" | "degraded" | "down"): string {
+/** Human-readable label for status ("unknown" degrades to "—", never a false "Healthy") */
+function statusLabel(status: "healthy" | "degraded" | "down" | "unknown"): string {
     switch (status) {
         case "healthy": return "Healthy"
         case "degraded": return "Degraded"
         case "down": return "Down"
+        case "unknown": return "—"
     }
 }
 
@@ -62,7 +63,7 @@ export function ValidatorsPanel() {
         <div className="validators-panel" data-testid="validators-panel">
             {/* Health status tile */}
             <ActionCard
-                accent={status === "healthy" ? "teal" : status === "degraded" ? "amber" : "danger"}
+                accent={status === "healthy" ? "teal" : status === "degraded" ? "amber" : status === "down" ? "danger" : "neutral"}
                 icon="shield-check"
                 eyebrow="network health"
                 title={loading ? "—" : `${statusLabel(status)}`}

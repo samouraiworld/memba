@@ -198,8 +198,9 @@ describe("useValidatorHealth — error case", () => {
         const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.loading).toBe(false))
 
-        // Should not throw, should return safe defaults
-        expect(result.current.status).toBe("healthy") // default fallback
+        // Should not throw. On error, status must be "unknown" — NOT a false
+        // "healthy" (truthful UI: never imply health when the data failed to load).
+        expect(result.current.status).toBe("unknown")
         expect(result.current.active).toBe(0)
         expect(result.current.total).toBe(0)
         expect(result.current.latestIncident).toBeNull()
