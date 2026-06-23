@@ -217,6 +217,74 @@ button.action-card:focus-visible {
   min-width: 0;
 }
 
+/* ── ShowcaseBoard (visitor "board of doors") ─────────────────────── */
+
+.showcase-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.showcase-board__slot {
+  min-width: 0;
+}
+
+/* Featured slot spans the full row regardless of how many columns auto-fit
+   resolves to. ≤768px the grid collapses to one column (below), so this is a
+   no-op there. */
+.showcase-board__slot--full {
+  grid-column: 1 / -1;
+}
+
+/* Featured door body — name + members + dual links. */
+.featured-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.featured-door__name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.featured-door__members {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.featured-door__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.featured-door__link {
+  font-size: 12px;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-k-edge);
+}
+
+.featured-door__link--primary {
+  background: var(--color-k-accent);
+  color: var(--color-k-panel);
+  border-color: var(--color-k-accent);
+}
+
+.featured-door__link--secondary {
+  color: var(--color-k-dim);
+  background: transparent;
+}
+
+.featured-door__link--secondary:hover {
+  color: var(--color-k-text);
+  border-color: var(--color-k-edge-hover);
+}
+
 /* ── Mobile-first breakpoints ─────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -225,8 +293,9 @@ button.action-card:focus-visible {
     padding: 12px;
   }
 
-  /* Force single-column layout — panels follow DOM order */
-  .state-board {
+  /* Force single-column layout — panels/doors follow DOM order */
+  .state-board,
+  .showcase-board {
     grid-template-columns: 1fr;
   }
 }

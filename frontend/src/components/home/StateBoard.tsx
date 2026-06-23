@@ -14,8 +14,9 @@
  * @module components/home/StateBoard
  */
 
-import React, { useEffect, useRef, useState } from "react"
+import React from "react"
 import { ActionCard } from "./ActionCard"
+import { useInViewport } from "../../hooks/home/useInViewport"
 import "./home.css"
 
 // ── Per-panel error boundary ─────────────────────────────────────────────
@@ -81,51 +82,9 @@ export class PanelBoundary extends React.Component<
 }
 
 // ── Lazy-mount via IntersectionObserver ──────────────────────────────────
-
-interface UseInViewportResult {
-    ref: React.RefCallback<HTMLElement>
-    inView: boolean
-}
-
-/**
- * useInViewport — returns true once the container element scrolls near
- * the viewport. Uses IntersectionObserver with a small rootMargin so panels
- * start mounting just before they appear.
- *
- * In environments without IntersectionObserver (jsdom / old browsers), falls
- * back to inView=true immediately so panels still render.
- */
-function useInViewport(rootMargin = "120px"): UseInViewportResult {
-    const [inView, setInView] = useState(false)
-    const observerRef = useRef<IntersectionObserver | null>(null)
-
-    const ref: React.RefCallback<HTMLElement> = (el) => {
-        if (!el) return
-        if (typeof IntersectionObserver === "undefined") {
-            // jsdom / legacy: mount immediately
-            setInView(true)
-            return
-        }
-        observerRef.current?.disconnect()
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    setInView(true)
-                    observer.disconnect()
-                }
-            },
-            { rootMargin },
-        )
-        observer.observe(el)
-        observerRef.current = observer
-    }
-
-    useEffect(() => {
-        return () => observerRef.current?.disconnect()
-    }, [])
-
-    return { ref, inView }
-}
+// useInViewport lives in hooks/home/useInViewport so both StateBoard and
+// ShowcaseBoard reuse identical lazy-mount behavior (and so this component
+// file does not export a non-component — react-refresh).
 
 // ── PanelSlot — wraps one panel with error isolation + optional lazy-mount
 

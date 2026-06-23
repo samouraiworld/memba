@@ -1,0 +1,98 @@
+/**
+ * ShowcaseBoard — visitor "board of doors" shell.
+ *
+ * Renders an ordered list of door slots:
+ *   - Slot 0 = FeaturedDoor, full-width (spans all grid columns), EAGER-mounted.
+ *   - Remaining slots (added in Task 1.2b) lazy-mount as they near the viewport.
+ *
+ * Resilience (reused from StateBoard, not reinvented):
+ *   - PanelBoundary wraps each slot → a throwing door shows the neutral
+ *     fallback + retry; siblings and the board container still render.
+ *   - useInViewport (IntersectionObserver) lazy-mounts below-the-fold slots.
+ *
+ * Slot model: the board maps over a `slots` array that currently contains only
+ * the featured slot. Task 1.2b appends more slot descriptors here — the shell,
+ * boundary isolation, and lazy-mount come for free.
+ *
+ * @module components/home/ShowcaseBoard
+ */
+
+import type { ReactNode } from "react"
+import { PanelBoundary } from "./StateBoard"
+import { useInViewport } from "../../hooks/home/useInViewport"
+import { FeaturedDoor } from "./doors/FeaturedDoor"
+import "./home.css"
+
+export interface ShowcaseBoardProps {
+    /** Active network key; threaded down to each door for per-network data. */
+    networkKey: string
+}
+
+interface ShowcaseSlot {
+    /** Stable identity for React key + PanelBoundary keying + data-slot marker. */
+    id: string
+    /** Full-width slot spans all grid columns (grid-column: 1 / -1). */
+    fullWidth?: boolean
+    /** Mount immediately (above the fold). Omit for lazy-mount. */
+    eager?: boolean
+    /** Human label shown in the PanelBoundary fallback if the door throws. */
+    label: string
+    render: (networkKey: string) => ReactNode
+}
+
+// Currently only the featured slot exists. Task 1.2b appends descriptors here
+// (e.g. tokens, services, collectibles) — each is automatically isolated +
+// lazy-mounted by the shell below. Do NOT add placeholder doors that render
+// dead content: an empty tail simply renders nothing.
+const SLOTS: ShowcaseSlot[] = [
+    {
+        id: "featured",
+        fullWidth: true,
+        eager: true,
+        label: "featured dao",
+        render: (networkKey) => <FeaturedDoor networkKey={networkKey} />,
+    },
+]
+
+/**
+ * ShowcaseSlotHost — one slot: lazy-mount container + per-slot error boundary.
+ * Reuses useInViewport + PanelBoundary from StateBoard so the resilience
+ * behavior is identical to the shipped board.
+ */
+function ShowcaseSlotHost({
+    slot,
+    networkKey,
+}: {
+    slot: ShowcaseSlot
+    networkKey: string
+}) {
+    const { ref, inView } = useInViewport()
+    const shouldMount = slot.eager || inView
+
+    const slotClass = slot.fullWidth
+        ? "showcase-board__slot showcase-board__slot--full"
+        : "showcase-board__slot"
+
+    return (
+        <div
+            ref={slot.eager ? undefined : ref}
+            className={slotClass}
+            data-slot={slot.id}
+            data-testid={`showcase-slot-${slot.id}`}
+        >
+            <PanelBoundary label={slot.label}>
+                {shouldMount ? slot.render(networkKey) : null}
+            </PanelBoundary>
+        </div>
+    )
+}
+
+export function ShowcaseBoard({ networkKey }: ShowcaseBoardProps) {
+    return (
+        <div className="showcase-board" data-testid="showcase-board">
+            {SLOTS.map((slot) => (
+                <ShowcaseSlotHost key={slot.id} slot={slot} networkKey={networkKey} />
+            ))}
+        </div>
+    )
+}
