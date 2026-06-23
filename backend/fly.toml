@@ -28,6 +28,11 @@ primary_region = 'cdg'
   # brief overlap is wanted, temporarily set 'test-13,test12' then drop test12.
   MEMBA_ACCEPTED_CHAIN_IDS = 'test-13'
   GNO_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
+  # NFT indexer RPC — pinned to samourai's own node (default is the public
+  # rpc.test13.testnets.gno.land). The fast catch-up after the tailer block-hash
+  # fixes (#457/#462) tripped that public node's per-IP rate limit (403 on the Fly
+  # egress IP; 200 elsewhere); our own node doesn't throttle us.
+  NFT_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
   # AUTH ENFORCEMENT — login signatures are now ENFORCED. A test13-transacted
   # wallet was confirmed to return auth_login result=signed live (2026-06-23),
   # so empty / invalid / address-only logins are now rejected (impersonation closed).
