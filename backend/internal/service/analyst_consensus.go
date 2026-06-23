@@ -501,8 +501,8 @@ func buildChainContext(chainID string) string {
 	}
 
 	networks := map[string]chainInfo{
-		"test12": {
-			name:     "gno.land Testnet 12",
+		"test-13": {
+			name:     "gno.land Testnet 13",
 			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
 			note:     "Governance decisions here are for testing and community coordination, not financial value.",
 		},

@@ -80,14 +80,6 @@ interface NetworkConfig {
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, NetworkConfig> = {
-    test12: {
-        chainId: "test12",
-        rpcUrl: "https://rpc.testnet12.samourai.live:443",
-        fallbackRpcUrls: [],
-        label: "Testnet 12",
-        userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "https://faucet.gno.land",
-    },
     // Testnet 13 — the official Gno testnet (gno v0.9 / pre-interrealm-v2).
     // On-wire chainId is "test-13" (HYPHEN) — it is embedded in the ADR-036 sign
     // doc, so it MUST match the chain exactly or every login fails "invalid user
@@ -160,7 +152,7 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
 )
 
 /** Default network key. */
-export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test12"
+export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test13"
 
 /** Resolve active network from localStorage or env.
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
@@ -254,13 +246,13 @@ export function isRealmValid(realmPath: string): boolean {
 
 
 /** Gno chain ID for all RPC calls. */
-export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
+export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
 
 /**
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.testnet12.samourai.live:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test13.testnets.gno.land:443"
 
 /** Fallback RPC URLs for the active network (tried in order if primary fails). */
 export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbackRpcUrls || []
@@ -340,12 +332,11 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
-    const chain = NETWORKS[_activeNetwork]?.chainId || "test12"
+    const chain = NETWORKS[_activeNetwork]?.chainId || "test-13"
     switch (chain) {
         case "staging": return "https://staging.gno.land"
         case "portal-loop": return "https://gno.land"
         case "gnoland1": return "https://betanet.gno.land"
-        case "test12": return "https://test12.gno.land"
         // Official test13 gnoweb (verified live). Env override stays available.
         case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land"
         default: return `https://${chain}.testnets.gno.land`
@@ -416,7 +407,6 @@ export interface GnoSwapPaths {
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     staging: { pool: "", router: "", position: "", gns: "" },
     "portal-loop": { pool: "", router: "", position: "", gns: "" },
-    test12: { pool: "", router: "", position: "", gns: "" },
     gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
@@ -549,7 +539,6 @@ export const SNAPSHOT_NETWORK = "test13"
  */
 export const FEATURED_DAO_REALM: Record<string, string | null> = {
     test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
-    test12: null,                // Memba DAO not the canonical featured DAO on test12
     gnoland1: null,
     staging: null,
     "portal-loop": null,

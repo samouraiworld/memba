@@ -263,19 +263,19 @@ describe('toAdenaMessages', () => {
 })
 
 describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
-    // App network in the test env is the default (test12). A wallet reporting a
-    // different chainId must be blocked before any broadcast.
+    // App network in the test env is the default (test13 → on-wire chainId
+    // "test-13"). A wallet reporting a different chainId must be blocked.
     it('blocks broadcast when the wallet chainId != Memba network', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.testnet12.samourai.live:443', true, 'test-13')
-        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "test-13"/)
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test12')
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "test12"/)
         setTxConfirmationCallback(null)
         setWalletRpcContext(null, false, null)
     })
 
     it('passes the chain guard when the wallet chainId matches (proceeds to wallet check)', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.testnet12.samourai.live:443', true, 'test12')
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
         setTxConfirmationCallback(null)

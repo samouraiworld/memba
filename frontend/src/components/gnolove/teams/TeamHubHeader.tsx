@@ -50,7 +50,7 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
-                    {networkKey === "test12" && (
+                    {networkKey === "test13" && (
                         <span className="gl-thub-chip gl-thub-chip-network" role="note">
                             Data: mainnet
                         </span>
