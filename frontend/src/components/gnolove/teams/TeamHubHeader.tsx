@@ -23,6 +23,7 @@ import {
     type TeamHubPeriod,
 } from "../../../lib/gnolovePeriod"
 import { formatRelativeTime } from "../../../lib/gnoloveTime"
+import { useNetworkKey } from "../../../hooks/useNetworkNav"
 
 interface Props {
     team: Team
@@ -34,6 +35,7 @@ interface Props {
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, backToTeamsHref }: Props) {
     const [nowMs] = useState(() => Date.now())
+    const networkKey = useNetworkKey()
     const stripeColor = TEAM_CSS_COLORS[team.color]
     return (
         <header className="gl-thub-header" style={{ borderLeftColor: stripeColor }}>
@@ -48,6 +50,11 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
+                    {networkKey === "test13" && (
+                        <span className="gl-thub-chip gl-thub-chip-network" role="note">
+                            Data: mainnet
+                        </span>
+                    )}
                 </div>
             </div>
 

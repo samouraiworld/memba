@@ -83,7 +83,8 @@ describe('config constants', () => {
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
     })
 
-    it('gnoland1 uses r/sys/users registry', () => {
+    it('test13 and gnoland1 use r/sys/users registry', () => {
+        expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
         expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 
@@ -95,12 +96,12 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is test13', () => {
+    it('DEFAULT_NETWORK is test13 (post-cutover default)', () => {
         expect(DEFAULT_NETWORK).toBe('test13')
     })
 
-    it('getUserRegistryPath returns r/sys/users for test13', () => {
-        // Default active network is test13, so getUserRegistryPath should return r/sys/users
+    it('getUserRegistryPath returns r/sys/users for the default network', () => {
+        // Default active network is test13, which uses r/sys/users
         expect(getUserRegistryPath()).toBe('gno.land/r/sys/users')
     })
 
@@ -233,14 +234,14 @@ describe('isTrustedRpcDomain', () => {
 })
 
 describe('getTelemetryRpcUrl', () => {
-    it('returns the first telemetry node when active network declares telemetry URLs', () => {
-        // In test environment, VITE_SAMOURAI_SENTRY_RPC_URL is not set.
-        // test13 (active) declares dedicated telemetryRpcUrls, so getTelemetryRpcUrl()
-        // returns the first of those (aeddi-1), not GNO_RPC_URL.
+    it('returns the network telemetry node when no sentry is configured', () => {
+        // No VITE_SAMOURAI_SENTRY_RPC_URL in tests. The default network (test13)
+        // defines telemetryRpcUrls, so getTelemetryRpcUrl() returns the first one
+        // (networks without telemetryRpcUrls fall back to GNO_RPC_URL instead).
         const url = getTelemetryRpcUrl()
+        expect(url).toBe(getTelemetryRpcUrls()[0])
         expect(url).toBeTruthy()
         expect(isTrustedRpcDomain(url)).toBe(true)
-        expect(getTelemetryRpcUrls()).toContain(url)
     })
 
     it('GNO_RPC_URL is always a trusted domain', () => {
