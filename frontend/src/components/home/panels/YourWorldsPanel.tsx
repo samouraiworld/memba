@@ -22,8 +22,8 @@ import type { LayoutContext } from "../../../types/layout"
 import "../home.css"
 
 /**
- * YourWorldsPanel — renders inside StateBoard on the member Control Room.
- * Member-only: Home.tsx must NOT render this on the visitor board.
+ * YourWorldsPanel — renders standalone in the member Control Room board zone,
+ * directly below ActionInbox. Member-only: Home.tsx must NOT render this on the visitor board.
  */
 export function YourWorldsPanel() {
     useOutletContext<LayoutContext>()
