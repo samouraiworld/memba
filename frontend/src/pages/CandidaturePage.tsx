@@ -176,7 +176,7 @@ export default function CandidaturePage() {
                     <QuestProgress />
                     {/* v3.2: Direct link to quests */}
                     <button
-                        onClick={() => navigate("/profile")}
+                        onClick={() => navigate("/quests")}
                         className="k-btn-secondary"
                         style={{ marginTop: 10, width: "100%", fontSize: 12, padding: "10px 16px" }}
                     >
