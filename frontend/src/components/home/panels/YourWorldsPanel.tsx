@@ -55,6 +55,15 @@ export function YourWorldsPanel() {
                 />
             )}
 
+            {state === "error" && (
+                <Door
+                    variant="list"
+                    state="error"
+                    eyebrow="your worlds"
+                    onRetry={() => { /* hook does not expose refetch; world-level errors degrade per-card */ }}
+                />
+            )}
+
             {state === "ready" && worlds.length > 0 && (
                 <div className="your-worlds-board" data-testid="your-worlds-board">
                     {worlds.map((world) => (

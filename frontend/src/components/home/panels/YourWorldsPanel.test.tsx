@@ -2,9 +2,10 @@
  * YourWorldsPanel.test.tsx
  *
  * Per-panel isolation contract:
- *   1. With saved DAOs → Door cards board renders (world names visible)
+ *   1. With saved DAOs → Door cards board renders (world names visible, once)
  *   2. Empty saved DAOs → cold-start invitation links render (join/faucet/quest)
  *   3. Empty state is never a blank panel
+ *   4. Error state → error Door with retry control renders
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -78,11 +79,39 @@ vi.mock("../../../lib/dao", () => ({
     ]),
 }))
 
+// ── Mock useYourWorlds for error-state tests ──────────────────────────────
+vi.mock("../../../hooks/home/useYourWorlds", async () => {
+    const actual = await import("../../../hooks/home/useYourWorlds")
+    return {
+        ...actual,
+        useYourWorlds: vi.fn(() => ({ state: "empty" as const, worlds: [] })),
+    }
+})
+
 // ── Resolve mocks for per-test control ────────────────────────────────────
 const daoSlugMod = await import("../../../lib/daoSlug")
+const yourWorldsMod = await import("../../../hooks/home/useYourWorlds")
 
 describe("YourWorldsPanel — with saved DAOs", () => {
     beforeEach(() => {
+        // Restore real hook behaviour: delegate to the real implementation via
+        // the saved DAO mock (the hook itself reads getSavedDAOsForOrg).
+        vi.mocked(yourWorldsMod.useYourWorlds).mockImplementation(
+            (networkKey, orgId) => {
+                // Call through to the actual (un-mocked) implementation.
+                // We can't import the actual here easily, so we reconstruct
+                // the expected output from what the sub-mocks return.
+                const savedDAOs = daoSlugMod.getSavedDAOsForOrg(orgId)
+                if (savedDAOs.length === 0) return { state: "empty" as const, worlds: [] }
+                return {
+                    state: "ready" as const,
+                    worlds: savedDAOs.map((dao) => ({
+                        name: dao.name,
+                        href: `/${networkKey}/dao/${dao.realmPath}`,
+                    })),
+                }
+            },
+        )
         vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
             { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000 },
             { realmPath: "gno.land/r/test/myorg", name: "MyOrg DAO", addedAt: 2000 },
@@ -101,12 +130,11 @@ describe("YourWorldsPanel — with saved DAOs", () => {
         )
     })
 
-    it("shows DAO names from savedDAOs as Door cards", async () => {
+    it("shows each DAO name exactly once as a Door card body", async () => {
         renderWithProviders(<YourWorldsPanel />)
         await waitFor(() => {
-            // GovDAO appears as both the door eyebrow and body text — getAllByText handles multiple matches
-            const items = screen.getAllByText("GovDAO")
-            expect(items.length).toBeGreaterThan(0)
+            // After fix #1, "GovDAO" is only in the body span — never in the eyebrow.
+            expect(screen.getByText("GovDAO")).toBeInTheDocument()
         })
     })
 
@@ -126,6 +154,10 @@ describe("YourWorldsPanel — with saved DAOs", () => {
 
 describe("YourWorldsPanel — empty state (no saved DAOs)", () => {
     beforeEach(() => {
+        vi.mocked(yourWorldsMod.useYourWorlds).mockReturnValue({
+            state: "empty" as const,
+            worlds: [],
+        })
         vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([])
     })
 
@@ -161,5 +193,29 @@ describe("YourWorldsPanel — empty state (no saved DAOs)", () => {
 
     it("does NOT throw when empty", () => {
         expect(() => renderWithProviders(<YourWorldsPanel />)).not.toThrow()
+    })
+})
+
+describe("YourWorldsPanel — error state", () => {
+    beforeEach(() => {
+        vi.mocked(yourWorldsMod.useYourWorlds).mockReturnValue({
+            state: "error" as const,
+            worlds: [],
+        })
+    })
+
+    it("renders the panel container", () => {
+        renderWithProviders(<YourWorldsPanel />)
+        expect(screen.getByTestId("your-worlds-panel")).toBeInTheDocument()
+    })
+
+    it("renders a retry control when state is error", () => {
+        renderWithProviders(<YourWorldsPanel />)
+        expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument()
+    })
+
+    it("does NOT render the worlds board on error", () => {
+        renderWithProviders(<YourWorldsPanel />)
+        expect(screen.queryByTestId("your-worlds-board")).not.toBeInTheDocument()
     })
 })

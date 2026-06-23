@@ -1,9 +1,9 @@
 /**
  * YourWorldsDoor — renders one saved world (DAO) as a Door card.
  *
- * Shows name + openCount (only when > 0) + a link to the DAO page.
- * If the world is degraded (RPC failed), renders the Door in "error" state
- * with the name/href still visible via the eyebrow.
+ * Shows role label as eyebrow (matching FeaturedDoor pattern) and the
+ * prominent DAO name in the body — name appears exactly once.
+ * If the world is degraded (RPC failed), renders the Door in "error" state.
  *
  * Honesty: openCount rendered only when defined (never "0").
  *
@@ -18,21 +18,22 @@ export interface YourWorldsDoorProps {
 }
 
 export function YourWorldsDoor({ world }: YourWorldsDoorProps) {
-    const { name, openCount, href, degraded } = world
+    const { name, role, openCount, href, degraded } = world
+    const eyebrow = role ?? "dao"
 
     if (degraded) {
         return (
             <Door
                 variant="list"
                 state="error"
-                eyebrow={name}
+                eyebrow={eyebrow}
                 href={href}
             />
         )
     }
 
     return (
-        <Door variant="list" state="ready" eyebrow={name} href={href}>
+        <Door variant="list" state="ready" eyebrow={eyebrow} href={href}>
             <div className="your-worlds-door__body">
                 <span className="your-worlds-door__name">{name}</span>
                 {openCount !== undefined && (
