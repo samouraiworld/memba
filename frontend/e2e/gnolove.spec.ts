@@ -53,7 +53,7 @@ test.describe('Gnolove Section', () => {
     })
 
     test('navigates to report page', async ({ page }) => {
-        // SubNav links are now network-prefixed (e.g. /test12/gnolove/report) per BUG-1 fix.
+        // SubNav links are now network-prefixed (e.g. /test13/gnolove/report) per BUG-1 fix.
         const reportLink = page.locator('nav.gl-subnav a').filter({ hasText: 'Report' }).first()
         await expect(reportLink).toBeVisible({ timeout: 10_000 })
         await reportLink.click()
@@ -83,7 +83,7 @@ test.describe('Gnolove Section', () => {
     // ── URL-state behaviour (shareable links) [Phase 1 / MF-3 / MF-4] ──
 
     test('report URL is fully shareable: deep-link params reflected in UI', async ({ page }) => {
-        await page.goto('/test12/gnolove/report?period=monthly&at=2025-03&tab=merged')
+        await page.goto('/test13/gnolove/report?period=monthly&at=2025-03&tab=merged')
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
 
         // Monthly period tab is selected
@@ -95,7 +95,7 @@ test.describe('Gnolove Section', () => {
         // Use a NON-default period (weekly) so it stays explicit in the URL:
         // monthly is now the default and is intentionally elided from shareable
         // links, so asserting period=monthly after a re-serialize would fail.
-        await page.goto('/test12/gnolove/report?period=weekly&at=2025-W10')
+        await page.goto('/test13/gnolove/report?period=weekly&at=2025-W10')
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
 
         // Toggle to table view — uses replace, doesn't pollute history.
@@ -108,7 +108,7 @@ test.describe('Gnolove Section', () => {
     test('report URL gracefully handles garbage input', async ({ page }) => {
         const errors: string[] = []
         page.on('pageerror', e => errors.push(e.message))
-        await page.goto('/test12/gnolove/report?period=invalid&tab=lolnope&at=999-99')
+        await page.goto('/test13/gnolove/report?period=invalid&tab=lolnope&at=999-99')
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
         await expect(page.locator('.gl-title')).toContainText('PR Report', { timeout: 10_000 })
         expect(errors).toEqual([])
