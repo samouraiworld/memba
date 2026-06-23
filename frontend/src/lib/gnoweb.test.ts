@@ -139,16 +139,14 @@ describe("parseGnowebListing", () => {
 // ── getGnowebUrl ─────────────────────────────────────────────
 
 describe("getGnowebUrl", () => {
-    it("returns URL for test12", () => {
-        expect(getGnowebUrl("test12")).toBe("https://gnoweb.test12.moul.p2p.team")
-    })
-
-    it("returns URL for portal-loop", () => {
-        expect(getGnowebUrl("portal-loop")).toBe("https://gno.land")
-    })
-
     it("returns URL for gnoland1", () => {
         expect(getGnowebUrl("gnoland1")).toBe("https://gno.land")
+    })
+
+    it("returns undefined for removed networks", () => {
+        expect(getGnowebUrl("test12")).toBeUndefined()
+        expect(getGnowebUrl("portal-loop")).toBeUndefined()
+        expect(getGnowebUrl("staging")).toBeUndefined()
     })
 
     it("returns undefined for unknown chain", () => {

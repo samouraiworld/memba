@@ -27,12 +27,12 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has the expected chain options', () => {
-        expect(Object.keys(NETWORKS)).toContain('test12')
-        expect(Object.keys(NETWORKS)).toContain('staging')
-        expect(Object.keys(NETWORKS)).toContain('portal-loop')
+    it('NETWORKS has exactly test13 and gnoland1', () => {
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
         expect(Object.keys(NETWORKS)).toContain('test13')
+        expect(Object.keys(NETWORKS)).not.toContain('test12')
+        expect(Object.keys(NETWORKS)).not.toContain('staging')
+        expect(Object.keys(NETWORKS)).not.toContain('portal-loop')
     })
 
     it('test11 is dropped (decommissioned official testnet)', () => {
@@ -56,10 +56,8 @@ describe('config constants', () => {
     })
 
     it('networkHasRealms reflects Memba contract deployment per network', () => {
-        // Memba's realms are deployed on both test12 and test13 (test13 realms
-        // landed 2026-06-16, interrealm-v2).
+        // Memba's realms are deployed on test13 (interrealm-v2, 2026-06-16).
         expect(networkHasRealms('test13')).toBe(true)
-        expect(networkHasRealms('test12')).toBe(true)
         // Unknown networks default to "has realms" (don't gate the UI on a typo).
         expect(networkHasRealms('nonexistent')).toBe(true)
     })
@@ -80,21 +78,12 @@ describe('config constants', () => {
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
-        // test12 (and unknown networks) have no allowlist → everything valid.
-        expect(isRealmValidOn('test12', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
+        // Networks with no allowlist entry (gnoland1, unknown keys) → everything valid.
+        expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
     })
 
-    it('test12 has correct chain config', () => {
-        const t12 = NETWORKS.test12
-        expect(t12.chainId).toBe('test12')
-        expect(t12.rpcUrl).toBe('https://rpc.testnet12.samourai.live:443')
-        expect(t12.userRegistryPath).toBe('gno.land/r/sys/users')
-        expect(t12.faucetUrl).toBe('https://faucet.gno.land')
-    })
-
-    it('test12 and gnoland1 use r/sys/users registry', () => {
-        expect(NETWORKS.test12.userRegistryPath).toBe('gno.land/r/sys/users')
+    it('gnoland1 uses r/sys/users registry', () => {
         expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 
@@ -106,12 +95,12 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is test12', () => {
-        expect(DEFAULT_NETWORK).toBe('test12')
+    it('DEFAULT_NETWORK is test13', () => {
+        expect(DEFAULT_NETWORK).toBe('test13')
     })
 
-    it('getUserRegistryPath returns r/sys/users for test12', () => {
-        // Default active network is test12, so getUserRegistryPath should return r/sys/users
+    it('getUserRegistryPath returns r/sys/users for test13', () => {
+        // Default active network is test13, so getUserRegistryPath should return r/sys/users
         expect(getUserRegistryPath()).toBe('gno.land/r/sys/users')
     })
 
@@ -244,12 +233,14 @@ describe('isTrustedRpcDomain', () => {
 })
 
 describe('getTelemetryRpcUrl', () => {
-    it('falls back to GNO_RPC_URL when no sentry is configured', () => {
-        // In test environment, VITE_SAMOURAI_SENTRY_RPC_URL is not set
-        // so getTelemetryRpcUrl() must equal GNO_RPC_URL
+    it('returns the first telemetry node when active network declares telemetry URLs', () => {
+        // In test environment, VITE_SAMOURAI_SENTRY_RPC_URL is not set.
+        // test13 (active) declares dedicated telemetryRpcUrls, so getTelemetryRpcUrl()
+        // returns the first of those (aeddi-1), not GNO_RPC_URL.
         const url = getTelemetryRpcUrl()
-        expect(url).toBe(GNO_RPC_URL)
         expect(url).toBeTruthy()
+        expect(isTrustedRpcDomain(url)).toBe(true)
+        expect(getTelemetryRpcUrls()).toContain(url)
     })
 
     it('GNO_RPC_URL is always a trusted domain', () => {
@@ -286,6 +277,22 @@ describe('getTelemetryRpcUrls', () => {
         const t13 = NETWORKS.test13.telemetryRpcUrls || []
         expect(t13.some((u) => u.includes('aeddi-1'))).toBe(true)
         for (const u of t13) expect(isTrustedRpcDomain(u)).toBe(true)
+    })
+})
+
+describe('network reduction — test13 + gnoland1 only', () => {
+    it('exposes only test13 and gnoland1', () => {
+        const keys = Object.keys(NETWORKS).sort()
+        expect(keys).toEqual(['gnoland1', 'test13'])
+    })
+    it('defaults to test13', () => {
+        expect(DEFAULT_NETWORK).toBe('test13')
+    })
+    it('no longer references test12 / staging / portal', () => {
+        const keys = Object.keys(NETWORKS)
+        expect(keys).not.toContain('test12')
+        expect(keys).not.toContain('staging')
+        expect(keys).not.toContain('portal-loop')
     })
 })
 

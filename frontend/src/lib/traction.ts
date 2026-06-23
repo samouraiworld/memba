@@ -86,7 +86,7 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
 
         // DAO count from gnoweb namespace (live on-chain query)
         (async () => {
-            const networkKey = localStorage.getItem("memba_network") || "test12"
+            const networkKey = localStorage.getItem("memba_network") || "test13"
             const gnowebUrl = getGnowebUrl(networkKey)
             if (!gnowebUrl) return 0
             const realms = await fetchNamespaceRealms(gnowebUrl, "samcrew")

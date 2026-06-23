@@ -4,11 +4,14 @@ import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 // Mock NETWORKS used by chainHealth
 vi.mock("./config", () => ({
     NETWORKS: {
-        test12: {
-            chainId: "test12",
-            rpcUrl: "https://rpc.testnet12.samourai.live:443",
-            fallbackRpcUrls: [],
-            label: "Testnet 12",
+        test13: {
+            chainId: "test-13",
+            rpcUrl: "https://rpc.test13.testnets.gno.land:443",
+            fallbackRpcUrls: [
+                "https://test13.rpc.onbloc.xyz:443",
+                "https://rpc.test-13-aeddi-1.gnoland.network:443",
+            ],
+            label: "Testnet 13",
         },
         gnoland1: {
             chainId: "gnoland1",
@@ -18,12 +21,6 @@ vi.mock("./config", () => ({
                 "https://rpc.gnoland1.aeddi.org",
             ],
             label: "Betanet (gnoland1)",
-        },
-        "portal-loop": {
-            chainId: "portal-loop",
-            rpcUrl: "https://rpc.gno.land:443",
-            fallbackRpcUrls: [],
-            label: "Portal Loop",
         },
     },
 }))
@@ -46,17 +43,17 @@ describe("chainHealth", () => {
                 ok: true,
                 json: () => Promise.resolve({
                     result: {
-                        node_info: { network: "test12" },
+                        node_info: { network: "test-13" },
                         sync_info: { latest_block_height: "218000" },
                     },
                 }),
             }
             vi.spyOn(globalThis, "fetch").mockResolvedValue(mockResponse as Response)
 
-            const result = await checkChainHealth("test12", 1000)
+            const result = await checkChainHealth("test13", 1000)
             expect(result.reachable).toBe(true)
             expect(result.blockHeight).toBe(218000)
-            expect(result.chainId).toBe("test12")
+            expect(result.chainId).toBe("test-13")
             expect(result.latencyMs).toBeGreaterThanOrEqual(0)
         })
 
@@ -102,21 +99,21 @@ describe("chainHealth", () => {
     })
 
     describe("getSuggestedFallback", () => {
-        it("suggests test12 for gnoland1", () => {
-            expect(getSuggestedFallback("gnoland1")).toBe("test12")
+        it("suggests test13 for gnoland1", () => {
+            expect(getSuggestedFallback("gnoland1")).toBe("test13")
         })
 
-        it("suggests portal-loop for test12", () => {
-            expect(getSuggestedFallback("test12")).toBe("portal-loop")
+        it("suggests gnoland1 for test13", () => {
+            expect(getSuggestedFallback("test13")).toBe("gnoland1")
         })
 
-        it("suggests test12 for unknown network", () => {
-            expect(getSuggestedFallback("unknown")).toBe("test12")
+        it("suggests test13 for unknown network", () => {
+            expect(getSuggestedFallback("unknown")).toBe("test13")
         })
 
         it("does not suggest self", () => {
-            const fallback = getSuggestedFallback("test12")
-            expect(fallback).not.toBe("test12")
+            const fallback = getSuggestedFallback("gnoland1")
+            expect(fallback).not.toBe("gnoland1")
         })
     })
 })

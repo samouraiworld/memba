@@ -130,7 +130,7 @@ function _activeNetworkKey(): string {
         const stored = localStorage.getItem("memba_network")
         if (stored) return stored
     } catch { /* SSR */ }
-    return "test12"
+    return "test13"
 }
 
 // ── Known Seed DAOs ──────────────────────────────────────────

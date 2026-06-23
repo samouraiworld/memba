@@ -7,9 +7,8 @@
  *     `config/teams.yaml` mtime on the backend, NOT the data sync clock
  *     used by metrics / activity / repos (those refresh on their own
  *     cadence and aren't surfaced here).
- *   - "Data: mainnet" is shown only when the user is on `:network=test12`
- *     so they don't conflate test-chain context with real contribution
- *     data, which always comes from mainnet GitHub.
+ *   - "Roster updated: <relative>" tells the user when the team config was
+ *     last deployed.
  *
  * @module components/gnolove/teams/TeamHubHeader
  */
@@ -30,11 +29,10 @@ interface Props {
     period: TeamHubPeriod
     onPeriodChange: (next: TeamHubPeriod) => void
     lastSyncedAt: string | null
-    networkKey: string
     backToTeamsHref: string
 }
 
-export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, networkKey, backToTeamsHref }: Props) {
+export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, backToTeamsHref }: Props) {
     const [nowMs] = useState(() => Date.now())
     const stripeColor = TEAM_CSS_COLORS[team.color]
     return (
@@ -50,11 +48,6 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, netw
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
-                    {networkKey === "test12" && (
-                        <span className="gl-thub-chip gl-thub-chip-network" role="note">
-                            Data: mainnet
-                        </span>
-                    )}
                 </div>
             </div>
 

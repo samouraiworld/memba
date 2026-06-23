@@ -16,7 +16,7 @@ import { checkChainHealth, getSuggestedFallback } from "../../lib/chainHealth"
 import { NETWORKS } from "../../lib/config"
 
 interface ChainHaltedBannerProps {
-    /** Active network key (e.g. "gnoland1", "test12") */
+    /** Active network key (e.g. "gnoland1", "test13") */
     networkKey: string
     /** Callback to switch network */
     onSwitchNetwork: (key: string) => void
@@ -55,8 +55,8 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
 
     // Trigger probe on network change
     useEffect(() => {
-        // Skip known-good networks (test12 is primary)
-        if (networkKey === "test12") return
+        // Skip known-good networks (test13 is primary)
+        if (networkKey === "test13") return
 
         const signal = { cancelled: false }
         probeHealth(networkKey, signal)

@@ -29,7 +29,7 @@ export interface ChainHealthResult {
  * All RPCs are tested in parallel; returns as soon as the first one responds.
  * If all fail within the timeout, returns { reachable: false }.
  *
- * @param networkKey - Key into NETWORKS config (e.g. "gnoland1", "test12")
+ * @param networkKey - Key into NETWORKS config (e.g. "gnoland1", "test13")
  * @param timeoutMs - Max time to wait for any RPC response (default 5000ms)
  */
 export async function checkChainHealth(
@@ -107,7 +107,7 @@ export async function checkChainHealth(
  */
 export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // Priority order for fallback suggestion
-    const fallbackOrder = ["test12", "portal-loop", "staging"]
+    const fallbackOrder = ["test13", "gnoland1"]
     for (const key of fallbackOrder) {
         if (key !== currentNetworkKey && NETWORKS[key]) {
             return key

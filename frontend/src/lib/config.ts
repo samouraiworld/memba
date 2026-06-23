@@ -80,14 +80,6 @@ interface NetworkConfig {
 
 /** Available Gno networks for the chain selector. */
 export const NETWORKS: Record<string, NetworkConfig> = {
-    test12: {
-        chainId: "test12",
-        rpcUrl: "https://rpc.testnet12.samourai.live:443",
-        fallbackRpcUrls: [],
-        label: "Testnet 12",
-        userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "https://faucet.gno.land",
-    },
     // Testnet 13 — the official Gno testnet (gno v0.9 / pre-interrealm-v2).
     // On-wire chainId is "test-13" (HYPHEN) — it is embedded in the ADR-036 sign
     // doc, so it MUST match the chain exactly or every login fails "invalid user
@@ -123,22 +115,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
     },
-    staging: {
-        chainId: "staging",
-        rpcUrl: "https://rpc.gno.land:443",
-        fallbackRpcUrls: [],
-        label: "Staging",
-        userRegistryPath: "gno.land/r/gnoland/users/v1",
-        faucetUrl: "",
-    },
-    "portal-loop": {
-        chainId: "portal-loop",
-        rpcUrl: "https://rpc.gno.land:443",
-        fallbackRpcUrls: [],
-        label: "Portal Loop",
-        userRegistryPath: "gno.land/r/gnoland/users/v1",
-        faucetUrl: "",
-    },
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -160,7 +136,7 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
 )
 
 /** Default network key. */
-export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test12"
+export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test13"
 
 /** Resolve active network from localStorage or env.
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
@@ -178,7 +154,7 @@ const _activeNetwork = getActiveNetworkKey()
 
 /**
  * Returns the user registry realm path for the active network.
- * On test12+/betanet this is `gno.land/r/sys/users` (upstream migration).
+ * On test13/betanet this is `gno.land/r/sys/users` (upstream migration).
  */
 export function getUserRegistryPath(): string {
     return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/sys/users"
@@ -206,7 +182,7 @@ export function areRealmsDeployed(): boolean {
  * deployed & valid (interrealm-v2) while others are stale v1 packages the v2 VM
  * can't evaluate (calls throw "unexpected node …:0:0") or simply absent. List
  * here ONLY the realms confirmed callable on that network; a network with no
- * entry = all realms assumed valid (test12, betanet). When a realm is
+ * entry = all realms assumed valid (gnoland1). When a realm is
  * (re)deployed to a new valid path, add that path here.
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
@@ -236,7 +212,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
 
 /**
  * Is a realm callable on the given network? Networks without an allowlist entry
- * default to true (don't gate test12/betanet).
+ * default to true (don't gate gnoland1).
  */
 export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
     const allow = REALM_ALLOWLIST[networkKey]
@@ -254,13 +230,13 @@ export function isRealmValid(realmPath: string): boolean {
 
 
 /** Gno chain ID for all RPC calls. */
-export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test12"
+export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
 
 /**
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.testnet12.samourai.live:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test13.testnets.gno.land:443"
 
 /** Fallback RPC URLs for the active network (tried in order if primary fails). */
 export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbackRpcUrls || []
@@ -268,7 +244,7 @@ export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbac
 /**
  * Samourai Sentry RPC URL (Dual-RPC Strategy).
  * Used optionally by Hacker Mode for direct, high-frequency, uncached consensus telemetry
- * (e.g. /net_info, /dump_consensus_state) when available on gnoland1/testnet12.
+ * (e.g. /net_info, /dump_consensus_state) when available on gnoland1.
  */
 export const SAMOURAI_SENTRY_RPC_URL = import.meta.env.VITE_SAMOURAI_SENTRY_RPC_URL || ""
 
@@ -340,12 +316,9 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
-    const chain = NETWORKS[_activeNetwork]?.chainId || "test12"
+    const chain = NETWORKS[_activeNetwork]?.chainId || "test-13"
     switch (chain) {
-        case "staging": return "https://staging.gno.land"
-        case "portal-loop": return "https://gno.land"
         case "gnoland1": return "https://betanet.gno.land"
-        case "test12": return "https://test12.gno.land"
         // Official test13 gnoweb (verified live). Env override stays available.
         case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land"
         default: return `https://${chain}.testnets.gno.land`
@@ -414,9 +387,7 @@ export interface GnoSwapPaths {
 
 /** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
-    staging: { pool: "", router: "", position: "", gns: "" },
-    "portal-loop": { pool: "", router: "", position: "", gns: "" },
-    test12: { pool: "", router: "", position: "", gns: "" },
+    test13: { pool: "", router: "", position: "", gns: "" },
     gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
@@ -446,7 +417,7 @@ export const TRUSTED_RPC_DOMAINS = [
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.
     // Convention: https://rpc.{chain}.samourai.live
     //   - gnoland1:  https://rpc.gnoland1.samourai.live  (live)
-    //   - testnet12: https://rpc.testnet12.samourai.live (live)
+    //   - testnet13: https://rpc.testnet13.samourai.live (live)
     "samourai.live",
     "p2p.team",       // moul's infra + team nodes (gnoland1.moul.p2p.team etc.)
     "aeddi.org",      // aeddi's gnoland1 validator node
@@ -494,7 +465,7 @@ export function validateActiveRpcDomain(): string | null {
 /** GRC20 factory realm path (shared with grc20.ts). */
 export const GRC20_FACTORY_PATH = "gno.land/r/samcrew/tokenfactory_v2"
 
-/** Memba token config for development (test12). */
+/** Memba token config for development (test13). */
 export const MEMBA_TOKEN_DEV = {
     symbol: "MEMBATEST",
     name: "Memba Governance Token (Testnet)",
@@ -549,10 +520,7 @@ export const SNAPSHOT_NETWORK = "test13"
  */
 export const FEATURED_DAO_REALM: Record<string, string | null> = {
     test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
-    test12: null,                // Memba DAO not the canonical featured DAO on test12
     gnoland1: null,
-    staging: null,
-    "portal-loop": null,
 }
 
 /**

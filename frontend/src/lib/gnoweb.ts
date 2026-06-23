@@ -22,9 +22,6 @@ export interface NamespaceItem {
 
 /** Gnoweb URLs per network chain ID. */
 const GNOWEB_URLS: Record<string, string> = {
-    test12: "https://gnoweb.test12.moul.p2p.team",
-    "portal-loop": "https://gno.land",
-    staging: "https://staging.gno.land",
     gnoland1: "https://gno.land",
 }
 

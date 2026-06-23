@@ -99,7 +99,7 @@ export async function getCurrentBlock(): Promise<number> {
  * Returns the block time (exact timestamp) if found.
  *
  * This is a best-effort approach — indexer may be unavailable
- * (e.g. testnet12 is currently down).
+ * (e.g. test13 indexer may be unavailable).
  */
 async function searchProposalTx(
     realmPath: string,
