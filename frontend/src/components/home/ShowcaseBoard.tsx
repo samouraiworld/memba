@@ -21,6 +21,10 @@ import type { ReactNode } from "react"
 import { PanelBoundary } from "./StateBoard"
 import { useInViewport } from "../../hooks/home/useInViewport"
 import { FeaturedDoor } from "./doors/FeaturedDoor"
+import { ContributorsDoor } from "./doors/ContributorsDoor"
+import { NetworkHealthDoor } from "./doors/NetworkHealthDoor"
+import { DirectoryDoor } from "./doors/DirectoryDoor"
+import { LaunchpadDoor } from "./doors/LaunchpadDoor"
 import "./home.css"
 
 export interface ShowcaseBoardProps {
@@ -40,10 +44,8 @@ interface ShowcaseSlot {
     render: (networkKey: string) => ReactNode
 }
 
-// Currently only the featured slot exists. Task 1.2b appends descriptors here
-// (e.g. tokens, services, collectibles) — each is automatically isolated +
-// lazy-mounted by the shell below. Do NOT add placeholder doors that render
-// dead content: an empty tail simply renders nothing.
+// Ordered list of visitor showcase doors. Task 1.2b slots appended below.
+// Each non-eager slot is automatically lazy-mounted + PanelBoundary-isolated.
 const SLOTS: ShowcaseSlot[] = [
     {
         id: "featured",
@@ -51,6 +53,26 @@ const SLOTS: ShowcaseSlot[] = [
         eager: true,
         label: "featured dao",
         render: (networkKey) => <FeaturedDoor networkKey={networkKey} />,
+    },
+    {
+        id: "contributors",
+        label: "top contributors",
+        render: (networkKey) => <ContributorsDoor networkKey={networkKey} />,
+    },
+    {
+        id: "network-health",
+        label: "network health",
+        render: (networkKey) => <NetworkHealthDoor networkKey={networkKey} />,
+    },
+    {
+        id: "directory",
+        label: "directory",
+        render: (networkKey) => <DirectoryDoor networkKey={networkKey} />,
+    },
+    {
+        id: "launchpad",
+        label: "launchpad",
+        render: (networkKey) => <LaunchpadDoor networkKey={networkKey} />,
     },
 ]
 

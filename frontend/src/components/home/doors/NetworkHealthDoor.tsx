@@ -1,0 +1,104 @@
+/**
+ * NetworkHealthDoor — visitor showcase door for network validator health.
+ *
+ * variant="stat", eyebrow "network health".
+ * Data source: useValidatorHealth (reuses ValidatorsPanel's hook — no new fetch).
+ * Note: useNetworkPulse's avgBlockTime is available if desired; currently not
+ * shown here to keep the stat door focused on live validator health.
+ *
+ * State mapping:
+ *   - loading: Door skeleton (live RPC call; resolves quickly from snapshot-first path).
+ *   - ready (total > 0 and status !== "unknown"):
+ *       "{active} / {total}" validators + "Healthy" / "Degraded" / "Down" label.
+ *       Link → /${networkKey}/validators.
+ *       avgUptime and latestIncident are deliberately omitted — avgUptime is null
+ *       on the snapshot path and latestIncident is rare; both are shown in the full
+ *       validators page. Honesty: no fabricated metric.
+ *   - empty/unknown (total === 0 or status === "unknown"): invitation to view
+ *       validators page. Never renders "0 / 0" or "—".
+ *
+ * Refetch: useValidatorHealth wraps react-query but its interface (the returned
+ * object) does not surface a refetch callback. The hook auto-retries via react-query
+ * defaults. Documented here: no onRetry wired (no refetch available from the
+ * hook's public interface). If a retry button is needed, surface query.refetch
+ * from useValidatorHealth and update the interface.
+ *
+ * @module components/home/doors/NetworkHealthDoor
+ */
+
+import { Door } from "../Door"
+import { useValidatorHealth } from "../../../hooks/home/useValidatorHealth"
+import { useNetwork } from "../../../hooks/useNetwork"
+import "../home.css"
+
+export interface NetworkHealthDoorProps {
+    networkKey: string
+}
+
+function statusLabel(status: "healthy" | "degraded" | "down" | "unknown"): string {
+    switch (status) {
+        case "healthy": return "Healthy"
+        case "degraded": return "Degraded"
+        case "down": return "Down"
+        case "unknown": return ""
+    }
+}
+
+// networkKey prop is accepted for ShowcaseBoard slot compatibility but not used
+// directly — useNetwork() provides it from context (same value, avoids prop
+// threading through every lazy slot without the NetworkProvider reachable).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function NetworkHealthDoor({ networkKey: _ }: NetworkHealthDoorProps) {
+    const { status, active, total, loading } = useValidatorHealth()
+    const { networkKey } = useNetwork()
+
+    const validatorsHref = `/${networkKey}/validators`
+
+    if (loading) {
+        return (
+            <Door
+                variant="stat"
+                state="loading"
+                eyebrow="network health"
+            />
+        )
+    }
+
+    // No real data yet: total=0 or unknown — show invitation, never "0 / 0".
+    if (total === 0 || status === "unknown") {
+        return (
+            <Door
+                variant="stat"
+                state="empty"
+                eyebrow="network health"
+                invitation={{ label: "View validators", href: validatorsHref }}
+            />
+        )
+    }
+
+    const label = statusLabel(status)
+
+    return (
+        <Door variant="stat" state="ready" eyebrow="network health">
+            <div className="network-health-door">
+                <span className="network-health-door__count">
+                    {active} / {total}
+                </span>
+                {label && (
+                    <span className={`network-health-door__status network-health-door__status--${status}`}>
+                        {label}
+                    </span>
+                )}
+                <a
+                    href={validatorsHref}
+                    className="network-health-door__link"
+                    // Internal href: use <a> here; the Door primitive handles
+                    // internal/external routing when the Door itself has an href.
+                    // The content link is kept simple.
+                >
+                    View validators
+                </a>
+            </div>
+        </Door>
+    )
+}

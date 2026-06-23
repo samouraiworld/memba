@@ -34,11 +34,7 @@ export function FeaturedDoor({ networkKey }: FeaturedDoorProps) {
                 state={result.state}
                 eyebrow="featured dao"
                 invitation={{ label: "Explore DAOs", href: result.invitationHref }}
-                // NOTE: useFeaturedDao does not currently expose a refetch, so the
-                // error retry is a no-op for now (the Door still renders a retry
-                // control). Wire a real refetch when the hook surfaces one —
-                // tracked as a Task 1.2a concern / fast-follow.
-                onRetry={() => {}}
+                onRetry={result.refetch}
             />
         )
     }

@@ -31,6 +31,12 @@ export interface FeaturedDaoResult {
     dao?: FeaturedDao
     /** Always set — `/${networkKey}/dao` — so the Door can invite in any non-ready state. */
     invitationHref: string
+    /**
+     * Trigger a fresh re-fetch of the on-chain query (no-op on the snapshot
+     * path, since the snapshot has no underlying query to re-trigger here).
+     * Always a stable function — wire directly to Door's onRetry.
+     */
+    refetch: () => void
 }
 
 /**
@@ -68,11 +74,17 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
         staleTime: 60_000,
     })
 
+    // Stable refetch — delegates to react-query's refetch on the on-chain query.
+    // On the snapshot path there is no underlying query to re-trigger, so refetch
+    // is a no-op (snapshot data is managed externally). Always included so callers
+    // can unconditionally wire it to onRetry.
+    const refetch = () => { onChainQuery.refetch() }
+
     // ── Snapshot path ─────────────────────────────────────────
     if (usable) {
         const fd = snapshot?.featuredDao
         if (!fd?.realmPath || !fd?.name) {
-            return { state: "empty", invitationHref }
+            return { state: "empty", invitationHref, refetch }
         }
         return {
             state: "ready",
@@ -82,31 +94,32 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
                 href: `/${networkKey}/dao/${fd.realmPath}`,
             },
             invitationHref,
+            refetch,
         }
     }
 
     // ── Snapshot still loading ────────────────────────────────
     if (snapshotLoading) {
-        return { state: "loading", invitationHref }
+        return { state: "loading", invitationHref, refetch }
     }
 
     // ── No featured DAO configured/valid on this network ─────
     if (!realmPath) {
-        return { state: "empty", invitationHref }
+        return { state: "empty", invitationHref, refetch }
     }
 
     // ── On-chain path ─────────────────────────────────────────
     if (onChainQuery.isLoading) {
-        return { state: "loading", invitationHref }
+        return { state: "loading", invitationHref, refetch }
     }
 
     if (onChainQuery.isError) {
-        return { state: "error", invitationHref }
+        return { state: "error", invitationHref, refetch }
     }
 
     const data = onChainQuery.data
     if (!data) {
-        return { state: "empty", invitationHref }
+        return { state: "empty", invitationHref, refetch }
     }
 
     return {
@@ -117,5 +130,6 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
             href: `/${networkKey}/dao/${realmPath}`,
         },
         invitationHref,
+        refetch,
     }
 }
