@@ -13,6 +13,7 @@
 import { useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../../types/layout"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { ACTIVE_HEADLINE } from "./visitorHeroHeadlines"
 
 export function VisitorHero() {
     const { adena } = useOutletContext<LayoutContext>()
@@ -22,7 +23,7 @@ export function VisitorHero() {
     return (
         <section className="visitor-hero" data-testid="visitor-hero">
             <h1 className="visitor-hero__headline">
-                Run your DAO. Own your stack. Answer to no one.
+                {ACTIVE_HEADLINE}
             </h1>
             <p className="visitor-hero__subtitle">
                 Governance, treasury, tokens, services, and collectibles — all on gno.land.

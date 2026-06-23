@@ -263,12 +263,12 @@ describe('toAdenaMessages', () => {
 })
 
 describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
-    // App network in the test env is the default (test13 → on-wire chainId
-    // "test-13"). A wallet reporting a different chainId must be blocked.
+    // App network in the test env is the default (test13, chainId "test-13").
+    // A wallet reporting a different chainId must be blocked before any broadcast.
     it('blocks broadcast when the wallet chainId != Memba network', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test12')
-        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "test12"/)
+        setWalletRpcContext('https://rpc.gnoland1.samourai.live:443', true, 'gnoland1')
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "gnoland1"/)
         setTxConfirmationCallback(null)
         setWalletRpcContext(null, false, null)
     })

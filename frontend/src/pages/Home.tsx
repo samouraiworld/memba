@@ -14,10 +14,12 @@
 
 import { useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../types/layout"
+import { useNetworkKey } from "../hooks/useNetworkNav"
 import { StatusStrip } from "../components/home/StatusStrip"
 import { ActionInbox } from "../components/home/ActionInbox"
 import { VisitorHero } from "../components/home/VisitorHero"
 import { StateBoard } from "../components/home/StateBoard"
+import { ShowcaseBoard } from "../components/home/ShowcaseBoard"
 import { NetworkPulsePanel } from "../components/home/panels/NetworkPulsePanel"
 import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
 import { EcosystemPanel } from "../components/home/panels/EcosystemPanel"
@@ -34,6 +36,7 @@ export interface HomeProps {
 export function Home({ mode }: HomeProps) {
     // Available for child components / future tasks that need auth/adena
     useOutletContext<LayoutContext>()
+    const activeNetworkKey = useNetworkKey()
 
     return (
         <div className="home-root" data-testid="home-root">
@@ -49,20 +52,29 @@ export function Home({ mode }: HomeProps) {
                 {mode === "visitor" && <VisitorHero />}
             </div>
 
-            {/* Zone 3: STATE BOARD — realtime status panels.
-                DOM order = mobile priority column:
-                NetworkPulse → YourWorlds (member) → FeaturedDao → Validators
-                → Gnolove → Directory → Ecosystem */}
+            {/* Zone 3: BOARD.
+                - Visitor: ShowcaseBoard — the "board of doors" (Task 1.2a; more
+                  doors arrive in 1.2b). Phase 2 migrates the member board.
+                - Member: StateBoard — realtime status panels. DOM order = mobile
+                  priority column: NetworkPulse → YourWorlds → FeaturedDao →
+                  Validators → Gnolove → Directory → Ecosystem. */}
             <div className="home-state-board" data-testid="home-state-board">
-                <StateBoard eagerIndices={[0]}>
-                    <NetworkPulsePanel key="pulse" />
-                    {mode === "member" && <YourWorldsPanel key="your-worlds" />}
-                    <FeaturedDaoPanel key="featured-dao" />
-                    <ValidatorsPanel key="validators" />
-                    <GnolovePanel key="gnolove" />
-                    <DirectoryPanel key="directory" />
-                    <EcosystemPanel key="ecosystem" />
-                </StateBoard>
+                {mode === "visitor" ? (
+                    <ShowcaseBoard networkKey={activeNetworkKey} />
+                ) : (
+                    // Member-only branch: StateBoard with live status panels.
+                    // A future 3rd mode (e.g. "preview") must NOT fall through here —
+                    // add an explicit conditional above instead of extending this else.
+                    <StateBoard eagerIndices={[0]}>
+                        <NetworkPulsePanel key="pulse" />
+                        <YourWorldsPanel key="your-worlds" />
+                        <FeaturedDaoPanel key="featured-dao" />
+                        <ValidatorsPanel key="validators" />
+                        <GnolovePanel key="gnolove" />
+                        <DirectoryPanel key="directory" />
+                        <EcosystemPanel key="ecosystem" />
+                    </StateBoard>
+                )}
             </div>
         </div>
     )

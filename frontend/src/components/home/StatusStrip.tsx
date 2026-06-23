@@ -32,13 +32,24 @@ export function StatusStrip() {
             />
             {!loading && !offline && (
                 <>
-                    <span className="status-strip__stat" data-testid="status-block-height">
-                        #{blockHeight.toLocaleString()}
-                    </span>
-                    <span className="status-strip__sep" aria-hidden="true">·</span>
-                    <span className="status-strip__stat" data-testid="status-validators">
-                        {totalValidators}v
-                    </span>
+                    {/* Honesty: omit the block-height chip when height is 0/falsy
+                        (chain not yet producing blocks or data not yet arrived). */}
+                    {!!blockHeight && (
+                        <span className="status-strip__stat" data-testid="status-block-height">
+                            #{blockHeight.toLocaleString()}
+                        </span>
+                    )}
+                    {/* Honesty: omit the validator chip when count is 0/undefined.
+                        A bare "0v" contradicts the NetworkHealthDoor which shows a real
+                        count; omitting is cleaner than showing a misleading zero. */}
+                    {!!totalValidators && (
+                        <>
+                            <span className="status-strip__sep" aria-hidden="true">·</span>
+                            <span className="status-strip__stat" data-testid="status-validators">
+                                {totalValidators}v
+                            </span>
+                        </>
+                    )}
                 </>
             )}
         </div>

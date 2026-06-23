@@ -154,7 +154,9 @@ button.action-card:focus-visible {
   font-size: 11px;
   color: var(--color-k-accent);
   font-weight: 500;
+  text-transform: lowercase;
 }
+
 
 .status-strip__sep {
   color: var(--color-k-edge);
@@ -176,7 +178,7 @@ button.action-card:focus-visible {
 }
 
 .status-strip__dot--offline {
-  background: var(--color-k-danger, #e5484d);
+  background: var(--color-k-danger, #ff4757);
   animation: none;
 }
 
@@ -189,6 +191,7 @@ button.action-card:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-k-dim);
+  text-transform: lowercase;
 }
 
 /* ── Home page zones ──────────────────────────────────────────────── */
@@ -217,6 +220,251 @@ button.action-card:focus-visible {
   min-width: 0;
 }
 
+/* ── ShowcaseBoard (visitor "board of doors") ─────────────────────── */
+
+.showcase-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.showcase-board__slot {
+  min-width: 0;
+}
+
+/* Featured slot spans the full row regardless of how many columns auto-fit
+   resolves to. ≤768px the grid collapses to one column (below), so this is a
+   no-op there. */
+.showcase-board__slot--full {
+  grid-column: 1 / -1;
+}
+
+/* Featured door body — name + members + dual links. */
+.featured-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.featured-door__name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.featured-door__members {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.featured-door__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.featured-door__link {
+  font-size: 12px;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-k-edge);
+}
+
+.featured-door__link--primary {
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  border-color: var(--color-k-accent);
+}
+
+.featured-door__link--secondary {
+  color: var(--color-k-dim);
+  background: transparent;
+}
+
+.featured-door__link--secondary:hover {
+  color: var(--color-k-text);
+  border-color: var(--color-k-edge-hover);
+}
+
+/* ── ContributorsDoor ──────────────────────────────────────────────── */
+
+.contributors-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contributors-door__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contributors-door__entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contributors-door__rank {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.contributors-door__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.contributors-door__login {
+  font-size: 13px;
+  color: var(--color-k-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contributors-door__score {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  flex-shrink: 0;
+}
+
+.contributors-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.contributors-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── NetworkHealthDoor ──────────────────────────────────────────────── */
+
+.network-health-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.network-health-door__count {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.02em;
+}
+
+.network-health-door__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.network-health-door__status--healthy  { color: var(--color-k-accent); }
+.network-health-door__status--degraded { color: var(--color-k-warning, #f59e0b); }
+.network-health-door__status--down     { color: var(--color-k-danger, #ff4757); }
+
+.network-health-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.network-health-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── DirectoryDoor ──────────────────────────────────────────────────── */
+
+.directory-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.directory-door__count {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.02em;
+}
+
+.directory-door__hint {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.directory-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.directory-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── LaunchpadDoor ──────────────────────────────────────────────────── */
+
+.launchpad-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.launchpad-door__headline {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1.3;
+}
+
+.launchpad-door__sub {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+/* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
+
+.featured-door__link:focus-visible,
+.contributors-door__link:focus-visible,
+.network-health-door__link:focus-visible,
+.directory-door__link:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* ── Mobile-first breakpoints ─────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -225,8 +473,9 @@ button.action-card:focus-visible {
     padding: 12px;
   }
 
-  /* Force single-column layout — panels follow DOM order */
-  .state-board {
+  /* Force single-column layout — panels/doors follow DOM order */
+  .state-board,
+  .showcase-board {
     grid-template-columns: 1fr;
   }
 }
@@ -261,11 +510,246 @@ button.action-card:focus-visible {
   }
 }
 
+/* ── VisitorHero ──────────────────────────────────────────────────── */
+
+.visitor-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 16px;
+}
+
+.visitor-hero__headline {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-k-text);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.visitor-hero__subtitle {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-k-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* CTA row: flex row with gap so buttons never run together */
+.visitor-hero__ctas {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Shared button base */
+.visitor-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+/* Primary: teal fill, near-black text */
+.visitor-hero__cta--primary {
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+}
+
+.visitor-hero__cta--primary:hover {
+  opacity: 0.88;
+}
+
+/* Secondary: ghost — transparent + edge border */
+.visitor-hero__cta--secondary {
+  background: transparent;
+  color: var(--color-k-text);
+  border: 1px solid var(--color-k-edge);
+}
+
+.visitor-hero__cta--secondary:hover {
+  background: var(--color-k-hover-surface);
+  border-color: var(--color-k-edge-hover);
+}
+
+.visitor-hero__hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  margin: 0;
+}
+
 /* ── Focus rings (global for home interactive elements) ───────────── */
 
 .visitor-hero__cta:focus-visible {
   outline: 2px solid var(--color-k-accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .visitor-hero {
+    padding: 16px 12px;
+    gap: 12px;
+  }
+
+  .visitor-hero__headline {
+    font-size: 18px;
+  }
+
+  .visitor-hero__ctas {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visitor-hero__cta {
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* ── Door primitive ───────────────────────────────────────────────── */
+
+.door {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: var(--color-k-text);
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button.door {
+  cursor: pointer;
+}
+
+a.door:focus-visible,
+button.door:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Door variant overrides ───────────────────────────────────────── */
+
+.door--featured {
+  border: 1px solid var(--color-k-featured-border);
+  background: var(--color-k-featured-bg);
+}
+
+.door--invitation {
+  border: 1px dashed var(--color-k-edge);
+}
+
+/* ── Door sub-elements ────────────────────────────────────────────── */
+
+.door__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.door__icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-k-dim);
+}
+
+.door__body {
+  flex: 1;
+}
+
+.door__body--empty,
+.door__body--error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.door__invitation-link {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-k-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.door__empty-msg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.door__error-msg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-danger, #ff4757);
+}
+
+.door__retry {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-k-danger, #ff4757);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-k-danger, #ff4757);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.door__retry:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Skeleton bars ────────────────────────────────────────────────── */
+
+.door__sk {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--color-k-edge);
+  margin-bottom: 8px;
+  animation: door-shimmer 1.5s ease-in-out infinite;
+}
+
+.door__sk--mid {
+  width: 75%;
+}
+
+.door__sk--short {
+  width: 50%;
+  margin-bottom: 0;
+}
+
+@keyframes door-shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.45; }
+  100% { opacity: 1; }
 }
 
 /* ── Reduced motion ───────────────────────────────────────────────── */
@@ -276,6 +760,11 @@ button.action-card:focus-visible {
   }
 
   .action-card--skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .door__sk {
     animation: none;
     opacity: 0.6;
   }

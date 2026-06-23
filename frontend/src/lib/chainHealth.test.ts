@@ -7,7 +7,10 @@ vi.mock("./config", () => ({
         test13: {
             chainId: "test-13",
             rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-            fallbackRpcUrls: [],
+            fallbackRpcUrls: [
+                "https://test13.rpc.onbloc.xyz:443",
+                "https://rpc.test-13-aeddi-1.gnoland.network:443",
+            ],
             label: "Testnet 13",
         },
         gnoland1: {
@@ -18,12 +21,6 @@ vi.mock("./config", () => ({
                 "https://rpc.gnoland1.aeddi.org",
             ],
             label: "Betanet (gnoland1)",
-        },
-        "portal-loop": {
-            chainId: "portal-loop",
-            rpcUrl: "https://rpc.gno.land:443",
-            fallbackRpcUrls: [],
-            label: "Portal Loop",
         },
     },
 }))
@@ -106,8 +103,8 @@ describe("chainHealth", () => {
             expect(getSuggestedFallback("gnoland1")).toBe("test13")
         })
 
-        it("suggests portal-loop for test13 (skips self)", () => {
-            expect(getSuggestedFallback("test13")).toBe("portal-loop")
+        it("suggests gnoland1 for test13", () => {
+            expect(getSuggestedFallback("test13")).toBe("gnoland1")
         })
 
         it("suggests test13 for unknown network", () => {
@@ -115,8 +112,8 @@ describe("chainHealth", () => {
         })
 
         it("does not suggest self", () => {
-            const fallback = getSuggestedFallback("test13")
-            expect(fallback).not.toBe("test13")
+            const fallback = getSuggestedFallback("gnoland1")
+            expect(fallback).not.toBe("gnoland1")
         })
     })
 })

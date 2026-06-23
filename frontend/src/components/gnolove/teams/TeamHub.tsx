@@ -11,7 +11,6 @@
 
 import { Link, useParams } from "react-router-dom"
 import { useGnoloveTeams, useGnoloveTeamActiveRepos, useGnoloveTeamStats, useTeamProfileUrlState, useGnoloveBackendHealth } from "../../../hooks/gnolove"
-import { useNetwork } from "../../../hooks/useNetwork"
 import { useNetworkPath } from "../../../hooks/useNetworkNav"
 import { PageMeta } from "../PageMeta"
 import { GnoloveErrorBoundary } from "../GnoloveErrorBoundary"
@@ -38,7 +37,6 @@ function findTeam(teams: Team[], rawParam: string): Team | null {
 
 export function TeamHub() {
     const np = useNetworkPath()
-    const { networkKey } = useNetwork()
     const { teamName } = useParams<{ teamName: string }>()
     const { teams, lastSyncedAt } = useGnoloveTeams()
     const { period, repos, setPeriod } = useTeamProfileUrlState()
@@ -91,7 +89,6 @@ export function TeamHub() {
                     period={period}
                     onPeriodChange={setPeriod}
                     lastSyncedAt={lastSyncedAt}
-                    networkKey={networkKey}
                     backToTeamsHref={backHref}
                 />
             </GnoloveErrorBoundary>

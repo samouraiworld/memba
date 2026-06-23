@@ -16,7 +16,7 @@ import { checkChainHealth, getSuggestedFallback } from "../../lib/chainHealth"
 import { NETWORKS } from "../../lib/config"
 
 interface ChainHaltedBannerProps {
-    /** Active network key (e.g. "gnoland1", "test12") */
+    /** Active network key (e.g. "gnoland1", "test13") */
     networkKey: string
     /** Callback to switch network */
     onSwitchNetwork: (key: string) => void

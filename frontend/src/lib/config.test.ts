@@ -27,13 +27,12 @@ describe('config constants', () => {
         expect(UGNOT_PER_GNOT).toBe(1_000_000)
     })
 
-    it('NETWORKS has the expected chain options', () => {
-        // test12 retired from the network map at the test13 cutover.
-        expect(Object.keys(NETWORKS)).not.toContain('test12')
-        expect(Object.keys(NETWORKS)).toContain('staging')
-        expect(Object.keys(NETWORKS)).toContain('portal-loop')
+    it('NETWORKS has exactly test13 and gnoland1', () => {
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
         expect(Object.keys(NETWORKS)).toContain('test13')
+        expect(Object.keys(NETWORKS)).not.toContain('test12')
+        expect(Object.keys(NETWORKS)).not.toContain('staging')
+        expect(Object.keys(NETWORKS)).not.toContain('portal-loop')
     })
 
     it('test11 is dropped (decommissioned official testnet)', () => {
@@ -57,11 +56,9 @@ describe('config constants', () => {
     })
 
     it('networkHasRealms reflects Memba contract deployment per network', () => {
-        // Memba's realms are live on test13 (interrealm-v2, 2026-06-16).
+        // Memba's realms are deployed on test13 (interrealm-v2, 2026-06-16).
         expect(networkHasRealms('test13')).toBe(true)
-        // Unknown / retired networks (e.g. test12) default to "has realms"
-        // (don't gate the UI on a typo).
-        expect(networkHasRealms('test12')).toBe(true)
+        // Unknown networks default to "has realms" (don't gate the UI on a typo).
         expect(networkHasRealms('nonexistent')).toBe(true)
     })
 
@@ -81,8 +78,8 @@ describe('config constants', () => {
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
-        // test12 (and unknown networks) have no allowlist → everything valid.
-        expect(isRealmValidOn('test12', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
+        // Networks with no allowlist entry (gnoland1, unknown keys) → everything valid.
+        expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
     })
 
@@ -129,7 +126,7 @@ describe('config constants', () => {
 describe('isTrustedRpcDomain', () => {
     it('trusts official gno.land RPC URLs', () => {
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.gno.land:443')).toBe(true)
-        expect(isTrustedRpcDomain('https://rpc.test12.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.test13.testnets.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land')).toBe(true)
     })
@@ -281,6 +278,22 @@ describe('getTelemetryRpcUrls', () => {
         const t13 = NETWORKS.test13.telemetryRpcUrls || []
         expect(t13.some((u) => u.includes('aeddi-1'))).toBe(true)
         for (const u of t13) expect(isTrustedRpcDomain(u)).toBe(true)
+    })
+})
+
+describe('network reduction — test13 + gnoland1 only', () => {
+    it('exposes only test13 and gnoland1', () => {
+        const keys = Object.keys(NETWORKS).sort()
+        expect(keys).toEqual(['gnoland1', 'test13'])
+    })
+    it('defaults to test13', () => {
+        expect(DEFAULT_NETWORK).toBe('test13')
+    })
+    it('no longer references test12 / staging / portal', () => {
+        const keys = Object.keys(NETWORKS)
+        expect(keys).not.toContain('test12')
+        expect(keys).not.toContain('staging')
+        expect(keys).not.toContain('portal-loop')
     })
 })
 
