@@ -343,13 +343,42 @@ type blockResponse struct {
 	} `json:"result"`
 }
 
+// blockHashFetchAttempts / blockHashRetryDelay harden fetchBlockHash against the
+// test13 RPC endpoint (a multi-node load balancer) intermittently returning an
+// empty block_id for a block that exists — which otherwise stalls the tailer's
+// reorg-check on a transient empty. blockHashRetryDelay is a var so tests shorten it.
+const blockHashFetchAttempts = 3
+
+var blockHashRetryDelay = 500 * time.Millisecond
+
 // fetchBlockHash fetches the block hash for a given height from /block?height=h.
+// Retries a few times on a transient HTTP error or empty hash: the test13 RPC
+// endpoint (a multi-node load balancer) intermittently returns an empty block_id
+// for a block that exists, and without a retry the tailer's reorg-check stalls.
 func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, height int64) (string, error) {
-	body, err := httpGet(ctx, client, fmt.Sprintf("%s/block?height=%d", rpcURL, height))
-	if err != nil {
-		return "", err
+	url := fmt.Sprintf("%s/block?height=%d", rpcURL, height)
+	var lastErr error
+	for attempt := range blockHashFetchAttempts {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(blockHashRetryDelay):
+			}
+		}
+		body, err := httpGet(ctx, client, url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		hash, err := parseBlockHash(body, height)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return hash, nil
 	}
-	return parseBlockHash(body, height)
+	return "", fmt.Errorf("block %d: hash unavailable after %d attempts: %w", height, blockHashFetchAttempts, lastErr)
 }
 
 // parseBlockHash extracts the canonical block hash from a /block response body.
