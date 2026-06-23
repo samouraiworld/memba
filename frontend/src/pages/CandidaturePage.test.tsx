@@ -130,6 +130,13 @@ describe("CandidaturePage — XP Gate", () => {
         expect(screen.getByTestId("quest-progress-mock")).toBeInTheDocument()
     })
 
+    it("Go to Quest Hub button navigates to /quests (not /profile)", () => {
+        vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 30 })
+        render(<CandidaturePage />)
+        fireEvent.click(screen.getByText(/Go to Quest Hub/))
+        expect(mockNavigate).toHaveBeenCalledWith("/quests")
+    })
+
     it("hides form when ineligible", () => {
         render(<CandidaturePage />)
         expect(screen.queryByText("Submit Your Application")).not.toBeInTheDocument()
