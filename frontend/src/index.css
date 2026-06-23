@@ -23,6 +23,9 @@
   --color-k-amber-subtle: rgba(255, 165, 2, 0.10);    /* 10% fill */
   --color-k-amber-tint: rgba(255, 165, 2, 0.12);      /* 12% fill */
   --color-k-amber-border: rgba(255, 165, 2, 0.30);    /* 30% border */
+  /* Danger tint tokens */
+  --color-k-danger-tint: rgba(255, 71, 87, 0.08);     /* 8% fill */
+  --color-k-danger-border: rgba(255, 71, 87, 0.20);   /* 20% border */
   --color-k-featured-border: #14463a;
   --color-k-featured-bg: #0c1614;
   --color-k-danger: #ff4757;
@@ -76,6 +79,9 @@
   --color-k-amber-subtle: rgba(217, 119, 6, 0.10);
   --color-k-amber-tint: rgba(217, 119, 6, 0.12);
   --color-k-amber-border: rgba(217, 119, 6, 0.35);
+  /* Danger tint tokens — light theme */
+  --color-k-danger-tint: rgba(220, 38, 38, 0.08);     /* 8% fill */
+  --color-k-danger-border: rgba(220, 38, 38, 0.25);   /* 25% border */
   --color-k-featured-border: #bfe6dd;
   --color-k-featured-bg: #f1faf7;
   --color-k-danger: #dc2626;

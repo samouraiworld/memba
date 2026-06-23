@@ -39,6 +39,7 @@ export interface YourWorld {
 export interface YourWorldsResult {
     state: DoorState
     worlds: YourWorld[]
+    refetch: () => void
 }
 
 /**
@@ -70,9 +71,12 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
         })),
     })
 
+    /** Refetch all per-world queries (wires the error-state retry button). */
+    const refetch = () => { queries.forEach((q) => { void q.refetch() }) }
+
     // ── Empty: no saved DAOs ─────────────────────────────────
     if (savedDAOs.length === 0) {
-        return { state: "empty", worlds: [] }
+        return { state: "empty", worlds: [], refetch }
     }
 
     // ── Loading: any query still pending (none settled yet) ──
@@ -80,7 +84,7 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
     const anySettled = queries.some((q) => q.isSuccess || q.isError)
 
     if (anyPending && !anySettled) {
-        return { state: "loading", worlds: [] }
+        return { state: "loading", worlds: [], refetch }
     }
 
     // ── Ready: at least one query settled ────────────────────
@@ -103,5 +107,5 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
         }
     })
 
-    return { state: "ready", worlds }
+    return { state: "ready", worlds, refetch }
 }

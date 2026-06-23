@@ -11,14 +11,12 @@
  * @module components/home/panels/YourWorldsPanel
  */
 
-import { useOutletContext } from "react-router-dom"
 import { useOrg } from "../../../contexts/OrgContext"
 import { GNO_FAUCET_URL } from "../../../lib/config"
 import { useNetworkKey } from "../../../hooks/useNetworkNav"
 import { useYourWorlds } from "../../../hooks/home/useYourWorlds"
 import { YourWorldsDoor } from "../doors/YourWorldsDoor"
 import { Door } from "../Door"
-import type { LayoutContext } from "../../../types/layout"
 import "../home.css"
 
 /**
@@ -26,11 +24,10 @@ import "../home.css"
  * directly below ActionInbox. Member-only: Home.tsx must NOT render this on the visitor board.
  */
 export function YourWorldsPanel() {
-    useOutletContext<LayoutContext>()
     const { activeOrgId } = useOrg()
     const networkKey = useNetworkKey()
 
-    const { state, worlds } = useYourWorlds(networkKey, activeOrgId)
+    const { state, worlds, refetch } = useYourWorlds(networkKey, activeOrgId)
 
     const hasWorlds = state === "ready" && worlds.length > 0
 
@@ -60,7 +57,7 @@ export function YourWorldsPanel() {
                     variant="list"
                     state="error"
                     eyebrow="your worlds"
-                    onRetry={() => { /* hook does not expose refetch; world-level errors degrade per-card */ }}
+                    onRetry={refetch}
                 />
             )}
 

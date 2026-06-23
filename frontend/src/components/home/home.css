@@ -982,17 +982,7 @@ button.door:focus-visible {
   outline-offset: 2px;
 }
 
-/* All caught up card */
-
-.action-door--caught-up {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--color-k-panel);
-  border: 1px solid var(--color-k-edge);
-  border-radius: 12px;
-  padding: 16px;
-}
+/* All caught up card — children inside Door variant="action" */
 
 .action-door__caught-up-msg {
   font-family: var(--font-mono);
@@ -1045,15 +1035,15 @@ button.door:focus-visible {
 }
 
 .quick-vote-btn--no {
-  background: rgba(255, 71, 87, 0.08);
+  background: var(--color-k-danger-tint);
   color: var(--color-k-danger);
-  border-color: rgba(255, 71, 87, 0.20);
+  border-color: var(--color-k-danger-border);
 }
 
 [data-theme="light"] .quick-vote-btn--no {
-  background: rgba(220, 38, 38, 0.08);
+  background: var(--color-k-danger-tint);
   color: var(--color-k-danger);
-  border-color: rgba(220, 38, 38, 0.25);
+  border-color: var(--color-k-danger-border);
 }
 
 .quick-vote-btn--abstain {
