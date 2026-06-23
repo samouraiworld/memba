@@ -107,7 +107,7 @@ export async function checkChainHealth(
  */
 export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // Priority order for fallback suggestion
-    const fallbackOrder = ["test12", "portal-loop", "staging"]
+    const fallbackOrder = ["test13", "portal-loop", "staging"]
     for (const key of fallbackOrder) {
         if (key !== currentNetworkKey && NETWORKS[key]) {
             return key

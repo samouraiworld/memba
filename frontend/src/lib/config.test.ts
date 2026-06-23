@@ -28,7 +28,8 @@ describe('config constants', () => {
     })
 
     it('NETWORKS has the expected chain options', () => {
-        expect(Object.keys(NETWORKS)).toContain('test12')
+        // test12 retired from the network map at the test13 cutover.
+        expect(Object.keys(NETWORKS)).not.toContain('test12')
         expect(Object.keys(NETWORKS)).toContain('staging')
         expect(Object.keys(NETWORKS)).toContain('portal-loop')
         expect(Object.keys(NETWORKS)).toContain('gnoland1')
@@ -56,11 +57,11 @@ describe('config constants', () => {
     })
 
     it('networkHasRealms reflects Memba contract deployment per network', () => {
-        // Memba's realms are deployed on both test12 and test13 (test13 realms
-        // landed 2026-06-16, interrealm-v2).
+        // Memba's realms are live on test13 (interrealm-v2, 2026-06-16).
         expect(networkHasRealms('test13')).toBe(true)
+        // Unknown / retired networks (e.g. test12) default to "has realms"
+        // (don't gate the UI on a typo).
         expect(networkHasRealms('test12')).toBe(true)
-        // Unknown networks default to "has realms" (don't gate the UI on a typo).
         expect(networkHasRealms('nonexistent')).toBe(true)
     })
 
@@ -85,16 +86,8 @@ describe('config constants', () => {
         expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
     })
 
-    it('test12 has correct chain config', () => {
-        const t12 = NETWORKS.test12
-        expect(t12.chainId).toBe('test12')
-        expect(t12.rpcUrl).toBe('https://rpc.testnet12.samourai.live:443')
-        expect(t12.userRegistryPath).toBe('gno.land/r/sys/users')
-        expect(t12.faucetUrl).toBe('https://faucet.gno.land')
-    })
-
-    it('test12 and gnoland1 use r/sys/users registry', () => {
-        expect(NETWORKS.test12.userRegistryPath).toBe('gno.land/r/sys/users')
+    it('test13 and gnoland1 use r/sys/users registry', () => {
+        expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
         expect(NETWORKS.gnoland1.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 
@@ -106,12 +99,12 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is test12', () => {
-        expect(DEFAULT_NETWORK).toBe('test12')
+    it('DEFAULT_NETWORK is test13 (post-cutover default)', () => {
+        expect(DEFAULT_NETWORK).toBe('test13')
     })
 
-    it('getUserRegistryPath returns r/sys/users for test12', () => {
-        // Default active network is test12, so getUserRegistryPath should return r/sys/users
+    it('getUserRegistryPath returns r/sys/users for the default network', () => {
+        // Default active network is test13, which uses r/sys/users
         expect(getUserRegistryPath()).toBe('gno.land/r/sys/users')
     })
 
@@ -244,12 +237,14 @@ describe('isTrustedRpcDomain', () => {
 })
 
 describe('getTelemetryRpcUrl', () => {
-    it('falls back to GNO_RPC_URL when no sentry is configured', () => {
-        // In test environment, VITE_SAMOURAI_SENTRY_RPC_URL is not set
-        // so getTelemetryRpcUrl() must equal GNO_RPC_URL
+    it('returns the network telemetry node when no sentry is configured', () => {
+        // No VITE_SAMOURAI_SENTRY_RPC_URL in tests. The default network (test13)
+        // defines telemetryRpcUrls, so getTelemetryRpcUrl() returns the first one
+        // (networks without telemetryRpcUrls fall back to GNO_RPC_URL instead).
         const url = getTelemetryRpcUrl()
-        expect(url).toBe(GNO_RPC_URL)
+        expect(url).toBe(getTelemetryRpcUrls()[0])
         expect(url).toBeTruthy()
+        expect(isTrustedRpcDomain(url)).toBe(true)
     })
 
     it('GNO_RPC_URL is always a trusted domain', () => {

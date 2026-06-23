@@ -52,7 +52,7 @@ test.describe('Gnolove Notable PRs — multi-board', () => {
     })
 
     test('board selector switches board: URL, heading and content', async ({ page }) => {
-        await page.goto('/test12/gnolove/notable-prs')
+        await page.goto('/test13/gnolove/notable-prs')
         await expect(page.getByRole('heading', { name: 'Notable PRs' })).toBeVisible()
         await expect(page.getByText('Notable PR one')).toBeVisible()
 
@@ -66,7 +66,7 @@ test.describe('Gnolove Notable PRs — multi-board', () => {
     })
 
     test('issues are hidden under Needs-review and shown when it is off', async ({ page }) => {
-        await page.goto('/test12/gnolove/notable-prs?board=gnoland-dev')
+        await page.goto('/test13/gnolove/notable-prs?board=gnoland-dev')
         // Needs-review defaults ON → issues (which never "need review") are hidden.
         await expect(page.getByText('Dev issue open')).toBeHidden()
         await page.getByText('Needs review').click()
@@ -74,7 +74,7 @@ test.describe('Gnolove Notable PRs — multi-board', () => {
     })
 
     test('Hide-done drops the Done column in board view', async ({ page }) => {
-        await page.goto('/test12/gnolove/notable-prs?board=gnoland-dev')
+        await page.goto('/test13/gnolove/notable-prs?board=gnoland-dev')
         await page.getByText('Needs review').click() // surface all statuses
         await page.getByRole('button', { name: /Board/ }).click()
 
