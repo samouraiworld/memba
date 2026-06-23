@@ -137,6 +137,15 @@ export function ActionInbox() {
                     />
                 ))}
             </div>
+
+            <div className="action-inbox__footer">
+                <Link
+                    to={buildPath("alerts")}
+                    className="action-inbox__view-all"
+                >
+                    view all activity →
+                </Link>
+            </div>
         </section>
     )
 }

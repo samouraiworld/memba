@@ -160,6 +160,14 @@ describe("ActionDoor — vote action (inline approve/reject)", () => {
         expect(screen.getByRole("button", { name: /vote no on proposal 2/i })).toBeInTheDocument()
     })
 
+    it("does NOT render the door body title for vote actions (QuickVoteWidget owns it)", () => {
+        renderWithProviders(<ActionInbox />)
+        // QuickVoteWidget renders "#2 — Raise budget Q3"; door body title is suppressed.
+        // Exactly 1 occurrence of the title text — no duplication.
+        const matches = screen.getAllByText(/Raise budget Q3/i)
+        expect(matches.length).toBe(1)
+    })
+
     it("clicking Approve (YES) invokes the existing handler (buildVoteMsg + doContractBroadcast)", async () => {
         vi.mocked(grc20Mod.doContractBroadcast).mockResolvedValue({ hash: "tx-yes" })
         vi.mocked(daoMod.buildVoteMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
@@ -219,5 +227,11 @@ describe("ActionDoor — sign action", () => {
         renderWithProviders(<ActionInbox />)
         const link = screen.getByRole("link", { name: /review & sign/i })
         expect(link.getAttribute("href")).toContain("tx/42")
+    })
+
+    it("non-vote action (sign) still renders the door body title", () => {
+        renderWithProviders(<ActionInbox />)
+        // The title should appear in the door body (not suppressed for sign kind).
+        expect(screen.getByText("Transfer treasury Q3")).toBeInTheDocument()
     })
 })

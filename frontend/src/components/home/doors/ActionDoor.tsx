@@ -86,12 +86,14 @@ export function ActionDoor({
             icon={<ActionDoorIcon kind={action.kind} />}
         >
             <div className="action-door__content">
-                <div className="action-door__body">
-                    <span className="action-door__title">{action.title}</span>
-                    {action.meta && (
-                        <span className="action-door__meta">{action.meta}</span>
-                    )}
-                </div>
+                {!isVote && (
+                    <div className="action-door__body">
+                        <span className="action-door__title">{action.title}</span>
+                        {action.meta && (
+                            <span className="action-door__meta">{action.meta}</span>
+                        )}
+                    </div>
+                )}
 
                 {isVote && relevantProposals.length > 0 && onVote && (
                     <div className="action-door__vote-slot">

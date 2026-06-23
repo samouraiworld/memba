@@ -161,11 +161,12 @@ describe("ActionInbox — with vote actions", () => {
         })
     })
 
-    it("renders the vote action with the proposal title", () => {
+    it("renders the vote action with the proposal title (via QuickVoteWidget only — no door body title duplication)", () => {
         renderWithProviders(<ActionInbox />)
-        // Title appears in the door body; QuickVoteWidget also renders it.
+        // QuickVoteWidget renders the title; ActionDoor body title is suppressed for vote kind.
         const matches = screen.getAllByText(/Proposal Alpha/i)
-        expect(matches.length).toBeGreaterThanOrEqual(1)
+        // Exactly 1 occurrence — QuickVoteWidget owns it, door body is suppressed.
+        expect(matches.length).toBe(1)
     })
 
     it("shows YES and NO vote buttons", () => {
@@ -182,6 +183,13 @@ describe("ActionInbox — with vote actions", () => {
     it("shows the count badge", () => {
         renderWithProviders(<ActionInbox />)
         expect(screen.getByText(/1 awaits/i)).toBeInTheDocument()
+    })
+
+    it("renders a 'view all activity' footer link pointing to the alerts route", () => {
+        renderWithProviders(<ActionInbox />)
+        const link = screen.getByRole("link", { name: /view all activity/i })
+        expect(link).toBeInTheDocument()
+        expect(link.getAttribute("href")).toContain("alerts")
     })
 })
 
