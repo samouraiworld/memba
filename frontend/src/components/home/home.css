@@ -1193,9 +1193,6 @@ button.door:focus-visible {
 }
 
 .your-worlds-door__members {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   white-space: nowrap;
 }
 
@@ -1225,7 +1222,8 @@ button.door:focus-visible {
     flex-wrap: wrap;
   }
 
-  /* Your-worlds board already stacks (flex-column); ensure invite actions do too */
+  /* Your-worlds board auto-stacks to one column via the grid's auto-fit;
+     ensure invite actions stack too */
   .your-worlds-invite__actions {
     gap: 8px;
   }

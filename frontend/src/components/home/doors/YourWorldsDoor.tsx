@@ -45,8 +45,7 @@ export function YourWorldsDoor({ world }: YourWorldsDoorProps) {
                 <span className="your-worlds-door__stats">
                     {members !== undefined && (
                         <span className="your-worlds-door__members">
-                            <i className="ti ti-users" aria-hidden="true" /> {members}{" "}
-                            {members === 1 ? "member" : "members"}
+                            {members} {members === 1 ? "member" : "members"}
                         </span>
                     )}
                     {openCount !== undefined ? (

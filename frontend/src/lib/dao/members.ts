@@ -95,10 +95,11 @@ export async function getDAOMembers(
  * Resolve a single address's membership — a lightweight counterpart to
  * getDAOMembers for the home "your worlds" cards.
  *
- * Unlike getDAOMembers it:
- *   - early-exits as soon as the target address is found while paging, and
- *   - never resolves usernames (the role badge needs only tier/roles),
- * so it is cheap enough to run per saved DAO on the home page.
+ * Unlike getDAOMembers it never resolves usernames (the role badge needs only
+ * tier/roles). On the memberstore path it also early-exits as soon as the
+ * target address is found while paging; the basedao JSON path fetches the
+ * member list once and finds the address locally (still far cheaper than
+ * resolving every member's username). Cheap enough to run per saved DAO.
  *
  * Returns the matched DAOMember (username always ""), or null when the address
  * is not a member / cannot be resolved.
