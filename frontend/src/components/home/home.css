@@ -154,7 +154,9 @@ button.action-card:focus-visible {
   font-size: 11px;
   color: var(--color-k-accent);
   font-weight: 500;
+  text-transform: lowercase;
 }
+
 
 .status-strip__sep {
   color: var(--color-k-edge);
@@ -189,6 +191,7 @@ button.action-card:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-k-dim);
+  text-transform: lowercase;
 }
 
 /* ── Home page zones ──────────────────────────────────────────────── */
@@ -321,7 +324,7 @@ button.action-card:focus-visible {
   height: 24px;
   border-radius: 50%;
   background: var(--color-k-accent);
-  color: #0a1210;
+  color: var(--color-k-on-accent);
   font-size: 10px;
   font-weight: 600;
   display: inline-flex;
@@ -552,7 +555,7 @@ button.action-card:focus-visible {
 /* Primary: teal fill, near-black text */
 .visitor-hero__cta--primary {
   background: var(--color-k-accent);
-  color: #0a1210;
+  color: var(--color-k-on-accent);
 }
 
 .visitor-hero__cta--primary:hover {
@@ -637,8 +640,8 @@ button.door:focus-visible {
 /* ── Door variant overrides ───────────────────────────────────────── */
 
 .door--featured {
-  border: 1px solid #14463a;
-  background: #0c1614;
+  border: 1px solid var(--color-k-featured-border);
+  background: var(--color-k-featured-bg);
 }
 
 .door--invitation {

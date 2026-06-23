@@ -12,6 +12,7 @@ import { describe, it, expect, vi } from "vitest"
 import { screen, fireEvent } from "@testing-library/react"
 import { renderWithProviders, mockLayoutContext } from "../../test/test-utils"
 import { VisitorHero } from "./VisitorHero"
+import { HERO_HEADLINES, ACTIVE_HEADLINE } from "./visitorHeroHeadlines"
 
 // ── Mock react-router-dom useOutletContext ────────────────────────────
 vi.mock("react-router-dom", async () => {
@@ -35,6 +36,23 @@ const networkNavMod = await import("../../hooks/useNetworkNav")
 void networkNavMod
 
 // ── Tests ─────────────────────────────────────────────────────────────
+
+describe("VisitorHero — HERO_HEADLINES A/B const", () => {
+    it("HERO_HEADLINES defines both manifesto and atlas variants", () => {
+        expect(HERO_HEADLINES.manifesto).toBeTruthy()
+        expect(HERO_HEADLINES.atlas).toBeTruthy()
+        expect(HERO_HEADLINES.manifesto).not.toBe(HERO_HEADLINES.atlas)
+    })
+
+    it("ACTIVE_HEADLINE defaults to manifesto (production copy must not change)", () => {
+        expect(ACTIVE_HEADLINE).toBe(HERO_HEADLINES.manifesto)
+    })
+
+    it("renders ACTIVE_HEADLINE in the h1", () => {
+        renderWithProviders(<VisitorHero />)
+        expect(screen.getByText(ACTIVE_HEADLINE)).toBeInTheDocument()
+    })
+})
 
 describe("VisitorHero — headline", () => {
     it("renders the conviction headline", () => {
