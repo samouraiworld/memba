@@ -274,7 +274,7 @@ button.action-card:focus-visible {
 
 .featured-door__link--primary {
   background: var(--color-k-accent);
-  color: var(--color-k-panel);
+  color: var(--color-k-on-accent);
   border-color: var(--color-k-accent);
 }
 
@@ -382,8 +382,7 @@ button.action-card:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 }
 
 .network-health-door__status--healthy  { color: var(--color-k-accent); }
@@ -453,6 +452,17 @@ button.action-card:focus-visible {
 .launchpad-door__sub {
   font-size: 12px;
   color: var(--color-k-dim);
+}
+
+/* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
+
+.featured-door__link:focus-visible,
+.contributors-door__link:focus-visible,
+.network-health-door__link:focus-visible,
+.directory-door__link:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ── Mobile-first breakpoints ─────────────────────────────────────── */

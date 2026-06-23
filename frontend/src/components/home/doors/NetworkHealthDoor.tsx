@@ -38,9 +38,9 @@ export interface NetworkHealthDoorProps {
 
 function statusLabel(status: "healthy" | "degraded" | "down" | "unknown"): string {
     switch (status) {
-        case "healthy": return "Healthy"
-        case "degraded": return "Degraded"
-        case "down": return "Down"
+        case "healthy": return "healthy"
+        case "degraded": return "degraded"
+        case "down": return "down"
         case "unknown": return ""
     }
 }
