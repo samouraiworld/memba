@@ -19,8 +19,23 @@ import {
     buildEditThreadMsg,
     buildDeleteThreadMsg,
     buildFlagThreadMsg,
+    parseOwnerAddress,
     MEMBA_CHANNEL_DEFS,
 } from "./channelTemplate"
+
+describe("parseOwnerAddress", () => {
+    it("extracts the g1 address from a typed-address qeval result", () => {
+        expect(
+            parseOwnerAddress('("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0" .uverse.address)'),
+        ).toBe("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0")
+    })
+    it("returns empty string for null / empty / nil / garbage (fail closed)", () => {
+        expect(parseOwnerAddress(null)).toBe("")
+        expect(parseOwnerAddress("")).toBe("")
+        expect(parseOwnerAddress("(nil .uverse.address)")).toBe("")
+        expect(parseOwnerAddress("error: undefined")).toBe("")
+    })
+})
 
 // ── Defaults ──────────────────────────────────────────────────
 
