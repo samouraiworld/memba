@@ -10,6 +10,9 @@ import {
     parseSkills,
     buildSubmitCandidatureMsg,
     buildWithdrawCandidatureMsg,
+    buildMarkApprovedMsg,
+    buildMarkRejectedMsg,
+    parseIsAdminResult,
     parseCandidatureList,
     parseCandidatureDetail,
     generateCandidatureCode,
@@ -137,6 +140,60 @@ describe("buildWithdrawCandidatureMsg", () => {
         expect(msg.value.func).toBe("Withdraw")
         expect(msg.value.args).toEqual([])
         expect(msg.value.send).toBe("")
+    })
+})
+
+describe("buildMarkApprovedMsg", () => {
+    it("builds a vm/MsgCall to MarkApproved with the applicant address, no send", () => {
+        const msg = buildMarkApprovedMsg("g1admin", "g1applicant")
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value.func).toBe("MarkApproved")
+        expect(msg.value.args).toEqual(["g1applicant"])
+        expect(msg.value.caller).toBe("g1admin")
+        expect(msg.value.send).toBe("")
+    })
+
+    it("uses the default candidature realm path", () => {
+        const msg = buildMarkApprovedMsg("g1admin", "g1applicant")
+        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v2")
+    })
+
+    it("accepts a custom realm path", () => {
+        const msg = buildMarkApprovedMsg("g1admin", "g1applicant", "gno.land/r/custom/candidature")
+        expect(msg.value.pkg_path).toBe("gno.land/r/custom/candidature")
+    })
+})
+
+describe("buildMarkRejectedMsg", () => {
+    it("builds a vm/MsgCall to MarkRejected with the applicant address, no send", () => {
+        const msg = buildMarkRejectedMsg("g1admin", "g1applicant")
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value.func).toBe("MarkRejected")
+        expect(msg.value.args).toEqual(["g1applicant"])
+        expect(msg.value.send).toBe("")
+    })
+})
+
+describe("parseIsAdminResult", () => {
+    it("returns true for a gno qeval true bool", () => {
+        expect(parseIsAdminResult("(true bool)")).toBe(true)
+        expect(parseIsAdminResult("true")).toBe(true)
+    })
+    it("returns false for a qeval false bool", () => {
+        expect(parseIsAdminResult("(false bool)")).toBe(false)
+        expect(parseIsAdminResult("false")).toBe(false)
+    })
+    it("returns false for null/empty/garbage (fail closed)", () => {
+        expect(parseIsAdminResult(null)).toBe(false)
+        expect(parseIsAdminResult("")).toBe(false)
+        expect(parseIsAdminResult("error: undefined")).toBe(false)
+    })
+    it("does not false-grant when 'true' appears anywhere but the leading bool", () => {
+        // The match is anchored at the start, so a false result that merely
+        // contains the substring 'true' must NOT be read as admin.
+        expect(parseIsAdminResult("(false bool) true")).toBe(false)
+        expect(parseIsAdminResult("istrue")).toBe(false)
+        expect(parseIsAdminResult("(false bool truestring)")).toBe(false)
     })
 })
 

@@ -22,6 +22,9 @@ import {
     validateCandidature,
     parseSkills,
     buildSubmitCandidatureMsg,
+    buildMarkApprovedMsg,
+    buildMarkRejectedMsg,
+    parseIsAdminResult,
     parseCandidatureList,
     getRequiredDeposit,
     MAX_BIO_LENGTH,
@@ -30,7 +33,7 @@ import {
 } from "../lib/candidatureTemplate"
 import { MEMBA_DAO, GNO_RPC_URL } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
-import { queryRender } from "../lib/dao/shared"
+import { queryRender, queryEval } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
 import "./candidature.css"
 
@@ -47,6 +50,8 @@ export default function CandidaturePage() {
     const [error, setError] = useState<string | null>(null)
     const [candidatures, setCandidatures] = useState<Candidature[]>([])
     const [loadingList, setLoadingList] = useState(true)
+    const [isAdmin, setIsAdmin] = useState(false)
+    const [actioning, setActioning] = useState<string | null>(null)
 
     useEffect(() => {
         document.title = "Candidature — Memba"
@@ -79,6 +84,39 @@ export default function CandidaturePage() {
     )
     // Count prior applications to determine deposit scaling
     const applyCount = existingCandidature?.applyCount || 0
+
+    // Is the connected user an admin of the candidature realm? Gates the
+    // approve/reject controls. Fails closed (query error / not admin → hidden).
+    useEffect(() => {
+        if (!userAddr) { setIsAdmin(false); return }
+        let cancelled = false
+        queryEval(GNO_RPC_URL, MEMBA_DAO.candidaturePath, `IsAdmin(${JSON.stringify(userAddr)})`)
+            .then(r => { if (!cancelled) setIsAdmin(parseIsAdminResult(r)) })
+            .catch(() => { if (!cancelled) setIsAdmin(false) })
+        return () => { cancelled = true }
+    }, [userAddr])
+
+    // Admin action: approve or reject a pending application on-chain. The realm
+    // returns the applicant's deposit either way (no funds are kept).
+    const handleAdminAction = async (applicant: string, action: "approve" | "reject") => {
+        if (!adena.connected || !auth.isAuthenticated) {
+            setError("Connect your wallet first")
+            return
+        }
+        setActioning(applicant)
+        setError(null)
+        try {
+            const msg = action === "approve"
+                ? buildMarkApprovedMsg(adena.address, applicant, MEMBA_DAO.candidaturePath)
+                : buildMarkRejectedMsg(adena.address, applicant, MEMBA_DAO.candidaturePath)
+            await doContractBroadcast([msg], `Candidature ${action === "approve" ? "Approval" : "Rejection"}`)
+            loadCandidatures()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : `Candidature ${action} failed`)
+        } finally {
+            setActioning(null)
+        }
+    }
 
     const handleSubmit = async () => {
         if (!adena.connected || !auth.isAuthenticated) {
@@ -251,7 +289,17 @@ export default function CandidaturePage() {
                 <div className="k-card candidature-list">
                     <h3 className="candidature-list__title">
                         All Candidatures ({candidatures.length})
+                        {isAdmin && (
+                            <span className="candidature-list__admin-badge" title="You can approve or reject pending applications">
+                                admin
+                            </span>
+                        )}
                     </h3>
+                    {isAdmin && (
+                        <p className="candidature-list__admin-hint">
+                            You're an admin — approve or reject pending applications below. The applicant's deposit is returned either way.
+                        </p>
+                    )}
                     <div className="candidature-list__items">
                         {candidatures.map(c => (
                             <div key={c.applicant} className={`candidature-list__item candidature-list__item--${c.status}`}>
@@ -266,6 +314,24 @@ export default function CandidaturePage() {
                                 <span className="candidature-list__item-addr">
                                     Deposit: {Number(c.deposit) / 1_000_000} GNOT — block {c.appliedAt}
                                 </span>
+                                {isAdmin && c.status === "pending" && (
+                                    <div className="candidature-list__item-actions">
+                                        <button
+                                            className="candidature-admin-btn candidature-admin-btn--approve"
+                                            onClick={() => handleAdminAction(c.applicant, "approve")}
+                                            disabled={actioning !== null}
+                                        >
+                                            {actioning === c.applicant ? "Approving…" : "Approve"}
+                                        </button>
+                                        <button
+                                            className="candidature-admin-btn candidature-admin-btn--reject"
+                                            onClick={() => handleAdminAction(c.applicant, "reject")}
+                                            disabled={actioning !== null}
+                                        >
+                                            {actioning === c.applicant ? "Rejecting…" : "Reject"}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
