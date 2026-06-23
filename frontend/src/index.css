@@ -1302,10 +1302,10 @@ body {
 
 .k-footer-disclaimer {
   color: var(--color-k-muted, #555);
-  font-size: 9px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
   max-width: min(500px, calc(100vw - 32px));
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .k-footer-disclaimer a {
