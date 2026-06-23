@@ -17,17 +17,17 @@
     --color-primary-bg: rgba(0, 212, 170, 0.08);
     --color-primary-border: rgba(0, 212, 170, 0.15);
     --color-primary-hover: rgba(0, 212, 170, 0.12);
-    --color-danger: #f44336;
+    --color-danger: var(--color-k-danger);
     --color-danger-bg: rgba(244, 67, 54, 0.06);
-    --color-warning: #f5a623;
+    --color-warning: var(--color-k-warning);
     --color-warning-bg: rgba(245, 166, 35, 0.06);
     --color-success: #4caf50;
     --color-info: #2196f3;
     --color-text: var(--color-k-text);
-    --color-text-secondary: #888;
+    --color-text-secondary: var(--color-k-dim);
     --color-text-muted: var(--color-k-muted);
     --color-text-dim: #444;
-    --color-bg: #0a0a0a;
+    --color-bg: var(--color-k-bg);
     --color-bg-card: var(--color-k-elevated);
     --color-bg-hover: rgba(255, 255, 255, 0.02);
     --color-surface: rgba(255, 255, 255, 0.03);
@@ -36,7 +36,7 @@
     --color-surface-input: rgba(255, 255, 255, 0.05);
     --color-overlay: rgba(0, 0, 0, 0.6);
     --color-overlay-light: rgba(0, 0, 0, 0.3);
-    --color-border: #1a1a1a;
+    --color-border: var(--color-k-edge);
     --color-border-light: var(--color-k-edge);
 
     /* ── HSL Semantic Color Scale (primary green) ───────── */
@@ -96,13 +96,6 @@
     --transition-medium: 0.2s ease;
     --transition-slow: 0.3s ease;
 
-    /* ── Kodera aliases — converge divergent vars to canonical values ── */
-    /* Resolves: #0a0a0a→#000, #f44336→#ff4757, #f5a623→#ffa502, #1a1a1a→#222 */
-    --color-bg: var(--color-k-bg);
-    --color-danger: var(--color-k-danger);
-    --color-warning: var(--color-k-warning);
-    --color-border: var(--color-k-edge);
-    --color-text-secondary: var(--color-k-dim);
 }
 
 /* ── Light Theme Overrides ──────────────────────────────── */
