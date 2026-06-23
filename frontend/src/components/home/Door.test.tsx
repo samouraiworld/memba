@@ -53,3 +53,35 @@ it("renders a button when only onClick is set", () => {
   screen.getByRole("button").click()
   expect(onClick).toHaveBeenCalled()
 })
+
+it("state=loading renders three skeleton bars and no children text", () => {
+  const { container } = renderWithProviders(
+    <Door variant="stat" state="loading" eyebrow="tokens">
+      should not appear
+    </Door>,
+  )
+  expect(container.querySelectorAll(".door__sk").length).toBe(3)
+  expect(screen.queryByText("should not appear")).not.toBeInTheDocument()
+})
+
+it("state=empty without invitation renders fallback without crashing", () => {
+  renderWithProviders(
+    <Door variant="stat" state="empty" eyebrow="tokens" />,
+  )
+  expect(screen.getByText("nothing here yet")).toBeInTheDocument()
+})
+
+it("state=empty with external invitation renders an <a> with target=_blank", () => {
+  renderWithProviders(
+    <Door
+      variant="featured"
+      state="empty"
+      eyebrow="featured dao"
+      invitation={{ label: "Visit Gno", href: "https://gno.land/r/x" }}
+    />,
+  )
+  const link = screen.getByRole("link", { name: /visit gno/i })
+  expect(link.tagName.toLowerCase()).toBe("a")
+  expect(link).toHaveAttribute("href", "https://gno.land/r/x")
+  expect(link).toHaveAttribute("target", "_blank")
+})

@@ -2,6 +2,17 @@ import React from "react"
 import { Link } from "react-router-dom"
 import "./home.css"
 
+function renderNavLink(href: string, className: string, children: React.ReactNode) {
+  if (href.startsWith("/")) {
+    return <Link to={href} className={className}>{children}</Link>
+  }
+  return (
+    <a href={href} className={className} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  )
+}
+
 export type DoorState = "ready" | "loading" | "empty" | "error"
 export type DoorVariant =
   | "featured"
@@ -41,9 +52,7 @@ function DoorBody({ state, children, invitation, onRetry }: Pick<DoorProps, "sta
     if (invitation) {
       return (
         <div className="door__body door__body--empty">
-          <Link to={invitation.href} className="door__invitation-link">
-            {invitation.label}
-          </Link>
+          {renderNavLink(invitation.href, "door__invitation-link", invitation.label)}
         </div>
       )
     }
@@ -96,20 +105,8 @@ export function Door({
     </>
   )
 
-  if (href?.startsWith("/")) {
-    return (
-      <Link to={href} className={className}>
-        {inner}
-      </Link>
-    )
-  }
-
-  if (href?.startsWith("http")) {
-    return (
-      <a href={href} className={className} target="_blank" rel="noopener noreferrer">
-        {inner}
-      </a>
-    )
+  if (href) {
+    return renderNavLink(href, className, inner)
   }
 
   if (onClick) {
