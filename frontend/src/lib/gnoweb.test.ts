@@ -139,6 +139,10 @@ describe("parseGnowebListing", () => {
 // ── getGnowebUrl ─────────────────────────────────────────────
 
 describe("getGnowebUrl", () => {
+    it("returns URL for test13 (official testnet)", () => {
+        expect(getGnowebUrl("test13")).toBe("https://test13.testnets.gno.land")
+    })
+
     it("returns URL for test12", () => {
         expect(getGnowebUrl("test12")).toBe("https://gnoweb.test12.moul.p2p.team")
     })
