@@ -1133,11 +1133,11 @@ button.door:focus-visible {
   font-size: 14px;
 }
 
-/* Board grid — world door cards */
+/* Board grid — world door cards (compact, responsive: 1–N columns) */
 .your-worlds-board {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
 }
 
 /* Cold-start invitation */
@@ -1164,8 +1164,8 @@ button.door:focus-visible {
 
 .your-worlds-door__body {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -1177,16 +1177,44 @@ button.door:focus-visible {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
   min-width: 0;
 }
 
-.your-worlds-door__count {
+/* Signal row — member count + open-proposal state */
+.your-worlds-door__stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-accent);
+  color: var(--color-k-dim);
+  min-width: 0;
+}
+
+.your-worlds-door__members {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
-  flex-shrink: 0;
+}
+
+.your-worlds-door__open {
+  color: var(--color-k-accent);
+  background: var(--color-k-accent-tint);
+  padding: 1px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.your-worlds-door__open--none {
+  color: var(--color-k-dim);
+  background: transparent;
+  padding: 0;
+}
+
+.your-worlds-door__stats--degraded {
+  color: var(--color-k-warning);
 }
 
 /* ── Responsive: member view ─────────────────────────────────────── */
