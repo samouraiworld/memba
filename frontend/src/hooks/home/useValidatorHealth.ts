@@ -21,8 +21,8 @@ import { getValidators } from "../../lib/validators"
 import { computeNetworkHealth } from "../../lib/validatorHealth"
 
 export interface ValidatorHealth {
-    /** Network-wide health status */
-    status: "healthy" | "degraded" | "down"
+    /** Network-wide health status ("unknown" = data unavailable / query errored) */
+    status: "healthy" | "degraded" | "down" | "unknown"
     /** Active validators (from consensus active set) */
     active: number
     /** Total validators fetched */
@@ -91,7 +91,7 @@ export function useValidatorHealth(): ValidatorHealth {
 
     if (usable) {
         return {
-            status: (snapshot?.validatorsHealth?.status as ValidatorHealth["status"]) ?? "healthy",
+            status: (snapshot?.validatorsHealth?.status as ValidatorHealth["status"]) ?? "unknown",
             active: Number(snapshot?.validatorsHealth?.active ?? 0),
             total: Number(snapshot?.validatorsHealth?.total ?? 0),
             avgUptime: null,
@@ -101,7 +101,7 @@ export function useValidatorHealth(): ValidatorHealth {
     }
 
     return {
-        status: query.data?.status ?? "healthy",
+        status: query.data?.status ?? "unknown",
         active: query.data?.active ?? 0,
         total: query.data?.total ?? 0,
         avgUptime: query.data?.avgUptime ?? null,

@@ -31,6 +31,10 @@ export interface NetworkPulse {
     daoCount: number
     memberCount: number
     loading: boolean
+    /** true when the on-chain stats query failed (RPC unreachable) — lets the
+     *  StatusStrip show "offline" instead of a misleading "live" dot. Always
+     *  false on the snapshot path (the snapshot serves last-good data). */
+    offline: boolean
 }
 
 const PULSE_INTERVAL = 30_000
@@ -64,6 +68,7 @@ export function useNetworkPulse(): NetworkPulse {
             daoCount: traction?.daoCount ?? 0,
             memberCount: traction?.contributorCount ?? 0,
             loading: false,
+            offline: false,
         }
     }
 
@@ -76,5 +81,6 @@ export function useNetworkPulse(): NetworkPulse {
         daoCount: traction?.daoCount ?? 0,
         memberCount: traction?.contributorCount ?? 0,
         loading: statsQuery.isLoading,
+        offline: statsQuery.isError,
     }
 }
