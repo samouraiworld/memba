@@ -13,7 +13,7 @@
 
 :root {
     /* ── Colors ─────────────────────────────────────────── */
-    --color-primary: #00d4aa;
+    --color-primary: var(--color-k-accent);
     --color-primary-bg: rgba(0, 212, 170, 0.08);
     --color-primary-border: rgba(0, 212, 170, 0.15);
     --color-primary-hover: rgba(0, 212, 170, 0.12);
@@ -23,12 +23,12 @@
     --color-warning-bg: rgba(245, 166, 35, 0.06);
     --color-success: #4caf50;
     --color-info: #2196f3;
-    --color-text: #f0f0f0;
+    --color-text: var(--color-k-text);
     --color-text-secondary: #888;
-    --color-text-muted: #555;
+    --color-text-muted: var(--color-k-muted);
     --color-text-dim: #444;
     --color-bg: #0a0a0a;
-    --color-bg-card: #0c0c0c;
+    --color-bg-card: var(--color-k-elevated);
     --color-bg-hover: rgba(255, 255, 255, 0.02);
     --color-surface: rgba(255, 255, 255, 0.03);
     --color-surface-hover: rgba(255, 255, 255, 0.06);
@@ -37,7 +37,7 @@
     --color-overlay: rgba(0, 0, 0, 0.6);
     --color-overlay-light: rgba(0, 0, 0, 0.3);
     --color-border: #1a1a1a;
-    --color-border-light: #222;
+    --color-border-light: var(--color-k-edge);
 
     /* ── HSL Semantic Color Scale (primary green) ───────── */
     --color-primary-50: hsl(165, 100%, 95%);
@@ -107,22 +107,22 @@
 
 /* ── Light Theme Overrides ──────────────────────────────── */
 [data-theme="light"] {
-    --color-primary: #00a88a;
+    --color-primary: var(--color-k-accent);
     --color-primary-bg: rgba(0, 168, 138, 0.08);
     --color-primary-border: rgba(0, 168, 138, 0.18);
     --color-primary-hover: rgba(0, 168, 138, 0.12);
-    --color-danger: #dc2626;
+    --color-danger: var(--color-k-danger);
     --color-danger-bg: rgba(220, 38, 38, 0.06);
-    --color-warning: #d97706;
+    --color-warning: var(--color-k-warning);
     --color-warning-bg: rgba(217, 119, 6, 0.06);
     --color-success: #16a34a;
     --color-info: #2563eb;
-    --color-text: #1a1a2e;
-    --color-text-secondary: #6b7280;
-    --color-text-muted: #9ca3af;
+    --color-text: var(--color-k-text);
+    --color-text-secondary: var(--color-k-dim);
+    --color-text-muted: var(--color-k-muted);
     --color-text-dim: #d1d5db;
-    --color-bg: #f8f9fa;
-    --color-bg-card: #ffffff;
+    --color-bg: var(--color-k-bg);
+    --color-bg-card: var(--color-k-elevated);
     --color-bg-hover: rgba(0, 0, 0, 0.02);
     --color-surface: rgba(0, 0, 0, 0.025);
     --color-surface-hover: rgba(0, 0, 0, 0.04);
@@ -130,6 +130,6 @@
     --color-surface-input: #ffffff;
     --color-overlay: rgba(0, 0, 0, 0.4);
     --color-overlay-light: rgba(0, 0, 0, 0.15);
-    --color-border: #e5e7eb;
-    --color-border-light: #e0e2e6;
+    --color-border: var(--color-k-edge);
+    --color-border-light: var(--color-k-edge);
 }
