@@ -1,66 +1,93 @@
 /**
- * YourWorldsPanel — Member-only StateBoard panel showing saved DAOs.
+ * YourWorldsPanel — Member-only panel showing saved DAOs as Door cards.
  *
  * Per-panel graceful-degradation contract (applies to all home panels):
  *   - NEVER throw during render — degrade gracefully on error or no data
  *   - NEVER blank — always show a card structure (invitation when empty)
- *   - With saved DAOs: renders DashboardDAOList (reuses its internal fetch)
+ *   - With saved DAOs: renders per-world Door cards (useYourWorlds hook)
  *   - Without saved DAOs: renders a cold-start invitation, never an empty box
+ *   - Individual world fetch errors degrade that card, not the whole panel
  *
  * @module components/home/panels/YourWorldsPanel
  */
 
 import { useOutletContext } from "react-router-dom"
 import { useOrg } from "../../../contexts/OrgContext"
-import { getSavedDAOsForOrg } from "../../../lib/daoSlug"
 import { GNO_FAUCET_URL } from "../../../lib/config"
-import { DashboardDAOList } from "../../dashboard/DashboardDAOList"
-import { useNetworkPath } from "../../../hooks/useNetworkNav"
+import { useNetworkKey } from "../../../hooks/useNetworkNav"
+import { useYourWorlds } from "../../../hooks/home/useYourWorlds"
+import { YourWorldsDoor } from "../doors/YourWorldsDoor"
+import { Door } from "../Door"
 import type { LayoutContext } from "../../../types/layout"
 import "../home.css"
 
 /**
- * YourWorldsPanel — renders inside StateBoard on the member Control Room.
- * Member-only: Home.tsx must NOT render this on the visitor board.
+ * YourWorldsPanel — renders standalone in the member Control Room board zone,
+ * directly below ActionInbox. Member-only: Home.tsx must NOT render this on the visitor board.
  */
 export function YourWorldsPanel() {
-    const { auth } = useOutletContext<LayoutContext>()
+    useOutletContext<LayoutContext>()
     const { activeOrgId } = useOrg()
-    const networkPath = useNetworkPath()
+    const networkKey = useNetworkKey()
 
-    const userAddress = auth.isAuthenticated ? (auth.address ?? null) : null
-    const savedDAOs = getSavedDAOsForOrg(activeOrgId)
+    const { state, worlds } = useYourWorlds(networkKey, activeOrgId)
+
+    const hasWorlds = state === "ready" && worlds.length > 0
 
     return (
         <div className="your-worlds-panel" data-testid="your-worlds-panel">
             {/* Panel title header */}
-            <div className="panel-title-row" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <i className="ti ti-world" aria-hidden="true" style={{ fontSize: 16 }} />
-                <h3 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Your worlds</h3>
-                {savedDAOs.length > 0 && (
+            <div className="panel-title-row">
+                <i className="ti ti-world" aria-hidden="true" />
+                <h3>Your worlds</h3>
+                {hasWorlds && (
                     <span className="k-label" style={{ marginLeft: "auto" }}>
-                        {savedDAOs.length} {savedDAOs.length === 1 ? "DAO" : "DAOs"}
+                        {worlds.length} {worlds.length === 1 ? "DAO" : "DAOs"}
                     </span>
                 )}
             </div>
 
-            {savedDAOs.length > 0 ? (
-                /* Reuse DashboardDAOList — it fetches per-DAO activity internally */
-                <DashboardDAOList savedDAOs={savedDAOs} userAddress={userAddress} />
-            ) : (
+            {state === "loading" && (
+                <Door
+                    variant="list"
+                    state="loading"
+                    eyebrow="your worlds"
+                />
+            )}
+
+            {state === "error" && (
+                <Door
+                    variant="list"
+                    state="error"
+                    eyebrow="your worlds"
+                    onRetry={() => { /* hook does not expose refetch; world-level errors degrade per-card */ }}
+                />
+            )}
+
+            {state === "ready" && worlds.length > 0 && (
+                <div className="your-worlds-board" data-testid="your-worlds-board">
+                    {worlds.map((world) => (
+                        <YourWorldsDoor key={world.href} world={world} />
+                    ))}
+                    {/* Always append "Add a world" invitation Door */}
+                    <Door
+                        variant="invitation"
+                        state="empty"
+                        eyebrow="add a world"
+                        invitation={{ label: "Explore DAOs", href: `/${networkKey}/dao` }}
+                    />
+                </div>
+            )}
+
+            {(state === "empty" || (state === "ready" && worlds.length === 0)) && (
                 /* Cold-start invitation — never a blank panel */
                 <div className="your-worlds-invite" data-testid="your-worlds-invite">
-                    <p style={{
-                        fontSize: 12,
-                        color: "var(--color-text-muted)",
-                        marginBottom: 12,
-                        fontFamily: "JetBrains Mono, monospace",
-                    }}>
+                    <p className="your-worlds-invite__hint">
                         Pin a DAO to track it here.
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="your-worlds-invite__actions">
                         <a
-                            href={networkPath("dao")}
+                            href={`/${networkKey}/dao`}
                             className="action-card action-card--teal"
                             data-testid="invite-join-dao"
                             aria-label="Browse and join a DAO"
@@ -74,7 +101,7 @@ export function YourWorldsPanel() {
                             <span className="action-card__action-label">Go →</span>
                         </a>
 
-                        {GNO_FAUCET_URL && (
+                        {GNO_FAUCET_URL ? (
                             <a
                                 href={GNO_FAUCET_URL}
                                 target="_blank"
@@ -91,10 +118,7 @@ export function YourWorldsPanel() {
                                 </div>
                                 <span className="action-card__action-label">Open →</span>
                             </a>
-                        )}
-
-                        {/* Faucet fallback when no faucet URL — always show invite-faucet testid for tests */}
-                        {!GNO_FAUCET_URL && (
+                        ) : (
                             <div
                                 className="action-card action-card--neutral"
                                 data-testid="invite-faucet"
@@ -110,7 +134,7 @@ export function YourWorldsPanel() {
                         )}
 
                         <a
-                            href={networkPath("quests")}
+                            href={`/${networkKey}/quests`}
                             className="action-card action-card--neutral"
                             data-testid="invite-quests"
                             aria-label="Try a quest to earn XP"

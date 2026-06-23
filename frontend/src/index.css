@@ -14,6 +14,15 @@
   --color-k-accent: #00d4aa;
   --color-k-accent-hover: #00e6bb;
   --color-k-on-accent: #0a1210;
+  /* Accent tint tokens — replaces color-mix() in component CSS */
+  --color-k-accent-subtle: rgba(0, 212, 170, 0.06);   /* 6% fill */
+  --color-k-accent-tint: rgba(0, 212, 170, 0.12);     /* 12% fill */
+  --color-k-accent-border: rgba(0, 212, 170, 0.25);   /* 25% border */
+  --color-k-accent-border-strong: rgba(0, 212, 170, 0.30); /* 30% border */
+  /* Amber (warning) tint tokens */
+  --color-k-amber-subtle: rgba(255, 165, 2, 0.10);    /* 10% fill */
+  --color-k-amber-tint: rgba(255, 165, 2, 0.12);      /* 12% fill */
+  --color-k-amber-border: rgba(255, 165, 2, 0.30);    /* 30% border */
   --color-k-featured-border: #14463a;
   --color-k-featured-bg: #0c1614;
   --color-k-danger: #ff4757;
@@ -58,6 +67,15 @@
   --color-k-accent: #00a88a;
   --color-k-accent-hover: #009478;
   --color-k-on-accent: #000000;
+  /* Accent tint tokens — light theme */
+  --color-k-accent-subtle: rgba(0, 168, 138, 0.08);
+  --color-k-accent-tint: rgba(0, 168, 138, 0.14);
+  --color-k-accent-border: rgba(0, 168, 138, 0.30);
+  --color-k-accent-border-strong: rgba(0, 168, 138, 0.40);
+  /* Amber tint tokens — light theme */
+  --color-k-amber-subtle: rgba(217, 119, 6, 0.10);
+  --color-k-amber-tint: rgba(217, 119, 6, 0.12);
+  --color-k-amber-border: rgba(217, 119, 6, 0.35);
   --color-k-featured-border: #bfe6dd;
   --color-k-featured-bg: #f1faf7;
   --color-k-danger: #dc2626;
