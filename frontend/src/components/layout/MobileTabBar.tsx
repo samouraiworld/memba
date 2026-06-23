@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react"
+import type { Icon as PhosphorIconType } from "@phosphor-icons/react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
@@ -21,13 +22,29 @@ interface MobileTabBarProps {
     }
 }
 
-// ── Tab definition (data-only — icons rendered in component tree) ───
-const TAB_DEFS = [
+/** Shared tab-entry shape (to allow typing activeTabs uniformly). */
+interface TabDef {
+    to: string
+    Icon: PhosphorIconType
+    label: string
+}
+
+// ── Tab definitions (data-only — icons rendered in component tree) ──
+// Visitor tab set: Home · DAOs · Tokens · Directory · More
+const VISITOR_TABS: TabDef[] = [
     { to: "/", Icon: House, label: "Home" },
     { to: "/dao", Icon: Buildings, label: "DAOs" },
     { to: "/tokens", Icon: Coins, label: "Tokens" },
     { to: "/directory", Icon: FolderOpen, label: "Directory" },
-] as const
+]
+
+// Member tab set: DAOs · Tokens · Activity · More
+// (Home is omitted — member lands on the Control Room which is the home route)
+const MEMBER_TABS: TabDef[] = [
+    { to: "/dao", Icon: Buildings, label: "DAOs" },
+    { to: "/tokens", Icon: Coins, label: "Tokens" },
+    { to: "/alerts", Icon: Bell, label: "Activity" },
+]
 
 export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
     const location = useLocation()
@@ -60,7 +77,8 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith(np("/create"))
         || location.pathname.startsWith(np("/feedback"))
         || location.pathname.startsWith(np("/plugins"))
-        || location.pathname.startsWith(np("/alerts"))
+        // /alerts is a member tab (Activity) — only count it for More in visitor mode
+        || (!connected && location.pathname.startsWith(np("/alerts")))
         || location.pathname.startsWith(np("/dashboard"))
         || location.pathname.startsWith(np("/validators"))
         || location.pathname.startsWith(np("/gnolove"))
@@ -68,10 +86,13 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith(np("/multisig"))
         || location.pathname.startsWith(np("/organizations"))
 
+    // Pick the right tab set: member (connected) uses MEMBER_TABS; visitor uses VISITOR_TABS.
+    const activeTabs: TabDef[] = connected ? MEMBER_TABS : VISITOR_TABS
+
     return (
         <div className="k-mobile-only">
             <nav className="k-mobile-tabbar" data-testid="mobile-tabbar" aria-label="Mobile navigation">
-                {TAB_DEFS.filter(t => !(connected && t.to === "/")).map(tab => (
+                {activeTabs.map(tab => (
                     <Link
                         key={tab.to}
                         to={np(tab.to)}

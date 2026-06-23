@@ -510,6 +510,54 @@ button.action-card:focus-visible {
   }
 }
 
+/* ── Wallet chips row (member home — StatusStrip extension) ──────── */
+
+.wallet-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 6px;
+  background: var(--color-k-panel);
+  border-bottom: 1px solid var(--color-k-edge);
+}
+
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-k-edge);
+  background: var(--color-k-panel);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.wallet-chip--balance {
+  border-color: color-mix(in srgb, var(--color-k-accent) 25%, transparent);
+  color: var(--color-k-accent);
+  background: color-mix(in srgb, var(--color-k-accent) 6%, transparent);
+}
+
+.wallet-chip--address {
+  border-color: var(--color-k-edge);
+  color: var(--color-k-dim);
+}
+
+@media (max-width: 480px) {
+  .wallet-chips {
+    padding: 3px 10px 5px;
+    gap: 5px;
+  }
+
+  .wallet-chip {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+}
+
 /* ── VisitorHero ──────────────────────────────────────────────────── */
 
 .visitor-hero {
