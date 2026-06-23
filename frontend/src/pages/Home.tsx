@@ -62,6 +62,9 @@ export function Home({ mode }: HomeProps) {
                 {mode === "visitor" ? (
                     <ShowcaseBoard networkKey={activeNetworkKey} />
                 ) : (
+                    // Member-only branch: StateBoard with live status panels.
+                    // A future 3rd mode (e.g. "preview") must NOT fall through here —
+                    // add an explicit conditional above instead of extending this else.
                     <StateBoard eagerIndices={[0]}>
                         <NetworkPulsePanel key="pulse" />
                         <YourWorldsPanel key="your-worlds" />

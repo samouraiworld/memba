@@ -90,7 +90,7 @@ export function useFeaturedDao(networkKey: string): FeaturedDaoResult {
             state: "ready",
             dao: {
                 name: fd.name,
-                members: Number(fd.members ?? 0) || undefined,
+                members: Number(fd.members) || undefined,
                 href: `/${networkKey}/dao/${fd.realmPath}`,
             },
             invitationHref,

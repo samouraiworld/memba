@@ -402,7 +402,7 @@ export function getGnoSwapPaths(): GnoSwapPaths | null {
 
 /**
  * Trusted RPC domain patterns. Only these domains are considered safe.
- * A malicious RPC with a valid chain ID (e.g. https://test12.evil.com)
+ * A malicious RPC with a valid chain ID (e.g. https://test13.evil.com)
  * would pass chain ID checks but could intercept/manipulate queries.
  *
  * Samourai Coop sentry nodes are included as trusted for Hacker View telemetry.
@@ -411,7 +411,6 @@ export const TRUSTED_RPC_DOMAINS = [
     "gno.land",
     "testnets.gno.land", // covers rpc.test13.testnets.gno.land (official test13) + others
     "rpc.gno.land",
-    "rpc.test12.gno.land",
     "gnoland.network", // test-13 indexer/gnoweb + gnoland1 fallbacks, suffix-matched
     "onbloc.xyz",      // test-13 canonical RPC (test13.rpc.onbloc.xyz) — Adena moved here in v1.19.5 (#856)
     // Samourai Coop sentry/validator nodes — trusted for Hacker View dual-RPC strategy.

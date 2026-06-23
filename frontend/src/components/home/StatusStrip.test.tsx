@@ -62,3 +62,40 @@ describe("StatusStrip — truthful status dot", () => {
         expect(screen.getByLabelText("syncing")).toBeTruthy()
     })
 })
+
+describe("StatusStrip — honesty: omit zero/falsy chips", () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    it("omits the validator chip when totalValidators is 0 (no '0v' shown)", () => {
+        mockPulse({ offline: false, loading: false, totalValidators: 0 })
+        render(<StatusStrip />)
+        // Chip must be absent — never render a bare "0v".
+        expect(screen.queryByTestId("status-validators")).toBeNull()
+    })
+
+    it("omits the validator chip when totalValidators is undefined", () => {
+        mockPulse({ offline: false, loading: false, totalValidators: undefined as unknown as number })
+        render(<StatusStrip />)
+        expect(screen.queryByTestId("status-validators")).toBeNull()
+    })
+
+    it("shows the validator chip when totalValidators is a positive number", () => {
+        mockPulse({ offline: false, loading: false, totalValidators: 5 })
+        render(<StatusStrip />)
+        const chip = screen.getByTestId("status-validators")
+        expect(chip.textContent).toContain("5v")
+    })
+
+    it("omits the block-height chip when blockHeight is 0 (no '#0' shown)", () => {
+        mockPulse({ offline: false, loading: false, blockHeight: 0 })
+        render(<StatusStrip />)
+        expect(screen.queryByTestId("status-block-height")).toBeNull()
+    })
+
+    it("shows the block-height chip when blockHeight is a positive number", () => {
+        mockPulse({ offline: false, loading: false, blockHeight: 42_000 })
+        render(<StatusStrip />)
+        const chip = screen.getByTestId("status-block-height")
+        expect(chip.textContent).toContain("42")
+    })
+})

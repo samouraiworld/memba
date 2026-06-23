@@ -125,7 +125,7 @@ describe('config constants', () => {
 describe('isTrustedRpcDomain', () => {
     it('trusts official gno.land RPC URLs', () => {
         expect(isTrustedRpcDomain('https://rpc.test11.testnets.gno.land:443')).toBe(true)
-        expect(isTrustedRpcDomain('https://rpc.test12.gno.land:443')).toBe(true)
+        expect(isTrustedRpcDomain('https://rpc.test13.testnets.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land:443')).toBe(true)
         expect(isTrustedRpcDomain('https://rpc.gno.land')).toBe(true)
     })

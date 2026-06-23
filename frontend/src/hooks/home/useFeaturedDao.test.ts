@@ -15,6 +15,7 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import React from "react"
+import type { HomeSnapshotResult } from "./useHomeSnapshot"
 
 // ── Module-level mocks ────────────────────────────────────────
 
@@ -261,7 +262,7 @@ describe("useFeaturedDao — snapshot path (usable snapshot with featuredDao)", 
                     openProposals: 3,
                     latestProposalTitle: "Snapshot proposal title",
                 },
-            } as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            } as HomeSnapshotResult["snapshot"],
             usable: true,
             isLoading: false,
         })
@@ -285,6 +286,31 @@ describe("useFeaturedDao — snapshot path (usable snapshot with featuredDao)", 
 
         expect(result.current.dao?.members).toBe(7)
     })
+
+    it("omits dao.members (undefined) when snapshot reports members: 0 — honesty guard", async () => {
+        // A snapshot DAO with members=0 must NOT surface as dao.members=0;
+        // the honesty rule says: 0 member count → omit (undefined), never show 0.
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {
+                featuredDao: {
+                    realmPath: "gno.land/r/samcrew/memba_dao",
+                    name: "Empty Membership DAO",
+                    members: 0,
+                    treasuryUgnot: BigInt(0),
+                    openProposals: 0,
+                    latestProposalTitle: "",
+                },
+            } as HomeSnapshotResult["snapshot"],
+            usable: true,
+            isLoading: false,
+        })
+
+        const { useFeaturedDao } = await import("./useFeaturedDao")
+        const { result } = renderHook(() => useFeaturedDao("test13"), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.dao?.members).toBeUndefined()
+    })
 })
 
 describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () => {
@@ -297,7 +323,7 @@ describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () 
 
     it("returns state:'empty' when snapshot has no featuredDao field", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
-            snapshot: {} as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            snapshot: {} as HomeSnapshotResult["snapshot"],
             usable: true,
             isLoading: false,
         })
@@ -320,7 +346,7 @@ describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () 
                     openProposals: 0,
                     latestProposalTitle: "",
                 },
-            } as Parameters<typeof snapshotMod.useHomeSnapshot>[never],
+            } as HomeSnapshotResult["snapshot"],
             usable: true,
             isLoading: false,
         })
