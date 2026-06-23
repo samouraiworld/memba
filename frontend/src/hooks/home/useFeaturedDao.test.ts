@@ -319,9 +319,13 @@ describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () 
         vi.mocked(configMod.getFeaturedDaoRealm).mockImplementation((nk) =>
             nk === "test13" ? "gno.land/r/samcrew/memba_dao" : null,
         )
+        // Default: the on-chain fallback also finds nothing → empty.
+        // The fallback-ready test below overrides getDAOConfig with real data.
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(null)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
     })
 
-    it("returns state:'empty' when snapshot has no featuredDao field", async () => {
+    it("returns state:'empty' when snapshot has no featuredDao AND on-chain has none", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: {} as HomeSnapshotResult["snapshot"],
             usable: true,
@@ -335,7 +339,7 @@ describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () 
         expect(result.current.dao).toBeUndefined()
     })
 
-    it("returns state:'empty' when snapshot featuredDao has blank realmPath", async () => {
+    it("returns state:'empty' when snapshot featuredDao has blank realmPath AND on-chain has none", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: {
                 featuredDao: {
@@ -356,5 +360,25 @@ describe("useFeaturedDao — snapshot usable but featuredDao empty/missing", () 
 
         await waitFor(() => expect(result.current.state).toBe("empty"))
         expect(result.current.dao).toBeUndefined()
+    })
+
+    it("falls back to the on-chain DAO when the snapshot featuredDao is empty (the test13 bug)", async () => {
+        // Backend left featuredDao empty/stale, but memba_dao exists on-chain:
+        // the member must see the real DAO, not an "Explore DAOs" invitation.
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
+            snapshot: {} as HomeSnapshotResult["snapshot"],
+            usable: true,
+            isLoading: false,
+        })
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue(MOCK_PROPOSALS)
+
+        const { useFeaturedDao } = await import("./useFeaturedDao")
+        const { result } = renderHook(() => useFeaturedDao("test13"), { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.dao?.name).toBe("Memba DAO")
+        expect(result.current.dao?.members).toBe(12)
+        expect(result.current.dao?.href).toBe("/test13/dao/gno.land/r/samcrew/memba_dao")
     })
 })
