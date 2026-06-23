@@ -64,6 +64,93 @@
       "txHash": "9ViPkv5LvqiPht40zemsM6JNDliyn9ZX25DSGLk91lY="
     }
   },
+  "test13": {
+    "_comment": "Backfilled 2026-06-23. All 12 paths LIVE-VERIFIED via vm/qfile on rpc.test13.testnets.gno.land (each returns source → deployed & valid). Deploy block + txHash are PENDING chain-recovery (not in TEST13_GO_LIVE_NOTE.md) — recover from samcrew-deployer multisig logs or a chain scan, then fill per the methodology (/block?height=<block>, txHash=base64(sha256(txbytes))). Dates from the go-live note (interrealm-v2 wave 2026-06-16; NFT launchpad 2026-06-17). ACL per the canonical samcrew-deployer _v2 source.",
+    "memba_dao": {
+      "path": "gno.land/r/samcrew/memba_dao",
+      "version": "v1 (v2-ported)",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Featured DAO on test13. DAO core (read/propose/vote) live."
+    },
+    "memba_dao_candidature_v2": {
+      "path": "gno.land/r/samcrew/memba_dao_candidature_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Apply/Withdraw + admin MarkApproved/MarkRejected (admin approve/reject UI shipped #448)."
+    },
+    "memba_dao_channels_v2": {
+      "path": "gno.land/r/samcrew/memba_dao_channels_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Post/reply + author EditThread/DeleteThread (thread self-management UI shipped #449). CreateChannel (owner) + RemoveThread (admin) UI not yet wired."
+    },
+    "agent_registry": {
+      "path": "gno.land/r/samcrew/agent_registry",
+      "version": "v1",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "UseCredit hardened. Credits UI gated off (AGENT_CREDITS_ENABLED=false, fail-closed)."
+    },
+    "tokenfactory_v2": {
+      "path": "gno.land/r/samcrew/tokenfactory_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Source file tokenfactory.gno. Token create/mint/burn/faucet live & functional."
+    },
+    "escrow_v2": {
+      "path": "gno.land/r/samcrew/escrow_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Deployed & valid; Services/escrow gated OFF in repo (VITE_ENABLE_SERVICES=false). FundMilestone moves real ugnot."
+    },
+    "gnobuilders_badges_v2": {
+      "path": "gno.land/r/samcrew/gnobuilders_badges_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Source file gnobuilders_badges.gno. Deployed but TotalSupply()=0 — never minted (no backend signer). Gated by VITE_ENABLE_BADGES."
+    },
+    "memba_feedback_v2": {
+      "path": "gno.land/r/samcrew/memba_feedback_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Public feedback board. Live & functional."
+    },
+    "memba_nft_v2": {
+      "path": "gno.land/r/samcrew/memba_nft_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "NFT token realm (collection/market_registry/transfer)."
+    },
+    "memba_nft_market_v2": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v2",
+      "version": "v2",
+      "date": "2026-06-16",
+      "liveVerified": "2026-06-23",
+      "note": "Market engine (market/offers/admin). Gated by VITE_ENABLE_NFT."
+    },
+    "memba_collections": {
+      "path": "gno.land/r/samcrew/memba_collections",
+      "version": "v3-era",
+      "date": "2026-06-17",
+      "liveVerified": "2026-06-23",
+      "note": "Launchpad registry (multisig seq 43). IRREVERSIBLE — holds the NFT ledger. isNftLaunchpadValid() true."
+    },
+    "memba_nft_market_v3": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v3",
+      "version": "v3",
+      "date": "2026-06-17",
+      "liveVerified": "2026-06-23",
+      "note": "v3 trading engine (addr g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj). Deployed but deliberately NOT frontend-wired — excluded from REALM_ALLOWLIST.test13 until the Phase-3 multi-engine router."
+    }
+  },
   "gnoland1": {},
   "test11": {},
   "portal-loop": {},
