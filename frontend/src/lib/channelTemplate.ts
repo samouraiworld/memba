@@ -821,3 +821,15 @@ export function buildFlagThreadMsg(
         },
     }
 }
+
+/**
+ * Parse the result of a `vm/qeval` of `GetOwner()` on a channel realm. gno
+ * renders a typed address as `("g1..." .uverse.address)` (or `(nil ...)` when
+ * unset). Returns the bech32 address, or "" if absent/malformed — fail-closed,
+ * so the owner-only create-channel control stays hidden on a failed/empty check.
+ */
+export function parseOwnerAddress(raw: string | null): string {
+    if (!raw) return ""
+    const m = raw.match(/"(g1[a-z0-9]+)"/)
+    return m ? m[1] : ""
+}

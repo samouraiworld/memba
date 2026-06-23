@@ -21,6 +21,9 @@ import { getDAOMembers } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { channelIcon, defaultChannel } from "./channelHelpers"
 import { hasChannelUnread, markChannelVisited, updateChannelThreadCount } from "../plugins/board/boardHelpers"
+import { buildCreateChannelMsg, parseOwnerAddress, isValidChannelName, type ChannelType } from "../lib/channelTemplate"
+import { doContractBroadcast } from "../lib/grc20"
+import { queryEval } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
 import "./channels.css"
 
@@ -38,6 +41,14 @@ export function ChannelsPage() {
     // G1/G2: Membership for ACL checks and moderation
     const [userRoles, setUserRoles] = useState<string[]>([])
     const [isMember, setIsMember] = useState(false)
+    // CreateChannel is owner-only on-chain — gate the control on the realm owner.
+    const [ownerAddress, setOwnerAddress] = useState<string>("")
+    const [showCreate, setShowCreate] = useState(false)
+    const [ncName, setNcName] = useState("")
+    const [ncDesc, setNcDesc] = useState("")
+    const [ncType, setNcType] = useState<ChannelType>("text")
+    const [creating, setCreating] = useState(false)
+    const [createError, setCreateError] = useState<string | null>(null)
 
     // G1/G2: Detect user's DAO membership and roles
     useEffect(() => {
@@ -62,6 +73,17 @@ export function ChannelsPage() {
                 setUserRoles([])
             })
     }, [realmPath, adena.connected, adena.address])
+
+    // Detect the channel realm owner (CreateChannel is owner-only on-chain).
+    // Fails closed: query error / no owner → "" → the create control stays hidden.
+    useEffect(() => {
+        if (!boardPath || !adena.address) { setOwnerAddress(""); return }
+        let cancelled = false
+        queryEval(GNO_RPC_URL, boardPath, "GetOwner()")
+            .then(r => { if (!cancelled) setOwnerAddress(parseOwnerAddress(r)) })
+            .catch(() => { if (!cancelled) setOwnerAddress("") })
+        return () => { cancelled = true }
+    }, [boardPath, adena.address])
 
     // ── Detect channel realm ──────────────────────────────────
     useEffect(() => {
@@ -118,6 +140,39 @@ export function ChannelsPage() {
         setActiveChannel(channel)
         navigate(`/dao/${encodedSlug}/channels/${channel}`, { replace: true })
     }
+
+    // Owner-only: create a new channel on the realm (CreateChannel(name, desc, type)).
+    const handleCreateChannel = async () => {
+        const name = ncName.trim()
+        // The realm's isValidChannelName forbids underscores (unlike the shared
+        // client validator) — reject here too so we never waste a signed tx.
+        if (!isValidChannelName(name) || name.includes("_")) {
+            setCreateError("Invalid name — lowercase letters, digits and hyphens only (no underscores).")
+            return
+        }
+        if (!boardPath || !adena.connected || !adena.address) {
+            setCreateError("Connect your wallet first")
+            return
+        }
+        setCreating(true)
+        setCreateError(null)
+        try {
+            const msg = buildCreateChannelMsg(adena.address, boardPath, name, ncDesc.trim(), ncType)
+            await doContractBroadcast([msg], `Create channel #${name}`)
+            await loadBoardInfo()
+            setShowCreate(false)
+            setNcName("")
+            setNcDesc("")
+            setNcType("text")
+            handleChannelClick(name)
+        } catch (err) {
+            setCreateError(err instanceof Error ? err.message : "Failed to create channel")
+        } finally {
+            setCreating(false)
+        }
+    }
+
+    const isOwner = adena.connected && !!adena.address && adena.address === ownerAddress
 
     // ── No realm path ─────────────────────────────────────────
     if (!realmPath) {
@@ -229,8 +284,56 @@ export function ChannelsPage() {
                 {/* Sidebar — channel list */}
                 <div className={`channels-sidebar${sidebarOpen ? " open" : ""}`}>
                     <div className="channels-sidebar-header">
-                        Channels
+                        <span>Channels</span>
+                        {isOwner && (
+                            <button
+                                className="channels-create-btn"
+                                onClick={() => { setShowCreate(v => !v); setCreateError(null) }}
+                                title="Create a channel (owner only)"
+                                aria-label={showCreate ? "Cancel new channel" : "New channel"}
+                            >
+                                {showCreate ? "×" : "+ New"}
+                            </button>
+                        )}
                     </div>
+                    {isOwner && showCreate && (
+                        <div className="channels-create-form">
+                            <input
+                                aria-label="Channel name"
+                                placeholder="channel-name"
+                                value={ncName}
+                                onChange={e => setNcName(e.target.value)}
+                                maxLength={40}
+                                disabled={creating}
+                            />
+                            <input
+                                aria-label="Channel description"
+                                placeholder="description (optional)"
+                                value={ncDesc}
+                                onChange={e => setNcDesc(e.target.value)}
+                                maxLength={140}
+                                disabled={creating}
+                            />
+                            <select
+                                aria-label="Channel type"
+                                value={ncType}
+                                onChange={e => setNcType(e.target.value as ChannelType)}
+                                disabled={creating}
+                            >
+                                <option value="text">text</option>
+                                <option value="announcements">announcements</option>
+                                <option value="readonly">readonly</option>
+                            </select>
+                            {createError && <div className="channels-create-error">{createError}</div>}
+                            <button
+                                className="channels-create-submit"
+                                onClick={handleCreateChannel}
+                                disabled={creating || !ncName.trim()}
+                            >
+                                {creating ? "Creating…" : "Create channel"}
+                            </button>
+                        </div>
+                    )}
                     {channels.length === 0 ? (
                         <div className="channels-empty-sidebar">
                             No channels found
