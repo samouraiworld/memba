@@ -533,6 +533,45 @@ func TestAssembleHomeSnapshot_PartialFailureIsTolerated(t *testing.T) {
 	}
 }
 
+// TestAssembleHomeSnapshot_WiresValidatorsTotalIntoNetwork is a regression test
+// for the "home shows 0 validators" bug: the validator count from /validators must
+// surface on snap.Network.ValidatorsTotal (the field the frontend StatusStrip /
+// NetworkPulse panel reads via useNetworkPulse), not only on Counts.Validators.
+func TestAssembleHomeSnapshot_WiresValidatorsTotalIntoNetwork(t *testing.T) {
+	s := newTestService(t)
+	// On-chain sources are irrelevant to this test — force them to fail fast.
+	s.homeQuery = func(rpc, path, data string) (string, error) {
+		return "", fmt.Errorf("offline")
+	}
+	// httptest server: a valid /status (so Network is populated) and a
+	// 3-validator /validators set. /block 404s → AvgBlockTimeMs stays 0 (fine).
+	statusJSON := `{"result":{"sync_info":{"latest_block_height":"1000","latest_block_time":"2026-01-01T12:00:00Z"}}}`
+	validatorsJSON := `{"result":{"validators":[{},{},{}]}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/status":
+			_, _ = w.Write([]byte(statusJSON))
+		case "/validators":
+			_, _ = w.Write([]byte(validatorsJSON))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	snap := s.assembleHomeSnapshot(context.Background(), srv.URL)
+
+	if snap.Network == nil {
+		t.Fatal("Network source should be populated from /status")
+	}
+	if snap.Network.ValidatorsTotal != 3 {
+		t.Fatalf("Network.ValidatorsTotal = %d, want 3 (validator count must surface on the network pulse the frontend reads)", snap.Network.ValidatorsTotal)
+	}
+	if snap.Counts == nil || snap.Counts.Validators != 3 {
+		t.Fatalf("Counts.Validators = %d, want 3", snap.Counts.GetValidators())
+	}
+}
+
 // TestGetHomeSnapshot_CacheKeyBounded asserts that unknown/junk chain_ids are
 // collapsed to s.chainID so the homeCached map never grows beyond the accepted
 // set — preventing unbounded map growth / cache-busting on this unauthenticated

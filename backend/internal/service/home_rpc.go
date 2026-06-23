@@ -136,6 +136,13 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 	} else {
 		snap.ValidatorsHealth = v
 		snap.Counts.Validators = v.Total
+		// Surface the validator count on the network pulse too: the home
+		// StatusStrip / NetworkPulse panel reads snap.Network.ValidatorsTotal
+		// (frontend useNetworkPulse), not Counts.Validators. Network is fetched
+		// just above, so it's already set here when /status succeeded.
+		if snap.Network != nil {
+			snap.Network.ValidatorsTotal = v.Total
+		}
 	}
 
 	// On-chain source: token count from tokenfactory_v2 render.
