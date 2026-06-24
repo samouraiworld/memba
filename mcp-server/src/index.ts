@@ -7,7 +7,7 @@
  * other MCP-compatible agents.
  *
  * Transport: stdio (standard input/output)
- * Config: GNO_RPC_URL env var (defaults to testnet12)
+ * Config: GNO_RPC_URL env var (defaults to the pinned test13 node)
  *
  * @module memba-mcp
  */

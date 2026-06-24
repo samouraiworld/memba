@@ -8,12 +8,12 @@
 import type { AbciResponse, NetworkStatus, StatusResponse } from "./types.js";
 import { QueryCache, cacheKey, TTL_DEFAULT } from "./cache.js";
 
-const DEFAULT_RPC = "https://rpc.testnet12.samourai.live:443";
+const DEFAULT_RPC = "https://rpc.testnet13.samourai.live:443";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 
 export interface GnoRpcConfig {
-  /** RPC endpoints — rotates on failure. Defaults to testnet12. */
+  /** RPC endpoints — rotates on failure. Defaults to the pinned test13 node. */
   endpoints?: string[];
   /** Request timeout in milliseconds. Default: 10000. */
   timeoutMs?: number;

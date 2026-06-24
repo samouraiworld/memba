@@ -29,7 +29,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "command": "node",
       "args": ["/path/to/memba/mcp-server/build/index.js"],
       "env": {
-        "GNO_RPC_URL": "https://rpc.testnet12.samourai.live:443"
+        "GNO_RPC_URL": "https://rpc.testnet13.samourai.live:443"
       }
     }
   }
@@ -68,7 +68,7 @@ Add to Cursor MCP settings:
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `GNO_RPC_URL` | `https://rpc.testnet12.samourai.live:443` | Gno RPC endpoint |
+| `GNO_RPC_URL` | `https://rpc.testnet13.samourai.live:443` | Gno RPC endpoint |
 | `GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove API endpoint |
 
 ## Development
