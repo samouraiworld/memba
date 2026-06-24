@@ -6,6 +6,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
 import { fetchAccountInfo } from "../lib/account"
 import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, type AminoMsg } from "../lib/grc20"
+import { buildCanonicalProposePayload } from "../lib/multisigTx"
 import type { LayoutContext } from "../types/layout"
 import "./proposetransaction.css"
 
@@ -44,7 +45,7 @@ export function ProposeTransaction() {
             return
         }
 
-        let msgsJson = ""
+        let msgs: AminoMsg[] = []
         let type = ""
 
         if (txType === "send") {
@@ -68,14 +69,14 @@ export function ProposeTransaction() {
                 return
             }
 
-            msgsJson = JSON.stringify([{
+            msgs = [{
                 type: "bank/MsgSend",
                 value: {
                     from_address: address,
                     to_address: trimmedRecipient,
                     amount: [{ denom: "ugnot", amount: String(ugnotAmount) }],
                 },
-            }])
+            }]
             type = "send"
         } else if (txType === "call") {
             const trimmedPkg = pkgPath.trim()
@@ -107,7 +108,7 @@ export function ProposeTransaction() {
                 }
             }
 
-            msgsJson = JSON.stringify([{
+            msgs = [{
                 type: "vm/MsgCall",
                 value: {
                     caller: address,
@@ -116,7 +117,7 @@ export function ProposeTransaction() {
                     func: trimmedFunc,
                     args: argsArray,
                 },
-            }])
+            }]
             type = "call"
         } else if (txType.startsWith("grc20-")) {
             // GRC20 token operations
@@ -146,7 +147,7 @@ export function ProposeTransaction() {
                     break
                 default: return
             }
-            msgsJson = JSON.stringify(grcMsgs)
+            msgs = grcMsgs
             type = "call"
         }
 
@@ -156,10 +157,11 @@ export function ProposeTransaction() {
         try {
             const accountInfo = await fetchAccountInfo(address)
 
-            const feeJson = JSON.stringify({
-                amount: [{ denom: "ugnot", amount: "10000" }],
-                gas: txType === "call" ? "2000000" : "100000",
-            })
+            // Store the canonical sign-doc Adena actually signs (see lib/multisigTx),
+            // so the backend A3 verifier reconstructs identical sign-bytes. The old
+            // cosmos-shaped {amount,gas} fee + {type,value}-wrapped msgs diverged from
+            // what Adena signed → A3 verify failed → enforce would brick signing.
+            const { msgsJson, feeJson } = buildCanonicalProposePayload(msgs, txType === "call")
 
             const res = await api.createTransaction({
                 authToken: auth.token,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { toCanonicalMsg, buildCanonicalFeeJson } from "./multisigTx"
+import { toCanonicalMsg, buildCanonicalFeeJson, buildCanonicalProposePayload } from "./multisigTx"
 
 describe("toCanonicalMsg", () => {
     it("bank/MsgSend → @type-inlined, amount as ugnot string", () => {
@@ -58,5 +58,29 @@ describe("buildCanonicalFeeJson", () => {
             gas_wanted: "2000000",
             gas_fee: "1000000ugnot",
         })
+    })
+})
+
+describe("buildCanonicalProposePayload", () => {
+    it("send → canonical bank.MsgSend + 100000 gas", () => {
+        const { msgsJson, feeJson } = buildCanonicalProposePayload(
+            [{ type: "bank/MsgSend", value: { from_address: "g1a", to_address: "g1b", amount: [{ denom: "ugnot", amount: "5" }] } }],
+            false,
+        )
+        const msgs = JSON.parse(msgsJson)
+        expect(msgs[0]["@type"]).toBe("/bank.MsgSend")
+        expect(msgs[0].amount).toBe("5ugnot")
+        expect(JSON.parse(feeJson)).toEqual({ gas_wanted: "100000", gas_fee: "10000ugnot" })
+    })
+
+    it("call → canonical vm.m_call (args:null) + 2000000 gas", () => {
+        const { msgsJson, feeJson } = buildCanonicalProposePayload(
+            [{ type: "vm/MsgCall", value: { caller: "g1a", send: "", pkg_path: "gno.land/r/x", func: "F", args: [] } }],
+            true,
+        )
+        const msgs = JSON.parse(msgsJson)
+        expect(msgs[0]["@type"]).toBe("/vm.m_call")
+        expect(msgs[0].args).toBeNull()
+        expect(JSON.parse(feeJson).gas_wanted).toBe("2000000")
     })
 })

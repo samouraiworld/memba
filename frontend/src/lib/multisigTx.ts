@@ -61,3 +61,19 @@ export function toCanonicalMsg(m: AminoMsg): Record<string, unknown> {
 export function buildCanonicalFeeJson(gasWanted: string, gasFeeUgnot: string): string {
     return JSON.stringify({ gas_wanted: gasWanted, gas_fee: gasFeeUgnot })
 }
+
+/**
+ * Build the canonical `{msgsJson, feeJson}` that ProposeTransaction stores via
+ * CreateTransaction. msgs are canonicalized (`toCanonicalMsg`); the fee uses the
+ * gno `{gas_wanted,gas_fee}` form (contract calls request more gas). What is
+ * stored here is byte-for-byte what Adena signs and what A3 reconstructs.
+ */
+export function buildCanonicalProposePayload(
+    msgs: AminoMsg[],
+    isCall: boolean,
+): { msgsJson: string; feeJson: string } {
+    return {
+        msgsJson: JSON.stringify(msgs.map(toCanonicalMsg)),
+        feeJson: buildCanonicalFeeJson(isCall ? "2000000" : "100000", "10000ugnot"),
+    }
+}
