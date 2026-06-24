@@ -51,7 +51,7 @@
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
-| **Chain** | Gno (test12 / betanet / gnoland1) | Account state, tx broadcast, balance queries |
+| **Chain** | Gno (test13 / betanet / gnoland1) | Account state, tx broadcast, balance queries |
 
 ## Backend Packages
 
@@ -272,7 +272,7 @@ These features **require** the Go backend for off-chain coordination:
 ```
 ┌─────────────┐     JSON-RPC POST      ┌──────────────────────┐
 │   Frontend   │ ──────────────────────► │  gno.land RPC        │
-│   lib/dao.ts │                         │  (test12 / gnoland1) │
+│   lib/dao.ts │                         │  (test13 / gnoland1) │
 │              │ ◄────────────────────── │                      │
 │  queryRender │     base64 response     │  vm/qrender          │
 │  queryEval   │                         │  vm/qeval             │
