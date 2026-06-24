@@ -77,10 +77,10 @@ const (
 	verifyCandidaturePath  = "gno.land/r/samcrew/memba_dao_candidature_v2"
 )
 
-// questRPCURL returns the RPC endpoint for server-side quest verification.
-// It deliberately does NOT read GNO_RPC_URL — that var is set to test12 in
-// prod (fly.toml), while every realm we verify lives on test13. Mirrors the
-// dedicated NFT_RPC_URL pattern in cmd/memba/main.go.
+// questRPCURL returns the RPC endpoint for server-side quest verification. It
+// reads its own vars (QUEST_RPC_URL, then NFT_RPC_URL) rather than GNO_RPC_URL,
+// keeping verification reads decoupled from the generic render proxy. Failover
+// backups are appended by rpcURLsInOrder.
 func questRPCURL() string {
 	for _, env := range []string{"QUEST_RPC_URL", "NFT_RPC_URL"} {
 		if url := os.Getenv(env); url != "" {

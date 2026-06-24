@@ -18,21 +18,25 @@ import (
 // Only allows alphanumeric, slashes, dashes, underscores, dots, colons, and equals.
 var safePathRe = regexp.MustCompile(`^[a-zA-Z0-9/_\-.:=?&]*$`)
 
-// Default Gno RPC endpoint — overridable via GNO_RPC_URL env var.
+// gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
+// Overridable via GNO_RPC_URL (set to the pinned samourai test13 node in
+// fly.toml). The built-in default is the same test13 node — NOT test12 — so an
+// environment that forgets to set GNO_RPC_URL reads the right chain. The public
+// node is reached only as a failover backup (see rpcURLsInOrder), which rate-
+// limits the Fly egress IP (#466), so it is never the primary.
 func gnoRPCURL() string {
 	if url := os.Getenv("GNO_RPC_URL"); url != "" {
 		return url
 	}
-	return "https://rpc.testnet12.samourai.live:443"
+	return "https://rpc.testnet13.samourai.live:443"
 }
 
 // marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read
 // by the marketplace proxies and the analyst credit check (agent_registry,
-// escrow_v2, …). These realms live on test13 — NOT the testnet12-defaulted
-// GNO_RPC_URL (kept as-is for legacy back-compat; see quest_verify.go's
-// questRPCURL note) — so this reads its own var and defaults to test13,
-// mirroring the quest/NFT verification RPC pattern. Falls back to NFT_RPC_URL
-// since that already points at test13 in deployed environments.
+// escrow_v2, …). It reads its OWN var (MARKETPLACE_RPC_URL, then NFT_RPC_URL)
+// and defaults to the public test13 node, keeping marketplace reads decoupled
+// from the generic GNO_RPC_URL even if that is ever repurposed. Failover backups
+// are appended by rpcURLsInOrder.
 func marketplaceRPCURL() string {
 	for _, env := range []string{"MARKETPLACE_RPC_URL", "NFT_RPC_URL"} {
 		if url := os.Getenv(env); url != "" {
