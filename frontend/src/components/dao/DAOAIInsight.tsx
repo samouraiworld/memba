@@ -81,7 +81,7 @@ export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
 
     const c = report.consensus
     const { grade, color } = verdictToGrade(c.verdict, c.confidence)
-    const respondedCount = report.perspectives.filter(p => p.verdict !== "abstain").length
+    const respondedCount = c.respondedCount
 
     return (
         <div className="ai-council">
@@ -112,7 +112,7 @@ export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
 function AICouncilDetail({ report, onRefresh }: { report: ConsensusReport; onRefresh: () => void }) {
     const c = report.consensus
     const { grade, color } = verdictToGrade(c.verdict, c.confidence)
-    const responded = report.perspectives.filter(p => p.verdict !== "abstain")
+    const responded = report.perspectives.filter(p => p.responded)
 
     return (
         <div className="ai-council__detail">
