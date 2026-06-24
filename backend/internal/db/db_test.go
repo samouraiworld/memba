@@ -46,6 +46,25 @@ func TestOpen_MaxConnections(t *testing.T) {
 	}
 }
 
+func TestOpen_SetsBusyTimeout(t *testing.T) {
+	database, err := Open(":memory:")
+	if err != nil {
+		t.Fatal("failed to open database:", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	// A busy_timeout makes a contended writer WAIT (up to N ms) instead of
+	// failing immediately with SQLITE_BUSY — important under the WAL checkpoint
+	// and the concurrent NFT indexer tailer.
+	var busyTimeout int
+	if err := database.QueryRow("PRAGMA busy_timeout").Scan(&busyTimeout); err != nil {
+		t.Fatal("failed to query busy_timeout:", err)
+	}
+	if busyTimeout != 5000 {
+		t.Fatalf("expected busy_timeout=5000ms, got %d", busyTimeout)
+	}
+}
+
 func TestMigrate_CreatesTablesAndTracks(t *testing.T) {
 	database, err := Open(":memory:")
 	if err != nil {
