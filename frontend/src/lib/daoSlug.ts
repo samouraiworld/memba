@@ -22,6 +22,12 @@ export interface SavedDAO {
     addedAt: number
     /** Organization ID this DAO belongs to, or undefined for personal. */
     orgId?: string
+    /** Network key this DAO was saved on (e.g. "test13"). Undefined for legacy
+     *  entries saved before network-scoping (MH2); those are shown only when their
+     *  realm actually resolves on the active network — see useYourWorlds — so DAOs
+     *  saved on a different testnet (e.g. retired test11) drop off instead of
+     *  rendering as dead cards. */
+    network?: string
 }
 
 // ── Slug encoding ─────────────────────────────────────────
@@ -130,16 +136,32 @@ export function getSavedDAOs(): SavedDAO[] {
     }
 }
 
-/** Add a DAO to saved list (deduplicates by realmPath). */
+/** The network key the user is currently on (mirrors config's active-network
+ *  resolution via the same localStorage key). Used to stamp saves so they don't
+ *  leak across networks. Returns undefined when unset (legacy/first-run) — such
+ *  saves stay untagged and are reachability-gated by useYourWorlds. */
+function currentNetwork(): string | undefined {
+    try {
+        return localStorage.getItem("memba_network") || undefined
+    } catch {
+        return undefined
+    }
+}
+
+/** Add a DAO to saved list (deduplicates by realmPath). Stamps the active
+ *  network (MH2) so saves don't bleed across testnets. */
 export function addSavedDAO(realmPath: string, name?: string): void {
     if (!VALID_REALM_PATH.test(realmPath)) return
+    const net = currentNetwork()
     const daos = getSavedDAOs()
     const existing = daos.find((d) => d.realmPath === realmPath)
     if (existing) {
         // Update name if provided
         if (name) existing.name = name
+        // Backfill the network tag on re-pin (self-heals legacy untagged entries).
+        if (!existing.network && net) existing.network = net
     } else {
-        daos.push({ realmPath, name: name || realmPath.split("/").pop() || "DAO", addedAt: Date.now() })
+        daos.push({ realmPath, name: name || realmPath.split("/").pop() || "DAO", addedAt: Date.now(), network: net })
     }
     try {
         localStorage.setItem(LS_KEY, JSON.stringify(daos))
@@ -187,12 +209,14 @@ export function getSavedDAOsForOrg(orgId: string | null): SavedDAO[] {
 export function addSavedDAOForOrg(orgId: string | null, realmPath: string, name?: string): void {
     if (!orgId) { addSavedDAO(realmPath, name); return }
     if (!VALID_REALM_PATH.test(realmPath)) return
+    const net = currentNetwork()
     const daos = getSavedDAOsForOrg(orgId)
     const existing = daos.find((d) => d.realmPath === realmPath)
     if (existing) {
         if (name) existing.name = name
+        if (!existing.network && net) existing.network = net
     } else {
-        daos.push({ realmPath, name: name || realmPath.split("/").pop() || "DAO", addedAt: Date.now(), orgId })
+        daos.push({ realmPath, name: name || realmPath.split("/").pop() || "DAO", addedAt: Date.now(), orgId, network: net })
     }
     try {
         localStorage.setItem(orgKey(orgId), JSON.stringify(daos))

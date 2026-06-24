@@ -128,18 +128,30 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
     // Individual errors degrade the card (use saved name/href as fallback)
     // but do not elevate board state to "error". Role is supplementary —
     // an unresolved/disabled role query simply omits the badge.
-    const worlds: YourWorld[] = savedDAOs.map((dao, i) => {
+    // Network-scope (MH2): a saved DAO is shown only when it belongs to the active
+    // network. Entries tagged for this network always show (degraded on RPC error);
+    // entries tagged for another network are excluded; legacy (untagged) entries
+    // show only when their config actually resolves here — so DAOs saved on a
+    // different testnet (e.g. retired test11) drop off instead of rendering as dead
+    // "degraded" cards.
+    const worlds: YourWorld[] = savedDAOs.flatMap((dao, i): YourWorld[] => {
         const q = configQueries[i]
         const href = `/${networkKey}/dao/${dao.realmPath}`
+        const onThisNetwork = dao.network === networkKey
+
+        // Tagged for a different network → not ours.
+        if (dao.network && !onThisNetwork) return []
 
         if (q?.isError || !q?.data) {
-            // Degraded card — name/href from localStorage, no metrics
-            return { name: dao.name, href, degraded: true }
+            // No config (failed/pending): keep known-this-network entries as
+            // degraded cards (transient RPC error); drop untagged entries that
+            // don't resolve here (presumed saved on another network).
+            return onThisNetwork ? [{ name: dao.name, href, degraded: true }] : []
         }
 
         const { name, members, openCount } = q.data
         const role = roleQueries[i]?.data || undefined
-        return { name, href, members, openCount, role }
+        return [{ name, href, members, openCount, role }]
     })
 
     return { state: "ready", worlds, refetch }
