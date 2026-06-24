@@ -94,7 +94,19 @@ var (
 	errProofRequired     = errors.New("quest requires submitted proof — use SubmitQuestClaim")
 	errVerifyUnavailable = errors.New("on-chain verification unavailable, try again")
 	errQuestNotMet       = errors.New("quest requirements not met on-chain")
+	errMetaServerDerived = errors.New("meta-quests are server-derived and cannot be claimed directly")
 )
+
+// metaQuests are server-DERIVED achievements (XP milestones, leaderboard rank,
+// category completion). They are never client-claimable — CompleteQuest/SyncQuests
+// reject them (errMetaServerDerived); the server grants the derivable ones from
+// authoritative state in grantDerivedMetaQuests.
+var metaQuests = map[string]bool{
+	"earn-500-xp":           true,
+	"earn-1000-xp":          true,
+	"complete-all-everyone": true,
+	"top-10-leaderboard":    true,
+}
 
 var (
 	seqRe    = regexp.MustCompile(`"sequence":\s*"?(\d+)"?`)
@@ -112,6 +124,10 @@ var (
 // hole (P0-1): the client's claim that it passed the frontend verifier is
 // never trusted.
 func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, questID, proof string) error {
+	// Meta-quests are server-derived (grantDerivedMetaQuests) — never client-claimable.
+	if metaQuests[questID] {
+		return connect.NewError(connect.CodeInvalidArgument, errMetaServerDerived)
+	}
 	switch questVerification[questID] {
 	case "self_report", "social":
 		return connect.NewError(connect.CodeInvalidArgument, errProofRequired)
