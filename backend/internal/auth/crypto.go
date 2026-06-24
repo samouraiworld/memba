@@ -16,6 +16,7 @@ import (
 	"time"
 
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -234,6 +235,7 @@ func allowUnsignedAuth() bool {
 // AllowUnsignedAuthEnv to enforce. "signed_invalid" means a signature was present but
 // did not verify (e.g. an Adena canonical-doc mismatch) and was accepted in phase 1.
 func logAuthLogin(result, address, chainID string) {
+	metrics.AuthLoginTotal.WithLabelValues(result).Inc()
 	slog.Info("auth_login",
 		"metric", "auth_login",
 		"result", result,

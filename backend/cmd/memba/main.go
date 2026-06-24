@@ -18,6 +18,7 @@ import (
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -168,6 +169,10 @@ func main() {
 
 	// Health check — enhanced with DB, uptime, memory diagnostics
 	mux.HandleFunc("/health", healthHandler(database, dbPath))
+
+	// Prometheus metrics (observability keystone, P0-2) — exposes the signed-login
+	// ratio (memba_auth_login_total) + Go runtime metrics for an external drain.
+	mux.Handle("/metrics", promhttp.Handler())
 
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.

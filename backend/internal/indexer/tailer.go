@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 const (
@@ -137,6 +139,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		log.Warn("nft tailer: latest height fetch failed", "error", err)
 		return
 	}
+	metrics.IndexerChainHead.Set(float64(latest))
 
 	cursor, storedHash, err := loadCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
 	if err != nil {
@@ -221,6 +224,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			log.Warn("nft tailer: save cursor failed", "height", h, "error", err)
 			return
 		}
+		metrics.IndexerLastBlock.Set(float64(h))
 	}
 }
 
