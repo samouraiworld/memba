@@ -67,6 +67,19 @@ describe('normalizeStatus', () => {
         expect(_normalizeStatus('completed')).toBe('executed')
     })
 
+    // gno govdao v3 detail render emits "**PROPOSAL HAS BEEN DENIED**"; the
+    // detail status regex captures the token "DENIED". Without a denied branch
+    // this fell through to the default "open", so a denied proposal rendered as
+    // ACTIVE (LIVE badge + vote buttons) on the detail page. Regression guard.
+    it('maps "DENIED" → "rejected" (GovDAO proposal-detail prose)', () => {
+        expect(_normalizeStatus('DENIED')).toBe('rejected')
+    })
+
+    it('maps "denied" (any case) → "rejected"', () => {
+        expect(_normalizeStatus('denied')).toBe('rejected')
+        expect(_normalizeStatus('Denied')).toBe('rejected')
+    })
+
     it('defaults unknown statuses to "open"', () => {
         expect(_normalizeStatus('unknown')).toBe('open')
         expect(_normalizeStatus('')).toBe('open')
