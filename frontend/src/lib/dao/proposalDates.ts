@@ -94,6 +94,12 @@ export async function getCurrentBlock(): Promise<number> {
 
 // ── tx-indexer Search ─────────────────────────────────────────
 
+// test13 (and some public RPC nodes) don't expose `tx_search`. Once an attempt
+// fails, disable it for the rest of the session so we don't re-spam 3-node 404s
+// for every proposal. A per-network `supportsTxSearch` config is the eventual
+// home for this (Phase 3 directory plan).
+let _txSearchDisabled = false
+
 /**
  * Try to find the proposal creation transaction via tx_search.
  * Returns the block time (exact timestamp) if found.
@@ -104,6 +110,7 @@ export async function getCurrentBlock(): Promise<number> {
 async function searchProposalTx(
     realmPath: string,
 ): Promise<{ date: Date; block: number } | null> {
+    if (_txSearchDisabled) return null
     try {
         // Search for MsgCall transactions to this realm's Propose function
         const query = `"message.action='MsgCall' AND message.module='${realmPath}'"`
@@ -136,7 +143,9 @@ async function searchProposalTx(
             }
         }
     } catch {
-        // Indexer unavailable — expected on some networks
+        // tx_search/indexer unavailable — expected on test13. Trip the breaker so
+        // subsequent proposals skip it (no more 404 spam).
+        _txSearchDisabled = true
     }
     return null
 }
