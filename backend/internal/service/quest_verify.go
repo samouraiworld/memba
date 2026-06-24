@@ -389,13 +389,30 @@ type questAbciResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// questAbciQuery sends an ABCI query for server-side verification using the
-// wire format gno.land requires: the `data` param base64-encoded. A non-empty
-// ABCI ResponseBase.Error (missing account, "not found" render) is treated as
-// an EMPTY result — "requirement not met" — not a transport failure. Only
-// genuine transport/RPC errors return a non-nil error, which the caller maps
-// to errVerifyUnavailable (reject, don't grant).
+// questAbciQuery sends a quest-verification ABCI query with automatic failover
+// across rpcURLsInOrder: it tries the primary then each backup node until one
+// answers without a transport error. An empty/no-record answer is a success
+// ("requirement not met") and does NOT fail over. Returns the last error if
+// every node fails (mapped to errVerifyUnavailable by the caller → reject).
 func questAbciQuery(rpcURL, path, data string) (string, error) {
+	var lastErr error
+	for _, u := range rpcURLsInOrder(rpcURL) {
+		out, err := questAbciQueryOnce(u, path, data)
+		if err == nil {
+			return out, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+// questAbciQueryOnce performs a single quest-verification query against one node
+// using the wire format gno.land requires: the `data` param base64-encoded. A
+// non-empty ABCI ResponseBase.Error (missing account, "not found" render) is
+// treated as an EMPTY result — "requirement not met" — not a transport failure.
+// Only genuine transport/RPC errors return a non-nil error so questAbciQuery can
+// fail over.
+func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -416,6 +433,12 @@ func questAbciQuery(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// A dead/throttled node returns a non-200 (often 502/503/429); detect it so
+	// failover fires deterministically instead of via a downstream parse error.
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
