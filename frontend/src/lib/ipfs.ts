@@ -25,7 +25,6 @@ export interface IpfsPinResult {
 
 const MAX_UPLOAD_BYTES = 512 * 1024 // 512KB
 const MAX_DIMENSION = 256
-const LIGHTHOUSE_UPLOAD_URL = "https://node.lighthouse.storage/api/v0/add"
 const IPFS_GATEWAYS = [
     "https://gateway.lighthouse.storage/ipfs",
     "https://ipfs.io/ipfs",
@@ -214,47 +213,18 @@ async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
 }
 
 /**
- * Upload a file to IPFS via Lighthouse REST API.
- * Does NOT require the @lighthouse-web3/sdk — uses direct HTTP multipart.
+ * Upload a file to IPFS. Always routes through the auth-gated backend proxy
+ * (/api/upload/avatar) so the Lighthouse API key stays server-side.
+ *
+ * SECURITY (N2): the previous client-side `apiKey` path shipped a live Lighthouse
+ * key in the bundle and bypassed the server's MIME/size re-validation. Removed —
+ * the key is never read on the client.
  *
  * @param file - File or Blob to upload
- * @param apiKey - Lighthouse API key (from VITE_LIGHTHOUSE_API_KEY)
  * @returns Pin result with CID and gateway URL
  */
-export async function uploadToLighthouse(file: File | Blob, apiKey: string): Promise<IpfsPinResult> {
-    // If no API key provided, use the backend proxy instead
-    if (!apiKey) {
-        return uploadViaProxy(file)
-    }
-
-    const formData = new FormData()
-    const filename = file instanceof File ? file.name : "avatar.webp"
-    formData.append("file", file, filename)
-
-    const response = await fetch(LIGHTHOUSE_UPLOAD_URL, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: formData,
-    })
-
-    if (!response.ok) {
-        const text = await response.text().catch(() => "Unknown error")
-        throw new Error(`Lighthouse upload failed (${response.status}): ${text}`)
-    }
-
-    const data = await response.json()
-    const cid = data.Hash || data.hash || data.cid
-
-    if (!cid) {
-        throw new Error("Lighthouse upload returned no CID")
-    }
-
-    return {
-        cid,
-        url: getIpfsGatewayUrl(cid),
-    }
+export async function uploadToLighthouse(file: File | Blob): Promise<IpfsPinResult> {
+    return uploadViaProxy(file)
 }
 
 // ── High-level Upload Flow ────────────────────────────────────
@@ -266,7 +236,7 @@ export async function uploadToLighthouse(file: File | Blob, apiKey: string): Pro
  * 3. Upload to Lighthouse IPFS
  * 4. Return CID + gateway URL
  */
-export async function uploadAvatar(file: File, apiKey: string): Promise<IpfsPinResult> {
+export async function uploadAvatar(file: File): Promise<IpfsPinResult> {
     // 1. Validate
     if (!isValidImageMime(file.type)) {
         throw new Error(`Unsupported image type: ${file.type}. Use JPEG, PNG, WebP, or GIF.`)
@@ -275,8 +245,6 @@ export async function uploadAvatar(file: File, apiKey: string): Promise<IpfsPinR
     // 2. Preprocess
     const processed = await preprocessImage(file)
 
-    // 3. Upload
-    const result = await uploadToLighthouse(processed, apiKey)
-
-    return result
+    // 3. Upload (always via the auth-gated server proxy)
+    return uploadToLighthouse(processed)
 }

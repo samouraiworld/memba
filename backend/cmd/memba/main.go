@@ -192,7 +192,8 @@ func main() {
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
 	// v6 SEC-03: auth required to prevent API key abuse
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthMiddleware(svc, service.HandleAnalystAnalyze())))
-	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
+	// v6 SEC-03: auth required (prevents unauthenticated 10-model LLM cost-drain).
+	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", requireAuthMiddleware(svc, service.HandleAnalystConsensus(database))))
 
 	// IPFS upload proxy — keeps Lighthouse API key server-side
 	// v6 SEC-02: auth required to prevent API key abuse

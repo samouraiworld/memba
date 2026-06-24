@@ -103,6 +103,11 @@ export function useAnalystReport(
 
         // Don't re-fetch unless forced (refresh button)
         if (fetchedRef.current && !force) return
+        // SEC: /api/analyst/consensus now requires auth (prevents unauthenticated
+        // LLM cost-drain). Skip silently when not signed in; don't mark fetched so
+        // it can run once the user authenticates and re-navigates.
+        const authToken = (() => { try { return localStorage.getItem("memba_auth_token") || "" } catch { return "" } })()
+        if (!authToken) return
         fetchedRef.current = true
 
         // Cancel any in-flight request
@@ -119,7 +124,7 @@ export function useAnalystReport(
                 : `${API_URL}/api/analyst/consensus`
             const resp = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
                 body: JSON.stringify({
                     realmPath,
                     proposalId,
