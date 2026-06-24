@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-1777%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-2570%2B%20passing-brightgreen.svg)](#testing)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -17,7 +17,7 @@
 
 **🤖 For AI agents:** [memba.samourai.app/llms.txt](https://memba.samourai.app/llms.txt) — discovery file linking the SKILL guide, MCP servers, API, and RPC endpoints (see [docs/AGENTIC.md](docs/AGENTIC.md)).
 
-## Features (v4.0)
+## Features
 
 ### Multisig
 - 🔑 Create & import multisig wallets
@@ -104,7 +104,7 @@
 - 🔐 **Self-contained code generation** — templates deploy on any network without external dependencies
 - 🏷️ Feature-gated behind `VITE_ENABLE_NFT`
 
-### GnoBuilders — Gamified Onboarding (v4.0)
+### GnoBuilders — Gamified Onboarding
 - 🎮 **85 Quests** — Developer, Everyone, Champion, and Hidden categories
 - 🏆 **8-Tier Rank System** — Newcomer → Gno Guardian (2,000 XP)
 - ✅ **Multi-Type Verification** — on-chain, off-chain, social, self-report
@@ -175,7 +175,7 @@
 - 🛡️ **Input sanitization** — JSON-safe ABCI queries, realm content sanitization, template sanitizer
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
-- 🌐 Network selector (test12 ↔ test11 ↔ staging ↔ portal-loop ↔ gnoland1) with chain mismatch detection
+- 🌐 Network selector (test13 ↔ gnoland1) with chain mismatch detection
 - 📱 Mobile responsive (320px+) with sidebar collapse at 1024px, tab bar below 768px
 - ♿ **Keyboard navigation** — `:focus-visible` outlines on all interactive elements (WCAG 2.1 AA)
 - ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory/channel/NFT chunks)
@@ -261,10 +261,7 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| test12 ⭐ | `https://rpc.testnet12.samourai.live:443` | `test12` |
-| test11 (legacy) | `https://rpc.test11.testnets.gno.land:443` | `test11` |
-| portal-loop | `https://rpc.gno.land:443` | `portal-loop` |
-| staging | `https://rpc.gno.land:443` | `staging` |
+| test13 ⭐ | `https://rpc.test13.testnets.gno.land:443` | `test-13` |
 | gnoland1 (Betanet) | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
 
 ## Target Multisig

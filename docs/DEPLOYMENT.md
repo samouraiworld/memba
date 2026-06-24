@@ -40,11 +40,11 @@ npm run dev
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
-| `VITE_GNO_RPC_URL` | `https://rpc.testnet12.samourai.live:443` | Gno chain RPC |
+| `VITE_GNO_RPC_URL` | `https://rpc.test13.testnets.gno.land:443` | Gno chain RPC |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
 
-> **On-chain verification**: Browse deployed Samouraï Coop realms and packages at [gnoweb test12](https://gnoweb.test12.moul.p2p.team/r/samcrew) (hosted by moul).
+> **On-chain verification**: Browse deployed Samouraï Coop realms and packages at [gnoweb test13](https://test13.testnets.gno.land/r/samcrew) (gno-core's official gnoweb).
 > Note: `samourai_dao` is a separate Samouraï Coop DAO for crew members only — do **not** use it as `VITE_DAO_REALM_PATH`.
 
 ### Proto Generation
@@ -71,8 +71,8 @@ buf generate
 **Netlify environment variables:**
 ```
 VITE_API_URL = https://memba-backend.fly.dev
-VITE_GNO_CHAIN_ID = test12
-VITE_GNO_RPC_URL = https://rpc.testnet12.samourai.live:443
+VITE_GNO_CHAIN_ID = test13
+VITE_GNO_RPC_URL = https://rpc.test13.testnets.gno.land:443
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/memba_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 VITE_GNOLOVE_API_URL = https://backend.gnolove.world
