@@ -558,6 +558,16 @@ export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
 
+/**
+ * NFT feature flag (VITE_ENABLE_NFT). The canonical reader for the whole NFT /
+ * launchpad / studio surface — use this everywhere instead of re-deriving
+ * `import.meta.env.VITE_ENABLE_NFT` per page, so a new NFT route can't silently
+ * ship ungated (the P0 that left on-chain mint reachable by direct URL while the
+ * feature was "off"). Pages still AND it with the relevant realm-validity
+ * predicate (e.g. isNftMarketValid) where a tx targets a specific realm.
+ */
+export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
+
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {
     community: 40,    // 40% — airdrops, candidature rewards

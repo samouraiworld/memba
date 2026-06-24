@@ -7,6 +7,7 @@ import { ScrollToTop } from "./components/layout/ScrollToTop"
 import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
+import { NftGate } from "./components/ui/NftGate"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
 // ── Core multisig pages (small, always needed) ──
@@ -214,13 +215,13 @@ function App() {
           {/* Model B (advanced): legacy code-gen wizard that deploys a standalone realm. */}
           <Route path="nft/create/advanced" element={<Suspense fallback={<PageLoader />}><NFTLaunchpad /></Suspense>} />
           {/* Phase 2 registry: per-collection detail/mint/manage + creator profiles. */}
-          <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense>} />
-          <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
-          <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
+          <Route path="nft/collection/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><CollectionDetail /></Suspense></NftGate>} />
+          <Route path="nft/creator/:address" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
+          <Route path="nft/creator" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
           {/* Creator Studio — must be before nft/:realmPath catch-all */}
-          <Route path="nft/studio" element={<Suspense fallback={<PageLoader />}><StudioHome /></Suspense>} />
-          <Route path="nft/studio/:creator/:slug" element={<Suspense fallback={<PageLoader />}><StudioManage /></Suspense>} />
-          <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense>} />
+          <Route path="nft/studio" element={<NftGate><Suspense fallback={<PageLoader />}><StudioHome /></Suspense></NftGate>} />
+          <Route path="nft/studio/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><StudioManage /></Suspense></NftGate>} />
+          <Route path="nft/:realmPath" element={<NftGate><Suspense fallback={<PageLoader />}><NFTCollectionView /></Suspense></NftGate>} />
 
           {/* Freelance Services (v3.0) */}
           <Route path="services" element={<Suspense fallback={<PageLoader />}><FreelanceServices /></Suspense>} />
