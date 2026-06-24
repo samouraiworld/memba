@@ -78,14 +78,14 @@ export function TokenDashboard() {
                         Tokens on {GNO_CHAIN_ID} via grc20factory
                     </p>
                 </div>
-                {auth.isAuthenticated && (
-                    <button
-                        className="k-btn-primary token-create-btn"
-                        onClick={() => navigate("/create-token")}
-                    >
-                        🪙 Create a Token
-                    </button>
-                )}
+                {/* Always shown — visitors need to discover token creation too.
+                    /create-token gracefully prompts a wallet connect when needed. */}
+                <button
+                    className="k-btn-primary token-create-btn"
+                    onClick={() => navigate("/create-token")}
+                >
+                    🪙 Create a Token
+                </button>
             </div>
 
             {/* Stats bar */}
@@ -114,11 +114,9 @@ export function TokenDashboard() {
                     <p className="token-empty-desc">
                         Be the first to create a GRC20 token on {GNO_CHAIN_ID}
                     </p>
-                    {auth.isAuthenticated && (
-                        <button className="k-btn-primary" onClick={() => navigate("/create-token")}>
-                            Create a Token
-                        </button>
-                    )}
+                    <button className="k-btn-primary" onClick={() => navigate("/create-token")}>
+                        Create a Token
+                    </button>
                 </div>
             ) : (
                 <div className="token-grid">
