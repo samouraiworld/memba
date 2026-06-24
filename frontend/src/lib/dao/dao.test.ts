@@ -18,6 +18,8 @@ import {
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
     _parseProposalList,
+    _parseProposalAuthor,
+    _parseVoters,
     _sanitize,
     _unescapeMarkdown,
     _parseMemberstoreTiers,
@@ -593,5 +595,46 @@ Tiers eligible to vote: T1
         const active = proposals.filter(p => p.status === 'open')
         expect(active.length).toBe(1)
         expect(active[0].id).toBe(10)
+    })
+})
+
+// ── parseProposalAuthor (GovDAO v3 detail render) ───────────────
+// Real render shape: "Author: [@user](/u/user)" (resolved) or "Author: g1…" (raw
+// address when the proposer has no registered username). The detail page used to
+// only match the linked form, silently dropping bare-address authors (F-E2).
+
+describe('parseProposalAuthor', () => {
+    it('resolves a linked "[@user](url)" author', () => {
+        const r = _parseProposalAuthor('## Prop #7 - X\nAuthor: [@zooma](/u/zooma)\n\nbody')
+        expect(r.author).toBe('@zooma')
+        expect(r.authorProfile).toBe('/u/zooma')
+    })
+
+    it('captures a bare g1 address author (was dropped on the detail page)', () => {
+        const r = _parseProposalAuthor('## Prop #22 - X\nAuthor: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\n\nbody')
+        expect(r.author).toBe('g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')
+        expect(r.authorProfile).toBe('')
+    })
+
+    it('returns empty author when none present', () => {
+        expect(_parseProposalAuthor('## Prop #1 - X\n\nbody').author).toBe('')
+    })
+})
+
+// ── parseVoters (GovDAO v3 votes render) ────────────────────────
+// Real render shape per voter line: "- [@user](/u/user)" or "- g1…". The old
+// @-link-only regex dropped bare addresses, undercounting tallies (F-E3).
+
+describe('parseVoters', () => {
+    it('captures both linked and bare-address voters in order', () => {
+        const block = '\n\n- [@zooma](/u/zooma)\n- g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\n'
+        const voters = _parseVoters(block)
+        expect(voters.map(v => v.username)).toEqual(['@zooma', 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'])
+        expect(voters[0].profileUrl).toBe('/u/zooma')
+        expect(voters[1].profileUrl).toBe('')
+    })
+
+    it('ignores non-voter lines', () => {
+        expect(_parseVoters('some header text\nno bullets here')).toEqual([])
     })
 })
