@@ -25,6 +25,10 @@ const (
 	// nftFetchTimeout is the per-upstream-fetch deadline.
 	nftFetchTimeout = 10 * time.Second
 
+	// maxNFTRedirects caps redirect-following in the NFT proxy. Each hop is
+	// re-validated by validateRedirect; the cap also bounds redirect-loop abuse.
+	maxNFTRedirects = 5
+
 	// nftCacheMaxEntries is the maximum number of cache entries (image + metadata combined).
 	nftCacheMaxEntries = 256
 
@@ -289,13 +293,34 @@ func validateHTTPSHost(rawURL string) error {
 	return nil
 }
 
+// validateRedirect re-applies the SSRF guards on every redirect hop. The initial
+// URL is validated by resolveIPFSURI/validateHTTPSHost, but Go's HTTP client
+// follows redirects without re-checking — so a malicious gateway could
+// 30x-redirect the unauthenticated proxy into a private/metadata host. Refuse
+// non-https hops and any host resolving to a private/reserved IP, and cap the
+// chain length.
+func validateRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxNFTRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxNFTRedirects)
+	}
+	if req.URL.Scheme != "https" {
+		return fmt.Errorf("refusing redirect to non-https URL %q", req.URL.Redacted())
+	}
+	if err := validateHTTPSHost(req.URL.String()); err != nil {
+		return fmt.Errorf("refusing redirect: %w", err)
+	}
+	return nil
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared fetch helper
 // ──────────────────────────────────────────────────────────────────────────────
 
 // nftHTTPClient is a package-level client used for production fetches.
 // Tests replace it via newNFTImageHandler / newNFTMetadataHandler options.
-var nftHTTPClient = &http.Client{Timeout: nftFetchTimeout}
+// CheckRedirect re-validates every redirect hop so the unauthenticated proxy
+// can't be 30x-redirected into a private/metadata host (SSRF).
+var nftHTTPClient = &http.Client{Timeout: nftFetchTimeout, CheckRedirect: validateRedirect}
 
 // fetchIPFS fetches a resolved URL with the given client, caps the response
 // size, and returns the raw body + detected content type.
