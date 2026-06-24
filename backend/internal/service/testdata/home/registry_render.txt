@@ -1,0 +1,13 @@
+# r/sys/users
+
+`r/sys/users` is a system realm for managing user registrations.
+
+User registration is managed through whitelisted controller realms.
+
+---
+
+## Stats
+
+Total unique addresses registered: **16**
+
+Total unique names registered: **16**

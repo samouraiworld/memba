@@ -1,0 +1,5 @@
+# Memba Agent Registry
+
+On-chain AI Agent Marketplace for the Gno ecosystem.
+
+*No agents registered yet.*

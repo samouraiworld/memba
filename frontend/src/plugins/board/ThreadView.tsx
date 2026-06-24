@@ -6,6 +6,7 @@
  * @module plugins/board/ThreadView
  */
 
+import { useState } from "react"
 import type { BoardThreadDetail } from "./parser"
 import { renderMarkdown, cardStyle, inputStyle, primaryBtn } from "./boardHelpers"
 import { NewMessagesToast } from "../../components/ui/NewMessagesToast"
@@ -20,6 +21,25 @@ interface ThreadViewProps {
     onSubmitReply: () => void
     posting: boolean
     error?: string | null
+    /** Connected wallet address — used to gate author-only edit/delete. */
+    callerAddress?: string
+    /** Whether the channel realm exposes EditThread/DeleteThread (v2 hardened realm). */
+    supportsModeration?: boolean
+    /** Author edits the thread body (realm enforces author-only). */
+    onEditThread?: (newBody: string) => void
+    /** Author deletes the thread (realm soft-deletes; author-only). */
+    onDeleteThread?: () => void
+}
+
+const ghostBtn: React.CSSProperties = {
+    fontSize: 11,
+    padding: "4px 10px",
+    borderRadius: 6,
+    border: "1px solid var(--color-border)",
+    background: "transparent",
+    color: "var(--color-text-secondary)",
+    cursor: "pointer",
+    fontFamily: "JetBrains Mono, monospace",
 }
 
 export function ThreadView({
@@ -32,7 +52,24 @@ export function ThreadView({
     onSubmitReply,
     posting,
     error,
+    callerAddress,
+    supportsModeration,
+    onEditThread,
+    onDeleteThread,
 }: ThreadViewProps) {
+    const [editing, setEditing] = useState(false)
+    const [editBody, setEditBody] = useState(threadDetail.body)
+
+    // EditThread/DeleteThread are author-only on-chain. Show controls only to the
+    // author, only on a moderation-capable (v2) realm, and not on a deleted thread.
+    const isAuthor = isAuthenticated && !!callerAddress && callerAddress === threadDetail.author
+    const canModerate =
+        isAuthor &&
+        !!supportsModeration &&
+        threadDetail.title !== "[Deleted]" &&
+        !!onEditThread &&
+        !!onDeleteThread
+
     return (
         <>
             {/* v2.5b: New messages toast */}
@@ -48,21 +85,69 @@ export function ThreadView({
                 fontFamily: "JetBrains Mono, monospace",
                 lineHeight: 1.6,
             }}>
-                {renderMarkdown(threadDetail.body)}
-                <div style={{ marginTop: 12, fontSize: 11, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-                    Posted by <code style={{ color: "var(--color-text-secondary)" }}>{threadDetail.author}</code> at block {threadDetail.blockHeight}
-                    {threadDetail.edited && (
-                        <span style={{
-                            fontSize: 9,
-                            color: "var(--color-text-secondary)",
-                            background: "rgba(255,255,255,0.04)",
-                            padding: "1px 5px",
-                            borderRadius: 3,
-                        }}>
-                            edited · block {threadDetail.editedAt}
-                        </span>
-                    )}
-                </div>
+                {editing ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <textarea
+                            aria-label="Edit thread body"
+                            value={editBody}
+                            onChange={e => setEditBody(e.target.value)}
+                            maxLength={5000}
+                            rows={5}
+                            style={{ ...inputStyle, resize: "vertical", minHeight: 80 }}
+                        />
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                                onClick={() => { onEditThread?.(editBody.trim()); setEditing(false) }}
+                                disabled={posting || !editBody.trim()}
+                                style={{ ...primaryBtn, opacity: posting || !editBody.trim() ? 0.5 : 1 }}
+                            >
+                                {posting ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                                onClick={() => { setEditBody(threadDetail.body); setEditing(false) }}
+                                style={ghostBtn}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {renderMarkdown(threadDetail.body)}
+                        <div style={{ marginTop: 12, fontSize: 11, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                            Posted by <code style={{ color: "var(--color-text-secondary)" }}>{threadDetail.author}</code> at block {threadDetail.blockHeight}
+                            {threadDetail.edited && (
+                                <span style={{
+                                    fontSize: 9,
+                                    color: "var(--color-text-secondary)",
+                                    background: "rgba(255,255,255,0.04)",
+                                    padding: "1px 5px",
+                                    borderRadius: 3,
+                                }}>
+                                    edited · block {threadDetail.editedAt}
+                                </span>
+                            )}
+                        </div>
+                        {canModerate && (
+                            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                <button
+                                    onClick={() => { setEditBody(threadDetail.body); setEditing(true) }}
+                                    disabled={posting}
+                                    style={ghostBtn}
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={() => onDeleteThread?.()}
+                                    disabled={posting}
+                                    style={{ ...ghostBtn, color: "var(--color-danger, #f44336)", borderColor: "rgba(244,67,54,0.4)" }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             {/* Replies */}

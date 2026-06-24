@@ -26,6 +26,7 @@ vi.mock("../../../hooks/useNetwork", () => ({
 
 vi.mock("../../../hooks/useNetworkNav", () => ({
     useNetworkPath: () => (path: string) => `/gnoland1/${path}`,
+    useNetworkKey: () => "gnoland1",
 }))
 
 function renderHub(teamName: string) {

@@ -2,7 +2,11 @@ package indexer
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestConfirmedEnd_DefaultDepth(t *testing.T) {
@@ -112,5 +116,74 @@ func TestSeedRealmCursor(t *testing.T) {
 	must(t, err)
 	if got != 285000 {
 		t.Fatalf("cursor after re-seed = %d, want 285000 (no rewind)", got)
+	}
+}
+
+// TestParseBlockHash_RealTest13Block guards the /block JSON shape: test13/tm2
+// nests the hash under result.block_meta.block_id.hash (NOT result.block_id).
+// Reading the wrong path yields "" -> "empty block hash" -> the tailer livelocks
+// at its start cursor (the production freeze at block 259999). Fixture captured
+// live from rpc.test13.testnets.gno.land /block?height=260001.
+func TestParseBlockHash_RealTest13Block(t *testing.T) {
+	body := loadFixture(t, "block_260001.json")
+	hash, err := parseBlockHash(body, 260001)
+	if err != nil {
+		t.Fatalf("parseBlockHash on a real test13 /block body must succeed, got: %v", err)
+	}
+	if hash == "" {
+		t.Fatal("parseBlockHash returned an empty hash for a real block (wrong JSON path)")
+	}
+}
+
+// TestFetchBlockHash_RetriesPastIntermittentEmpty: the test13 RPC endpoint (a
+// multi-node LB) intermittently returns an empty block_id for a block that exists.
+// fetchBlockHash must retry past a transient empty rather than stalling the tailer.
+func TestFetchBlockHash_RetriesPastIntermittentEmpty(t *testing.T) {
+	prev := blockHashRetryDelay
+	blockHashRetryDelay = time.Millisecond
+	defer func() { blockHashRetryDelay = prev }()
+
+	valid := loadFixture(t, "block_260001.json")
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			_, _ = w.Write([]byte(`{"result":{"block_meta":{"block_id":{"hash":""}}}}`))
+			return
+		}
+		_, _ = w.Write(valid)
+	}))
+	defer srv.Close()
+
+	hash, err := fetchBlockHash(context.Background(), srv.Client(), srv.URL, 260001)
+	if err != nil {
+		t.Fatalf("fetchBlockHash must retry past an intermittent empty hash, got: %v", err)
+	}
+	if hash == "" {
+		t.Fatal("expected a non-empty hash after retry")
+	}
+	if n := atomic.LoadInt32(&calls); n < 2 {
+		t.Fatalf("expected a retry (>= 2 attempts), got %d", n)
+	}
+}
+
+// TestFetchBlockHash_FailsAfterAllAttemptsEmpty: a genuinely-missing hash still
+// fails (after exhausting retries) so a real problem isn't masked.
+func TestFetchBlockHash_FailsAfterAllAttemptsEmpty(t *testing.T) {
+	prev := blockHashRetryDelay
+	blockHashRetryDelay = time.Millisecond
+	defer func() { blockHashRetryDelay = prev }()
+
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		_, _ = w.Write([]byte(`{"result":{"block_meta":{"block_id":{"hash":""}}}}`))
+	}))
+	defer srv.Close()
+
+	if _, err := fetchBlockHash(context.Background(), srv.Client(), srv.URL, 260001); err == nil {
+		t.Fatal("expected an error when every attempt returns an empty hash")
+	}
+	if n := atomic.LoadInt32(&calls); n != blockHashFetchAttempts {
+		t.Fatalf("expected exactly %d attempts, got %d", blockHashFetchAttempts, n)
 	}
 }

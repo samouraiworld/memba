@@ -1,5 +1,7 @@
 # Memba test13 — Deep Feature Audit & Remediation Plan
 
+> **✅ RESOLVED (2026-06-23).** The remediation in this doc has shipped. The 6 invalid v1-on-v2 realms were redeployed to new `_v2` paths and the frontend repointed (#419/#420/#421); per-network realm-validity gating was added; the agent-builder `/vm.m_call`→`vm/MsgCall` bug is **fixed** (verified: `agentTemplate.ts` emits `vm/MsgCall`). The `❌ INVALID` table below describes the **pre-remediation** state on 2026-06-16 and is kept for history. Current realm/feature state: see [`MEMBA_STATE_AUDIT_AND_PLAN_2026-06-23.md`](MEMBA_STATE_AUDIT_AND_PLAN_2026-06-23.md). Remaining gaps are now feature-completeness (candidature accept/reject UI, channel admin, GnoBuilders badge mint), not realm validity.
+
 **Date:** 2026-06-16 · **Trigger:** token creation fails with `/std.InternalError: recovered: unexpected node with location gno.land/r/samcrew/tokenfactory:0:0`
 **Method:** 4 parallel feature audits (DAO core / commerce / auth+misc / config-gating) + direct `vm/qfile` probes across all 3 test13 RPC nodes (official, onbloc, aeddi).
 

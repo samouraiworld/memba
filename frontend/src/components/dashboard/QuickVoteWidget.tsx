@@ -4,6 +4,7 @@
  */
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import type { UnvotedProposal } from "../../lib/dao/voteScanner"
+import "../home/home.css"
 
 interface Props {
     proposals: UnvotedProposal[]
@@ -32,25 +33,25 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                     const isVoting = votingId === key
                     const hasVoted = votedIds.has(key)
                     return (
-                        <div key={key} className="k-card" style={{
+                        <div key={key} className="k-card quick-vote-card" style={{
                             padding: "14px 18px", display: "flex", alignItems: "center", gap: 12,
                             flexWrap: "wrap",
-                            borderColor: hasVoted ? "rgba(0,212,170,0.2)" : "#222",
+                            borderColor: hasVoted ? "var(--color-k-accent-border)" : "var(--color-k-edge)",
                             opacity: hasVoted ? 0.6 : 1,
                         }}>
                             <div style={{ flex: 1, minWidth: 160 }}>
-                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)", marginBottom: 2 }}>
+                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-dim)", marginBottom: 2 }}>
                                     {p.daoName}
                                 </div>
                                 <div
-                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "var(--color-text)" }}
+                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "var(--color-k-text)" }}
                                     onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                                 >
                                     #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
                                 </div>
                             </div>
                             {hasVoted ? (
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-primary)" }}>
+                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent)" }}>
                                     ✓ Voted
                                 </span>
                             ) : (
@@ -59,12 +60,10 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         onClick={() => onVote(p.realmPath, p.proposalId, "YES")}
                                         disabled={isVoting}
                                         aria-label={`Vote YES on proposal ${p.proposalId}`}
+                                        className="quick-vote-btn quick-vote-btn--yes"
                                         style={{
-                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
-                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(0,212,170,0.1)", color: "var(--color-primary)",
-                                            border: "1px solid rgba(0,212,170,0.25)", cursor: isVoting ? "default" : "pointer",
-                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                            cursor: isVoting ? "default" : "pointer",
+                                            opacity: isVoting ? 0.5 : 1,
                                         }}
                                     >
                                         {isVoting ? "..." : "✓ YES"}
@@ -73,12 +72,10 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         onClick={() => onVote(p.realmPath, p.proposalId, "NO")}
                                         disabled={isVoting}
                                         aria-label={`Vote NO on proposal ${p.proposalId}`}
+                                        className="quick-vote-btn quick-vote-btn--no"
                                         style={{
-                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
-                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(255,71,87,0.08)", color: "var(--color-danger)",
-                                            border: "1px solid rgba(255,71,87,0.2)", cursor: isVoting ? "default" : "pointer",
-                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                            cursor: isVoting ? "default" : "pointer",
+                                            opacity: isVoting ? 0.5 : 1,
                                         }}
                                     >
                                         {isVoting ? "..." : "✗ NO"}
@@ -87,12 +84,10 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                         onClick={() => onVote(p.realmPath, p.proposalId, "ABSTAIN" as "YES" | "NO")}
                                         disabled={isVoting}
                                         aria-label={`Abstain on proposal ${p.proposalId}`}
+                                        className="quick-vote-btn quick-vote-btn--abstain"
                                         style={{
-                                            padding: "6px 14px", borderRadius: 6, fontSize: 11,
-                                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                                            background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)",
-                                            border: "1px solid rgba(255,255,255,0.08)", cursor: isVoting ? "default" : "pointer",
-                                            opacity: isVoting ? 0.5 : 1, transition: "all 0.15s",
+                                            cursor: isVoting ? "default" : "pointer",
+                                            opacity: isVoting ? 0.5 : 1,
                                         }}
                                     >
                                         {isVoting ? "..." : "— ABSTAIN"}

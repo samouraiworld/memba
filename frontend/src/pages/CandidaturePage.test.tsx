@@ -39,6 +39,9 @@ vi.mock("../lib/candidatureTemplate", () => ({
         s.split(",").map((x: string) => x.trim()).filter(Boolean)
     ),
     buildSubmitCandidatureMsg: vi.fn(() => ({ type: "msg" })),
+    buildMarkApprovedMsg: vi.fn(() => ({ type: "vm/MsgCall", value: { func: "MarkApproved" } })),
+    buildMarkRejectedMsg: vi.fn(() => ({ type: "vm/MsgCall", value: { func: "MarkRejected" } })),
+    parseIsAdminResult: vi.fn(() => false),
     parseCandidatureList: vi.fn(() => []),
     getRequiredDeposit: vi.fn(() => 10_000_000n),
     MAX_BIO_LENGTH: 5000,
@@ -57,6 +60,7 @@ vi.mock("../lib/grc20", () => ({
 
 vi.mock("../lib/dao/shared", () => ({
     queryRender: vi.fn(() => Promise.resolve(null)),
+    queryEval: vi.fn(() => Promise.resolve(null)),
 }))
 
 // Mock QuestProgress to avoid deep dependency chain
@@ -124,6 +128,13 @@ describe("CandidaturePage — XP Gate", () => {
         expect(screen.getByText(/You need 100 XP to apply/)).toBeInTheDocument()
         expect(screen.getByText(/You currently have 30 XP/)).toBeInTheDocument()
         expect(screen.getByTestId("quest-progress-mock")).toBeInTheDocument()
+    })
+
+    it("Go to Quest Hub button navigates to /quests (not /profile)", () => {
+        vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 30 })
+        render(<CandidaturePage />)
+        fireEvent.click(screen.getByText(/Go to Quest Hub/))
+        expect(mockNavigate).toHaveBeenCalledWith("/quests")
     })
 
     it("hides form when ineligible", () => {
@@ -400,6 +411,65 @@ describe("CandidaturePage — Candidatures List", () => {
         render(<CandidaturePage />)
 
         expect(screen.getByText("Loading candidatures...")).toBeInTheDocument()
+    })
+})
+
+describe("CandidaturePage — Admin approve/reject", () => {
+    const pending = {
+        applicant: "g1alice12345678901234567890",
+        bio: "x",
+        skills: "go",
+        deposit: 10_000_000,
+        status: "pending" as const,
+        appliedAt: 150813,
+        applyCount: 1,
+    }
+
+    beforeEach(() => {
+        vi.mocked(daoShared.queryRender).mockResolvedValue("render")
+        vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([pending])
+        vi.mocked(grc20Mock.doContractBroadcast).mockResolvedValue(undefined as never)
+    })
+
+    it("hides approve/reject controls for non-admins", async () => {
+        vi.mocked(candidatureMock.parseIsAdminResult).mockReturnValue(false)
+        render(<CandidaturePage />)
+        await waitFor(() => expect(screen.getByText("All Candidatures (1)")).toBeInTheDocument())
+        expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument()
+    })
+
+    it("shows controls for admins and approves via broadcast (MarkApproved)", async () => {
+        vi.mocked(candidatureMock.parseIsAdminResult).mockReturnValue(true)
+        render(<CandidaturePage />)
+
+        const approveBtn = await screen.findByRole("button", { name: "Approve" })
+        expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument()
+
+        fireEvent.click(approveBtn)
+
+        await waitFor(() => expect(grc20Mock.doContractBroadcast).toHaveBeenCalled())
+        expect(candidatureMock.buildMarkApprovedMsg).toHaveBeenCalledWith(
+            "g1testuser123",
+            pending.applicant,
+            "gno.land/r/samcrew/memba_dao_candidature_v2",
+        )
+    })
+
+    it("rejects via broadcast (MarkRejected)", async () => {
+        vi.mocked(candidatureMock.parseIsAdminResult).mockReturnValue(true)
+        render(<CandidaturePage />)
+
+        const rejectBtn = await screen.findByRole("button", { name: "Reject" })
+        fireEvent.click(rejectBtn)
+
+        await waitFor(() =>
+            expect(candidatureMock.buildMarkRejectedMsg).toHaveBeenCalledWith(
+                "g1testuser123",
+                pending.applicant,
+                "gno.land/r/samcrew/memba_dao_candidature_v2",
+            ),
+        )
     })
 })
 

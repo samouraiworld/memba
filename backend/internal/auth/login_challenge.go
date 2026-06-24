@@ -31,14 +31,17 @@ func LoginChallengeMemo(nonce []byte) string {
 	return ClientMagic + " | nonce: " + base64.StdEncoding.EncodeToString(nonce)
 }
 
-// loginMsg is the sentinel MsgCall. Args is a nil slice WITHOUT omitempty so it
-// marshals to "args":null — matching what Adena signs: Adena proto-encodes then
-// decodes the msg and an empty/missing args becomes null (adena-module
-// messages.ts:120-124). gnokey omits empty args, but the login doc is never
-// broadcast, so A2 matches Adena, not gnokey. See design §9.
+// loginMsg is the sentinel MsgCall, marshaled to match the EXACT doc Adena signs.
+// Adena proto-roundtrips each msg before signing (MsgCall.decode -> MsgCall.toJSON;
+// adena-module messages.ts:50-60 via sign-gno-document.ts): ts-proto OMITS an empty
+// repeated `args` (no key at all) but EMITS the empty scalar `send`/`max_deposit`.
+// So `args` carries omitempty (a no-arg login => key omitted), while send/max_deposit
+// are always present as "". Verified byte-exact against a real Adena login signature
+// in login_challenge_realvector_test.go. (gnokey would omit all three, but the login
+// doc is never broadcast — A2 matches Adena, not gnokey.) See design §9.
 type loginMsg struct {
 	Type       string   `json:"@type"`
-	Args       []string `json:"args"`
+	Args       []string `json:"args,omitempty"`
 	Caller     string   `json:"caller"`
 	Send       string   `json:"send"`
 	MaxDeposit string   `json:"max_deposit"`

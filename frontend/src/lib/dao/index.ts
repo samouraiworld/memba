@@ -29,7 +29,7 @@ export { PROPOSAL_STATUS_COLORS } from "./shared"
 export { getDAOConfig, getMemberstoreTiers, parseMemberstoreTiers } from "./config"
 
 // ── Members ───────────────────────────────────────────────────
-export { getDAOMembers, parseMembersFromRender } from "./members"
+export { getDAOMembers, getMemberRole, deriveRoleLabel, parseMembersFromRender } from "./members"
 
 // ── Proposals ─────────────────────────────────────────────────
 export {
@@ -62,4 +62,4 @@ export {
 export { normalizeStatus as _normalizeStatus, sanitize as _sanitize, unescapeMarkdown as _unescapeMarkdown } from "./shared"
 export { parseProposalList as _parseProposalList } from "./proposals"
 export { parseMemberstoreTiers as _parseMemberstoreTiers } from "./config"
-export { parseMembersFromRender as _parseMembersFromRender } from "./members"
+export { parseMembersFromRender as _parseMembersFromRender, parseMemberstoreRows as _parseMemberstoreRows } from "./members"

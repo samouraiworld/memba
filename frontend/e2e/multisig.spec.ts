@@ -50,9 +50,11 @@ test.describe('Import Multisig Page', () => {
 })
 
 test.describe('Multisig — Route Guards', () => {
-    test('/multisig redirects to /dashboard', async ({ page }) => {
+    test('/multisig redirects disconnected users to home', async ({ page }) => {
         await page.goto('/multisig')
-        // Should redirect disconnected users → landing → dashboard route attempts → /
-        await page.waitForURL(/\/dashboard|\//, { timeout: 5000 })
+        // Home rework: /:network/dashboard no longer exists as a routed page;
+        // disconnected users are sent to /:network/ (the Control Room home).
+        await page.waitForURL(/\/\w+\/$/, { timeout: 5000 })
+        await expect(page.getByTestId('home-root')).toBeVisible()
     })
 })

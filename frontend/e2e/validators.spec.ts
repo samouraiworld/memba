@@ -151,7 +151,7 @@ test.describe('Validators Page — Mobile', () => {
         await page.goto('/validators')
 
         // Skip-on-unavailable: same guard as desktop tests — if the RPC is
-        // unreachable (test12 halted), the page stays on ConnectingLoader.
+        // unreachable (test13 halted), the page stays on ConnectingLoader.
         const loaded = page.locator('[data-testid="validators-page"]')
         const error = page.locator('.val-error')
 

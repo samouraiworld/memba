@@ -31,6 +31,9 @@
 }
 
 .channels-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 8px 14px 12px;
     font-size: 10px;
     font-weight: 700;
@@ -38,6 +41,66 @@
     text-transform: uppercase;
     letter-spacing: 1.2px;
     font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Owner-only: create channel ──────────────────────────── */
+
+.channels-create-btn {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-k-accent, #6366f1);
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.channels-create-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.channels-create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 14px 12px;
+}
+
+.channels-create-form input,
+.channels-create-form select {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised, rgba(255, 255, 255, 0.04));
+    color: var(--color-text);
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    box-sizing: border-box;
+}
+
+.channels-create-error {
+    font-size: 11px;
+    color: var(--color-danger, #f44336);
+}
+
+.channels-create-submit {
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--color-k-accent, #6366f1);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.channels-create-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .channels-sidebar-item {

@@ -60,14 +60,14 @@ test.describe("Gnolove Team Hub canary", () => {
         await expect(page).toHaveURL(/(time|period)=weekly/i, { timeout: 5_000 })
     })
 
-    test("network chip is hidden on gnoland1 and shown on test12", async ({ page }) => {
+    test("network chip is hidden on gnoland1 and shown on test13", async ({ page }) => {
         // gnoland1 = real chain → no "Data: mainnet" chip.
         await page.goto(HUB_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
         await expect(page.locator(".gl-thub-chip-network")).toHaveCount(0)
 
-        // test12 = test chain → chip present.
-        await page.goto(`/test12/gnolove/teams/${TEAM_SLUG}`)
+        // test13 = test chain → chip present.
+        await page.goto(`/test13/gnolove/teams/${TEAM_SLUG}`)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
         await expect(page.locator(".gl-thub-chip-network")).toContainText(/Data: mainnet/i, { timeout: 10_000 })
     })

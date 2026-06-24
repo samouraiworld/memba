@@ -1,0 +1,1250 @@
+/* ── ActionCard ──────────────────────────────────────────────────── */
+
+.action-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--color-k-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  font-family: inherit;
+}
+
+a.action-card,
+button.action-card {
+  cursor: pointer;
+}
+
+a.action-card:hover,
+button.action-card:hover {
+  background: var(--color-k-hover-surface);
+  border-color: var(--color-k-edge-hover);
+}
+
+a.action-card:focus-visible,
+button.action-card:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Left accent rail ─────────────────────────────────────────────── */
+
+.action-card__rail {
+  width: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.action-card__rail--teal    { background: var(--color-k-accent); }
+.action-card__rail--amber   { background: var(--color-k-warning); }
+.action-card__rail--danger  { background: var(--color-k-danger); }
+.action-card__rail--neutral { background: var(--color-k-edge); }
+
+/* ── Card body ────────────────────────────────────────────────────── */
+
+.action-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 12px 12px 10px;
+  min-width: 0;
+}
+
+.action-card__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-card__title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-card__icon {
+  font-size: 16px;
+  color: var(--color-k-dim);
+  flex-shrink: 0;
+}
+
+.action-card__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-card__action-label {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-k-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Skeleton variant ─────────────────────────────────────────────── */
+
+.action-card--skeleton {
+  height: 64px;
+  background: var(--color-k-panel);
+  border-color: var(--color-k-edge);
+  cursor: default;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* ── StatusStrip ──────────────────────────────────────────────────── */
+
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--color-k-panel);
+  border-bottom: 1px solid var(--color-k-edge);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-strip__wordmark {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.01em;
+}
+
+.status-strip__chain {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-accent);
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+
+.status-strip__sep {
+  color: var(--color-k-edge);
+}
+
+.status-strip__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+  flex-shrink: 0;
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+.status-strip__dot--syncing {
+  background: var(--color-k-dim);
+  animation: none;
+}
+
+.status-strip__dot--offline {
+  background: var(--color-k-danger, #ff4757);
+  animation: none;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.status-strip__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  text-transform: lowercase;
+}
+
+/* ── Home page zones ──────────────────────────────────────────────── */
+
+.home-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.home-spine,
+.home-state-board {
+  padding: 16px;
+}
+
+/* ── StateBoard ───────────────────────────────────────────────────── */
+
+.state-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.state-board__slot {
+  min-width: 0;
+}
+
+/* ── ShowcaseBoard (visitor "board of doors") ─────────────────────── */
+
+.showcase-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.showcase-board__slot {
+  min-width: 0;
+}
+
+/* Featured slot spans the full row regardless of how many columns auto-fit
+   resolves to. ≤768px the grid collapses to one column (below), so this is a
+   no-op there. */
+.showcase-board__slot--full {
+  grid-column: 1 / -1;
+}
+
+/* Featured door body — name + members + dual links. */
+.featured-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.featured-door__name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.featured-door__members {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.featured-door__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.featured-door__link {
+  font-size: 12px;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-k-edge);
+}
+
+.featured-door__link--primary {
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  border-color: var(--color-k-accent);
+}
+
+.featured-door__link--secondary {
+  color: var(--color-k-dim);
+  background: transparent;
+}
+
+.featured-door__link--secondary:hover {
+  color: var(--color-k-text);
+  border-color: var(--color-k-edge-hover);
+}
+
+/* ── ContributorsDoor ──────────────────────────────────────────────── */
+
+.contributors-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contributors-door__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contributors-door__entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contributors-door__rank {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.contributors-door__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.contributors-door__login {
+  font-size: 13px;
+  color: var(--color-k-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contributors-door__score {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  flex-shrink: 0;
+}
+
+.contributors-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.contributors-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── NetworkHealthDoor ──────────────────────────────────────────────── */
+
+.network-health-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.network-health-door__count {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.02em;
+}
+
+.network-health-door__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.network-health-door__status--healthy  { color: var(--color-k-accent); }
+.network-health-door__status--degraded { color: var(--color-k-warning, #f59e0b); }
+.network-health-door__status--down     { color: var(--color-k-danger, #ff4757); }
+
+.network-health-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.network-health-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── DirectoryDoor ──────────────────────────────────────────────────── */
+
+.directory-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.directory-door__count {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  letter-spacing: -0.02em;
+}
+
+.directory-door__hint {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.directory-door__link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.directory-door__link:hover {
+  text-decoration: underline;
+}
+
+/* ── LaunchpadDoor ──────────────────────────────────────────────────── */
+
+.launchpad-door {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.launchpad-door__headline {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1.3;
+}
+
+.launchpad-door__sub {
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+/* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
+
+.featured-door__link:focus-visible,
+.contributors-door__link:focus-visible,
+.network-health-door__link:focus-visible,
+.directory-door__link:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Mobile-first breakpoints ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .home-spine,
+  .home-state-board {
+    padding: 12px;
+  }
+
+  /* Force single-column layout — panels/doors follow DOM order */
+  .state-board,
+  .showcase-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-spine,
+  .home-state-board {
+    padding: 10px;
+  }
+
+  .action-card__body {
+    padding: 10px 10px 10px 8px;
+  }
+
+  .action-card__title {
+    font-size: 13px;
+  }
+
+  .action-card__action-label {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .status-strip {
+    padding: 5px 10px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .status-strip__wordmark {
+    font-size: 12px;
+  }
+}
+
+/* ── Wallet chips row (member home — StatusStrip extension) ──────── */
+
+.wallet-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 6px;
+  background: var(--color-k-panel);
+  border-bottom: 1px solid var(--color-k-edge);
+}
+
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-k-edge);
+  background: var(--color-k-panel);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.wallet-chip--balance {
+  border-color: var(--color-k-accent-border);
+  color: var(--color-k-accent);
+  background: var(--color-k-accent-subtle);
+}
+
+.wallet-chip--address {
+  border-color: var(--color-k-edge);
+  color: var(--color-k-dim);
+}
+
+@media (max-width: 480px) {
+  .wallet-chips {
+    padding: 3px 10px 5px;
+    gap: 5px;
+  }
+
+  .wallet-chip {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+}
+
+/* ── VisitorHero ──────────────────────────────────────────────────── */
+
+.visitor-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 16px;
+}
+
+.visitor-hero__headline {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-k-text);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.visitor-hero__subtitle {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-k-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* CTA row: flex row with gap so buttons never run together */
+.visitor-hero__ctas {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Shared button base */
+.visitor-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+/* Primary: teal fill, near-black text */
+.visitor-hero__cta--primary {
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+}
+
+.visitor-hero__cta--primary:hover {
+  opacity: 0.88;
+}
+
+/* Secondary: ghost — transparent + edge border */
+.visitor-hero__cta--secondary {
+  background: transparent;
+  color: var(--color-k-text);
+  border: 1px solid var(--color-k-edge);
+}
+
+.visitor-hero__cta--secondary:hover {
+  background: var(--color-k-hover-surface);
+  border-color: var(--color-k-edge-hover);
+}
+
+.visitor-hero__hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visitor-hero__cta {
+    transition: none;
+  }
+}
+
+/* ── Focus rings (global for home interactive elements) ───────────── */
+
+.visitor-hero__cta:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .visitor-hero {
+    padding: 16px 12px;
+    gap: 12px;
+  }
+
+  .visitor-hero__headline {
+    font-size: 18px;
+  }
+
+  .visitor-hero__ctas {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visitor-hero__cta {
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* ── Door primitive ───────────────────────────────────────────────── */
+
+.door {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: var(--color-k-text);
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+a.door:hover,
+button.door:hover {
+  background: var(--color-k-panel-hover);
+  border-color: var(--color-k-edge-hover);
+}
+
+button.door {
+  cursor: pointer;
+}
+
+a.door:focus-visible,
+button.door:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .door {
+    transition: none;
+  }
+}
+
+/* ── Door variant overrides ───────────────────────────────────────── */
+
+.door--featured {
+  border: 1px solid var(--color-k-featured-border);
+  background: var(--color-k-featured-bg);
+}
+
+.door--invitation {
+  border: 1px dashed var(--color-k-edge);
+}
+
+/* ── Door sub-elements ────────────────────────────────────────────── */
+
+.door__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.door__icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-k-dim);
+}
+
+.door__body {
+  flex: 1;
+}
+
+.door__body--empty,
+.door__body--error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.door__invitation-link {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-k-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.door__empty-msg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-dim);
+}
+
+.door__error-msg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-danger, #ff4757);
+}
+
+.door__retry {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-k-danger, #ff4757);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-k-danger, #ff4757);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.door__retry:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* ── Skeleton bars ────────────────────────────────────────────────── */
+
+.door__sk {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--color-k-edge);
+  margin-bottom: 8px;
+  animation: door-shimmer 1.5s ease-in-out infinite;
+}
+
+.door__sk--mid {
+  width: 75%;
+}
+
+.door__sk--short {
+  width: 50%;
+  margin-bottom: 0;
+}
+
+@keyframes door-shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.45; }
+  100% { opacity: 1; }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .status-strip__dot {
+    animation: none;
+  }
+
+  .action-card--skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .door__sk {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ── PanelBoundary retry affordance ──────────────────────────────── */
+
+.panel-boundary__retry {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* ── NetworkPulsePanel ────────────────────────────────────────────── */
+
+.network-pulse-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── ActionInbox ──────────────────────────────────────────────────── */
+
+.action-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-inbox__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.action-inbox__title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  margin: 0;
+}
+
+.action-inbox__count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.action-inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── ActionDoor (Door variant="action" content) ───────────────────── */
+
+/* Icon chip — full-border rounded box, not a single-sided rail */
+
+.action-door__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 11px;
+  border: 1px solid var(--color-k-edge);
+  background: var(--color-k-panel);
+  flex-shrink: 0;
+}
+
+.action-door__chip--vote,
+.action-door__chip--claim,
+.action-door__chip--candidature {
+  border-color: var(--color-k-accent);
+  background: var(--color-k-accent-tint);
+}
+
+.action-door__chip--sign {
+  border-color: var(--color-k-warning, #f59e0b);
+  background: var(--color-k-amber-subtle);
+}
+
+/* Action door content area */
+
+.action-door__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-door__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.action-door__title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-door__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Vote slot — QuickVoteWidget embedded in the door */
+
+.action-door__vote-slot {
+  margin-top: 4px;
+}
+
+/* CTA link (sign / candidature / claim) */
+
+.action-door__cta {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.action-door__cta--sign {
+  background: var(--color-k-amber-tint);
+  color: var(--color-k-warning, #f59e0b);
+  border-color: var(--color-k-amber-border);
+}
+
+.action-door__cta--candidature,
+.action-door__cta--claim {
+  background: var(--color-k-accent-tint);
+  color: var(--color-k-accent);
+  border-color: var(--color-k-accent-border-strong);
+}
+
+.action-door__cta:hover {
+  opacity: 0.82;
+}
+
+.action-door__cta:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+/* All caught up card — children inside Door variant="action" */
+
+.action-door__caught-up-msg {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-k-dim);
+}
+
+.action-door__caught-up-link {
+  font-size: 12px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.action-door__caught-up-link:hover {
+  text-decoration: underline;
+}
+
+.action-door__caught-up-link:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Reduced motion ─── (complement the existing block above) ─────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .action-door__cta {
+    transition: none;
+  }
+}
+
+/* ── QuickVoteWidget buttons (used inside ActionInbox) ───────────── */
+
+.quick-vote-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border-width: 1px;
+  border-style: solid;
+  transition: opacity 0.15s ease;
+}
+
+.quick-vote-btn--yes {
+  background: var(--color-k-accent-tint);
+  color: var(--color-k-accent);
+  border-color: var(--color-k-accent-border);
+}
+
+.quick-vote-btn--no {
+  background: var(--color-k-danger-tint);
+  color: var(--color-k-danger);
+  border-color: var(--color-k-danger-border);
+}
+
+.quick-vote-btn--abstain {
+  background: var(--color-k-hover-surface);
+  color: var(--color-k-dim);
+  border-color: var(--color-k-edge);
+}
+
+.quick-vote-btn:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-vote-btn {
+    transition: none;
+  }
+}
+
+/* ── ActionInbox footer ───────────────────────────────────────────── */
+
+.action-inbox__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.action-inbox__view-all {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.action-inbox__view-all:hover {
+  text-decoration: underline;
+}
+
+.action-inbox__view-all:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── YourWorldsPanel ─────────────────────────────────────────────── */
+
+.your-worlds-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Panel title row — icon + h3 + optional label badge */
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.panel-title-row h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.panel-title-row i {
+  color: var(--color-k-dim);
+  font-size: 14px;
+}
+
+/* Board grid — world door cards (compact, responsive: 1–N columns) */
+.your-worlds-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+/* Cold-start invitation */
+.your-worlds-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.your-worlds-invite__hint {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-dim);
+  margin: 0;
+}
+
+.your-worlds-invite__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── YourWorldsDoor body ─────────────────────────────────────────── */
+
+.your-worlds-door__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.your-worlds-door__name {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Signal row — member count + open-proposal state */
+.your-worlds-door__stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+  min-width: 0;
+}
+
+.your-worlds-door__members {
+  white-space: nowrap;
+}
+
+.your-worlds-door__open {
+  color: var(--color-k-accent);
+  background: var(--color-k-accent-tint);
+  padding: 1px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.your-worlds-door__open--none {
+  color: var(--color-k-dim);
+  background: transparent;
+  padding: 0;
+}
+
+.your-worlds-door__stats--degraded {
+  color: var(--color-k-warning);
+}
+
+/* ── Responsive: member view ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Wallet chips — allow wrap so long addresses don't push width on small screens */
+  .wallet-chips {
+    flex-wrap: wrap;
+  }
+
+  /* Your-worlds board auto-stacks to one column via the grid's auto-fit;
+     ensure invite actions stack too */
+  .your-worlds-invite__actions {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 390px) {
+  /* Wallet chips truncate naturally; ensure no overflow */
+  .wallet-chip--address {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+
+  /* Action door meta must not push width */
+  .action-door__meta {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Inbox footer stays contained */
+  .action-inbox__footer {
+    padding-top: 2px;
+  }
+}

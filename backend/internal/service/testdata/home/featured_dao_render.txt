@@ -1,0 +1,13 @@
+# MembaDAO
+
+Community governance for the Memba ecosystem — multisig wallet & DAO platform on Gno
+
+> Realm address: g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8
+
+Discover more about this DAO on the [configuration page ⚙️](/r/samcrew/memba_dao:config)
+
+
+--------------------------------
+[\> Go to Members](/r/samcrew/memba_dao:members)
+
+[\> Go to Proposals](/r/samcrew/memba_dao:proposals)

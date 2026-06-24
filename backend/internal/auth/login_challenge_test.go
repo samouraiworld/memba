@@ -45,10 +45,19 @@ func TestLoginChallengeSignBytes_Shape(t *testing.T) {
 	if !strings.Contains(got, `"memo":`) || !strings.Contains(got, base64.StdEncoding.EncodeToString(nonce)) {
 		t.Errorf("memo missing nonce binding (want memo %q)\nfull: %s", wantMemo, got)
 	}
-	// args must be "args":null to match Adena's proto-roundtrip form (empty args ->
-	// null, adena-module messages.ts:120-124), NOT omitted and NOT [].
-	if !strings.Contains(got, `"args":null`) {
-		t.Errorf(`login msg must emit "args":null to match Adena, got: %s`, got)
+	// args must be OMITTED (no key) to match Adena's proto-roundtrip form: ts-proto's
+	// MsgCall.toJSON drops an empty repeated `args` entirely. The empty scalar
+	// send/max_deposit, by contrast, ARE emitted. Verified byte-exact against a real
+	// Adena signature in login_challenge_realvector_test.go (corrects the prior
+	// "args":null assumption that caused result=signed_invalid in production).
+	if strings.Contains(got, `"args"`) {
+		t.Errorf(`login msg must OMIT "args" (Adena drops empty repeated args), got: %s`, got)
+	}
+	if !strings.Contains(got, `"send":""`) {
+		t.Errorf(`login msg must emit "send":"", got: %s`, got)
+	}
+	if !strings.Contains(got, `"max_deposit":""`) {
+		t.Errorf(`login msg must emit "max_deposit":"", got: %s`, got)
 	}
 	// top-level keys sorted (sortJSON contract).
 	if !strings.HasPrefix(got, `{"account_number":"0","chain_id":"test12"`) {

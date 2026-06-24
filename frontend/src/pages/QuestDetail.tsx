@@ -16,6 +16,7 @@ import {
     getQuestById,
     isQuestAvailable,
     isQuestLive,
+    isBackendVerifiedQuest,
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, type QuestVerificationResult } from "../lib/questVerifier"
@@ -124,6 +125,33 @@ export default function QuestDetail() {
         }
     }, [realmPath, address, questId, auth.token])
 
+    // Backend-verified on_chain quests (join-dao, create-token): the server
+    // re-verifies on-chain from the user's address (no proof, no client pre-check
+    // on the wrong chain). completeQuestVerified awaits the verdict and throws if
+    // the requirement isn't met.
+    const handleBackendVerify = useCallback(async () => {
+        if (!questId || !address) return
+        if (!auth.token) {
+            setVerification({ status: "not_verified", message: "Connect your wallet to verify." })
+            return
+        }
+        setVerifying(true)
+        setVerification(null)
+        try {
+            await completeQuestVerified(questId, "", auth.token)
+            setVerification({ status: "verified", message: "Verified!" })
+            setShowCelebration(true)
+            setTimeout(() => setShowCelebration(false), 4000)
+        } catch {
+            setVerification({
+                status: "not_verified",
+                message: "Couldn't verify on-chain yet — complete the action, then try again.",
+            })
+        } finally {
+            setVerifying(false)
+        }
+    }, [questId, address, auth.token])
+
     if (!quest) {
         return (
             <div className="k-questhub">
@@ -137,6 +165,7 @@ export default function QuestDetail() {
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
     const isDeployQuest = quest.id.startsWith("deploy-")
     const isSelfReport = quest.verification === "self_report"
+    const isBackendVerified = isBackendVerifiedQuest(quest.id)
 
     return (
         <div className="k-questhub">
@@ -246,6 +275,14 @@ export default function QuestDetail() {
                                 </button>
                             </div>
                         </div>
+                    ) : isBackendVerified ? (
+                        <button
+                            className="k-questdetail-verify-btn"
+                            onClick={handleBackendVerify}
+                            disabled={verifying || !address}
+                        >
+                            {verifying ? "Verifying..." : "Verify on-chain"}
+                        </button>
                     ) : (
                         <button
                             className="k-questdetail-verify-btn"

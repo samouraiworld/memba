@@ -4,6 +4,58 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## Unreleased — since v6.3.1 (2026-05-28 → 2026-06-23)
+
+> Large multi-workstream wave merged to `main` after v6.3.1 (~60 PRs). No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
+
+### test12 → test13 cutover + auth enforcement + indexer (2026-06-23)
+- **Production cutover to test13.** Chain flip `GNO_CHAIN_ID test12 → test-13` + RPC + accepted-chain-ids (#450); retire test12 from the network selector (#453); backfill `realm-versions.json` with the live test13 realms (#451); fix the gnoweb test13 URL (#454).
+- **test13 feature completeness:** candidature admin approve/reject UI (#448); channel thread author edit/delete (#449); owner-only Create Channel (#452); truthful home network-status states (#447).
+- **Auth — login signatures now ENFORCED in prod.** Root-caused the long-standing `result=signed_invalid`: the backend reconstructed the login sign-doc with `"args":null`, but Adena's proto-roundtrip omits an empty `args`; `args,omitempty` makes real Adena signatures verify (#456). Confirmed `result=signed` live, then flipped `MEMBA_ALLOW_UNSIGNED_AUTH=0` — empty/invalid/address-only logins are now rejected, closing the impersonation window (#460). `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` held pending live A3 validation.
+- **NFT indexer unfrozen.** Read the block hash from `result.block_meta.block_id.hash` — test13 nests it there, and the wrong path had frozen the tailer at block 259,999 (#457); retry past the public node's intermittent empty responses (#462); pin the tailer to samourai's own RPC node after the resulting fast catch-up tripped the public node's per-IP rate limit (#466).
+- **Fixes/docs:** Candidature "Go to Quest Hub" button → `/quests` (was `/profile`) (#463); consolidated test13 live cross-perspective audit (#464).
+- **Home — Atlas redesign (concurrent session):** visitor "board of doors" home, member home, polish, vendored fonts (#455/#458/#459/#461).
+
+### gnolove (#371–#380, 06-04 → 06-05)
+- Default Home + Report to "This Month" (#371); order Teams index by this-month contributor score (#372).
+- Notable PRs board page (#373), redesign as Linear list + Kanban (#376), and **multi-board** selector mirroring multiple project boards via a code-owned registry (#378, gnolove #230).
+- CI: clear react-router + Go stdlib advisories (#374); restore Node 20 frontend matrix (#375). Docs archived (#380).
+
+### test13 migration + go-live (#377–#382, #408–#421, 06-05 → 06-16)
+- Migration plan + off-chain Phase-2 prep (network entry, CSP, RPC trust) with **no cutover** (#377/#379); unify channels write-API (#381); session-outcome docs (#382).
+- G5 ledger: chain-verify `realm-versions.json`; mark `contracts/` as CI-only stubs (#408/#409).
+- Official onbloc RPC + trust/CSP congruence (#392/#410/#411), drop test11; go-live hardening — chain-mismatch + broadcast + a11y + explorer (#412); chain-id allowlist so test13 works alongside test12 with no forced re-login (#413).
+- **Realms live on test13:** flip `realmsDeployed` on (#416); repoint frontend to deployed `_v2` commerce realms — token creation works (#420); feedback → `memba_feedback_v2` (#421); repair `vm/MsgCall` builders + per-network realm-validity gating (#419). Go-live note → DONE (#417).
+
+### Auth / AAA hardening (#383–#407, #418, 06-10 → 06-16)
+- Fund-safety: AAA CI safety gate for fund-trapping flags (#383); treasury-spend kill-switch (#387); gate agent-credit deposits (#388); tx-confirmation modal before all broadcasts (#389); remove client-side fee Transfer that double-charged token mints (#386).
+- Backend: fix SQLite self-deadlock in `computeLeaderboard` (#385); immutable cache headers for hashed assets (#384).
+- **Signature auth:** gno-canonical **tm2 sign-bytes helper (A2/A3 keystone)** (#397); server-side multisig member-signature verification at submission (#398); verify tx-shaped login proof via canonical sign-bytes (#399); frontend signs tx-shaped login proof (#400); stop minting tokens from empty signatures — gate + enforce switch (#393); lockout-safety fixes (#401/#402/#404); untransacted-wallet login via signature (#403); A2 signed-login disabled then **re-enabled via SignMultisigTransaction** (lockout-safe) (#405→#407). Address-only login + secure-login upgrade hint (#418).
+
+### Validators monitoring (#423–#428, 06-17)
+- Aggregate `/net_info` so test13 peers/nodes match the network (#423); query each node directly (#425); non-blocking peer aggregation (#426); **full Network Nodes roster (Phase 2b)** (#428).
+
+### NFT launchpad + marketplace (#422, #424, #427, #429–#436, #441, 06-17 → 06-19)
+- Design spec + Phase 3+ plan (5-lens CTO-validated) + Phase 0 foundation plan (#422/#427).
+- Launchpad: verified-collection badge (gated, team-curated) (#429); allowlist mint flow + go-live (#424); allowlist `memba_collections` on test13 (#430).
+- **Phase-0 data foundation:** raw immutable event ledger + Sale handler + reorg-safety + points recompute (#431).
+- **v3 trading UI:** token grid + approve→list→buy on `memba_nft_market_v3` (#432); admin-panel UX (#435); 404 + CSS fixes (#433/#434).
+- **Creator Studio** — manage workspace + GNOT mint-price fix (#441). CI: bump frontend timeout to 30m for the E2E suite (#436).
+
+### GnoBuilders (#437, #438, #440, #442, 06-18 → 06-19)
+- Honest + un-gameable baseline, backend hardening, self-report flow, badge-mint tooling (#437); namespace-verified deploy quests (#438); programmatic badge SVG art + IPFS metadata pipeline (#440); server-side verifiers for join-dao + create-token, Phase 3 (#442).
+
+### Home rework — Control Room (#439, 06-19)
+- Action-first home (Phase 0+1): mode-aware Home, ActionInbox/VisitorHero spine, 7 lazy error-isolated StateBoard panels, Landing + Remotion retired (#439). *(Phase 2 server-side `GetHomeSnapshot` in-flight on PR #445.)*
+
+### Known carry-forward (not yet shipped)
+- Release tag/version still to cut.
+- **test12 cutover DONE** (prod now `test-13`) and **login auth enforcement LIVE** (#460); multisig A3 enforcement (`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY`) still held pending live A3 validation.
+- NFT marketplace/launchpad + Services still gated OFF in repo (`VITE_ENABLE_NFT`/`VITE_ENABLE_SERVICES=false`); GnoBuilders badges deployed but never minted. NFT #443 (marketplace Phase 2) open, pending on-chain E2E.
+- 28 Dependabot alerts (1 critical) pending a dependency refresh; rotate the OpenRouter key in `.env`; observability (metrics/log-drain) still to stand up.
+
+---
+
 ## v6.3.1 — Post-v6.3.0 cleanup (2026-05-26 / 2026-05-27)
 
 > Trailing wave that closed Phase 7, knocked out the remaining dependency-vuln backlog, hardened the team-logo merge seed, fixed mobile overflow, and reorganized `docs/planning/`. Merged via #361–#368 across two days.

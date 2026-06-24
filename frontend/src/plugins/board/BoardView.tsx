@@ -18,7 +18,7 @@ import type { PluginProps } from "../types"
 import { getBoardInfo } from "./parser"
 import type { BoardInfo } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
-import { buildChannelCreateThreadMsg, buildChannelReplyMsg } from "../../lib/channelTemplate"
+import { buildChannelCreateThreadMsg, buildChannelReplyMsg, buildEditThreadMsg, buildDeleteThreadMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL } from "../../lib/config"
 import { useChannelPolling } from "../../hooks/useChannelPolling"
@@ -227,6 +227,42 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             refresh() // v2.5b: immediate refetch after reply
         } catch (err) {
             setFormError(err instanceof Error ? err.message : "Failed to reply")
+        } finally {
+            setPosting(false)
+        }
+    }
+
+    // Author-only thread edit (v2 channel realm: EditThread). The realm enforces
+    // author === caller; the UI gate in ThreadView is a UX affordance.
+    const handleEditThread = async (newBody: string) => {
+        if (!auth.isAuthenticated || !adena.address || viewState.threadId === null) return
+        if (!newBody.trim()) { setFormError("Thread body cannot be empty"); return }
+        setPosting(true)
+        setFormError(null)
+        try {
+            const msg = buildEditThreadMsg(adena.address, boardPath, viewState.channel, viewState.threadId, newBody.trim())
+            await doContractBroadcast([msg], "Edit thread")
+            refresh()
+        } catch (err) {
+            setFormError(err instanceof Error ? err.message : "Failed to edit thread")
+        } finally {
+            setPosting(false)
+        }
+    }
+
+    // Author-only thread delete (v2 channel realm: DeleteThread — soft delete).
+    const handleDeleteThread = async () => {
+        if (!auth.isAuthenticated || !adena.address || viewState.threadId === null) return
+        if (typeof window !== "undefined" && !window.confirm("Delete this thread? This can't be undone.")) return
+        setPosting(true)
+        setFormError(null)
+        try {
+            const msg = buildDeleteThreadMsg(adena.address, boardPath, viewState.channel, viewState.threadId)
+            await doContractBroadcast([msg], "Delete thread")
+            navigateTo("channel", viewState.channel)
+            refresh()
+        } catch (err) {
+            setFormError(err instanceof Error ? err.message : "Failed to delete thread")
         } finally {
             setPosting(false)
         }
@@ -443,6 +479,10 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     onSubmitReply={handleReply}
                     posting={posting}
                     error={error}
+                    callerAddress={adena.address}
+                    supportsModeration={isV2}
+                    onEditThread={handleEditThread}
+                    onDeleteThread={handleDeleteThread}
                 />
             </div>
         )

@@ -24,7 +24,8 @@ test.describe('Sidebar Navigation (Desktop ≥1025px)', () => {
         const logo = page.locator('[data-testid="sidebar"] a[aria-label="Memba home"]')
         await expect(logo).toBeVisible()
         await logo.click()
-        await expect(page).toHaveURL(/\/$|\/dashboard/)
+        // Home rework: /:network/dashboard no longer routed; logo goes to /:network/
+        await expect(page).toHaveURL(/\/\w+\/$/)
     })
 
     test('Home nav link active on /', async ({ page }) => {
@@ -76,10 +77,11 @@ test.describe('Sidebar Navigation (Desktop ≥1025px)', () => {
         await expect(feedbackLink).toBeVisible()
     })
 
-    test('/dashboard redirects to landing when disconnected', async ({ page }) => {
+    test('/dashboard redirects to home when disconnected', async ({ page }) => {
         await page.goto('/dashboard')
-        // Legacy redirect: /dashboard → /:network/dashboard → /:network/ (landing)
+        // Home rework: /:network/dashboard redirects to /:network/ (Control Room home)
         await page.waitForURL(/\/\w+\/$/, { timeout: 5000 })
+        await expect(page.getByTestId('home-root')).toBeVisible()
     })
 })
 
@@ -184,7 +186,7 @@ test.describe('Network-Scoped Routing (/:network prefix)', () => {
 
     test('/ redirects to /:network/', async ({ page }) => {
         await page.goto('/')
-        // Should redirect to a network-prefixed URL (e.g., /test12/)
+        // Should redirect to a network-prefixed URL (e.g., /test13/)
         await page.waitForURL(/\/\w+\//, { timeout: 5000 })
         const url = page.url()
         expect(url).toMatch(/\/\w+\/$/)

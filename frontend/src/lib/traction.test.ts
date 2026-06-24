@@ -15,13 +15,13 @@ beforeEach(() => {
 })
 
 describe("fetchTractionMetrics", () => {
-    it("returns metrics with daoCount >= 0", async () => {
+    it("leaves daoCount at 0 (deprecated — no global DAO registry; never namespace-counted)", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValue(
             new Response(JSON.stringify([]), { status: 200 }),
         )
 
         const metrics = await fetchTractionMetrics()
-        expect(metrics.daoCount).toBeGreaterThanOrEqual(0)
+        expect(metrics.daoCount).toBe(0)
         expect(metrics.fetchedAt).toBeGreaterThan(0)
     })
 
@@ -44,12 +44,11 @@ describe("fetchTractionMetrics", () => {
     })
 
     it("parses contributor total from API response", async () => {
-        // /stats returns { users: [...] }, /repositories returns [...], gnoweb returns HTML
+        // /stats returns { users: [...] }, /repositories returns [...]
         const mockUsers = Array.from({ length: 42 }, (_, i) => ({ login: `user${i}` }))
         vi.spyOn(globalThis, "fetch")
             .mockResolvedValueOnce(new Response(JSON.stringify({ users: mockUsers }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify([{ name: "repo1" }, { name: "repo2" }]), { status: 200 }))
-            .mockResolvedValueOnce(new Response("", { status: 200 })) // gnoweb namespace query
 
         const metrics = await fetchTractionMetrics()
         expect(metrics.contributorCount).toBe(42)

@@ -18,8 +18,8 @@
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.samourai.app https://plausible.io blob:;
     worker-src 'self' blob:;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com;
+    style-src 'self' 'unsafe-inline';
+    font-src 'self';
     img-src 'self' data: https: ipfs:;
     media-src 'self' data: blob:;
     object-src 'none';
@@ -43,13 +43,6 @@
   <meta name="twitter:description"
     content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta name="twitter:image" content="/og-image.png" />
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet" />
 
   <!-- Favicons -->
   <link rel="icon" type="image/png" sizes="32x32" href="/memba-icon.png" />

@@ -22,9 +22,10 @@ export interface NamespaceItem {
 
 /** Gnoweb URLs per network chain ID. */
 const GNOWEB_URLS: Record<string, string> = {
-    test12: "https://gnoweb.test12.moul.p2p.team",
-    "portal-loop": "https://gno.land",
-    staging: "https://staging.gno.land",
+    // Official test13 gnoweb (verified live). Without this, getGnowebUrl("test13")
+    // was undefined → home traction DAO-count read 0 and directory drawers fell
+    // back to generic gno.land. Env-overridable to match the test13 RPC config.
+    test13: import.meta.env.VITE_TEST13_GNOWEB_URL || "https://test13.testnets.gno.land",
     gnoland1: "https://gno.land",
 }
 

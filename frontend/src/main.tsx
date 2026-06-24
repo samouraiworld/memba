@@ -1,9 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
+import { queryClient } from './lib/queryClient'
+// Vendored woff2 fonts — latin subset, no OFL npm dep
+import './fonts.css'
 import './tokens.css'
 import './index.css'
 import App from './App.tsx'
@@ -50,9 +54,11 @@ if (SENTRY_DSN) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <TxConfirmationProvider>
-        <App />
-      </TxConfirmationProvider>
+      <QueryClientProvider client={queryClient}>
+        <TxConfirmationProvider>
+          <App />
+        </TxConfirmationProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
