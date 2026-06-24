@@ -12,9 +12,9 @@ import (
 )
 
 type SaleEvent struct {
-	Via, Collection, TokenID, Seller, Buyer string
-	Price, Royalty                          int64
-	Block                                   int64
+	Via, Collection, TokenID, Seller, Buyer, RoyaltyRecipient string
+	Price, Royalty                                            int64
+	Block                                                     int64
 }
 
 // roles returns (maker, taker) per the frozen via→role mapping (invariant #2).
@@ -35,7 +35,15 @@ func Recompute(sales []SaleEvent, formulaVersion string) map[string]int64 {
 	out := map[string]int64{}
 	for _, s := range sales {
 		if s.Buyer == s.Seller {
-			continue // self-deal excluded
+			continue // self-deal excluded (invariant #5)
+		}
+		// Self-royalty (audit ECO-1): if the royalty recipient is the buyer or
+		// seller, the "royalty wash-tax" stays inside the trader's own sphere —
+		// it isn't a real cost, so it must NOT earn points. This closes the
+		// creator-farming hole (a creator routing royalty to a wallet they
+		// control). Genuine royalty paid to a third party still counts.
+		if s.RoyaltyRecipient != "" && (s.RoyaltyRecipient == s.Seller || s.RoyaltyRecipient == s.Buyer) {
+			continue
 		}
 		base := s.Royalty // royalty-weighted: zero royalty → zero points
 		if base <= 0 {
@@ -72,7 +80,7 @@ func LoadConfirmedSales(ctx context.Context, db *sql.DB, indexedThrough int64) (
 		}
 		out = append(out, SaleEvent{
 			Via: m["via"], Collection: m["collection"], TokenID: m["tokenId"],
-			Seller: m["seller"], Buyer: m["buyer"],
+			Seller: m["seller"], Buyer: m["buyer"], RoyaltyRecipient: m["royaltyRecipient"],
 			Price: atoi64(m["price"]), Royalty: atoi64(m["royalty"]), Block: block,
 		})
 	}
