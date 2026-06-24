@@ -27,9 +27,11 @@ const rpcAttemptTimeout = 8 * time.Second
 // fallbackRpcUrls + telemetry nodes). Used ONLY on a transport error from the
 // primary — a valid "no record" answer never triggers failover.
 var defaultTest13Fallbacks = []string{
-	"https://rpc.test13.testnets.gno.land:443",        // public canonical
-	"https://test13.rpc.onbloc.xyz:443",               // onbloc
-	"https://rpc.test-13-aeddi-1.gnoland.network:443", // gno-core / aeddi
+	"https://rpc.test13.testnets.gno.land:443", // public canonical
+	"https://test13.rpc.onbloc.xyz:443",        // onbloc
+	// aeddi's rpc.test-13-aeddi-1 node was dropped here: it's on the deprecating
+	// *.test-13.gnoland.network family (gno core, 2026-06-24). Set RPC_FALLBACK_URLS
+	// to add nodes without a code change.
 }
 
 // rpcFallbackURLs returns the ordered backup node list. RPC_FALLBACK_URLS

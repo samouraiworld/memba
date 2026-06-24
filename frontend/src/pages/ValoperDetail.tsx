@@ -4,13 +4,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useLocation, useParams } from "react-router-dom"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import {
     VALOPERS_REALM,
     parseValoperDetail,
     computeValoperStatus,
-    valoperGnowebBase,
     type ValoperWithStatus,
 } from "../lib/valopers"
 import { getValidators } from "../lib/validators"
@@ -111,7 +110,7 @@ export default function ValoperDetail() {
         return () => { document.title = "Memba" }
     }, [valoper?.moniker])
 
-    const gnowebUrl = operatorAddress ? `${valoperGnowebBase()}/r/gnops/valopers:${operatorAddress}` : "#"
+    const gnowebUrl = operatorAddress ? `${getExplorerBaseUrl()}/r/gnops/valopers:${operatorAddress}` : "#"
 
     // ── loading ──
     if (loading) {
