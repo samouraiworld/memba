@@ -255,24 +255,30 @@ export async function completeQuestVerified(
 }
 
 /**
- * Check if user has enough XP for candidature.
- * Grandfathering: users who reached 100 XP before GnoBuilders v4.0
- * are still eligible even if below the new 350 XP threshold.
+ * Pure candidature-eligibility rule: eligible at the current XP threshold (350), or
+ * grandfathered (≥ the legacy 100 threshold AND flagged legacy-eligible). Kept pure so
+ * the local and backend-authoritative paths share one tested rule.
+ */
+export function isEligibleForCandidature(totalXP: number, legacyEligible: boolean): boolean {
+    if (totalXP >= CANDIDATURE_XP_THRESHOLD) return true
+    if (totalXP >= LEGACY_CANDIDATURE_THRESHOLD && legacyEligible) return true
+    return false
+}
+
+/**
+ * Local (offline-first) eligibility check from localStorage. NOTE: localStorage is
+ * user-editable — for the authoritative gate on the application form prefer
+ * {@link resolveCandidatureEligibility}, which uses backend XP when connected.
  */
 export function canApplyForMembership(): boolean {
-    const state = loadQuestProgress()
-    if (state.totalXP >= CANDIDATURE_XP_THRESHOLD) return true
-    // Grandfathering: check if user was eligible under the old threshold
-    // and has the legacy flag set (old quests completed before v4.0)
-    if (state.totalXP >= LEGACY_CANDIDATURE_THRESHOLD && isLegacyEligible()) return true
-    return false
+    return isEligibleForCandidature(loadQuestProgress().totalXP, isLegacyEligible())
 }
 
 /**
  * Check if user has legacy eligibility (reached 100 XP before v4.0).
  * Set automatically when v1 quests were completed before the threshold change.
  */
-function isLegacyEligible(): boolean {
+export function isLegacyEligible(): boolean {
     try {
         return localStorage.getItem(_scopedKey("memba_legacy_candidature")) === "true"
     } catch {
@@ -373,6 +379,22 @@ export async function fetchUserQuests(address: string): Promise<UserQuestState |
         // Backend unreachable
     }
     return null
+}
+
+/**
+ * Resolve candidature eligibility. When a wallet is connected, gate on the
+ * backend-authoritative XP — localStorage is user-editable and must not unlock the
+ * application form on its own (closes the localStorage-XP bypass). Falls back to the
+ * local check when disconnected, or when the backend is unreachable (degrade, not block).
+ */
+export async function resolveCandidatureEligibility(
+    address: string | null | undefined,
+    fetchQuests: (addr: string) => Promise<UserQuestState | null> = fetchUserQuests,
+): Promise<boolean> {
+    if (!address) return canApplyForMembership()
+    const state = await fetchQuests(address)
+    if (!state) return canApplyForMembership()
+    return isEligibleForCandidature(state.totalXP, isLegacyEligible())
 }
 
 // ── Page Visit Tracking ──────────────────────────────────────
