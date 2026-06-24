@@ -68,17 +68,6 @@ vi.mock("../hooks/home/useNetworkPulse", () => ({
     })),
 }))
 
-vi.mock("../hooks/home/useEcosystemCounts", () => ({
-    useEcosystemCounts: vi.fn(() => ({
-        tokens: 1,
-        agents: 0,
-        validators: 3,
-        daos: 5,
-        collections: 2,
-        loading: false,
-    })),
-}))
-
 vi.mock("../hooks/home/useValidatorHealth", () => ({
     useValidatorHealth: vi.fn(() => ({
         status: "healthy",
