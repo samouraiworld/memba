@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"log/slog"
 	"strconv"
+
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 // atoiSafe parses a base-10 integer attribute, returning 0 on any error. Event
@@ -328,6 +330,7 @@ func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	// amounts (audit F2). The raw event is already persisted by recordRawEvent, so
 	// it's recoverable; the warning is the operator signal that schema drift hit.
 	if !validVia(via) || col == "" || tok == "" || seller == "" || buyer == "" || !priceOK || !feeOK || !royaltyOK {
+		metrics.NFTEventDropped.WithLabelValues("Sale").Inc()
 		slog.Warn("indexer: skipping malformed Sale event",
 			"pkg", ev.PkgPath, "block", ev.Block, "tx", ev.TxIndex, "idx", ev.EventIdx,
 			"via", via, "collection", col, "tokenId", tok,

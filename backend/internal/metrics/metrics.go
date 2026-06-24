@@ -35,3 +35,16 @@ var (
 		Help: "Latest chain height the NFT tailer observed; chain_head - last_block is the indexer lag.",
 	})
 )
+
+// NFTEventDropped counts NFT events the indexer skipped as malformed (audit
+// F2/F12): e.g. a Sale with an unknown `via` or missing/garbled
+// price/fee/royalty. These are otherwise silent — a nonzero rate signals
+// on-chain event-schema drift, so alert on any increment. Incremented in
+// internal/indexer (the same paths that slog.Warn the drop).
+var NFTEventDropped = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "memba_nft_event_dropped_total",
+		Help: "NFT events the indexer skipped as malformed, by event type — alert on any (schema drift).",
+	},
+	[]string{"event"},
+)
