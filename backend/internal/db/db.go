@@ -13,7 +13,10 @@ var migrationsFS embed.FS
 
 // Open creates a new SQLite connection with WAL mode and foreign keys enabled.
 func Open(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
+	// busy_timeout(5000): a contended writer waits up to 5s for the lock instead
+	// of failing immediately with SQLITE_BUSY (the WAL checkpoint and the NFT
+	// indexer tailer can briefly hold it).
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
