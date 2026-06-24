@@ -17,6 +17,7 @@ import {
     getActivityLevel,
     parseDAOMemberAddresses,
     calculateContributionScores,
+    unionDaoMembers,
     getDiscoveryProbes,
     addDiscoveryProbe,
     fetchPackages,
@@ -25,6 +26,28 @@ import {
     SEED_PACKAGES,
     SEED_REALMS,
 } from "./directory"
+
+// ── DAO-member union (Users-tab source on test13) ────────────
+
+describe("unionDaoMembers", () => {
+    test("unions and dedupes member addresses across DAOs (first-seen order)", () => {
+        const m = new Map<string, string[]>([
+            ["gno.land/r/samcrew/memba_dao", ["g1aaa", "g1bbb"]],
+            ["gno.land/r/gov/dao", ["g1bbb", "g1ccc"]],
+        ])
+        expect(unionDaoMembers(m).map(u => u.address)).toEqual(["g1aaa", "g1bbb", "g1ccc"])
+        expect(unionDaoMembers(m).every(u => u.name === "")).toBe(true)
+    })
+
+    test("dedupes case-insensitively", () => {
+        const m = new Map<string, string[]>([["d", ["g1ABC", "g1abc"]]])
+        expect(unionDaoMembers(m)).toHaveLength(1)
+    })
+
+    test("returns an empty list for an empty map", () => {
+        expect(unionDaoMembers(new Map())).toEqual([])
+    })
+})
 
 // ── Token Registry Parsing ───────────────────────────────────
 
