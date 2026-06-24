@@ -44,8 +44,8 @@ func newTestService(t *testing.T) *MultisigService {
 func TestHomeSnapshotRPCURL_DefaultsToTest13(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
 	t.Setenv("NFT_RPC_URL", "")
-	if got := homeSnapshotRPCURL(); got != "https://rpc.test13.testnets.gno.land:443" {
-		t.Fatalf("default = %q, want test13 rpc", got)
+	if got := homeSnapshotRPCURL(); got != "https://rpc.testnet13.samourai.live:443" {
+		t.Fatalf("default = %q, want the pinned test13 rpc (not the rate-limited public node)", got)
 	}
 }
 
