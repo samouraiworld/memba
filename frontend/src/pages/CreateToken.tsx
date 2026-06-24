@@ -194,7 +194,7 @@ export function CreateToken() {
             </div>
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
+                <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
                     <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to create a token
                     </p>
@@ -208,13 +208,13 @@ export function CreateToken() {
             )}
 
             {/* Admin mode tabs */}
-            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222" }}>
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--color-k-edge)" }}>
                 <button
                     onClick={() => setAdminMode("self")}
                     style={{
                         padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: adminMode === "self" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: adminMode === "self" ? "#00d4aa" : "#666",
+                        borderBottom: adminMode === "self" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
+                        color: adminMode === "self" ? "var(--color-k-accent)" : "var(--color-k-muted)",
                         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
                         cursor: "pointer", transition: "all 0.15s",
                     }}
@@ -225,8 +225,8 @@ export function CreateToken() {
                     onClick={() => setAdminMode("multisig")}
                     style={{
                         padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: adminMode === "multisig" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: adminMode === "multisig" ? "#00d4aa" : "#666",
+                        borderBottom: adminMode === "multisig" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
+                        color: adminMode === "multisig" ? "var(--color-k-accent)" : "var(--color-k-muted)",
                         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
                         cursor: "pointer", transition: "all 0.15s",
                     }}
@@ -375,8 +375,8 @@ export function CreateToken() {
                 disabled={loading || !auth.isAuthenticated || !name.trim() || !symbol.trim()}
                 style={{
                     width: "100%", height: 44, borderRadius: 8,
-                    background: loading ? "#222" : "#00d4aa",
-                    color: loading ? "#666" : "#000",
+                    background: loading ? "var(--color-k-edge)" : "var(--color-k-accent)",
+                    color: loading ? "var(--color-k-muted)" : "var(--color-k-on-accent)",
                     fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 600,
                     border: "none", cursor: loading ? "not-allowed" : "pointer",
                     transition: "all 0.15s", letterSpacing: "-0.01em",
@@ -418,7 +418,7 @@ const hintStyle: React.CSSProperties = {
 function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
+        background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-k-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }
