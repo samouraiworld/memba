@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { assertSafeFlags, SAFETY_GATED_FLAGS } from "./safeFlags"
+import { assertSafeFlags, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
 
 describe("assertSafeFlags", () => {
     it("passes when no gated flag is enabled", () => {
@@ -37,5 +37,23 @@ describe("assertSafeFlags", () => {
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
         ])
+    })
+})
+
+describe("shouldEnforceFlagGate", () => {
+    it("enforces on a CI / local production build (no Netlify CONTEXT)", () => {
+        expect(shouldEnforceFlagGate("build", undefined)).toBe(true)
+    })
+    it("enforces on the Netlify PRODUCTION build (CONTEXT=production)", () => {
+        expect(shouldEnforceFlagGate("build", "production")).toBe(true)
+    })
+    it("does NOT enforce on Netlify deploy-previews (gated features are legitimately tested there)", () => {
+        expect(shouldEnforceFlagGate("build", "deploy-preview")).toBe(false)
+    })
+    it("does NOT enforce on Netlify branch-deploys", () => {
+        expect(shouldEnforceFlagGate("build", "branch-deploy")).toBe(false)
+    })
+    it("does NOT enforce in dev / serve", () => {
+        expect(shouldEnforceFlagGate("serve", undefined)).toBe(false)
     })
 })

@@ -31,3 +31,14 @@ export function assertSafeFlags(env: Record<string, string | undefined>): void {
         )
     }
 }
+
+/**
+ * Whether the fund-flag gate should enforce for this build. Enforces on CI /
+ * local production builds (no Netlify CONTEXT) and the Netlify PRODUCTION build
+ * (CONTEXT=production) — the builds that ship to real users. Skips Netlify
+ * deploy-previews and branch-deploys, where a team legitimately enables a gated
+ * flag to test the feature. Never enforces in dev/serve.
+ */
+export function shouldEnforceFlagGate(command: string, context: string | undefined): boolean {
+    return command === "build" && context !== "deploy-preview" && context !== "branch-deploy"
+}

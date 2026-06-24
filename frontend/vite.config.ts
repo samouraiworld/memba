@@ -3,7 +3,7 @@ import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync } from 'node:fs'
-import { assertSafeFlags } from './src/lib/safeFlags'
+import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -15,7 +15,9 @@ function safeFlagsPlugin(): PluginOption {
   return {
     name: 'memba-safe-flags',
     config(_config, { command, mode }) {
-      if (command === 'build') {
+      // Netlify sets CONTEXT (production / deploy-preview / branch-deploy); CI/local
+      // leave it unset. Enforce on CI + the production build, skip ephemeral previews.
+      if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {
         assertSafeFlags({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
       }
     },
