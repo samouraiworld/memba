@@ -34,7 +34,11 @@ func TestA3_RealAdenaSignature(t *testing.T) {
 - **If it passes:** the canonical shape is correct end-to-end. Proceed to Gate 3.
 - **If it FAILS:** the assumption about Adena's exact form is wrong (most likely `args` — `null` vs `[]` vs absent — or `max_deposit` presence, or coin-string formatting). Diff the captured `msgs_json` against `toCanonicalMsg`'s output and fix `lib/multisigTx.ts` + this fixture until it verifies. **Do not flip until green.**
 
-> **Also validate the manual "Paste gnokey Sig" path.** The stored msgs use `args:null` (Adena's proto-roundtrip form), but `gnokey sign` may canonicalize a nil `args` to *absent* (the `gnokey` golden vector omits it) → a gnokey-produced signature could diverge from the `args:null` reconstruction. Before enforcing, also capture a real **gnokey** member signature over an exported tx and confirm it verifies; if it doesn't, the gnokey path needs the backend to reconstruct the gnokey form (or the export to omit nil `args`). The Adena path (the "Sign Transaction" button) is the primary flow this PR aligns.
+> **On `args:null` (the field most likely to diverge).** Reassurance for the Adena path: the prod-**enforced** A2 login already signs an `args:null` no-args `/vm.m_call` via the same `SignMultisigTransaction`, and the backend verifies it in production *today* — so the Adena **no-args** case is already proven. Gate 2 must still confirm a **with-args** Adena call (`args:["…"]`).
+>
+> **Also validate the manual "Paste gnokey Sig" path.** The stored msgs use `args:null`, but `gnokey sign` may canonicalize a nil `args` to *absent* (the `gnokey` golden vector omits it) → a gnokey-produced signature could diverge from the `args:null` reconstruction. Before enforcing, capture a real **gnokey** member signature over an exported tx and confirm it verifies; if it doesn't, the gnokey path needs the backend to reconstruct the gnokey form (or the export to omit nil `args`).
+>
+> **Legacy pending txs:** transactions created **before** this PR stored the cosmos `{amount,gas}` fee; after this PR `signArbitrary` can't sign them (fee fields undefined → fail-closed, "Signature rejected"). Re-create any such pending tx with the new canonical form.
 
 ## Gate 3 — observe log-only health, then flip
 

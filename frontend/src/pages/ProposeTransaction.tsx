@@ -161,7 +161,10 @@ export function ProposeTransaction() {
             // so the backend A3 verifier reconstructs identical sign-bytes. The old
             // cosmos-shaped {amount,gas} fee + {type,value}-wrapped msgs diverged from
             // what Adena signed → A3 verify failed → enforce would brick signing.
-            const { msgsJson, feeJson } = buildCanonicalProposePayload(msgs, txType === "call")
+            // GRC20 ops are vm/MsgCall contract calls too — they need the higher
+            // call gas budget, not the cheap send budget (else broadcast OOGs).
+            const isContractCall = txType === "call" || txType.startsWith("grc20-")
+            const { msgsJson, feeJson } = buildCanonicalProposePayload(msgs, isContractCall)
 
             const res = await api.createTransaction({
                 authToken: auth.token,

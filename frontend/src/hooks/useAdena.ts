@@ -268,19 +268,12 @@ export function useAdena() {
                     }
                 }
 
-                // Fallback: try Sign() (uses signer's own account — may not work for multisig)
-                if (typeof adena.Sign === "function") {
-                    const res = await adena.Sign({
-                        messages: multisigDoc.tx.msg,
-                        memo: multisigDoc.tx.memo,
-                    });
-                    if (res.status !== "failure") {
-                        return res.data?.signature?.signature
-                            || res.data?.signed?.signature?.signature
-                            || null;
-                    }
-                }
-
+                // No fallback to adena.Sign(): it signs with the SIGNER's own account
+                // (not the multisig's account_number/sequence), producing a signature
+                // over different bytes that can NEVER verify against the multisig
+                // sign-doc — storing it would be a silent, permanently-invalid sig that
+                // only surfaces when A3 enforcement is flipped. Fail loudly instead
+                // (TransactionView shows "Signature rejected").
                 return null;
             } catch (err) {
                 console.error("[Memba] Sign error:", err);
