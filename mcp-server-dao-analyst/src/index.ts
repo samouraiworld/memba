@@ -490,18 +490,18 @@ server.registerTool(
       network: z
         .string()
         .describe(
-          'Network name ("mainnet", "test5", "test12", "test13") or a full RPC URL (e.g., "https://rpc.gno.land")'
+          'Network name ("mainnet", "test5", "test13") or a full RPC URL (e.g., "https://rpc.gno.land")'
         ),
     },
   },
   async ({ network }) => {
-    // test13 RPC is aeddi's non-canonical node — keep it env-overridable (TEST13_RPC_URL).
-    // On-wire chain-id is "test-13" (hyphen); this map keys by network NAME, not chain-id.
+    // test13 default is the pinned samourai node (matches the Memba app); env-overridable
+    // via TEST13_RPC_URL. On-wire chain-id is "test-13" (hyphen); this map keys by network
+    // NAME, not chain-id. (testnet12 retired — removed.)
     const KNOWN_NETWORKS: Record<string, string> = {
       mainnet: "https://rpc.gno.land",
       test5: "https://rpc.test5.gno.land",
-      test12: "https://rpc.testnet12.samourai.live:443",
-      test13: process.env.TEST13_RPC_URL || "https://rpc.test-13-aeddi-1.gnoland.network",
+      test13: process.env.TEST13_RPC_URL || "https://rpc.testnet13.samourai.live:443",
     };
 
     const rpcUrl = KNOWN_NETWORKS[network.toLowerCase()] || network;
@@ -511,7 +511,7 @@ server.registerTool(
       return {
         content: [{
           type: "text",
-          text: `Unknown network "${network}". Use: mainnet, test5, test12, test13, or a full URL.`,
+          text: `Unknown network "${network}". Use: mainnet, test5, test13, or a full URL.`,
         }],
         isError: true,
       };

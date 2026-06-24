@@ -2,7 +2,7 @@
 
 Multi-model AI governance analyst for Gno DAOs. Analyzes proposals from legal, technical, and financial perspectives using free-tier LLM consensus.
 
-Registered on-chain: [`gno.land/r/samcrew/agent_registry`](https://testnet12.gno.land/r/samcrew/agent_registry:agent/dao-analyst) (testnet12)
+Registers on-chain in [`gno.land/r/samcrew/agent_registry`](https://gno.land/r/samcrew/agent_registry:agent/dao-analyst) — run `register-agent.sh` to register on test13.
 
 ## Tools
 
@@ -59,7 +59,7 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GNO_RPC_URL` | No | testnet12 | Gno RPC endpoint |
+| `GNO_RPC_URL` | No | test13 | Gno RPC endpoint |
 | `MEMBA_BACKEND_URL` | No | `http://localhost:8080` | Memba backend for LLM routing |
 | `DAO_ANALYST_TOKEN` | No | — | Auth token for PRO tier |
 | `DAO_ANALYST_USER_ADDRESS` | No | — | Gno address for on-chain credit lookup |
@@ -84,7 +84,7 @@ Built-in network aliases:
 |------|-----|
 | `mainnet` | `https://rpc.gno.land` |
 | `test5` | `https://rpc.test5.gno.land` |
-| `test12` | `https://rpc.testnet12.samourai.live:443` |
+| `test13` | `https://rpc.testnet13.samourai.live:443` |
 
 Switch mid-conversation: use the `dao_set_network` tool.
 
