@@ -24,8 +24,10 @@ import (
 // unit-testable without a live chain. Defaults to the package-level abciQuery.
 type queryFunc func(rpcURL, path, data string) (string, error)
 
-// homeSnapshotRPCURL returns the RPC the home snapshot reads (test13 by default).
-// IMPORTANT: do not use gnoRPCURL() here — it defaults to testnet12.
+// homeSnapshotRPCURL returns the RPC the home snapshot reads. The default is the
+// pinned samourai node (matching fly.toml) — NOT the public test13 node, which
+// rate-limits the Fly egress IP (#466); an unset env must not silently re-trigger
+// that. do not use gnoRPCURL() here — it defaults to testnet12.
 func homeSnapshotRPCURL() string {
 	if v := os.Getenv("HOME_SNAPSHOT_RPC_URL"); v != "" {
 		return v
@@ -33,7 +35,7 @@ func homeSnapshotRPCURL() string {
 	if v := os.Getenv("NFT_RPC_URL"); v != "" {
 		return v
 	}
-	return "https://rpc.test13.testnets.gno.land:443"
+	return "https://rpc.testnet13.samourai.live:443"
 }
 
 // homeSnapshotTTL is the cache window (default 30s, env HOME_SNAPSHOT_TTL as a Go duration).

@@ -66,7 +66,7 @@ export function CreateToken() {
             <ComingSoonGate
                 title="Token Factory"
                 icon="🪙"
-                description="Token creation isn't available on this network yet. The token factory contract is live on Testnet 12 — switch networks to create tokens."
+                description="Token creation isn't available on this network yet. The token factory contract is live on Testnet 13 — switch networks to create tokens."
                 features={["Create GRC20 tokens", "Mint, transfer & burn", "Built-in faucet & DAO treasury minting"]}
             />
         )
