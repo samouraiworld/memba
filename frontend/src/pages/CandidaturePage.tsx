@@ -1,7 +1,7 @@
 /**
  * CandidaturePage — Memba DAO membership application form.
  *
- * Gated by quest XP: users must reach CANDIDATURE_XP_THRESHOLD (100 XP)
+ * Gated by quest XP: users must reach CANDIDATURE_XP_THRESHOLD (350 XP)
  * before they can submit. Displays current quest progress when below threshold.
  *
  * On submit, builds a MsgCall to the candidature realm and broadcasts via Adena.
@@ -13,7 +13,7 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { QuestProgress } from "../components/ui/QuestProgress"
 import {
-    canApplyForMembership,
+    resolveCandidatureEligibility,
     loadQuestProgress,
     CANDIDATURE_XP_THRESHOLD,
     trackPageVisit,
@@ -56,9 +56,17 @@ export default function CandidaturePage() {
     useEffect(() => {
         document.title = "Candidature — Memba"
         trackPageVisit("candidature")
-        setEligible(canApplyForMembership())
         setQuestState(loadQuestProgress())
     }, [])
+
+    // Authoritative eligibility: when connected, gate on backend XP — localStorage is
+    // user-editable and must not unlock the application form on its own.
+    useEffect(() => {
+        let cancelled = false
+        resolveCandidatureEligibility(auth.address || adena.address)
+            .then(ok => { if (!cancelled) setEligible(ok) })
+        return () => { cancelled = true }
+    }, [auth.address, adena.address])
 
     // Load existing candidatures from on-chain
     const loadCandidatures = useCallback(async () => {

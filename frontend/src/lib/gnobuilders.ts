@@ -237,8 +237,8 @@ export function getVisibleQuests(completedIds: Set<string>): GnoQuest[] {
 //
 // Must stay aligned with the backend: every LIVE on_chain quest needs a
 // working server-side verifier in backend/internal/service/quest_verify.go.
-// join-dao / create-token are intentionally NOT live yet — their checks need
-// structured render parsing (a substring scan is spoofable), deferred to Phase 3.
+// join-dao / create-token use structured render parsing (a substring scan would be
+// spoofable) and ARE live as of Phase 3 — see the note at their entries below.
 export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // Onboarding / off-chain (auto-tracked by UI actions or backend checks)
     "connect-wallet", "setup-profile", "use-cmdk", "switch-network",
