@@ -26,14 +26,14 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `test12` (today); `gnoland1` after Phase 5 | Gno | Samourai sentry RPC: `rpc.testnet12.samourai.live` / `rpc.gnoland1.samourai.live` |
+| Chain | `test-13` (live); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.test13.testnets.gno.land`; betanet: `rpc.gnoland1.samourai.live` |
 
 ### Critical environment variables
 
 | Var | Surface | Owner | Notes |
 |-----|---------|-------|-------|
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
-| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; defaults to `test12`. |
+| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `test-13` in prod. No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions | Netlify deploy | |
 | `SENTRY_AUTH_TOKEN` | GitHub Actions | source-map upload | Required by `@sentry/vite-plugin`; was unwired before `v6.0.2`. |
@@ -207,7 +207,7 @@ Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 
 ```bash
 # Live chain probes (used in Phase 0/1 acceptance + every release)
-curl -s https://rpc.testnet12.samourai.live/status | jq .result.sync_info.latest_block_height
+curl -s https://rpc.test13.testnets.gno.land/status | jq .result.sync_info.latest_block_height
 curl -s https://rpc.gnoland1.samourai.live/status | jq .result.sync_info.latest_block_height
 
 # Transfer-lock probe (Phase 1.5 / Phase 5 gate)

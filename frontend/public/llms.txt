@@ -2,7 +2,7 @@
 
 > Gno-native multisig wallet and DAO governance app on gno.land. Operate multisig wallets, launch and govern DAOs, launch tokens, run an on-chain AI-agent marketplace, and analyze contributors — all backed by on-chain Gno realms.
 
-Memba runs on the gno.land testnets (`test12` today; `test-13` on the onbloc canonical RPC is pending cutover). On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
+Memba runs on the gno.land **test13** testnet (chain id `test-13`, gno-core's official endpoints). On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
 
 ## Docs
 
@@ -20,8 +20,9 @@ Memba runs on the gno.land testnets (`test12` today; `test-13` on the onbloc can
 
 - App: https://memba.samourai.app
 - Backend API: https://memba-backend.fly.dev
-- RPC (test12): https://rpc.testnet12.samourai.live:443
-- RPC (test-13): https://test13.rpc.onbloc.xyz:443
+- RPC (test13): https://rpc.test13.testnets.gno.land:443
+- gnoweb (test13): https://test13.testnets.gno.land
+- Indexer (test13, GraphQL): https://indexer.test13.testnets.gno.land/graphql
 
 ## Source
 

@@ -1,7 +1,7 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Last updated:** 2026-05-11 (v7.1 Phase 1 stale-doc refresh — Realm Inventory reconciled with `realm-versions.json`; gnoland1 column reframed around transfer-lock + v7.1 Phase 5).
+> **Last updated:** 2026-06-24 — **test13 (chain id `test-13`) is the current live network**; the test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live test13 paths/blocks). Prior refresh: 2026-05-11 (v7.1 Phase 1).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
 > **Source of truth for deployed state:** [`realm-versions.json`](../realm-versions.json) — this runbook is the procedural reference; the JSON is the authoritative ledger.
 
@@ -24,7 +24,7 @@
 
 ## Realm Inventory
 
-> Status reflects on-chain state per [`realm-versions.json`](../realm-versions.json). gnoland1 is intentionally empty — Memba activates gnoland1 in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_PREPARATION.md`](MAINNET_PREPARATION.md) is signed.
+> **test13 (chain id `test-13`) is the current live network** — Memba's realms run there now; see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks. The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_PREPARATION.md`](MAINNET_PREPARATION.md) is signed.
 
 | # | Realm | Module Path (test12) | test12 | gnoland1 | Source |
 |---|-------|----------------------|--------|----------|--------|
@@ -38,8 +38,7 @@
 | 8 | **nft_market** | `gno.land/r/samcrew/nft_market` | ✅ (block 237929, 2026-04-09) — *BuyNFT TransferFrom feature-gated* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
 | 9 | **gnobuilders_badges** | `gno.land/r/samcrew/gnobuilders_badges` | ✅ (block 237936, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
 
-**Live on test12:** 9 realms (all in `gno.land/r/samcrew/`).
-**Total tracked artifacts:** query with `./samcrew-status.sh test12` from the deployer repo for the canonical count.
+**Original test12 deployment:** 9 realms (all in `gno.land/r/samcrew/`). **Current network is test13** — query the live set with `./samcrew-status.sh test13` from the deployer repo; `realm-versions.json` is the authoritative ledger.
 **Outstanding v3 work** (tracked under v7.1 Phase 2): `memba_dao_channels` two-tier pause + ACL hardening; `agent_registry` UseCredit ACL.
 
 ---
@@ -168,17 +167,17 @@ Passwords are prompted once per session, held in memory, cleared on exit. Accoun
 
 When deploying to a new or restarted network, follow this order:
 
-### Priority 1 — test12 (development default)
+### Priority 1 — test13 (current default)
 
-test12 is the primary development network. All features are tested here first.
+test13 is the current primary network. All features are tested here first.
 
 ```bash
-./samcrew-deploy.sh test12 all
+./samcrew-deploy.sh test13 all
 ```
 
 ### Priority 2 — gnoland1 (betanet / production)
 
-gnoland1 is the production chain. Deploy after test12 is verified stable.
+gnoland1 is the production chain. Deploy after test13 is verified stable.
 
 ```bash
 # Pre-flight is critical for production
@@ -233,11 +232,11 @@ gnokey query vm/qrender \
   --remote <rpc_url>
 
 gnokey query vm/qrender \
-  --data "gno.land/r/samcrew/memba_dao_candidature:" \
+  --data "gno.land/r/samcrew/memba_dao_candidature_v2:" \
   --remote <rpc_url>
 
 gnokey query vm/qrender \
-  --data "gno.land/r/samcrew/memba_dao_channels:" \
+  --data "gno.land/r/samcrew/memba_dao_channels_v2:" \
   --remote <rpc_url>
 ```
 
@@ -385,7 +384,7 @@ npm run build              # verify build succeeds
 
 | Network | Chain ID | RPC | Gas Fee | Gas Wanted | Deposit |
 |---------|----------|-----|---------|------------|---------|
-| test12 | `test12` | `rpc.testnet12.samourai.live` | 10M ugnot | 150M | 100M ugnot |
+| test13 | `test-13` | `rpc.test13.testnets.gno.land` | 10M ugnot | 150M | 100M ugnot |
 | betanet | `gnoland1` | `rpc.gnoland1.samourai.live` | 10M ugnot | 80M | 1M ugnot |
 | portal-loop | `portal-loop` | `rpc.gno.land` | 10M ugnot | 80M | 1 ugnot |
 | local | `dev` | `127.0.0.1:26657` | 1M ugnot | 10M | 1 ugnot |

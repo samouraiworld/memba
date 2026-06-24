@@ -27,7 +27,7 @@ cat SKILL.md
 
 ### Query a DAO's state
 ```bash
-curl -s https://rpc.testnet12.samourai.live:443 \
+curl -s https://rpc.test13.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/samcrew/memba_dao\n"}}'
 ```

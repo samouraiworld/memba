@@ -10,7 +10,7 @@ monitoring on the [Gno](https://gno.land) blockchain. Built by [Samourai.world](
 
 - **Live:** https://memba.samourai.app
 - **Repo:** https://github.com/samouraiworld/memba
-- **Chain:** Gno testnet12 (default), gnoland1 (betanet)
+- **Chain:** Gno test13 (chain id `test-13`, gno-core's official endpoints), gnoland1 (betanet)
 
 ## Architecture
 
@@ -25,32 +25,32 @@ monitoring on the [Gno](https://gno.land) blockchain. Built by [Samourai.world](
 
 All on-chain data is queried via JSON-RPC POST to the Gno RPC endpoint.
 
-**Default RPC:** `https://rpc.testnet12.samourai.live:443`
+**Default RPC:** `https://rpc.test13.testnets.gno.land:443`
 
 #### Query a realm's Render() output
 ```bash
-curl -s https://rpc.testnet12.samourai.live:443 \
+curl -s https://rpc.test13.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/gov/dao\n"}}'
 ```
 
 #### Query with a path argument (e.g., proposal #42)
 ```bash
-curl -s https://rpc.testnet12.samourai.live:443 \
+curl -s https://rpc.test13.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/gov/dao\n42"}}'
 ```
 
 #### Evaluate a function (e.g., check if DAO is archived)
 ```bash
-curl -s https://rpc.testnet12.samourai.live:443 \
+curl -s https://rpc.test13.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qeval","data":"gno.land/r/samcrew/memba_dao\nIsArchived()"}}'
 ```
 
 #### Get GNOT balance
 ```bash
-curl -s https://rpc.testnet12.samourai.live:443 \
+curl -s https://rpc.test13.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"bank/balances/g1ADDRESS"}}'
 ```
@@ -74,7 +74,7 @@ curl -s https://memba-backend.fly.dev/memba.v1.MultisigService/GetProfile \
 curl -s https://memba-backend.fly.dev/memba.v1.MultisigService/Multisigs \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer TOKEN' \
-  -d '{"userAddress":"g1ADDRESS","chainId":"test12"}'
+  -d '{"userAddress":"g1ADDRESS","chainId":"test-13"}'
 ```
 
 ### Gnolove API (Contributor Data)
@@ -161,7 +161,7 @@ curl -s RPC_URL -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"pat
 | User Registry | `gno.land/r/sys/users` |
 | GRC20 Factory | `gno.land/r/demo/defi/grc20factory` |
 | MembaDAO | `gno.land/r/samcrew/memba_dao` |
-| MembaDAO Channels | `gno.land/r/samcrew/memba_dao_channels` |
+| MembaDAO Channels | `gno.land/r/samcrew/memba_dao_channels_v2` |
 
 ## Project Structure
 
@@ -188,7 +188,7 @@ cd frontend && npm install && npm run dev
 cd backend && go run ./cmd/memba
 
 # Tests
-cd frontend && npx vitest run        # 959+ unit tests
+cd frontend && npx vitest run        # 2570+ unit tests
 cd backend && go test -race ./...    # Backend tests
 ```
 
@@ -196,6 +196,5 @@ cd backend && go test -race ./...    # Backend tests
 
 | Network | Chain ID | RPC |
 |---------|----------|-----|
-| Testnet 12 | test12 | https://rpc.testnet12.samourai.live:443 |
+| Testnet 13 (current) | test-13 | https://rpc.test13.testnets.gno.land:443 |
 | Betanet | gnoland1 | https://rpc.gnoland1.samourai.live:443 |
-| Testnet 11 | test11 | https://rpc.test11.testnets.gno.land:443 |
