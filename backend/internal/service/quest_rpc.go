@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -692,10 +693,28 @@ func (s *MultisigService) checkAndQueueRankBadge(ctx context.Context, address st
 
 // ── Admin: Quest Claim Review ───────────────────────────────
 
-// adminAddresses is the set of addresses authorized to review quest claims.
-// Matches the samcrew-core-test1 multisig + deployer address.
-var adminAddresses = map[string]bool{
+// defaultQuestAdmins is the built-in set of addresses authorized to review quest
+// claims, used when QUEST_ADMIN_ADDRESSES is unset (the samcrew-core-test1
+// multisig + deployer address).
+var defaultQuestAdmins = map[string]bool{
 	"g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0": true, // samcrew-core-test1
+}
+
+// questAdminAddresses returns the addresses allowed to review quest claims.
+// QUEST_ADMIN_ADDRESSES (comma-separated) REPLACES the built-in default — so
+// admins can be added/rotated via env without a code change/redeploy, and the
+// privileged set isn't hard-pinned in source. Unset/empty keeps the default.
+func questAdminAddresses() map[string]bool {
+	if v := strings.TrimSpace(os.Getenv("QUEST_ADMIN_ADDRESSES")); v != "" {
+		out := make(map[string]bool)
+		for _, a := range strings.Split(v, ",") {
+			if t := strings.TrimSpace(a); t != "" {
+				out[t] = true
+			}
+		}
+		return out
+	}
+	return defaultQuestAdmins
 }
 
 // ReviewQuestClaim approves or rejects a self-report quest claim.
@@ -706,7 +725,7 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 		return nil, err
 	}
 
-	if !adminAddresses[reviewerAddr] {
+	if !questAdminAddresses()[reviewerAddr] {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
@@ -768,7 +787,7 @@ func (s *MultisigService) ListPendingClaims(ctx context.Context, req *connect.Re
 		return nil, err
 	}
 
-	if !adminAddresses[callerAddr] {
+	if !questAdminAddresses()[callerAddr] {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
