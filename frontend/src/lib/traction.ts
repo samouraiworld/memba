@@ -1,11 +1,8 @@
 /**
- * traction.ts — Ecosystem traction metrics for the home directory door.
+ * traction.ts — contributor count for the home DirectoryDoor.
  *
- * Fetches live metrics from the gnolove API:
- * - Contributor count (gnolove API) — drives the DirectoryDoor member count
- * - Tracked repos (gnolove API)
- *
- * Results cached in sessionStorage with 5-minute TTL.
+ * Fetches the contributor count from the gnolove API (it drives the
+ * DirectoryDoor member count). Cached in sessionStorage with a 5-minute TTL.
  */
 
 import { GNOLOVE_API_URL } from "./config"
@@ -13,17 +10,7 @@ import { GNOLOVE_API_URL } from "./config"
 // ── Types ────────────────────────────────────────────────────
 
 export interface TractionMetrics {
-    /**
-     * @deprecated Always 0. There is no authoritative global DAO registry — its
-     * former source (counting every realm in the `samcrew` namespace) conflated
-     * infrastructure realms (tokenfactory, escrow, badges, nft_market,
-     * candidature, channels, …) with DAOs and badly overcounted. Not displayed
-     * anywhere (the Atlas home uses per-DAO doors). Retained only until the
-     * orphaned Control-Room panels that still read it are removed.
-     */
-    daoCount: number
     contributorCount: number
-    repoCount: number
     fetchedAt: number
 }
 
@@ -56,48 +43,27 @@ function setCache(metrics: TractionMetrics): void {
 // ── Fetch ────────────────────────────────────────────────────
 
 /**
- * Fetch traction metrics from gnolove API.
+ * Fetch traction metrics from the gnolove API.
  * Returns cached results if available (5-min TTL).
- * Best-effort — returns partial data on failure.
+ * Best-effort — returns contributorCount 0 on failure.
  */
 export async function fetchTractionMetrics(): Promise<TractionMetrics> {
     const cached = getCached()
     if (cached) return cached
 
     const metrics: TractionMetrics = {
-        daoCount: 0,
         contributorCount: 0,
-        repoCount: 0,
         fetchedAt: Date.now(),
     }
 
-    const results = await Promise.allSettled([
-        // Contributor count from gnolove stats endpoint (returns { users: [...] })
-        fetch(`${GNOLOVE_API_URL}/stats`, {
-            signal: AbortSignal.timeout(5000),
-        }).then(async r => {
-            if (!r.ok) return 0
+    // Contributor count from the gnolove stats endpoint (returns { users: [...] })
+    try {
+        const r = await fetch(`${GNOLOVE_API_URL}/stats`, { signal: AbortSignal.timeout(5000) })
+        if (r.ok) {
             const data = await r.json()
-            return data?.users?.length ?? 0
-        }),
-
-        // Repo count from gnolove
-        fetch(`${GNOLOVE_API_URL}/repositories`, {
-            signal: AbortSignal.timeout(5000),
-        }).then(async r => {
-            if (!r.ok) return 0
-            const data = await r.json()
-            return Array.isArray(data) ? data.length : 0
-        }),
-    ])
-
-    if (results[0].status === "fulfilled") {
-        metrics.contributorCount = results[0].value
-    }
-    if (results[1].status === "fulfilled") {
-        metrics.repoCount = results[1].value
-    }
-    // daoCount intentionally not computed — see TractionMetrics.daoCount.
+            metrics.contributorCount = data?.users?.length ?? 0
+        }
+    } catch { /* best-effort — leave contributorCount at 0 */ }
 
     setCache(metrics)
     return metrics

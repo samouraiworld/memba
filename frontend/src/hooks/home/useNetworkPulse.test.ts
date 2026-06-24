@@ -1,11 +1,11 @@
 /**
  * useNetworkPulse.test.ts
  *
- * Covers the snapshot-first behaviour introduced in Phase E1:
- *   1. Snapshot usable → blockHeight/totalValidators come from the snapshot;
- *      getNetworkStats is NOT called (statsQuery is disabled).
- *      daoCount/memberCount always come from traction.
- *   2. Snapshot NOT usable → getNetworkStats IS called; its values are returned.
+ * Covers the snapshot-first behaviour:
+ *   1. Snapshot usable → blockHeight/totalValidators/avgBlockTime come from the
+ *      snapshot; getNetworkStats is NOT called (statsQuery is disabled).
+ *   2. Snapshot NOT usable → getNetworkStats IS called; its values are returned;
+ *      offline reflects the stats query error state.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -24,10 +24,6 @@ vi.mock("../../lib/validators", () => ({
     getNetworkStats: vi.fn(),
 }))
 
-vi.mock("../../lib/traction", () => ({
-    fetchTractionMetrics: vi.fn(),
-}))
-
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
         networkKey: "test13",
@@ -39,7 +35,6 @@ vi.mock("../useNetwork", () => ({
 
 const snapshotMod = await import("./useHomeSnapshot")
 const validatorMod = await import("../../lib/validators")
-const tractionMod = await import("../../lib/traction")
 
 // ── Wrapper ───────────────────────────────────────────────────
 
@@ -60,11 +55,6 @@ const SNAPSHOT_NETWORK_DATA = {
     },
 }
 
-const TRACTION_DATA = {
-    daoCount: 8,
-    contributorCount: 55,
-}
-
 // ── Tests ─────────────────────────────────────────────────────
 
 describe("useNetworkPulse — snapshot usable", () => {
@@ -72,20 +62,18 @@ describe("useNetworkPulse — snapshot usable", () => {
         vi.clearAllMocks()
     })
 
-    it("returns blockHeight and totalValidators from the snapshot", async () => {
+    it("returns blockHeight, totalValidators and avgBlockTime from the snapshot", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: SNAPSHOT_NETWORK_DATA as never,
             usable: true,
             isLoading: false,
         })
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
 
         const { useNetworkPulse } = await import("./useNetworkPulse")
         const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
 
         await waitFor(() => expect(result.current.loading).toBe(false))
 
-        // Values from snapshot
         expect(result.current.blockHeight).toBe(123456)
         expect(result.current.totalValidators).toBe(14)
         // avgBlockTimeMs=2500ms → 2.5s
@@ -98,7 +86,6 @@ describe("useNetworkPulse — snapshot usable", () => {
             usable: true,
             isLoading: false,
         })
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
 
         const { useNetworkPulse } = await import("./useNetworkPulse")
         const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
@@ -106,23 +93,6 @@ describe("useNetworkPulse — snapshot usable", () => {
         await waitFor(() => expect(result.current.loading).toBe(false))
 
         expect(validatorMod.getNetworkStats).not.toHaveBeenCalled()
-    })
-
-    it("still returns daoCount and memberCount from traction", async () => {
-        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
-            snapshot: SNAPSHOT_NETWORK_DATA as never,
-            usable: true,
-            isLoading: false,
-        })
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
-
-        const { useNetworkPulse } = await import("./useNetworkPulse")
-        const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
-
-        await waitFor(() => expect(result.current.memberCount).toBe(55))
-
-        expect(result.current.daoCount).toBe(8)
-        expect(result.current.memberCount).toBe(55)
     })
 })
 
@@ -142,7 +112,6 @@ describe("useNetworkPulse — snapshot NOT usable (on-chain fallback)", () => {
             avgBlockTime: 2.0,
             totalValidators: 7,
         })
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
 
         const { useNetworkPulse } = await import("./useNetworkPulse")
         const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
@@ -155,14 +124,13 @@ describe("useNetworkPulse — snapshot NOT usable (on-chain fallback)", () => {
         expect(result.current.avgBlockTime).toBeCloseTo(2.0)
     })
 
-    it("sets offline=true when getNetworkStats errors (RPC down), false otherwise", async () => {
+    it("sets offline=true when getNetworkStats errors (RPC down)", async () => {
         vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
             snapshot: null,
             usable: false,
             isLoading: false,
         })
         vi.mocked(validatorMod.getNetworkStats).mockRejectedValue(new Error("RPC down"))
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
 
         const { useNetworkPulse } = await import("./useNetworkPulse")
         const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
@@ -171,26 +139,5 @@ describe("useNetworkPulse — snapshot NOT usable (on-chain fallback)", () => {
         // Truthful UI: the StatusStrip must be able to show "offline" rather than
         // a "live" dot when the network stats query failed.
         expect(result.current.offline).toBe(true)
-    })
-
-    it("still returns daoCount and memberCount from traction on fallback", async () => {
-        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({
-            snapshot: null,
-            usable: false,
-            isLoading: false,
-        })
-        vi.mocked(validatorMod.getNetworkStats).mockResolvedValue({
-            blockHeight: 1,
-            avgBlockTime: 1.0,
-            totalValidators: 1,
-        })
-        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(TRACTION_DATA)
-
-        const { useNetworkPulse } = await import("./useNetworkPulse")
-        const { result } = renderHook(() => useNetworkPulse(), { wrapper: makeWrapper() })
-
-        await waitFor(() => expect(result.current.memberCount).toBe(55))
-
-        expect(result.current.daoCount).toBe(8)
     })
 })
