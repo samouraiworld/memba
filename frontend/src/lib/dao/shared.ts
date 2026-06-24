@@ -215,7 +215,8 @@ export async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Pr
 export function normalizeStatus(s: string): DAOProposal["status"] {
     const lower = s.toLowerCase()
     if (lower.includes("accept") || lower.includes("pass")) return "passed"
-    if (lower.includes("reject") || lower.includes("fail")) return "rejected"
+    // "deni"/"deny" covers GovDAO v3's detail-render prose "PROPOSAL HAS BEEN DENIED"
+    if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny")) return "rejected"
     if (lower.includes("exec") || lower.includes("complete")) return "executed"
     if (lower.includes("active") || lower.includes("open") || lower === "") return "open"
     console.warn(`[normalizeStatus] Unknown proposal status: "${s}" — defaulting to "open"`)
