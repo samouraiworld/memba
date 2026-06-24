@@ -40,16 +40,16 @@ var validQuests = map[string]uint32{
 	"deploy-full-dapp":         75,
 
 	// ── Developer: Advanced (10) ─────────────────────────
-	"write-10-tests":       30,
-	"fix-upstream-bug":     100,
-	"audit-realm":          40,
-	"deploy-3-chains":      45,
-	"build-mcp-tool":       50,
-	"gas-optimization":     40,
-	"render-masterclass":   30,
-	"gnodaokit-extension":  60,
-	"deploy-ibc-realm":     75,
-	"mentor-developer":     50,
+	"write-10-tests":      30,
+	"fix-upstream-bug":    100,
+	"audit-realm":         40,
+	"deploy-3-chains":     45,
+	"build-mcp-tool":      50,
+	"gas-optimization":    40,
+	"render-masterclass":  30,
+	"gnodaokit-extension": 60,
+	"deploy-ibc-realm":    75,
+	"mentor-developer":    50,
 
 	// ── Everyone: Getting Started (10) ───────────────────
 	"connect-wallet":    10,
@@ -64,16 +64,16 @@ var validQuests = map[string]uint32{
 	"read-docs":         10,
 
 	// ── Everyone: DAO Participation (10) ─────────────────
-	"join-dao":            25,
-	"create-dao":          30,
-	"vote-proposal":       20,
-	"create-proposal":     25,
-	"vote-5-proposals":    30,
-	"execute-proposal":    25,
-	"post-board":          15,
-	"reply-board":         10,
-	"browse-proposals":    15,
-	"submit-candidature":  20,
+	"join-dao":           25,
+	"create-dao":         30,
+	"vote-proposal":      20,
+	"create-proposal":    25,
+	"vote-5-proposals":   30,
+	"execute-proposal":   25,
+	"post-board":         15,
+	"reply-board":        10,
+	"browse-proposals":   15,
+	"submit-candidature": 20,
 
 	// ── Everyone: Token & NFT (5) ────────────────────────
 	"create-token":  25,
@@ -91,32 +91,32 @@ var validQuests = map[string]uint32{
 
 	// ── Champion (15) ────────────────────────────────────
 	"complete-all-everyone": 50,
-	"top-10-leaderboard":   50,
-	"earn-500-xp":          25,
-	"earn-1000-xp":         50,
-	"3-dao-member":         35,
-	"create-team":          30,
-	"10-board-posts":       30,
-	"treasury-contributor": 25,
-	"gnolove-top-20":       40,
-	"ai-report-reader":     20,
-	"multisig-signer":      30,
-	"channel-active":       25,
-	"weekly-login":         20,
-	"help-newcomer":        15,
-	"validator-delegator":  30,
+	"top-10-leaderboard":    50,
+	"earn-500-xp":           25,
+	"earn-1000-xp":          50,
+	"3-dao-member":          35,
+	"create-team":           30,
+	"10-board-posts":        30,
+	"treasury-contributor":  25,
+	"gnolove-top-20":        40,
+	"ai-report-reader":      20,
+	"multisig-signer":       30,
+	"channel-active":        25,
+	"weekly-login":          20,
+	"help-newcomer":         15,
+	"validator-delegator":   30,
 
 	// ── Hidden & Seasonal (10) ───────────────────────────
-	"easter-egg-konami":  15,
-	"night-owl":          10,
-	"speed-runner":       25,
-	"first-100-users":    50,
-	"perfect-week":       30,
+	"easter-egg-konami":   15,
+	"night-owl":           10,
+	"speed-runner":        25,
+	"first-100-users":     50,
+	"perfect-week":        30,
 	"directory-deep-dive": 20,
-	"all-networks":       25,
-	"genesis-dao-voter":  35,
-	"bug-hunter":         40,
-	"season-1-complete":  100,
+	"all-networks":        25,
+	"genesis-dao-voter":   35,
+	"bug-hunter":          40,
+	"season-1-complete":   100,
 
 	// ── Legacy v1 IDs (backward compat, mapped to v2 equivalents) ──
 	// These are kept so existing completions still count toward XP.
@@ -130,16 +130,16 @@ var validQuests = map[string]uint32{
 // selfReportQuests is the set of quest IDs that require manual proof submission.
 // Only these quests can be submitted via SubmitQuestClaim.
 var selfReportQuests = map[string]bool{
-	"deploy-test-pkg":      true,
-	"deploy-full-dapp":     true,
-	"write-10-tests":       true,
-	"fix-upstream-bug":     true,
-	"audit-realm":          true,
-	"build-mcp-tool":       true,
-	"gas-optimization":     true,
-	"gnodaokit-extension":  true,
-	"mentor-developer":     true,
-	"bug-hunter":           true,
+	"deploy-test-pkg":     true,
+	"deploy-full-dapp":    true,
+	"write-10-tests":      true,
+	"fix-upstream-bug":    true,
+	"audit-realm":         true,
+	"build-mcp-tool":      true,
+	"gas-optimization":    true,
+	"gnodaokit-extension": true,
+	"mentor-developer":    true,
+	"bug-hunter":          true,
 }
 
 // rankThresholds maps tier numbers to XP thresholds.
@@ -229,6 +229,14 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 		return nil, internalError("CompleteQuest.load", err)
 	}
 
+	// Auto-grant server-derived XP-milestone meta-quests, then reload so the response
+	// reflects them. (The client-claim path for meta-quests is rejected.)
+	if s.grantDerivedMetaQuests(ctx, userAddr, state) {
+		if state, err = s.loadUserQuestState(ctx, userAddr); err != nil {
+			return nil, internalError("CompleteQuest.reload", err)
+		}
+	}
+
 	// Update rank cache
 	s.updateUserRankCache(ctx, userAddr, state)
 
@@ -303,10 +311,48 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		return nil, internalError("SyncQuests.load", err)
 	}
 
+	// Auto-grant server-derived meta-quests from the synced totals, then reload.
+	if s.grantDerivedMetaQuests(ctx, userAddr, state) {
+		if state, err = s.loadUserQuestState(ctx, userAddr); err != nil {
+			return nil, internalError("SyncQuests.reload", err)
+		}
+	}
+
 	// Update rank cache after sync
 	s.updateUserRankCache(ctx, userAddr, state)
 
 	return connect.NewResponse(&membav1.SyncQuestsResponse{State: state}), nil
+}
+
+// grantDerivedMetaQuests grants the server-derived XP-milestone meta-quests
+// (earn-500-xp / earn-1000-xp) from authoritative state — they are never client-
+// claimable (verifyQuestCompletable rejects them). Returns true if it inserted any,
+// so the caller reloads state. (complete-all-everyone / top-10-leaderboard derivation
+// — category set / leaderboard position — is deferred; they stay non-claimable.)
+func (s *MultisigService) grantDerivedMetaQuests(ctx context.Context, addr string, state *membav1.UserQuestState) bool {
+	completed := make(map[string]bool, len(state.Completed))
+	for _, c := range state.Completed {
+		completed[c.QuestId] = true
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	granted := false
+	grant := func(id string) {
+		if completed[id] {
+			return
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at, proof) VALUES (?, ?, ?, '')`,
+			addr, id, now); err == nil {
+			granted = true
+		}
+	}
+	if state.TotalXp >= 500 {
+		grant("earn-500-xp")
+	}
+	if state.TotalXp >= 1000 {
+		grant("earn-1000-xp")
+	}
+	return granted
 }
 
 // loadUserQuestState reads all completions for a user and calculates XP server-side.
@@ -357,7 +403,7 @@ func (s *MultisigService) GetUserRank(ctx context.Context, req *connect.Request[
 	}
 
 	rank := &membav1.RankInfo{
-		Tier:            uint32(tier),             // #nosec G115 -- tier is 0-7
+		Tier:            uint32(tier), // #nosec G115 -- tier is 0-7
 		Name:            name,
 		TotalXp:         state.TotalXp,
 		QuestsCompleted: uint32(len(state.Completed)), // #nosec G115 -- max 85 quests
