@@ -36,8 +36,6 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     const [mode, setMode] = useState<"url" | "file">("file")
     const fileRef = useRef<HTMLInputElement>(null)
 
-    const lighthouseKey = import.meta.env.VITE_LIGHTHOUSE_API_KEY || ""
-
     const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -63,20 +61,10 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     const handleUpload = async () => {
         if (!selectedFile) return
 
-        if (!lighthouseKey) {
-            // Fallback: use DataURL if no API key configured (dev mode)
-            if (previewUrl) {
-                onUrlChange(previewUrl)
-                setPreviewUrl(null)
-                setSelectedFile(null)
-            }
-            return
-        }
-
         setUploading(true)
         setError(null)
         try {
-            const result = await uploadAvatar(selectedFile, lighthouseKey)
+            const result = await uploadAvatar(selectedFile)
             setUploadedCid(result.cid)
             onUrlChange(`ipfs://${result.cid}`)
             setPreviewUrl(null)
@@ -122,11 +110,6 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         </button>
                     ))}
                 </div>
-                {lighthouseKey && (
-                    <span style={{ fontSize: 9, color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
-                        ✓ Lighthouse
-                    </span>
-                )}
             </div>
 
             {mode === "url" ? (
@@ -188,7 +171,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             />
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
-                                    {lighthouseKey ? "Ready to pin on IPFS" : "Preview ready (no IPFS key)"}
+                                    Ready to pin on IPFS
                                 </span>
                                 <button
                                     onClick={handleUpload}
@@ -197,7 +180,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                     data-testid="avatar-upload-btn"
                                     style={{ fontSize: 10, padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
                                 >
-                                    {uploading ? "⏳ Pinning to IPFS..." : lighthouseKey ? "📌 Pin & Use" : "✓ Use This Photo"}
+                                    {uploading ? "⏳ Pinning to IPFS..." : "📌 Pin & Use"}
                                 </button>
                             </div>
                         </div>
