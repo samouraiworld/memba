@@ -29,6 +29,12 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Pin the network key so the Netlify build can't pick up a stale dashboard
+  # VITE_GNO_CHAIN_ID. A retired "test12" there made DEFAULT_NETWORK invalid and
+  # infinite-looped the /:network redirects (/test12/test12/… → replaceState crash,
+  # hit on mobile / private browsing). lib/config.ts also validates this against
+  # NETWORKS as a code-level safety net.
+  VITE_GNO_CHAIN_ID = "test13"
 
 # CSP Dual-Config (v2.9):
 # This is the PRODUCTION CSP enforced by Netlify edge headers.

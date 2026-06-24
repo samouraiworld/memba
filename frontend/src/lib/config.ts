@@ -135,8 +135,21 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
     Object.entries(NETWORKS).filter(([, n]) => !n.hidden),
 )
 
-/** Default network key. */
-export const DEFAULT_NETWORK = import.meta.env.VITE_GNO_CHAIN_ID || "test13"
+/**
+ * Resolves the default network key from VITE_GNO_CHAIN_ID, validated against
+ * NETWORKS. A stale/removed env value (e.g. a retired "test12" left in a Netlify
+ * build var) must NOT become the default: an invalid default makes the /:network
+ * redirects (RootRedirect/LegacyRedirect/NetworkGate) loop forever, prepending the
+ * bad key (/test12/test12/…) until the browser throttles replaceState and the app
+ * crashes — hit on mobile / private browsing, where localStorage holds no valid
+ * network to override it. Exported for tests.
+ */
+export function resolveDefaultNetwork(envKey: string | undefined): string {
+    return envKey && NETWORKS[envKey] ? envKey : "test13"
+}
+
+/** Default network key (always a valid NETWORKS entry — see resolveDefaultNetwork). */
+export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CHAIN_ID)
 
 /** Resolve active network from localStorage or env.
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
