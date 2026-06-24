@@ -13,9 +13,49 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidGnoAddress, isValidIdentifier } from "./templates/sanitizer"
+import { isValidGnoAddress, isValidIdentifier, validateRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
-export { validateRealmPath } from "./templates/sanitizer"
+import { BECH32_PREFIX } from "./config"
+export { validateRealmPath }
+
+// ── Wizard step validation (pure, testable) ───────────────────
+
+export interface DAOStepData {
+    name: string
+    realmPath: string
+    members: { address: string; roles: string[] }[]
+    threshold: number
+    quorum: number
+}
+
+/**
+ * Validate a single CreateDAO wizard step's data. Returns an error string for
+ * the first problem found, or null if the step is valid. Pure (no component
+ * state) so it can guard both the "Next" button and direct step-indicator
+ * navigation — fixing the bug where clicking a future step skipped validation.
+ */
+export function daoStepError(step: number, d: DAOStepData): string | null {
+    if (step === 1) {
+        if (!d.name.trim()) return "DAO name is required"
+        if (d.name.length < 3) return "DAO name must be at least 3 characters"
+        if (!d.realmPath.trim()) return "Realm path is required"
+        const pathErr = validateRealmPath(d.realmPath)
+        if (pathErr) return pathErr
+    }
+    if (step === 2) {
+        const valid = d.members.filter((m) => m.address.startsWith(BECH32_PREFIX) && m.address.length >= 39)
+        if (valid.length === 0) return "At least one member with a valid g1 address is required"
+        const invalid = d.members.filter((m) => m.address.length > 0 && (!m.address.startsWith(BECH32_PREFIX) || m.address.length < 39))
+        if (invalid.length > 0) return `${invalid.length} address(es) look invalid — must start with g1 and be 39+ characters`
+        const hasAdmin = d.members.some((m) => m.address.startsWith(BECH32_PREFIX) && m.roles.includes("admin"))
+        if (!hasAdmin) return "At least one member must have the admin role"
+    }
+    if (step === 3) {
+        if (d.threshold < 1 || d.threshold > 100) return "Threshold must be between 1 and 100"
+        if (d.quorum < 0 || d.quorum > 100) return "Quorum must be between 0 and 100"
+    }
+    return null
+}
 
 // ── Types ─────────────────────────────────────────────────────
 

@@ -215,6 +215,17 @@ export function Directory() {
                 </div>
             )}
 
+            {/* No-results state for a text query that matched nothing (DB3) */}
+            {deferredGlobalSearch.trim().length > 0
+                && !deferredGlobalSearch.trim().toLowerCase().startsWith("gno.land/")
+                && !crossTabResults && (
+                <div className="dir-cross-results" role="status" aria-live="polite">
+                    <div className="dir-empty">
+                        <p>No DAOs, realms, or packages match "{globalSearch.trim()}". Try a tab below or enter a full <code>gno.land/</code> path.</p>
+                    </div>
+                </div>
+            )}
+
             {/* Realm path preview */}
             {previewLoading && (
                 <div className="k-shimmer" style={{ height: 48, borderRadius: 8, background: "var(--color-border)" }} />

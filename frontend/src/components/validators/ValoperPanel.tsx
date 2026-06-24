@@ -12,8 +12,9 @@
  * team shipped for test13.
  */
 import { useMemo } from "react"
-import type { ValoperWithStatus } from "../../lib/valopers"
+import { valoperGnowebBase, type ValoperWithStatus } from "../../lib/valopers"
 import { truncateValidatorAddr } from "../../lib/validators"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 
 const SERVER_TYPE_LABEL: Record<string, string> = {
     "cloud": "Cloud",
@@ -21,9 +22,9 @@ const SERVER_TYPE_LABEL: Record<string, string> = {
     "data-center": "Data center",
 }
 
-// gnoweb render path for a single valoper profile.
+// gnoweb render path for a single valoper profile — active-network host (never mainnet).
 const profileUrl = (operatorAddress: string) =>
-    `https://gno.land/r/gnops/valopers:${operatorAddress}`
+    `${valoperGnowebBase()}/r/gnops/valopers:${operatorAddress}`
 
 // The test13 validator onboarding write-up.
 const ONBOARDING_URL = "https://gno.land/r/gnoland/blog:p/validator-test13"
@@ -34,6 +35,7 @@ interface ValoperPanelProps {
 }
 
 export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
+    const nav = useNetworkNav()
     const activeCount = useMemo(
         () => valopers.filter(v => v.status === "active").length,
         [valopers],
@@ -88,8 +90,17 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                 {sorted.map(v => (
                     <div
                         key={v.operatorAddress}
-                        className="val-valoper-card"
+                        className="val-valoper-card val-valoper-card--clickable"
                         data-testid="valoper-card"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })
+                            }
+                        }}
                     >
                         <div className="val-valoper-card__top">
                             <span className="val-valoper-card__moniker">{v.moniker}</span>
@@ -128,8 +139,9 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                             href={profileUrl(v.operatorAddress)}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            View profile ↗
+                            View on gnoweb ↗
                         </a>
                     </div>
                 ))}
