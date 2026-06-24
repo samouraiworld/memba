@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -312,6 +313,52 @@ func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
 }
 
 // ── Handler ──────────────────────────────────────────────────
+
+// HandleAnalystConsensusGet serves GET /api/analyst/consensus — a PUBLIC, no-auth
+// read of an already-cached consensus report (zero LLM cost, so safe to expose).
+// Generation stays on the auth-gated POST; this returns 204 when no report exists yet.
+func HandleAnalystConsensusGet(db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		q := r.URL.Query()
+		req := ConsensusRequest{
+			RealmPath:    q.Get("realm"),
+			AnalysisType: q.Get("analysisType"),
+			ChainID:      q.Get("chainId"),
+		}
+		if pid := q.Get("proposalId"); pid != "" {
+			n, err := strconv.Atoi(pid)
+			if err != nil || n < 0 {
+				http.Error(w, `{"error":"invalid proposalId"}`, http.StatusBadRequest)
+				return
+			}
+			req.ProposalID = n
+		}
+		if err := validateConsensusRequest(&req); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		realm, id, chain := consensusCacheKey(&req)
+		cached, err := getCachedConsensus(db, realm, id, chain)
+		if err != nil {
+			slog.Warn("analyst public read failed", "error", err)
+			http.Error(w, `{"error":"lookup failed"}`, http.StatusInternalServerError)
+			return
+		}
+		if cached == nil {
+			w.WriteHeader(http.StatusNoContent) // no analysis generated yet
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cached)
+	})
+}
 
 // HandleAnalystConsensus handles POST /api/analyst/consensus.
 // Fans out to 10 OpenRouter models (2 batches of 5), aggregates, caches.

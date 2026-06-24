@@ -448,3 +448,65 @@ func TestAggregateConsensus(t *testing.T) {
 		}
 	})
 }
+
+// ── Public cached-read (X1: GET is no-auth, POST stays auth-gated) ─────────
+
+func TestHandleAnalystConsensusGet(t *testing.T) {
+	database, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatal("open db:", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	handler := HandleAnalystConsensusGet(database)
+	get := func(q string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/analyst/consensus?"+q, nil) // no Authorization header
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	t.Run("204 when nothing is cached", func(t *testing.T) {
+		if rec := get("realm=gno.land/r/gov/dao&proposalId=22&chainId=test-13"); rec.Code != http.StatusNoContent {
+			t.Errorf("expected 204, got %d", rec.Code)
+		}
+	})
+
+	t.Run("returns a cached report without auth", func(t *testing.T) {
+		cacheConsensus(database, "gno.land/r/gov/dao", 22, "test-13", &ConsensusResponse{
+			Consensus: ConsensusVerdict{Verdict: "approve", RespondedCount: 9, TotalCount: 10},
+		})
+		rec := get("realm=gno.land/r/gov/dao&proposalId=22&chainId=test-13")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d (body %s)", rec.Code, rec.Body.String())
+		}
+		var got ConsensusResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if got.Consensus.Verdict != "approve" {
+			t.Errorf("verdict: got %q, want approve", got.Consensus.Verdict)
+		}
+		if !got.Cached {
+			t.Error("expected cached=true")
+		}
+	})
+
+	t.Run("400 on invalid realm path", func(t *testing.T) {
+		if rec := get("realm=evil/path&proposalId=1"); rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("405 on non-GET", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/analyst/consensus", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("expected 405, got %d", rec.Code)
+		}
+	})
+}
