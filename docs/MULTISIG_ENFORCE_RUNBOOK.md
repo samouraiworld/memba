@@ -34,6 +34,8 @@ func TestA3_RealAdenaSignature(t *testing.T) {
 - **If it passes:** the canonical shape is correct end-to-end. Proceed to Gate 3.
 - **If it FAILS:** the assumption about Adena's exact form is wrong (most likely `args` — `null` vs `[]` vs absent — or `max_deposit` presence, or coin-string formatting). Diff the captured `msgs_json` against `toCanonicalMsg`'s output and fix `lib/multisigTx.ts` + this fixture until it verifies. **Do not flip until green.**
 
+> **Also validate the manual "Paste gnokey Sig" path.** The stored msgs use `args:null` (Adena's proto-roundtrip form), but `gnokey sign` may canonicalize a nil `args` to *absent* (the `gnokey` golden vector omits it) → a gnokey-produced signature could diverge from the `args:null` reconstruction. Before enforcing, also capture a real **gnokey** member signature over an exported tx and confirm it verifies; if it doesn't, the gnokey path needs the backend to reconstruct the gnokey form (or the export to omit nil `args`). The Adena path (the "Sign Transaction" button) is the primary flow this PR aligns.
+
 ## Gate 3 — observe log-only health, then flip
 
 1. Deploy with the flag still **0** (log-only). Watch the `multisig_sig_verify` gate signal on `/metrics` (#479) as real members sign for a few days.
