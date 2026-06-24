@@ -112,7 +112,7 @@ export function RealmsTab() {
                 ))}
             </div>
 
-            <div className="dir-count">
+            <div className="dir-count" role="status" aria-live="polite">
                 {filtered.length} realm{filtered.length !== 1 ? "s" : ""} found
             </div>
 
