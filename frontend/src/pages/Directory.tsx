@@ -13,6 +13,7 @@
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
+import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
@@ -25,6 +26,16 @@ import { isValidRealmPath } from "../lib/gnowebSource"
 import "./directory.css"
 
 type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
+
+const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
+    { key: "daos", label: "🏛️ DAOs" },
+    { key: "tokens", label: "🪙 Tokens" },
+    { key: "packages", label: "📦 Packages" },
+    { key: "realms", label: "🌐 Realms" },
+    { key: "users", label: "👤 Users" },
+    { key: "govdao", label: "🏛️ GovDAO" },
+    { key: "leaderboard", label: "🏆 Leaderboard" },
+]
 
 export function Directory() {
     const navigate = useNetworkNav()
@@ -94,6 +105,27 @@ export function Directory() {
             }, 300)
         }
     }, [])
+
+    const selectTab = useCallback((key: DirectoryTab) => {
+        trackDirectoryTab(key)
+        setTab(key)
+    }, [])
+
+    // APG tabs pattern: Arrow/Home/End move between tabs (with a roving tabindex).
+    const handleTabKeyDown = useCallback((e: ReactKeyboardEvent<HTMLButtonElement>, key: DirectoryTab) => {
+        const i = TAB_DEFS.findIndex(t => t.key === key)
+        let next: DirectoryTab | null = null
+        if (e.key === "ArrowRight") next = TAB_DEFS[(i + 1) % TAB_DEFS.length].key
+        else if (e.key === "ArrowLeft") next = TAB_DEFS[(i - 1 + TAB_DEFS.length) % TAB_DEFS.length].key
+        else if (e.key === "Home") next = TAB_DEFS[0].key
+        else if (e.key === "End") next = TAB_DEFS[TAB_DEFS.length - 1].key
+        if (next) {
+            e.preventDefault()
+            selectTab(next)
+            const id = `tab-${next}`
+            requestAnimationFrame(() => document.getElementById(id)?.focus())
+        }
+    }, [selectTab])
 
     return (
         <div className="dir-page">
@@ -200,23 +232,17 @@ export function Directory() {
             )}
 
             <div className="dir-tabs" role="tablist">
-                {([
-                    { key: "daos" as const, label: "🏛️ DAOs" },
-                    { key: "tokens" as const, label: "🪙 Tokens" },
-                    { key: "packages" as const, label: "📦 Packages" },
-                    { key: "realms" as const, label: "🌐 Realms" },
-                    { key: "users" as const, label: "👤 Users" },
-                    { key: "govdao" as const, label: "🏛️ GovDAO" },
-                    { key: "leaderboard" as const, label: "🏆 Leaderboard" },
-                ]).map(t => (
+                {TAB_DEFS.map(t => (
                     <button
                         key={t.key}
                         id={`tab-${t.key}`}
                         className="dir-tab"
                         role="tab"
                         aria-selected={tab === t.key}
+                        tabIndex={tab === t.key ? 0 : -1}
                         data-active={tab === t.key}
-                        onClick={() => { trackDirectoryTab(t.key); setTab(t.key) }}
+                        onClick={() => selectTab(t.key)}
+                        onKeyDown={e => handleTabKeyDown(e, t.key)}
                     >
                         {t.label}
                     </button>
