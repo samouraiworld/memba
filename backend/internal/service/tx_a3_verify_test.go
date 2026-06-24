@@ -21,7 +21,7 @@ import (
 // verifies the member signature, gated by MEMBA_ENFORCE_MULTISIG_SIG_VERIFY.
 func TestSignTransaction_A3Verification(t *testing.T) {
 	const (
-		chainID  = "test12"
+		chainID  = "test13"
 		acctNum  = 5
 		sequence = 9
 		feeJSON  = `{"gas_wanted":"200000","gas_fee":"1000000ugnot"}`
@@ -49,8 +49,12 @@ func TestSignTransaction_A3Verification(t *testing.T) {
 	}
 	h.seedMultisig(t, chainID, msAddr, string(pkJSON), 1, 1, []string{memberAddr})
 
-	msgsJSON := `[{"@type":"/bank.MsgSend","from_address":"` + memberAddr +
-		`","to_address":"` + memberAddr + `","amount":"1ugnot"}]`
+	// Canonical /vm.m_call — the real Memba multisig msg type (args:null, send +
+	// max_deposit present), matching what the frontend now stores (lib/multisigTx)
+	// and what Adena's SignMultisigTransaction signs. This locks the A3 reconstruction
+	// against the exact shape; the definitive Adena-byte proof is the Task 6 handoff.
+	msgsJSON := `[{"@type":"/vm.m_call","args":null,"caller":"` + memberAddr +
+		`","send":"","max_deposit":"","pkg_path":"gno.land/r/samcrew/memba_dao","func":"Vote"}]`
 
 	token := h.makeToken(t, memberAddr)
 	createTx := func(t *testing.T) uint32 {

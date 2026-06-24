@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -35,6 +36,21 @@ func (s *MultisigService) CreateTransaction(
 	// S6: Input length limits.
 	if len(msgsJSON) > 102400 || len(feeJSON) > 4096 || len(req.Msg.GetMemo()) > 256 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+
+	// A3-safety: the fee MUST be the canonical gno {gas_wanted, gas_fee} shape that
+	// CanonicalSignBytes reconstructs. Reject the cosmos {amount, gas} shape so a
+	// frontend regression can't silently store a fee A3 can't verify (which would
+	// brick MEMBA_ENFORCE_MULTISIG_SIG_VERIFY). Empty fee is allowed.
+	if feeJSON != "" {
+		var fee struct {
+			GasWanted string `json:"gas_wanted"`
+			GasFee    string `json:"gas_fee"`
+		}
+		if err := json.Unmarshal([]byte(feeJSON), &fee); err != nil || fee.GasWanted == "" || fee.GasFee == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument,
+				fmt.Errorf("fee_json must be the canonical {gas_wanted, gas_fee} form"))
+		}
 	}
 
 	// Verify user is a member of this multisig.

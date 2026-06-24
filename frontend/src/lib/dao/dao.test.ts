@@ -18,6 +18,7 @@ import {
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
     _parseProposalList,
+    _parseProposalDescription,
     _parseProposalAuthor,
     _parseVoters,
     _sanitize,
@@ -381,6 +382,14 @@ describe('buildVoteMsg', () => {
         expect(msg.value.args).toEqual(['0', 'ABSTAIN'])
     })
 
+    // GovDAO supports abstain (gno#5271); Memba now enables the Abstain button for it
+    // (F-E6). Lock the on-chain message that button triggers.
+    it('builds GovDAO ABSTAIN via MustVoteOnProposalSimple (gno#5271)', () => {
+        const msg = buildVoteMsg('g1caller', 'gno.land/r/gov/dao', 5, 'ABSTAIN')
+        expect(msg.value.func).toBe('MustVoteOnProposalSimple')
+        expect(msg.value.args).toEqual(['5', 'ABSTAIN'])
+    })
+
     it('includes correct caller address', () => {
         const msg = buildVoteMsg('g1specificaddr', 'gno.land/r/gov/dao', 1, 'YES')
         expect(msg.value.caller).toBe('g1specificaddr')
@@ -636,5 +645,48 @@ describe('parseVoters', () => {
 
     it('ignores non-voter lines', () => {
         expect(_parseVoters('some header text\nno bullets here')).toEqual([])
+    })
+})
+
+// ── parseProposalDescription (GovDAO v3 detail render) ──────────
+// The displayed/analysed body must NOT leak the executor-metadata block or the
+// trailing "---" rule that precedes "### Stats" (B3/F-E5).
+
+describe('parseProposalDescription', () => {
+    it('returns the body and excludes the executor-metadata block', () => {
+        const detail = [
+            '## Prop #22 - Fund grant',
+            'Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5',
+            '',
+            'Fund the dev grant with 1000 GNOT to accelerate tooling.',
+            '',
+            'This proposal contains the following metadata:',
+            '',
+            'send 1000ugnot',
+            '',
+            'Executor created in: gno.land/r/template/contract',
+            '',
+            '',
+            '---',
+            '',
+            '### Stats',
+            '- **PROPOSAL HAS BEEN DENIED**',
+        ].join('\n')
+        expect(_parseProposalDescription(detail)).toBe('Fund the dev grant with 1000 GNOT to accelerate tooling.')
+    })
+
+    it('strips a trailing horizontal rule when there is no metadata', () => {
+        const detail = [
+            '## Prop #7 - Add member',
+            'Author: [@zooma](/u/zooma)',
+            '',
+            'Add zooma as a T2 member of the DAO.',
+            '',
+            '---',
+            '',
+            '### Stats',
+            '- **PROPOSAL HAS BEEN ACCEPTED**',
+        ].join('\n')
+        expect(_parseProposalDescription(detail)).toBe('Add zooma as a T2 member of the DAO.')
     })
 })

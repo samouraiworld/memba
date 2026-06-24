@@ -10,7 +10,7 @@ import { WizardStepConfig } from "../components/dao/WizardStepConfig"
 import { WizardStepReview } from "../components/dao/WizardStepReview"
 import { WizardStepExtensions } from "../components/dao/WizardStepExtensions"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
-import { generateDAOCode, buildDeployDAOMsg, validateRealmPath, DAO_PRESETS, type DAOCreationConfig, type DAOPreset } from "../lib/daoTemplate"
+import { generateDAOCode, buildDeployDAOMsg, daoStepError, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
 import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig } from "../lib/boardTemplate"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
@@ -86,6 +86,10 @@ export function CreateDAO() {
     const [deployStep, setDeployStep] = useState<DeployStep>("idle")
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
+    // Step-validation messages are shown as a gentle inline notice — NOT routed
+    // through the system ErrorToast, which dramatizes "name required" into
+    // "Something went wrong / reload the page".
+    const [validationError, setValidationError] = useState<string | null>(null)
     const [generatedCode, setGeneratedCode] = useState("")
     const [showDraftBanner, setShowDraftBanner] = useState(false)
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -154,8 +158,21 @@ export function CreateDAO() {
         setRealmPath(`gno.land/r/${adena.address}/${name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 20) || "mydao"}`)
     }, [adena.address, name])
 
+    const buildStepData = (): DAOStepData => ({ name, realmPath, members, threshold, quorum })
+
     const goToStep = (s: Step) => {
         setError(null)
+        setValidationError(null)
+        // Validate before advancing — single source of truth (nextStep delegates
+        // here). Check each step between the current one and the target; on the
+        // first invalid step, surface a gentle inline notice and stay on it.
+        if (s > step) {
+            const data = buildStepData()
+            for (let k = step; k < s; k++) {
+                const err = daoStepError(k, data)
+                if (err) { setValidationError(err); setStep(k as Step); return }
+            }
+        }
         if (s === 5) {
             const preset = DAO_PRESETS.find(p => p.id === selectedPreset)
             const config: DAOCreationConfig = {
@@ -171,34 +188,9 @@ export function CreateDAO() {
 
     // ── Validation ────────────────────────────────────────
 
-    const validateStep = (): string | null => {
-        if (step === 1) {
-            if (!name.trim()) return "DAO name is required"
-            if (name.length < 3) return "DAO name must be at least 3 characters"
-            if (!realmPath.trim()) return "Realm path is required"
-            const pathErr = validateRealmPath(realmPath)
-            if (pathErr) return pathErr
-        }
-        if (step === 2) {
-            const valid = members.filter((m) => m.address.startsWith(BECH32_PREFIX) && m.address.length >= 39)
-            if (valid.length === 0) return "At least one member with a valid g1 address is required"
-            const invalid = members.filter((m) => m.address.length > 0 && (!m.address.startsWith(BECH32_PREFIX) || m.address.length < 39))
-            if (invalid.length > 0) return `${invalid.length} address(es) look invalid — must start with g1 and be 39+ characters`
-            const hasAdmin = members.some((m) => m.address.startsWith(BECH32_PREFIX) && m.roles.includes("admin"))
-            if (!hasAdmin) return "At least one member must have the admin role"
-        }
-        if (step === 3) {
-            if (threshold < 1 || threshold > 100) return "Threshold must be between 1 and 100"
-            if (quorum < 0 || quorum > 100) return "Quorum must be between 0 and 100"
-        }
-        return null
-    }
-
-    const nextStep = () => {
-        const err = validateStep()
-        if (err) { setError(err); return }
-        goToStep((step + 1) as Step)
-    }
+    // Validation now lives in goToStep's forward-nav guard (single source of
+    // truth), so advancing is just a forward navigation.
+    const nextStep = () => goToStep((step + 1) as Step)
 
     // ── Category toggle ───────────────────────────────────
 
@@ -422,6 +414,19 @@ export function CreateDAO() {
                     generatedCode={generatedCode} deploying={deploying}
                     walletAddress={adena.address} onGoToStep={goToStep} onDeploy={deployDAO}
                 />
+            )}
+
+            {/* Step validation notice — gentle inline, not the system ErrorToast */}
+            {validationError && (
+                <div className="k-card" role="alert" style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 14px", fontSize: 13,
+                    borderColor: "var(--color-k-amber-border)",
+                    background: "var(--color-k-amber-subtle)",
+                    color: "var(--color-k-warning)",
+                }}>
+                    <span aria-hidden="true">⚠</span> {validationError}
+                </div>
             )}
 
             {/* Deployment Pipeline */}
