@@ -55,8 +55,8 @@ function Section({ title, icon, defaultOpen = false, children }: {
     return (
         <div style={{
             borderRadius: 12,
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--color-k-hover-surface)",
+            border: "1px solid var(--color-k-edge)",
             overflow: "hidden",
         }}>
             <button
@@ -85,7 +85,7 @@ function Section({ title, icon, defaultOpen = false, children }: {
                     display: "flex",
                     flexDirection: "column",
                     gap: 12,
-                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                    borderTop: "1px solid var(--color-k-edge)",
                 }}>
                     {children}
                 </div>
@@ -130,8 +130,8 @@ export function Settings() {
 
     const inputStyle: React.CSSProperties = {
         width: "100%", padding: "8px 12px", borderRadius: 8,
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
+        border: "1px solid var(--color-k-edge)",
+        background: "var(--color-k-elevated)", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
         boxSizing: "border-box",
     }
