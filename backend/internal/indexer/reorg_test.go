@@ -27,10 +27,10 @@ func TestRollbackFromHeight(t *testing.T) {
 
 	// --- nft_sales + nft_raw_events (via Sale events) ---
 	must(t, dispatchEvent(ctx, db, ev("Sale", "gno.land/r/x", 100, 0, 0, map[string]string{
-		"via": "buy", "collection": "c", "tokenId": "1", "seller": "s", "buyer": "b", "price": "100",
+		"via": "buy", "collection": "c", "tokenId": "1", "seller": "s", "buyer": "b", "price": "100", "fee": "2", "royalty": "5",
 	}), "H100"))
 	must(t, dispatchEvent(ctx, db, ev("Sale", "gno.land/r/x", 200, 0, 0, map[string]string{
-		"via": "buy", "collection": "c", "tokenId": "2", "seller": "s", "buyer": "b", "price": "100",
+		"via": "buy", "collection": "c", "tokenId": "2", "seller": "s", "buyer": "b", "price": "100", "fee": "2", "royalty": "5",
 	}), "H200"))
 
 	// --- nft_listings (via NFTListed events) ---
