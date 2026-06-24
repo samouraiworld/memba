@@ -131,6 +131,13 @@ vi.mock("../hooks/useNetworkNav", () => ({
     useNetworkPath: () => (path: string) => `/test/${path}`,
 }))
 
+// Bypass the NFT feature gate so the page content (not ComingSoonGate) renders.
+vi.mock("../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../lib/config")>()),
+    isNftEnabled: () => true,
+    isNftMarketValid: () => true,
+}))
+
 vi.mock("../lib/formatGnot", () => ({
     formatGnotCompact: (ugnot: bigint | number) => {
         const n = typeof ugnot === "bigint" ? Number(ugnot) : ugnot

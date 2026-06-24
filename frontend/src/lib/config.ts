@@ -541,6 +541,9 @@ export function getFeaturedDaoRealm(networkKey: string): string | null {
 export const isTokenFactoryValid = () => isRealmValid(GRC20_FACTORY_PATH)
 export const isEscrowValid = () => isRealmValid(MEMBA_DAO.escrowPath)
 export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
+/** NFT feature flag (VITE_ENABLE_NFT). Read via a helper so pages gate
+ *  consistently and tests can mock the flag without env timing games. */
+export const isNftEnabled = () => import.meta.env.VITE_ENABLE_NFT === "true"
 /** Phase 2 launchpad — backed by the canonical memba_collections registry. */
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)

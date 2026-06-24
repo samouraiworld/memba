@@ -22,7 +22,16 @@ vi.mock("../lib/nftHub", () => ({
 
 vi.mock("../hooks/useNetworkNav", () => ({
     useNetworkPath: () => (path: string) => `/test/${path}`,
+    useNetworkKey: () => "test13",
 }))
+
+// NFT feature gate — vi.fn so a test can flip it; default ON so the hub renders.
+vi.mock("../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../lib/config")>()),
+    isNftEnabled: vi.fn(() => true),
+    isNftMarketValid: vi.fn(() => true),
+}))
+const configMod = await import("../lib/config")
 
 // NFTMedia renders placeholder for empty URI — acceptable for tests
 vi.mock("../components/nft/NFTMedia", () => ({
@@ -280,5 +289,21 @@ describe("MarketplaceHub — header", () => {
 
         const link = screen.getByRole("link", { name: /launch a collection/i })
         expect(link).toHaveAttribute("href", "/test/nft/create")
+    })
+})
+
+describe("MarketplaceHub — feature gate", () => {
+    it("renders the ComingSoonGate (not the live hub) when NFT is disabled", () => {
+        vi.mocked(configMod.isNftEnabled).mockReturnValueOnce(false)
+        renderHub()
+        // Gate is shown: no live hub search box, and the gate's feature copy is present.
+        expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
+        expect(screen.getByText(/enforced on-chain royalties/i)).toBeInTheDocument()
+    })
+
+    it("renders the ComingSoonGate when the market realm is invalid on this network", () => {
+        vi.mocked(configMod.isNftMarketValid).mockReturnValueOnce(false)
+        renderHub()
+        expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
     })
 })

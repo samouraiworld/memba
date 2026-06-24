@@ -31,6 +31,8 @@ import { TradeModal } from "../components/nft/TradeModal"
 import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { listingKey } from "../lib/v3TokenGrid"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { isNftEnabled, isNftMarketValid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
 
@@ -54,7 +56,31 @@ interface ModalState {
 
 // ── Component ─────────────────────────────────────────────────────────
 
+/**
+ * Feature gate (defense-in-depth) — this page renders live Buy/List actions, so
+ * it must stay dark until VITE_ENABLE_NFT is flipped and the market realm is
+ * valid, even when reached by a direct URL rather than the (also-gated) hub.
+ */
 export function CollectionPublic() {
+    if (!isNftEnabled() || !isNftMarketValid()) {
+        return (
+            <ComingSoonGate
+                title="NFT Marketplace"
+                icon="🖼️"
+                description="Discover, buy, and sell GRC721 NFTs on gno.land — with enforced creator royalties."
+                features={[
+                    "Browse verified collections + recent activity",
+                    "Buy and list in one unified trade flow",
+                    "Enforced on-chain royalties on every sale",
+                    "Live floor + volume per collection",
+                ]}
+            />
+        )
+    }
+    return <CollectionPublicContent />
+}
+
+function CollectionPublicContent() {
     const { creator, slug } = useParams<{ creator: string; slug: string }>()
     const id = creator && slug ? `${creator}/${slug}` : ""
     const { adena } = useOutletContext<LayoutContext>()

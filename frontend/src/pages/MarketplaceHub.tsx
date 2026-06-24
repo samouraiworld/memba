@@ -20,12 +20,40 @@ import { VerifiedBadge } from "../components/nft/VerifiedBadge"
 import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { useNetworkPath } from "../hooks/useNetworkNav"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { isNftEnabled, isNftMarketValid } from "../lib/config"
 import type { NFTActivityItem } from "../lib/nftApi"
 import "./marketplace-v2.css"
 
 // ── Component ────────────────────────────────────────────────────────
 
+/**
+ * Feature gate — the marketplace hub is the live-trading entry point, so it
+ * must stay dark in production until VITE_ENABLE_NFT is flipped (and the market
+ * realm is valid on the active network). Matches the gate the legacy NFTGallery
+ * (the previous /nft page) carried; without it, /nft would expose live on-chain
+ * buy/list while the flag is off.
+ */
 export function MarketplaceHub() {
+    if (!isNftEnabled() || !isNftMarketValid()) {
+        return (
+            <ComingSoonGate
+                title="NFT Marketplace"
+                icon="🖼️"
+                description="Discover, buy, and sell GRC721 NFTs on gno.land — with enforced creator royalties."
+                features={[
+                    "Browse verified collections + recent activity",
+                    "Buy and list in one unified trade flow",
+                    "Enforced on-chain royalties on every sale",
+                    "Live floor + volume per collection",
+                ]}
+            />
+        )
+    }
+    return <MarketplaceHubContent />
+}
+
+function MarketplaceHubContent() {
     const np = useNetworkPath()
 
     // ── Data state ──────────────────────────────────────────────────
