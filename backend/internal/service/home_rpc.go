@@ -496,7 +496,7 @@ func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPuls
 			} `json:"sync_info"`
 		} `json:"result"`
 	}
-	if err := httpGetJSON(ctx, rpcURL+"/status", &s); err != nil {
+	if err := httpGetJSONResilient(ctx, rpcURL, "/status", &s); err != nil {
 		return nil, err
 	}
 	h, err := strconv.ParseInt(s.Result.SyncInfo.LatestBlockHeight, 10, 64)
@@ -526,8 +526,8 @@ func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPuls
 					} `json:"block"`
 				} `json:"result"`
 			}
-			url := fmt.Sprintf("%s/block?height=%d", rpcURL, h-n)
-			if bErr := httpGetJSON(ctx, url, &b); bErr != nil {
+			blockSuffix := fmt.Sprintf("/block?height=%d", h-n)
+			if bErr := httpGetJSONResilient(ctx, rpcURL, blockSuffix, &b); bErr != nil {
 				slog.Debug("fetchNetworkPulse: fetch /block", "height", h-n, "err", bErr)
 			} else {
 				earlierTime, pErr := time.Parse(time.RFC3339Nano, b.Result.Block.Header.Time)
@@ -553,7 +553,7 @@ func fetchValidatorsHealth(ctx context.Context, rpcURL string) (*membav1.Validat
 			Validators []json.RawMessage `json:"validators"`
 		} `json:"result"`
 	}
-	if err := httpGetJSON(ctx, rpcURL+"/validators", &v); err != nil {
+	if err := httpGetJSONResilient(ctx, rpcURL, "/validators", &v); err != nil {
 		return nil, err
 	}
 	total := uint32(len(v.Result.Validators)) // #nosec G115 -- validator set size is tiny (tens of nodes), never overflows uint32
