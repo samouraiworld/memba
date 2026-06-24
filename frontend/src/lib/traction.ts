@@ -1,20 +1,26 @@
 /**
- * traction.ts — Ecosystem traction metrics for the landing page.
+ * traction.ts — Ecosystem traction metrics for the home directory door.
  *
- * Fetches live metrics from gnolove API and ABCI queries:
- * - DAO count (samcrew namespace via gnoweb)
- * - Contributor count (gnolove API)
+ * Fetches live metrics from the gnolove API:
+ * - Contributor count (gnolove API) — drives the DirectoryDoor member count
  * - Tracked repos (gnolove API)
  *
  * Results cached in sessionStorage with 5-minute TTL.
  */
 
 import { GNOLOVE_API_URL } from "./config"
-import { getGnowebUrl, fetchNamespaceRealms } from "./gnoweb"
 
 // ── Types ────────────────────────────────────────────────────
 
 export interface TractionMetrics {
+    /**
+     * @deprecated Always 0. There is no authoritative global DAO registry — its
+     * former source (counting every realm in the `samcrew` namespace) conflated
+     * infrastructure realms (tokenfactory, escrow, badges, nft_market,
+     * candidature, channels, …) with DAOs and badly overcounted. Not displayed
+     * anywhere (the Atlas home uses per-DAO doors). Retained only until the
+     * orphaned Control-Room panels that still read it are removed.
+     */
     daoCount: number
     contributorCount: number
     repoCount: number
@@ -83,15 +89,6 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
             const data = await r.json()
             return Array.isArray(data) ? data.length : 0
         }),
-
-        // DAO count from gnoweb namespace (live on-chain query)
-        (async () => {
-            const networkKey = localStorage.getItem("memba_network") || "test13"
-            const gnowebUrl = getGnowebUrl(networkKey)
-            if (!gnowebUrl) return 0
-            const realms = await fetchNamespaceRealms(gnowebUrl, "samcrew")
-            return realms.length
-        })(),
     ])
 
     if (results[0].status === "fulfilled") {
@@ -100,9 +97,7 @@ export async function fetchTractionMetrics(): Promise<TractionMetrics> {
     if (results[1].status === "fulfilled") {
         metrics.repoCount = results[1].value
     }
-    if (results[2].status === "fulfilled" && results[2].value > 0) {
-        metrics.daoCount = results[2].value
-    }
+    // daoCount intentionally not computed — see TractionMetrics.daoCount.
 
     setCache(metrics)
     return metrics
