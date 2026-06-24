@@ -3,18 +3,41 @@ package indexer
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"strconv"
 )
 
 // atoiSafe parses a base-10 integer attribute, returning 0 on any error. Event
 // amounts (price/fee/royalty) are non-negative decimal strings emitted via
 // strconv.Itoa on-chain, so failure means a missing/garbage attr → treat as 0.
+// NOTE: for the canonical Sale money-path, use atoiStrict instead — a silent 0
+// there corrupts volume/floor/points and is indistinguishable from a real zero.
 func atoiSafe(s string) int64 {
 	v, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return 0
 	}
 	return v
+}
+
+// atoiStrict parses a REQUIRED base-10 integer attribute. ok=false when the attr
+// is missing or not a valid integer, so the caller can reject a malformed event
+// rather than silently substituting 0 (audit F2). A present "0" parses fine.
+func atoiStrict(s string) (v int64, ok bool) {
+	v, err := strconv.ParseInt(s, 10, 64)
+	return v, err == nil
+}
+
+// validVia reports whether a Sale event's "via" is one of the canonical kinds
+// the engines emit. The indexer keys analytics on `kind`, so an unknown/empty
+// via would silently skew queries that filter on it.
+func validVia(via string) bool {
+	switch via {
+	case "buy", "offer", "auction", "sweep":
+		return true
+	default:
+		return false
+	}
 }
 
 // dispatchEvent applies a single normalized GnoEvent to the database. It
@@ -282,10 +305,22 @@ func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
-	price := atoiSafe(ev.Attr("price"))
-	fee := atoiSafe(ev.Attr("fee"))
-	royalty := atoiSafe(ev.Attr("royalty"))
 	via := ev.Attr("via") // "buy" | "offer" | "auction" | "sweep"
+	price, priceOK := atoiStrict(ev.Attr("price"))
+	fee, feeOK := atoiStrict(ev.Attr("fee"))
+	royalty, royaltyOK := atoiStrict(ev.Attr("royalty"))
+
+	// Reject a malformed Sale rather than silently writing a bad `kind` or zeroed
+	// amounts (audit F2). The raw event is already persisted by recordRawEvent, so
+	// it's recoverable; the warning is the operator signal that schema drift hit.
+	if !validVia(via) || col == "" || tok == "" || seller == "" || buyer == "" || !priceOK || !feeOK || !royaltyOK {
+		slog.Warn("indexer: skipping malformed Sale event",
+			"pkg", ev.PkgPath, "block", ev.Block, "tx", ev.TxIndex, "idx", ev.EventIdx,
+			"via", via, "collection", col, "tokenId", tok,
+			"hasSeller", seller != "", "hasBuyer", buyer != "",
+			"priceOK", priceOK, "feeOK", feeOK, "royaltyOK", royaltyOK)
+		return nil
+	}
 	return settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via)
 }
 
