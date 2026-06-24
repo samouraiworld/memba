@@ -29,11 +29,15 @@ export function Treasury() {
     const [assets, setAssets] = useState<TreasuryAsset[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    // Per-source load failures (P1-7): a failed balance source must show a notice,
+    // not silently render an incomplete treasury as if it were complete.
+    const [partialFailures, setPartialFailures] = useState<string[]>([])
 
     const loadTreasury = useCallback(async () => {
         if (!realmPath) return
         setLoading(true)
         setError(null)
+        setPartialFailures([])
         try {
             const [cfg, mems] = await Promise.all([
                 getDAOConfig(GNO_RPC_URL, realmPath),
@@ -43,6 +47,7 @@ export function Treasury() {
             setMembers(mems)
 
             const treasuryAssets: TreasuryAsset[] = []
+            const failures: string[] = []
 
             // 1. Fetch GNOT balance via bank/balances ABCI query (resilient RPC failover)
             try {
@@ -82,7 +87,7 @@ export function Treasury() {
                         })
                     }
                 }
-            } catch { /* GNOT balance fetch failed silently */ }
+            } catch { failures.push("GNOT balance") }
 
             // 2. Fetch GRC20 token balances
             try {
@@ -108,9 +113,10 @@ export function Treasury() {
                             rawBalance: r.value.balance,
                         })
                     })
-            } catch { /* GRC20 fetch failed silently */ }
+            } catch { failures.push("token balances") }
 
             setAssets(treasuryAssets)
+            setPartialFailures(failures)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load treasury data")
         } finally {
@@ -160,6 +166,20 @@ export function Treasury() {
                 <StatCard label="GRC20 Tokens" value={String(assets.filter((a) => a.type === "grc20").length)} icon="💎" />
                 <StatCard label="Members" value={String(members.length)} icon="👥" />
             </div>
+
+            {/* P1-7: partial-load honesty — a failed balance source is surfaced, not hidden. */}
+            {partialFailures.length > 0 && (
+                <div
+                    role="status"
+                    style={{
+                        padding: "12px 16px", borderRadius: 8,
+                        background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
+                        fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", lineHeight: 1.5,
+                    }}
+                >
+                    ⚠️ Couldn't load {partialFailures.join(" and ")}. The treasury shown may be incomplete — try refreshing.
+                </div>
+            )}
 
             {/* Assets Table */}
             <div>
