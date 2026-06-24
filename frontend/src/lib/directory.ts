@@ -141,6 +141,30 @@ export const SEED_DAOS: Array<{ name: string; path: string }> = [
 ]
 
 /**
+ * Build a directory user list from DAO membership.
+ *
+ * On test13 the on-chain user registry (r/sys/users) renders stats only and
+ * cannot be enumerated, so the Directory sources its "users" from real on-chain
+ * DAO membership instead. Unions member addresses across the given DAO member
+ * map (deduped case-insensitively, first-seen order). Usernames are left blank —
+ * resolved to gnolove handles/avatars at the UI layer.
+ */
+export function unionDaoMembers(memberMap: Map<string, string[]>): DirectoryUser[] {
+    const seen = new Set<string>()
+    const users: DirectoryUser[] = []
+    for (const members of memberMap.values()) {
+        for (const addr of members) {
+            const key = addr.toLowerCase()
+            if (!seen.has(key)) {
+                seen.add(key)
+                users.push({ name: "", address: addr })
+            }
+        }
+    }
+    return users
+}
+
+/**
  * Known DAO paths to probe for auto-discovery.
  * Each path is queried via ABCI Render("") — if it responds, it's a valid DAO.
  *

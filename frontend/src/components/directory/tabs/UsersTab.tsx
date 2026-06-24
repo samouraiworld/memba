@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react"
 import { ArrowRight } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNOLOVE_API_URL } from "../../../lib/config"
+import { GNO_RPC_URL, GNOLOVE_API_URL, MEMBA_DAO } from "../../../lib/config"
 import {
-    fetchUsers,
+    unionDaoMembers,
     batchFetchUserAvatars,
     calculateContributionScores,
     parseDAOMemberAddresses,
@@ -36,24 +36,30 @@ export function UsersTab({ navigate }: TabProps) {
     const load = useCallback(async () => {
         setLoading(true); setError(null)
         try {
-            const data = await fetchUsers()
-            setUsers(data)
-
-            // Fetch DAO member data for contribution scoring (best-effort)
+            // test13's user registry (r/sys/users) renders stats only and can't be
+            // enumerated, so source "users" from real on-chain DAO membership via
+            // each DAO's `:members` render — Memba's own DAO plus the seed DAOs.
+            const daoPaths = Array.from(new Set([MEMBA_DAO.realmPath, ...SEED_DAOS.map(d => d.path)]))
             const memberMap = new Map<string, string[]>()
-            // M3 fix: _settled naming convention for unused await result
-            const _settled = await Promise.allSettled(
-                SEED_DAOS.map(async dao => {
-                    const raw = await queryRender(GNO_RPC_URL, dao.path, "")
-                    if (raw) memberMap.set(dao.path, parseDAOMemberAddresses(raw))
+            const settled = await Promise.allSettled(
+                daoPaths.map(async path => {
+                    const raw = await queryRender(GNO_RPC_URL, path, "members")
+                    if (raw) {
+                        const addrs = parseDAOMemberAddresses(raw)
+                        if (addrs.length > 0) memberMap.set(path, addrs)
+                    }
                 }),
             )
-            void _settled // TypeScript requires reference
-            if (memberMap.size > 0) {
-                setScores(calculateContributionScores(data, memberMap))
+            // Distinguish a real outage from a genuinely empty network.
+            if (memberMap.size === 0 && settled.every(s => s.status === "rejected")) {
+                throw new Error("Couldn't reach the network to load members. Try again.")
             }
 
-            // Fetch avatars for visible users (best-effort, capped at 10)
+            const data = unionDaoMembers(memberMap)
+            setUsers(data)
+            if (memberMap.size > 0) setScores(calculateContributionScores(data, memberMap))
+
+            // Avatars for the first page (best-effort via gnolove).
             const visibleAddrs = data.slice(0, PAGE_SIZE).map(u => u.address)
             const avatars = await batchFetchUserAvatars(visibleAddrs, GNOLOVE_API_URL)
             if (avatars.size > 0) setAvatarMap(avatars)
@@ -100,12 +106,12 @@ export function UsersTab({ navigate }: TabProps) {
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="dir-empty">
-                    <p>{search ? `No users matching "${search}"` : "No registered users found"}</p>
+                    <p>{search ? `No members matching "${search}"` : "No DAO members found on this network yet"}</p>
                 </div>
             ) : (
                 <>
                     <div className="dir-count">
-                        {filtered.length} user{filtered.length !== 1 ? "s" : ""} found
+                        {filtered.length} member{filtered.length !== 1 ? "s" : ""} found
                     </div>
                     <div className="dir-user-list">
                         {pageItems.map(u => {
@@ -120,13 +126,13 @@ export function UsersTab({ navigate }: TabProps) {
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                         <div className="dir-user-avatar">
                                             {avatarMap.get(u.address)
-                                                ? <img src={resolveAvatarUrl(avatarMap.get(u.address)!)} alt={u.name} />
-                                                : u.name.charAt(0)
+                                                ? <img src={resolveAvatarUrl(avatarMap.get(u.address)!)} alt={u.name || u.address} />
+                                                : (u.name ? u.name.charAt(0) : u.address.slice(2, 4).toUpperCase())
                                             }
                                         </div>
                                         <div className="dir-card-main">
                                             <div className="dir-card-name">
-                                                @{u.name}
+                                                {u.name ? `@${u.name}` : (u.address.length > 20 ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}` : u.address)}
                                                 {score && score.daoCount > 0 && (
                                                     <span
                                                         className={`dir-inline-badge dir-activity-badge dir-activity-${score.level}`}
@@ -138,11 +144,13 @@ export function UsersTab({ navigate }: TabProps) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="dir-card-path">
-                                                {u.address.length > 20
-                                                    ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}`
-                                                    : u.address}
-                                            </div>
+                                            {u.name && (
+                                                <div className="dir-card-path">
+                                                    {u.address.length > 20
+                                                        ? `${u.address.slice(0, 10)}…${u.address.slice(-6)}`
+                                                        : u.address}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <ArrowRight size={14} className="dir-arrow" />
