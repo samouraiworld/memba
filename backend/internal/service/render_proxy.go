@@ -92,13 +92,31 @@ type abciQueryParams struct {
 	Data string `json:"data"`
 }
 
-// abciQuery sends a JSON-RPC ABCI query to the Gno RPC and returns the decoded result.
+// abciQuery sends an ABCI query with automatic failover: it tries the primary
+// RPC (rpcURL) then each backup node from rpcURLsInOrder until one answers
+// without a transport error. A valid "no record" answer (empty result, nil
+// error) is a success and does NOT advance to the next node — only
+// connection/timeout/non-200/parse errors fail over. Returns the last transport
+// error if every node fails.
+func abciQuery(rpcURL, path, data string) (string, error) {
+	var lastErr error
+	for _, u := range rpcURLsInOrder(rpcURL) {
+		out, err := abciQueryOnce(u, path, data)
+		if err == nil {
+			return out, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+// abciQueryOnce performs a single ABCI query against one RPC node.
 //
 // The `data` param is base64-encoded on the wire: gno.land's abci_query decodes
 // it as base64 (raw bytes fail with "Invalid params"/"illegal base64 data").
 // Render-path queries must therefore use the "<pkgpath>:<renderpath>" colon
 // syntax (a newline yields "expected <pkgpath>:<path> syntax").
-func abciQuery(rpcURL, path, data string) (string, error) {
+func abciQueryOnce(rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -116,6 +134,13 @@ func abciQuery(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// A dead/sentry-throttled node returns a non-200 (often 502/503/429) with a
+	// non-JSON body. Detect it explicitly so failover fires deterministically
+	// instead of relying on a downstream JSON parse error.
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
