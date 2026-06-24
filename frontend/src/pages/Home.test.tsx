@@ -67,19 +67,7 @@ vi.mock("../hooks/home/useNetworkPulse", () => ({
     })),
 }))
 
-// ── Mock useEcosystemCounts so EcosystemPanel renders without RPC calls ─
-vi.mock("../hooks/home/useEcosystemCounts", () => ({
-    useEcosystemCounts: vi.fn(() => ({
-        tokens: 3,
-        agents: 2,
-        validators: 5,
-        daos: 7,
-        collections: 4,
-        loading: false,
-    })),
-}))
-
-// ── Mock useValidatorHealth so ValidatorsPanel renders without RPC calls ─
+// ── Mock useValidatorHealth so NetworkHealthDoor renders without RPC calls ─
 vi.mock("../hooks/home/useValidatorHealth", () => ({
     useValidatorHealth: vi.fn(() => ({
         status: "healthy",
@@ -118,10 +106,8 @@ vi.mock("../hooks/home/useDirectoryHighlights", () => ({
 // Resolve mocks before tests (vi.mock + await import pattern)
 const _networkMock = await import("../hooks/useNetwork")
 const _pulseMock = await import("../hooks/home/useNetworkPulse")
-const _ecosystemMock = await import("../hooks/home/useEcosystemCounts")
 void _networkMock
 void _pulseMock
-void _ecosystemMock
 
 describe("Home — member mode", () => {
     it("renders the member spine container", () => {
