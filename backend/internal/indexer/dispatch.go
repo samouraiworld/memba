@@ -335,7 +335,16 @@ func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 			"priceOK", priceOK, "feeOK", feeOK, "royaltyOK", royaltyOK)
 		return nil
 	}
-	return settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via)
+	if err := settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via); err != nil {
+		return err
+	}
+	// v3 AcceptOffer emits only Sale(via="offer") — no separate OfferAccepted —
+	// so resolve the buyer's active offer here, else it lingers as a phantom
+	// 'active' offer on an already-sold token (audit F13).
+	if via == "offer" {
+		return applyOfferResolved(ctx, db, ev, "accepted")
+	}
+	return nil
 }
 
 // settleSale records a sale (purchase or accepted offer): inserts nft_sales,
