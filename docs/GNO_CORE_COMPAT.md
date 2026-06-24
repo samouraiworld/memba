@@ -209,3 +209,31 @@ cd backend && go test -race -count=1 ./...
 # 4. Create a Memba DAO → deploy tx succeeds
 # 5. Network switch → app reloads correctly
 ```
+
+---
+
+## 2026-06-24 — NFT-relevant upstream PRs + chain-feature matrix
+
+> Added during the NFT audit + hardening pass. The sections above predate these.
+
+### Chain-feature matrix (which chain has what)
+
+| gno feature / PR | test13 (`f45cc5c8`, what Memba runs) | upstream master | gnoland1.1 mainnet (2026-04-01) |
+|---|---|---|---|
+| interrealm-v2 Phase 3 — `IsCurrent`-gated ACLs (#5669) | ✅ | ✅ | ❌ |
+| grc721 realm-qualified collection IDs in events (#5745) | ✅ | ✅ | ❌ |
+| remove N_Readonly taint / cross-realm `/p/` arithmetic (#5747) | ❌ | ✅ | ❌ |
+| grc721 owner-gated `SetTokenMetadata` (#5792) | ❌ | ✅ | ❌ |
+| `errors.Is/Unwrap/Join` in stdlib (#5385) | ❌ | ✅ | ❌ |
+
+**Mainnet gate:** gnoland1.1 predates interrealm-v2 Phase 3 (#5669), so Memba's interrealm-v2 realms **cannot deploy to current mainnet** until it upgrades to a VM ≥ #5669 — this blocks *all* Memba realm deploys to mainnet (DAO + NFT), not just NFT.
+
+### NFT-relevant PRs — impact + status
+
+| PR | What | Memba impact | Status |
+|---|---|---|---|
+| **#5747** remove N_Readonly taint, fix cross-realm `/p/` arithmetic | gnovm | **None** for `memba_market_core.SplitProceeds` — plain `int64` scalar math; the bug only hit in-place mutation of `/p/`-declared *composite* types (e.g. `uint256`). Keep `market_core` scalar-only. | ✅ verified non-issue |
+| **#5745** realm-qualified collection IDs in grc721 events | grc721 | The indexer keys on the **memba-layer** event IDs (`collectionID`/`collection`, the creator/slug form), not the grc721 realm-qualified `token` field — unaffected. | ✅ verified non-issue |
+| **#5792** grc721 owner-gated `SetTokenMetadata` | grc721 | The fork lacked the guard, but it's unreachable (no `memba_collections` wrapper exposes it; mint uses owner-gated `SetTokenURI`). | ✅ ported (samcrew-deployer #34), forward-safety for the next deploy |
+
+> Verified in the 2026-06-24 NFT audit — see `docs/planning/NFT_FEATURE_AUDIT_AND_AAA_PLAN_2026-06-24.md`.

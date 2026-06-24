@@ -2,6 +2,8 @@
 
 > **Date:** 2026-03-30 · **Memba:** v2.21.0 · **Status:** All tracked PRs still open — monitor and act when merged
 >
+> **2026-06-24 update:** the NFT-relevant upstream PRs (#5747 / #5792 / #5745) and a chain-feature matrix (test13 / master / gnoland1.1) are tracked in [GNO_CORE_COMPAT.md § 2026-06-24](../GNO_CORE_COMPAT.md#2026-06-24--nft-relevant-upstream-prs--chain-feature-matrix). Mainnet is gated on gnoland1 upgrading to ≥ #5669 (interrealm-v2 Phase 3).
+>
 > Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
 
 ## Priority Matrix
