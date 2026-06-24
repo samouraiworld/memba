@@ -164,7 +164,7 @@ func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
 		}
 
 		// Exchange code for token
-		token, err := exchangeGitHubCode(code, clientID, clientSecret)
+		token, err := exchangeGitHubCode(r.Context(), code, clientID, clientSecret)
 		if err != nil {
 			slog.Error("github oauth exchange failed", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -173,7 +173,7 @@ func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
 		}
 
 		// Fetch GitHub user info
-		user, err := fetchGitHubUser(token)
+		user, err := fetchGitHubUser(r.Context(), token)
 		if err != nil {
 			slog.Error("github user fetch failed", "error", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -196,17 +196,22 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
-func exchangeGitHubCode(code, clientID, clientSecret string) (string, error) {
+// githubHTTPClient bounds the GitHub OAuth exchange/userinfo calls with an
+// explicit timeout so a stalled GitHub endpoint can't hang the handler
+// goroutine. Requests also carry the inbound request context for cancellation.
+var githubHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
+func exchangeGitHubCode(ctx context.Context, code, clientID, clientSecret string) (string, error) {
 	body := fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, clientSecret, code)
 
-	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", strings.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://github.com/login/oauth/access_token", strings.NewReader(body))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- URL is hardcoded GitHub API endpoint, not user-controlled
+	resp, err := githubHTTPClient.Do(req) // #nosec G704 -- URL is hardcoded GitHub API endpoint, not user-controlled
 	if err != nil {
 		return "", fmt.Errorf("github token exchange request failed: %w", err)
 	}
@@ -228,15 +233,15 @@ func exchangeGitHubCode(code, clientID, clientSecret string) (string, error) {
 	return tokenResp.AccessToken, nil
 }
 
-func fetchGitHubUser(token string) (*githubUser, error) {
-	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+func fetchGitHubUser(ctx context.Context, token string) (*githubUser, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := githubHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("github user request failed: %w", err)
 	}
