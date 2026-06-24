@@ -87,8 +87,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     //
     // Canonical RPC is gno-core's official node (rpc.test13.testnets.gno.land,
     // verified live). Kept env-overridable (VITE_TEST13_RPC_URL); onbloc's node
-    // (Adena's GetNetwork() default since v1.19.5 #856) and aeddi's node remain as
-    // fallbacks — all three are CSP- and TRUSTED_RPC_DOMAINS-covered.
+    // (Adena's GetNetwork() default since v1.19.5 #856) remains the fallback — both
+    // CSP- and TRUSTED_RPC_DOMAINS-covered. (aeddi's rpc.test-13-aeddi-1 node is on
+    // the deprecating *.test-13.gnoland.network family per gno core (2026-06-24) —
+    // dropped as a generic fallback; kept below only as a telemetry full-topology
+    // source until gno core names a replacement.)
     //
     // The official Gno testnet. Memba's frozen realm set (memba_dao,
     // candidature_v2, channels_v2, agent_registry) + gnodaokit are deployed here
@@ -99,7 +102,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
-            "https://rpc.test-13-aeddi-1.gnoland.network:443",
         ],
         // Telemetry sources for the Validators monitoring view. The canonical RPC
         // and onbloc sit behind sentries and each see only ~5 /net_info peers
@@ -107,6 +109,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // sees the full ~13-node topology; samourai-dev-sentry-1 is our own
         // well-connected node. Unioned by getAggregatedNetPeers so the peer list
         // matches the real network. Both are TRUSTED_RPC_DOMAINS-covered.
+        // NOTE: aeddi-1 is on the deprecating *.test-13.gnoland.network family
+        // (gno core, 2026-06-24) with no official full-topology replacement yet, so
+        // it is kept here (it degrades gracefully when retired — getAggregatedNetPeers
+        // simply unions whatever responds). Revisit when gno core names the successor.
         telemetryRpcUrls: [
             "https://rpc.test-13-aeddi-1.gnoland.network:443",
             "https://rpc.testnet13.samourai.live:443",

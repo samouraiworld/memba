@@ -12,9 +12,10 @@
  * team shipped for test13.
  */
 import { useMemo } from "react"
-import { valoperGnowebBase, type ValoperWithStatus } from "../../lib/valopers"
+import { type ValoperWithStatus } from "../../lib/valopers"
 import { truncateValidatorAddr } from "../../lib/validators"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
+import { getExplorerBaseUrl } from "../../lib/config"
 
 const SERVER_TYPE_LABEL: Record<string, string> = {
     "cloud": "Cloud",
@@ -24,7 +25,7 @@ const SERVER_TYPE_LABEL: Record<string, string> = {
 
 // gnoweb render path for a single valoper profile — active-network host (never mainnet).
 const profileUrl = (operatorAddress: string) =>
-    `${valoperGnowebBase()}/r/gnops/valopers:${operatorAddress}`
+    `${getExplorerBaseUrl()}/r/gnops/valopers:${operatorAddress}`
 
 // The test13 validator onboarding write-up.
 const ONBOARDING_URL = "https://gno.land/r/gnoland/blog:p/validator-test13"

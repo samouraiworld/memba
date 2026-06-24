@@ -9,19 +9,8 @@
 //   active    — the valoper's signing address is in the live consensus set
 //   candidate — registered but not currently validating
 import { queryRender } from "./dao/shared"
-import { GNO_CHAIN_ID, getExplorerBaseUrl } from "./config"
 
 export const VALOPERS_REALM = "gno.land/r/gnops/valopers"
-
-/** gnoweb base for valoper profile links. Pinned to gno-core's canonical test13
- *  gnoweb (verified live 2026-06-24: renders r/gnops/valopers profiles), kept
- *  SEPARATE from the shared explorer host so profile/directory links stay
- *  untouched (zero blast radius). Env-overridable. */
-export function valoperGnowebBase(): string {
-    if (GNO_CHAIN_ID === "test-13")
-        return import.meta.env.VITE_TEST13_VALOPER_GNOWEB_URL || "https://gnoweb.test-13.gnoland.network"
-    return getExplorerBaseUrl()
-}
 
 /** A registered valoper's public profile from gno.land/r/gnops/valopers. */
 export interface Valoper {
