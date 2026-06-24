@@ -41,6 +41,8 @@ Full changelogs are split by version range for easier navigation:
 - **Phase-0 data foundation:** raw immutable event ledger + Sale handler + reorg-safety + points recompute (#431).
 - **v3 trading UI:** token grid + approve→list→buy on `memba_nft_market_v3` (#432); admin-panel UX (#435); 404 + CSS fixes (#433/#434).
 - **Creator Studio** — manage workspace + GNOT mint-price fix (#441). CI: bump frontend timeout to 30m for the E2E suite (#436).
+- **Marketplace Phase 2 (UI rework):** discovery hub (`/nft`), redesigned public collection page, ONE engine-routed `TradeModal` (replaces 5 modals), `NFTMedia`/`PriceBreakdown`/`nftHub` data layer, read-only legacy v1 viewer; retired the code-gen advanced wizard (→ `/nft/create`). Offers gated to a buy/list MVP (`OFFERS_ENABLED=false`); full offer loop in Phase 3 (#443).
+- **Indexer v3-correctness:** reject malformed Sale events (#497); fix the v3 launchpad event-contract — `collectionID`/`minter`/`RoyaltySet` (#507); resolve v3 offers on `Sale(via=offer)` (#509). On-chain settlement now has a gnodev integration harness (samcrew-deployer #33) + a go-live/rollback runbook (#504).
 
 ### GnoBuilders (#437, #438, #440, #442, 06-18 → 06-19)
 - Honest + un-gameable baseline, backend hardening, self-report flow, badge-mint tooling (#437); namespace-verified deploy quests (#438); programmatic badge SVG art + IPFS metadata pipeline (#440); server-side verifiers for join-dao + create-token, Phase 3 (#442).
