@@ -90,6 +90,7 @@ export async function resilientFetch(
 export async function resilientAbciQuery(
     path: string,
     data: string,
+    strict = false,
 ): Promise<string | null> {
     try {
         const b64Data = btoa(data)
@@ -108,11 +109,14 @@ export async function resilientAbciQuery(
         }))
         const json = await res.json()
         const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return null
+        if (!value) return null // realm rendered nothing — a legitimate empty, not a failure
         const binaryStr = atob(value)
         const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
         return new TextDecoder().decode(bytes)
-    } catch {
+    } catch (err) {
+        // strict callers (the DAO read path) need to distinguish "all endpoints down"
+        // from "empty" so they can show an error + retry instead of a blank card (FE-2).
+        if (strict) throw err instanceof Error ? err : new Error(String(err))
         return null
     }
 }

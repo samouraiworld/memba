@@ -47,8 +47,11 @@ export function parseDaoThreshold(render: string): string {
 export async function getDAOConfig(
     rpcUrl: string,
     realmPath: string,
+    strict = false,
 ): Promise<DAOConfig | null> {
-    const data = await queryRender(rpcUrl, realmPath, "")
+    // strict=true surfaces an all-RPC-down failure (throws) instead of returning
+    // null, so a failed read shows an error+retry rather than a blank DAO (FE-2).
+    const data = await queryRender(rpcUrl, realmPath, "", strict)
     if (!data) return null
 
     // Try GovDAO v3 format first: "# GovDAO" + memberstore link

@@ -55,7 +55,7 @@ export function DAOHome() {
         setProposalsLoading(true)
         setError(null)
         try {
-            const cfg = await getDAOConfig(GNO_RPC_URL, realmPath)
+            const cfg = await getDAOConfig(GNO_RPC_URL, realmPath, true)
             setConfig(cfg)
             setConfigLoading(false)
 
@@ -64,7 +64,7 @@ export function DAOHome() {
                 .catch((err) => setError(err instanceof Error ? err.message : "Failed to load members"))
                 .finally(() => setMembersLoading(false))
 
-            getDAOProposals(GNO_RPC_URL, realmPath)
+            getDAOProposals(GNO_RPC_URL, realmPath, true)
                 .then(setProposals)
                 .catch((err) => setError(err instanceof Error ? err.message : "Failed to load proposals"))
                 .finally(() => setProposalsLoading(false))
