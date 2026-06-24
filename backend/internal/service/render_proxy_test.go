@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func TestGnoRPCURL_DefaultsToTest13(t *testing.T) {
+	t.Setenv("GNO_RPC_URL", "") // force the built-in default
+	const want = "https://rpc.testnet13.samourai.live:443"
+	if got := gnoRPCURL(); got != want {
+		t.Fatalf("gnoRPCURL() default = %q, want pinned test13 node %q (test12 drift?)", got, want)
+	}
+}
+
 func TestHandleRenderProxy_MissingRealm(t *testing.T) {
 	handler := HandleRenderProxy()
 	req := httptest.NewRequest(http.MethodGet, "/api/render", nil)
