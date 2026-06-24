@@ -21,6 +21,7 @@ export interface ConsensusVerdict {
     confidence: number
     agreementLevel: "unanimous" | "strong" | "split" | "contested"
     agreeCount: number
+    respondedCount: number
     totalCount: number
     summary: string
     keyRisks: string[]
@@ -36,6 +37,7 @@ export interface ConsensusPerspective {
     reasoning: string
     risks: string[]
     recommendations: string[]
+    responded?: boolean
 }
 
 export interface ConsensusReport {

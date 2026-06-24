@@ -44,6 +44,7 @@ type ConsensusVerdict struct {
 	Confidence         float64  `json:"confidence"`
 	AgreementLevel     string   `json:"agreementLevel"`
 	AgreeCount         int      `json:"agreeCount"`
+	RespondedCount     int      `json:"respondedCount"`
 	TotalCount         int      `json:"totalCount"`
 	Summary            string   `json:"summary"`
 	KeyRisks           []string `json:"keyRisks"`
@@ -60,6 +61,7 @@ type ConsensusPerspective struct {
 	Reasoning       string   `json:"reasoning"`
 	Risks           []string `json:"risks"`
 	Recommendations []string `json:"recommendations"`
+	Responded       bool     `json:"responded"` // false when the model call failed (excluded from consensus math)
 }
 
 // ── Input Validation ─────────────────────────────────────────
@@ -175,66 +177,71 @@ var perspectiveWeights = map[string]float64{
 // ── Consensus Aggregation ────────────────────────────────────
 
 func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
-	if len(perspectives) == 0 {
+	total := len(perspectives)
+
+	// Only models that actually returned an analysis inform the verdict — a failed
+	// free-model (Responded=false) must not dilute agreement or drag down confidence.
+	responded := make([]ConsensusPerspective, 0, total)
+	for _, p := range perspectives {
+		if p.Responded {
+			responded = append(responded, p)
+		}
+	}
+
+	if len(responded) == 0 {
 		return ConsensusVerdict{
 			Verdict:        "abstain",
 			Confidence:     0,
 			AgreementLevel: "contested",
-			Summary:        "No analysis results available.",
+			RespondedCount: 0,
+			TotalCount:     total,
+			Summary:        "No models returned an analysis.",
 		}
 	}
 
-	// Weighted verdict scoring
+	// Weighted verdict scoring (responders only)
 	scores := map[string]float64{"approve": 0, "reject": 0, "caution": 0, "abstain": 0}
-	totalWeight := 0.0
-
-	for _, p := range perspectives {
+	for _, p := range responded {
 		w := perspectiveWeights[p.Role]
 		if w == 0 {
 			w = 1.0
 		}
 		scores[p.Verdict] += w * p.Confidence
-		totalWeight += w
 	}
 
-	// Find winning verdict
+	// Find winning verdict (fixed order → deterministic tie-breaks)
 	verdict := "abstain"
 	maxScore := -1.0
-	for v, s := range scores {
-		if s > maxScore {
-			maxScore = s
+	for _, v := range []string{"approve", "reject", "caution", "abstain"} {
+		if scores[v] > maxScore {
+			maxScore = scores[v]
 			verdict = v
 		}
 	}
 
-	// Count agreement with winning verdict
+	// Agreement + weighted confidence (responders only)
 	agreeCount := 0
-	for _, p := range perspectives {
-		if p.Verdict == verdict {
-			agreeCount++
-		}
-	}
-
-	// Weighted confidence
 	weightedSum := 0.0
 	weightTotal := 0.0
-	for _, p := range perspectives {
+	for _, p := range responded {
 		w := perspectiveWeights[p.Role]
 		if w == 0 {
 			w = 1.0
 		}
+		if p.Verdict == verdict {
+			agreeCount++
+		}
 		weightedSum += p.Confidence * w
 		weightTotal += w
 	}
-	completeness := math.Min(float64(len(perspectives))/10.0, 1.0)
 	confidence := 0.0
 	if weightTotal > 0 {
-		confidence = (weightedSum / weightTotal) * completeness
+		confidence = weightedSum / weightTotal
 	}
 	confidence = math.Round(confidence*100) / 100
 
 	// Agreement level
-	ratio := float64(agreeCount) / float64(len(perspectives))
+	ratio := float64(agreeCount) / float64(len(responded))
 	agreementLevel := "contested"
 	if ratio >= 1.0 {
 		agreementLevel = "unanimous"
@@ -250,7 +257,7 @@ func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
 	recSet := make(map[string]bool)
 	var recs []string
 
-	for _, p := range perspectives {
+	for _, p := range responded {
 		for _, r := range p.Risks {
 			key := strings.ToLower(strings.TrimSpace(r))
 			if !riskSet[key] && key != "" {
@@ -287,16 +294,17 @@ func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
 		"contested": "Models strongly disagree — thorough review recommended.",
 	}
 
-	summary := fmt.Sprintf("%s (confidence: %d%%). %s %d/%d models agree.",
+	summary := fmt.Sprintf("%s (confidence: %d%%). %s %d of %d responding models agree (%d of %d models responded).",
 		verdictText[verdict], int(confidence*100), agreementText[agreementLevel],
-		agreeCount, len(perspectives))
+		agreeCount, len(responded), len(responded), total)
 
 	return ConsensusVerdict{
 		Verdict:            verdict,
 		Confidence:         confidence,
 		AgreementLevel:     agreementLevel,
 		AgreeCount:         agreeCount,
-		TotalCount:         len(perspectives),
+		RespondedCount:     len(responded),
+		TotalCount:         total,
 		Summary:            summary,
 		KeyRisks:           risks,
 		KeyRecommendations: recs,
@@ -446,6 +454,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 						Reasoning:       parsed.Reasoning,
 						Risks:           parsed.Risks,
 						Recommendations: parsed.Recommendations,
+						Responded:       true,
 					}
 				}(i, orProviders[i])
 			}
