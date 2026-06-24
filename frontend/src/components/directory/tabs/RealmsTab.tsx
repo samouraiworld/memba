@@ -9,6 +9,8 @@ import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
 import { fetchRealms, fetchRealmsLive } from "../../../lib/directory"
 import { queryRender } from "../../../lib/dao/shared"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
+import DOMPurify from "dompurify"
+import { renderMarkdown } from "../../../lib/markdownLite"
 
 const REALM_CATEGORY_COLORS: Record<string, string> = {
     standard: "#00d4aa",
@@ -161,7 +163,10 @@ export function RealmsTab() {
                                         <div className="k-shimmer" style={{ height: 40, borderRadius: 6, background: "var(--color-border)" }} />
                                     ) : (
                                         <>
-                                            <pre className="dir-render-preview__content">{realmRender}</pre>
+                                            <div
+                                                className="dir-render-preview__content"
+                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(realmRender || "")) }}
+                                            />
                                             <div className="dir-render-preview__links">
                                                 <button
                                                     className="dir-render-preview__link dir-render-preview__link--primary"
