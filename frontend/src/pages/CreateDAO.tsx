@@ -86,6 +86,10 @@ export function CreateDAO() {
     const [deployStep, setDeployStep] = useState<DeployStep>("idle")
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [error, setError] = useState<string | null>(null)
+    // Step-validation messages are shown as a gentle inline notice — NOT routed
+    // through the system ErrorToast, which dramatizes "name required" into
+    // "Something went wrong / reload the page".
+    const [validationError, setValidationError] = useState<string | null>(null)
     const [generatedCode, setGeneratedCode] = useState("")
     const [showDraftBanner, setShowDraftBanner] = useState(false)
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -158,14 +162,15 @@ export function CreateDAO() {
 
     const goToStep = (s: Step) => {
         setError(null)
-        // Guard forward navigation. The step indicator calls goToStep directly,
-        // so without this a user could jump past an invalid step. Validate every
-        // step between the current one and the target; stop on the first failure.
+        setValidationError(null)
+        // Validate before advancing — single source of truth (nextStep delegates
+        // here). Check each step between the current one and the target; on the
+        // first invalid step, surface a gentle inline notice and stay on it.
         if (s > step) {
             const data = buildStepData()
             for (let k = step; k < s; k++) {
                 const err = daoStepError(k, data)
-                if (err) { setError(err); setStep(k as Step); return }
+                if (err) { setValidationError(err); setStep(k as Step); return }
             }
         }
         if (s === 5) {
@@ -409,6 +414,19 @@ export function CreateDAO() {
                     generatedCode={generatedCode} deploying={deploying}
                     walletAddress={adena.address} onGoToStep={goToStep} onDeploy={deployDAO}
                 />
+            )}
+
+            {/* Step validation notice — gentle inline, not the system ErrorToast */}
+            {validationError && (
+                <div className="k-card" role="alert" style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 14px", fontSize: 13,
+                    borderColor: "var(--color-k-amber-border)",
+                    background: "var(--color-k-amber-subtle)",
+                    color: "var(--color-k-warning)",
+                }}>
+                    <span aria-hidden="true">⚠</span> {validationError}
+                </div>
             )}
 
             {/* Deployment Pipeline */}
