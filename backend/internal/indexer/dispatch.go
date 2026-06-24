@@ -40,6 +40,20 @@ func validVia(via string) bool {
 	}
 }
 
+// firstAttr returns the first non-empty attribute among keys. The v2 realms and
+// the v3 registry (memba_collections) use DIFFERENT attribute names for the same
+// concept — e.g. v2 emits "collection"/"to" while v3 emits "collectionID"/"minter".
+// Reading tolerantly keeps one handler correct for both engines and resilient to
+// future drift (audit F12).
+func firstAttr(ev GnoEvent, keys ...string) string {
+	for _, k := range keys {
+		if v := ev.Attr(k); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // dispatchEvent applies a single normalized GnoEvent to the database. It
 // delegates to dispatchEventScoped with an empty saleVolumeRealms set, which
 // preserves the legacy behavior (OfferAccepted and PurchaseConfirmed both write
@@ -106,7 +120,7 @@ func dispatchEventScoped(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash
 		return applyMint(ctx, db, ev)
 	case "CollectionCreated":
 		return applyCollectionCreated(ctx, db, ev)
-	case "RoyaltyChanged":
+	case "RoyaltyChanged", "RoyaltySet":
 		return applyRoyaltyChanged(ctx, db, ev)
 	case "TokenSold":
 		// Covered by PurchaseConfirmed / OfferAccepted — intentionally skipped.
@@ -141,7 +155,7 @@ func ensureCollection(ctx context.Context, tx *sql.Tx, colID string) error {
 }
 
 func applyNFTListed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	price := atoiSafe(ev.Attr("price"))
@@ -183,7 +197,7 @@ func applyNFTListed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyNFTDelisted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	reason := "delisted"
 	if ev.Type == "AdminDelisted" {
@@ -223,7 +237,7 @@ func applyNFTDelisted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyPurchaseConfirmed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
@@ -235,7 +249,7 @@ func applyPurchaseConfirmed(ctx context.Context, db *sql.DB, ev GnoEvent) error 
 }
 
 func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	buyer := ev.Attr("buyer")
 	amount := atoiSafe(ev.Attr("amount"))
@@ -252,7 +266,7 @@ func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyOfferResolved(ctx context.Context, db *sql.DB, ev GnoEvent, status string) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	buyer := ev.Attr("buyer")
 
@@ -270,7 +284,7 @@ func applyOfferResolved(ctx context.Context, db *sql.DB, ev GnoEvent, status str
 }
 
 func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
@@ -301,7 +315,7 @@ func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 // are metadata-only and do not write a second sale row. Legacy v2 engines (not
 // in saleVolumeRealms) still source volume from OfferAccepted/PurchaseConfirmed.
 func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
@@ -408,7 +422,7 @@ func settleSale(ctx context.Context, db *sql.DB, ev GnoEvent, col, tok, seller, 
 }
 
 func applyMarketTransfer(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	from := ev.Attr("from")
 	to := ev.Attr("to")
@@ -440,9 +454,9 @@ func applyMarketTransfer(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyMint(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
-	to := ev.Attr("to")
+	to := firstAttr(ev, "to", "minter")
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -477,10 +491,10 @@ func applyMint(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyCollectionCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	name := ev.Attr("name")
 	symbol := ev.Attr("symbol")
-	royalty := atoiSafe(ev.Attr("royaltyBPS"))
+	royalty := atoiSafe(firstAttr(ev, "royaltyBPS", "bps"))
 
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO nft_collections (collection_id, name, symbol, royalty_bps, updated_at)
@@ -494,8 +508,8 @@ func applyCollectionCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error 
 }
 
 func applyRoyaltyChanged(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
-	royalty := atoiSafe(ev.Attr("royaltyBPS"))
+	col := firstAttr(ev, "collection", "collectionID")
+	royalty := atoiSafe(firstAttr(ev, "royaltyBPS", "bps"))
 
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO nft_collections (collection_id, royalty_bps, updated_at)
