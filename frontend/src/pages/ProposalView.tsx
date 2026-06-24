@@ -15,7 +15,6 @@ import {
     getDAOConfig,
     buildVoteMsg,
     buildExecuteMsg,
-    isGovDAO,
     PROPOSAL_STATUS_COLORS,
     type DAOProposal,
     type VoteRecord,
@@ -36,7 +35,6 @@ export function ProposalView() {
     const id = routeProposalId
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
-    const govDAO = isGovDAO(realmPath)
 
     const [proposal, setProposal] = useState<DAOProposal | null>(null)
     const [voteRecords, setVoteRecords] = useState<VoteRecord[]>([])
@@ -514,11 +512,9 @@ export function ProposalView() {
                                     <button className="k-btn-primary" onClick={() => confirmVote("NO")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
-                                    {!govDAO && (
-                                        <button className="k-btn-secondary" onClick={() => confirmVote("ABSTAIN")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
-                                            {actionLoading ? "..." : "○ Abstain"}
-                                        </button>
-                                    )}
+                                    <button className="k-btn-secondary" onClick={() => confirmVote("ABSTAIN")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                        {actionLoading ? "..." : "○ Abstain"}
+                                    </button>
                                 </div>
                                 </>
                             )}

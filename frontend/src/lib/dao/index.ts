@@ -60,6 +60,6 @@ export {
 // ── Test Exports ──────────────────────────────────────────────
 // Internal pure functions exported with _ prefix for unit testing.
 export { normalizeStatus as _normalizeStatus, sanitize as _sanitize, unescapeMarkdown as _unescapeMarkdown } from "./shared"
-export { parseProposalList as _parseProposalList } from "./proposals"
+export { parseProposalList as _parseProposalList, parseProposalAuthor as _parseProposalAuthor, parseVoters as _parseVoters, parseProposalDescription as _parseProposalDescription } from "./proposals"
 export { parseMemberstoreTiers as _parseMemberstoreTiers } from "./config"
 export { parseMembersFromRender as _parseMembersFromRender, parseMemberstoreRows as _parseMemberstoreRows } from "./members"

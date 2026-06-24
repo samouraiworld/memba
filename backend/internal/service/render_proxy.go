@@ -18,21 +18,25 @@ import (
 // Only allows alphanumeric, slashes, dashes, underscores, dots, colons, and equals.
 var safePathRe = regexp.MustCompile(`^[a-zA-Z0-9/_\-.:=?&]*$`)
 
-// Default Gno RPC endpoint — overridable via GNO_RPC_URL env var.
+// gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
+// Overridable via GNO_RPC_URL (set to the pinned samourai test13 node in
+// fly.toml). The built-in default is the same test13 node — NOT test12 — so an
+// environment that forgets to set GNO_RPC_URL reads the right chain. The public
+// node is reached only as a failover backup (see rpcURLsInOrder), which rate-
+// limits the Fly egress IP (#466), so it is never the primary.
 func gnoRPCURL() string {
 	if url := os.Getenv("GNO_RPC_URL"); url != "" {
 		return url
 	}
-	return "https://rpc.testnet12.samourai.live:443"
+	return "https://rpc.testnet13.samourai.live:443"
 }
 
 // marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read
 // by the marketplace proxies and the analyst credit check (agent_registry,
-// escrow_v2, …). These realms live on test13 — NOT the testnet12-defaulted
-// GNO_RPC_URL (kept as-is for legacy back-compat; see quest_verify.go's
-// questRPCURL note) — so this reads its own var and defaults to test13,
-// mirroring the quest/NFT verification RPC pattern. Falls back to NFT_RPC_URL
-// since that already points at test13 in deployed environments.
+// escrow_v2, …). It reads its OWN var (MARKETPLACE_RPC_URL, then NFT_RPC_URL)
+// and defaults to the public test13 node, keeping marketplace reads decoupled
+// from the generic GNO_RPC_URL even if that is ever repurposed. Failover backups
+// are appended by rpcURLsInOrder.
 func marketplaceRPCURL() string {
 	for _, env := range []string{"MARKETPLACE_RPC_URL", "NFT_RPC_URL"} {
 		if url := os.Getenv(env); url != "" {
@@ -88,13 +92,34 @@ type abciQueryParams struct {
 	Data string `json:"data"`
 }
 
-// abciQuery sends a JSON-RPC ABCI query to the Gno RPC and returns the decoded result.
+// abciQuery sends an ABCI query with automatic failover: it tries the primary
+// RPC (rpcURL) then each backup node from rpcURLsInOrder until one answers
+// without a transport error. A valid "no record" answer (empty result, nil
+// error) is a success and does NOT advance to the next node — only
+// connection/timeout/non-200/parse errors fail over. Returns the last transport
+// error if every node fails.
+func abciQuery(rpcURL, path, data string) (string, error) {
+	var lastErr error
+	for i, u := range rpcURLsInOrder(rpcURL) {
+		out, err := abciQueryOnce(u, path, data)
+		if err == nil {
+			if i > 0 {
+				slog.Warn("RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
+			}
+			return out, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+// abciQueryOnce performs a single ABCI query against one RPC node.
 //
 // The `data` param is base64-encoded on the wire: gno.land's abci_query decodes
 // it as base64 (raw bytes fail with "Invalid params"/"illegal base64 data").
 // Render-path queries must therefore use the "<pkgpath>:<renderpath>" colon
 // syntax (a newline yields "expected <pkgpath>:<path> syntax").
-func abciQuery(rpcURL, path, data string) (string, error) {
+func abciQueryOnce(rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -106,12 +131,21 @@ func abciQuery(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: rpcAttemptTimeout}
 	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// A dead/sentry-throttled node returns a non-200 (often 502/503/429) with a
+	// non-JSON body. Detect it explicitly so failover fires deterministically
+	// instead of relying on a downstream JSON parse error. Drain the body first
+	// so the keep-alive connection can be reused (close-without-drain leaks it).
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -146,7 +146,7 @@ export function AnalystReport({ realmPath, proposalId, proposalData, daoContext 
                 <span className="analyst-label">AI Consensus:</span>
                 <VerdictBadge verdict={c.verdict} />
                 <span className="analyst-confidence">{Math.round(c.confidence * 100)}%</span>
-                <span className="analyst-agreement">{c.agreeCount}/{c.totalCount} agree</span>
+                <span className="analyst-agreement">{c.agreeCount}/{c.respondedCount} agree</span>
                 <span className={`analyst-caret${expanded ? " open" : ""}`}>▶</span>
             </button>
 
@@ -173,7 +173,7 @@ function AnalystDetail({ report, onRefresh }: { report: ConsensusReport; onRefre
                         {Math.round(c.confidence * 100)}% confidence
                     </span>
                     <span className="analyst-detail__agreement">
-                        {c.agreementLevel} ({c.agreeCount}/{c.totalCount})
+                        {c.agreementLevel} ({c.agreeCount}/{c.respondedCount})
                     </span>
                 </div>
                 <p className="analyst-detail__summary">{c.summary}</p>
@@ -212,7 +212,7 @@ function AnalystDetail({ report, onRefresh }: { report: ConsensusReport; onRefre
             {/* Footer */}
             <div className="analyst-footer">
                 <span className="analyst-footer__info">
-                    Powered by {report.perspectives.length} free AI models via OpenRouter
+                    {c.respondedCount} of {c.totalCount} free AI models responded · via OpenRouter
                     {report.processingTimeMs > 0 && ` · ${(report.processingTimeMs / 1000).toFixed(1)}s`}
                     {report.cached && " · cached"}
                 </span>

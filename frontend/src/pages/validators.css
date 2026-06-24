@@ -937,3 +937,123 @@
 .val-role-badge--rpc       { color: #c084fc; background: rgba(192, 132, 252, 0.12); border-color: rgba(192, 132, 252, 0.22); }
 .val-role-badge--snapshot  { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.22); }
 .val-role-badge--node      { color: var(--color-text-secondary); background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+
+/* ── Valopers — validator onboarding registry (r/gnops/valopers) ───────────── */
+.val-valopers {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+.val-valopers__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-bottom: 14px;
+}
+.val-valopers__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+.val-valopers__count {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(0, 212, 170, 0.12);
+    color: #00d4aa;
+    border: 1px solid rgba(0, 212, 170, 0.3);
+}
+.val-valopers__hint { font-size: 12px; color: var(--color-text-muted); }
+.val-valopers__sub {
+    flex: 1 1 auto;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+.val-valopers__cta {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.val-valopers__cta:hover { text-decoration: underline; }
+.val-valopers__empty { font-size: 13px; color: var(--color-text-muted); padding: 6px 0; }
+.val-valopers__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+    gap: 12px;
+}
+.val-valoper-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+.val-valoper-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.val-valoper-card__moniker {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.val-valoper-status {
+    flex: none;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.val-valoper-status--active    { color: #00d4aa; background: rgba(0, 212, 170, 0.12); border: 1px solid rgba(0, 212, 170, 0.35); }
+.val-valoper-status--candidate { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); }
+.val-valoper-card__server {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    padding: 1px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-light);
+}
+.val-valoper-card__desc {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.val-valoper-card__addrs { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.val-valoper-card__addrs > div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.val-valoper-card__addrs dt { color: var(--color-text-muted); }
+.val-valoper-card__addrs dd { margin: 0; color: var(--color-text-secondary); }
+.val-valoper-card__profile {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-top: auto;
+}
+.val-valoper-card__profile:hover { text-decoration: underline; }

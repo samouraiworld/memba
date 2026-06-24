@@ -237,8 +237,8 @@ func TestTransactionLifecycle(t *testing.T) {
 		AuthToken:       creatorToken,
 		ChainId:         "test11",
 		MultisigAddress: "g1multisig1",
-		MsgsJson:        `[{"type":"bank/MsgSend","value":{"amount":[{"denom":"ugnot","amount":"1000000"}]}}]`,
-		FeeJson:         `{"gas":"100000","amount":[]}`,
+		MsgsJson:        `[{"@type":"/bank.MsgSend","from_address":"g1alice","to_address":"g1bob","amount":"1000000ugnot"}]`,
+		FeeJson:         `{"gas_wanted":"100000","gas_fee":"10000ugnot"}`,
 		Memo:            "test tx",
 		Type:            "send",
 	}))
@@ -413,6 +413,40 @@ func TestCreateTransaction_InputLimits(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("expected error for oversized memo")
+	}
+}
+
+func TestCreateTransaction_RejectsNonCanonicalFee(t *testing.T) {
+	h := setup(t)
+	token := h.makeToken(t, "g1alice")
+	h.seedMultisig(t, "test13", "g1multisig1", `{}`, 2, 3, []string{"g1alice", "g1bob", "g1carol"})
+	ctx := context.Background()
+
+	// Cosmos-shaped fee {amount,gas} must be rejected: A3 reconstructs sign-bytes
+	// from the stored fee, and this shape parses to empty gas_wanted/gas_fee →
+	// storing it would brick enforcement.
+	_, err := h.svc.CreateTransaction(ctx, connect.NewRequest(&membav1.CreateTransactionRequest{
+		AuthToken:       token,
+		ChainId:         "test13",
+		MultisigAddress: "g1multisig1",
+		MsgsJson:        `[{"@type":"/vm.m_call"}]`,
+		FeeJson:         `{"gas":"100000","amount":[{"denom":"ugnot","amount":"10000"}]}`,
+		Type:            "call",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument for cosmos-shaped fee_json, got %v", err)
+	}
+
+	// Canonical fee {gas_wanted,gas_fee} is accepted.
+	if _, err := h.svc.CreateTransaction(ctx, connect.NewRequest(&membav1.CreateTransactionRequest{
+		AuthToken:       token,
+		ChainId:         "test13",
+		MultisigAddress: "g1multisig1",
+		MsgsJson:        `[{"@type":"/vm.m_call"}]`,
+		FeeJson:         `{"gas_wanted":"100000","gas_fee":"10000ugnot"}`,
+		Type:            "call",
+	})); err != nil {
+		t.Fatalf("expected canonical fee_json to be accepted, got %v", err)
 	}
 }
 

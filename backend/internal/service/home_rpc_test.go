@@ -41,11 +41,36 @@ func newTestService(t *testing.T) *MultisigService {
 	}
 }
 
+func TestFetchValidatorsHealth_FailsOver(t *testing.T) {
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer down.Close()
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/validators" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write([]byte(`{"result":{"validators":[{},{},{}]}}`))
+	}))
+	defer good.Close()
+
+	t.Setenv("RPC_FALLBACK_URLS", good.URL)
+
+	h, err := fetchValidatorsHealth(context.Background(), down.URL)
+	if err != nil {
+		t.Fatalf("expected failover success, got err: %v", err)
+	}
+	if h.Total != 3 {
+		t.Fatalf("got Total=%d, want 3 from the backup node", h.Total)
+	}
+}
+
 func TestHomeSnapshotRPCURL_DefaultsToTest13(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
 	t.Setenv("NFT_RPC_URL", "")
-	if got := homeSnapshotRPCURL(); got != "https://rpc.test13.testnets.gno.land:443" {
-		t.Fatalf("default = %q, want test13 rpc", got)
+	if got := homeSnapshotRPCURL(); got != "https://rpc.testnet13.samourai.live:443" {
+		t.Fatalf("default = %q, want the pinned test13 rpc (not the rate-limited public node)", got)
 	}
 }
 

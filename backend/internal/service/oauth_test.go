@@ -2,10 +2,30 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 )
+
+// The GitHub OAuth exchange/userinfo calls must honor the request context (and
+// a client timeout) so a stalled GitHub endpoint can't hang the handler
+// goroutine indefinitely. A pre-cancelled context must fail fast.
+func TestExchangeGitHubCode_HonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := exchangeGitHubCode(ctx, "code", "id", "secret"); err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestFetchGitHubUser_HonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := fetchGitHubUser(ctx, "token"); err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
 
 func TestOAuthStateStore_GenerateReturns64CharHex(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

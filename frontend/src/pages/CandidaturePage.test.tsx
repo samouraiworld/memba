@@ -28,6 +28,8 @@ vi.mock("../hooks/useNetworkNav", () => ({
 
 vi.mock("../lib/quests", () => ({
     canApplyForMembership: vi.fn(() => false),
+    // Eligibility is now resolved asynchronously from backend-authoritative XP.
+    resolveCandidatureEligibility: vi.fn(() => Promise.resolve(false)),
     loadQuestProgress: vi.fn(() => ({ completed: [], totalXP: 0 })),
     CANDIDATURE_XP_THRESHOLD: 100,
     trackPageVisit: vi.fn(),
@@ -104,11 +106,20 @@ const candidatureMock = await import("../lib/candidatureTemplate")
 const daoShared = await import("../lib/dao/shared")
 const grc20Mock = await import("../lib/grc20")
 
+// Renders the page with the candidature form unlocked. Eligibility is resolved
+// asynchronously from backend XP, so the form appears after a tick — await it.
+async function renderWithForm() {
+    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(true)
+    render(<CandidaturePage />)
+    await screen.findByLabelText("Bio")
+}
+
 // ── Tests ────────────────────────────────────────────────────────────
 
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(questsMock.canApplyForMembership).mockReturnValue(false)
+    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(false)
     vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
     vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])
     vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
@@ -142,30 +153,22 @@ describe("CandidaturePage — XP Gate", () => {
         expect(screen.queryByText("Submit Your Application")).not.toBeInTheDocument()
     })
 
-    it("shows form when eligible", () => {
-        vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
-        render(<CandidaturePage />)
-
+    it("shows form when eligible", async () => {
+        await renderWithForm()
         expect(screen.getByText("Submit Your Application")).toBeInTheDocument()
         expect(screen.queryByText("XP Required")).not.toBeInTheDocument()
     })
 })
 
 describe("CandidaturePage — Form Fields", () => {
-    beforeEach(() => {
-        vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
-    })
-
-    it("renders all form fields with labels", () => {
-        render(<CandidaturePage />)
-
+    it("renders all form fields with labels", async () => {
+        await renderWithForm()
         expect(screen.getByLabelText("Bio")).toBeInTheDocument()
         expect(screen.getByLabelText("Skills")).toBeInTheDocument()
     })
 
-    it("shows character counters that update", () => {
-        render(<CandidaturePage />)
-
+    it("shows character counters that update", async () => {
+        await renderWithForm()
         // Both bio and skills have 0/5000 counters
         const counters = screen.getAllByText("0/5000")
         expect(counters.length).toBe(2)
@@ -174,9 +177,8 @@ describe("CandidaturePage — Form Fields", () => {
         expect(screen.getByText("5/5000")).toBeInTheDocument()
     })
 
-    it("shows skills preview tags", () => {
-        render(<CandidaturePage />)
-
+    it("shows skills preview tags", async () => {
+        await renderWithForm()
         fireEvent.change(screen.getByLabelText("Skills"), {
             target: { value: "rust, go, react" },
         })
@@ -186,20 +188,16 @@ describe("CandidaturePage — Form Fields", () => {
         expect(screen.getByText("react")).toBeInTheDocument()
     })
 
-    it("has submit button with deposit amount", () => {
-        render(<CandidaturePage />)
+    it("has submit button with deposit amount", async () => {
+        await renderWithForm()
         expect(screen.getByRole("button", { name: /Submit Candidature/ })).toBeInTheDocument()
     })
 })
 
 describe("CandidaturePage — Submission", () => {
-    beforeEach(() => {
-        vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
-    })
-
     it("submits candidature and shows success", async () => {
         vi.mocked(grc20Mock.doContractBroadcast).mockResolvedValue(undefined as never)
-        render(<CandidaturePage />)
+        await renderWithForm()
 
         fireEvent.change(screen.getByLabelText("Bio"), {
             target: { value: "I believe in the mission and want to contribute" },
@@ -221,7 +219,7 @@ describe("CandidaturePage — Submission", () => {
         vi.mocked(grc20Mock.doContractBroadcast).mockRejectedValue(
             new Error("Transaction rejected")
         )
-        render(<CandidaturePage />)
+        await renderWithForm()
 
         fireEvent.change(screen.getByLabelText("Bio"), { target: { value: "My bio" } })
         fireEvent.change(screen.getByLabelText("Skills"), { target: { value: "go" } })
@@ -236,7 +234,7 @@ describe("CandidaturePage — Submission", () => {
 
     it("shows validation error from validateCandidature", async () => {
         vi.mocked(candidatureMock.validateCandidature).mockReturnValue("Bio is required")
-        render(<CandidaturePage />)
+        await renderWithForm()
 
         const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
         fireEvent.click(submitBtn)
@@ -249,7 +247,7 @@ describe("CandidaturePage — Submission", () => {
     it("shows error when wallet not connected", async () => {
         // Keep adena.connected true so button isn't disabled, but auth fails
         mockAuth.isAuthenticated = false
-        render(<CandidaturePage />)
+        await renderWithForm()
 
         const submitBtn = screen.getByRole("button", { name: /Submit Candidature/ })
         fireEvent.click(submitBtn)
@@ -261,7 +259,7 @@ describe("CandidaturePage — Submission", () => {
 
     it("navigates to dashboard on success button click", async () => {
         vi.mocked(grc20Mock.doContractBroadcast).mockResolvedValue(undefined as never)
-        render(<CandidaturePage />)
+        await renderWithForm()
 
         fireEvent.change(screen.getByLabelText("Bio"), { target: { value: "My bio" } })
         fireEvent.change(screen.getByLabelText("Skills"), { target: { value: "go" } })
@@ -351,7 +349,7 @@ describe("CandidaturePage — Existing Candidature", () => {
 
 describe("CandidaturePage — Deposit Display", () => {
     it("shows required deposit amount", async () => {
-        vi.mocked(questsMock.canApplyForMembership).mockReturnValue(true)
+        vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(true)
         vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
         vi.mocked(daoShared.queryRender).mockResolvedValue("render output")
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])

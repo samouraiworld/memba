@@ -6,13 +6,14 @@
  * These tests cover the validation, preprocessing logic, and URL resolution.
  */
 
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import {
     isValidImageMime,
     isValidCid,
     getIpfsGatewayUrl,
     getIpfsGatewayUrls,
     resolveAvatarUrl,
+    uploadToLighthouse,
 } from "./ipfs"
 
 // ── isValidImageMime ──────────────────────────────────────────
@@ -128,5 +129,26 @@ describe("resolveAvatarUrl", () => {
     it("passes through GitHub avatar URLs", () => {
         const url = "https://avatars.githubusercontent.com/u/12345?v=4"
         expect(resolveAvatarUrl(url)).toBe(url)
+    })
+})
+
+// ── uploadToLighthouse — N2 security: always via the auth-gated proxy ─────────
+
+describe("uploadToLighthouse (N2 — no client-side key)", () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it("POSTs to the backend /api/upload/avatar proxy, never to node.lighthouse.storage", async () => {
+        const calls: string[] = []
+        vi.stubGlobal("fetch", vi.fn(async (url: unknown) => {
+            calls.push(String(url))
+            return { ok: true, json: async () => ({ cid: "bafybei" + "a".repeat(52) }) } as Response
+        }))
+
+        const blob = new Blob(["x"], { type: "image/webp" })
+        const res = await uploadToLighthouse(blob)
+
+        expect(res.cid).toContain("bafybei")
+        expect(calls.some(u => u.includes("/api/upload/avatar"))).toBe(true)
+        expect(calls.some(u => u.includes("node.lighthouse.storage"))).toBe(false)
     })
 })

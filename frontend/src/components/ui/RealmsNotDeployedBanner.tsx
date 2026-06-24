@@ -41,7 +41,7 @@ export function RealmsNotDeployedBanner({ deployed, networkLabel }: RealmsNotDep
             <div style={{ flex: 1 }}>
                 Memba isn't on <strong>{networkLabel}</strong> yet — its contracts are not
                 deployed on this network, so DAO and channel features are unavailable here.
-                Switch to a deployed network (e.g. <strong>Testnet 12</strong>) to use Memba.
+                Switch to a deployed network (e.g. <strong>Testnet 13</strong>) to use Memba.
             </div>
         </div>
     )

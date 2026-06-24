@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -82,6 +83,66 @@ func TestResolveIPFSURI_SSRF(t *testing.T) {
 		if err == nil {
 			t.Errorf("resolveIPFSURI(%q): expected SSRF rejection, got nil error", input)
 		}
+	}
+}
+
+// validateRedirect must re-apply the SSRF/scheme checks on every redirect hop —
+// the initial-URL validation in resolveIPFSURI does not cover where a redirect
+// points (the metadata-IP / internal-host bypass).
+func TestValidateRedirect_RejectsUnsafeHops(t *testing.T) {
+	cases := []struct {
+		name string
+		url  string
+	}{
+		{"http downgrade (public IP)", "http://93.184.216.34/x"},
+		{"link-local metadata IP via https", "https://169.254.169.254/latest/meta-data/"},
+		{"private 10/8 via https", "https://10.0.0.5/x"},
+		{"loopback via https", "https://127.0.0.1/x"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			u, err := url.Parse(tc.url)
+			if err != nil {
+				t.Fatalf("bad test url: %v", err)
+			}
+			if err := validateRedirect(&http.Request{URL: u}, nil); err == nil {
+				t.Errorf("validateRedirect(%q): expected rejection, got nil", tc.url)
+			}
+		})
+	}
+}
+
+func TestValidateRedirect_RejectsTooManyHops(t *testing.T) {
+	u, _ := url.Parse("https://93.184.216.34/x") // public — would otherwise pass
+	via := make([]*http.Request, maxNFTRedirects)
+	if err := validateRedirect(&http.Request{URL: u}, via); err == nil {
+		t.Error("expected too-many-redirects rejection, got nil")
+	}
+}
+
+func TestValidateRedirect_AllowsPublicHTTPS(t *testing.T) {
+	u, _ := url.Parse("https://93.184.216.34/ok") // public IP literal — no DNS
+	if err := validateRedirect(&http.Request{URL: u}, nil); err != nil {
+		t.Errorf("validateRedirect(public https): unexpected error: %v", err)
+	}
+}
+
+// End-to-end: the production client must refuse to follow a redirect into a
+// private/non-https host instead of fetching it (the SSRF the proxy enables
+// because it is unauthenticated).
+func TestNFTHTTPClient_RefusesRedirectToPrivateHost(t *testing.T) {
+	secret := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("internal-secret"))
+	}))
+	defer secret.Close()
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, secret.URL, http.StatusFound) // → http://127.0.0.1:… (private, http)
+	}))
+	defer redirector.Close()
+
+	body, _, err := doFetch(nftHTTPClient, redirector.URL)
+	if err == nil {
+		t.Fatalf("expected redirect to a private/non-https host to be refused; got body %q", string(body))
 	}
 }
 

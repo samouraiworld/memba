@@ -38,6 +38,8 @@ import {
     type NetInfo,
 } from "../lib/validators"
 import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
+import { ValoperPanel } from "../components/validators/ValoperPanel"
+import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -87,6 +89,8 @@ export default function Validators() {
     const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
     // Lowercased valoper monikers — used to tag community validators in the roster.
     const [valoperMonikers, setValoperMonikers] = useState<Set<string>>(new Set())
+    const [valopers, setValopers] = useState<ValoperWithStatus[]>([])
+    const [valopersLoading, setValopersLoading] = useState(true)
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -128,6 +132,13 @@ export default function Validators() {
             getAggregatedNetPeers(telemetryRpcUrls, controller.signal)
                 .then(ni => { if (!controller.signal.aborted) setNetInfo(ni) })
                 .catch(() => { /* best-effort */ })
+
+            // Valoper onboarding registry → ValoperPanel (non-blocking: roster + per-valoper
+            // detail). Active signing set = the consensus addresses we just fetched.
+            fetchValopers(GNO_RPC_URL, new Set(vals.map(v => v.gnoAddr)))
+                .then(vps => { if (!controller.signal.aborted) setValopers(vps) })
+                .catch(() => { /* best-effort */ })
+                .finally(() => { if (!controller.signal.aborted) setValopersLoading(false) })
 
             // Sequential: stats needs validator count from prefetched data
             const netStats = await getNetworkStats(GNO_RPC_URL, vals, controller.signal)
@@ -367,6 +378,11 @@ export default function Validators() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* ── Valopers — validator onboarding registry (r/gnops/valopers) ── */}
+            {(valopers.length > 0 || valopersLoading) && (
+                <ValoperPanel valopers={valopers} loading={valopersLoading} />
             )}
 
             {/* ── Incidents Timeline Chart ────────────────────── */}

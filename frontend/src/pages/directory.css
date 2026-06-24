@@ -15,6 +15,21 @@
     overflow-x: hidden;
 }
 
+/* Respect reduced-motion: neutralize directory animations/transitions (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+    .dir-page,
+    .dir-page *,
+    .dir-page *::before,
+    .dir-page *::after,
+    .drawer-panel,
+    .drawer-panel * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -279,7 +294,7 @@ a.dir-card {
 }
 
 .dir-arrow {
-    color: #333;
+    color: var(--color-text-muted);
     font-size: 14px;
     flex-shrink: 0;
 }
@@ -1327,7 +1342,7 @@ a.dir-card {
     padding: 0 10px;
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
-    color: #333;
+    color: var(--color-text-muted);
     line-height: 1.6;
     text-align: right;
     min-width: 32px;
@@ -1414,7 +1429,7 @@ a.dir-card {
 
 .file-tree__prefix {
     font-size: 12px;
-    color: #333;
+    color: var(--color-text-muted);
 }
 
 .file-tree__icon {

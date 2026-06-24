@@ -70,7 +70,7 @@ export function TokensTab() {
                 </div>
             ) : (
                 <>
-                    <div className="dir-count">
+                    <div className="dir-count" role="status" aria-live="polite">
                         {filtered.length} token{filtered.length !== 1 ? "s" : ""} found
                     </div>
                     <div className="dir-grid">

@@ -209,6 +209,54 @@ export async function getDAOProposals(
 }
 
 /**
+ * Parse the proposal author from a GovDAO v3 / basedao detail render.
+ * Handles a resolved "[@user](url)" link and a bare "g1…" address (GovDAO renders
+ * the raw address when the proposer has no registered username — previously dropped).
+ */
+export function parseProposalAuthor(data: string): { author: string; authorProfile: string } {
+    const linked = data.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
+    if (linked) return { author: `@${linked[1]}`, authorProfile: linked[2] }
+    const addr = data.match(/Author:\s*(g1[a-z0-9]+)/)
+    if (addr) return { author: addr[1], authorProfile: "" }
+    const proposer = data.match(/\*\*Proposer\*\*[:\s]+(g\S+)/i)
+    if (proposer) return { author: proposer[1], authorProfile: "" }
+    return { author: "", authorProfile: "" }
+}
+
+/**
+ * Parse voter entries from a single GovDAO v3 vote block. Captures both linked
+ * "[@user](url)" voters and bare "g1…" addresses (the old @-link-only regex
+ * silently dropped raw addresses, undercounting tallies).
+ */
+export function parseVoters(voterBlock: string): VoterEntry[] {
+    const voters: VoterEntry[] = []
+    for (const rawLine of voterBlock.split("\n")) {
+        const line = rawLine.trim()
+        if (!line.startsWith("-")) continue
+        const linked = line.match(/@([^\]]+)\]\(([^)]+)\)/)
+        if (linked) {
+            voters.push({ username: `@${linked[1]}`, profileUrl: linked[2] })
+            continue
+        }
+        const addr = line.match(/(g1[a-z0-9]+)/)
+        if (addr) voters.push({ username: addr[1], profileUrl: "" })
+    }
+    return voters
+}
+
+/**
+ * Parse the proposal body from a GovDAO v3 / basedao detail render — excluding the
+ * executor-metadata block and the trailing "---" rule that precedes "### Stats" (the
+ * old inline regex leaked both into the displayed/analysed description — B3/F-E5).
+ */
+export function parseProposalDescription(data: string): string {
+    const m = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats|\nThis proposal contains the following metadata:)/m)
+        || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
+    const body = (m?.[1] || "").trim().replace(/\n*---\s*$/, "").trim()
+    return unescapeMarkdown(body)
+}
+
+/**
  * Fetch single proposal detail via Render(":N") (colon prefix for GovDAO).
  * Tries both GovDAO v3 (:N) and basedao (proposal/N) formats.
  */
@@ -236,8 +284,8 @@ export async function getProposalDetail(
             || data.match(/^#.*?#\d+\s*-\s*(.+?)$/m)
             || data.match(/^##?\s+(?:Prop(?:osal)?\s+#\d+\s*-?\s*)?(.+)$/m)
 
-        // Author
-        const authorMatch = data.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
+        // Author — resolved "[@user](url)" or a bare "g1…" address (F-E2)
+        const { author, authorProfile } = parseProposalAuthor(data)
 
         // Status  
         const statusMatch = data.match(/(?:PROPOSAL HAS BEEN\s+)?(\w+ED|ACTIVE)/i)
@@ -254,11 +302,6 @@ export async function getProposalDetail(
         const yesMatch = data.match(/\*\*Yes\*\*[:\s]+(\d+)/i)
         const noMatch = data.match(/\*\*No\*\*[:\s]+(\d+)/i)
         const abstainMatch = data.match(/\*\*Abstain\*\*[:\s]+(\d+)/i)
-        const proposerMatch = data.match(/\*\*Proposer\*\*[:\s]+(g\S+)/i)
-
-        // Extract description (body text between metadata and ## sections)
-        const descMatch = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats)/m)
-            || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
 
         // Category
         const categoryMatch = data.match(/Category:\s*(\w+)/i)
@@ -292,11 +335,11 @@ export async function getProposalDetail(
         return {
             id,
             title: unescapeMarkdown(titleMatch?.[1]?.trim() || `Proposal #${id}`),
-            description: unescapeMarkdown(descMatch?.[1]?.trim() || ""),
+            description: parseProposalDescription(data),
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
-            author: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
-            authorProfile: authorMatch?.[2] || "",
+            author,
+            authorProfile,
             tiers: tiersMatch
                 ? tiersMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
                 : [],
@@ -306,7 +349,7 @@ export async function getProposalDetail(
             noVotes: noMatch ? parseInt(noMatch[1], 10) : 0,
             abstainVotes: abstainMatch ? parseInt(abstainMatch[1], 10) : 0,
             totalVoters: 0,
-            proposer: authorMatch ? `@${authorMatch[1]}` : proposerMatch?.[1] || "",
+            proposer: author,
             actionType,
             actionBody,
             executorRealm,
@@ -345,13 +388,8 @@ export async function getProposalVotes(
         const vppm = parseInt(m[3], 10)
         const voterBlock = m[4]
 
-        // Extract voter @usernames
-        const voters: VoterEntry[] = []
-        const voterRe = /@([^\]]+)\]\(([^)]+)\)/g
-        let vm: RegExpExecArray | null
-        while ((vm = voterRe.exec(voterBlock)) !== null) {
-            voters.push({ username: `@${vm[1]}`, profileUrl: vm[2] })
-        }
+        // Capture both linked "[@user](url)" voters and bare "g1…" addresses (F-E3).
+        const voters = parseVoters(voterBlock)
 
         // Find or create tier record
         let record = records.find((r) => r.tier === tier)

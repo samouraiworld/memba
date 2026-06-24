@@ -7,6 +7,8 @@ import {
     completeQuest,
     isQuestCompleted,
     canApplyForMembership,
+    isEligibleForCandidature,
+    resolveCandidatureEligibility,
     getCompletionPercent,
     trackPageVisit,
     trackDirectoryTab,
@@ -116,6 +118,45 @@ describe("canApplyForMembership", () => {
         completeQuest("submit-feedback")   // 20 → total 105
         // 105 >= 100 (legacy) AND legacy flag set → eligible
         expect(canApplyForMembership()).toBe(true)
+    })
+})
+
+describe("isEligibleForCandidature (pure)", () => {
+    it("eligible at/above the 350 XP threshold", () => {
+        expect(isEligibleForCandidature(350, false)).toBe(true)
+        expect(isEligibleForCandidature(500, false)).toBe(true)
+    })
+    it("not eligible below 350 without legacy", () => {
+        expect(isEligibleForCandidature(349, false)).toBe(false)
+        expect(isEligibleForCandidature(0, false)).toBe(false)
+    })
+    it("legacy-eligible at/above 100 XP with the flag", () => {
+        expect(isEligibleForCandidature(100, true)).toBe(true)
+        expect(isEligibleForCandidature(200, true)).toBe(true)
+    })
+    it("legacy flag below 100 XP is not eligible", () => {
+        expect(isEligibleForCandidature(99, true)).toBe(false)
+        expect(isEligibleForCandidature(50, true)).toBe(false)
+    })
+})
+
+describe("resolveCandidatureEligibility (backend-authoritative)", () => {
+    it("connected: gates on BACKEND XP, ignoring an inflated localStorage value (closes the bypass)", async () => {
+        // Attacker inflates localStorage to fake 999 XP…
+        localStorage.setItem("memba_quests_g1abc", JSON.stringify({ completed: [], totalXP: 999 }))
+        // …but the backend (authoritative) reports only 50 XP → must stay ineligible.
+        const eligible = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 50 }))
+        expect(eligible).toBe(false)
+    })
+    it("connected: eligible when backend XP meets the threshold", async () => {
+        const eligible = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 400 }))
+        expect(eligible).toBe(true)
+    })
+    it("disconnected: falls back to the local check (0 XP → ineligible)", async () => {
+        expect(await resolveCandidatureEligibility(undefined, async () => ({ completed: [], totalXP: 400 }))).toBe(false)
+    })
+    it("backend unreachable: degrades to the local check, does not crash", async () => {
+        expect(await resolveCandidatureEligibility("g1abc", async () => null)).toBe(false)
     })
 })
 

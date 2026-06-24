@@ -176,3 +176,21 @@ describe("Treasury kill-switch (A1.a)", () => {
         })
     })
 })
+
+describe("Treasury — partial-failure honesty (P1-7)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("surfaces a notice when a balance source fails instead of silently showing an incomplete treasury", async () => {
+        const grc20 = await import("../lib/grc20")
+        vi.mocked(grc20.listFactoryTokens).mockRejectedValueOnce(new Error("RPC down"))
+
+        const { Treasury } = await import("./Treasury")
+        renderInRoute(<Treasury />)
+
+        await waitFor(() => expect(screen.getByText("💰 Treasury")).toBeDefined(), { timeout: 3000 })
+        // The treasury must NOT pretend the (now-incomplete) asset list is complete.
+        expect(screen.getByText(/treasury shown may be incomplete/i)).toBeDefined()
+    })
+})

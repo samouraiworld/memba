@@ -6,6 +6,7 @@ import {
     NETWORKS,
     VISIBLE_NETWORKS,
     DEFAULT_NETWORK,
+    resolveDefaultNetwork,
     GNO_BECH32_PREFIX,
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
@@ -294,6 +295,23 @@ describe('network reduction — test13 + gnoland1 only', () => {
         expect(keys).not.toContain('test12')
         expect(keys).not.toContain('staging')
         expect(keys).not.toContain('portal-loop')
+    })
+
+    // Regression: a stale Netlify build var VITE_GNO_CHAIN_ID=test12 made
+    // DEFAULT_NETWORK="test12" (removed from NETWORKS) → RootRedirect/LegacyRedirect
+    // infinite-looped (/test12/test12/…) until the browser throttled replaceState and
+    // the app crashed (mobile / private browsing, where localStorage can't override it).
+    it('resolveDefaultNetwork falls back to a valid network for a removed env value', () => {
+        expect(resolveDefaultNetwork('test12')).toBe('test13')
+        expect(NETWORKS[resolveDefaultNetwork('test12')]).toBeDefined()
+    })
+    it('resolveDefaultNetwork passes through a valid env network; falls back when empty', () => {
+        expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
+        expect(resolveDefaultNetwork(undefined)).toBe('test13')
+        expect(resolveDefaultNetwork('')).toBe('test13')
+    })
+    it('DEFAULT_NETWORK is always a valid NETWORKS entry (never crash-loops)', () => {
+        expect(NETWORKS[DEFAULT_NETWORK]).toBeDefined()
     })
 })
 

@@ -7,6 +7,7 @@ import { ScrollToTop } from "./components/layout/ScrollToTop"
 import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
+import { NftGate } from "./components/ui/NftGate"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
 // ── Core multisig pages (small, always needed) ──
@@ -51,6 +52,7 @@ const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m
 const Validators = lazy(() => import("./pages/Validators"))
 const ValidatorsHacker = lazy(() => import("./pages/ValidatorsHacker"))
 const ValidatorDetail = lazy(() => import("./pages/ValidatorDetail"))
+const ValoperDetail = lazy(() => import("./pages/ValoperDetail"))
 
 // ── Multisig Hub (lazy — v2.7) ──
 const MultisigHub = lazy(() => import("./pages/MultisigHub"))
@@ -212,8 +214,9 @@ function App() {
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
           <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
-          {/* CRITICAL: /validators/hacker must come BEFORE /validators/:address */}
+          {/* CRITICAL: /validators/hacker + /validators/valoper/* must come BEFORE /validators/:address */}
           <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
+          <Route path="validators/valoper/:operatorAddress" element={<Suspense fallback={<PageLoader />}><ValoperDetail /></Suspense>} />
           <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
           {/* NFT section (Phase 2) — ORDER MATTERS: specific routes before /nft/:realmPath catch-all */}
@@ -223,16 +226,17 @@ function App() {
           <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><CreateCollectionLaunchpad /></Suspense>} />
           {/* Advanced wizard retired — redirect to /nft/create, preserving :network prefix. */}
           <Route path="nft/create/advanced" element={<AdvancedWizardRedirect />} />
-          {/* Collection public page: detail / mint / activity. */}
-          <Route path="nft/collection/:creator/:slug" element={<Suspense fallback={<PageLoader />}><CollectionPublic /></Suspense>} />
+          {/* Collection public page: detail / mint / activity. NftGate preserves the
+              #472 route-level VITE_ENABLE_NFT enforcement on top of page self-gating. */}
+          <Route path="nft/collection/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><CollectionPublic /></Suspense></NftGate>} />
           {/* Creator profiles — must be before nft/:realmPath catch-all */}
-          <Route path="nft/creator/:address" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
-          <Route path="nft/creator" element={<Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense>} />
+          <Route path="nft/creator/:address" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
+          <Route path="nft/creator" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
           {/* Creator Studio — must be before nft/:realmPath catch-all */}
-          <Route path="nft/studio" element={<Suspense fallback={<PageLoader />}><StudioHome /></Suspense>} />
-          <Route path="nft/studio/:creator/:slug" element={<Suspense fallback={<PageLoader />}><StudioManage /></Suspense>} />
+          <Route path="nft/studio" element={<NftGate><Suspense fallback={<PageLoader />}><StudioHome /></Suspense></NftGate>} />
+          <Route path="nft/studio/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><StudioManage /></Suspense></NftGate>} />
           {/* LAST: legacy catch-all for standalone realm paths (e.g. /nft/gno.land/r/...). */}
-          <Route path="nft/:realmPath" element={<Suspense fallback={<PageLoader />}><LegacyCollectionView /></Suspense>} />
+          <Route path="nft/:realmPath" element={<NftGate><Suspense fallback={<PageLoader />}><LegacyCollectionView /></Suspense></NftGate>} />
 
           {/* Freelance Services (v3.0) */}
           <Route path="services" element={<Suspense fallback={<PageLoader />}><FreelanceServices /></Suspense>} />

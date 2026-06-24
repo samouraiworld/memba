@@ -187,6 +187,13 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                     {proposal.totalVoters} of {totalMembers} members voted ({Math.round((proposal.totalVoters / totalMembers) * 100)}%)
                 </div>
             )}
+
+            {/* P1-8: a failed vote-enrichment must not read as a genuine no-votes proposal. */}
+            {enriched && proposal.enrichFailed && (
+                <div role="status" style={{ marginTop: 8, fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)" }}>
+                    ⚠️ Couldn't load votes — try refreshing.
+                </div>
+            )}
         </div>
     )
 }

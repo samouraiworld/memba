@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 )
@@ -77,10 +77,10 @@ const (
 	verifyCandidaturePath  = "gno.land/r/samcrew/memba_dao_candidature_v2"
 )
 
-// questRPCURL returns the RPC endpoint for server-side quest verification.
-// It deliberately does NOT read GNO_RPC_URL — that var is set to test12 in
-// prod (fly.toml), while every realm we verify lives on test13. Mirrors the
-// dedicated NFT_RPC_URL pattern in cmd/memba/main.go.
+// questRPCURL returns the RPC endpoint for server-side quest verification. It
+// reads its own vars (QUEST_RPC_URL, then NFT_RPC_URL) rather than GNO_RPC_URL,
+// keeping verification reads decoupled from the generic render proxy. Failover
+// backups are appended by rpcURLsInOrder.
 func questRPCURL() string {
 	for _, env := range []string{"QUEST_RPC_URL", "NFT_RPC_URL"} {
 		if url := os.Getenv(env); url != "" {
@@ -94,7 +94,19 @@ var (
 	errProofRequired     = errors.New("quest requires submitted proof — use SubmitQuestClaim")
 	errVerifyUnavailable = errors.New("on-chain verification unavailable, try again")
 	errQuestNotMet       = errors.New("quest requirements not met on-chain")
+	errMetaServerDerived = errors.New("meta-quests are server-derived and cannot be claimed directly")
 )
+
+// metaQuests are server-DERIVED achievements (XP milestones, leaderboard rank,
+// category completion). They are never client-claimable — CompleteQuest/SyncQuests
+// reject them (errMetaServerDerived); the server grants the derivable ones from
+// authoritative state in grantDerivedMetaQuests.
+var metaQuests = map[string]bool{
+	"earn-500-xp":           true,
+	"earn-1000-xp":          true,
+	"complete-all-everyone": true,
+	"top-10-leaderboard":    true,
+}
 
 var (
 	seqRe    = regexp.MustCompile(`"sequence":\s*"?(\d+)"?`)
@@ -112,6 +124,10 @@ var (
 // hole (P0-1): the client's claim that it passed the frontend verifier is
 // never trusted.
 func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, questID, proof string) error {
+	// Meta-quests are server-derived (grantDerivedMetaQuests) — never client-claimable.
+	if metaQuests[questID] {
+		return connect.NewError(connect.CodeInvalidArgument, errMetaServerDerived)
+	}
 	switch questVerification[questID] {
 	case "self_report", "social":
 		return connect.NewError(connect.CodeInvalidArgument, errProofRequired)
@@ -373,13 +389,33 @@ type questAbciResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// questAbciQuery sends an ABCI query for server-side verification using the
-// wire format gno.land requires: the `data` param base64-encoded. A non-empty
-// ABCI ResponseBase.Error (missing account, "not found" render) is treated as
-// an EMPTY result — "requirement not met" — not a transport failure. Only
-// genuine transport/RPC errors return a non-nil error, which the caller maps
-// to errVerifyUnavailable (reject, don't grant).
+// questAbciQuery sends a quest-verification ABCI query with automatic failover
+// across rpcURLsInOrder: it tries the primary then each backup node until one
+// answers without a transport error. An empty/no-record answer is a success
+// ("requirement not met") and does NOT fail over. Returns the last error if
+// every node fails (mapped to errVerifyUnavailable by the caller → reject).
 func questAbciQuery(rpcURL, path, data string) (string, error) {
+	var lastErr error
+	for i, u := range rpcURLsInOrder(rpcURL) {
+		out, err := questAbciQueryOnce(u, path, data)
+		if err == nil {
+			if i > 0 {
+				slog.Warn("quest-verify RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
+			}
+			return out, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+// questAbciQueryOnce performs a single quest-verification query against one node
+// using the wire format gno.land requires: the `data` param base64-encoded. A
+// non-empty ABCI ResponseBase.Error (missing account, "not found" render) is
+// treated as an EMPTY result — "requirement not met" — not a transport failure.
+// Only genuine transport/RPC errors return a non-nil error so questAbciQuery can
+// fail over.
+func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -394,12 +430,20 @@ func questAbciQuery(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: rpcAttemptTimeout}
 	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// A dead/throttled node returns a non-200 (often 502/503/429); detect it so
+	// failover fires deterministically instead of via a downstream parse error.
+	// Drain first so the keep-alive connection can be reused.
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -415,8 +459,10 @@ func questAbciQuery(rpcURL, path, data string) (string, error) {
 	}
 
 	rb := result.Result.Response.ResponseBase
-	if len(rb.Error) > 0 && string(rb.Error) != "null" {
+	if abciErrorPresent(rb.Error) {
 		// ABCI-level error (missing account / not found) = requirement not met.
+		// Shares the exact predicate abciQueryOnce uses so the two transports'
+		// empty-vs-failover semantics cannot drift.
 		return "", nil
 	}
 	if rb.Data == "" {

@@ -18,6 +18,7 @@ import (
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -169,6 +170,10 @@ func main() {
 	// Health check — enhanced with DB, uptime, memory diagnostics
 	mux.HandleFunc("/health", healthHandler(database, dbPath))
 
+	// Prometheus metrics (observability keystone, P0-2) — exposes the signed-login
+	// ratio (memba_auth_login_total) + Go runtime metrics for an external drain.
+	mux.Handle("/metrics", promhttp.Handler())
+
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
 	// Use /api/render for legitimate read-only queries.
@@ -192,7 +197,17 @@ func main() {
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
 	// v6 SEC-03: auth required to prevent API key abuse
 	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthMiddleware(svc, service.HandleAnalystAnalyze())))
-	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", service.HandleAnalystConsensus(database)))
+	// GET = PUBLIC, no-auth read of an already-cached report (zero LLM cost); POST =
+	// auth-gated generation (v6 SEC-03: prevents unauthenticated 10-model LLM cost-drain).
+	consensusGet := service.HandleAnalystConsensusGet(database)
+	consensusPost := requireAuthMiddleware(svc, service.HandleAnalystConsensus(database))
+	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			consensusGet.ServeHTTP(w, r)
+			return
+		}
+		consensusPost.ServeHTTP(w, r)
+	})))
 
 	// IPFS upload proxy — keeps Lighthouse API key server-side
 	// v6 SEC-02: auth required to prevent API key abuse

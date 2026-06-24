@@ -264,45 +264,78 @@ describe("useYourWorlds — no saved worlds", () => {
     })
 })
 
-describe("useYourWorlds — per-world source error degrades card, not board", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
-        // First world errors, second world succeeds
-        vi.mocked(daoMod.getDAOConfig)
-            .mockRejectedValueOnce(new Error("RPC timeout"))
-            .mockResolvedValueOnce(MOCK_DAO_CONFIG)
-        vi.mocked(daoMod.getDAOProposals)
-            .mockRejectedValueOnce(new Error("RPC timeout"))
-            .mockResolvedValueOnce(MOCK_PROPOSALS)
+describe("useYourWorlds — network scoping (MH2)", () => {
+    // Legacy untagged entries: shown only if the realm resolves on the active
+    // network. One that fails to resolve is treated as saved-on-another-network
+    // (e.g. retired test11) and dropped — NOT rendered as a dead degraded card.
+    describe("legacy untagged: unreachable here is dropped, not degraded", () => {
+        beforeEach(() => {
+            vi.clearAllMocks()
+            vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
+            // First (GovDAO) fails to resolve here; second (MyOrg) succeeds.
+            vi.mocked(daoMod.getDAOConfig)
+                .mockRejectedValueOnce(new Error("RPC timeout"))
+                .mockResolvedValueOnce({ ...MOCK_DAO_CONFIG, name: "MyOrg DAO" })
+            vi.mocked(daoMod.getDAOProposals)
+                .mockRejectedValueOnce(new Error("RPC timeout"))
+                .mockResolvedValueOnce(MOCK_PROPOSALS)
+        })
+
+        it("board state stays 'ready' when one world fails to resolve", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+        })
+
+        it("drops the unreachable untagged world (only the resolving one remains)", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+            await waitFor(() => expect(result.current.worlds).toHaveLength(1))
+            expect(result.current.worlds[0].name).toBe("MyOrg DAO")
+            expect(result.current.worlds[0].href).toBe("/test13/dao/gno.land/r/test/myorg")
+        })
     })
 
-    it("board state remains 'ready' (not 'error') when only one world fails", async () => {
-        const { useYourWorlds } = await import("./useYourWorlds")
-        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+    // Entries tagged for the active network are known to live here, so a transient
+    // RPC error keeps them as a degraded card (graceful — unlike untagged ones).
+    describe("tagged for the active network: degrade gracefully on RPC error", () => {
+        beforeEach(() => {
+            vi.clearAllMocks()
+            vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+                { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000, network: "test13" },
+            ])
+            vi.mocked(daoMod.getDAOConfig).mockRejectedValue(new Error("RPC timeout"))
+            vi.mocked(daoMod.getDAOProposals).mockRejectedValue(new Error("RPC timeout"))
+        })
 
-        await waitFor(() => expect(result.current.state).toBe("ready"))
+        it("keeps a tagged-for-this-network DAO as a degraded card", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+            await waitFor(() => expect(result.current.worlds).toHaveLength(1))
+            expect(result.current.worlds[0].name).toBe("GovDAO")
+            expect(result.current.worlds[0].degraded).toBe(true)
+        })
     })
 
-    it("the failing world still appears in worlds array with error degradation", async () => {
-        const { useYourWorlds } = await import("./useYourWorlds")
-        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+    // Entries tagged for a different network are excluded even if they would resolve.
+    describe("tagged for a different network: excluded", () => {
+        beforeEach(() => {
+            vi.clearAllMocks()
+            vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+                { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000, network: "gnoland1" },
+            ])
+            vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+            vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+        })
 
-        await waitFor(() => expect(result.current.state).toBe("ready"))
-
-        // Both worlds still in list (degraded, not removed)
-        expect(result.current.worlds).toHaveLength(2)
-    })
-
-    it("the failed world has its base name and href from localStorage", async () => {
-        const { useYourWorlds } = await import("./useYourWorlds")
-        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
-
-        await waitFor(() => expect(result.current.state).toBe("ready"))
-
-        // First world failed — name/href come from saved DAO (not from RPC config)
-        expect(result.current.worlds[0].name).toBe("GovDAO")
-        expect(result.current.worlds[0].href).toBe("/test13/dao/gno.land/r/gov/dao")
+        it("excludes a DAO tagged for another network", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+            expect(result.current.worlds).toHaveLength(0)
+        })
     })
 })
 

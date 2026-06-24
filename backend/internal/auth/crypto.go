@@ -16,6 +16,7 @@ import (
 	"time"
 
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -234,6 +235,7 @@ func allowUnsignedAuth() bool {
 // AllowUnsignedAuthEnv to enforce. "signed_invalid" means a signature was present but
 // did not verify (e.g. an Adena canonical-doc mismatch) and was accepted in phase 1.
 func logAuthLogin(result, address, chainID string) {
+	metrics.AuthLoginTotal.WithLabelValues(result).Inc()
 	slog.Info("auth_login",
 		"metric", "auth_login",
 		"result", result,
@@ -377,19 +379,10 @@ func MakeToken(
 					return nil, errors.New("invalid user signature")
 				}
 				logAuthLogin("signed_invalid", chainUserAddress, effectiveChainID)
-				// AUTH-A2-DEBUG (temporary): emit the reconstructed sign-bytes + received
-				// signature so the login-doc template can be reconciled with Adena's
-				// actual output. Remove once signed-login ratio is ~100%.
-				if signBytes, sbErr := LoginChallengeSignBytes(effectiveChainID, chainUserAddress, info.Challenge.Nonce); sbErr == nil {
-					slog.Warn("auth: AUTH-A2-DEBUG — tx-shaped login signature did not verify (accepted in phase 1)",
-						"address", chainUserAddress,
-						"chain_id", effectiveChainID,
-						"nonce_b64", base64.StdEncoding.EncodeToString(info.Challenge.Nonce),
-						"reconstructed_sign_bytes", string(signBytes),
-						"signature_b64", signatureBase64,
-						"user_pubkey_json", info.UserPubkeyJson,
-						"err", verr.Error())
-				}
+				// Present-but-invalid signature is accepted in phase 1 (log-only) and
+				// tracked via the auth_login gate signal above — NOT by logging the
+				// sensitive reconstructed sign-bytes / signature / pubkey (the
+				// signed-login reconciliation that block served is complete).
 			} else {
 				logAuthLogin("signed", chainUserAddress, effectiveChainID)
 			}

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import {
     encodeSlug,
     decodeSlug,
@@ -167,5 +167,32 @@ describe('FEATURED_DAO', () => {
     it('has correct default values', () => {
         expect(FEATURED_DAO.realmPath).toBe('gno.land/r/gov/dao')
         expect(FEATURED_DAO.name).toBe('GovDAO')
+    })
+})
+
+describe('network scoping (MH2)', () => {
+    afterEach(() => {
+        try { localStorage.removeItem('memba_network') } catch { /* ignore */ }
+    })
+
+    it('stamps the active network on a new save', () => {
+        localStorage.setItem('memba_network', 'test13')
+        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
+        expect(getSavedDAOs()[0].network).toBe('test13')
+    })
+
+    it('leaves network undefined when no active network is set', () => {
+        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
+        expect(getSavedDAOs()[0].network).toBeUndefined()
+    })
+
+    it('backfills the network tag on re-pin of a legacy untagged entry', () => {
+        // Saved before network-scoping (no active network) → untagged.
+        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
+        expect(getSavedDAOs()[0].network).toBeUndefined()
+        // Re-pin while on test13 → backfilled.
+        localStorage.setItem('memba_network', 'test13')
+        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
+        expect(getSavedDAOs()[0].network).toBe('test13')
     })
 })

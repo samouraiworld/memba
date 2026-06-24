@@ -1,15 +1,15 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
 # register-agent.sh — Register dao-analyst agent via 2-of-2 multisig
-# Registers in the on-chain agent_registry. Defaults to testnet12; override
-# REMOTE/CHAIN env vars to target another network (e.g. test-13: hyphenated
-# chain-id is signature-bound, so it MUST match the chain exactly).
-#   REMOTE=https://rpc.test-13-aeddi-1.gnoland.network CHAIN=test-13 ./register-agent.sh
+# Registers in the on-chain agent_registry. Defaults to test13 (pinned samourai
+# node); override REMOTE/CHAIN env vars to target another network. The hyphenated
+# chain-id is signature-bound, so CHAIN MUST match the chain exactly.
+#   REMOTE=https://rpc.gno.land CHAIN=portal-loop ./register-agent.sh
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
 
-REMOTE="${REMOTE:-https://rpc.testnet12.samourai.live:443}"
-CHAIN="${CHAIN:-test12}"
+REMOTE="${REMOTE:-https://rpc.testnet13.samourai.live:443}"
+CHAIN="${CHAIN:-test-13}"
 MULTISIG_KEY="samcrew-core-test1"
 SIGNER1="zooma"
 SIGNER2="adena-zxxma"

@@ -18,6 +18,9 @@ import {
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
     _parseProposalList,
+    _parseProposalDescription,
+    _parseProposalAuthor,
+    _parseVoters,
     _sanitize,
     _unescapeMarkdown,
     _parseMemberstoreTiers,
@@ -65,6 +68,19 @@ describe('normalizeStatus', () => {
 
     it('maps "completed" → "executed"', () => {
         expect(_normalizeStatus('completed')).toBe('executed')
+    })
+
+    // gno govdao v3 detail render emits "**PROPOSAL HAS BEEN DENIED**"; the
+    // detail status regex captures the token "DENIED". Without a denied branch
+    // this fell through to the default "open", so a denied proposal rendered as
+    // ACTIVE (LIVE badge + vote buttons) on the detail page. Regression guard.
+    it('maps "DENIED" → "rejected" (GovDAO proposal-detail prose)', () => {
+        expect(_normalizeStatus('DENIED')).toBe('rejected')
+    })
+
+    it('maps "denied" (any case) → "rejected"', () => {
+        expect(_normalizeStatus('denied')).toBe('rejected')
+        expect(_normalizeStatus('Denied')).toBe('rejected')
     })
 
     it('defaults unknown statuses to "open"', () => {
@@ -366,6 +382,14 @@ describe('buildVoteMsg', () => {
         expect(msg.value.args).toEqual(['0', 'ABSTAIN'])
     })
 
+    // GovDAO supports abstain (gno#5271); Memba now enables the Abstain button for it
+    // (F-E6). Lock the on-chain message that button triggers.
+    it('builds GovDAO ABSTAIN via MustVoteOnProposalSimple (gno#5271)', () => {
+        const msg = buildVoteMsg('g1caller', 'gno.land/r/gov/dao', 5, 'ABSTAIN')
+        expect(msg.value.func).toBe('MustVoteOnProposalSimple')
+        expect(msg.value.args).toEqual(['5', 'ABSTAIN'])
+    })
+
     it('includes correct caller address', () => {
         const msg = buildVoteMsg('g1specificaddr', 'gno.land/r/gov/dao', 1, 'YES')
         expect(msg.value.caller).toBe('g1specificaddr')
@@ -580,5 +604,89 @@ Tiers eligible to vote: T1
         const active = proposals.filter(p => p.status === 'open')
         expect(active.length).toBe(1)
         expect(active[0].id).toBe(10)
+    })
+})
+
+// ── parseProposalAuthor (GovDAO v3 detail render) ───────────────
+// Real render shape: "Author: [@user](/u/user)" (resolved) or "Author: g1…" (raw
+// address when the proposer has no registered username). The detail page used to
+// only match the linked form, silently dropping bare-address authors (F-E2).
+
+describe('parseProposalAuthor', () => {
+    it('resolves a linked "[@user](url)" author', () => {
+        const r = _parseProposalAuthor('## Prop #7 - X\nAuthor: [@zooma](/u/zooma)\n\nbody')
+        expect(r.author).toBe('@zooma')
+        expect(r.authorProfile).toBe('/u/zooma')
+    })
+
+    it('captures a bare g1 address author (was dropped on the detail page)', () => {
+        const r = _parseProposalAuthor('## Prop #22 - X\nAuthor: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\n\nbody')
+        expect(r.author).toBe('g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')
+        expect(r.authorProfile).toBe('')
+    })
+
+    it('returns empty author when none present', () => {
+        expect(_parseProposalAuthor('## Prop #1 - X\n\nbody').author).toBe('')
+    })
+})
+
+// ── parseVoters (GovDAO v3 votes render) ────────────────────────
+// Real render shape per voter line: "- [@user](/u/user)" or "- g1…". The old
+// @-link-only regex dropped bare addresses, undercounting tallies (F-E3).
+
+describe('parseVoters', () => {
+    it('captures both linked and bare-address voters in order', () => {
+        const block = '\n\n- [@zooma](/u/zooma)\n- g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\n'
+        const voters = _parseVoters(block)
+        expect(voters.map(v => v.username)).toEqual(['@zooma', 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'])
+        expect(voters[0].profileUrl).toBe('/u/zooma')
+        expect(voters[1].profileUrl).toBe('')
+    })
+
+    it('ignores non-voter lines', () => {
+        expect(_parseVoters('some header text\nno bullets here')).toEqual([])
+    })
+})
+
+// ── parseProposalDescription (GovDAO v3 detail render) ──────────
+// The displayed/analysed body must NOT leak the executor-metadata block or the
+// trailing "---" rule that precedes "### Stats" (B3/F-E5).
+
+describe('parseProposalDescription', () => {
+    it('returns the body and excludes the executor-metadata block', () => {
+        const detail = [
+            '## Prop #22 - Fund grant',
+            'Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5',
+            '',
+            'Fund the dev grant with 1000 GNOT to accelerate tooling.',
+            '',
+            'This proposal contains the following metadata:',
+            '',
+            'send 1000ugnot',
+            '',
+            'Executor created in: gno.land/r/template/contract',
+            '',
+            '',
+            '---',
+            '',
+            '### Stats',
+            '- **PROPOSAL HAS BEEN DENIED**',
+        ].join('\n')
+        expect(_parseProposalDescription(detail)).toBe('Fund the dev grant with 1000 GNOT to accelerate tooling.')
+    })
+
+    it('strips a trailing horizontal rule when there is no metadata', () => {
+        const detail = [
+            '## Prop #7 - Add member',
+            'Author: [@zooma](/u/zooma)',
+            '',
+            'Add zooma as a T2 member of the DAO.',
+            '',
+            '---',
+            '',
+            '### Stats',
+            '- **PROPOSAL HAS BEEN ACCEPTED**',
+        ].join('\n')
+        expect(_parseProposalDescription(detail)).toBe('Add zooma as a T2 member of the DAO.')
     })
 })

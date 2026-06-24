@@ -15,19 +15,9 @@ beforeEach(() => {
 })
 
 describe("fetchTractionMetrics", () => {
-    it("leaves daoCount at 0 (deprecated — no global DAO registry; never namespace-counted)", async () => {
-        vi.spyOn(globalThis, "fetch").mockResolvedValue(
-            new Response(JSON.stringify([]), { status: 200 }),
-        )
-
-        const metrics = await fetchTractionMetrics()
-        expect(metrics.daoCount).toBe(0)
-        expect(metrics.fetchedAt).toBeGreaterThan(0)
-    })
-
     it("returns cached metrics on second call", async () => {
         vi.spyOn(globalThis, "fetch").mockResolvedValue(
-            new Response(JSON.stringify([]), { status: 200 }),
+            new Response(JSON.stringify({ users: [] }), { status: 200 }),
         )
 
         const first = await fetchTractionMetrics()
@@ -40,18 +30,16 @@ describe("fetchTractionMetrics", () => {
 
         const metrics = await fetchTractionMetrics()
         expect(metrics.contributorCount).toBe(0)
-        expect(metrics.repoCount).toBe(0)
+        expect(metrics.fetchedAt).toBeGreaterThan(0)
     })
 
-    it("parses contributor total from API response", async () => {
-        // /stats returns { users: [...] }, /repositories returns [...]
+    it("parses contributor total from the API response", async () => {
         const mockUsers = Array.from({ length: 42 }, (_, i) => ({ login: `user${i}` }))
-        vi.spyOn(globalThis, "fetch")
-            .mockResolvedValueOnce(new Response(JSON.stringify({ users: mockUsers }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify([{ name: "repo1" }, { name: "repo2" }]), { status: 200 }))
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(JSON.stringify({ users: mockUsers }), { status: 200 }),
+        )
 
         const metrics = await fetchTractionMetrics()
         expect(metrics.contributorCount).toBe(42)
-        expect(metrics.repoCount).toBe(2)
     })
 })

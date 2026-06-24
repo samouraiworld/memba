@@ -3,18 +3,55 @@ package indexer
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"strconv"
 )
 
 // atoiSafe parses a base-10 integer attribute, returning 0 on any error. Event
 // amounts (price/fee/royalty) are non-negative decimal strings emitted via
 // strconv.Itoa on-chain, so failure means a missing/garbage attr → treat as 0.
+// NOTE: for the canonical Sale money-path, use atoiStrict instead — a silent 0
+// there corrupts volume/floor/points and is indistinguishable from a real zero.
 func atoiSafe(s string) int64 {
 	v, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return 0
 	}
 	return v
+}
+
+// atoiStrict parses a REQUIRED base-10 integer attribute. ok=false when the attr
+// is missing or not a valid integer, so the caller can reject a malformed event
+// rather than silently substituting 0 (audit F2). A present "0" parses fine.
+func atoiStrict(s string) (v int64, ok bool) {
+	v, err := strconv.ParseInt(s, 10, 64)
+	return v, err == nil
+}
+
+// validVia reports whether a Sale event's "via" is one of the canonical kinds
+// the engines emit. The indexer keys analytics on `kind`, so an unknown/empty
+// via would silently skew queries that filter on it.
+func validVia(via string) bool {
+	switch via {
+	case "buy", "offer", "auction", "sweep":
+		return true
+	default:
+		return false
+	}
+}
+
+// firstAttr returns the first non-empty attribute among keys. The v2 realms and
+// the v3 registry (memba_collections) use DIFFERENT attribute names for the same
+// concept — e.g. v2 emits "collection"/"to" while v3 emits "collectionID"/"minter".
+// Reading tolerantly keeps one handler correct for both engines and resilient to
+// future drift (audit F12).
+func firstAttr(ev GnoEvent, keys ...string) string {
+	for _, k := range keys {
+		if v := ev.Attr(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // dispatchEvent applies a single normalized GnoEvent to the database. It
@@ -83,7 +120,7 @@ func dispatchEventScoped(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash
 		return applyMint(ctx, db, ev)
 	case "CollectionCreated":
 		return applyCollectionCreated(ctx, db, ev)
-	case "RoyaltyChanged":
+	case "RoyaltyChanged", "RoyaltySet":
 		return applyRoyaltyChanged(ctx, db, ev)
 	case "TokenSold":
 		// Covered by PurchaseConfirmed / OfferAccepted — intentionally skipped.
@@ -118,7 +155,7 @@ func ensureCollection(ctx context.Context, tx *sql.Tx, colID string) error {
 }
 
 func applyNFTListed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	price := atoiSafe(ev.Attr("price"))
@@ -160,7 +197,7 @@ func applyNFTListed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyNFTDelisted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	reason := "delisted"
 	if ev.Type == "AdminDelisted" {
@@ -200,7 +237,7 @@ func applyNFTDelisted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyPurchaseConfirmed(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
@@ -212,7 +249,7 @@ func applyPurchaseConfirmed(ctx context.Context, db *sql.DB, ev GnoEvent) error 
 }
 
 func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	buyer := ev.Attr("buyer")
 	amount := atoiSafe(ev.Attr("amount"))
@@ -229,7 +266,7 @@ func applyOfferMade(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyOfferResolved(ctx context.Context, db *sql.DB, ev GnoEvent, status string) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	buyer := ev.Attr("buyer")
 
@@ -247,7 +284,7 @@ func applyOfferResolved(ctx context.Context, db *sql.DB, ev GnoEvent, status str
 }
 
 func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
@@ -278,15 +315,36 @@ func applyOfferAccepted(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 // are metadata-only and do not write a second sale row. Legacy v2 engines (not
 // in saleVolumeRealms) still source volume from OfferAccepted/PurchaseConfirmed.
 func applySale(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	seller := ev.Attr("seller")
 	buyer := ev.Attr("buyer")
-	price := atoiSafe(ev.Attr("price"))
-	fee := atoiSafe(ev.Attr("fee"))
-	royalty := atoiSafe(ev.Attr("royalty"))
 	via := ev.Attr("via") // "buy" | "offer" | "auction" | "sweep"
-	return settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via)
+	price, priceOK := atoiStrict(ev.Attr("price"))
+	fee, feeOK := atoiStrict(ev.Attr("fee"))
+	royalty, royaltyOK := atoiStrict(ev.Attr("royalty"))
+
+	// Reject a malformed Sale rather than silently writing a bad `kind` or zeroed
+	// amounts (audit F2). The raw event is already persisted by recordRawEvent, so
+	// it's recoverable; the warning is the operator signal that schema drift hit.
+	if !validVia(via) || col == "" || tok == "" || seller == "" || buyer == "" || !priceOK || !feeOK || !royaltyOK {
+		slog.Warn("indexer: skipping malformed Sale event",
+			"pkg", ev.PkgPath, "block", ev.Block, "tx", ev.TxIndex, "idx", ev.EventIdx,
+			"via", via, "collection", col, "tokenId", tok,
+			"hasSeller", seller != "", "hasBuyer", buyer != "",
+			"priceOK", priceOK, "feeOK", feeOK, "royaltyOK", royaltyOK)
+		return nil
+	}
+	if err := settleSale(ctx, db, ev, col, tok, seller, buyer, price, fee, royalty, via); err != nil {
+		return err
+	}
+	// v3 AcceptOffer emits only Sale(via="offer") — no separate OfferAccepted —
+	// so resolve the buyer's active offer here, else it lingers as a phantom
+	// 'active' offer on an already-sold token (audit F13).
+	if via == "offer" {
+		return applyOfferResolved(ctx, db, ev, "accepted")
+	}
+	return nil
 }
 
 // settleSale records a sale (purchase or accepted offer): inserts nft_sales,
@@ -373,7 +431,7 @@ func settleSale(ctx context.Context, db *sql.DB, ev GnoEvent, col, tok, seller, 
 }
 
 func applyMarketTransfer(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
 	from := ev.Attr("from")
 	to := ev.Attr("to")
@@ -405,9 +463,9 @@ func applyMarketTransfer(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyMint(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	tok := ev.Attr("tokenId")
-	to := ev.Attr("to")
+	to := firstAttr(ev, "to", "minter")
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -442,10 +500,10 @@ func applyMint(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 }
 
 func applyCollectionCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
+	col := firstAttr(ev, "collection", "collectionID")
 	name := ev.Attr("name")
 	symbol := ev.Attr("symbol")
-	royalty := atoiSafe(ev.Attr("royaltyBPS"))
+	royalty := atoiSafe(firstAttr(ev, "royaltyBPS", "bps"))
 
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO nft_collections (collection_id, name, symbol, royalty_bps, updated_at)
@@ -459,8 +517,8 @@ func applyCollectionCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error 
 }
 
 func applyRoyaltyChanged(ctx context.Context, db *sql.DB, ev GnoEvent) error {
-	col := ev.Attr("collection")
-	royalty := atoiSafe(ev.Attr("royaltyBPS"))
+	col := firstAttr(ev, "collection", "collectionID")
+	royalty := atoiSafe(firstAttr(ev, "royaltyBPS", "bps"))
 
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO nft_collections (collection_id, royalty_bps, updated_at)

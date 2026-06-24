@@ -24,8 +24,11 @@ import (
 // unit-testable without a live chain. Defaults to the package-level abciQuery.
 type queryFunc func(rpcURL, path, data string) (string, error)
 
-// homeSnapshotRPCURL returns the RPC the home snapshot reads (test13 by default).
-// IMPORTANT: do not use gnoRPCURL() here — it defaults to testnet12.
+// homeSnapshotRPCURL returns the RPC the home snapshot reads. The default is the
+// pinned samourai node (matching fly.toml) — NOT the public test13 node, which
+// rate-limits the Fly egress IP (#466); an unset env must not silently re-trigger
+// that. do not use gnoRPCURL() here — both now point at test13, but keeping the
+// home var separate avoids accidental coupling if GNO_RPC_URL is repurposed.
 func homeSnapshotRPCURL() string {
 	if v := os.Getenv("HOME_SNAPSHOT_RPC_URL"); v != "" {
 		return v
@@ -33,7 +36,7 @@ func homeSnapshotRPCURL() string {
 	if v := os.Getenv("NFT_RPC_URL"); v != "" {
 		return v
 	}
-	return "https://rpc.test13.testnets.gno.land:443"
+	return "https://rpc.testnet13.samourai.live:443"
 }
 
 // homeSnapshotTTL is the cache window (default 30s, env HOME_SNAPSHOT_TTL as a Go duration).
@@ -465,7 +468,7 @@ func httpGetJSON(ctx context.Context, url string, out any) error {
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: rpcAttemptTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -494,7 +497,7 @@ func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPuls
 			} `json:"sync_info"`
 		} `json:"result"`
 	}
-	if err := httpGetJSON(ctx, rpcURL+"/status", &s); err != nil {
+	if err := httpGetJSONResilient(ctx, rpcURL, "/status", &s); err != nil {
 		return nil, err
 	}
 	h, err := strconv.ParseInt(s.Result.SyncInfo.LatestBlockHeight, 10, 64)
@@ -524,8 +527,8 @@ func fetchNetworkPulse(ctx context.Context, rpcURL string) (*membav1.NetworkPuls
 					} `json:"block"`
 				} `json:"result"`
 			}
-			url := fmt.Sprintf("%s/block?height=%d", rpcURL, h-n)
-			if bErr := httpGetJSON(ctx, url, &b); bErr != nil {
+			blockSuffix := fmt.Sprintf("/block?height=%d", h-n)
+			if bErr := httpGetJSONResilient(ctx, rpcURL, blockSuffix, &b); bErr != nil {
 				slog.Debug("fetchNetworkPulse: fetch /block", "height", h-n, "err", bErr)
 			} else {
 				earlierTime, pErr := time.Parse(time.RFC3339Nano, b.Result.Block.Header.Time)
@@ -551,7 +554,7 @@ func fetchValidatorsHealth(ctx context.Context, rpcURL string) (*membav1.Validat
 			Validators []json.RawMessage `json:"validators"`
 		} `json:"result"`
 	}
-	if err := httpGetJSON(ctx, rpcURL+"/validators", &v); err != nil {
+	if err := httpGetJSONResilient(ctx, rpcURL, "/validators", &v); err != nil {
 		return nil, err
 	}
 	total := uint32(len(v.Result.Validators)) // #nosec G115 -- validator set size is tiny (tens of nodes), never overflows uint32
