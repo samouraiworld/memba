@@ -8,6 +8,8 @@
  * @module components/nft/VerifiedBadge
  */
 
+import "./VerifiedBadge.css"
+
 interface Props {
     verified: boolean
     /** Compact variant for list rows (icon only). */
