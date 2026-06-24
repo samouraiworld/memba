@@ -287,6 +287,27 @@ export function mergeValoperMonikers(
 // ── Network Stats ─────────────────────────────────────────────
 
 /**
+ * Count validators + total voting power from a tm2 `/validators` RPC result.
+ * tm2 does NOT return a `total` field (unlike CometBFT), so we count the
+ * `validators` array; an explicit `total` is still preferred if a node sends one.
+ * Mirrors the backend's `len(Result.Validators)` (home_rpc.go) — fixes the
+ * Directory "VALIDATORS 0" banner, which read a `total` that never arrives.
+ */
+export function countValidatorTotals(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    valResult: any,
+): { count: number; votingPower: number } {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vals: any[] = Array.isArray(valResult?.validators) ? valResult.validators : []
+    const reportedTotal = parseInt(valResult?.total || "0", 10)
+    return {
+        count: reportedTotal > 0 ? reportedTotal : vals.length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        votingPower: vals.reduce((sum: number, v: any) => sum + parseInt(v?.voting_power || "0", 10), 0),
+    }
+}
+
+/**
  * Fetch network overview stats (block height, avg time, validator count).
  * Pass pre-fetched validators to avoid redundant RPC call (I7 fix).
  *
@@ -313,11 +334,12 @@ export async function getNetworkStats(
         totalValidators = prefetchedValidators.length
         totalVotingPower = prefetchedValidators.reduce((sum, v) => sum + v.votingPower, 0)
     } else {
-        // Fallback: fetch validator count via RPC (no prefetched data)
+        // Fallback: fetch the validator set via RPC (no prefetched data).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "1" }, signal) as any
-        totalValidators = parseInt(valResult?.total || "0", 10)
-        totalVotingPower = parseInt(valResult?.validators?.[0]?.voting_power || "0", 10)
+        const valResult = await rpcCall(rpcUrl, "/validators", { per_page: "100" }, signal) as any
+        const totals = countValidatorTotals(valResult)
+        totalValidators = totals.count
+        totalVotingPower = totals.votingPower
     }
 
     // Calculate avg block time from last 10 blocks
