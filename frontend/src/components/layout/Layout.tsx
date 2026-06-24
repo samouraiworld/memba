@@ -131,9 +131,12 @@ export function Layout() {
             completeQuest("connect-wallet", token)
             syncQuestsToBackend(token).catch(() => { /* offline-first */ })
         } catch (err) {
+            // Keep the wallet CONNECTED on login failure — a transient backend
+            // outage (e.g. getChallenge 5xx) must not force-disconnect the user out
+            // of read-only browsing. Surface the error + a Retry action (retryLogin);
+            // reserve disconnect() for explicit logout and the changedAccount handler.
             console.error("[Memba] Login failed:", err)
             setAuthError(err instanceof Error ? err.message : "Login failed")
-            adena.disconnect()
         } finally {
             setAuthLoading(false)
         }
@@ -225,6 +228,15 @@ export function Layout() {
         loginAttemptedRef.current = false
     }, [adena, auth])
 
+    // Retry login after a failure WITHOUT reconnecting the wallet: clear the error,
+    // reopen the one-shot gate, and re-run. An explicit user action, so this can't
+    // auto-loop the way resetting the gate inside the catch would.
+    const retryLogin = useCallback(() => {
+        setAuthError(null)
+        loginAttemptedRef.current = false
+        performLogin()
+    }, [performLogin])
+
     // ── B3: Syncing timeout — after 10s of reconnecting, stop blocking ──
     const [syncTimedOut, setSyncTimedOut] = useState(false)
     useEffect(() => {
@@ -288,6 +300,7 @@ export function Layout() {
                         authError={authError}
                         onDisconnect={handleDisconnect}
                         onClearError={() => setAuthError(null)}
+                        onRetry={retryLogin}
                         notifications={notifs}
                         onToggleSidebar={handleToggleCollapse}
                         addAndSwitchWalletNetwork={async (chainId, chainName, rpcUrl) => {

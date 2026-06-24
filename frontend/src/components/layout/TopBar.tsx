@@ -37,6 +37,7 @@ interface TopBarProps {
     authError: string | null
     onDisconnect: () => void
     onClearError: () => void
+    onRetry: () => void
     notifications: {
         notifications: Notification[]
         unreadCount: number
@@ -52,7 +53,7 @@ interface TopBarProps {
 }
 
 // ── TopBar Component ───────────────────────────────────────────────────
-export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess, onToggleSidebar }: TopBarProps) {
+export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, onRetry, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess, onToggleSidebar }: TopBarProps) {
     return (
         <>
             <header className="k-topbar" role="banner" data-testid="topbar">
@@ -162,6 +163,16 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                     <span className="k-topbar-banner__text k-topbar-banner__text--error">
                         ⚠ {authError}
                     </span>
+                    <button
+                        onClick={onRetry}
+                        style={{
+                            background: "transparent", border: "1px solid currentColor",
+                            color: "inherit", borderRadius: 4, padding: "2px 10px",
+                            fontSize: 12, fontWeight: 600, cursor: "pointer", marginRight: 4,
+                        }}
+                    >
+                        Retry
+                    </button>
                     <button className="k-topbar-banner__dismiss" onClick={onClearError}>
                         ×
                     </button>
