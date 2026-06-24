@@ -123,7 +123,7 @@ describe("YourWorldsPanel — with saved DAOs", () => {
 
     it("shows the panel title", () => {
         renderWithProviders(<YourWorldsPanel />)
-        expect(screen.getByText("Your worlds")).toBeInTheDocument()
+        expect(screen.getByText("Your organisations")).toBeInTheDocument()
     })
 
     it("does NOT show invitation section when DAOs exist", async () => {

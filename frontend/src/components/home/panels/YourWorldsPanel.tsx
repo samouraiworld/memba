@@ -11,6 +11,7 @@
  * @module components/home/panels/YourWorldsPanel
  */
 
+import { Buildings } from "@phosphor-icons/react"
 import { useOrg } from "../../../contexts/OrgContext"
 import { GNO_FAUCET_URL } from "../../../lib/config"
 import { useNetworkKey } from "../../../hooks/useNetworkNav"
@@ -35,8 +36,8 @@ export function YourWorldsPanel() {
         <div className="your-worlds-panel" data-testid="your-worlds-panel">
             {/* Panel title header */}
             <div className="panel-title-row">
-                <i className="ti ti-world" aria-hidden="true" />
-                <h3>Your worlds</h3>
+                <Buildings size={16} aria-hidden="true" />
+                <h3>Your organisations</h3>
                 {hasWorlds && (
                     <span className="k-label" style={{ marginLeft: "auto" }}>
                         {worlds.length} {worlds.length === 1 ? "DAO" : "DAOs"}
@@ -48,7 +49,7 @@ export function YourWorldsPanel() {
                 <Door
                     variant="list"
                     state="loading"
-                    eyebrow="your worlds"
+                    eyebrow="your organisations"
                 />
             )}
 
@@ -56,7 +57,7 @@ export function YourWorldsPanel() {
                 <Door
                     variant="list"
                     state="error"
-                    eyebrow="your worlds"
+                    eyebrow="your organisations"
                     onRetry={refetch}
                 />
             )}
@@ -70,7 +71,7 @@ export function YourWorldsPanel() {
                     <Door
                         variant="invitation"
                         state="empty"
-                        eyebrow="add a world"
+                        eyebrow="add an organisation"
                         invitation={{ label: "Explore DAOs", href: `/${networkKey}/dao` }}
                     />
                 </div>
