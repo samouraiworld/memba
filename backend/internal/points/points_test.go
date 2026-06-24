@@ -33,3 +33,26 @@ func TestRecompute_RoyaltyWeighted_DeterministicAndExcludesWash(t *testing.T) {
 		t.Errorf("royalty-bearing maker/taker earned 0: g1s=%d g1b=%d", a["g1s"], a["g1b"])
 	}
 }
+
+// ECO-1: royalty routed back to the buyer or seller is not a real wash-tax and
+// must not earn points, even though it's a nonzero royalty.
+func TestRecompute_ExcludesSelfRoyalty(t *testing.T) {
+	sales := []SaleEvent{
+		// Genuine: royalty to an independent third party → counts.
+		{Via: "buy", Seller: "g1s", Buyer: "g1b", Royalty: 50000, RoyaltyRecipient: "g1third", Block: 1},
+		// Creator-farm: seller routes the royalty to themselves → excluded.
+		{Via: "buy", Seller: "g1farm", Buyer: "g1alt", Royalty: 50000, RoyaltyRecipient: "g1farm", Block: 2},
+		// Royalty routed to the buyer → excluded.
+		{Via: "buy", Seller: "g1x", Buyer: "g1y", Royalty: 50000, RoyaltyRecipient: "g1y", Block: 3},
+	}
+	out := Recompute(sales, "1")
+
+	if out["g1s"] != 50000 || out["g1b"] != 50000 {
+		t.Errorf("third-party-royalty sale should earn points: g1s=%d g1b=%d, want 50000 each", out["g1s"], out["g1b"])
+	}
+	for _, addr := range []string{"g1farm", "g1alt", "g1y", "g1x"} {
+		if _, ok := out[addr]; ok {
+			t.Errorf("self-royalty participant %q earned points; must be excluded", addr)
+		}
+	}
+}
