@@ -110,10 +110,19 @@ export function DAOHome() {
         // Enrich all proposals in parallel (each needs 2 ABCI calls)
         Promise.allSettled(
             toEnrich.map(p =>
-                Promise.all([
-                    getProposalDetail(GNO_RPC_URL, realmPath, p.id).catch(() => null),
-                    getProposalVotes(GNO_RPC_URL, realmPath, p.id).catch(() => []),
-                ]).then(([detail, votes]) => {
+                Promise.allSettled([
+                    getProposalDetail(GNO_RPC_URL, realmPath, p.id),
+                    getProposalVotes(GNO_RPC_URL, realmPath, p.id),
+                ]).then(([detailRes, votesRes]) => {
+                    // Total enrichment failure → mark degraded instead of writing fake
+                    // zero vote data, so the card shows "couldn't load votes" (P1-8) rather
+                    // than reading as a genuine no-votes proposal.
+                    if (detailRes.status === "rejected" && votesRes.status === "rejected") {
+                        setProposals(prev => prev.map(pp => pp.id === p.id ? { ...pp, enrichFailed: true } : pp))
+                        return
+                    }
+                    const detail = detailRes.status === "fulfilled" ? detailRes.value : null
+                    const votes = votesRes.status === "fulfilled" ? votesRes.value : []
                     const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
                     const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
                     const totalCount = yesCount + noCount
