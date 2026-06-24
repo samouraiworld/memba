@@ -21,3 +21,17 @@ var AuthLoginTotal = promauto.NewCounterVec(
 	},
 	[]string{"result"},
 )
+
+// IndexerLastBlock / IndexerChainHead are the frozen-indexer signal: when
+// LastBlock stops advancing while ChainHead climbs, the NFT tailer is stalled
+// (this previously went unnoticed for ~150k blocks). Set in internal/indexer.
+var (
+	IndexerLastBlock = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "memba_indexer_last_block",
+		Help: "Last block height the NFT tailer has processed (alert if it stops advancing).",
+	})
+	IndexerChainHead = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "memba_indexer_chain_head",
+		Help: "Latest chain height the NFT tailer observed; chain_head - last_block is the indexer lag.",
+	})
+)
