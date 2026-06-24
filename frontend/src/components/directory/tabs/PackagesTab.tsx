@@ -42,7 +42,7 @@ export function PackagesTab() {
                 data-testid="package-search"
             />
 
-            <div className="dir-count">
+            <div className="dir-count" role="status" aria-live="polite">
                 {filtered.length} package{filtered.length !== 1 ? "s" : ""} found
             </div>
 
