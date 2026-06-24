@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain } from "../lib/config";
 import { setWalletRpcContext } from "../lib/grc20";
+import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
 import { trackEvent } from "../lib/analytics";
 import { buildLoginChallengeDoc, adenaPubKeyToJSON } from "../lib/loginChallenge";
 
@@ -249,52 +250,14 @@ export function useAdena() {
             if (!adena || !state.connected) return null;
 
             try {
-                const parsed = JSON.parse(data);
-
-                // Convert Amino fee to Adena's multisig fee format:
-                // Amino: {amount: [{denom: "ugnot", amount: "10000"}], gas: "100000"}
-                // Adena: {gas_fee: "10000ugnot", gas_wanted: "100000"}
-                const aminoFee = parsed.fee;
-                const adenaFee = {
-                    gas_wanted: aminoFee.gas || "100000",
-                    gas_fee: aminoFee.amount?.[0]
-                        ? `${aminoFee.amount[0].amount}${aminoFee.amount[0].denom}`
-                        : "10000ugnot",
-                };
-                // Convert Amino msgs to Adena-native format (from official docs):
-                // Amino:  {type: "bank/MsgSend", value: {from_address, to_address, amount: [{denom, amount}]}}
-                // Adena:  {"@type": "/bank.MsgSend", from_address, to_address, amount: "9997ugnot"}
-                // The executor normalizes @type msgs to {type, value} internally (executor.ts:228-233)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const adenaMessages = parsed.msgs.map((m: any) => {
-                    const adenaType = m.type.startsWith("/") ? m.type : `/${m.type.replace("/", ".")}`;
-                    const value = m.value || {};
-
-                    // Convert Cosmos SDK amount array to Gno string format
-                    let amount = value.amount;
-                    if (Array.isArray(amount) && amount.length > 0) {
-                        amount = `${amount[0].amount}${amount[0].denom}`;
-                    }
-
-                    return {
-                        "@type": adenaType,
-                        ...value,
-                        amount,
-                    };
-                });
-
-                // Build Adena's MultisigTransactionDocument format
-                const multisigDoc = {
-                    tx: {
-                        msg: adenaMessages,
-                        fee: adenaFee,
-                        signatures: null,
-                        memo: parsed.memo || "",
-                    },
-                    chainId: parsed.chain_id,
-                    accountNumber: parsed.account_number,
-                    sequence: parsed.sequence,
-                };
+                // The stored doc is already canonical (see lib/multisigTx +
+                // ProposeTransaction): msgs are @type-inlined and fee is
+                // {gas_wanted,gas_fee}. Adena signs it AS-IS via SignMultisigTransaction,
+                // so the member signature is over the exact doc the backend A3 verifier
+                // reconstructs. (Previously this re-converted from a cosmos {amount,gas} /
+                // {type,value} shape, which diverged from what ProposeTransaction stores.)
+                const parsed = JSON.parse(data) as CanonicalSignDoc;
+                const multisigDoc = buildAdenaMultisigDoc(parsed);
 
                 // Try SignMultisigTransaction first (correct for multisig)
                 if (typeof adena.SignMultisigTransaction === "function") {
@@ -308,8 +271,8 @@ export function useAdena() {
                 // Fallback: try Sign() (uses signer's own account — may not work for multisig)
                 if (typeof adena.Sign === "function") {
                     const res = await adena.Sign({
-                        messages: adenaMessages,
-                        memo: parsed.memo || "",
+                        messages: multisigDoc.tx.msg,
+                        memo: multisigDoc.tx.memo,
                     });
                     if (res.status !== "failure") {
                         return res.data?.signature?.signature

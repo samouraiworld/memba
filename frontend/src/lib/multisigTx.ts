@@ -77,3 +77,34 @@ export function buildCanonicalProposePayload(
         feeJson: buildCanonicalFeeJson(isCall ? "2000000" : "100000", "10000ugnot"),
     }
 }
+
+/** The canonical sign-doc TransactionView's buildSignDoc emits and the backend
+ *  stores: `{account_number, chain_id, fee:{gas_wanted,gas_fee}, memo, msgs, sequence}`. */
+export interface CanonicalSignDoc {
+    account_number: string
+    chain_id: string
+    fee: { gas_wanted: string; gas_fee: string }
+    memo: string
+    msgs: Array<Record<string, unknown>>
+    sequence: string
+}
+
+/**
+ * Build Adena's SignMultisigTransaction document from the canonical sign-doc.
+ * msgs and fee pass through UNCHANGED — Adena signs them as-is, so the member
+ * signature is over the exact doc the backend stores and A3 reconstructs. Same
+ * structure as the prod-proven loginChallenge.ts LoginChallengeDoc (A2).
+ */
+export function buildAdenaMultisigDoc(signDoc: CanonicalSignDoc) {
+    return {
+        tx: {
+            msg: signDoc.msgs,
+            fee: signDoc.fee,
+            signatures: null,
+            memo: signDoc.memo || "",
+        },
+        chainId: signDoc.chain_id,
+        accountNumber: signDoc.account_number,
+        sequence: signDoc.sequence,
+    }
+}

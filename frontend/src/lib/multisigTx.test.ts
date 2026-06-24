@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { toCanonicalMsg, buildCanonicalFeeJson, buildCanonicalProposePayload } from "./multisigTx"
+import { toCanonicalMsg, buildCanonicalFeeJson, buildCanonicalProposePayload, buildAdenaMultisigDoc } from "./multisigTx"
 
 describe("toCanonicalMsg", () => {
     it("bank/MsgSend → @type-inlined, amount as ugnot string", () => {
@@ -82,5 +82,25 @@ describe("buildCanonicalProposePayload", () => {
         expect(msgs[0]["@type"]).toBe("/vm.m_call")
         expect(msgs[0].args).toBeNull()
         expect(JSON.parse(feeJson).gas_wanted).toBe("2000000")
+    })
+})
+
+describe("buildAdenaMultisigDoc", () => {
+    it("passes canonical msgs+fee through into Adena's SignMultisigTransaction doc", () => {
+        const msg = { "@type": "/vm.m_call", args: null, caller: "g1c", send: "", max_deposit: "", pkg_path: "p", func: "F" }
+        const doc = buildAdenaMultisigDoc({
+            account_number: "5",
+            chain_id: "test-13",
+            fee: { gas_wanted: "2000000", gas_fee: "10000ugnot" },
+            memo: "hi",
+            msgs: [msg],
+            sequence: "9",
+        })
+        expect(doc).toEqual({
+            tx: { msg: [msg], fee: { gas_wanted: "2000000", gas_fee: "10000ugnot" }, signatures: null, memo: "hi" },
+            chainId: "test-13",
+            accountNumber: "5",
+            sequence: "9",
+        })
     })
 })
