@@ -100,9 +100,12 @@ type abciQueryParams struct {
 // error if every node fails.
 func abciQuery(rpcURL, path, data string) (string, error) {
 	var lastErr error
-	for _, u := range rpcURLsInOrder(rpcURL) {
+	for i, u := range rpcURLsInOrder(rpcURL) {
 		out, err := abciQueryOnce(u, path, data)
 		if err == nil {
+			if i > 0 {
+				slog.Warn("RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
+			}
 			return out, nil
 		}
 		lastErr = err
@@ -128,7 +131,7 @@ func abciQueryOnce(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: rpcAttemptTimeout}
 	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
@@ -137,8 +140,10 @@ func abciQueryOnce(rpcURL, path, data string) (string, error) {
 
 	// A dead/sentry-throttled node returns a non-200 (often 502/503/429) with a
 	// non-JSON body. Detect it explicitly so failover fires deterministically
-	// instead of relying on a downstream JSON parse error.
+	// instead of relying on a downstream JSON parse error. Drain the body first
+	// so the keep-alive connection can be reused (close-without-drain leaks it).
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
 	}
 

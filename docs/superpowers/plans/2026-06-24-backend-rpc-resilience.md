@@ -38,6 +38,8 @@
 
 **Tracked, not built (logged with revisit trigger):** `internal/indexer/tailer.go:415` (GET) and `internal/indexer/poller.go:172` (POST) are the NFT indexer's transports. The indexer is a background worker and NFT is flag-gated **off**, so it is not demo-critical. Fold its failover into the NFT go-live epic (E9-b). Not dropped — sequenced behind the flag that makes it matter.
 
+**Tracked, not built #2 (from the post-build audit):** the failover wrappers have no last-known-good memoization and the `*Once` HTTP calls don't carry the inbound ctx deadline, so during a *hanging* (not fast-failing) primary outage the home snapshot's ~8 sequential sources each re-probe the dead primary (each bounded by `rpcAttemptTimeout` = 8s). The realistic fast-fail outage fails over near-instantly, so this is deferred: a bounded-TTL last-good memo + ctx-deadline propagation through `abciQuery`/`questAbciQuery`/`httpGetJSON` would cap the worst case. Revisit if a live outage shows compounding latency. (Documented in `rpc_resilient.go`'s `rpcAttemptTimeout` comment.)
+
 ---
 
 ## PR 1 — `fix/backend-rpc-pin-dedrift`

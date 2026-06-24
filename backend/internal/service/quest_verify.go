@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 )
@@ -396,9 +396,12 @@ type questAbciResponse struct {
 // every node fails (mapped to errVerifyUnavailable by the caller → reject).
 func questAbciQuery(rpcURL, path, data string) (string, error) {
 	var lastErr error
-	for _, u := range rpcURLsInOrder(rpcURL) {
+	for i, u := range rpcURLsInOrder(rpcURL) {
 		out, err := questAbciQueryOnce(u, path, data)
 		if err == nil {
+			if i > 0 {
+				slog.Warn("quest-verify RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
+			}
 			return out, nil
 		}
 		lastErr = err
@@ -427,7 +430,7 @@ func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: rpcAttemptTimeout}
 	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
@@ -436,7 +439,9 @@ func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 
 	// A dead/throttled node returns a non-200 (often 502/503/429); detect it so
 	// failover fires deterministically instead of via a downstream parse error.
+	// Drain first so the keep-alive connection can be reused.
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return "", fmt.Errorf("rpc http %d", resp.StatusCode)
 	}
 
@@ -454,8 +459,10 @@ func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 	}
 
 	rb := result.Result.Response.ResponseBase
-	if len(rb.Error) > 0 && string(rb.Error) != "null" {
+	if abciErrorPresent(rb.Error) {
 		// ABCI-level error (missing account / not found) = requirement not met.
+		// Shares the exact predicate abciQueryOnce uses so the two transports'
+		// empty-vs-failover semantics cannot drift.
 		return "", nil
 	}
 	if rb.Data == "" {
