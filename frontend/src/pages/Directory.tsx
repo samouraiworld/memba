@@ -14,6 +14,8 @@
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
+import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
+import { type DirectoryTab } from "../lib/directoryUrl"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
@@ -24,8 +26,6 @@ import type { DirectoryDAO, DirectoryPackage, DirectoryRealm } from "../lib/dire
 import { encodeSlug } from "../lib/daoSlug"
 import { isValidRealmPath } from "../lib/gnowebSource"
 import "./directory.css"
-
-type DirectoryTab = "daos" | "tokens" | "users" | "packages" | "realms" | "govdao" | "leaderboard"
 
 const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
     { key: "daos", label: "🏛️ DAOs" },
@@ -39,19 +39,20 @@ const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
 
 export function Directory() {
     const navigate = useNetworkNav()
-    const [tab, setTab] = useState<DirectoryTab>(() => {
-        trackDirectoryTab("daos")
-        return "daos"
-    })
-    const [globalSearch, setGlobalSearch] = useState("")
+    const [urlState, setUrlState] = useDirectoryUrlState()
+    const tab = urlState.tab
+    const globalSearch = urlState.q
     const deferredGlobalSearch = useDeferredValue(globalSearch)
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
     const [previewLoading, setPreviewLoading] = useState(false)
 
-    // M6 pattern: page title + quest tracking
+    // M6 pattern: page title + quest tracking. Track the initial (possibly
+    // deep-linked via ?tab=) tab once on mount.
     useEffect(() => {
         document.title = "Directory — Memba"
         trackPageVisit("directory")
+        trackDirectoryTab(urlState.tab)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     // Cross-tab search data (loaded once for filtering)
@@ -83,7 +84,7 @@ export function Directory() {
     // P1 fix: 300ms debounce to avoid firing RPC on every keystroke
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const handleGlobalSearch = useCallback((query: string) => {
-        setGlobalSearch(query)
+        setUrlState({ q: query })
         setRealmPreview(null)
 
         if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -104,12 +105,12 @@ export function Directory() {
                 setPreviewLoading(false)
             }, 300)
         }
-    }, [])
+    }, [setUrlState])
 
     const selectTab = useCallback((key: DirectoryTab) => {
         trackDirectoryTab(key)
-        setTab(key)
-    }, [])
+        setUrlState({ tab: key })
+    }, [setUrlState])
 
     // APG tabs pattern: Arrow/Home/End move between tabs (with a roving tabindex).
     const handleTabKeyDown = useCallback((e: ReactKeyboardEvent<HTMLButtonElement>, key: DirectoryTab) => {
@@ -169,7 +170,7 @@ export function Directory() {
                                     </button>
                                 ))}
                                 {crossTabResults.daos.length >= 5 && (
-                                    <button className="dir-cross-show-all" onClick={() => { setTab("daos"); setGlobalSearch("") }}>
+                                    <button className="dir-cross-show-all" onClick={() => setUrlState({ tab: "daos", q: "" })}>
                                         Show all DAOs →
                                     </button>
                                 )}
@@ -184,7 +185,7 @@ export function Directory() {
                                     <button
                                         key={r.path}
                                         className="dir-cross-item"
-                                        onClick={() => { setTab("realms"); setGlobalSearch("") }}
+                                        onClick={() => setUrlState({ tab: "realms", q: "" })}
                                     >
                                         <span className="dir-cross-item__icon">🌐</span>
                                         <span className="dir-cross-item__name">{r.name}</span>
@@ -202,7 +203,7 @@ export function Directory() {
                                     <button
                                         key={p.path}
                                         className="dir-cross-item"
-                                        onClick={() => { setTab("packages"); setGlobalSearch("") }}
+                                        onClick={() => setUrlState({ tab: "packages", q: "" })}
                                     >
                                         <span className="dir-cross-item__icon">📦</span>
                                         <span className="dir-cross-item__name">{p.name}</span>
