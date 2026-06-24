@@ -215,9 +215,14 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 				continue
 			}
 			if err := dispatchEventScoped(ctx, db, ev, hash, saleVolumeSet); err != nil {
-				log.Warn("nft tailer: dispatch failed",
+				// Do NOT advance the cursor past a block we couldn't fully project.
+				// The "recoverable by rebuild-from-raw" path the projections assume
+				// does not exist, so a dropped event would be a permanent silent gap.
+				// Stop here and reprocess this block next cycle; the idempotent
+				// INSERT OR IGNORE writes make replaying the applied events safe.
+				log.Warn("nft tailer: dispatch failed — will retry block",
 					"height", h, "type", ev.Type, "error", err)
-				// Continue: idempotent writes mean a later replay is safe.
+				return
 			}
 		}
 		if err := saveCursor(ctx, db, cfg.WatchedRealms, h, hash); err != nil {
