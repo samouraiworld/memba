@@ -162,9 +162,9 @@ export function Settings() {
                             onClick={() => handleNetworkChange(key)}
                             style={{
                                 ...btnStyle,
-                                background: network === key ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.03)",
-                                color: network === key ? "#00d4aa" : "#888",
-                                border: `1px solid ${network === key ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.06)"}`,
+                                background: network === key ? "var(--color-k-accent-tint)" : "var(--color-k-hover-surface)",
+                                color: network === key ? "var(--color-k-accent)" : "var(--color-k-dim)",
+                                border: `1px solid ${network === key ? "var(--color-k-accent-border)" : "var(--color-k-edge)"}`,
                             }}
                         >
                             {net.label}
@@ -182,9 +182,9 @@ export function Settings() {
                             onClick={() => { setTheme(t); setThemeState(t); setSaved(true) }}
                             style={{
                                 ...btnStyle,
-                                background: theme === t ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.03)",
-                                color: theme === t ? "#00d4aa" : "#888",
-                                border: `1px solid ${theme === t ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.06)"}`,
+                                background: theme === t ? "var(--color-k-accent-tint)" : "var(--color-k-hover-surface)",
+                                color: theme === t ? "var(--color-k-accent)" : "var(--color-k-dim)",
+                                border: `1px solid ${theme === t ? "var(--color-k-accent-border)" : "var(--color-k-edge)"}`,
                                 display: "flex", alignItems: "center", gap: 6,
                             }}
                         >
