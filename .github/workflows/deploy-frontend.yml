@@ -36,11 +36,40 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Mirrors ci.yml's A9/E8 safety gate — the deploy path previously skipped
+      # it, so a fund-unsafe feature flag could ship via a direct push to main
+      # (deploy-frontend and ci run independently). Keep in sync with ci.yml;
+      # longer-term this duplication should collapse into a reusable workflow
+      # (see PR notes).
+      - name: "Safety gate: AAA feature flags (A9/E8)"
+        working-directory: .
+        run: |
+          FAIL=0
+          for FLAG in VITE_ENABLE_NFT VITE_ENABLE_SERVICES VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
+            VALUE=$(grep "^${FLAG}=" .env.example | cut -d= -f2 || true)
+            if [ "$VALUE" = "true" ]; then
+              echo "::error::SAFETY GATE FAILED — ${FLAG}=true in .env.example. This flag gates a feature with incomplete on-chain enforcement."
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "✅ All safety-gated feature flags are disabled in .env.example"
+
       - name: Test
         run: npm test -- --run
 
       - name: Build
         run: npm run build
+
+      - name: Check bundle size
+        run: |
+          MAIN_CHUNK=$(find dist/assets -name 'index-*.js' ! -name '*.map' -exec wc -c {} + | tail -1 | awk '{print $1}')
+          MAIN_KB=$((MAIN_CHUNK / 1024))
+          echo "Main chunk: ${MAIN_KB}KB"
+          if [ "$MAIN_KB" -gt 600 ]; then
+            echo "::error::Main chunk ${MAIN_KB}KB exceeds 600KB budget"
+            exit 1
+          fi
 
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
