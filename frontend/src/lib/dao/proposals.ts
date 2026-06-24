@@ -245,6 +245,18 @@ export function parseVoters(voterBlock: string): VoterEntry[] {
 }
 
 /**
+ * Parse the proposal body from a GovDAO v3 / basedao detail render — excluding the
+ * executor-metadata block and the trailing "---" rule that precedes "### Stats" (the
+ * old inline regex leaked both into the displayed/analysed description — B3/F-E5).
+ */
+export function parseProposalDescription(data: string): string {
+    const m = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats|\nThis proposal contains the following metadata:)/m)
+        || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
+    const body = (m?.[1] || "").trim().replace(/\n*---\s*$/, "").trim()
+    return unescapeMarkdown(body)
+}
+
+/**
  * Fetch single proposal detail via Render(":N") (colon prefix for GovDAO).
  * Tries both GovDAO v3 (:N) and basedao (proposal/N) formats.
  */
@@ -291,10 +303,6 @@ export async function getProposalDetail(
         const noMatch = data.match(/\*\*No\*\*[:\s]+(\d+)/i)
         const abstainMatch = data.match(/\*\*Abstain\*\*[:\s]+(\d+)/i)
 
-        // Extract description (body text between metadata and ## sections)
-        const descMatch = data.match(/Author:.*?\n\n([\s\S]+?)(?:\n##|\nTiers|\n-\s+PROPOSAL|\n###\s+Stats)/m)
-            || data.match(/^#.*?\n\n([\s\S]+?)(?:\n\*\*|\n##)/m)
-
         // Category
         const categoryMatch = data.match(/Category:\s*(\w+)/i)
 
@@ -327,7 +335,7 @@ export async function getProposalDetail(
         return {
             id,
             title: unescapeMarkdown(titleMatch?.[1]?.trim() || `Proposal #${id}`),
-            description: unescapeMarkdown(descMatch?.[1]?.trim() || ""),
+            description: parseProposalDescription(data),
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
             author,
