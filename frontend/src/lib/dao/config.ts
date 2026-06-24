@@ -25,6 +25,22 @@ export function parseMemberstoreTiers(data: string): TierInfo[] {
 }
 
 /**
+ * Extract the governance threshold (e.g. "66%") from a DAO render containing a
+ * voting condition. Handles GovDAO's "Threshold: X%"/"Quorum: X%" and the
+ * basedao/daocond condition formats ("X% of members", "X% of total voting power",
+ * "Threshold needed: X%"). Returns "" when no threshold is present — callers must
+ * render "—" rather than fabricate a default (basedao's own default is 60%, which
+ * is wrong for any DAO that overrides it, e.g. memba_dao at 66%).
+ */
+export function parseDaoThreshold(render: string): string {
+    if (!render) return ""
+    const m =
+        render.match(/(?:Threshold(?:\s+needed)?|Quorum)[:\s]+(\d+(?:\.\d+)?)%/i) ||
+        render.match(/(\d+(?:\.\d+)?)%\s+of\s+(?:members|total voting power)/i)
+    return m ? `${m[1]}%` : ""
+}
+
+/**
  * Fetch DAO overview via Render("").
  * Supports GovDAO v3 and basedao formats.
  */
@@ -37,7 +53,6 @@ export async function getDAOConfig(
 
     // Try GovDAO v3 format first: "# GovDAO" + memberstore link
     const nameMatch = data.match(/^#\s+(.+)$/m)
-    const thresholdMatch = data.match(/(?:Threshold|Quorum)[:\s]+(\d+%)/i)
     const membersMatch = data.match(/##\s+Members\s*(?:\((\d+)\))?/)
 
     // Description: text between # title and ## section, excluding memberstore links
@@ -87,11 +102,30 @@ export async function getDAOConfig(
     return {
         name: (nameMatch?.[1]?.trim() || "Unnamed DAO").replace(/^#+\s*/, ''),
         description,
-        threshold: thresholdMatch?.[1] || "60%",
+        // GovDAO surfaces the threshold in Render(""); basedao does not (it's on
+        // the config page — see getDAOThreshold). "" → callers render "—".
+        threshold: parseDaoThreshold(data),
         memberCount: totalMembers,
         memberstorePath,
         tierDistribution,
         isArchived,
+    }
+}
+
+/**
+ * Resolve a DAO's real governance threshold from its config-page render
+ * (`Render("config")`), where basedao surfaces the voting condition — the home
+ * `Render("")` only links to the config page, so getDAOConfig can't see it. Kept
+ * out of getDAOConfig to avoid an extra render on its many hot-path callers;
+ * called only where the threshold is displayed (the DAO list). Returns "" on any
+ * failure or when absent — callers show "—", never a fabricated default.
+ */
+export async function getDAOThreshold(rpcUrl: string, realmPath: string): Promise<string> {
+    try {
+        const data = await queryRender(rpcUrl, realmPath, "config")
+        return parseDaoThreshold(data || "")
+    } catch {
+        return ""
     }
 }
 

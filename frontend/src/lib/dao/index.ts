@@ -26,7 +26,7 @@ export type {
 export { PROPOSAL_STATUS_COLORS } from "./shared"
 
 // ── Config ────────────────────────────────────────────────────
-export { getDAOConfig, getMemberstoreTiers, parseMemberstoreTiers } from "./config"
+export { getDAOConfig, getDAOThreshold, getMemberstoreTiers, parseMemberstoreTiers, parseDaoThreshold } from "./config"
 
 // ── Members ───────────────────────────────────────────────────
 export { getDAOMembers, getMemberRole, deriveRoleLabel, parseMembersFromRender } from "./members"

@@ -11,7 +11,7 @@
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useState, useCallback, useEffect } from "react"
 import { encodeSlug, type SavedDAO } from "../../lib/daoSlug"
-import { getDAOConfig, getDAOProposals } from "../../lib/dao"
+import { getDAOConfig, getDAOProposals, getDAOThreshold } from "../../lib/dao"
 import { GNO_RPC_URL } from "../../lib/config"
 
 interface DAOActivity {
@@ -46,13 +46,16 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                     getDAOProposals(GNO_RPC_URL, dao.realmPath),
                 ])
                 const active = proposals.filter(p => p.status === "open").length
+                // basedao's home render omits the voting condition, so getDAOConfig
+                // returns an empty threshold — resolve the real one from the config page.
+                const threshold = cfg?.threshold || (await getDAOThreshold(GNO_RPC_URL, dao.realmPath)) || "—"
                 setActivity(prev => ({
                     ...prev,
                     [dao.realmPath]: {
                         activeProposals: active,
                         totalProposals: proposals.length,
                         memberCount: cfg?.memberCount || 0,
-                        threshold: cfg?.threshold || "—",
+                        threshold,
                     },
                 }))
             } catch { /* silently fail — card still works without activity data */ }
