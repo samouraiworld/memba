@@ -87,12 +87,16 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: "Safety gate: AAA feature flags (A9/E8)"
+      - name: "Safety gate: feature-flag template hygiene (.env.example)"
         working-directory: .
         run: |
-          # A9/E8: Prevent fund-trapping feature flags from being enabled in .env.example.
-          # These flags gate features with incomplete on-chain enforcement.
-          # To enable a flag, you must remove its line from this guard AND pass code review.
+          # Template hygiene only — keeps .env.example from suggesting a fund-gated
+          # flag be enabled. The AUTHORITATIVE gate is now build-time: vite.config.ts
+          # (safeFlagsPlugin → src/lib/safeFlags.ts) fails `npm run build` — in this CI
+          # Build step AND the Netlify build — if a gated flag resolves to "true" from
+          # the real env (.env / process.env / Netlify dashboard), which this grep never
+          # saw. To enable a flag: remove it from SAFETY_GATED_FLAGS AND this list, and
+          # pass code review.
           FAIL=0
           for FLAG in VITE_ENABLE_NFT VITE_ENABLE_SERVICES VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
             VALUE=$(grep "^${FLAG}=" .env.example | cut -d= -f2 || true)

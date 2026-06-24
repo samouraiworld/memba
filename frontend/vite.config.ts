@@ -1,9 +1,28 @@
 import { defineConfig } from 'vitest/config'
+import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync } from 'node:fs'
+import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
+// Build-time fund-flag safety gate — fails `vite build` (CI AND the Netlify
+// build) if a safety-gated VITE_ENABLE_* flag resolves to "true" from any source
+// (.env files or process.env / Netlify dashboard vars). Replaces the old CI
+// `.env.example` grep, which never saw the prod build's env. See src/lib/safeFlags.ts.
+function safeFlagsPlugin(): PluginOption {
+  return {
+    name: 'memba-safe-flags',
+    config(_config, { command, mode }) {
+      // Netlify sets CONTEXT (production / deploy-preview / branch-deploy); CI/local
+      // leave it unset. Enforce on CI + the production build, skip ephemeral previews.
+      if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {
+        assertSafeFlags({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
+      }
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -29,6 +48,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    safeFlagsPlugin(),
     // Sentry source map upload — only in production builds with auth token
     ...(process.env.SENTRY_AUTH_TOKEN
       ? [
