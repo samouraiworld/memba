@@ -26,8 +26,6 @@ function mockPulse(overrides: Partial<NetworkPulse>) {
         blockHeight: 123,
         avgBlockTime: 2,
         totalValidators: 14,
-        daoCount: 0,
-        memberCount: 0,
         loading: false,
         offline: false,
         ...overrides,
