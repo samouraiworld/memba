@@ -52,6 +52,7 @@ const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m
 const Validators = lazy(() => import("./pages/Validators"))
 const ValidatorsHacker = lazy(() => import("./pages/ValidatorsHacker"))
 const ValidatorDetail = lazy(() => import("./pages/ValidatorDetail"))
+const ValoperDetail = lazy(() => import("./pages/ValoperDetail"))
 
 // ── Multisig Hub (lazy — v2.7) ──
 const MultisigHub = lazy(() => import("./pages/MultisigHub"))
@@ -204,8 +205,9 @@ function App() {
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
           <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
-          {/* CRITICAL: /validators/hacker must come BEFORE /validators/:address */}
+          {/* CRITICAL: /validators/hacker + /validators/valoper/* must come BEFORE /validators/:address */}
           <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
+          <Route path="validators/valoper/:operatorAddress" element={<Suspense fallback={<PageLoader />}><ValoperDetail /></Suspense>} />
           <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
 
           {/* NFT section (v3.0 gallery, v3.1 launchpad) — ORDER MATTERS: /nft/create before /nft/:realmPath */}

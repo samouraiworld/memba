@@ -50,4 +50,15 @@ describe("ValoperPanel", () => {
         renderWithProviders(<ValoperPanel valopers={[]} loading={false} />)
         expect(screen.getByText(/no valopers registered yet/i)).toBeInTheDocument()
     })
+
+    it("links valoper profiles to a test13 gnoweb host, never mainnet gno.land (regression)", () => {
+        renderWithProviders(<ValoperPanel valopers={SAMPLE} loading={false} />)
+        const valoperLinks = screen
+            .getAllByRole("link")
+            .filter(a => (a.getAttribute("href") || "").includes("/r/gnops/valopers:"))
+        expect(valoperLinks.length).toBe(SAMPLE.length)
+        valoperLinks.forEach(a => {
+            expect(a.getAttribute("href") || "").not.toMatch(/\/\/gno\.land\//)
+        })
+    })
 })
