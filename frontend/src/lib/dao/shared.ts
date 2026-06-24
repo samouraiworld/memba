@@ -44,6 +44,9 @@ export interface DAOProposal {
     // v3.2: Temporal metadata for date display
     createdAtBlock?: number    // Block height at proposal creation (if extractable)
     createdAt?: string         // Wall-clock timestamp ISO string (from tx-indexer, if available)
+    // P1-8: set when BOTH vote-detail and vote RPCs failed during enrichment, so the
+    // card can show "couldn't load votes" instead of reading as a genuine no-votes proposal.
+    enrichFailed?: boolean
 }
 
 export interface DAOConfig {
