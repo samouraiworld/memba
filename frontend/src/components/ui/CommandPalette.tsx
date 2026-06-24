@@ -43,6 +43,14 @@ export function CommandPalette() {
             if ((e.metaKey || e.ctrlKey) && e.key === "k") {
                 e.preventDefault()
                 setOpen(prev => !prev)
+            } else if (e.key === "Escape") {
+                // Close on Escape at the document level — not only via the input's
+                // onKeyDown, which requires focus to have landed on the input. The
+                // input auto-focuses on a 50ms timeout (below), so a fast Escape —
+                // a real user's, or Playwright's keypress — raced that focus and was
+                // dropped, leaving the palette open (the flaky cmd-k ESC E2E).
+                // setOpen(false) is a no-op (no re-render) when already closed.
+                setOpen(false)
             }
         }
         document.addEventListener("keydown", handleKeyDown)
