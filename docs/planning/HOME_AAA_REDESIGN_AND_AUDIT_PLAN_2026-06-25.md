@@ -329,3 +329,59 @@ Rollback: every change is an isolated PR; revert the PR. No DB migration is dest
 - **gno-core forward watchlist:** §1.2.
 - **Conflict-watch files:** §0.
 - **Key source files:** `pages/Home.tsx`, `components/home/{ShowcaseBoard,Door,StatusStrip,VisitorHero,ActionInbox,StateBoard}.tsx`, `components/home/doors/*`, `components/home/panels/YourWorldsPanel.tsx`, `hooks/home/{useYourWorlds,useHomeActions,useHomeSnapshot,useGnoloveHighlights,useValidatorHealth,useDirectoryHighlights,useFeaturedDao}.ts`, `lib/{config,dao,daoSlug}.ts`, `backend/internal/service/home_rpc.go`, `backend/internal/service/render_proxy.go`, `api/memba/v1/memba.proto`.
+
+---
+
+## 11. Round 2 — post-go-live refinements (user feedback, 2026-06-25)
+
+After the home, validators-split, and activity feed went live, the user reviewed prod and filed these. **Honesty contract still holds** — every "show more info" below is backed by REAL reachable data (mapped via an Explore pass); where the original mockup viz was dropped for lack of data, the now-live indexer/RPC make it real.
+
+### Home (`memba.samourai.app/test13/`)
+- **R2-H1 · GovDAO card color** — the current gold/amber reads as a warning tone; pick a more premium/distinct governance color (keep it visually different from the teal community cards). *Door/spotlight CSS.*
+- **R2-H2 · GovDAO card too empty** — surface real data now (not just "1 member"): open-proposal count, latest proposal title + status, member count, threshold. Source: `getDAOProposals`/`getDAOConfig` already fetched in `useGovDao` (just pass more through).
+- **R2-H3 · Cards clickable + hover** — make the whole of each card (contributors/network/directory/launchpad) navigable (`Door` already supports `href`) and add a hover state revealing a bit more (e.g. tooltip/secondary metrics). Today only Launchpad uses the full-card `href`.
+- **R2-H4 · Mockup-fidelity viz** — restore the per-card mini-viz from Direction C that were dropped (no data then): **network block-time sparkline** (real, from indexer `getBlocks` recent block intervals / RPC `/status`), **directory breakdown** (realms/packages/users). Contributor avatars + score bars already shipped.
+- **R2-H5 · Directory card richer** — beyond "294 members": realms, packages, users, tokens counts (Directory page tabs already source these via `lib/directory.ts`; reuse on the card).
+- **R2-H6 · Network health richer** — show validators (active/total), candidates (from valopers), block height, latest + AVG block time. All real: `getNetworkStats` (`lib/validators.ts`) + valoper counts.
+- **R2-H7 · Ecosystem band as listings** — "1 tokens / 8 validators" should expand to the actual items inline (token rows from `fetchTokens`, validator rows from `getValidators`) with their metrics, not just a count.
+
+### Directory (`/test13/directory`)
+- **R2-D1 · Light theme broken** — `directory.css` `.dir-featured-card` gradient uses `rgba(13,13,13,0.9)` (near-black, unreadable on light) + low-opacity teal overlays + `DAOCard` inline `${cat.color}22` hardcoded hex. Replace with `var(--color-k-*)` tokens / theme-aware values.
+- **R2-D2 · Stale DAOs** — `getDirectoryDAOs()` = hardcoded `SEED_DAOS` + localStorage saved, with NO on-chain resolve. FOUFOU DAO CLUB / hihihi / Surf Club DAO / French Boulangerie don't resolve on test13. Apply the home E-F9 pattern: only show DAOs that actually render on the active network (per-DAO resolve check), drop/section the rest.
+
+### Validators (`/test13/validators`)
+- **R2-V1 · Section order** — move the validator metrics **table** (toolbar + `.val-table-wrap` + pagination, `Validators.tsx` ~426–633) to directly AFTER the Network Health banner (line ~381) and BEFORE the ValoperPanel (line ~383), so live network metrics lead, then the valoper/candidate roster.
+
+### Sequencing (independent PRs, all preview- then prod-verified)
+- **R2-V1** (validators reorder) — quick, isolated → ship first.
+- **R2-D1/D2** (directory light-theme + stale filter) — isolated to Directory.
+- **R2-H1/H2/H3** (GovDAO color+richness, clickable+hover) then **R2-H4/H5/H6** (network/directory viz+metrics) then **R2-H7** (ecosystem listings) — home cards, sequenced.
+
+---
+
+## 12. Profile pages — validator / candidate / individual / organisation (QUEUED after Round 2; Claude Design FIRST)
+
+User request (2026-06-25): turn the validator/candidate profile page (`ValoperDetail.tsx`, e.g. `/test13/validators/valoper/g1…`) into a rich, **standard-based, editable profile** with a **web of trust**. **Do NOT start until Round 2 lands.** Begin with **Claude Design mockups (a few proposals)**, validate, then build (this is a large, multi-realm effort — treat like the home redesign: design → spec → phased build).
+
+### Must provide (per user)
+1. **On-chain reviews — comments + STARS rating** → a progressive web of trust (Uber / marketplace style). **MUST be on-chain.**
+2. **Quests** of this validator (from the quest realm/API, by address).
+3. **Gnolove contributions** (gnolove API — needs an address↔GitHub identity link).
+4. **On-chain activities** (reuse the new `/api/indexer` proxy → filter `transactions` by the profile's address as caller/signer/recipient — the activity-feed plumbing is directly reusable).
+
+### Standard-based + editable
+- Base the profile on a **standard shared by individual / organisation / validator** profiles so one model + one edit flow serves all. Investigate gno's existing infra before inventing: `r/sys/users` (username registry, current `userRegistryPath`), `r/demo/profile` (profile fields), and `r/gnops/valopers` (operator moniker/description/serverType/signing keys). Pick/extend one so a user/validator/candidate can **edit** their profile (logo/avatar, bio, links, etc.) via signed txs (Adena). Org profiles map to the DAO realms (`lib/dao`).
+
+### Hard design questions (resolve in the design phase — web-of-trust is non-trivial)
+- **Reviews realm (new Gno realm, deploy via samcrew-deployer):** data model for ratings+comments; **sybil/spam resistance** (who may rate? any gno account, members only, or only addresses that have interacted on-chain? one rating per account? review-bombing defense); edit/revoke; aggregation (avg stars, count); moderation/abuse; immutability vs editability; gas/UX of writing a review. This is the biggest, riskiest piece — design + a security review before any deploy.
+- **Identity linking** for gnolove contributions (on-chain address ↔ GitHub handle) — how is it established/verified?
+- **Edit auth:** only the profile owner (operator address) can edit their profile; reviews are written by *others*.
+
+### Reusable building blocks
+`ValoperDetail.tsx` + `valoper-detail.css` (current profile), `lib/valopers`, `lib/activity.ts` + `/api/indexer` (on-chain activity by address), `gnoloveApi.ts` (contributions), the quest realm/readers, `lib/dao` (org profiles), `r/sys/users`/`r/demo/profile` (identity/profile fields).
+
+### Suggested phasing (after Round 2)
+- **P0 · Claude Design** — 2–3 profile mockups (validator + individual + org variants sharing one layout); pick one; write a spec.
+- **P1 · Profile standard + editable profile** — choose/extend the on-chain profile model; read + edit (logo/bio/links) flow.
+- **P2 · Aggregation tabs** — on-chain activity (indexer-by-address), quests, gnolove contributions (read-only, reuse existing sources).
+- **P3 · On-chain reviews realm** — design (+ security review) → deploy → ratings/comments read + write (stars UI, web-of-trust aggregation). Sequence last; highest risk.
