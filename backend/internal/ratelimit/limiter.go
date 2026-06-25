@@ -20,16 +20,16 @@ type Config struct {
 // Key convention: HTTP method + path prefix (e.g., "GET /api/render").
 func DefaultConfigs() map[string]Config {
 	return map[string]Config{
-		"render": {MaxRequests: 30, Window: time.Minute},  // SPA makes 3-6 ABCI calls on page load
+		"render": {MaxRequests: 30, Window: time.Minute}, // SPA makes 3-6 ABCI calls on page load
 		// "eval" removed in v6 (SEC-01) — /api/eval endpoint was removed
-		"balance": {MaxRequests: 20, Window: time.Minute}, // Balance check
-		"rpc":    {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
-		"tx":     {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
-		"oauth":   {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
-		"analyst": {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
+		"balance":     {MaxRequests: 20, Window: time.Minute},  // Balance check
+		"rpc":         {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
+		"tx":          {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
+		"oauth":       {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
+		"analyst":     {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
 		"upload":      {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
-		"nft":         {MaxRequests: 60, Window: time.Minute}, // NFT image/metadata proxy — cacheable reads
-		"marketplace": {MaxRequests: 30, Window: time.Minute}, // Marketplace agents/escrow render
+		"nft":         {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
+		"marketplace": {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
 		"default":     {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }
@@ -130,25 +130,43 @@ func subnetKey(ip string) string {
 }
 
 // ExtractIP extracts the client IP from an HTTP request.
-// Priority: Fly-Client-IP (trusted, set by Fly.io proxy) → last X-Forwarded-For
-// entry (added by the reverse proxy, not attacker-controlled) → X-Real-IP → RemoteAddr.
 //
-// Security: The FIRST X-Forwarded-For entry is attacker-controlled and MUST NOT
-// be trusted. Behind Fly.io, the last entry is added by the Fly proxy.
-func ExtractIP(remoteAddr, xForwardedFor string, headers ...string) string {
-	// 1. Fly-Client-IP — set by Fly.io proxy, not spoofable
-	for _, h := range headers {
-		if h != "" {
-			return strings.TrimSpace(h)
+// Trust model (finding S-F2): proxy-supplied client-IP headers (Fly-Client-IP,
+// X-Forwarded-For) are only honored when trustProxy is true — i.e. the request
+// is known to have arrived through our trusted reverse proxy (the Fly.io edge,
+// which sets Fly-Client-IP and appends its own X-Forwarded-For entry). The
+// caller decides trust from the deployment context (see the TRUSTED_PROXY /
+// FLY_APP_NAME signal in cmd/memba), NOT from anything the client can set.
+//
+// When trustProxy is false (e.g. the backend is reached directly, off the Fly
+// edge), these headers are attacker-controlled and MUST be ignored — otherwise
+// a client could spoof Fly-Client-IP or X-Forwarded-For to rotate its per-IP
+// rate-limit bucket and evade limits on unauthenticated endpoints. In that case
+// the only trustworthy source is the connection's RemoteAddr.
+//
+// Even when trusted, the FIRST X-Forwarded-For entry is the original client
+// value and is never used; behind Fly.io the LAST entry is the proxy-added one.
+func ExtractIP(trustProxy bool, remoteAddr, xForwardedFor string, headers ...string) string {
+	if trustProxy {
+		// 1. Fly-Client-IP — set by the Fly.io proxy, not client-spoofable here.
+		for _, h := range headers {
+			if h != "" {
+				return strings.TrimSpace(h)
+			}
+		}
+
+		// 2. Last X-Forwarded-For entry — appended by the trusted reverse proxy.
+		if xForwardedFor != "" {
+			parts := strings.Split(xForwardedFor, ",")
+			return strings.TrimSpace(parts[len(parts)-1])
 		}
 	}
 
-	// 2. Last X-Forwarded-For entry — added by the reverse proxy
-	if xForwardedFor != "" {
-		parts := strings.Split(xForwardedFor, ",")
-		return strings.TrimSpace(parts[len(parts)-1])
+	// 3. Direct connection (and the only trusted source when trustProxy=false).
+	// Strip the port so the rate-limit key is the host, not host:ephemeral-port.
+	remoteAddr = strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return host
 	}
-
-	// 3. Direct connection
-	return strings.TrimSpace(remoteAddr)
+	return remoteAddr
 }
