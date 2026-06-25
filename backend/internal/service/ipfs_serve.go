@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -316,11 +317,57 @@ func validateRedirect(req *http.Request, via []*http.Request) error {
 // Shared fetch helper
 // ──────────────────────────────────────────────────────────────────────────────
 
+// safeDialContext closes the DNS-rebinding TOCTOU between validateHTTPSHost
+// (which resolves at validation time) and the actual fetch (which would resolve
+// again): it resolves the host, rejects any private/reserved IP, and dials the
+// SAME validated IP — so a short-TTL record can't swap a public IP for a private
+// one between the check and the connect. Applied to every dial (initial + each
+// redirect hop), making the IP guard authoritative at connect time.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve host %q: %w", host, err)
+	}
+	dialer := &net.Dialer{Timeout: nftFetchTimeout}
+	var lastErr error
+	for _, ip := range ips {
+		if isPrivateIP(ip.IP) {
+			lastErr = fmt.Errorf("host %q resolves to a private/reserved IP (%s)", host, ip.IP)
+			continue
+		}
+		conn, derr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.IP.String(), port))
+		if derr == nil {
+			return conn, nil
+		}
+		lastErr = derr
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no usable address for host %q", host)
+	}
+	return nil, lastErr
+}
+
+// safeTransport clones the default transport and pins every dial to safeDialContext.
+func safeTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = safeDialContext
+	return t
+}
+
 // nftHTTPClient is a package-level client used for production fetches.
 // Tests replace it via newNFTImageHandler / newNFTMetadataHandler options.
-// CheckRedirect re-validates every redirect hop so the unauthenticated proxy
-// can't be 30x-redirected into a private/metadata host (SSRF).
-var nftHTTPClient = &http.Client{Timeout: nftFetchTimeout, CheckRedirect: validateRedirect}
+// CheckRedirect re-validates every redirect hop, and safeTransport pins each dial
+// to a validated public IP, so the unauthenticated proxy can't be 30x-redirected
+// or DNS-rebound into a private/metadata host (SSRF; SEC-4 closes the rebind gap).
+var nftHTTPClient = &http.Client{
+	Timeout:       nftFetchTimeout,
+	CheckRedirect: validateRedirect,
+	Transport:     safeTransport(),
+}
 
 // fetchIPFS fetches a resolved URL with the given client, caps the response
 // size, and returns the raw body + detected content type.
