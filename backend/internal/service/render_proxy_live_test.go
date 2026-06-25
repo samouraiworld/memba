@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -110,7 +111,7 @@ func TestLive_RegisterUsername_ResolveAddress(t *testing.T) {
 
 	// Well-formed but unregistered address → not verified.
 	const unregistered = "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"
-	out, err := questEval(verifyUserRegistryPath + `.ResolveAddress("` + unregistered + `")`)
+	out, err := questEval(context.Background(), verifyUserRegistryPath+`.ResolveAddress("`+unregistered+`")`)
 	if err != nil {
 		t.Fatalf("questEval ResolveAddress failed: %v", err)
 	}
@@ -127,7 +128,7 @@ func TestLive_QuestHelpers_ReturnData(t *testing.T) {
 	t.Setenv("QUEST_RPC_URL", liveTest13RPC)
 
 	// vm/qrender via the quest helper returns real render output.
-	if out, err := questRender("gno.land/r/samcrew/memba_dao", ""); err != nil {
+	if out, err := questRender(context.Background(), "gno.land/r/samcrew/memba_dao", ""); err != nil {
 		t.Fatalf("questRender failed: %v", err)
 	} else if !strings.Contains(out, "MembaDAO") {
 		t.Fatalf("expected MembaDAO from questRender, got %q", out)
@@ -135,7 +136,7 @@ func TestLive_QuestHelpers_ReturnData(t *testing.T) {
 
 	// submit-candidature verifier's realm renders (0 applications today, but the
 	// realm root proves the colon/base64 path against test13).
-	if out, err := questRender(verifyCandidaturePath, ""); err != nil {
+	if out, err := questRender(context.Background(), verifyCandidaturePath, ""); err != nil {
 		t.Fatalf("questRender(candidature) failed: %v", err)
 	} else if !strings.Contains(out, "Candidature") {
 		t.Fatalf("expected Candidature render, got %q", out)
@@ -144,7 +145,7 @@ func TestLive_QuestHelpers_ReturnData(t *testing.T) {
 	// accountInfo over auth/accounts must tolerate the object-typed ABCI error a
 	// malformed/unknown address yields and report (0,0,nil) — "requirement not
 	// met", never a transport error.
-	if seq, accNum, err := accountInfo("g1notarealaddress"); err != nil {
+	if seq, accNum, err := accountInfo(context.Background(), "g1notarealaddress"); err != nil {
 		t.Fatalf("accountInfo(malformed) should be clean, got error: %v", err)
 	} else if seq != 0 || accNum != 0 {
 		t.Fatalf("expected (0,0) for unknown account, got (%d,%d)", seq, accNum)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,7 +20,7 @@ func TestQuestAbciQuery_FailsOver(t *testing.T) {
 
 	t.Setenv("RPC_FALLBACK_URLS", good.URL)
 
-	got, err := questAbciQuery(down.URL, "vm/qrender", "gno.land/r/x:")
+	got, err := questAbciQuery(context.Background(), down.URL, "vm/qrender", "gno.land/r/x:")
 	if err != nil {
 		t.Fatalf("expected failover success, got err: %v", err)
 	}
@@ -46,7 +47,7 @@ func TestQuestAbciQuery_ValidEmptyDoesNotFailOver(t *testing.T) {
 
 	t.Setenv("RPC_FALLBACK_URLS", backup.URL)
 
-	got, err := questAbciQuery(primary.URL, "vm/qrender", "gno.land/r/x:")
+	got, err := questAbciQuery(context.Background(), primary.URL, "vm/qrender", "gno.land/r/x:")
 	if err != nil {
 		t.Fatalf("a present ABCI error must be a clean empty, got err: %v", err)
 	}

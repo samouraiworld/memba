@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"regexp"
 	"strings"
 )
@@ -83,8 +84,8 @@ func tokenAdminIs(detail, addr string) bool {
 // authoritative :members render. addr is caller-validated against addrRe.
 // NOTE: queries the members page once; memba_dao lists all members inline (no
 // pagination today). Revisit if membership ever grows past a single page.
-func verifyJoinDAO(addr string) (bool, error) {
-	out, err := questRender(membaDAOPath, "members")
+func verifyJoinDAO(ctx context.Context, addr string) (bool, error) {
+	out, err := questRender(ctx, membaDAOPath, "members")
 	if err != nil {
 		return false, err
 	}
@@ -95,13 +96,13 @@ func verifyJoinDAO(addr string) (bool, error) {
 // the factory: it lists the factory's tokens, then checks each token-detail page's
 // **Admin** field. Bounded by maxFactoryTokensToScan. A chain error propagates so
 // the caller fails closed (CodeFailedPrecondition) rather than denying falsely.
-func verifyCreateToken(addr string) (bool, error) {
-	home, err := questRender(tokenFactoryPath, "")
+func verifyCreateToken(ctx context.Context, addr string) (bool, error) {
+	home, err := questRender(ctx, tokenFactoryPath, "")
 	if err != nil {
 		return false, err
 	}
 	for _, sym := range parseFactorySymbols(home) {
-		detail, err := questRender(tokenFactoryPath, sym)
+		detail, err := questRender(ctx, tokenFactoryPath, sym)
 		if err != nil {
 			return false, err
 		}

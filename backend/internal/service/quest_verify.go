@@ -179,25 +179,25 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 		// r/sys/users.Render IGNORES its path arg, so a qrender returns the same
 		// content for any address (an always-passes bug). ResolveAddress returns
 		// *UserData — "(nil ...)" when the address has no @username registered.
-		out, err := questEval(verifyUserRegistryPath + `.ResolveAddress("` + addr + `")`)
+		out, err := questEval(ctx, verifyUserRegistryPath+`.ResolveAddress("`+addr+`")`)
 		if err != nil {
 			return false, err
 		}
 		return out != "" && !strings.HasPrefix(strings.TrimSpace(out), "(nil"), nil
 	case "submit-candidature":
-		out, err := questRender(verifyCandidaturePath, "application/"+addr)
+		out, err := questRender(ctx, verifyCandidaturePath, "application/"+addr)
 		if err != nil {
 			return false, err
 		}
 		return renderExists(out), nil
 	case "first-transaction":
-		seq, _, err := accountInfo(addr)
+		seq, _, err := accountInfo(ctx, addr)
 		if err != nil {
 			return false, err
 		}
 		return seq > 0, nil
 	case "faucet-claim":
-		seq, accNum, err := accountInfo(addr)
+		seq, accNum, err := accountInfo(ctx, addr)
 		if err != nil {
 			return false, err
 		}
@@ -205,12 +205,12 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 	case "join-dao":
 		// Structured membership check against memba_dao's authoritative
 		// :members render (un-spoofable; see verifyJoinDAO).
-		return verifyJoinDAO(addr)
+		return verifyJoinDAO(ctx, addr)
 	case "create-token":
 		// Structured creator check against the token factory's per-token
 		// **Admin** field (see verifyCreateToken). Format is live-unverified
 		// (factory empty on test13) — guarded by the gated live test.
-		return verifyCreateToken(addr)
+		return verifyCreateToken(ctx, addr)
 	default:
 		// on_chain quest without a server verifier yet — not grantable.
 		return false, nil
@@ -281,14 +281,14 @@ func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, 
 		return false, nil // not a valid gno.land/{r,p}/<ns>/<pkg> path
 	}
 	ns, _ := namespaceOf(canon) // canon is a valid pkg path -> ns present
-	owned, err := s.namespaceOwnedBy(ns, addr)
+	owned, err := s.namespaceOwnedBy(ctx, ns, addr)
 	if err != nil {
 		return false, err
 	}
 	if !owned {
 		return false, nil
 	}
-	exists, err := pathExists(canon)
+	exists, err := pathExists(ctx, canon)
 	if err != nil {
 		return false, err
 	}
@@ -306,8 +306,8 @@ func (s *MultisigService) verifyDeployQuest(ctx context.Context, addr, questID, 
 // `addr` via r/sys/users.ResolveName — i.e. the user owns that namespace.
 // ResolveName returns (*UserData, bool); the UserData prints the owner address,
 // so the namespace is the user's iff that address is theirs.
-func (s *MultisigService) namespaceOwnedBy(ns, addr string) (bool, error) {
-	out, err := questEval(verifyUserRegistryPath + `.ResolveName("` + ns + `")`)
+func (s *MultisigService) namespaceOwnedBy(ctx context.Context, ns, addr string) (bool, error) {
+	out, err := questEval(ctx, verifyUserRegistryPath+`.ResolveName("`+ns+`")`)
 	if err != nil {
 		return false, err
 	}
@@ -319,8 +319,8 @@ func (s *MultisigService) namespaceOwnedBy(ns, addr string) (bool, error) {
 
 // pathExists reports whether a realm/package exists at `path` (vm/qfile lists
 // its files; an absent path yields an ABCI error -> empty result).
-func pathExists(path string) (bool, error) {
-	out, err := questAbciQuery(questRPCURL(), "vm/qfile", path)
+func pathExists(ctx context.Context, path string) (bool, error) {
+	out, err := questAbciQuery(ctx, questRPCURL(), "vm/qfile", path)
 	if err != nil {
 		return false, err
 	}
@@ -344,21 +344,21 @@ func (s *MultisigService) proofUsedForOtherDeploy(ctx context.Context, addr, que
 
 // questRender runs a vm/qrender query (pkgPath + ":" + renderArg) against the
 // quest RPC and returns the rendered text ("" when the realm/path is absent).
-func questRender(pkgPath, renderArg string) (string, error) {
-	return questAbciQuery(questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
+func questRender(ctx context.Context, pkgPath, renderArg string) (string, error) {
+	return questAbciQuery(ctx, questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
 }
 
 // questEval runs a vm/qeval expression (e.g. `pkg.Func("arg")`) against the
 // quest RPC, returning the printed result ("" when the realm/expr is absent).
-func questEval(expr string) (string, error) {
-	return questAbciQuery(questRPCURL(), "vm/qeval", expr)
+func questEval(ctx context.Context, expr string) (string, error) {
+	return questAbciQuery(ctx, questRPCURL(), "vm/qeval", expr)
 }
 
 // accountInfo reads sequence + account_number for an address from the chain.
 // An unfunded/non-existent account yields ("", nil) -> (0, 0) (requirement not
 // met), not an error.
-func accountInfo(addr string) (seq, accNum int, err error) {
-	out, err := questAbciQuery(questRPCURL(), "auth/accounts/"+addr, "")
+func accountInfo(ctx context.Context, addr string) (seq, accNum int, err error) {
+	out, err := questAbciQuery(ctx, questRPCURL(), "auth/accounts/"+addr, "")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -394,10 +394,23 @@ type questAbciResponse struct {
 // answers without a transport error. An empty/no-record answer is a success
 // ("requirement not met") and does NOT fail over. Returns the last error if
 // every node fails (mapped to errVerifyUnavailable by the caller → reject).
-func questAbciQuery(rpcURL, path, data string) (string, error) {
+//
+// The inbound ctx is threaded into each per-node attempt so a cancelled/timed-out
+// verify request aborts the outbound fan-out instead of burning up to
+// rpcAttemptTimeout × nodes on a hung node. A cancelled ctx short-circuits the
+// loop with the ctx error rather than uselessly probing every backup.
+func questAbciQuery(ctx context.Context, rpcURL, path, data string) (string, error) {
 	var lastErr error
 	for i, u := range rpcURLsInOrder(rpcURL) {
-		out, err := questAbciQueryOnce(u, path, data)
+		// Stop early if the caller already gave up — failing over to the next node
+		// can't succeed once ctx is done, and would re-incur the dial latency.
+		if err := ctx.Err(); err != nil {
+			if lastErr != nil {
+				return "", lastErr
+			}
+			return "", err
+		}
+		out, err := questAbciQueryOnce(ctx, u, path, data)
 		if err == nil {
 			if i > 0 {
 				slog.Warn("quest-verify RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
@@ -415,7 +428,7 @@ func questAbciQuery(rpcURL, path, data string) (string, error) {
 // treated as an EMPTY result — "requirement not met" — not a transport failure.
 // Only genuine transport/RPC errors return a non-nil error so questAbciQuery can
 // fail over.
-func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
+func questAbciQueryOnce(ctx context.Context, rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -430,8 +443,21 @@ func questAbciQueryOnce(rpcURL, path, data string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: rpcAttemptTimeout}
-	resp, err := client.Post(rpcURL, "application/json", strings.NewReader(string(payload)))
+	// Cap this single node attempt at rpcAttemptTimeout while still deriving from
+	// the inbound ctx: the per-attempt deadline still bounds a hung node, but an
+	// earlier inbound cancellation/deadline now aborts the request too (whichever
+	// fires first). Previously client.Post ignored ctx entirely, so a cancelled
+	// verify still burned the full per-attempt timeout on every node.
+	attemptCtx, cancel := context.WithTimeout(ctx, rpcAttemptTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(attemptCtx, http.MethodPost, rpcURL, strings.NewReader(string(payload)))
+	if err != nil {
+		return "", fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("rpc request failed: %w", err)
 	}

@@ -1,6 +1,9 @@
 package service
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 // Gated live checks for #438's deploy-quest namespace-ownership path against real
 // test13. These codify the manual ResolveName/qfile probes done when #438 shipped
@@ -18,7 +21,7 @@ func TestLive_NamespaceOwnedBy_MatchesTypedOwnerField(t *testing.T) {
 	requireLiveRPC(t)
 	s := &MultisigService{} // namespaceOwnedBy uses only questEval, no service state
 
-	ok, err := s.namespaceOwnedBy("samcrew", nsLiveOwner)
+	ok, err := s.namespaceOwnedBy(context.Background(), "samcrew", nsLiveOwner)
 	if err != nil {
 		t.Fatalf("namespaceOwnedBy(samcrew, owner): %v", err)
 	}
@@ -27,7 +30,7 @@ func TestLive_NamespaceOwnedBy_MatchesTypedOwnerField(t *testing.T) {
 	}
 
 	// A well-formed but different address must not match samcrew's owner field.
-	notOwner, err := s.namespaceOwnedBy("samcrew", "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
+	notOwner, err := s.namespaceOwnedBy(context.Background(), "samcrew", "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
 	if err != nil {
 		t.Fatalf("namespaceOwnedBy(samcrew, other): %v", err)
 	}
@@ -36,7 +39,7 @@ func TestLive_NamespaceOwnedBy_MatchesTypedOwnerField(t *testing.T) {
 	}
 
 	// A namespace that doesn't exist resolves to (nil …) — not owned by anyone.
-	ghost, err := s.namespaceOwnedBy("namespace_does_not_exist_xyz", nsLiveOwner)
+	ghost, err := s.namespaceOwnedBy(context.Background(), "namespace_does_not_exist_xyz", nsLiveOwner)
 	if err != nil {
 		t.Fatalf("namespaceOwnedBy(ghost, owner): %v", err)
 	}
@@ -48,7 +51,7 @@ func TestLive_NamespaceOwnedBy_MatchesTypedOwnerField(t *testing.T) {
 func TestLive_PathExists_DistinguishesRealAndAbsentRealms(t *testing.T) {
 	requireLiveRPC(t)
 
-	exists, err := pathExists("gno.land/r/samcrew/memba_dao")
+	exists, err := pathExists(context.Background(), "gno.land/r/samcrew/memba_dao")
 	if err != nil {
 		t.Fatalf("pathExists(memba_dao): %v", err)
 	}
@@ -56,7 +59,7 @@ func TestLive_PathExists_DistinguishesRealAndAbsentRealms(t *testing.T) {
 		t.Fatal("a deployed realm must be reported as existing (vm/qfile drift?)")
 	}
 
-	absent, err := pathExists("gno.land/r/samcrew/realm_does_not_exist_xyz")
+	absent, err := pathExists(context.Background(), "gno.land/r/samcrew/realm_does_not_exist_xyz")
 	if err != nil {
 		t.Fatalf("pathExists(absent): %v", err)
 	}

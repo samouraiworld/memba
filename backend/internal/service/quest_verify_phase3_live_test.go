@@ -1,6 +1,9 @@
 package service
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 // Gated live checks for the Phase 3 on-chain verifiers against real test13.
 // Kept hermetic in CI via requireLiveRPC (set MEMBA_LIVE_RPC=1 to run). These
@@ -15,7 +18,7 @@ const membaDAOLiveMember = "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
 
 func TestLive_JoinDAO_DetectsRealMember(t *testing.T) {
 	requireLiveRPC(t)
-	ok, err := verifyJoinDAO(membaDAOLiveMember)
+	ok, err := verifyJoinDAO(context.Background(), membaDAOLiveMember)
 	if err != nil {
 		t.Fatalf("verifyJoinDAO(member): %v", err)
 	}
@@ -27,7 +30,7 @@ func TestLive_JoinDAO_DetectsRealMember(t *testing.T) {
 func TestLive_JoinDAO_RejectsNonMember(t *testing.T) {
 	requireLiveRPC(t)
 	// Well-formed but not a member of memba_dao.
-	ok, err := verifyJoinDAO("g1abcdefghijklmnopqrstuvwxyz0123456789ab")
+	ok, err := verifyJoinDAO(context.Background(), "g1abcdefghijklmnopqrstuvwxyz0123456789ab")
 	if err != nil {
 		t.Fatalf("verifyJoinDAO(non-member): %v", err)
 	}
@@ -41,7 +44,7 @@ func TestLive_CreateToken_EmptyFactoryDeniesCleanly(t *testing.T) {
 	// tokenfactory_v2 has 0 tokens on test13 — verification must parse the live
 	// home render and return (false, nil): no false credit, no error, no bogus
 	// symbol detail-query. Extend to assert a real creator once a token exists.
-	ok, err := verifyCreateToken(membaDAOLiveMember)
+	ok, err := verifyCreateToken(context.Background(), membaDAOLiveMember)
 	if err != nil {
 		t.Fatalf("verifyCreateToken(empty factory): %v", err)
 	}
