@@ -21,6 +21,7 @@ import { StatusStrip } from "../components/home/StatusStrip"
 import { ActionInbox } from "../components/home/ActionInbox"
 import { VisitorHero } from "../components/home/VisitorHero"
 import { ShowcaseBoard } from "../components/home/ShowcaseBoard"
+import { BelowFold } from "../components/home/BelowFold"
 import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
 import "../components/home/home.css"
 
@@ -76,6 +77,7 @@ export function Home({ mode }: HomeProps) {
                 {/* Zone 3: BOARD — ShowcaseBoard (board of doors, Phase 1) */}
                 <div className="home-state-board" data-testid="home-state-board">
                     <ShowcaseBoard networkKey={activeNetworkKey} />
+                    <BelowFold networkKey={activeNetworkKey} />
                 </div>
             </div>
         )
@@ -104,6 +106,9 @@ export function Home({ mode }: HomeProps) {
 
                 {/* Explore section — reuse ShowcaseBoard (same doors as visitor) */}
                 <ShowcaseBoard networkKey={activeNetworkKey} />
+
+                {/* Below the fold — ecosystem band, explore grid, coming-soon */}
+                <BelowFold networkKey={activeNetworkKey} />
             </div>
         </div>
     )

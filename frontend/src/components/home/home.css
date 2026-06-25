@@ -353,6 +353,159 @@ button.action-card:focus-visible {
   text-decoration: underline;
 }
 
+/* ── Below the fold (ecosystem band · explore grid · coming soon) ──── */
+
+.below-fold {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.below-fold__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.below-fold__eyebrow-note {
+  color: var(--color-k-muted);
+}
+
+.ecosystem-band__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.ecosystem-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-k-elevated);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 9px;
+  padding: 12px;
+}
+
+.ecosystem-tile__value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1;
+}
+
+.ecosystem-tile__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-dim);
+}
+
+.explore-grid__items,
+.coming-soon__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.explore-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 10px;
+  padding: 12px;
+  text-decoration: none;
+  color: var(--color-k-text);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.explore-tile:hover {
+  background: var(--color-k-panel-hover);
+  border-color: var(--color-k-edge-hover);
+}
+
+.explore-tile:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+.explore-tile__icon {
+  color: var(--color-k-accent);
+  flex-shrink: 0;
+}
+
+.explore-tile__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.explore-tile__label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.explore-tile__sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-k-dim);
+}
+
+.coming-soon-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--color-k-elevated);
+  border: 1px dashed var(--color-k-dashed);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.coming-soon-tile__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.coming-soon-tile__icon {
+  color: var(--color-k-muted);
+  flex-shrink: 0;
+}
+
+.coming-soon-tile__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-k-text);
+}
+
+.coming-soon-tile__badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-k-amber);
+  background: var(--color-k-amber-subtle);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.coming-soon-tile__sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-k-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-tile {
+    transition: none;
+  }
+}
+
 /* Featured door body — name + members + dual links. */
 .featured-door {
   display: flex;
