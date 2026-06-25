@@ -24,7 +24,7 @@ vi.mock("../../lib/config", async (importOriginal) => {
 
 const daoMod = await import("../../lib/dao")
 
-const CONFIG = { name: "GovDAO", description: "", threshold: "", memberCount: 61, memberstorePath: "", tierDistribution: [], isArchived: false }
+const CONFIG = { name: "GovDAO", description: "", threshold: "66%", memberCount: 61, memberstorePath: "", tierDistribution: [], isArchived: false }
 const openProposal = (id: number) => ({ id, title: `P${id}`, description: "", category: "governance", status: "open" as const, author: "@a", authorProfile: "", tiers: [], yesPercent: 0, noPercent: 0, yesVotes: 0, noVotes: 0, abstainVotes: 0, totalVoters: 0, proposer: "@a" })
 
 function makeWrapper() {
@@ -37,26 +37,40 @@ function makeWrapper() {
 beforeEach(() => { vi.clearAllMocks() })
 
 describe("useGovDao", () => {
-    it("returns state:'ready' with open count, members, and a dao href", async () => {
+    it("returns state:'ready' with open count, members, threshold, latest proposal, and a dao href", async () => {
         vi.mocked(daoMod.getDAOConfig).mockResolvedValue(CONFIG)
-        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([openProposal(1), openProposal(2), openProposal(3), { ...openProposal(4), status: "executed" as const }])
+        // getDAOProposals returns newest-first (sorted by id desc); proposals[0] is the latest.
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([{ ...openProposal(4), status: "executed" as const }, openProposal(3), openProposal(2), openProposal(1)])
         const { useGovDao } = await import("./useGovDao")
         const { result } = renderHook(() => useGovDao("test13"), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.state).toBe("ready"))
         expect(result.current.name).toBe("GovDAO")
         expect(result.current.openCount).toBe(3)
         expect(result.current.members).toBe(61)
+        expect(result.current.threshold).toBe("66%")
+        expect(result.current.latestProposal).toEqual({ title: "P4", status: "executed" })
         expect(result.current.href).toBe("/test13/dao/gno.land/r/gov/dao")
     })
 
-    it("omits metrics (undefined, not 0) when there are no open proposals / 0 members", async () => {
-        vi.mocked(daoMod.getDAOConfig).mockResolvedValue({ ...CONFIG, memberCount: 0 })
+    it("picks the most recent proposal by id (newest-first list)", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(CONFIG)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([openProposal(9), openProposal(2)])
+        const { useGovDao } = await import("./useGovDao")
+        const { result } = renderHook(() => useGovDao("test13"), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.latestProposal).toEqual({ title: "P9", status: "open" })
+    })
+
+    it("omits metrics (undefined, not 0) when there are no proposals / 0 members / no threshold", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue({ ...CONFIG, memberCount: 0, threshold: "" })
         vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
         const { useGovDao } = await import("./useGovDao")
         const { result } = renderHook(() => useGovDao("test13"), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.state).toBe("ready"))
         expect(result.current.openCount).toBeUndefined()
         expect(result.current.members).toBeUndefined()
+        expect(result.current.threshold).toBeUndefined()
+        expect(result.current.latestProposal).toBeUndefined()
         expect(result.current.name).toBe("GovDAO")
     })
 

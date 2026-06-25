@@ -22,7 +22,6 @@
  * @module components/home/doors/DirectoryDoor
  */
 
-import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useDirectoryHighlights } from "../../../hooks/home/useDirectoryHighlights"
 import "../home.css"
@@ -46,8 +45,10 @@ export function DirectoryDoor({ networkKey }: DirectoryDoorProps) {
         )
     }
 
+    // The WHOLE card is the link (href on Door) — no inner footer <Link>, which
+    // would be an illegal nested <a> inside the card-link.
     return (
-        <Door variant="search" state="ready" eyebrow="directory">
+        <Door variant="search" state="ready" eyebrow="directory" href={directoryHref}>
             <div className="directory-door">
                 {memberCount > 0 && (
                     <span className="directory-door__count">{memberCount} members</span>
@@ -55,9 +56,6 @@ export function DirectoryDoor({ networkKey }: DirectoryDoorProps) {
                 <span className="directory-door__hint">
                     find anyone by address or username
                 </span>
-                <Link to={directoryHref} className="directory-door__link">
-                    Open directory
-                </Link>
             </div>
         </Door>
     )

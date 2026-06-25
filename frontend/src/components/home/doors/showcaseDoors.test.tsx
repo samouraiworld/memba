@@ -24,6 +24,7 @@ import type { GovDaoResult } from "../../../hooks/home/useGovDao"
 import type { GnoloveHighlights } from "../../../hooks/home/useGnoloveHighlights"
 import type { ValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import type { DirectoryHighlights } from "../../../hooks/home/useDirectoryHighlights"
+import type { NetworkPulse } from "../../../hooks/home/useNetworkPulse"
 
 // ── Mock hooks ─────────────────────────────────────────────────────────────
 
@@ -42,6 +43,14 @@ const mockUseValidatorHealth = vi.fn<() => ValidatorHealth>()
 vi.mock("../../../hooks/home/useValidatorHealth", () => ({
     useValidatorHealth: () => mockUseValidatorHealth(),
 }))
+
+const mockUseNetworkPulse = vi.fn<() => NetworkPulse>()
+vi.mock("../../../hooks/home/useNetworkPulse", () => ({
+    useNetworkPulse: () => mockUseNetworkPulse(),
+}))
+
+/** Default pulse: no block data (height/time absent) — overridden per-test. */
+const PULSE_EMPTY: NetworkPulse = { blockHeight: 0, avgBlockTime: 0, totalValidators: 0, loading: false, offline: false }
 
 const mockUseDirectoryHighlights = vi.fn<() => DirectoryHighlights>()
 vi.mock("../../../hooks/home/useDirectoryHighlights", () => ({
@@ -73,6 +82,8 @@ beforeEach(() => {
     mockUseGnoloveHighlights.mockReset()
     mockUseValidatorHealth.mockReset()
     mockUseDirectoryHighlights.mockReset()
+    mockUseNetworkPulse.mockReset()
+    mockUseNetworkPulse.mockReturnValue(PULSE_EMPTY)
 })
 
 afterEach(() => {
@@ -103,11 +114,13 @@ describe("ContributorsDoor — ready", () => {
         expect(screen.getByText("carol")).toBeInTheDocument()
     })
 
-    it("renders the link to gnolove", () => {
-        renderWithProviders(<ContributorsDoor networkKey="test13" />)
-        const links = screen.getAllByRole("link")
-        const gnoloveLink = links.find(l => l.getAttribute("href") === "/test13/gnolove")
-        expect(gnoloveLink).toBeDefined()
+    it("the WHOLE card is a single link to gnolove (no nested anchors)", () => {
+        const { container } = renderWithProviders(<ContributorsDoor networkKey="test13" />)
+        const card = container.querySelector("a.door")
+        expect(card).not.toBeNull()
+        expect(card).toHaveAttribute("href", "/test13/gnolove")
+        // No redundant inner footer <Link> nested inside the card-link.
+        expect(container.querySelectorAll("a").length).toBe(1)
     })
 
     it("renders scores without fabricating zeros", () => {
@@ -162,11 +175,14 @@ describe("NetworkHealthDoor — ready", () => {
         expect(screen.getByText(/14 \/ 14/)).toBeInTheDocument()
     })
 
-    it("renders a link to validators page", () => {
-        renderWithProviders(<NetworkHealthDoor networkKey="test13" />)
-        const links = screen.getAllByRole("link")
-        const validatorsLink = links.find(l => l.getAttribute("href") === "/test13/validators")
-        expect(validatorsLink).toBeDefined()
+    it("the WHOLE card is a single link to the validators page (no nested anchors)", () => {
+        const { container } = renderWithProviders(<NetworkHealthDoor networkKey="test13" />)
+        // Card root is the link.
+        const card = container.querySelector("a.door")
+        expect(card).not.toBeNull()
+        expect(card).toHaveAttribute("href", "/test13/validators")
+        // Exactly one anchor — no redundant inner footer <Link> nested inside.
+        expect(container.querySelectorAll("a").length).toBe(1)
     })
 
     it("renders 'Healthy' status", () => {
@@ -174,18 +190,20 @@ describe("NetworkHealthDoor — ready", () => {
         expect(screen.getByText(/healthy/i)).toBeInTheDocument()
     })
 
-    it("omits avg block time when not present (no '—' or '0')", () => {
-        mockUseValidatorHealth.mockReturnValue({
-            status: "healthy",
-            active: 14,
-            total: 14,
-            avgUptime: null,
-            latestIncident: null,
-            loading: false,
-        })
+    it("renders block height and avg block time from the network pulse", () => {
+        mockUseNetworkPulse.mockReturnValue({ blockHeight: 457174, avgBlockTime: 2.4, totalValidators: 14, loading: false, offline: false })
+        renderWithProviders(<NetworkHealthDoor networkKey="test13" />)
+        expect(screen.getByText(/457,174/)).toBeInTheDocument()
+        expect(screen.getByText(/2\.4\s*s/i)).toBeInTheDocument()
+    })
+
+    it("omits block height and avg block time when the pulse has none (no '—' or fabricated 0)", () => {
+        mockUseNetworkPulse.mockReturnValue(PULSE_EMPTY)
         renderWithProviders(<NetworkHealthDoor networkKey="test13" />)
         expect(screen.queryByText("—")).not.toBeInTheDocument()
-        expect(screen.queryByText("0")).not.toBeInTheDocument()
+        // active/total "14 / 14" is real and expected; the block fields must be absent.
+        expect(screen.queryByText(/block/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/\bs\b/)).not.toBeInTheDocument()
     })
 })
 
@@ -232,11 +250,12 @@ describe("DirectoryDoor — ready with count", () => {
         expect(screen.getByText(/158/)).toBeInTheDocument()
     })
 
-    it("renders the search affordance link to directory", () => {
-        renderWithProviders(<DirectoryDoor networkKey="test13" />)
-        const links = screen.getAllByRole("link")
-        const dirLink = links.find(l => l.getAttribute("href") === "/test13/directory")
-        expect(dirLink).toBeDefined()
+    it("the WHOLE card is a single link to the directory (no nested anchors)", () => {
+        const { container } = renderWithProviders(<DirectoryDoor networkKey="test13" />)
+        const card = container.querySelector("a.door")
+        expect(card).not.toBeNull()
+        expect(card).toHaveAttribute("href", "/test13/directory")
+        expect(container.querySelectorAll("a").length).toBe(1)
     })
 
     it("never fabricates a '0' or '—' when count is present", () => {
@@ -273,10 +292,12 @@ describe("DirectoryDoor — loading", () => {
 // ══════════════════════════════════════════════════════════════════════════
 
 describe("LaunchpadDoor — static promo", () => {
-    it("renders a link to the token factory", () => {
-        renderWithProviders(<LaunchpadDoor networkKey="test13" />)
-        const link = screen.getByRole("link")
-        expect(link).toHaveAttribute("href", "/test13/tokens")
+    it("the WHOLE card is a single link to the token factory (no nested anchors)", () => {
+        const { container } = renderWithProviders(<LaunchpadDoor networkKey="test13" />)
+        const card = container.querySelector("a.door")
+        expect(card).not.toBeNull()
+        expect(card).toHaveAttribute("href", "/test13/tokens")
+        expect(container.querySelectorAll("a").length).toBe(1)
     })
 
     it("renders promo headline text", () => {
