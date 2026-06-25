@@ -1594,7 +1594,17 @@ body {
   }
 
   .k-main-column {
-    padding-bottom: var(--mobile-tabbar-height);
+    /* MOB-1: include the home-indicator safe-area inset, or the bottom of the
+       scrollable content sits behind the opaque tabbar on notched devices. */
+    padding-bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* MOB-5: 44px minimum touch target across the whole mobile band (was applied
+     only <=375px), per the HIG / Material minimums. */
+  .k-btn-wallet,
+  .k-btn-primary,
+  .k-btn-secondary {
+    min-height: 44px;
   }
 
   .k-topbar {

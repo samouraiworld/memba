@@ -51,7 +51,8 @@
     border: none;
     outline: none;
     color: var(--color-k-text, #f0f0f0);
-    font-size: 15px;
+    /* MOB-8: 16px so iOS Safari doesn't auto-zoom the page on focus. */
+    font-size: 16px;
     font-family: inherit;
 }
 
