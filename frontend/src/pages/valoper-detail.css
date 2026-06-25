@@ -142,6 +142,108 @@ a.vp-id__username:hover { text-decoration: underline; }
     cursor: pointer;
 }
 .vp-edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Enabled (owner) variant — primary-tinted, matching the page accent. */
+.vp-edit-btn--enabled {
+    background: var(--color-primary-bg);
+    border-color: var(--color-primary-border);
+    color: var(--color-primary);
+    transition: border-color var(--transition-fast, 0.15s), background var(--transition-fast, 0.15s);
+}
+.vp-edit-btn--enabled:hover { border-color: var(--color-primary); }
+.vp-edit-btn--enabled:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* ── Edit dialog (owner-only, P1b) ───────────────────────────── */
+.vp-edit-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4vh 1rem;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+.vp-edit-modal {
+    width: 100%;
+    max-width: 540px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    padding: 1.25rem 1.5rem 1.5rem;
+    box-shadow: var(--shadow-lg, 0 10px 40px rgba(0, 0, 0, 0.4));
+}
+.vp-edit-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+.vp-edit-modal__title { margin: 0; font-size: 1.05rem; color: var(--color-text); }
+.vp-edit-modal__x {
+    appearance: none;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm, 4px);
+}
+.vp-edit-modal__x:hover:not(:disabled) { color: var(--color-text); }
+.vp-edit-modal__x:disabled { opacity: 0.5; cursor: not-allowed; }
+.vp-edit-modal__x:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vp-edit-modal__note {
+    margin: 0 0 1rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+}
+.vp-edit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+.vp-edit-fullwidth { grid-column: 1 / -1; }
+.vp-edit-modal__error {
+    margin: 0.85rem 0 0;
+    font-size: 0.78rem;
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border, rgba(239, 68, 68, 0.2));
+    border-radius: var(--radius-md, 8px);
+    padding: 0.5rem 0.75rem;
+}
+.vp-edit-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+.vp-edit-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 6px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: var(--color-on-primary, #fff);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--transition-fast, 0.15s);
+}
+.vp-edit-save:hover:not(:disabled) { opacity: 0.9; }
+.vp-edit-save:disabled { opacity: 0.55; cursor: not-allowed; }
+.vp-edit-save:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+    .vp-edit-grid { grid-template-columns: 1fr; }
+}
 
 /* Candidate status badge — amber, mirroring the Validators page accent.
    (Active reuses vd-badge--active from validator-detail.css.) */

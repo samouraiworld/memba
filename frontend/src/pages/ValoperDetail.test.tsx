@@ -1,16 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { screen, fireEvent, within } from "@testing-library/react"
-import { Routes, Route } from "react-router-dom"
-import { renderWithProviders } from "../test/test-utils"
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
+import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { renderWithProviders, mockLayoutContext } from "../test/test-utils"
+import type { LayoutContext } from "../types/layout"
 import ValoperDetail from "./ValoperDetail"
 import type { UserProfile } from "../lib/profile"
+import type { Token } from "../gen/memba/v1/memba_pb"
 
 vi.mock("../lib/dao/shared", () => ({ queryRender: vi.fn() }))
 vi.mock("../lib/validators", () => ({ getValidators: vi.fn().mockResolvedValue([]) }))
-vi.mock("../lib/profile", () => ({ fetchUserProfile: vi.fn() }))
+vi.mock("../lib/profile", () => ({ fetchUserProfile: vi.fn(), updateBackendProfile: vi.fn() }))
 
 import { queryRender } from "../lib/dao/shared"
-import { fetchUserProfile } from "../lib/profile"
+import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
 
 const OPERATOR = "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4"
 
@@ -59,6 +62,40 @@ function renderAt(addr: string) {
         </Routes>,
         { route: `/test13/validators/valoper/${addr}` },
     )
+}
+
+// A fake auth token — the save path only reads `userAddress` off it.
+function fakeToken(addr: string): Token {
+    return { userAddress: addr } as unknown as Token
+}
+
+/** Render the page through a Layout outlet that supplies the wallet/auth context,
+ *  so owner-detection (connected address === operator) can be exercised. */
+function renderWithContext(addr: string, ctx: Partial<LayoutContext>) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const context = mockLayoutContext(ctx)
+    return render(
+        <QueryClientProvider client={client}>
+            <MemoryRouter initialEntries={[`/test13/validators/valoper/${addr}`]}>
+                <Routes>
+                    <Route element={<Outlet context={context} />}>
+                        <Route
+                            path="/:network/validators/valoper/:operatorAddress"
+                            element={<ValoperDetail />}
+                        />
+                    </Route>
+                </Routes>
+            </MemoryRouter>
+        </QueryClientProvider>,
+    )
+}
+
+/** Owner context: wallet connected + authenticated as the operator address. */
+function ownerContext(addr = OPERATOR): Partial<LayoutContext> {
+    return {
+        adena: { ...mockLayoutContext().adena, connected: true, address: addr },
+        auth: { token: fakeToken(addr), isAuthenticated: true, address: addr, loading: false, error: null },
+    }
 }
 
 describe("ValoperDetail — Blend layout", () => {
@@ -110,12 +147,12 @@ describe("ValoperDetail — Blend layout", () => {
         expect(link).toHaveAttribute("href", "https://test13.testnets.gno.land/u/satoshi")
     })
 
-    it("renders a disabled (coming-soon) Edit profile affordance", async () => {
+    it("does NOT render an Edit profile button when there is no connected wallet", async () => {
         vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        // renderAt has no Layout outlet → no connected address → not the owner
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: "samourai-crew-1" })
-        const editBtn = screen.getByRole("button", { name: /edit profile/i })
-        expect(editBtn).toBeDisabled()
+        expect(screen.queryByRole("button", { name: /edit profile/i })).not.toBeInTheDocument()
     })
 
     // ── tabs ─────────────────────────────────────────────────────
@@ -271,5 +308,152 @@ describe("ValoperDetail — Blend layout", () => {
         const href = link.getAttribute("href") || ""
         expect(href).toContain("/r/gnops/valopers:")
         expect(href).not.toMatch(/\/\/gno\.land\//)
+    })
+})
+
+// ════════════════════════════════════════════════════════════════
+// P1b — owner "Edit profile" flow (backend editable-profile API)
+// ════════════════════════════════════════════════════════════════
+
+describe("ValoperDetail — owner Edit-profile flow (P1b)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile())
+        vi.mocked(updateBackendProfile).mockResolvedValue(undefined)
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+    })
+
+    // ── owner-gate ───────────────────────────────────────────────
+
+    it("ENABLES the Edit button when the connected wallet === the operator address (owner)", async () => {
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        const editBtn = screen.getByRole("button", { name: /edit profile/i })
+        expect(editBtn).toBeEnabled()
+    })
+
+    it("does NOT render the Edit button for a non-owner (connected wallet ≠ operator)", async () => {
+        const OTHER = "g1someoneelse00000000000000000000000000xx"
+        renderWithContext(OPERATOR, ownerContext(OTHER))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        expect(screen.queryByRole("button", { name: /edit profile/i })).not.toBeInTheDocument()
+    })
+
+    it("does NOT render the Edit button when the wallet is connected but not authenticated", async () => {
+        renderWithContext(OPERATOR, {
+            adena: { ...mockLayoutContext().adena, connected: true, address: OPERATOR },
+            auth: { token: null, isAuthenticated: false, address: "", loading: false, error: null },
+        })
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        expect(screen.queryByRole("button", { name: /edit profile/i })).not.toBeInTheDocument()
+    })
+
+    // ── opening the form ─────────────────────────────────────────
+
+    it("opens an accessible edit dialog when the owner clicks Edit", async () => {
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+
+        const dialog = await screen.findByRole("dialog")
+        expect(dialog).toBeInTheDocument()
+        expect(dialog).toHaveAttribute("aria-modal", "true")
+        // editable fields present
+        expect(within(dialog).getByLabelText(/bio/i)).toBeInTheDocument()
+        expect(within(dialog).getByLabelText(/website/i)).toBeInTheDocument()
+    })
+
+    it("pre-fills the form from the current profile", async () => {
+        vi.mocked(fetchUserProfile).mockResolvedValue(
+            makeProfile({ bio: "Existing bio", socialLinks: { twitter: "", github: "", website: "https://me.dev" } }),
+        )
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+
+        const dialog = await screen.findByRole("dialog")
+        expect(within(dialog).getByLabelText(/bio/i)).toHaveValue("Existing bio")
+        expect(within(dialog).getByLabelText(/website/i)).toHaveValue("https://me.dev")
+    })
+
+    it("closes the dialog on Cancel without saving", async () => {
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+        const dialog = await screen.findByRole("dialog")
+        fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }))
+
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+        expect(updateBackendProfile).not.toHaveBeenCalled()
+    })
+
+    // ── saving ───────────────────────────────────────────────────
+
+    it("saves via updateBackendProfile with the edited fields and the auth token", async () => {
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+        const dialog = await screen.findByRole("dialog")
+
+        fireEvent.change(within(dialog).getByLabelText(/bio/i), { target: { value: "New bio text" } })
+        fireEvent.change(within(dialog).getByLabelText(/website/i), { target: { value: "https://new.site" } })
+        fireEvent.click(within(dialog).getByRole("button", { name: /save/i }))
+
+        await waitFor(() => expect(updateBackendProfile).toHaveBeenCalledTimes(1))
+        const [tokenArg, fieldsArg] = vi.mocked(updateBackendProfile).mock.calls[0]
+        expect((tokenArg as Token).userAddress).toBe(OPERATOR)
+        expect(fieldsArg).toMatchObject({ bio: "New bio text", website: "https://new.site" })
+    })
+
+    it("refreshes the displayed profile and closes the dialog on a successful save", async () => {
+        // First load: empty bio. After save, the re-fetch returns the new bio.
+        vi.mocked(fetchUserProfile)
+            .mockResolvedValueOnce(makeProfile({ bio: "" }))
+            .mockResolvedValue(makeProfile({ bio: "Saved bio shows now" }))
+
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+        const dialog = await screen.findByRole("dialog")
+        fireEvent.change(within(dialog).getByLabelText(/bio/i), { target: { value: "Saved bio shows now" } })
+        fireEvent.click(within(dialog).getByRole("button", { name: /save/i }))
+
+        // dialog closes
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+        // a background re-fetch ran (initial load + post-save refresh)
+        await waitFor(() => expect(fetchUserProfile).toHaveBeenCalledTimes(2))
+        // refreshed bio is rendered
+        expect(await screen.findByText("Saved bio shows now")).toBeInTheDocument()
+    })
+
+    it("surfaces an error and keeps the dialog open when the save fails", async () => {
+        vi.mocked(updateBackendProfile).mockRejectedValue(new Error("backend unavailable"))
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+        const dialog = await screen.findByRole("dialog")
+        fireEvent.change(within(dialog).getByLabelText(/bio/i), { target: { value: "x" } })
+        fireEvent.click(within(dialog).getByRole("button", { name: /save/i }))
+
+        expect(await screen.findByText(/backend unavailable/i)).toBeInTheDocument()
+        // dialog stays open so the user can retry
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+
+    it("disables the Save button while a save is in flight", async () => {
+        // Hang the save so we can observe the in-flight state.
+        let resolveSave: () => void = () => {}
+        vi.mocked(updateBackendProfile).mockImplementation(
+            () => new Promise<void>((res) => { resolveSave = res }),
+        )
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("button", { name: /edit profile/i }))
+        const dialog = await screen.findByRole("dialog")
+        const saveBtn = within(dialog).getByRole("button", { name: /save/i })
+        fireEvent.click(saveBtn)
+
+        await waitFor(() => expect(saveBtn).toBeDisabled())
+        resolveSave()
     })
 })

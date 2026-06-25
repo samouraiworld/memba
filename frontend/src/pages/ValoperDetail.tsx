@@ -14,7 +14,7 @@
  *  activity feed (Activity beyond gov votes), Quests, and the on-chain Reviews
  *  realm are SEPARATE follow-ups, scaffolded here as honest "coming soon". */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Link, useLocation, useParams } from "react-router-dom"
+import { Link, useLocation, useOutletContext, useParams } from "react-router-dom"
 import { Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
@@ -28,6 +28,8 @@ import { getValidators } from "../lib/validators"
 import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { useNetworkPath } from "../hooks/useNetworkNav"
+import { ValoperEditDialog } from "../components/validators/ValoperEditDialog"
+import type { LayoutContext } from "../types/layout"
 import "./validator-detail.css"
 import "./valoper-detail.css"
 
@@ -98,6 +100,10 @@ export default function ValoperDetail() {
     const { operatorAddress } = useParams<{ operatorAddress: string }>()
     const location = useLocation()
     const np = useNetworkPath()
+    // The page also renders standalone (e.g. some tests / deep links) where no
+    // Layout outlet is present, so tolerate a null context — owner detection just
+    // resolves to "not owner" and the read-only page is unaffected.
+    const ctx = useOutletContext<LayoutContext | null>()
     const preset = (location.state as { valoper?: ValoperWithStatus } | null)?.valoper ?? null
 
     const [valoper, setValoper] = useState<ValoperWithStatus | null>(preset)
@@ -107,6 +113,7 @@ export default function ValoperDetail() {
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<TabKey>("Overview")
     const [avatarError, setAvatarError] = useState(false)
+    const [editOpen, setEditOpen] = useState(false)
     const abortRef = useRef<AbortController | null>(null)
 
     const load = useCallback(async () => {
@@ -140,6 +147,16 @@ export default function ValoperDetail() {
                 setLoading(false)
             }
         }
+    }, [operatorAddress])
+
+    // Re-fetch just the editable/hybrid profile (used after a successful edit save).
+    // The valoper detail is on-chain and unchanged by editing, so we don't reload it.
+    const refreshProfile = useCallback(async () => {
+        if (!operatorAddress) return
+        try {
+            const p = await fetchUserProfile(GNOLOVE_API_URL, operatorAddress)
+            setProfile(p)
+        } catch { /* keep the previous profile; the edit still succeeded */ }
     }, [operatorAddress])
 
     useEffect(() => {
@@ -216,6 +233,16 @@ export default function ValoperDetail() {
 
     // ── identity (compose valoper + profile) ──
     const isActive = valoper.status === "active"
+    // Owner detection: the connected, authenticated wallet must equal the valoper's
+    // operator address (its stable identity). Only then can the profile be edited —
+    // editing someone else's profile is not possible (and the backend re-checks the
+    // auth token's address on write). A null context (no Layout outlet) ⇒ not owner.
+    const connectedAddr = ctx?.adena.address ?? ""
+    const isOwner =
+        !!connectedAddr &&
+        !!ctx?.auth.isAuthenticated &&
+        !!ctx?.auth.token &&
+        connectedAddr === valoper.operatorAddress
     const avatar = resolveAvatarUrl(profile?.avatarUrl || profile?.githubAvatar || "")
     const showAvatar = !!avatar && !avatarError
     const bio = profile?.bio || profile?.githubBio || valoper.description || ""
@@ -336,19 +363,32 @@ export default function ValoperDetail() {
                     </div>
                 </div>
 
-                <div className="vp-id__actions">
-                    {/* Edit profile is P1b — render the affordance (so the slot is real)
-                        but disable it: editing is not wired yet. */}
-                    <button
-                        type="button"
-                        className="vp-edit-btn"
-                        disabled
-                        title="Editing your validator profile is coming soon"
-                    >
-                        <PencilSimple size={14} /> Edit profile
-                    </button>
-                </div>
+                {/* Edit profile (P1b) — only the owner (connected wallet === operator,
+                    authenticated) sees it; for everyone else the page is read-only. */}
+                {isOwner && (
+                    <div className="vp-id__actions">
+                        <button
+                            type="button"
+                            className="vp-edit-btn vp-edit-btn--enabled"
+                            onClick={() => setEditOpen(true)}
+                            title="Edit your profile"
+                        >
+                            <PencilSimple size={14} /> Edit profile
+                        </button>
+                    </div>
+                )}
             </header>
+
+            {/* Owner edit dialog — reuses the backend editable-profile API (no new realm). */}
+            {isOwner && profile && ctx?.auth.token && (
+                <ValoperEditDialog
+                    open={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    profile={profile}
+                    token={ctx.auth.token}
+                    onSaved={() => { setEditOpen(false); void refreshProfile() }}
+                />
+            )}
 
             {/* ── Tab bar ─────────────────────────────────────────── */}
             <div className="vp-tabs" role="tablist" aria-label="Profile sections">

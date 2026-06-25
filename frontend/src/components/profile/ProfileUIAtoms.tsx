@@ -3,7 +3,7 @@
  *
  * Extracted in v1.5.0 to reduce ProfilePage.tsx from 814 to ~460 LOC.
  */
-import type React from "react"
+import React, { useId } from "react"
 
 export function MetaChip({ icon, text }: { icon: string; text: string }) {
     return (
@@ -71,13 +71,15 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
         outline: "none", resize: multiline ? "vertical" as const : "none" as const,
         transition: "border-color 0.15s",
     }
+    const fieldId = useId()
     return (
         <div style={{ gridColumn: fullWidth ? "1 / -1" : undefined }}>
-            <label style={{ fontSize: 9, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
+            <label htmlFor={fieldId} style={{ fontSize: 9, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
                 {label} {maxLen && <span style={{ color: "var(--color-text)" }}>({value.length}/{maxLen})</span>}
             </label>
             {multiline ? (
                 <textarea
+                    id={fieldId}
                     value={value}
                     onChange={(e) => onChange(e.target.value.slice(0, maxLen))}
                     placeholder={placeholder}
@@ -88,6 +90,7 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
                 />
             ) : (
                 <input
+                    id={fieldId}
                     type="text"
                     value={value}
                     onChange={(e) => onChange(e.target.value.slice(0, maxLen))}
