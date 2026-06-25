@@ -23,6 +23,11 @@
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
     animation: txSlideUp 0.2s ease-out;
     font-family: "JetBrains Mono", monospace;
+    /* MOB-2: cap height + scroll the body so the Confirm/Cancel actions stay on
+       screen for a multi-message tx (the overlay centers the modal, so without
+       this a tall modal pushes the actions off both ends of the viewport). */
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
 }
 
 .tx-confirm-header {
@@ -170,6 +175,8 @@
     cursor: pointer;
     transition: all 0.15s;
     border: 1px solid transparent;
+    /* MOB-7: 44px min touch target on the security-critical confirm/cancel. */
+    min-height: 44px;
 }
 
 .tx-confirm-btn--cancel {
