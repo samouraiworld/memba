@@ -417,13 +417,13 @@ Status: ACTIVE
 Tiers eligible to vote: T1
 `
 
-	// Fake homeQuery: dispatch by decoded data content, not call order.
-	// Mirrors TestFetchFeaturedDao_FromFixture: bare render when decoded data ends with ":"
-	// (no sub-path), proposals render when it ends with ":proposals".
+	// Fake homeQuery: dispatch by the raw data content, not call order.
+	// homeQuery receives the raw "<realmPath>:<subpath>" qrender argument (abciQueryOnce
+	// base64-encodes it once on the wire): bare render for the trailing ":" (no sub-path),
+	// proposals render for ":proposals".
 	s := &MultisigService{
 		homeQuery: func(rpc, path, data string) (string, error) {
-			decoded, _ := base64.StdEncoding.DecodeString(data)
-			if strings.HasSuffix(string(decoded), ":proposals") {
+			if strings.HasSuffix(data, ":proposals") {
 				return proposals, nil
 			}
 			return bare, nil
