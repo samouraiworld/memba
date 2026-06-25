@@ -257,8 +257,8 @@ button.action-card:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--color-k-amber-tint);
-  border: 1px solid var(--color-k-amber-border);
+  background: var(--color-k-govdao-tint);
+  border: 1px solid var(--color-k-govdao-border);
   border-radius: 12px;
   padding: 16px;
 }
@@ -267,8 +267,8 @@ button.action-card:focus-visible {
   width: fit-content;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--color-k-amber);
-  background: var(--color-k-amber-subtle);
+  color: var(--color-k-govdao);
+  background: var(--color-k-govdao-subtle);
   border-radius: 4px;
   padding: 2px 7px;
 }
@@ -285,6 +285,37 @@ button.action-card:focus-visible {
   margin: 0;
 }
 
+.govdao-spotlight__latest {
+  font-size: 12px;
+  color: var(--color-k-dim);
+  margin: 0;
+}
+
+.govdao-spotlight__latest-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-muted);
+}
+
+.govdao-spotlight__latest-title {
+  color: var(--color-k-text);
+}
+
+.govdao-spotlight__latest-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-govdao);
+}
+
+.govdao-spotlight__latest-status--passed,
+.govdao-spotlight__latest-status--executed {
+  color: var(--color-k-accent);
+}
+
+.govdao-spotlight__latest-status--rejected {
+  color: var(--color-k-danger);
+}
+
 .govdao-spotlight__row {
   display: flex;
   align-items: center;
@@ -297,8 +328,8 @@ button.action-card:focus-visible {
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  background: var(--color-k-amber);
-  color: var(--color-k-on-amber, #1a1200);
+  background: var(--color-k-govdao);
+  color: var(--color-k-on-govdao, #1a1200);
   border-radius: 6px;
   padding: 7px 14px;
 }
@@ -308,14 +339,14 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__cta:focus-visible {
-  outline: 2px solid var(--color-k-amber);
+  outline: 2px solid var(--color-k-govdao);
   outline-offset: 2px;
 }
 
 .govdao-spotlight__stat {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-amber);
+  color: var(--color-k-govdao);
 }
 
 .govdao-spotlight__stat--muted {
@@ -325,9 +356,9 @@ button.action-card:focus-visible {
 .govdao-spotlight__retry {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-amber);
+  color: var(--color-k-govdao);
   background: transparent;
-  border: 1px solid var(--color-k-amber-border);
+  border: 1px solid var(--color-k-govdao-border);
   border-radius: 4px;
   padding: 3px 8px;
   cursor: pointer;
@@ -783,18 +814,6 @@ a.activity-feed__link:focus-visible {
   flex-shrink: 0;
 }
 
-.contributors-door__link {
-  font-size: 12px;
-  color: var(--color-k-accent);
-  text-decoration: none;
-  align-self: flex-start;
-  margin-top: auto;
-}
-
-.contributors-door__link:hover {
-  text-decoration: underline;
-}
-
 /* ── NetworkHealthDoor ──────────────────────────────────────────────── */
 
 .network-health-door {
@@ -823,16 +842,21 @@ a.activity-feed__link:focus-visible {
 .network-health-door__status--degraded { color: var(--color-k-warning, #f59e0b); }
 .network-health-door__status--down     { color: var(--color-k-danger, #ff4757); }
 
-.network-health-door__link {
-  font-size: 12px;
-  color: var(--color-k-accent);
-  text-decoration: none;
-  align-self: flex-start;
-  margin-top: auto;
+.network-health-door__pulse {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
 }
 
-.network-health-door__link:hover {
-  text-decoration: underline;
+.network-health-door__pulse-item {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+.network-health-door__pulse-item--muted {
+  color: var(--color-k-muted);
 }
 
 /* ── DirectoryDoor ──────────────────────────────────────────────────── */
@@ -855,18 +879,6 @@ a.activity-feed__link:focus-visible {
 .directory-door__hint {
   font-size: 12px;
   color: var(--color-k-dim);
-}
-
-.directory-door__link {
-  font-size: 12px;
-  color: var(--color-k-accent);
-  text-decoration: none;
-  align-self: flex-start;
-  margin-top: auto;
-}
-
-.directory-door__link:hover {
-  text-decoration: underline;
 }
 
 /* ── LaunchpadDoor ──────────────────────────────────────────────────── */
@@ -902,10 +914,7 @@ a.activity-feed__link:focus-visible {
 
 /* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
 
-.featured-door__link:focus-visible,
-.contributors-door__link:focus-visible,
-.network-health-door__link:focus-visible,
-.directory-door__link:focus-visible {
+.featured-door__link:focus-visible {
   outline: 2px solid var(--color-k-accent);
   outline-offset: 2px;
   border-radius: 2px;
@@ -1138,20 +1147,35 @@ a.activity-feed__link:focus-visible {
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
+/* Clickable doors (whole-card link or button) get a pointer + lift on hover. */
+a.door,
+button.door {
+  cursor: pointer;
+}
+
 a.door:hover,
 button.door:hover {
   background: var(--color-k-panel-hover);
-  border-color: var(--color-k-edge-hover);
-}
-
-button.door {
-  cursor: pointer;
+  border-color: var(--color-k-accent-border-strong);
 }
 
 a.door:focus-visible,
 button.door:focus-visible {
   outline: 2px solid var(--color-k-accent);
   outline-offset: 2px;
+}
+
+/* Transform-based lift only when motion is welcome (a11y). */
+@media (prefers-reduced-motion: no-preference) {
+  a.door,
+  button.door {
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  }
+
+  a.door:hover,
+  button.door:hover {
+    transform: translateY(-2px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

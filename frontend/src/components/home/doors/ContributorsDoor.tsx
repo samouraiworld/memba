@@ -9,7 +9,6 @@
  * @module components/home/doors/ContributorsDoor
  */
 import { useState } from "react"
-import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useGnoloveHighlights } from "../../../hooks/home/useGnoloveHighlights"
 import "../home.css"
@@ -70,8 +69,10 @@ export function ContributorsDoor({ networkKey }: ContributorsDoorProps) {
 
     const topScore = top[0]?.score || 0
 
+    // The WHOLE card is the link (href on Door) — no inner footer <Link>, which
+    // would be an illegal nested <a> inside the card-link.
     return (
-        <Door variant="list" state="ready" eyebrow="top contributors">
+        <Door variant="list" state="ready" eyebrow="top contributors" href={gnoloveHref}>
             <div className="contributors-door">
                 <ol className="contributors-door__list">
                     {top.map((entry, i) => {
@@ -91,9 +92,6 @@ export function ContributorsDoor({ networkKey }: ContributorsDoorProps) {
                         )
                     })}
                 </ol>
-                <Link to={gnoloveHref} className="contributors-door__link">
-                    Open Gnolove
-                </Link>
             </div>
         </Door>
     )

@@ -27,6 +27,16 @@ export function GovDaoSpotlight({ networkKey }: GovDaoSpotlightProps) {
             <p className="govdao-spotlight__desc">
                 The constitution of gno.land — it decides the network&apos;s future.
             </p>
+            {gov.latestProposal && (
+                <p className="govdao-spotlight__latest">
+                    <span className="govdao-spotlight__latest-label">latest:</span>{" "}
+                    <span className="govdao-spotlight__latest-title">{gov.latestProposal.title}</span>
+                    <span className="govdao-spotlight__sep" aria-hidden="true"> · </span>
+                    <span className={`govdao-spotlight__latest-status govdao-spotlight__latest-status--${gov.latestProposal.status}`}>
+                        {gov.latestProposal.status}
+                    </span>
+                </p>
+            )}
             <div className="govdao-spotlight__row">
                 <Link to={gov.href} className="govdao-spotlight__cta">
                     Monitor governance
@@ -39,6 +49,11 @@ export function GovDaoSpotlight({ networkKey }: GovDaoSpotlightProps) {
                 {gov.members !== undefined && (
                     <span className="govdao-spotlight__stat govdao-spotlight__stat--muted">
                         {gov.members} {gov.members === 1 ? "member" : "members"}
+                    </span>
+                )}
+                {gov.threshold !== undefined && (
+                    <span className="govdao-spotlight__stat govdao-spotlight__stat--muted">
+                        {gov.threshold} threshold
                     </span>
                 )}
                 {gov.state === "error" && (

@@ -24,9 +24,25 @@ describe("GovDaoSpotlight", () => {
         renderIt()
         expect(screen.getByText("GovDAO")).toBeInTheDocument()
         expect(screen.getByText(/layer 1/i)).toBeInTheDocument()
+        expect(screen.getByText(/the constitution of gno\.land/i)).toBeInTheDocument()
         expect(screen.getByRole("link", { name: /monitor governance/i })).toHaveAttribute("href", HREF)
         expect(screen.getByText(/3 open proposals/i)).toBeInTheDocument()
         expect(screen.getByText(/61 members/i)).toBeInTheDocument()
+    })
+
+    it("renders the threshold and latest proposal (title + status) when present", () => {
+        vi.mocked(useGovDao).mockReturnValue({
+            state: "ready", name: "GovDAO", openCount: 2, members: 61,
+            threshold: "66%", latestProposal: { title: "Raise the validator cap", status: "executed" },
+            href: HREF, refetch: vi.fn(),
+        })
+        const { container } = renderIt()
+        expect(screen.getByText(/raise the validator cap/i)).toBeInTheDocument()
+        // The "latest:" label + the proposal's status both render in the latest row.
+        expect(screen.getByText(/^latest:$/i)).toBeInTheDocument()
+        const status = container.querySelector(".govdao-spotlight__latest-status")
+        expect(status?.textContent).toBe("executed")
+        expect(screen.getByText(/66% threshold/i)).toBeInTheDocument()
     })
 
     it("singularizes stats for exactly one (1 member / 1 open proposal)", () => {
@@ -36,11 +52,13 @@ describe("GovDaoSpotlight", () => {
         expect(screen.getByText(/^1 member$/i)).toBeInTheDocument()
     })
 
-    it("omits proposal/member stats when absent (never fabricates 0)", () => {
+    it("omits proposal/member/threshold/latest stats when absent (never fabricates 0)", () => {
         vi.mocked(useGovDao).mockReturnValue({ state: "ready", name: "GovDAO", href: HREF, refetch: vi.fn() })
         renderIt()
         expect(screen.queryByText(/open proposal/i)).not.toBeInTheDocument()
         expect(screen.queryByText(/\bmembers\b/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/threshold/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/latest/i)).not.toBeInTheDocument()
         expect(screen.getByText("GovDAO")).toBeInTheDocument()
     })
 
