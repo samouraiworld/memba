@@ -413,9 +413,27 @@ func metricsAuthMiddleware(next http.Handler) http.Handler {
 // limiter is initialized in main() with a cancellable context.
 var limiter *ratelimit.Limiter
 
+// trustProxy reports whether the backend sits behind our trusted reverse proxy
+// (the Fly.io edge), and may therefore honor proxy-set client-IP headers
+// (Fly-Client-IP / X-Forwarded-For) for rate limiting. We trust an explicit
+// TRUSTED_PROXY opt-in, or the platform-injected FLY_APP_NAME which is only
+// present when running on Fly behind its edge (same signal used for the
+// ED25519_SEED prod check above). Off the edge (e.g. local/direct), these
+// headers are client-spoofable, so we fall back to RemoteAddr — see
+// ratelimit.ExtractIP (finding S-F2).
+var trustProxy = func() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("TRUSTED_PROXY"))) {
+	case "1", "true", "yes", "fly":
+		return true
+	case "0", "false", "no":
+		return false
+	}
+	return os.Getenv("FLY_APP_NAME") != ""
+}()
+
 func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := ratelimit.ExtractIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"), r.Header.Get("Fly-Client-IP"))
+		ip := ratelimit.ExtractIP(trustProxy, r.RemoteAddr, r.Header.Get("X-Forwarded-For"), r.Header.Get("Fly-Client-IP"))
 
 		if !limiter.Allow(ip, endpoint) {
 			slog.Warn("rate limited", "ip", ip, "endpoint", endpoint)

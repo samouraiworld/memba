@@ -14,7 +14,7 @@ func TestSubnetKey_IPv4(t *testing.T) {
 		{"1.2.3.4", "1.2.3.0/24"},
 		{"192.168.1.100", "192.168.1.0/24"},
 		{"10.0.0.1", "10.0.0.0/24"},
-		{"1.2.3.4:8080", "1.2.3.0/24"},   // With port
+		{"1.2.3.4:8080", "1.2.3.0/24"}, // With port
 	}
 	for _, tt := range tests {
 		got := subnetKey(tt.ip)
@@ -42,14 +42,20 @@ func TestSubnetKey_Unparseable(t *testing.T) {
 	}
 }
 
-func TestExtractIP(t *testing.T) {
+// TestExtractIP_TrustedProxy covers the production deployment model: the
+// backend runs behind the Fly.io edge proxy (trustProxy=true), which sets
+// Fly-Client-IP and appends its own X-Forwarded-For entry. Proxy-supplied
+// headers must be honored here so per-IP rate limiting still works in prod.
+func TestExtractIP_TrustedProxy(t *testing.T) {
 	tests := []struct {
-		name           string
-		remote, xff    string
-		flyClientIP    string
-		want           string
+		name        string
+		remote, xff string
+		flyClientIP string
+		want        string
 	}{
-		{"remote only", "1.2.3.4:55555", "", "", "1.2.3.4:55555"},
+		// No proxy headers: fall through to RemoteAddr, port stripped
+		// (subnetKey strips it downstream anyway, so the bucket is unchanged).
+		{"remote only", "1.2.3.4:55555", "", "", "1.2.3.4"},
 		{"xff single", "1.2.3.4:55555", "5.6.7.8", "", "5.6.7.8"},
 		// Last XFF entry (proxy-added), not first (attacker-controlled)
 		{"xff multi uses last", "1.2.3.4:55555", "5.6.7.8, 9.10.11.12", "", "9.10.11.12"},
@@ -65,9 +71,47 @@ func TestExtractIP(t *testing.T) {
 			if tt.flyClientIP != "" {
 				headers = append(headers, tt.flyClientIP)
 			}
-			got := ExtractIP(tt.remote, tt.xff, headers...)
+			got := ExtractIP(true, tt.remote, tt.xff, headers...)
 			if got != tt.want {
-				t.Errorf("ExtractIP(%q, %q, %v) = %q, want %q", tt.remote, tt.xff, headers, got, tt.want)
+				t.Errorf("ExtractIP(true, %q, %q, %v) = %q, want %q", tt.remote, tt.xff, headers, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestExtractIP_UntrustedProxy is the security regression test for finding
+// S-F2: when the request did NOT arrive through the trusted proxy
+// (trustProxy=false), client-settable headers (Fly-Client-IP, X-Forwarded-For)
+// are attacker-controlled and MUST be ignored. The connection's RemoteAddr
+// (host portion) is the only trustworthy source, so spoofing the headers must
+// not let an attacker rotate their rate-limit bucket.
+func TestExtractIP_UntrustedProxy(t *testing.T) {
+	tests := []struct {
+		name        string
+		remote, xff string
+		flyClientIP string
+		want        string
+	}{
+		// No spoofing — plain connection.
+		{"remote only", "1.2.3.4:55555", "", "", "1.2.3.4"},
+		// Spoofed Fly-Client-IP must be ignored; fall back to RemoteAddr host.
+		{"spoofed fly-client-ip ignored", "1.2.3.4:55555", "", "99.99.99.99", "1.2.3.4"},
+		// Spoofed X-Forwarded-For must be ignored; fall back to RemoteAddr host.
+		{"spoofed xff ignored", "1.2.3.4:55555", "5.6.7.8, 9.10.11.12", "", "1.2.3.4"},
+		// Both spoofed — still the real RemoteAddr host.
+		{"both spoofed ignored", "1.2.3.4:55555", "5.6.7.8", "99.99.99.99", "1.2.3.4"},
+		// RemoteAddr without a port (defensive) — returned as-is.
+		{"remote no port", "1.2.3.4", "", "99.99.99.99", "1.2.3.4"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var headers []string
+			if tt.flyClientIP != "" {
+				headers = append(headers, tt.flyClientIP)
+			}
+			got := ExtractIP(false, tt.remote, tt.xff, headers...)
+			if got != tt.want {
+				t.Errorf("ExtractIP(false, %q, %q, %v) = %q, want %q", tt.remote, tt.xff, headers, got, tt.want)
 			}
 		})
 	}
