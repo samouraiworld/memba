@@ -75,6 +75,10 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
                 const openCount = proposals.filter((p) => p.status === "open").length
                 const memberCount = config?.memberCount ?? 0
                 return {
+                    // resolved=false means the realm did not render on this network
+                    // (getDAOConfig returned null without throwing). Used to drop
+                    // untagged legacy entries saved on another testnet (E-F9).
+                    resolved: config != null,
                     name: config?.name ?? dao.name,
                     members: memberCount > 0 ? memberCount : undefined,
                     openCount: openCount > 0 ? openCount : undefined,
@@ -148,6 +152,11 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
             // don't resolve here (presumed saved on another network).
             return onThisNetwork ? [{ name: dao.name, href, degraded: true }] : []
         }
+
+        // Untagged legacy entry whose realm did NOT render on the active network →
+        // saved on another testnet (e.g. retired test11/test12). Drop it instead of
+        // rendering a dead card (E-F9). Tagged-this-network entries fall through.
+        if (!dao.network && !q.data.resolved) return []
 
         const { name, members, openCount } = q.data
         const role = roleQueries[i]?.data || undefined
