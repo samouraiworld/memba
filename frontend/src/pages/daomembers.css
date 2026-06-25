@@ -47,7 +47,7 @@
 }
 .k-members__power-bar {
   height: 8px;
-  background: #1a1a1a;
+  background: var(--color-k-edge);
   border-radius: 4px;
   overflow: hidden;
   display: flex;
@@ -166,7 +166,7 @@
   border-radius: 3px;
   font-size: 8px;
   font-family: 'JetBrains Mono', monospace;
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-k-accent-tint);
   color: var(--color-k-accent);
 }
 .k-members__row-register {
@@ -205,7 +205,7 @@
 .k-members__role-remove {
   background: none;
   border: none;
-  color: #ff3b30;
+  color: var(--color-k-danger);
   cursor: pointer;
   font-size: 9px;
   padding: 0;
@@ -269,9 +269,9 @@
 }
 .k-members__success {
   padding: 12px 16px;
-  background: rgba(0, 212, 170, 0.08);
+  background: var(--color-k-accent-subtle);
   border-radius: 8px;
-  border: 1px solid rgba(0, 212, 170, 0.2);
+  border: 1px solid var(--color-k-accent-border);
   color: var(--color-k-accent);
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;

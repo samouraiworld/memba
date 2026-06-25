@@ -194,7 +194,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                 >
                                     <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
                                     <span className="k-sidebar-label">{p.name}</span>
-                                    <small style={{ fontSize: 9, color: '#555', marginLeft: 'auto' }}>Select a DAO</small>
+                                    <small style={{ fontSize: 9, color: 'var(--color-k-muted)', marginLeft: 'auto' }}>Select a DAO</small>
                                 </span>
                             )
                         ))}
@@ -216,7 +216,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                                 title="Switch network"
                                 style={{
                                     width: "100%",
-                                    background: "rgba(0,212,170,0.06)", border: "1px solid #1a1a1a",
+                                    background: "var(--color-k-accent-subtle)", border: "1px solid var(--color-k-edge)",
                                     color: "var(--color-text-secondary)", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                                     padding: "8px 12px", borderRadius: 6, cursor: "pointer",
                                     outline: "none",
@@ -250,9 +250,9 @@ function MobileThemeToggle({ onSelect }: { onSelect: () => void }) {
                         fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                         cursor: "pointer", border: "1px solid",
                         transition: "all 0.15s",
-                        background: current === t ? "rgba(0,212,170,0.12)" : "var(--color-bg-hover)",
+                        background: current === t ? "var(--color-k-accent-tint)" : "var(--color-bg-hover)",
                         color: current === t ? "var(--color-primary)" : "var(--color-text-secondary)",
-                        borderColor: current === t ? "rgba(0,212,170,0.25)" : "var(--color-border)",
+                        borderColor: current === t ? "var(--color-k-accent-border)" : "var(--color-border)",
                         fontWeight: current === t ? 600 : 400,
                     }}
                 >

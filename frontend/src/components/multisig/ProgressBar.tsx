@@ -12,15 +12,15 @@ export function ProgressBar({ current, threshold, total }: ProgressBarProps) {
     return (
         <div className="k-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Bar */}
-            <div style={{ position: "relative", height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "visible" }}>
+            <div style={{ position: "relative", height: 8, background: "var(--color-k-edge)", borderRadius: 4, overflow: "visible" }}>
                 {/* Fill */}
                 <div
                     style={{
                         position: "absolute", top: 0, left: 0, height: "100%",
                         width: `${Math.min(percentage, 100)}%`,
                         background: isReady
-                            ? "linear-gradient(90deg, #00d4aa, #00e6bb)"
-                            : "linear-gradient(90deg, #ffa502, #ffbb33)",
+                            ? "linear-gradient(90deg, var(--color-k-accent), var(--color-k-accent-hover))"
+                            : "linear-gradient(90deg, var(--color-k-warning), #ffbb33)",
                         borderRadius: 4,
                         transition: "width 0.3s ease, background 0.3s ease",
                     }}
@@ -31,7 +31,7 @@ export function ProgressBar({ current, threshold, total }: ProgressBarProps) {
                         position: "absolute", top: -4, left: `${thresholdPercentage}%`,
                         transform: "translateX(-50%)",
                         width: 2, height: 16,
-                        background: "#00d4aa",
+                        background: "var(--color-k-accent)",
                         borderRadius: 1,
                     }}
                 />
@@ -40,7 +40,7 @@ export function ProgressBar({ current, threshold, total }: ProgressBarProps) {
             {/* Labels */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 16, fontWeight: 600, color: isReady ? "#00d4aa" : "#ffa502" }}>
+                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 16, fontWeight: 600, color: isReady ? "var(--color-k-accent)" : "var(--color-k-warning)" }}>
                         {current}/{threshold}
                     </span>
                     <span className="k-label">signatures</span>
@@ -48,9 +48,9 @@ export function ProgressBar({ current, threshold, total }: ProgressBarProps) {
                 <span style={{
                     fontSize: 11, padding: "2px 8px", borderRadius: 4,
                     fontFamily: "JetBrains Mono, monospace",
-                    background: isReady ? "rgba(0,212,170,0.08)" : "rgba(255,165,2,0.08)",
-                    color: isReady ? "#00d4aa" : "#ffa502",
-                    border: `1px solid ${isReady ? "rgba(0,212,170,0.2)" : "rgba(255,165,2,0.2)"}`,
+                    background: isReady ? "var(--color-k-accent-subtle)" : "var(--color-k-amber-subtle)",
+                    color: isReady ? "var(--color-k-accent)" : "var(--color-k-warning)",
+                    border: `1px solid ${isReady ? "var(--color-k-accent-border)" : "var(--color-k-amber-border)"}`,
                 }}>
                     {isReady ? "Ready to broadcast" : `${threshold - current} more needed`}
                 </span>

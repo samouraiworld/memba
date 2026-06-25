@@ -499,17 +499,17 @@ export function ProposalView() {
                                         </p>
                                         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                                             <button className="k-btn-secondary" onClick={cancelVote} style={{ minWidth: 100 }}>Cancel</button>
-                                            <button className="k-btn-primary" onClick={() => handleVote(pendingVote)} style={{ minWidth: 100, background: pendingVote === "YES" ? "#4caf50" : pendingVote === "NO" ? "#f44336" : "var(--color-k-accent)" }}>
+                                            <button className="k-btn-primary" onClick={() => handleVote(pendingVote)} style={{ minWidth: 100, background: pendingVote === "YES" ? "var(--color-k-accent)" : pendingVote === "NO" ? "var(--color-k-danger)" : "var(--color-k-accent)" }}>
                                                 Confirm {pendingVote}
                                             </button>
                                         </div>
                                     </div>
                                 )}
                                 <div className="proposal-vote-btns">
-                                    <button className="k-btn-primary" onClick={() => confirmVote("YES")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "#4caf50", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => confirmVote("YES")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote Yes on this proposal" style={{ flex: 1, minWidth: 120, background: "var(--color-k-accent)", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✓ Vote Yes"}
                                     </button>
-                                    <button className="k-btn-primary" onClick={() => confirmVote("NO")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "#f44336", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
+                                    <button className="k-btn-primary" onClick={() => confirmVote("NO")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Vote No on this proposal" style={{ flex: 1, minWidth: 120, background: "var(--color-k-danger)", opacity: actionLoading || isMember === false ? 0.5 : 1 }}>
                                         {actionLoading ? "..." : "✗ Vote No"}
                                     </button>
                                     <button className="k-btn-secondary" onClick={() => confirmVote("ABSTAIN")} disabled={actionLoading || isMember === false || !!pendingVote} aria-label="Abstain from voting on this proposal" style={{ flex: 1, minWidth: 120, opacity: actionLoading || isMember === false ? 0.5 : 1 }}>

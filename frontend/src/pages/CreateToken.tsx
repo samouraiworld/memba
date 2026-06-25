@@ -202,7 +202,7 @@ export function CreateToken() {
             )}
 
             {success && !deployResult && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -340,7 +340,7 @@ export function CreateToken() {
             {parsedMint > 0n && (
                 <div style={{
                     padding: "14px 18px", borderRadius: 8,
-                    background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
+                    background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
                     fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
                 }}>
                     💰 {feeDisclosure(parsedMint, symbol.trim().toUpperCase() || "TOKEN")}
