@@ -1,8 +1,49 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
+
+// SEC-2: /metrics is gated by METRICS_BEARER when set, open otherwise (so an
+// existing Prometheus scrape isn't broken until the operator opts in).
+func TestMetricsAuthMiddleware(t *testing.T) {
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	t.Run("unset env leaves metrics open", func(t *testing.T) {
+		t.Setenv("METRICS_BEARER", "")
+		rr := httptest.NewRecorder()
+		metricsAuthMiddleware(ok).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("unset: want 200, got %d", rr.Code)
+		}
+	})
+
+	t.Run("set env requires the exact bearer token", func(t *testing.T) {
+		t.Setenv("METRICS_BEARER", "s3cret")
+		mw := metricsAuthMiddleware(ok)
+		cases := []struct {
+			name, header string
+			want         int
+		}{
+			{"missing", "", http.StatusUnauthorized},
+			{"wrong", "Bearer nope", http.StatusUnauthorized},
+			{"correct", "Bearer s3cret", http.StatusOK},
+		}
+		for _, c := range cases {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+			if c.header != "" {
+				req.Header.Set("Authorization", c.header)
+			}
+			mw.ServeHTTP(rr, req)
+			if rr.Code != c.want {
+				t.Errorf("%s: want %d, got %d", c.name, c.want, rr.Code)
+			}
+		}
+	})
+}
 
 func TestParseSeedCursorSpec(t *testing.T) {
 	t.Run("empty input returns nil slice and no errors", func(t *testing.T) {
