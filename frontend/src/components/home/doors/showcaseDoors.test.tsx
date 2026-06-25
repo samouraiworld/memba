@@ -241,6 +241,8 @@ describe("DirectoryDoor — ready with count", () => {
                 { name: "alice", address: "g1alice" },
                 { name: "bob", address: "g1bob" },
             ],
+            realmCount: 11,
+            packageCount: 15,
             loading: false,
         })
     })
@@ -267,7 +269,7 @@ describe("DirectoryDoor — ready with count", () => {
 
 describe("DirectoryDoor — ready with count=0 (absent)", () => {
     it("omits the count but still shows the search affordance + link", () => {
-        mockUseDirectoryHighlights.mockReturnValue({ memberCount: 0, members: [], loading: false })
+        mockUseDirectoryHighlights.mockReturnValue({ memberCount: 0, members: [], realmCount: 0, packageCount: 0, loading: false })
         renderWithProviders(<DirectoryDoor networkKey="test13" />)
         // No bare "0"
         expect(screen.queryByText("0")).not.toBeInTheDocument()
@@ -281,7 +283,7 @@ describe("DirectoryDoor — ready with count=0 (absent)", () => {
 
 describe("DirectoryDoor — loading", () => {
     it("renders loading skeleton", () => {
-        mockUseDirectoryHighlights.mockReturnValue({ memberCount: 0, members: [], loading: true })
+        mockUseDirectoryHighlights.mockReturnValue({ memberCount: 0, members: [], realmCount: 11, packageCount: 15, loading: true })
         const { container } = renderWithProviders(<DirectoryDoor networkKey="test13" />)
         expect(container.querySelectorAll(".door__sk").length).toBeGreaterThan(0)
     })
@@ -331,7 +333,7 @@ describe("ShowcaseBoard — all 5 slots in order", () => {
             status: "healthy", active: 14, total: 14, avgUptime: null, latestIncident: null, loading: false,
         })
         mockUseDirectoryHighlights.mockReturnValue({
-            memberCount: 50, members: [], loading: false,
+            memberCount: 50, members: [], realmCount: 11, packageCount: 15, loading: false,
         })
     })
 

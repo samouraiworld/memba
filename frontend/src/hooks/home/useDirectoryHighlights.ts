@@ -26,11 +26,12 @@
  * @module hooks/home/useDirectoryHighlights
  */
 
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
 import { useHomeSnapshot } from "./useHomeSnapshot"
 import { fetchTractionMetrics } from "../../lib/traction"
-import { parseUserRegistry, type DirectoryUser } from "../../lib/directory"
+import { parseUserRegistry, fetchRealms, fetchPackages, type DirectoryUser } from "../../lib/directory"
 import { queryRender } from "../../lib/dao/shared"
 import { isRealmValidOn, getUserRegistryPath } from "../../lib/config"
 import type { DirectoryMember } from "../../gen/memba/v1/memba_pb"
@@ -42,6 +43,13 @@ export interface DirectoryHighlights {
     memberCount: number
     /** First few registry entries (registry order — not "newest"). */
     members: DirectoryUser[]
+    /**
+     * Directory composition counts (R2-H5) for the breakdown chips + donut.
+     * Sourced from the same seed lists the Directory page's realms/packages tabs
+     * use (fetchRealms/fetchPackages) — always reachable, no extra fetch.
+     */
+    realmCount: number
+    packageCount: number
     loading: boolean
 }
 
@@ -85,6 +93,12 @@ export function useDirectoryHighlights(): DirectoryHighlights {
     const { networkKey, rpcUrl } = useNetwork()
     const { snapshot, usable } = useHomeSnapshot()
 
+    // Composition counts from the synchronous seed lists (same source the
+    // Directory page's realms/packages tabs render from). Cheap & always
+    // reachable — no network round-trip, so they never gate `loading`.
+    const realmCount = useMemo(() => fetchRealms().length, [])
+    const packageCount = useMemo(() => fetchPackages().length, [])
+
     // memberCount is ALWAYS from traction — never gated by snapshot
     const memberCountQuery = useQuery({
         queryKey: ["home", "directory-member-count"],
@@ -106,6 +120,8 @@ export function useDirectoryHighlights(): DirectoryHighlights {
         return {
             memberCount,
             members: mapSnapshotMembers(snapshot.directoryMembers),
+            realmCount,
+            packageCount,
             loading: false,
         }
     }
@@ -113,6 +129,8 @@ export function useDirectoryHighlights(): DirectoryHighlights {
     return {
         memberCount,
         members: registryQuery.data ?? [],
+        realmCount,
+        packageCount,
         loading: registryQuery.isLoading,
     }
 }

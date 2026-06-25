@@ -859,6 +859,17 @@ a.activity-feed__link:focus-visible {
   color: var(--color-k-muted);
 }
 
+/* R2-H4a: recent block-interval sparkline. Static (no animation — reduced-motion
+   safe by construction). Token-colored stroke set inline on the polyline. */
+.network-health-door__spark {
+  display: block;
+  width: 100px;
+  height: 24px;
+  margin-top: 4px;
+  opacity: 0.9;
+  overflow: visible;
+}
+
 /* ── DirectoryDoor ──────────────────────────────────────────────────── */
 
 .directory-door {
@@ -879,6 +890,59 @@ a.activity-feed__link:focus-visible {
 .directory-door__hint {
   font-size: 12px;
   color: var(--color-k-dim);
+}
+
+/* R2-H4b/R2-H5: composition breakdown — donut ring + numeric stat chips. */
+.directory-door__breakdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Rotate the ring so segment 0 starts at 12 o'clock (dashoffset advances CW). */
+.directory-door__donut {
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+.directory-door__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.directory-door__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--color-k-dim);
+  min-width: 0;
+}
+
+.directory-door__chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.directory-door__chip-num {
+  color: var(--color-k-text);
+  font-weight: 600;
+}
+
+.directory-door__chip-label {
+  color: var(--color-k-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── LaunchpadDoor ──────────────────────────────────────────────────── */
