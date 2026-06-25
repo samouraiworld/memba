@@ -19,7 +19,7 @@ export interface BelowFoldProps {
 export function BelowFold({ networkKey }: BelowFoldProps) {
     return (
         <div className="below-fold" data-testid="below-fold">
-            <EcosystemBand />
+            <EcosystemBand networkKey={networkKey} />
             <ExploreGrid networkKey={networkKey} />
             <ActivityFeed networkKey={networkKey} />
             <ComingSoon />

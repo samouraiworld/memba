@@ -405,24 +405,50 @@ button.action-card:focus-visible {
   color: var(--color-k-muted);
 }
 
-.ecosystem-band__tiles {
+/* R2-H7: honest inline listings (tokens + validators) replace bare count tiles.
+   Token-driven colors via CSS vars → dark/light parity. */
+.ecosystem-band__sections {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
+  align-items: start;
 }
 
-.ecosystem-tile {
+.ecosystem-section {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  gap: 8px;
   background: var(--color-k-elevated);
   border: 1px solid var(--color-k-edge);
   border-radius: 9px;
   padding: 12px;
 }
 
-.ecosystem-tile__value {
+/* The agents-style count-only tile keeps the old centered look. */
+.ecosystem-section--tile {
+  align-items: center;
+}
+
+.ecosystem-section__header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.ecosystem-section__header:hover .ecosystem-section__label,
+a.ecosystem-section__header:hover .ecosystem-section__arrow {
+  color: var(--color-k-accent);
+}
+
+.ecosystem-section__header--static {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ecosystem-section__count {
   font-family: var(--font-mono);
   font-size: 20px;
   font-weight: 600;
@@ -430,10 +456,115 @@ button.action-card:focus-visible {
   line-height: 1;
 }
 
-.ecosystem-tile__label {
+.ecosystem-section__label {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--color-k-dim);
+}
+
+.ecosystem-section__arrow {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-muted);
+}
+
+.ecosystem-section__loading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-muted);
+  padding: 4px 0;
+}
+
+.ecosystem-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ecosystem-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--color-k-text);
+  transition: background 0.12s ease;
+}
+
+.ecosystem-row:hover {
+  background: var(--color-k-panel-hover);
+}
+
+.ecosystem-row__main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ecosystem-row__name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-k-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecosystem-row__badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-k-accent);
+  background: var(--color-k-accent-subtle);
+  border: 1px solid var(--color-k-accent-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.5;
+}
+
+.ecosystem-row__sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecosystem-row__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-k-muted);
+}
+
+.ecosystem-row__dot.is-active {
+  background: var(--color-k-accent);
+}
+
+.ecosystem-row__dot.is-inactive {
+  background: var(--color-k-warning);
+}
+
+.ecosystem-section__viewall {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-accent);
+  text-decoration: none;
+  padding: 2px 6px;
+}
+
+.ecosystem-section__viewall:hover {
+  color: var(--color-k-accent-hover);
+  text-decoration: underline;
 }
 
 .explore-grid__items,
