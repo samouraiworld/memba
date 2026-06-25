@@ -29,6 +29,13 @@ describe("GovDaoSpotlight", () => {
         expect(screen.getByText(/61 members/i)).toBeInTheDocument()
     })
 
+    it("singularizes stats for exactly one (1 member / 1 open proposal)", () => {
+        vi.mocked(useGovDao).mockReturnValue({ state: "ready", name: "GovDAO", openCount: 1, members: 1, href: HREF, refetch: vi.fn() })
+        renderIt()
+        expect(screen.getByText(/^1 open proposal$/i)).toBeInTheDocument()
+        expect(screen.getByText(/^1 member$/i)).toBeInTheDocument()
+    })
+
     it("omits proposal/member stats when absent (never fabricates 0)", () => {
         vi.mocked(useGovDao).mockReturnValue({ state: "ready", name: "GovDAO", href: HREF, refetch: vi.fn() })
         renderIt()
