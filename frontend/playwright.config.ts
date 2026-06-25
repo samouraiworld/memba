@@ -19,14 +19,10 @@ export default defineConfig({
         actionTimeout: process.env.CI ? 10_000 : 5_000,
     },
     projects: [
-        {
-            name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
-        },
-        {
-            name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
-        },
+        { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /\.mobile\.spec\.ts$/ },
+        { name: 'firefox',  use: { ...devices['Desktop Firefox'] }, testIgnore: /\.mobile\.spec\.ts$/ },
+        { name: 'iphone',   use: { ...devices['iPhone 13'] },  testMatch: /\.mobile\.spec\.ts$/ },
+        { name: 'pixel',    use: { ...devices['Pixel 5'] },    testMatch: /\.mobile\.spec\.ts$/ },
     ],
     webServer: {
         command: 'npm run dev',
