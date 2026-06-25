@@ -10,7 +10,8 @@ import type { ActivityItem } from "../../lib/activity"
 vi.mock("../../hooks/home/useRecentActivity", () => ({ useRecentActivity: vi.fn() }))
 
 const { useRecentActivity } = await import("../../hooks/home/useRecentActivity")
-const { ActivityFeed, relativeActivityTime } = await import("./ActivityFeed")
+const { ActivityFeed } = await import("./ActivityFeed")
+const { relativeActivityTime } = await import("../../lib/activity")
 
 const mockHook = vi.mocked(useRecentActivity)
 

@@ -122,6 +122,27 @@ export function parseActivity(
     return opts?.limit != null ? items.slice(0, opts.limit) : items
 }
 
+/** Compact relative time ("just now" / "5m" / "3h" / "2d") from an ISO string,
+ *  measured against `now` (epoch ms). Pure — `now` is injected for testability. */
+export function relativeActivityTime(iso: string | undefined, now: number): string {
+    if (!iso) return ""
+    const then = Date.parse(iso)
+    if (Number.isNaN(then)) return ""
+    const secs = Math.max(0, Math.round((now - then) / 1000))
+    if (secs < 45) return "just now"
+    const mins = Math.round(secs / 60)
+    if (mins < 60) return `${mins}m`
+    const hrs = Math.round(mins / 60)
+    if (hrs < 24) return `${hrs}h`
+    return `${Math.round(hrs / 24)}d`
+}
+
+/** Relative time against the current clock — for render (keeps `Date.now()` out of
+ *  the React component body, where the purity lint rule forbids it). */
+export function formatActivityTime(iso: string | undefined): string {
+    return relativeActivityTime(iso, Date.now())
+}
+
 // ── Indexer wire layer ───────────────────────────────────────────────────────
 
 const RECENT_WINDOW_BLOCKS = 400

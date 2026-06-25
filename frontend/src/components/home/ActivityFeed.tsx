@@ -11,7 +11,7 @@
  */
 import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise } from "@phosphor-icons/react"
 import { useRecentActivity } from "../../hooks/home/useRecentActivity"
-import type { ActivityItem, ActivityKind } from "../../lib/activity"
+import { formatActivityTime, type ActivityItem, type ActivityKind } from "../../lib/activity"
 import { getExplorerBaseUrl } from "../../lib/config"
 import { truncateValidatorAddr } from "../../lib/validators"
 import "./home.css"
@@ -26,30 +26,16 @@ const KIND_ICON: Record<ActivityKind, typeof Coins> = {
     call: Cube,
 }
 
-/** Compact relative time ("just now" / "5m" / "3h" / "2d") from an ISO string. */
-export function relativeActivityTime(iso: string | undefined, now: number): string {
-    if (!iso) return ""
-    const then = Date.parse(iso)
-    if (Number.isNaN(then)) return ""
-    const secs = Math.max(0, Math.round((now - then) / 1000))
-    if (secs < 45) return "just now"
-    const mins = Math.round(secs / 60)
-    if (mins < 60) return `${mins}m`
-    const hrs = Math.round(mins / 60)
-    if (hrs < 24) return `${hrs}h`
-    return `${Math.round(hrs / 24)}d`
-}
-
 /** Realm link on gnoweb for an item with a package path; null otherwise. */
 function itemHref(item: ActivityItem): string | null {
     if (!item.pkgPath) return null
     return `${getExplorerBaseUrl()}${item.pkgPath.replace(/^gno\.land/, "")}`
 }
 
-function ActivityRow({ item, now }: { item: ActivityItem; now: number }) {
+function ActivityRow({ item }: { item: ActivityItem }) {
     const Icon = KIND_ICON[item.kind] ?? Cube
     const href = itemHref(item)
-    const when = relativeActivityTime(item.time, now)
+    const when = formatActivityTime(item.time)
     const inner = (
         <>
             <span className={`activity-feed__icon activity-feed__icon--${item.kind}`} aria-hidden="true">
@@ -90,8 +76,6 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
     const { items, loading, error, available, refetch } = useRecentActivity(networkKey)
     if (!available) return null
 
-    const now = Date.now()
-
     return (
         <section className="activity-feed" data-testid="activity-feed">
             <div className="below-fold__eyebrow">live across gno.land</div>
@@ -122,7 +106,7 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
             {!loading && !error && items.length > 0 && (
                 <ol className="activity-feed__list" data-testid="activity-feed-list">
                     {items.map((item) => (
-                        <ActivityRow key={item.txHash} item={item} now={now} />
+                        <ActivityRow key={item.txHash} item={item} />
                     ))}
                 </ol>
             )}
