@@ -71,9 +71,9 @@
   --color-k-edge: #e0e2e6;
   --color-k-edge-hover: #d0d2d6;
   --color-k-dashed: #d0d2d6;
-  --color-k-text: #1a1a2e;
-  --color-k-dim: #6b7280;
-  --color-k-muted: #6b7280; /* A11Y-3: WCAG AA ~4.8:1 on white (was #9ca3af = 2.5:1) */
+  --color-k-text: #16161d;  /* near-black, ~15:1 on bg — primary text */
+  --color-k-dim: #4b5563;   /* §13: ~7:1 on bg (was #6b7280 ~4.8:1) — secondary text, higher contrast */
+  --color-k-muted: #4b5563; /* §13: ~7:1 on bg (was #6b7280) — eyebrows/hints, still clearly readable */
   --color-k-accent: #00a88a;
   --color-k-accent-hover: #009478;
   --color-k-on-accent: #000000;
