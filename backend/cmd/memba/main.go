@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -172,7 +173,10 @@ func main() {
 
 	// Prometheus metrics (observability keystone, P0-2) — exposes the signed-login
 	// ratio (memba_auth_login_total) + Go runtime metrics for an external drain.
-	mux.Handle("/metrics", promhttp.Handler())
+	// SEC-2: gated behind METRICS_BEARER when set (open otherwise so an existing
+	// scrape isn't broken) — the login-result ratio + infra internals shouldn't be
+	// served unauthenticated to the open internet.
+	mux.Handle("/metrics", metricsAuthMiddleware(promhttp.Handler()))
 
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
@@ -381,6 +385,24 @@ func requireAuthMiddleware(svc *service.MultisigService, next http.Handler) http
 			slog.Warn("REST auth failed", "error", err)
 			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
 			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// metricsAuthMiddleware gates the wrapped handler behind a scrape bearer token
+// when METRICS_BEARER is set. When it's unset the handler stays open, so an
+// existing Prometheus scrape keeps working — setting the env opts into auth.
+// The token comparison is constant-time.
+func metricsAuthMiddleware(next http.Handler) http.Handler {
+	token := strings.TrimSpace(os.Getenv("METRICS_BEARER"))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if token != "" {
+			got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
+				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
