@@ -230,6 +230,18 @@ button.action-card:focus-visible {
 
 .showcase-board__slot {
   min-width: 0;
+  /* Single-cell grid so the door stretches to fill the (grid-stretched) slot
+     height — every card in a row becomes equal height (Wave 1: "same size"). */
+  display: grid;
+}
+
+.showcase-board__slot .door {
+  height: 100%;
+}
+
+.showcase-board__slot .door__body {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Featured slot spans the full row regardless of how many columns auto-fit
@@ -294,6 +306,7 @@ button.action-card:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
 }
 
 .contributors-door__list {
@@ -355,7 +368,7 @@ button.action-card:focus-visible {
   color: var(--color-k-accent);
   text-decoration: none;
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: auto;
 }
 
 .contributors-door__link:hover {
@@ -368,6 +381,7 @@ button.action-card:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
 
 .network-health-door__count {
@@ -394,7 +408,7 @@ button.action-card:focus-visible {
   color: var(--color-k-accent);
   text-decoration: none;
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: auto;
 }
 
 .network-health-door__link:hover {
@@ -407,6 +421,7 @@ button.action-card:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
 
 .directory-door__count {
@@ -427,7 +442,7 @@ button.action-card:focus-visible {
   color: var(--color-k-accent);
   text-decoration: none;
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: auto;
 }
 
 .directory-door__link:hover {
@@ -440,6 +455,8 @@ button.action-card:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  justify-content: center;
 }
 
 .launchpad-door__headline {
