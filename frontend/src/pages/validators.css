@@ -985,6 +985,28 @@
 }
 .val-valopers__cta:hover { text-decoration: underline; }
 .val-valopers__empty { font-size: 13px; color: var(--color-text-muted); padding: 6px 0; }
+
+/* Each status group (Active / Candidates) is its own labelled section. */
+.val-valopers__section { margin-top: 16px; }
+.val-valopers__section:first-of-type { margin-top: 0; }
+.val-valopers__section-head { margin-bottom: 10px; }
+.val-valopers__section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.val-valopers__section-note {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
 .val-valopers__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
@@ -1013,17 +1035,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.val-valoper-status {
-    flex: none;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+/* Candidate count pill — amber, mirroring the candidate accent. */
+.val-valopers__count--candidate {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.3);
 }
-.val-valoper-status--active    { color: #00d4aa; background: rgba(0, 212, 170, 0.12); border: 1px solid rgba(0, 212, 170, 0.35); }
-.val-valoper-status--candidate { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); }
 .val-valoper-card__server {
     align-self: flex-start;
     font-size: 11px;
