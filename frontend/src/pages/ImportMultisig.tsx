@@ -172,7 +172,7 @@ export function ImportMultisig() {
                     members = parsed.value?.pubkeys?.length?.toString() || "?"
                 } catch { /* ignore */ }
                 return (
-                    <div className="k-card" style={{ borderColor: "rgba(0,212,170,0.2)", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div className="k-card" style={{ borderColor: "var(--color-k-accent-border)", display: "flex", flexDirection: "column", gap: 12 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 16, display: 'flex' }}><LinkSimple size={16} /></span>
                             <span style={{ fontWeight: 600, fontSize: 14 }}>You've been invited to join a multisig</span>
@@ -200,7 +200,7 @@ export function ImportMultisig() {
             })()}
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
+                <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
                     <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to import a multisig
                     </p>
@@ -208,13 +208,13 @@ export function ImportMultisig() {
             )}
 
             {/* Mode tabs */}
-            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #222" }}>
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--color-k-edge)" }}>
                 <button
                     onClick={() => setMode("address")}
                     style={{
                         padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: mode === "address" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: mode === "address" ? "#00d4aa" : "#666",
+                        borderBottom: mode === "address" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
+                        color: mode === "address" ? "var(--color-k-accent)" : "var(--color-k-muted)",
                         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
                         cursor: "pointer", transition: "all 0.15s",
                     }}
@@ -225,8 +225,8 @@ export function ImportMultisig() {
                     onClick={() => setMode("pubkey")}
                     style={{
                         padding: "10px 20px", background: "none", border: "none",
-                        borderBottom: mode === "pubkey" ? "2px solid #00d4aa" : "2px solid transparent",
-                        color: mode === "pubkey" ? "#00d4aa" : "#666",
+                        borderBottom: mode === "pubkey" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
+                        color: mode === "pubkey" ? "var(--color-k-accent)" : "var(--color-k-muted)",
                         fontFamily: "JetBrains Mono, monospace", fontSize: 12,
                         cursor: "pointer", transition: "all 0.15s",
                     }}
@@ -248,7 +248,7 @@ export function ImportMultisig() {
                             disabled={loading}
                             style={{
                                 width: "100%", height: 44, padding: "0 16px", borderRadius: 8,
-                                background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
+                                background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
                                 fontFamily: "JetBrains Mono, monospace", fontSize: 14, outline: "none",
                                 opacity: loading ? 0.5 : 1,
                             }}
@@ -287,7 +287,7 @@ export function ImportMultisig() {
                             disabled={loading}
                             style={{
                                 width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-                                background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
+                                background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
                                 fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
                             }}
                         />
@@ -311,7 +311,7 @@ export function ImportMultisig() {
                             rows={10}
                             style={{
                                 width: "100%", padding: "12px", borderRadius: 8,
-                                background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
+                                background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
                                 fontFamily: "JetBrains Mono, monospace", fontSize: 12, outline: "none",
                                 resize: "vertical", lineHeight: 1.6, opacity: loading ? 0.5 : 1,
                             }}

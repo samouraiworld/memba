@@ -44,8 +44,8 @@ export function TreasuryProposal() {
                     role="alert"
                     style={{
                         padding: "24px 20px", borderRadius: 8,
-                        background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
-                        fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                        background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
+                        fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-warning)",
                         lineHeight: 1.7, textAlign: "center",
                     }}
                 >
@@ -121,7 +121,7 @@ export function TreasuryProposal() {
             </div>
 
             {!auth.isAuthenticated && (
-                <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
+                <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
                     <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to propose a treasury spend
                     </p>
@@ -129,7 +129,7 @@ export function TreasuryProposal() {
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "rgba(0,212,170,0.08)", borderRadius: 8, border: "1px solid rgba(0,212,170,0.2)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -224,7 +224,7 @@ const hintStyle: React.CSSProperties = {
 function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
-        background: "#0c0c0c", border: "1px solid #222", color: "var(--color-text)",
+        background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
         fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
         opacity: loading ? 0.5 : 1,
     }
