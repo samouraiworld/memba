@@ -64,9 +64,25 @@ export function DAOCard({ name, path, isSaved, category, metadata, onClick, onSa
                     {cat && (
                         <span
                             className="dir-inline-badge dir-category-badge"
-                            style={{ backgroundColor: `${cat.color}22`, color: cat.color, borderColor: `${cat.color}44` }}
+                            // Theme-aware: the category color is the border + leading dot,
+                            // text uses the standard token, and the fill is a token panel.
+                            // (Previously a low-alpha `${cat.color}22` fill behind `cat.color`
+                            // text — unreadable on the light theme, esp. the yellow/amber categories.)
+                            style={{ backgroundColor: "var(--color-k-panel)", color: "var(--color-text-secondary)", borderColor: cat.color }}
                             data-testid="dao-category"
                         >
+                            <span
+                                aria-hidden="true"
+                                style={{
+                                    display: "inline-block",
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    backgroundColor: cat.color,
+                                    marginRight: 5,
+                                    verticalAlign: 1,
+                                }}
+                            />
                             {cat.label}
                         </span>
                     )}

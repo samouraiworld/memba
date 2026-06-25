@@ -107,7 +107,7 @@
 }
 
 .dir-search:focus {
-    border-color: rgba(0, 212, 170, 0.3);
+    border-color: var(--color-k-accent-border-strong);
 }
 
 .dir-search::placeholder {
@@ -181,8 +181,8 @@
 }
 
 .dir-card:hover {
-    border-color: rgba(0, 212, 170, 0.15);
-    background: rgba(0, 212, 170, 0.02);
+    border-color: var(--color-k-accent-border);
+    background: var(--color-k-accent-subtle);
     transform: translateY(-1px);
 }
 
@@ -244,7 +244,7 @@ a.dir-card {
 }
 
 .dir-category-pill[data-active="true"] {
-    background: rgba(0, 212, 170, 0.06);
+    background: var(--color-k-accent-subtle);
 }
 
 .dir-card-meta {
@@ -279,13 +279,13 @@ a.dir-card {
 }
 
 .dir-badge-saved {
-    background: rgba(0, 212, 170, 0.08);
+    background: var(--color-k-accent-subtle);
     color: var(--color-primary);
 }
 
 .dir-badge-active {
     background: rgba(34, 197, 94, 0.08);
-    color: #22c55e;
+    color: var(--color-success);
 }
 
 .dir-badge-seed {
@@ -305,8 +305,8 @@ a.dir-card {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(0, 212, 170, 0.06);
-    border: 1px solid rgba(0, 212, 170, 0.12);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -394,23 +394,25 @@ a.dir-card {
     overflow-x: auto;
     padding-bottom: 8px;
     scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
+    scrollbar-color: var(--color-k-edge-hover) transparent;
 }
 
 .dir-featured-card {
     min-width: 280px;
     flex-shrink: 0;
     padding: 18px 22px;
-    border: 1px solid rgba(0, 212, 170, 0.1);
+    border: 1px solid var(--color-k-featured-border);
     border-radius: 14px;
-    background: linear-gradient(135deg, rgba(0, 212, 170, 0.04) 0%, rgba(13, 13, 13, 0.9) 100%);
+    /* Theme-aware teal tint → legible in both themes (was a near-black
+       rgba(13,13,13,0.9) stop that washed out text on the light theme). */
+    background: linear-gradient(135deg, var(--color-k-accent-subtle) 0%, var(--color-k-featured-bg) 100%);
     backdrop-filter: blur(12px);
     cursor: pointer;
     transition: border-color 0.2s, transform 0.15s;
 }
 
 .dir-featured-card:hover {
-    border-color: rgba(0, 212, 170, 0.25);
+    border-color: var(--color-k-accent-border);
     transform: translateY(-2px);
 }
 
@@ -447,8 +449,8 @@ a.dir-card {
     font-size: 9px;
     padding: 3px 8px;
     border-radius: 4px;
-    border: 1px solid rgba(0, 212, 170, 0.2);
-    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid var(--color-k-accent-border);
+    background: var(--color-k-accent-subtle);
     color: var(--color-primary);
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
@@ -458,13 +460,13 @@ a.dir-card {
 }
 
 .dir-save-btn:hover {
-    background: rgba(0, 212, 170, 0.12);
-    border-color: rgba(0, 212, 170, 0.35);
+    background: var(--color-k-accent-tint);
+    border-color: var(--color-k-accent-border-strong);
 }
 
 .dir-save-btn[data-saved="true"] {
-    background: rgba(0, 212, 170, 0.1);
-    border-color: rgba(0, 212, 170, 0.3);
+    background: var(--color-k-accent-tint);
+    border-color: var(--color-k-accent-border);
     cursor: default;
 }
 
@@ -487,9 +489,9 @@ a.dir-card {
 /* ── Live Deployment Badge ─────────────────────────── */
 
 .dir-inline-badge--live {
-    background: rgba(0, 212, 170, 0.12);
+    background: var(--color-k-accent-tint);
     color: var(--color-primary);
-    border-color: rgba(0, 212, 170, 0.3);
+    border-color: var(--color-k-accent-border-strong);
 }
 
 /* ── Gnoweb Link ──────────────────────────────────── */
@@ -502,13 +504,13 @@ a.dir-card {
     text-decoration: none;
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid rgba(0, 212, 170, 0.3);
+    border: 1px solid var(--color-k-accent-border-strong);
     white-space: nowrap;
     transition: background 150ms ease;
 }
 
 .dir-gnoweb-link:hover {
-    background: rgba(0, 212, 170, 0.1);
+    background: var(--color-k-accent-subtle);
 }
 
 .dir-card-actions {
@@ -616,8 +618,8 @@ a.dir-card {
     gap: 16px;
     padding: 10px 20px;
     border-radius: 10px;
-    background: rgba(0, 212, 170, 0.03);
-    border: 1px solid rgba(0, 212, 170, 0.08);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     font-family: "JetBrains Mono", monospace;
     flex-wrap: wrap;
 }
@@ -686,7 +688,7 @@ a.dir-card {
 }
 
 .dir-search--global:focus {
-    border-color: rgba(0, 212, 170, 0.3);
+    border-color: var(--color-k-accent-border-strong);
 }
 
 .dir-search--global::placeholder {
@@ -699,14 +701,14 @@ a.dir-card {
     display: block;
     padding: 12px 16px;
     border-radius: 8px;
-    background: rgba(0, 212, 170, 0.03);
-    border: 1px solid rgba(0, 212, 170, 0.1);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     text-decoration: none;
     transition: border-color 0.15s;
 }
 
 .dir-realm-preview:hover {
-    border-color: rgba(0, 212, 170, 0.25);
+    border-color: var(--color-k-accent-border);
 }
 
 .dir-realm-preview__path {
@@ -840,7 +842,7 @@ a.dir-card {
 
 .dir-govdao-card:hover {
     background: var(--color-surface-hover);
-    border-color: rgba(0, 212, 170, 0.15);
+    border-color: var(--color-k-accent-border);
 }
 
 .dir-govdao-card__id {
@@ -1021,8 +1023,8 @@ a.dir-card {
 .dir-render-preview__link--primary {
     color: var(--color-primary);
     font-weight: 600;
-    background: rgba(0, 212, 170, 0.08);
-    border: 1px solid rgba(0, 212, 170, 0.2);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     border-radius: 4px;
     padding: 4px 10px;
     cursor: pointer;
@@ -1032,7 +1034,7 @@ a.dir-card {
 }
 
 .dir-render-preview__link--primary:hover {
-    background: rgba(0, 212, 170, 0.15);
+    background: var(--color-k-accent-tint);
 }
 
 /* ── Drawer Overlay & Panel ───────────────────── */
@@ -1180,7 +1182,7 @@ a.dir-card {
 .drawer-skeleton__line {
     height: 12px;
     border-radius: 4px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 75%);
+    background: linear-gradient(90deg, var(--color-k-hover-surface) 25%, var(--color-k-panel-hover) 50%, var(--color-k-hover-surface) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -1309,8 +1311,8 @@ a.dir-card {
 .source-copy-btn {
     padding: 3px 10px;
     border-radius: 4px;
-    background: rgba(0, 212, 170, 0.08);
-    border: 1px solid rgba(0, 212, 170, 0.2);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     color: var(--color-primary);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
@@ -1319,7 +1321,7 @@ a.dir-card {
 }
 
 .source-copy-btn:hover {
-    background: rgba(0, 212, 170, 0.15);
+    background: var(--color-k-accent-tint);
 }
 
 .source-code-area {
@@ -1625,8 +1627,8 @@ a.dir-card {
     width: 100%;
     padding: 10px 16px;
     border-radius: 8px;
-    background: rgba(0, 212, 170, 0.08);
-    border: 1px solid rgba(0, 212, 170, 0.2);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
     color: var(--color-primary);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
@@ -1638,7 +1640,7 @@ a.dir-card {
 }
 
 .token-drawer-action:hover {
-    background: rgba(0, 212, 170, 0.15);
+    background: var(--color-k-accent-tint);
 }
 
 /* ── Responsive Drawer ────────────────────────── */

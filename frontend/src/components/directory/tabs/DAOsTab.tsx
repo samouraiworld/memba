@@ -7,6 +7,7 @@
 import { useState, useMemo, useDeferredValue, useEffect } from "react"
 import { GNO_RPC_URL } from "../../../lib/config"
 import { getDirectoryDAOs } from "../../../lib/directory"
+import { useResolvedDirectoryDaos } from "../../../hooks/useResolvedDirectoryDaos"
 import { encodeSlug } from "../../../lib/daoSlug"
 import { batchGetDAOMetadata, type DAOMetadata } from "../../../lib/daoMetadata"
 import { DAOCard, FeaturedDAOs } from "../index"
@@ -23,22 +24,28 @@ export function DAOsTab({ navigate }: TabProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const allDAOs = useMemo(() => getDirectoryDAOs(), [daoRefreshKey])
 
-    // Fetch metadata for all DAOs on mount
+    // R2-D2: the seed+saved list is not network-aware, so it can contain DAOs
+    // deployed on another testnet (or never deployed) that 404 on the active
+    // network. Resolve each on-chain and show only the ones that render here.
+    const { daos: resolvedDAOs, loading: resolving } = useResolvedDirectoryDaos(allDAOs, GNO_RPC_URL)
+
+    // Fetch metadata for the resolved DAOs (skip the ones we already dropped).
     useEffect(() => {
-        const paths = allDAOs.map(d => d.path)
+        const paths = resolvedDAOs.map(d => d.path)
+        if (paths.length === 0) return
         batchGetDAOMetadata(GNO_RPC_URL, paths)
             .then(setMetadata)
             .catch(() => { /* best-effort */ })
-    }, [allDAOs])
+    }, [resolvedDAOs])
 
     const filtered = useMemo(() =>
         deferredSearch
-            ? allDAOs.filter(d =>
+            ? resolvedDAOs.filter(d =>
                 d.name.toLowerCase().includes(deferredSearch.toLowerCase()) ||
                 d.path.toLowerCase().includes(deferredSearch.toLowerCase()),
             )
-            : allDAOs,
-        [allDAOs, deferredSearch])
+            : resolvedDAOs,
+        [resolvedDAOs, deferredSearch])
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -64,7 +71,11 @@ export function DAOsTab({ navigate }: TabProps) {
                 </button>
             </div>
 
-            {filtered.length === 0 ? (
+            {resolving && filtered.length === 0 ? (
+                <div className="dir-empty" data-testid="dao-resolving">
+                    <p>Loading DAOs on this network…</p>
+                </div>
+            ) : filtered.length === 0 ? (
                 <div className="dir-empty">
                     <p>{search ? `No DAOs matching "${search}"` : "No DAOs found"}</p>
                 </div>
