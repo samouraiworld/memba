@@ -30,6 +30,10 @@ vi.mock("../../lib/dao/shared", () => ({
 
 vi.mock("../../lib/directory", () => ({
     parseUserRegistry: vi.fn(),
+    // Composition-count sources (R2-H5). Default to small seed-list lengths;
+    // individual tests override as needed.
+    fetchRealms: vi.fn(() => Array.from({ length: 11 }, (_, i) => ({ path: `r${i}` }))),
+    fetchPackages: vi.fn(() => Array.from({ length: 15 }, (_, i) => ({ path: `p${i}` }))),
 }))
 
 vi.mock("../../lib/config", () => ({
@@ -117,6 +121,33 @@ describe("useDirectoryHighlights — member count", () => {
         await waitFor(() => expect(result.current.loading).toBe(false))
 
         expect(result.current.memberCount).toBe(0)
+    })
+})
+
+describe("useDirectoryHighlights — composition counts (R2-H5)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(configMod.isRealmValidOn).mockReturnValue(true)
+        vi.mocked(snapshotMod.useHomeSnapshot).mockReturnValue({ snapshot: null, usable: false, isLoading: false })
+    })
+
+    it("exposes realmCount and packageCount from the seed-list sources", async () => {
+        vi.mocked(tractionMod.fetchTractionMetrics).mockResolvedValue(MOCK_TRACTION)
+        vi.mocked(sharedMod.queryRender).mockResolvedValue(null)
+        vi.mocked(directoryMod.parseUserRegistry).mockReturnValue([])
+        vi.mocked(directoryMod.fetchRealms).mockReturnValue(
+            Array.from({ length: 9 }, (_, i) => ({ path: `r${i}` })) as never,
+        )
+        vi.mocked(directoryMod.fetchPackages).mockReturnValue(
+            Array.from({ length: 13 }, (_, i) => ({ path: `p${i}` })) as never,
+        )
+
+        const { useDirectoryHighlights } = await import("./useDirectoryHighlights")
+        const { result } = renderHook(() => useDirectoryHighlights(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.realmCount).toBe(9)
+        expect(result.current.packageCount).toBe(13)
     })
 })
 

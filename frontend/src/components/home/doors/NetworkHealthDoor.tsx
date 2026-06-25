@@ -25,10 +25,70 @@
 import { Door } from "../Door"
 import { useValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import { useNetworkPulse } from "../../../hooks/home/useNetworkPulse"
+import { useBlockTimeSeries } from "../../../hooks/home/useBlockTimeSeries"
 import "../home.css"
 
 export interface NetworkHealthDoorProps {
     networkKey: string
+}
+
+const SPARK_W = 100
+const SPARK_H = 24
+const SPARK_PAD = 2
+
+/**
+ * Map an interval series → `<polyline>` points across an SPARK_W×SPARK_H box.
+ * Pure & deterministic (exported-style for the test to count points). Taller =
+ * longer block interval. A flat series (max===min) sits on the mid-line. Caller
+ * guarantees series.length >= 1; an empty series renders no sparkline upstream.
+ */
+function sparkPoints(series: number[]): string {
+    const max = Math.max(...series)
+    const min = Math.min(...series)
+    const span = max - min
+    const innerW = SPARK_W - SPARK_PAD * 2
+    const innerH = SPARK_H - SPARK_PAD * 2
+    // One x-step per gap; a single point pins to the left edge.
+    const stepX = series.length > 1 ? innerW / (series.length - 1) : 0
+    return series
+        .map((v, i) => {
+            const x = SPARK_PAD + i * stepX
+            // Invert y (SVG y grows downward); flat series → mid-line.
+            const norm = span > 0 ? (v - min) / span : 0.5
+            const y = SPARK_PAD + (1 - norm) * innerH
+            return `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`
+        })
+        .join(" ")
+}
+
+/**
+ * Compact inline sparkline of recent block intervals (R2-H4a). Static (no
+ * animation — reduced-motion safe by construction). Token-colored via the
+ * accent CSS variable. Decorative: aria-hidden, no nested interactive elements.
+ */
+function BlockTimeSparkline({ series }: { series: number[] }) {
+    return (
+        <svg
+            className="network-health-door__spark"
+            viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+            width={SPARK_W}
+            height={SPARK_H}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+            data-testid="network-health-sparkline"
+        >
+            <polyline
+                points={sparkPoints(series)}
+                fill="none"
+                stroke="var(--color-k-accent)"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+            />
+        </svg>
+    )
 }
 
 function statusLabel(status: "healthy" | "degraded" | "down" | "unknown"): string {
@@ -52,6 +112,9 @@ export function NetworkHealthDoor({ networkKey }: NetworkHealthDoorProps) {
     const { status, active, total, loading } = useValidatorHealth()
     // Reuse the StatusStrip's pulse for block height/time — no new RPC fetch.
     const { blockHeight, avgBlockTime } = useNetworkPulse()
+    // Recent block intervals for the sparkline — via the /api/indexer proxy
+    // (same path as the activity feed). Empty/unavailable → no sparkline.
+    const { series } = useBlockTimeSeries()
 
     const validatorsHref = `/${networkKey}/validators`
 
@@ -107,6 +170,9 @@ export function NetworkHealthDoor({ networkKey }: NetworkHealthDoorProps) {
                         )}
                     </span>
                 )}
+                {/* Real recent block-interval sparkline — omitted when the indexer
+                    has no window (honesty: never a flat fabricated line). */}
+                {series.length > 0 && <BlockTimeSparkline series={series} />}
             </div>
         </Door>
     )

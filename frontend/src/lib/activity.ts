@@ -153,7 +153,7 @@ interface GraphQLResponse<T> {
     errors?: { message: string }[]
 }
 
-async function gql<T>(indexerUrl: string, query: string, signal?: AbortSignal): Promise<T> {
+export async function gql<T>(indexerUrl: string, query: string, signal?: AbortSignal): Promise<T> {
     const res = await fetch(indexerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
