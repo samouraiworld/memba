@@ -130,6 +130,7 @@ function detectMaxPage(data: string): number {
 export async function getDAOProposals(
     rpcUrl: string,
     realmPath: string,
+    strict = false,
 ): Promise<DAOProposal[]> {
     // Check cache first
     const cacheKey = `${rpcUrl}:${realmPath}`
@@ -139,7 +140,7 @@ export async function getDAOProposals(
     }
 
     // Try JSON endpoint first (basedao)
-    const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`)
+    const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`, strict)
     if (json) {
         try {
             const match = json.match(/\("(.+)"\s+string\)/s)
@@ -171,7 +172,7 @@ export async function getDAOProposals(
     }
 
     // GovDAO v3 / basedao: parse Render("") markdown — with pagination
-    const page1 = await queryRender(rpcUrl, realmPath, "")
+    const page1 = await queryRender(rpcUrl, realmPath, "", strict)
     if (!page1) return []
 
     const proposals = parseProposalList(page1)

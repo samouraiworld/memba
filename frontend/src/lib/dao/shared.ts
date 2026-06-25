@@ -87,15 +87,15 @@ export type { AminoMsg }
  * Query vm/qrender for a realm's Render(path) output.
  * Data format: "pkgpath:renderpath" (colon separator).
  */
-export async function queryRender(rpcUrl: string, pkgPath: string, renderPath: string): Promise<string | null> {
-    return abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`)
+export async function queryRender(rpcUrl: string, pkgPath: string, renderPath: string, strict = false): Promise<string | null> {
+    return abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`, strict)
 }
 
 /**
  * Query vm/qeval for evaluating an expression in a realm.
  */
-export async function queryEval(rpcUrl: string, pkgPath: string, expr: string): Promise<string | null> {
-    return abciQuery(rpcUrl, "vm/qeval", `${pkgPath}.${expr}`)
+export async function queryEval(rpcUrl: string, pkgPath: string, expr: string, strict = false): Promise<string | null> {
+    return abciQuery(rpcUrl, "vm/qeval", `${pkgPath}.${expr}`, strict)
 }
 
 /**
@@ -117,8 +117,8 @@ export function sanitize(str: string): string {
  *  Uses TextDecoder for proper UTF-8 handling (atob alone corrupts multi-byte chars like em dash).
  *  The rpcUrl parameter is kept for API compatibility but the resilient layer
  *  handles failover to backup endpoints automatically. */
-async function abciQuery(_rpcUrl: string, path: string, data: string): Promise<string | null> {
-    return resilientAbciQuery(path, data)
+async function abciQuery(_rpcUrl: string, path: string, data: string, strict = false): Promise<string | null> {
+    return resilientAbciQuery(path, data, strict)
 }
 
 // ── Username Resolution ───────────────────────────────────────
