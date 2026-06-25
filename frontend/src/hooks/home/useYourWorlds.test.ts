@@ -339,6 +339,29 @@ describe("useYourWorlds — network scoping (MH2)", () => {
     })
 })
 
+describe("useYourWorlds — network scoping (MH2): untagged that renders nothing here is dropped", () => {
+    // The real stale-DAO leak (E-F9): getDAOConfig resolves to null (the realm
+    // does not render on the active network) WITHOUT throwing, so the queryFn fell
+    // back to the saved name and rendered a dead card. An untagged entry that does
+    // not actually resolve here must be dropped — it was saved on another testnet
+    // (e.g. retired test11/test12), not deployed on test13.
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/test/retired", name: "Retired DAO", addedAt: 1000 },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(null)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+    })
+
+    it("drops an untagged DAO whose realm returns no render on the active network", async () => {
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds).toHaveLength(0)
+    })
+})
+
 describe("useYourWorlds — loading state", () => {
     beforeEach(() => {
         vi.clearAllMocks()
