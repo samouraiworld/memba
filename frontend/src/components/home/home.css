@@ -435,6 +435,147 @@ button.action-card:focus-visible {
   outline-offset: 2px;
 }
 
+/* ── Activity feed (live across gno.land) ─────────────────────── */
+.activity-feed__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-feed__row {
+  margin: 0;
+}
+
+.activity-feed__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-decoration: none;
+  color: var(--color-k-text);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+a.activity-feed__link:hover {
+  background: var(--color-k-panel-hover);
+  border-color: var(--color-k-edge-hover);
+}
+
+a.activity-feed__link:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+.activity-feed__link--static {
+  cursor: default;
+}
+
+.activity-feed__icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--color-k-accent-subtle);
+  color: var(--color-k-accent);
+}
+
+.activity-feed__icon--governance {
+  background: var(--color-k-amber-subtle);
+  color: var(--color-k-amber);
+}
+
+.activity-feed__icon--transfer {
+  background: var(--color-k-elevated);
+  color: var(--color-k-muted);
+}
+
+.activity-feed__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-feed__title {
+  font-size: 13px;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-feed__more {
+  color: var(--color-k-dim);
+}
+
+.activity-feed__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+.activity-feed__actor {
+  font-size: 11px;
+}
+
+.activity-feed__when {
+  margin-left: auto;
+}
+
+.activity-feed__row--skeleton {
+  height: 44px;
+  border-radius: 10px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  opacity: 0.5;
+}
+
+.activity-feed__state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-k-dim);
+  padding: 10px 12px;
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: 10px;
+}
+
+.activity-feed__retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-k-accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .activity-feed__row--skeleton {
+    animation: activity-skeleton-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes activity-skeleton-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.6; }
+  }
+}
+
 .explore-tile__icon {
   color: var(--color-k-accent);
   flex-shrink: 0;

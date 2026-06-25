@@ -67,6 +67,9 @@ interface NetworkConfig {
      *  see more and are unioned by getAggregatedNetPeers. Must be trusted
      *  domains. Optional; falls back to rpcUrl + fallbackRpcUrls. */
     telemetryRpcUrls?: string[]
+    /** Official tx-indexer GraphQL endpoint for recent on-chain activity. Optional —
+     *  when absent (e.g. networks without a public indexer) the activity feed hides. */
+    indexerUrl?: string
     label: string
     userRegistryPath: string
     faucetUrl: string
@@ -117,6 +120,8 @@ export const NETWORKS: Record<string, NetworkConfig> = {
             "https://rpc.test-13-aeddi-1.gnoland.network:443",
             "https://rpc.testnet13.samourai.live:443",
         ],
+        // Official test13 tx-indexer (gno-core, 2026-06-24). Env-overridable.
+        indexerUrl: import.meta.env.VITE_TEST13_INDEXER_URL || "https://indexer.test13.testnets.gno.land/graphql/query",
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
@@ -342,6 +347,16 @@ export function getExplorerBaseUrl(): string {
         case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land"
         default: return `https://${chain}.testnets.gno.land`
     }
+}
+
+/** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot
+ *  call the public tx-indexer directly (it sends no CORS headers), so requests go
+ *  through the backend proxy (`/api/indexer`), which forwards them server-side and
+ *  inherits the backend's CORS. Returns null when the active network has no indexer
+ *  configured — the activity feed then hides itself. */
+export function getIndexerUrl(): string | null {
+    if (!NETWORKS[_activeNetwork]?.indexerUrl) return null
+    return `${API_BASE_URL}/api/indexer`
 }
 
 /** Bech32 human-readable part (HRP) for Gno addresses. */

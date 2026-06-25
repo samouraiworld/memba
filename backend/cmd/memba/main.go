@@ -183,6 +183,9 @@ func main() {
 	// Use /api/render for legitimate read-only queries.
 	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy()))
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
+	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
+	// (the browser can't reach it — no CORS). Target is not client-controlled.
+	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
 	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")
