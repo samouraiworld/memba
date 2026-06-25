@@ -380,49 +380,6 @@ export default function Validators() {
                 </div>
             )}
 
-            {/* ── Valopers — validator onboarding registry (r/gnops/valopers) ── */}
-            {(valopers.length > 0 || valopersLoading) && (
-                <ValoperPanel valopers={valopers} loading={valopersLoading} />
-            )}
-
-            {/* ── Incidents Timeline Chart ────────────────────── */}
-            {incidentsChartData && incidentsChartData.length > 0 && (
-                    <div className="val-health-banner" style={{ marginBottom: 16 }}>
-                        <div className="val-health-banner__title">Incidents Timeline (last 30 days)</div>
-                        <ResponsiveContainer width="100%" height={180}>
-                            <BarChart data={incidentsChartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
-                                <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-                                <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
-                                <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
-                                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
-                                <Bar dataKey="critical" name="Critical" stackId="incidents" fill="#ef4444" />
-                                <Bar dataKey="warning" name="Warning" stackId="incidents" fill="#eab308" />
-                                <Bar dataKey="info" name="Info" stackId="incidents" fill="#3b82f6" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-            )}
-
-            {/* ── Voting Power Distribution ────────────────────── */}
-            {validators.length > 0 && (
-                <div className="val-power-bar" data-testid="power-distribution">
-                    {validators.slice(0, 20).map((v, i) => (
-                        <div
-                            key={v.address}
-                            className="val-power-segment"
-                            style={{
-                                width: `${Math.max(v.powerPercent, 1)}%`,
-                                opacity: 0.4 + (0.6 * (1 - i / Math.max(validators.length, 1))),
-                            }}
-                            title={`#${v.rank} — ${v.moniker || truncateValidatorAddr(v.address)} (${v.powerPercent.toFixed(1)}%)`}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* ── 🕵️ Hacker Mode moved to /validators/hacker ─────── */}
-
             {/* ── Search + Page Size ─────────────────────────────── */}
             <div className="val-toolbar">
                 <input
@@ -631,6 +588,49 @@ export default function Validators() {
                     </button>
                 </div>
             )}
+
+            {/* ── Valopers — validator onboarding registry (r/gnops/valopers) ── */}
+            {(valopers.length > 0 || valopersLoading) && (
+                <ValoperPanel valopers={valopers} loading={valopersLoading} />
+            )}
+
+            {/* ── Incidents Timeline Chart ────────────────────── */}
+            {incidentsChartData && incidentsChartData.length > 0 && (
+                    <div className="val-health-banner" style={{ marginBottom: 16 }}>
+                        <div className="val-health-banner__title">Incidents Timeline (last 30 days)</div>
+                        <ResponsiveContainer width="100%" height={180}>
+                            <BarChart data={incidentsChartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                                <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+                                <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
+                                <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
+                                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                                <Bar dataKey="critical" name="Critical" stackId="incidents" fill="#ef4444" />
+                                <Bar dataKey="warning" name="Warning" stackId="incidents" fill="#eab308" />
+                                <Bar dataKey="info" name="Info" stackId="incidents" fill="#3b82f6" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+            )}
+
+            {/* ── Voting Power Distribution ────────────────────── */}
+            {validators.length > 0 && (
+                <div className="val-power-bar" data-testid="power-distribution">
+                    {validators.slice(0, 20).map((v, i) => (
+                        <div
+                            key={v.address}
+                            className="val-power-segment"
+                            style={{
+                                width: `${Math.max(v.powerPercent, 1)}%`,
+                                opacity: 0.4 + (0.6 * (1 - i / Math.max(validators.length, 1))),
+                            }}
+                            title={`#${v.rank} — ${v.moniker || truncateValidatorAddr(v.address)} (${v.powerPercent.toFixed(1)}%)`}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* ── 🕵️ Hacker Mode moved to /validators/hacker ─────── */}
 
             {/* ── Network Nodes roster (Phase 2b) ─────────────────── */}
             <NetworkNodesRoster netInfo={netInfo} validatorMonikers={valoperMonikers} loading={loading} />
