@@ -381,7 +381,29 @@ User request (2026-06-25): turn the validator/candidate profile page (`ValoperDe
 `ValoperDetail.tsx` + `valoper-detail.css` (current profile), `lib/valopers`, `lib/activity.ts` + `/api/indexer` (on-chain activity by address), `gnoloveApi.ts` (contributions), the quest realm/readers, `lib/dao` (org profiles), `r/sys/users`/`r/demo/profile` (identity/profile fields).
 
 ### Suggested phasing (after Round 2)
-- **P0 · Claude Design** — 2–3 profile mockups (validator + individual + org variants sharing one layout); pick one; write a spec.
-- **P1 · Profile standard + editable profile** — choose/extend the on-chain profile model; read + edit (logo/bio/links) flow.
-- **P2 · Aggregation tabs** — on-chain activity (indexer-by-address), quests, gnolove contributions (read-only, reuse existing sources).
-- **P3 · On-chain reviews realm** — design (+ security review) → deploy → ratings/comments read + write (stars UI, web-of-trust aggregation). Sequence last; highest risk.
+- **P0 · Claude Design** — DONE (2026-06-25): 3 mockups shown; **user LOCKED** layout = **Blend** (Direction B editable identity header + tabs Overview/Reviews/Quests/Contributions/Activity, with Direction A's rating/review hero at top of Overview) and **review eligibility = on-chain interactors** (only addresses that interacted with the subject on-chain may rate; one editable review per account; strong sybil resistance).
+- **P1 · Profile standard + editable profile** — **DECIDED: reuse the existing hybrid** `lib/profile.ts` `UserProfile` (`r/sys/users` username + gnolove + Memba-backend-stored editable bio/avatar/links via `api.updateProfile`) + valoper fields; unify `ValoperDetail.tsx`. **No new on-chain profile realm needed** (editable = backend; the app's established pattern). **P1 read-only restructure SHIPPED as PR #553** (Blend layout, identity header + tabs, graceful degradation). **P1b** (owner edit via `api.updateProfile`) = next.
+- **P2 · Aggregation tabs** — on-chain activity (`/api/indexer` by address), quests, gnolove contributions (read-only, reuse existing sources). Next after P1b.
+- **P3 · On-chain reviews realm** — interactor-gated; design (+ **security review**) → deploy via samcrew-deployer → ratings/comments read + write (stars UI, web-of-trust aggregation). Separate spec; sequence last; highest risk.
+- **Reuse note:** `ProfilePage.tsx` (individual profile) overlaps the new validator profile — a future opportunity to extract shared profile components (contributions/social/packages/votes) for individual/org/validator.
+
+---
+
+## 13. Light-theme contrast + design-system consistency — APP-WIDE (user note, 2026-06-25)
+
+**User:** in **light theme** there is a lot of unreadable text / low-contrast design **everywhere** in the app; text should be black (or much higher contrast). Wants a **well-defined design system with high contrast**, applied + **verified EVERYWHERE**, consistent. This is foundational — it affects every page incl. the new home/profile.
+
+### Why it keeps happening (root causes)
+1. **Hardcoded colors** — components that set raw hex/`rgba(...)` (dark-assumed) instead of `var(--color-k-*)` → unreadable on the light surface. (We've fixed pockets: #541 forms, #549 directory, #550/#551 home cards — but NOT app-wide.)
+2. **Token VALUES** — even token-driven text may use a too-light stop in the `[data-theme="light"]` block (e.g. `--color-k-dim`/`-muted` on `--color-k-bg`) that fails WCAG contrast. The light ramp needs auditing for **AA (≥4.5:1 body, ≥3:1 large)** against its backgrounds.
+3. **No enforced contrast standard** — nothing prevents a new low-contrast color from shipping.
+
+### Approach (a dedicated systematic sweep — NOT per-page whack-a-mole)
+1. **Define/Document the design system** (`index.css` tokens + a short `docs/DESIGN_SYSTEM.md`): for light theme, set text tokens to high-contrast (near-black `--color-k-text` e.g. `#16161d`; raise `-dim`/`-muted` until ≥4.5:1 on bg/panel/elevated); document each token's role + min-contrast target; keep dark parity.
+2. **Find every hardcoded color** — grep `frontend/src` for `#[0-9a-f]{3,6}`, `rgb(`/`rgba(`, `linear-gradient` in `.tsx`/`.css` (excluding `index.css` token defs + intentional code-syntax/category colors) → replace with tokens. This is the bulk.
+3. **Audit token contrast** — compute contrast of each light text token vs its surfaces; bump failing stops.
+4. **Verify EVERYWHERE** — Playwright pass over every route in light mode + an automated contrast check (e.g. axe-core, or a script flagging any text node with computed contrast <4.5:1); fix until clean. Capture before/after.
+5. **Guardrail** — add a lint/CI check (or a documented review rule) so new hardcoded colors / sub-threshold contrast are caught.
+
+### Scope
+Every page/component: home, directory, validators, valoper/profile, DAO pages, proposals, tokens, multisig, quests, gnolove, alerts, settings, modals/drawers, toasts, forms, badges/pills. Overlaps Wave 6a (light-theme) + the per-page fixes already shipped — supersede those with the systematic standard. High priority (foundational); do as its own focused effort.
