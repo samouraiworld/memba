@@ -399,6 +399,54 @@ func TestUpdateTeamMemberRole_LastAdminCannotDemoteSelf(t *testing.T) {
 	}
 }
 
+// TestLeaveTeam_FailsClosedOnRoleQueryError verifies the last-admin guard fails
+// CLOSED when the role/count lookup errors. Previously the Scan errors were
+// swallowed (`_ = ...Scan(&role)`), so role defaulted to "" (non-admin) and the
+// last admin could leave a team that still had other members on a transient DB
+// error — bypassing the "last admin cannot leave" authorization check.
+func TestLeaveTeam_FailsClosedOnRoleQueryError(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	// Alice creates a team (she is the sole admin).
+	aliceToken := h.makeToken(t, "g1alice")
+	createResp, err := h.svc.CreateTeam(ctx, connect.NewRequest(&membav1.CreateTeamRequest{
+		AuthToken: aliceToken, Name: "Test",
+	}))
+	if err != nil {
+		t.Fatal("CreateTeam:", err)
+	}
+	teamID := createResp.Msg.Team.Id
+
+	// Bob joins (as member), so the team has other members besides the last admin.
+	bobToken := h.makeToken(t, "g1bob")
+	if _, err := h.svc.JoinTeam(ctx, connect.NewRequest(&membav1.JoinTeamRequest{
+		AuthToken: bobToken, InviteCode: createResp.Msg.Team.InviteCode,
+	})); err != nil {
+		t.Fatal("JoinTeam:", err)
+	}
+
+	// Simulate a transient failure of the role lookup by dropping the `role`
+	// column. isTeamMember uses COUNT(*) (no `role` reference) so the membership
+	// check still passes and we reach the last-admin guard, but the guard's
+	// `SELECT role ...` query now errors.
+	if _, err := h.db.ExecContext(ctx, `ALTER TABLE team_members DROP COLUMN role`); err != nil {
+		t.Fatal("drop role column:", err)
+	}
+
+	// Alice (the last admin, with Bob still a member) tries to leave.
+	// Must FAIL CLOSED with an internal error — not silently succeed.
+	_, err = h.svc.LeaveTeam(ctx, connect.NewRequest(&membav1.LeaveTeamRequest{
+		AuthToken: aliceToken, TeamId: teamID,
+	}))
+	if err == nil {
+		t.Fatal("expected error: last-admin guard must fail closed when the role query errors, not allow the leave")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Fatalf("expected CodeInternal on role-query failure, got %v (err: %v)", got, err)
+	}
+}
+
 func TestTeamIsolation(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
