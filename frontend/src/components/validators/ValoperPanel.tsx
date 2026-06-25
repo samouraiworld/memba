@@ -2,14 +2,15 @@
  * ValoperPanel — surfaces the test13 validator-onboarding registry
  * (gno.land/r/gnops/valopers) on the Validators page.
  *
- * Shows every registered operator with its live status:
- *   active    — signing address is in the consensus set
- *   candidate — registered on-chain but not yet validating
+ * Shows every registered operator, split into two clearly-separated groups:
+ *   Active validator operators — signing address is in the live consensus set
+ *   Candidates                 — registered on-chain but not yet validating
  *
- * It also makes the onboarding identity model legible — operator address (stable
- * identity) vs signing address (rotatable consensus key) — and links out to the
- * onboarding flow. This is the visible payoff of the valoper system the gno core
- * team shipped for test13.
+ * Candidates get their own dedicated section (not mixed into the active list)
+ * since they are not yet validators. It also makes the onboarding identity model
+ * legible — operator address (stable identity) vs signing address (rotatable
+ * consensus key) — and links out to the onboarding flow. This is the visible
+ * payoff of the valoper system the gno core team shipped for test13.
  */
 import { useMemo } from "react"
 import { type ValoperWithStatus } from "../../lib/valopers"
@@ -30,6 +31,9 @@ const profileUrl = (operatorAddress: string) =>
 // The test13 validator onboarding write-up.
 const ONBOARDING_URL = "https://gno.land/r/gnoland/blog:p/validator-test13"
 
+const byMoniker = (a: ValoperWithStatus, b: ValoperWithStatus) =>
+    a.moniker.localeCompare(b.moniker)
+
 interface ValoperPanelProps {
     valopers: ValoperWithStatus[]
     loading: boolean
@@ -37,24 +41,22 @@ interface ValoperPanelProps {
 
 export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
     const nav = useNetworkNav()
-    const activeCount = useMemo(
-        () => valopers.filter(v => v.status === "active").length,
-        [valopers],
-    )
-    const candidateCount = valopers.length - activeCount
 
-    // Active first, then candidates; alphabetical within each group.
-    const sorted = useMemo(
-        () =>
-            [...valopers].sort((a, b) =>
-                a.status === b.status
-                    ? a.moniker.localeCompare(b.moniker)
-                    : a.status === "active"
-                      ? -1
-                      : 1,
-            ),
-        [valopers],
-    )
+    // Split into the two groups, each alphabetical by moniker. Candidates are
+    // isolated from active operators — they are not yet validators.
+    const { active, candidates } = useMemo(() => {
+        const active: ValoperWithStatus[] = []
+        const candidates: ValoperWithStatus[] = []
+        for (const v of valopers) {
+            (v.status === "active" ? active : candidates).push(v)
+        }
+        active.sort(byMoniker)
+        candidates.sort(byMoniker)
+        return { active, candidates }
+    }, [valopers])
+
+    const goTo = (v: ValoperWithStatus) =>
+        nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })
 
     return (
         <div className="val-valopers" data-testid="valoper-panel">
@@ -70,7 +72,7 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                 </div>
                 <div className="val-valopers__sub">
                     {valopers.length > 0
-                        ? `Registered validator operators · ${activeCount} active · ${candidateCount} candidate${candidateCount === 1 ? "" : "s"}`
+                        ? `Registered validator operators · ${active.length} active · ${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`
                         : "Operators who registered on-chain to run a validator"}
                 </div>
                 <a
@@ -87,66 +89,108 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                 <div className="val-valopers__empty">No valopers registered yet.</div>
             )}
 
-            <div className="val-valopers__grid">
-                {sorted.map(v => (
-                    <div
-                        key={v.operatorAddress}
-                        className="val-valoper-card val-valoper-card--clickable"
-                        data-testid="valoper-card"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })
-                            }
-                        }}
-                    >
-                        <div className="val-valoper-card__top">
-                            <span className="val-valoper-card__moniker">{v.moniker}</span>
-                            <span className={`val-valoper-status val-valoper-status--${v.status}`}>
-                                {v.status === "active" ? "Active" : "Candidate"}
-                            </span>
-                        </div>
-
-                        {v.serverType && (
-                            <span className="val-valoper-card__server">
-                                {SERVER_TYPE_LABEL[v.serverType] ?? v.serverType}
-                            </span>
-                        )}
-
-                        {v.description && (
-                            <p className="val-valoper-card__desc">{v.description}</p>
-                        )}
-
-                        <dl className="val-valoper-card__addrs">
-                            <div>
-                                <dt>Operator</dt>
-                                <dd className="val-mono" title={v.operatorAddress}>
-                                    {truncateValidatorAddr(v.operatorAddress)}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>Signing</dt>
-                                <dd className="val-mono" title={v.signingAddress || "not set"}>
-                                    {v.signingAddress ? truncateValidatorAddr(v.signingAddress) : "—"}
-                                </dd>
-                            </div>
-                        </dl>
-
-                        <a
-                            className="val-valoper-card__profile"
-                            href={profileUrl(v.operatorAddress)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            View on gnoweb ↗
-                        </a>
+            {active.length > 0 && (
+                <section className="val-valopers__section" data-testid="valoper-section-active">
+                    <header className="val-valopers__section-head">
+                        <h3 className="val-valopers__section-title">
+                            Active validator operators
+                            <span className="val-valopers__count">{active.length}</span>
+                        </h3>
+                    </header>
+                    <div className="val-valopers__grid">
+                        {active.map(v => (
+                            <ValoperCard key={v.operatorAddress} valoper={v} onOpen={goTo} />
+                        ))}
                     </div>
-                ))}
+                </section>
+            )}
+
+            {candidates.length > 0 && (
+                <section className="val-valopers__section" data-testid="valoper-section-candidate">
+                    <header className="val-valopers__section-head">
+                        <h3 className="val-valopers__section-title">
+                            Candidates
+                            <span className="val-valopers__count val-valopers__count--candidate">
+                                {candidates.length}
+                            </span>
+                        </h3>
+                        <p className="val-valopers__section-note">
+                            Registered on-chain — not yet in the consensus set.
+                        </p>
+                    </header>
+                    <div className="val-valopers__grid">
+                        {candidates.map(v => (
+                            <ValoperCard key={v.operatorAddress} valoper={v} onOpen={goTo} />
+                        ))}
+                    </div>
+                </section>
+            )}
+        </div>
+    )
+}
+
+interface ValoperCardProps {
+    valoper: ValoperWithStatus
+    onOpen: (v: ValoperWithStatus) => void
+}
+
+/** A single valoper profile card. Status is conveyed by the enclosing section,
+ *  so the card itself carries no redundant status badge. */
+function ValoperCard({ valoper: v, onOpen }: ValoperCardProps) {
+    return (
+        <div
+            className="val-valoper-card val-valoper-card--clickable"
+            data-testid="valoper-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpen(v)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onOpen(v)
+                }
+            }}
+        >
+            <div className="val-valoper-card__top">
+                <span className="val-valoper-card__moniker" data-testid="valoper-card-moniker">
+                    {v.moniker}
+                </span>
             </div>
+
+            {v.serverType && (
+                <span className="val-valoper-card__server">
+                    {SERVER_TYPE_LABEL[v.serverType] ?? v.serverType}
+                </span>
+            )}
+
+            {v.description && (
+                <p className="val-valoper-card__desc">{v.description}</p>
+            )}
+
+            <dl className="val-valoper-card__addrs">
+                <div>
+                    <dt>Operator</dt>
+                    <dd className="val-mono" title={v.operatorAddress}>
+                        {truncateValidatorAddr(v.operatorAddress)}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Signing</dt>
+                    <dd className="val-mono" title={v.signingAddress || "not set"}>
+                        {v.signingAddress ? truncateValidatorAddr(v.signingAddress) : "—"}
+                    </dd>
+                </div>
+            </dl>
+
+            <a
+                className="val-valoper-card__profile"
+                href={profileUrl(v.operatorAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+            >
+                View on gnoweb ↗
+            </a>
         </div>
     )
 }
