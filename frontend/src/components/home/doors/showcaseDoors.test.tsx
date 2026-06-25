@@ -23,6 +23,7 @@ import { DirectoryDoor } from "./DirectoryDoor"
 import { LaunchpadDoor } from "./LaunchpadDoor"
 import { ShowcaseBoard } from "../ShowcaseBoard"
 import type { FeaturedDaoResult } from "../../../hooks/home/useFeaturedDao"
+import type { GovDaoResult } from "../../../hooks/home/useGovDao"
 import type { GnoloveHighlights } from "../../../hooks/home/useGnoloveHighlights"
 import type { ValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import type { DirectoryHighlights } from "../../../hooks/home/useDirectoryHighlights"
@@ -32,6 +33,12 @@ import type { DirectoryHighlights } from "../../../hooks/home/useDirectoryHighli
 const mockUseFeaturedDao = vi.fn<(networkKey: string) => FeaturedDaoResult>()
 vi.mock("../../../hooks/home/useFeaturedDao", () => ({
     useFeaturedDao: (networkKey: string) => mockUseFeaturedDao(networkKey),
+}))
+
+const mockUseGovDao = vi.fn<(networkKey: string) => GovDaoResult>()
+vi.mock("../../../hooks/home/useGovDao", () => ({
+    useGovDao: (networkKey: string) => mockUseGovDao(networkKey),
+    GOVDAO_REALM_PATH: "gno.land/r/gov/dao",
 }))
 
 const mockUseGnoloveHighlights = vi.fn<() => GnoloveHighlights>()
@@ -324,11 +331,9 @@ describe("LaunchpadDoor — static promo", () => {
 
 describe("ShowcaseBoard — all 5 slots in order", () => {
     beforeEach(() => {
-        mockUseFeaturedDao.mockReturnValue({
-            state: "ready",
-            dao: { name: "Memba DAO", members: 42, href: "/test13/dao/r/memba" },
-            invitationHref: "/test13/dao",
-            refetch: vi.fn(),
+        mockUseGovDao.mockReturnValue({
+            state: "ready", name: "GovDAO", openCount: 3, members: 61,
+            href: "/test13/dao/gno.land/r/gov/dao", refetch: vi.fn(),
         })
         mockUseGnoloveHighlights.mockReturnValue({
             top: [{ login: "alice", score: 500 }],
@@ -345,28 +350,28 @@ describe("ShowcaseBoard — all 5 slots in order", () => {
 
     it("renders the board container with all 5 slots", () => {
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
-        expect(screen.getByTestId("showcase-slot-featured")).toBeInTheDocument()
+        expect(screen.getByTestId("showcase-slot-govdao")).toBeInTheDocument()
         expect(screen.getByTestId("showcase-slot-contributors")).toBeInTheDocument()
         expect(screen.getByTestId("showcase-slot-network-health")).toBeInTheDocument()
         expect(screen.getByTestId("showcase-slot-directory")).toBeInTheDocument()
         expect(screen.getByTestId("showcase-slot-launchpad")).toBeInTheDocument()
     })
 
-    it("featured slot is the FIRST child of the board container", () => {
+    it("govdao slot is the FIRST child of the board container", () => {
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
         const board = screen.getByTestId("showcase-board")
-        const featuredSlot = screen.getByTestId("showcase-slot-featured")
-        expect(board.firstElementChild).toBe(featuredSlot)
+        const govSlot = screen.getByTestId("showcase-slot-govdao")
+        expect(board.firstElementChild).toBe(govSlot)
     })
 
-    it("slots appear in DOM order: featured → contributors → network-health → directory → launchpad", () => {
+    it("slots appear in DOM order: govdao → contributors → network-health → directory → launchpad", () => {
         renderWithProviders(<ShowcaseBoard networkKey="test13" />)
         const board = screen.getByTestId("showcase-board")
         const slotIds = Array.from(board.children).map(
             (el) => el.getAttribute("data-slot"),
         )
         expect(slotIds).toEqual([
-            "featured",
+            "govdao",
             "contributors",
             "network-health",
             "directory",
