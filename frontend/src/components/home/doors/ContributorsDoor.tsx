@@ -1,25 +1,14 @@
 /**
  * ContributorsDoor — visitor showcase door for top Gnolove contributors.
  *
- * variant="list", eyebrow "top contributors".
- * Data source: useGnoloveHighlights (reuses GnolovePanel's hook — no new fetch).
- *
- * State mapping:
- *   - loading: Door skeleton (Gnolove is an off-chain HTTP call; resolves quickly).
- *   - ready (top.length > 0): top 3 contributors (login + score). Link → gnolove.
- *   - empty (top.length === 0, not loading): invitation to Open Gnolove.
- *     Never renders "0" or "—" — blank contributor count is simply omitted.
- *
- * Refetch: useGnoloveHighlights wraps react-query but does not surface a
- * refetch in its returned interface (returns only top/contributorCount/loading).
- * No onRetry is wired — the Door does not render a retry button in the empty
- * state (empty → invitation, not error). The hook will retry automatically via
- * react-query's default behavior. If a genuine error path is needed in future,
- * surface query.refetch from useGnoloveHighlights and wire it here.
+ * variant="list", eyebrow "top contributors". Data: useGnoloveHighlights.
+ * Shows the top-3 with a real avatar (Gnolove/GitHub image, initials fallback)
+ * and a score bar (relative to the #1 contributor). Honesty: empty → invitation,
+ * never a "0"/"—".
  *
  * @module components/home/doors/ContributorsDoor
  */
-
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Door } from "../Door"
 import { useGnoloveHighlights } from "../../../hooks/home/useGnoloveHighlights"
@@ -31,9 +20,31 @@ export interface ContributorsDoorProps {
 
 /** Render initials from a login (up to 2 chars, uppercased). */
 function initials(login: string): string {
-    const parts = login.split(/[-_\s]/)
+    const parts = login.split(/[-_\s]/).filter(Boolean)
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
     return login.slice(0, 2).toUpperCase()
+}
+
+/** Real contributor avatar with initials fallback on absence or load error. */
+function ContributorAvatar({ login, avatarUrl }: { login: string; avatarUrl?: string }) {
+    const [failed, setFailed] = useState(false)
+    if (avatarUrl && !failed) {
+        return (
+            <img
+                src={avatarUrl}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                className="contributors-door__avatar contributors-door__avatar--img"
+                onError={() => setFailed(true)}
+            />
+        )
+    }
+    return (
+        <span className="contributors-door__avatar" aria-hidden="true">
+            {initials(login)}
+        </span>
+    )
 }
 
 export function ContributorsDoor({ networkKey }: ContributorsDoorProps) {
@@ -42,13 +53,7 @@ export function ContributorsDoor({ networkKey }: ContributorsDoorProps) {
     const gnoloveHref = `/${networkKey}/gnolove`
 
     if (loading) {
-        return (
-            <Door
-                variant="list"
-                state="loading"
-                eyebrow="top contributors"
-            />
-        )
+        return <Door variant="list" state="loading" eyebrow="top contributors" />
     }
 
     // Empty: no contributors yet — show invitation to gnolove.
@@ -63,20 +68,28 @@ export function ContributorsDoor({ networkKey }: ContributorsDoorProps) {
         )
     }
 
+    const topScore = top[0]?.score || 0
+
     return (
         <Door variant="list" state="ready" eyebrow="top contributors">
             <div className="contributors-door">
                 <ol className="contributors-door__list">
-                    {top.map((entry, i) => (
-                        <li key={entry.login} className="contributors-door__entry">
-                            <span className="contributors-door__rank">#{i + 1}</span>
-                            <span className="contributors-door__avatar" aria-hidden="true">
-                                {initials(entry.login)}
-                            </span>
-                            <span className="contributors-door__login">{entry.login}</span>
-                            <span className="contributors-door__score">{entry.score}</span>
-                        </li>
-                    ))}
+                    {top.map((entry, i) => {
+                        const pct = topScore > 0 ? Math.round((entry.score / topScore) * 100) : 0
+                        return (
+                            <li key={entry.login} className="contributors-door__entry">
+                                <div className="contributors-door__row">
+                                    <span className="contributors-door__rank">#{i + 1}</span>
+                                    <ContributorAvatar login={entry.login} avatarUrl={entry.avatarUrl} />
+                                    <span className="contributors-door__login">{entry.login}</span>
+                                    <span className="contributors-door__score">{entry.score}</span>
+                                </div>
+                                <div className="contributors-door__bar" aria-hidden="true">
+                                    <div className="contributors-door__bar-fill" style={{ width: `${pct}%` }} />
+                                </div>
+                            </li>
+                        )
+                    })}
                 </ol>
                 <Link to={gnoloveHref} className="contributors-door__link">
                     Open Gnolove

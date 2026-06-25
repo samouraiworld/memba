@@ -575,8 +575,32 @@ button.action-card:focus-visible {
 
 .contributors-door__entry {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contributors-door__row {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.contributors-door__avatar--img {
+  object-fit: cover;
+  background: var(--color-k-panel);
+}
+
+.contributors-door__bar {
+  height: 3px;
+  background: var(--color-k-edge);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.contributors-door__bar-fill {
+  height: 3px;
+  background: var(--color-k-accent);
+  border-radius: 2px;
 }
 
 .contributors-door__rank {
