@@ -329,3 +329,30 @@ Rollback: every change is an isolated PR; revert the PR. No DB migration is dest
 - **gno-core forward watchlist:** §1.2.
 - **Conflict-watch files:** §0.
 - **Key source files:** `pages/Home.tsx`, `components/home/{ShowcaseBoard,Door,StatusStrip,VisitorHero,ActionInbox,StateBoard}.tsx`, `components/home/doors/*`, `components/home/panels/YourWorldsPanel.tsx`, `hooks/home/{useYourWorlds,useHomeActions,useHomeSnapshot,useGnoloveHighlights,useValidatorHealth,useDirectoryHighlights,useFeaturedDao}.ts`, `lib/{config,dao,daoSlug}.ts`, `backend/internal/service/home_rpc.go`, `backend/internal/service/render_proxy.go`, `api/memba/v1/memba.proto`.
+
+---
+
+## 11. Round 2 — post-go-live refinements (user feedback, 2026-06-25)
+
+After the home, validators-split, and activity feed went live, the user reviewed prod and filed these. **Honesty contract still holds** — every "show more info" below is backed by REAL reachable data (mapped via an Explore pass); where the original mockup viz was dropped for lack of data, the now-live indexer/RPC make it real.
+
+### Home (`memba.samourai.app/test13/`)
+- **R2-H1 · GovDAO card color** — the current gold/amber reads as a warning tone; pick a more premium/distinct governance color (keep it visually different from the teal community cards). *Door/spotlight CSS.*
+- **R2-H2 · GovDAO card too empty** — surface real data now (not just "1 member"): open-proposal count, latest proposal title + status, member count, threshold. Source: `getDAOProposals`/`getDAOConfig` already fetched in `useGovDao` (just pass more through).
+- **R2-H3 · Cards clickable + hover** — make the whole of each card (contributors/network/directory/launchpad) navigable (`Door` already supports `href`) and add a hover state revealing a bit more (e.g. tooltip/secondary metrics). Today only Launchpad uses the full-card `href`.
+- **R2-H4 · Mockup-fidelity viz** — restore the per-card mini-viz from Direction C that were dropped (no data then): **network block-time sparkline** (real, from indexer `getBlocks` recent block intervals / RPC `/status`), **directory breakdown** (realms/packages/users). Contributor avatars + score bars already shipped.
+- **R2-H5 · Directory card richer** — beyond "294 members": realms, packages, users, tokens counts (Directory page tabs already source these via `lib/directory.ts`; reuse on the card).
+- **R2-H6 · Network health richer** — show validators (active/total), candidates (from valopers), block height, latest + AVG block time. All real: `getNetworkStats` (`lib/validators.ts`) + valoper counts.
+- **R2-H7 · Ecosystem band as listings** — "1 tokens / 8 validators" should expand to the actual items inline (token rows from `fetchTokens`, validator rows from `getValidators`) with their metrics, not just a count.
+
+### Directory (`/test13/directory`)
+- **R2-D1 · Light theme broken** — `directory.css` `.dir-featured-card` gradient uses `rgba(13,13,13,0.9)` (near-black, unreadable on light) + low-opacity teal overlays + `DAOCard` inline `${cat.color}22` hardcoded hex. Replace with `var(--color-k-*)` tokens / theme-aware values.
+- **R2-D2 · Stale DAOs** — `getDirectoryDAOs()` = hardcoded `SEED_DAOS` + localStorage saved, with NO on-chain resolve. FOUFOU DAO CLUB / hihihi / Surf Club DAO / French Boulangerie don't resolve on test13. Apply the home E-F9 pattern: only show DAOs that actually render on the active network (per-DAO resolve check), drop/section the rest.
+
+### Validators (`/test13/validators`)
+- **R2-V1 · Section order** — move the validator metrics **table** (toolbar + `.val-table-wrap` + pagination, `Validators.tsx` ~426–633) to directly AFTER the Network Health banner (line ~381) and BEFORE the ValoperPanel (line ~383), so live network metrics lead, then the valoper/candidate roster.
+
+### Sequencing (independent PRs, all preview- then prod-verified)
+- **R2-V1** (validators reorder) — quick, isolated → ship first.
+- **R2-D1/D2** (directory light-theme + stale filter) — isolated to Directory.
+- **R2-H1/H2/H3** (GovDAO color+richness, clickable+hover) then **R2-H4/H5/H6** (network/directory viz+metrics) then **R2-H7** (ecosystem listings) — home cards, sequenced.
