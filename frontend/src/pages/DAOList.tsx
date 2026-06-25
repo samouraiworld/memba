@@ -321,7 +321,19 @@ function DAOCard({
     ].filter(Boolean).join(" ")
 
     return (
-        <div className={cardClass} onClick={onOpen}>
+        <div
+            className={cardClass}
+            onClick={onOpen}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${dao.name}`}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onOpen()
+                }
+            }}
+        >
             {/* Header */}
             <div className="k-dao-card__header">
                 <div className="k-dao-card__name-row">

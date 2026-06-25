@@ -10,7 +10,7 @@
   --color-k-dashed: #2e2e2e;
   --color-k-text: #f0f0f0;
   --color-k-dim: #999999;
-  --color-k-muted: #555555;
+  --color-k-muted: #8a8a8a; /* A11Y-3: WCAG AA ~4.6:1 on #000 (was #555555 = 2.8:1) */
   --color-k-accent: #00d4aa;
   --color-k-accent-hover: #00e6bb;
   --color-k-on-accent: #0a1210;
@@ -66,7 +66,7 @@
   --color-k-dashed: #d0d2d6;
   --color-k-text: #1a1a2e;
   --color-k-dim: #6b7280;
-  --color-k-muted: #9ca3af;
+  --color-k-muted: #6b7280; /* A11Y-3: WCAG AA ~4.8:1 on white (was #9ca3af = 2.5:1) */
   --color-k-accent: #00a88a;
   --color-k-accent-hover: #009478;
   --color-k-on-accent: #000000;
@@ -1797,5 +1797,19 @@ body {
   .k-btn-secondary {
     font-size: 11px;
     padding: 0 8px;
+  }
+}
+
+/* A11Y-2: honor the OS "reduce motion" preference — neutralize the app's infinite
+   animations (pulses, glows, spinners) and transitions for users who request it.
+   Targets the ~25 always-on animations the audit flagged. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
