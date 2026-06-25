@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -215,10 +214,11 @@ var reTokenCount = regexp.MustCompile(`(\d+)\s+tokens?`)
 
 // countTokens fetches the tokenfactory bare render via vm/qrender and parses
 // the self-reported count from the header line, e.g. "# Samcrew Token Factory (3 tokens)".
-// The data parameter MUST be base64(realmPath + ":") — test13 requires this encoding.
+// The data is the raw "<realmPath>:" qrender argument; abciQueryOnce base64-encodes it
+// once on the wire (pre-encoding here double-encodes and breaks the query — see B1 test).
 func (s *MultisigService) countTokens(ctx context.Context, rpcURL string) (uint32, error) {
 	realmPath := tokenfactoryRealmPath()
-	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	data := realmPath + ":"
 	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
 	if err != nil {
 		return 0, fmt.Errorf("countTokens query: %w", err)
@@ -241,7 +241,7 @@ func (s *MultisigService) countTokens(ctx context.Context, rpcURL string) (uint3
 // The empty-state render ("*No agents registered yet.*") yields 0.
 func (s *MultisigService) countAgents(ctx context.Context, rpcURL string) (uint32, error) {
 	realmPath := agentRegistryRealmPath()
-	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	data := realmPath + ":"
 	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
 	if err != nil {
 		return 0, fmt.Errorf("countAgents query: %w", err)
@@ -390,7 +390,7 @@ func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (
 	realmPath := featuredDaoRealmPath()
 
 	// --- bare render (name + realm address) ---
-	bareData := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	bareData := realmPath + ":"
 	bareRaw, err := s.homeQuery(rpcURL, "vm/qrender", bareData)
 	if err != nil {
 		return nil, fmt.Errorf("fetchFeaturedDao bare render: %w", err)
@@ -426,7 +426,7 @@ func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (
 	// --- proposals render (open count + latest title) — best-effort ---
 	var openProposals uint32
 	var latestTitle string
-	propData := base64.StdEncoding.EncodeToString([]byte(realmPath + ":proposals"))
+	propData := realmPath + ":proposals"
 	if propRaw, perr := s.homeQuery(rpcURL, "vm/qrender", propData); perr == nil {
 		openProposals, latestTitle = parseProposalList(propRaw)
 	}
@@ -449,7 +449,7 @@ func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (
 // Results are sliced to limit (use 4 for MEMBER_PREVIEW_COUNT).
 func (s *MultisigService) fetchDirectoryMembers(ctx context.Context, rpcURL string, limit int) ([]*membav1.DirectoryMember, error) {
 	realmPath := userRegistryRealmPath()
-	data := base64.StdEncoding.EncodeToString([]byte(realmPath + ":"))
+	data := realmPath + ":"
 	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
 	if err != nil {
 		return nil, fmt.Errorf("fetchDirectoryMembers query: %w", err)
