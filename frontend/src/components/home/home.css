@@ -251,6 +251,108 @@ button.action-card:focus-visible {
   grid-column: 1 / -1;
 }
 
+/* ── GovDaoSpotlight (gold Layer-1 governance — replaces the featured hero) ── */
+
+.govdao-spotlight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-k-amber-tint);
+  border: 1px solid var(--color-k-amber-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.govdao-spotlight__eyebrow {
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-k-amber);
+  background: var(--color-k-amber-subtle);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.govdao-spotlight__name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-k-text);
+}
+
+.govdao-spotlight__desc {
+  font-size: 13px;
+  color: var(--color-k-dim);
+  margin: 0;
+}
+
+.govdao-spotlight__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.govdao-spotlight__cta {
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  background: var(--color-k-amber);
+  color: var(--color-k-on-amber, #1a1200);
+  border-radius: 6px;
+  padding: 7px 14px;
+}
+
+.govdao-spotlight__cta:hover {
+  opacity: 0.92;
+}
+
+.govdao-spotlight__cta:focus-visible {
+  outline: 2px solid var(--color-k-amber);
+  outline-offset: 2px;
+}
+
+.govdao-spotlight__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-amber);
+}
+
+.govdao-spotlight__stat--muted {
+  color: var(--color-k-dim);
+}
+
+.govdao-spotlight__retry {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-amber);
+  background: transparent;
+  border: 1px solid var(--color-k-amber-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+/* ── MembaDAO credit (demoted from the featured hero to a bonus footer line) ── */
+
+.showcase-board__credit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-muted);
+  text-align: center;
+  padding-top: 14px;
+}
+
+.showcase-board__credit a {
+  color: var(--color-k-dim);
+  text-decoration: none;
+}
+
+.showcase-board__credit a:hover {
+  color: var(--color-k-text);
+  text-decoration: underline;
+}
+
 /* Featured door body — name + members + dual links. */
 .featured-door {
   display: flex;

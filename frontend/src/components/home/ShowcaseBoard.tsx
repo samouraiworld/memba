@@ -18,9 +18,11 @@
  */
 
 import type { ReactNode } from "react"
+import { Link } from "react-router-dom"
 import { PanelBoundary } from "./StateBoard"
 import { useInViewport } from "../../hooks/home/useInViewport"
-import { FeaturedDoor } from "./doors/FeaturedDoor"
+import { GovDaoSpotlight } from "./GovDaoSpotlight"
+import { DAO_REALM_PATH } from "../../lib/config"
 import { ContributorsDoor } from "./doors/ContributorsDoor"
 import { NetworkHealthDoor } from "./doors/NetworkHealthDoor"
 import { DirectoryDoor } from "./doors/DirectoryDoor"
@@ -48,11 +50,11 @@ interface ShowcaseSlot {
 // Each non-eager slot is automatically lazy-mounted + PanelBoundary-isolated.
 const SLOTS: ShowcaseSlot[] = [
     {
-        id: "featured",
+        id: "govdao",
         fullWidth: true,
         eager: true,
-        label: "featured dao",
-        render: (networkKey) => <FeaturedDoor networkKey={networkKey} />,
+        label: "governance",
+        render: (networkKey) => <GovDaoSpotlight networkKey={networkKey} />,
     },
     {
         id: "contributors",
@@ -111,10 +113,17 @@ function ShowcaseSlotHost({
 
 export function ShowcaseBoard({ networkKey }: ShowcaseBoardProps) {
     return (
-        <div className="showcase-board" data-testid="showcase-board">
-            {SLOTS.map((slot) => (
-                <ShowcaseSlotHost key={slot.id} slot={slot} networkKey={networkKey} />
-            ))}
-        </div>
+        <>
+            <div className="showcase-board" data-testid="showcase-board">
+                {SLOTS.map((slot) => (
+                    <ShowcaseSlotHost key={slot.id} slot={slot} networkKey={networkKey} />
+                ))}
+            </div>
+            {/* MembaDAO demoted from the featured hero to a bonus credit line. */}
+            <div className="showcase-board__credit" data-testid="showcase-board-credit">
+                Built on Memba ·{" "}
+                <Link to={`/${networkKey}/dao/${DAO_REALM_PATH}`}>MembaDAO</Link>
+            </div>
+        </>
     )
 }
