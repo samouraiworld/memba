@@ -356,3 +356,32 @@ After the home, validators-split, and activity feed went live, the user reviewed
 - **R2-V1** (validators reorder) — quick, isolated → ship first.
 - **R2-D1/D2** (directory light-theme + stale filter) — isolated to Directory.
 - **R2-H1/H2/H3** (GovDAO color+richness, clickable+hover) then **R2-H4/H5/H6** (network/directory viz+metrics) then **R2-H7** (ecosystem listings) — home cards, sequenced.
+
+---
+
+## 12. Profile pages — validator / candidate / individual / organisation (QUEUED after Round 2; Claude Design FIRST)
+
+User request (2026-06-25): turn the validator/candidate profile page (`ValoperDetail.tsx`, e.g. `/test13/validators/valoper/g1…`) into a rich, **standard-based, editable profile** with a **web of trust**. **Do NOT start until Round 2 lands.** Begin with **Claude Design mockups (a few proposals)**, validate, then build (this is a large, multi-realm effort — treat like the home redesign: design → spec → phased build).
+
+### Must provide (per user)
+1. **On-chain reviews — comments + STARS rating** → a progressive web of trust (Uber / marketplace style). **MUST be on-chain.**
+2. **Quests** of this validator (from the quest realm/API, by address).
+3. **Gnolove contributions** (gnolove API — needs an address↔GitHub identity link).
+4. **On-chain activities** (reuse the new `/api/indexer` proxy → filter `transactions` by the profile's address as caller/signer/recipient — the activity-feed plumbing is directly reusable).
+
+### Standard-based + editable
+- Base the profile on a **standard shared by individual / organisation / validator** profiles so one model + one edit flow serves all. Investigate gno's existing infra before inventing: `r/sys/users` (username registry, current `userRegistryPath`), `r/demo/profile` (profile fields), and `r/gnops/valopers` (operator moniker/description/serverType/signing keys). Pick/extend one so a user/validator/candidate can **edit** their profile (logo/avatar, bio, links, etc.) via signed txs (Adena). Org profiles map to the DAO realms (`lib/dao`).
+
+### Hard design questions (resolve in the design phase — web-of-trust is non-trivial)
+- **Reviews realm (new Gno realm, deploy via samcrew-deployer):** data model for ratings+comments; **sybil/spam resistance** (who may rate? any gno account, members only, or only addresses that have interacted on-chain? one rating per account? review-bombing defense); edit/revoke; aggregation (avg stars, count); moderation/abuse; immutability vs editability; gas/UX of writing a review. This is the biggest, riskiest piece — design + a security review before any deploy.
+- **Identity linking** for gnolove contributions (on-chain address ↔ GitHub handle) — how is it established/verified?
+- **Edit auth:** only the profile owner (operator address) can edit their profile; reviews are written by *others*.
+
+### Reusable building blocks
+`ValoperDetail.tsx` + `valoper-detail.css` (current profile), `lib/valopers`, `lib/activity.ts` + `/api/indexer` (on-chain activity by address), `gnoloveApi.ts` (contributions), the quest realm/readers, `lib/dao` (org profiles), `r/sys/users`/`r/demo/profile` (identity/profile fields).
+
+### Suggested phasing (after Round 2)
+- **P0 · Claude Design** — 2–3 profile mockups (validator + individual + org variants sharing one layout); pick one; write a spec.
+- **P1 · Profile standard + editable profile** — choose/extend the on-chain profile model; read + edit (logo/bio/links) flow.
+- **P2 · Aggregation tabs** — on-chain activity (indexer-by-address), quests, gnolove contributions (read-only, reuse existing sources).
+- **P3 · On-chain reviews realm** — design (+ security review) → deploy → ratings/comments read + write (stars UI, web-of-trust aggregation). Sequence last; highest risk.
