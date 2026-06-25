@@ -103,16 +103,7 @@ vi.mock("../contexts/OrgContext", () => ({
     })),
 }))
 
-// ── Mock useFeaturedDao (ShowcaseBoard/FeaturedDoor dep) ──────────────────────
-vi.mock("../hooks/home/useFeaturedDao", () => ({
-    useFeaturedDao: vi.fn(() => ({
-        state: "empty" as const,
-        invitationHref: "/test13/dao",
-        refetch: vi.fn(),
-    })),
-}))
-
-// ── Mock hooks used by other showcase doors ───────────────────────────────────
+// ── Mock hooks used by the showcase doors ─────────────────────────────────────
 vi.mock("../hooks/home/useContributorHighlights", () => ({
     useContributorHighlights: vi.fn(() => ({ contributors: [], loading: false })),
 }))

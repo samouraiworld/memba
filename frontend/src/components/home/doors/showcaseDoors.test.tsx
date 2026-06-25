@@ -2,7 +2,6 @@
  * showcaseDoors.test.tsx
  *
  * TDD coverage for Task 1.2b:
- *   - FeaturedDoor: onRetry now calls useFeaturedDao's real refetch
  *   - ContributorsDoor: top-3 contributors from useGnoloveHighlights
  *   - NetworkHealthDoor: active/total + status from useValidatorHealth
  *   - DirectoryDoor: member count + search affordance from useDirectoryHighlights
@@ -14,26 +13,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { screen, fireEvent } from "@testing-library/react"
+import { screen } from "@testing-library/react"
 import { renderWithProviders } from "../../../test/test-utils"
-import { FeaturedDoor } from "./FeaturedDoor"
 import { ContributorsDoor } from "./ContributorsDoor"
 import { NetworkHealthDoor } from "./NetworkHealthDoor"
 import { DirectoryDoor } from "./DirectoryDoor"
 import { LaunchpadDoor } from "./LaunchpadDoor"
 import { ShowcaseBoard } from "../ShowcaseBoard"
-import type { FeaturedDaoResult } from "../../../hooks/home/useFeaturedDao"
 import type { GovDaoResult } from "../../../hooks/home/useGovDao"
 import type { GnoloveHighlights } from "../../../hooks/home/useGnoloveHighlights"
 import type { ValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import type { DirectoryHighlights } from "../../../hooks/home/useDirectoryHighlights"
 
 // ── Mock hooks ─────────────────────────────────────────────────────────────
-
-const mockUseFeaturedDao = vi.fn<(networkKey: string) => FeaturedDaoResult>()
-vi.mock("../../../hooks/home/useFeaturedDao", () => ({
-    useFeaturedDao: (networkKey: string) => mockUseFeaturedDao(networkKey),
-}))
 
 const mockUseGovDao = vi.fn<(networkKey: string) => GovDaoResult>()
 vi.mock("../../../hooks/home/useGovDao", () => ({
@@ -78,7 +70,6 @@ class IoStub {
 
 beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", IoStub)
-    mockUseFeaturedDao.mockReset()
     mockUseGnoloveHighlights.mockReset()
     mockUseValidatorHealth.mockReset()
     mockUseDirectoryHighlights.mockReset()
@@ -86,31 +77,6 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.unstubAllGlobals()
-})
-
-// ══════════════════════════════════════════════════════════════════════════
-// FeaturedDoor — real refetch wiring
-// ══════════════════════════════════════════════════════════════════════════
-
-describe("FeaturedDoor — real refetch on retry", () => {
-    it("calls refetch from useFeaturedDao when the retry button is clicked", () => {
-        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
-        const refetchSpy = vi.fn()
-
-        mockUseFeaturedDao.mockReturnValue({
-            state: "error",
-            invitationHref: "/test13/dao",
-            refetch: refetchSpy,
-        })
-
-        renderWithProviders(<FeaturedDoor networkKey="test13" />)
-
-        const retryBtn = screen.getByRole("button", { name: /retry/i })
-        fireEvent.click(retryBtn)
-
-        expect(refetchSpy).toHaveBeenCalledOnce()
-        consoleSpy.mockRestore()
-    })
 })
 
 // ══════════════════════════════════════════════════════════════════════════
