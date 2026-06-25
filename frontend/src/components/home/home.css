@@ -561,6 +561,15 @@ button.action-card:focus-visible {
   justify-content: center;
 }
 
+.launchpad-door__count {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
 .launchpad-door__headline {
   font-size: 16px;
   font-weight: 600;

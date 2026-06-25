@@ -32,11 +32,13 @@ export function GovDaoSpotlight({ networkKey }: GovDaoSpotlightProps) {
                     Monitor governance
                 </Link>
                 {gov.openCount !== undefined && (
-                    <span className="govdao-spotlight__stat">{gov.openCount} open proposals</span>
+                    <span className="govdao-spotlight__stat">
+                        {gov.openCount} {gov.openCount === 1 ? "open proposal" : "open proposals"}
+                    </span>
                 )}
                 {gov.members !== undefined && (
                     <span className="govdao-spotlight__stat govdao-spotlight__stat--muted">
-                        {gov.members} members
+                        {gov.members} {gov.members === 1 ? "member" : "members"}
                     </span>
                 )}
                 {gov.state === "error" && (

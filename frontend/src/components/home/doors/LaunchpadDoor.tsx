@@ -1,18 +1,17 @@
 /**
- * LaunchpadDoor — visitor showcase promo door for the token factory.
+ * LaunchpadDoor — visitor showcase door for the token factory.
  *
- * variant="promo", eyebrow "launchpad".
- * No data fetch — this is a pure capability promo. The token factory (tokenfactory_v2)
- * is deployed and live on test13; no count hook exists that is cheap enough to add
- * here without a new fetch. Per the brief: "pure promo, no fabricated count."
+ * variant="promo", eyebrow "launchpad". Shows the live token count from the home
+ * snapshot when available (real once B1 is fixed, #528); otherwise falls back to
+ * the capability promo. Honesty: never a fabricated 0 — absent count → promo.
  *
- * The door uses Door's href prop so the entire card is navigable → /${networkKey}/tokens.
- * State is always "ready" (static).
+ * The whole card is navigable via Door's href → /${networkKey}/tokens.
  *
  * @module components/home/doors/LaunchpadDoor
  */
 
 import { Door } from "../Door"
+import { useHomeSnapshot } from "../../../hooks/home/useHomeSnapshot"
 import "../home.css"
 
 export interface LaunchpadDoorProps {
@@ -21,21 +20,29 @@ export interface LaunchpadDoorProps {
 
 export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
     const tokensHref = `/${networkKey}/tokens`
+    const { snapshot, usable } = useHomeSnapshot()
+    const count = usable ? (snapshot?.counts?.tokens ?? 0) : 0
 
     return (
-        <Door
-            variant="promo"
-            state="ready"
-            eyebrow="launchpad"
-            href={tokensHref}
-        >
+        <Door variant="promo" state="ready" eyebrow="launchpad" href={tokensHref}>
             <div className="launchpad-door">
-                <span className="launchpad-door__headline">
-                    Launch a token in minutes
-                </span>
-                <span className="launchpad-door__sub">
-                    Token factory is live on Gno
-                </span>
+                {count > 0 ? (
+                    <>
+                        <span className="launchpad-door__count">{count}</span>
+                        <span className="launchpad-door__sub">
+                            {count === 1 ? "token created" : "tokens created"}
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className="launchpad-door__headline">
+                            Launch a token in minutes
+                        </span>
+                        <span className="launchpad-door__sub">
+                            Token factory is live on Gno
+                        </span>
+                    </>
+                )}
             </div>
         </Door>
     )
