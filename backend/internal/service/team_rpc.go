@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	maxTeamNameLen   = 64
-	maxTeamDescLen   = 500
-	inviteCodeLen    = 8
-	maxTeamsPerUser  = 20
+	maxTeamNameLen  = 64
+	maxTeamDescLen  = 500
+	inviteCodeLen   = 8
+	maxTeamsPerUser = 20
 )
 
 // generateID returns a 16-byte hex string (UUID-like).
@@ -257,26 +257,34 @@ func (s *MultisigService) LeaveTeam(ctx context.Context, req *connect.Request[me
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not a member of this team"))
 	}
 
-	// Prevent last admin from leaving
+	// Prevent last admin from leaving. These guard queries must FAIL CLOSED:
+	// a swallowed Scan error would default role/counts to zero and let the last
+	// admin slip out of a team that still has members on a transient DB error.
 	var role string
-	_ = s.db.QueryRowContext(ctx,
+	if err := s.db.QueryRowContext(ctx,
 		`SELECT role FROM team_members WHERE team_id = ? AND address = ?`,
 		teamID, userAddr,
-	).Scan(&role)
+	).Scan(&role); err != nil {
+		return nil, internalError("LeaveTeam.role", err)
+	}
 
 	if role == "admin" {
 		var adminCount int
-		_ = s.db.QueryRowContext(ctx,
+		if err := s.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM team_members WHERE team_id = ? AND role = 'admin'`,
 			teamID,
-		).Scan(&adminCount)
+		).Scan(&adminCount); err != nil {
+			return nil, internalError("LeaveTeam.adminCount", err)
+		}
 		if adminCount <= 1 {
 			// Check if there are other members
 			var totalMembers int
-			_ = s.db.QueryRowContext(ctx,
+			if err := s.db.QueryRowContext(ctx,
 				`SELECT COUNT(*) FROM team_members WHERE team_id = ?`,
 				teamID,
-			).Scan(&totalMembers)
+			).Scan(&totalMembers); err != nil {
+				return nil, internalError("LeaveTeam.totalMembers", err)
+			}
 			if totalMembers > 1 {
 				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("last admin cannot leave — transfer admin role first"))
 			}
@@ -331,13 +339,17 @@ func (s *MultisigService) UpdateTeamMemberRole(ctx context.Context, req *connect
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid role"))
 	}
 
-	// Prevent demoting the last admin
+	// Prevent demoting the last admin. The count must FAIL CLOSED: a swallowed
+	// Scan error would default adminCount to zero and silently skew the guard on
+	// a transient DB error.
 	if roleStr == "member" && targetAddr == userAddr {
 		var adminCount int
-		_ = s.db.QueryRowContext(ctx,
+		if err := s.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM team_members WHERE team_id = ? AND role = 'admin'`,
 			teamID,
-		).Scan(&adminCount)
+		).Scan(&adminCount); err != nil {
+			return nil, internalError("UpdateTeamMemberRole.adminCount", err)
+		}
 		if adminCount <= 1 {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("cannot demote the last admin"))
 		}
