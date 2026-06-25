@@ -2,8 +2,8 @@
  * ShowcaseBoard — visitor "board of doors" shell.
  *
  * Renders an ordered list of door slots:
- *   - Slot 0 = FeaturedDoor, full-width (spans all grid columns), EAGER-mounted.
- *   - Remaining slots (added in Task 1.2b) lazy-mount as they near the viewport.
+ *   - Slot 0 = GovDaoSpotlight (gold Layer-1 governance), full-width, EAGER-mounted.
+ *   - Remaining slots (contributors/network/directory/launchpad) lazy-mount near the viewport.
  *
  * Resilience (reused from StateBoard, not reinvented):
  *   - PanelBoundary wraps each slot → a throwing door shows the neutral
