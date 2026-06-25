@@ -349,10 +349,14 @@ export function getExplorerBaseUrl(): string {
     }
 }
 
-/** Official tx-indexer GraphQL endpoint for the active network, or null when none
- *  is configured (the activity feed hides itself in that case). */
+/** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot
+ *  call the public tx-indexer directly (it sends no CORS headers), so requests go
+ *  through the backend proxy (`/api/indexer`), which forwards them server-side and
+ *  inherits the backend's CORS. Returns null when the active network has no indexer
+ *  configured — the activity feed then hides itself. */
 export function getIndexerUrl(): string | null {
-    return NETWORKS[_activeNetwork]?.indexerUrl ?? null
+    if (!NETWORKS[_activeNetwork]?.indexerUrl) return null
+    return `${API_BASE_URL}/api/indexer`
 }
 
 /** Bech32 human-readable part (HRP) for Gno addresses. */
