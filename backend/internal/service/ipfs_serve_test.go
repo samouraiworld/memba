@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -26,6 +27,22 @@ func newGatewayServer(t *testing.T, handler http.Handler) (*httptest.Server, *ht
 // ──────────────────────────────────────────────────────────────────────────────
 // resolveIPFSURI unit tests
 // ──────────────────────────────────────────────────────────────────────────────
+
+// SEC-4: the pinned dialer refuses to connect to a private/reserved IP even when
+// a (rebinding) DNS record resolves to one — the IP guard is authoritative at
+// connect time, not only at validation time.
+func TestSafeDialContext_RejectsPrivateAndMetadata(t *testing.T) {
+	for _, addr := range []string{
+		"127.0.0.1:80",       // loopback
+		"169.254.169.254:80", // AWS/GCP metadata
+		"10.0.0.5:80",        // RFC1918
+		"192.168.1.1:80",     // RFC1918
+	} {
+		if _, err := safeDialContext(context.Background(), "tcp", addr); err == nil {
+			t.Errorf("safeDialContext(%q) = nil error, want refusal (private/reserved IP)", addr)
+		}
+	}
+}
 
 func TestResolveIPFSURI_ipfsScheme(t *testing.T) {
 	gateway := "https://gateway.lighthouse.storage/ipfs/"
