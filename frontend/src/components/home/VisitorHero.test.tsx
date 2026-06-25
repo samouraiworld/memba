@@ -58,7 +58,7 @@ describe("VisitorHero — headline", () => {
     it("renders the conviction headline", () => {
         renderWithProviders(<VisitorHero />)
         expect(
-            screen.getByText(/Run your DAO\. Own your stack\. Answer to no one\./i),
+            screen.getByText(/Run your DAO\. Own your stack\./i),
         ).toBeInTheDocument()
     })
 

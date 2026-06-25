@@ -6,7 +6,7 @@
  */
 
 export const HERO_HEADLINES = {
-    manifesto: "Run your DAO. Own your stack. Answer to no one.",
+    manifesto: "Run your DAO. Own your stack.",
     atlas: "Explore the gno.land sovereignty stack.",
 } as const
 
