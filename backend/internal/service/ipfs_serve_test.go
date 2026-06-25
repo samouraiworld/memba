@@ -363,6 +363,67 @@ func TestHandleNFTImage_UpstreamFailure(t *testing.T) {
 	}
 }
 
+// S-F1: the image proxy mirrors the upstream Content-Type. Without anti-sniffing
+// protection an IPFS-pinned HTML file could be served as an active page on the API
+// origin. Every served image response must carry X-Content-Type-Options: nosniff,
+// constrain the Content-Type to image/* (coercing anything else to
+// application/octet-stream rather than echoing it), and set
+// Content-Disposition: inline.
+func TestHandleNFTImage_AntiSniffing(t *testing.T) {
+	cases := []struct {
+		name       string
+		upstreamCT string // "" → send no Content-Type header (upstream gives none)
+		body       string
+		wantCT     string
+	}{
+		{"html coerced to octet-stream", "text/html; charset=utf-8", "<html><body>x</body></html>", "application/octet-stream"},
+		{"svg+xml coerced to octet-stream", "image/svg+xml", "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>", "application/octet-stream"},
+		{"text/plain coerced to octet-stream", "text/plain", "plain text", "application/octet-stream"},
+		{"missing upstream type coerced to octet-stream", "", "plain text, sniffs to text/plain", "application/octet-stream"},
+		{"png preserved", "image/png", "\x89PNG\r\n\x1a\n", "image/png"},
+		{"gif preserved", "image/gif", "GIF89a", "image/gif"},
+		{"jpeg with params preserved", "image/jpeg; charset=binary", "\xff\xd8\xff", "image/jpeg; charset=binary"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts, client := newGatewayServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.upstreamCT != "" {
+					w.Header().Set("Content-Type", tc.upstreamCT)
+				}
+				_, _ = w.Write([]byte(tc.body))
+			}))
+
+			// Fresh cache so each sub-case is isolated.
+			origImageCache := nftImageCache
+			nftImageCache = newLRUCache(nftCacheMaxEntries)
+			t.Cleanup(func() { nftImageCache = origImageCache })
+
+			handler := HandleNFTImage(nftHandlerOptions{
+				httpClient: client,
+				gateway:    ts.URL + "/ipfs/",
+			})
+
+			cid := "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+			req := httptest.NewRequest(http.MethodGet, "/api/nft/image?cid="+cid, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+				t.Errorf("X-Content-Type-Options: got %q, want %q", got, "nosniff")
+			}
+			if got := rec.Header().Get("Content-Type"); got != tc.wantCT {
+				t.Errorf("Content-Type: got %q, want %q (upstream %q)", got, tc.wantCT, tc.upstreamCT)
+			}
+			if got := rec.Header().Get("Content-Disposition"); got != "inline" {
+				t.Errorf("Content-Disposition: got %q, want %q", got, "inline")
+			}
+		})
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // HandleNFTMetadata handler tests
 // ──────────────────────────────────────────────────────────────────────────────

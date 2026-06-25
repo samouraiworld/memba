@@ -502,7 +502,7 @@ func HandleNFTImage(opts ...nftHandlerOptions) http.Handler {
 
 		// Cache hit
 		if entry, ok := nftImageCache.get(cacheKey); ok {
-			serveEntry(w, entry, "HIT")
+			serveEntry(w, entry, "HIT", true)
 			return
 		}
 
@@ -522,7 +522,7 @@ func HandleNFTImage(opts ...nftHandlerOptions) http.Handler {
 			fetchedAt:   time.Now(),
 		}
 		nftImageCache.set(cacheKey, entry)
-		serveEntry(w, entry, "MISS")
+		serveEntry(w, entry, "MISS", true)
 	})
 }
 
@@ -571,7 +571,7 @@ func HandleNFTMetadata(opts ...nftHandlerOptions) http.Handler {
 
 		// Cache hit
 		if entry, ok := nftMetadataCache.get(cacheKey); ok {
-			serveEntry(w, entry, "HIT")
+			serveEntry(w, entry, "HIT", false)
 			return
 		}
 
@@ -617,7 +617,7 @@ func HandleNFTMetadata(opts ...nftHandlerOptions) http.Handler {
 			fetchedAt:   time.Now(),
 		}
 		nftMetadataCache.set(cacheKey, entry)
-		serveEntry(w, entry, "MISS")
+		serveEntry(w, entry, "MISS", false)
 	})
 }
 
@@ -625,11 +625,45 @@ func HandleNFTMetadata(opts ...nftHandlerOptions) http.Handler {
 // Shared response helper
 // ──────────────────────────────────────────────────────────────────────────────
 
-func serveEntry(w http.ResponseWriter, e cacheEntry, cacheStatus string) {
-	w.Header().Set("Content-Type", e.contentType)
+// serveEntry writes a cached entry to the response.
+//
+// When mediaResponse is true the entry is attacker-influenced IPFS/NFT media: we
+// harden it against content-type sniffing (S-F1). The upstream Content-Type is
+// mirrored only when it is an image/* type; anything else (notably text/html or
+// image/svg+xml, which browsers can execute) is served as application/octet-stream
+// instead of echoed. We also send X-Content-Type-Options: nosniff and
+// Content-Disposition: inline so the body can never render as an active page on the
+// API origin. Non-media callers (metadata) serve a self-generated Content-Type and
+// pass false.
+func serveEntry(w http.ResponseWriter, e cacheEntry, cacheStatus string, mediaResponse bool) {
+	contentType := e.contentType
+	if mediaResponse {
+		contentType = safeImageContentType(contentType)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Disposition", "inline")
+	}
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
 	w.Header().Set("ETag", e.etag)
 	w.Header().Set("X-Cache", cacheStatus)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(e.body)
+}
+
+// safeImageContentType returns ct unchanged when it denotes a raster image type,
+// and application/octet-stream otherwise. SVG is treated as non-image because it is
+// an XSS vector (it can carry <script>). This prevents an attacker-controlled
+// upstream Content-Type (e.g. text/html) from being mirrored to the API origin.
+func safeImageContentType(ct string) string {
+	// Strip any parameters (e.g. "image/png; charset=binary") before matching.
+	mediaType := strings.ToLower(strings.TrimSpace(ct))
+	if i := strings.IndexByte(mediaType, ';'); i >= 0 {
+		mediaType = strings.TrimSpace(mediaType[:i])
+	}
+	switch mediaType {
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/apng", "image/bmp", "image/x-icon", "image/vnd.microsoft.icon":
+		return ct
+	default:
+		return "application/octet-stream"
+	}
 }
