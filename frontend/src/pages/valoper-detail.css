@@ -36,3 +36,280 @@
     outline: 2px solid var(--color-accent, #6c5ce7);
     outline-offset: 2px;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   "Blend" profile layout — identity header + tabs (P1, read-only).
+   Token-driven for dark + light parity.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Identity header ─────────────────────────────────────────── */
+.vp-id {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    padding: 1.25rem 1.5rem;
+}
+
+.vp-id__avatar {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full, 9999px);
+    overflow: hidden;
+    background: var(--color-surface-active);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.vp-id__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.vp-id__initials {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--color-primary);
+}
+
+.vp-id__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vp-id__namerow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.vp-id__userrow { display: flex; align-items: center; gap: 0.5rem; }
+.vp-id__username {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.8rem;
+    color: var(--color-primary);
+    text-decoration: none;
+    background: var(--color-primary-bg);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 1px 8px;
+}
+a.vp-id__username:hover { text-decoration: underline; }
+
+.vp-id__bio {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.vp-id__socials { display: flex; align-items: center; gap: 0.4rem; }
+.vp-soc {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    transition: color var(--transition-fast, 0.15s), border-color var(--transition-fast, 0.15s);
+}
+.vp-soc:hover { color: var(--color-primary); border-color: var(--color-primary-border); }
+.vp-soc:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.vp-id__addrs { display: flex; flex-direction: column; gap: 0.1rem; margin-top: 0.25rem; }
+
+.vp-id__actions { flex-shrink: 0; }
+.vp-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 6px 12px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.vp-edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Candidate status badge — amber, mirroring the Validators page accent.
+   (Active reuses vd-badge--active from validator-detail.css.) */
+.vp-badge--candidate {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────── */
+.vp-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--color-border);
+    overflow-x: auto;
+}
+.vp-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition-fast, 0.15s), border-color var(--transition-fast, 0.15s);
+}
+.vp-tab:hover { color: var(--color-text); }
+.vp-tab--active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+.vp-tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; border-radius: 4px; }
+
+/* ── Panels ──────────────────────────────────────────────────── */
+.vp-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Rating / review hero placeholder. */
+.vp-review-hero {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--color-primary-bg);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-lg, 12px);
+    padding: 1.25rem 1.5rem;
+}
+.vp-review-hero__score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+.vp-review-hero__stars {
+    font-size: 1.4rem;
+    color: var(--color-primary);
+    opacity: 0.6;
+    letter-spacing: 1px;
+}
+.vp-review-hero__soon {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--color-primary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 1px 6px;
+}
+.vp-review-hero__title { margin: 0 0 0.25rem; font-size: 1rem; color: var(--color-text); }
+.vp-review-hero__sub { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--color-text-secondary); }
+
+/* "Recent peek" link row on Overview. */
+.vp-peek { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.vp-peek__link {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: none;
+}
+.vp-peek__link:hover { text-decoration: underline; }
+
+/* Coming-soon panel (Reviews / Quests / activity note). */
+.vp-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 2rem 1.5rem;
+}
+.vp-soon__badge {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--color-primary);
+    background: var(--color-primary-bg);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-full, 9999px);
+    padding: 2px 10px;
+}
+.vp-soon__title { margin: 0; font-size: 0.95rem; color: var(--color-text); }
+.vp-soon__body { margin: 0; max-width: 460px; font-size: 0.8rem; line-height: 1.5; color: var(--color-text-secondary); }
+
+/* Empty states. */
+.vp-empty { align-items: flex-start; }
+.vp-empty p { margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
+.vp-empty__sub { color: var(--color-text-muted) !important; font-size: 0.78rem !important; line-height: 1.5; }
+
+/* Deployed packages list. */
+.vp-pkgs { display: flex; flex-direction: column; gap: 0.4rem; }
+.vp-pkg {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    transition: border-color var(--transition-fast, 0.15s);
+}
+.vp-pkg:hover { border-color: var(--color-primary-border); }
+.vp-pkg__path { font-size: 0.75rem; color: var(--color-text); word-break: break-all; }
+.vp-pkg__block { font-size: 0.68rem; color: var(--color-text-muted); flex-shrink: 0; }
+.vp-pkgs__more { font-size: 0.72rem; color: var(--color-text-muted); padding: 0.25rem 0.5rem; }
+
+/* Governance votes list. */
+.vp-votes { display: flex; flex-direction: column; gap: 0.4rem; }
+.vp-vote {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+.vp-vote__meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.vp-vote__id { font-size: 0.65rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
+.vp-vote__title { font-size: 0.8rem; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; }
+.vp-vote__badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: var(--radius-sm, 4px);
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+.vp-vote--yes { color: var(--color-success); background: rgba(76, 175, 80, 0.12); }
+.vp-vote--no { color: var(--color-danger); background: var(--color-danger-bg); }
+.vp-vote--abstain { color: var(--color-text-muted); background: var(--color-surface-active); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .vp-id { flex-direction: column; }
+    .vp-id__actions { align-self: stretch; }
+    .vp-edit-btn { width: 100%; justify-content: center; }
+    .vp-review-hero { flex-direction: column; align-items: flex-start; }
+}
