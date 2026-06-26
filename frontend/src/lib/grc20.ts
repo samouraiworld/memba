@@ -423,6 +423,27 @@ export function formatTokenAmount(amount: bigint, decimals: number = MEMBA_TOKEN
     return `${whole}.${fracStr}`
 }
 
+/**
+ * Format a raw total-supply string (base units, as parsed from the token Render)
+ * for compact display on the home cards: decimal-scaled and thousands-grouped.
+ * Returns `null` for a zero/unparsable supply so callers OMIT it (honesty — never
+ * render a misleading "0"). e.g. ("102500100", 6) → "102.5001".
+ */
+export function formatSupply(rawSupply: string, decimals: number): string | null {
+    if (!/^\d+$/.test(rawSupply)) return null
+    let amount: bigint
+    try {
+        amount = BigInt(rawSupply)
+    } catch {
+        return null
+    }
+    if (amount === 0n) return null
+    const scaled = formatTokenAmount(amount, decimals) // "102.5001" / "1000000"
+    const [whole, frac] = scaled.split(".")
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    return frac ? `${grouped}.${frac}` : grouped
+}
+
 // ── Internal Helpers ──────────────────────────────────────────
 
 /** Build Amino MsgCall for grc20factory. */

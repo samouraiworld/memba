@@ -29,7 +29,7 @@
  */
 import { Link } from "react-router-dom"
 import { useHomeSnapshot } from "../../hooks/home/useHomeSnapshot"
-import { useEcosystemTokens } from "../../hooks/home/useEcosystemTokens"
+import { useTokenLaunches } from "../../hooks/home/useTokenLaunches"
 import { useEcosystemValidators } from "../../hooks/home/useEcosystemValidators"
 import { truncateAddr } from "../../lib/format"
 import "./home.css"
@@ -61,20 +61,21 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
     const { snapshot, usable } = useHomeSnapshot()
     const counts = usable ? snapshot?.counts : undefined
 
-    const { tokens, loading: tokensLoading } = useEcosystemTokens()
+    // tokens is already the top-N (enriched with supply/admin); tokenTotal is the
+    // full count, so the header + "view all N" stay accurate against the slice.
+    const { tokens, total: tokenTotal, loading: tokensLoading } = useTokenLaunches(TOKEN_TOP_N)
     const { validators, total: validatorTotal, loading: validatorsLoading } = useEcosystemValidators()
 
     const tokensHref = `/${networkKey}/tokens`
     const validatorsHref = `/${networkKey}/validators`
 
     // Header counts: prefer the live snapshot count; fall back to the fetched
-    // list length so the header never contradicts the rows rendered below.
-    const tokenCount = counts?.tokens ?? tokens.length
+    // total so the header never contradicts the rows rendered below.
+    const tokenCount = counts?.tokens ?? tokenTotal
     const validatorCount = counts?.validators ?? validatorTotal
 
     const showTokens = tokensLoading || tokens.length > 0
     const showValidators = validatorsLoading || validators.length > 0
-    const topTokens = tokens.slice(0, TOKEN_TOP_N)
 
     // Agents stays a count-only tile (omitted at 0 — never a fabricated 0).
     const agentTiles: Tile[] = [
@@ -103,19 +104,21 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                         ) : (
                             <>
                                 <ul className="ecosystem-list">
-                                    {topTokens.map((t) => (
+                                    {tokens.map((t) => (
                                         <li key={t.path} className="ecosystem-list__item">
                                             <Link to={tokensHref} className="ecosystem-row" data-testid="eco-token-row">
                                                 <span className="ecosystem-row__main">
                                                     <span className="ecosystem-row__name">{t.name}</span>
                                                     <span className="ecosystem-row__badge">{t.symbol}</span>
                                                 </span>
-                                                <span className="ecosystem-row__sub">{t.path}</span>
+                                                <span className="ecosystem-row__sub">
+                                                    {t.supplyDisplay ? `${t.supplyDisplay} supply` : t.path}
+                                                </span>
                                             </Link>
                                         </li>
                                     ))}
                                 </ul>
-                                {tokens.length > TOKEN_TOP_N && (
+                                {tokenTotal > TOKEN_TOP_N && (
                                     <Link to={tokensHref} className="ecosystem-section__viewall" data-testid="eco-tokens-viewall">
                                         view all {tokenCount} →
                                     </Link>

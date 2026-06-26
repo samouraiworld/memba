@@ -1220,6 +1220,44 @@ a.activity-feed__link:focus-visible {
   color: var(--color-k-dim);
 }
 
+/* Mini token-card (when a token exists): name + $ticker, then on-chain stats. */
+.launchpad-door__token {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.launchpad-door__token-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1.2;
+}
+
+.launchpad-door__token-ticker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-accent-text);
+}
+
+.launchpad-door__stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.launchpad-door__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-text);
+}
+
+.launchpad-door__stat--muted {
+  color: var(--color-k-dim);
+}
+
 /* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
 
 .featured-door__link:focus-visible {
