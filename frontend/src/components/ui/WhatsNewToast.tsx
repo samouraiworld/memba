@@ -99,13 +99,13 @@ export function WhatsNewToast() {
                     bottom: 24, right: 24,
                     zIndex: 1000,
                     width: "min(380px, calc(100vw - 32px))",
-                    background: "rgba(18,18,22,0.95)",
+                    background: "var(--color-bg-card)",
                     backdropFilter: "blur(16px)",
-                    border: "1px solid rgba(0,212,170,0.15)",
+                    border: "1px solid var(--color-primary-border)",
                     borderRadius: 16,
                     padding: "24px 20px 20px",
                     fontFamily: "JetBrains Mono, monospace",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03)",
+                    boxShadow: "0 8px 32px var(--color-overlay)",
                     animation: exiting
                         ? "membaToastOut 200ms ease-in forwards"
                         : "membaToastIn 300ms ease-out",
@@ -220,7 +220,7 @@ function NetworkItem({ color, title, desc }: { color: string; title: string; des
         <div style={{
             padding: "10px 12px",
             borderRadius: 10,
-            background: "rgba(255,255,255,0.02)",
+            background: "var(--color-surface)",
             borderLeft: `3px solid ${color}`,
         }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text)", marginBottom: 2 }}>
