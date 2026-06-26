@@ -581,20 +581,36 @@ a:hover {
     border-top: 1px solid var(--color-border);
     padding: 8px 0 0;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
+    /* Single swipeable row instead of a cramped 3-4 row wrap that ate ~30% of
+       the viewport — keeps every channel reachable without the vertical cost. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+
+  .dao-channels-sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .dao-channels-sidebar__header {
-    width: 100%;
+    flex: 0 0 auto;
   }
 
   .dao-channels-sidebar__divider {
-    width: 100%;
+    display: none;
   }
 
   .dao-channels-sidebar__item {
     flex: 0 0 auto;
+  }
+}
+
+/* The compact DAO stat grid is a fixed 3 columns everywhere; on a narrow phone
+   9 stats in 3 columns read as cramped — drop to 2 readable columns. */
+@media (max-width: 480px) {
+  .k-stat-grid--compact {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

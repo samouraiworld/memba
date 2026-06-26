@@ -1337,6 +1337,25 @@ a.activity-feed__link:focus-visible {
   .showcase-board {
     grid-template-columns: 1fr;
   }
+
+  /* Touch-target compliance (HIG/Material 44px) for the home's interactive
+     controls on phones — mobile-scoped so desktop density is untouched. */
+  .visitor-hero__cta,
+  .govdao-spotlight__prop,
+  .activity-feed__retry {
+    min-height: 44px;
+  }
+
+  /* Inline link/button controls need a flex box for min-height to take and to
+     keep their content vertically centred. */
+  .govdao-spotlight__cta,
+  .govdao-spotlight__feed-all,
+  .ecosystem-section__header,
+  .ecosystem-section__viewall {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 480px) {
