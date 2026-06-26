@@ -27,7 +27,12 @@ import {
     resolveValidatorProfile,
     type ValidatorProfileResolution,
 } from "../lib/valopers"
-import { getValidators, truncateValidatorAddr } from "../lib/validators"
+import {
+    getValidators, truncateValidatorAddr,
+    fetchValoperMonikers, mergeValoperMonikers, mergeWithMonitoringData,
+} from "../lib/validators"
+import { fetchAllMonitoringData } from "../lib/gnomonitoring"
+import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { renderMarkdown } from "../lib/markdownLite"
@@ -212,9 +217,23 @@ export default function ValidatorProfile() {
             const res = resolveValidatorProfile(address, valopers, activeSet)
             setResolution(res)
             // Genesis: borrow the moniker from the consensus set (no valoper record).
+            // getValidators returns moniker:"" — enrich (valopers + gnomonitoring) so a
+            // genesis validator shows a name where the network exposes one. Best-effort
+            // and genesis-only, so the common (registered) path stays cheap.
             if (res.identityCase === "genesis") {
-                const v = vals.find(x => x.gnoAddr === address || x.address === address)
-                setGenesisMoniker(v?.moniker || "")
+                let mon = vals.find(x => x.gnoAddr === address || x.address === address)?.moniker || ""
+                if (!mon) {
+                    try {
+                        const [valoperMap, monitoringMap] = await Promise.all([
+                            fetchValoperMonikers(GNO_RPC_URL),
+                            fetchAllMonitoringData(ctrl.signal),
+                        ])
+                        if (ctrl.signal.aborted) return
+                        const enriched = mergeWithMonitoringData(mergeValoperMonikers(vals, valoperMap), monitoringMap)
+                        mon = enriched.find(x => x.gnoAddr === address || x.address === address)?.moniker || ""
+                    } catch { /* keep empty — falls back to curated identity label / address */ }
+                }
+                setGenesisMoniker(mon)
             }
             setLoading(false)
             // Hybrid profile (gnolove + on-chain username + backend) for the canonical
@@ -245,7 +264,9 @@ export default function ValidatorProfile() {
     }, [load])
 
     const valoper = resolution?.valoper ?? null
-    const moniker = valoper?.moniker || genesisMoniker || (address ? truncateValidatorAddr(address) : "")
+    // Name precedence: valoper record → on-chain genesis moniker → curated gnolove identity
+    // label (e.g. a genesis validator we know by team) → truncated address.
+    const moniker = valoper?.moniker || genesisMoniker || mappedIdentity?.label || (address ? truncateValidatorAddr(address) : "")
 
     useEffect(() => {
         document.title = moniker ? `${moniker} — Validator — Memba` : "Validator — Memba"
@@ -261,7 +282,7 @@ export default function ValidatorProfile() {
         return (
             <div className="vd-page">
                 <div className="vd-nav"><Link to={np("validators")} className="vd-back">← Validators</Link></div>
-                <div className="vd-loading"><span className="hk-pulse" /><span>Loading validator…</span></div>
+                <ConnectingLoader message="Loading validator…" minHeight="50vh" />
             </div>
         )
     }

@@ -30,6 +30,9 @@ const BY_MONIKER: Record<string, ValidatorGnoloveIdentity> = {
 /** Keyed by operator OR signing address (g1…). Takes precedence over moniker. */
 const BY_ADDRESS: Record<string, ValidatorGnoloveIdentity> = {
     "g19rl4cm2hmr8afy4kldpxz3fka4jguq0a0u3773": contributor("gfanton"),
+    // Samourai-crew validator: a genesis validator (in the active set, no valoper record
+    // and no on-chain moniker), so the address is the only stable key for its identity.
+    "g1k7asng8uzf74xs0tsrfwytldl76hs4l3asglym": team("samouraiworld", "Samourai.world"),
 }
 
 /** Resolve a validator's curated gnolove identity, or null when unmapped.

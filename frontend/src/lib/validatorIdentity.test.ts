@@ -20,6 +20,11 @@ describe("resolveValidatorIdentity", () => {
         expect(r).toEqual({ kind: "contributor", login: "gfanton", label: "gfanton" })
     })
 
+    it("maps the Samourai-crew genesis validator (no moniker) by its signing address", () => {
+        const r = resolveValidatorIdentity({ moniker: "", addresses: ["g1k7asng8uzf74xs0tsrfwytldl76hs4l3asglym"] })
+        expect(r).toEqual({ kind: "team", slug: "samouraiworld", label: "Samourai.world" })
+    })
+
     it("returns null for an unmapped validator", () => {
         expect(resolveValidatorIdentity({ moniker: "some-random-validator", addresses: ["g1nope"] })).toBeNull()
         expect(resolveValidatorIdentity({})).toBeNull()

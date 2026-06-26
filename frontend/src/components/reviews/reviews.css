@@ -84,7 +84,7 @@
   font-size: var(--text-xs, 0.64rem);
   padding: 1px 6px;
   border-radius: var(--radius-full, 9999px);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-k-hover-surface);
   border: 1px solid var(--color-k-edge);
   color: var(--color-k-dim);
 }
@@ -255,7 +255,7 @@
 .review-comment {
   padding: 8px 12px;
   border-radius: var(--radius-md, 8px);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-k-hover-surface);
   border: 1px solid var(--color-k-edge);
 }
 
@@ -421,26 +421,8 @@
   color: var(--color-k-muted);
   padding: 6px 10px;
   border-radius: var(--radius-sm, 4px);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-k-hover-surface);
   border: 1px solid var(--color-k-edge);
-}
-
-.reviews-section__connect-prompt {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  border-radius: var(--radius-lg, 12px);
-  border: 1px dashed var(--color-k-edge-hover);
-  background: rgba(255, 255, 255, 0.01);
-  gap: 10px;
-  flex-direction: column;
-}
-
-.reviews-section__connect-prompt p {
-  font-size: var(--text-sm, 0.8rem);
-  color: var(--color-k-dim);
-  margin: 0;
 }
 
 /* ── Loading / error / empty ─────────────────────────────────────────── */
@@ -512,19 +494,26 @@
   border-color: var(--color-k-edge-hover);
 }
 
-.reviews-btn-connect {
-  background: var(--color-k-accent-tint);
-  border: 1px solid var(--color-k-accent-border);
-  border-radius: var(--radius-md, 8px);
-  padding: 8px 18px;
-  font-size: var(--text-sm, 0.8rem);
-  font-weight: 600;
-  color: var(--color-k-accent-text);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+/* ── Loading skeletons ──────────────────────────────────────────────── */
+.reviews-section__skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.reviews-btn-connect:hover {
-  background: var(--color-k-accent-subtle);
-  border-color: var(--color-k-accent-border-strong);
+.review-card--skeleton {
+  height: 96px;
+  background: var(--color-k-hover-surface);
+  border: 1px solid var(--color-k-edge);
+  border-radius: var(--radius-lg, 12px);
+  animation: reviews-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes reviews-skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-card--skeleton { animation: none; }
 }

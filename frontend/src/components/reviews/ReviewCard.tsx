@@ -13,6 +13,7 @@ import { useState, useCallback } from "react"
 import DOMPurify from "dompurify"
 import { renderMarkdown } from "../../lib/markdownLite"
 import { useAdena } from "../../hooks/useAdena"
+import { useBlockTime } from "../../hooks/useBlockTime"
 import {
   type OnChainReview,
   type OnChainComment,
@@ -39,13 +40,26 @@ function truncateAddr(addr: string): string {
   return `${addr.slice(0, 8)}…${addr.slice(-6)}`
 }
 
-function formatDate(ts: number): string {
-  if (!ts) return ""
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+/**
+ * ReviewDate — render an on-chain block height as a real date.
+ *
+ * The reviews realm stores createdAt/editedAt as a BLOCK HEIGHT, not a Unix timestamp,
+ * so we resolve the block's wall-clock time via useBlockTime. While resolving we show a
+ * neutral "·"; if resolution fails we fall back to "block #N". The block height is always
+ * available as a title tooltip for provenance.
+ */
+function ReviewDate({ height, className }: { height: number; className?: string }) {
+  const { ms, loading } = useBlockTime(height)
+  if (!height) return null
+  const title = `block #${height}`
+  if (loading) return <span className={className} title={title} aria-hidden="true">·</span>
+  if (ms == null) return <span className={className} title={title}>block #{height}</span>
+  const text = new Date(ms).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   })
+  return <span className={className} title={title}>{text}</span>
 }
 
 // ── CommentRow ────────────────────────────────────────────────────────
@@ -90,7 +104,7 @@ function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
         {comment.username && (
           <span className="review-card__username-badge">{comment.username}</span>
         )}
-        <span className="review-comment__date">{formatDate(comment.createdAt)}</span>
+        <ReviewDate height={comment.createdAt} className="review-comment__date" />
         {comment.editedAt > 0 && (
           <span className="review-comment__edited">(edited)</span>
         )}
@@ -266,7 +280,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           <StarRating value={review.rating} size="sm" />
         </div>
         <div style={{ textAlign: "right" }}>
-          <span className="review-card__date">{formatDate(review.createdAt)}</span>
+          <ReviewDate height={review.createdAt} className="review-card__date" />
           {review.editedAt > 0 && (
             <span className="review-card__edited"> (edited)</span>
           )}
@@ -317,7 +331,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
             onClick={() => handleAction(buildReactMsg(address, review.id, "like"), "like review")}
             aria-label={`Like — ${review.likes}`}
           >
-            👍 {review.likes}
+            <span aria-hidden="true">👍</span> {review.likes}
           </button>
 
           {/* Dislike */}
@@ -327,15 +341,17 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
             onClick={() => handleAction(buildReactMsg(address, review.id, "dislike"), "dislike review")}
             aria-label={`Dislike — ${review.dislikes}`}
           >
-            👎 {review.dislikes}
+            <span aria-hidden="true">👎</span> {review.dislikes}
           </button>
 
           {/* Reply toggle */}
           <button
             className="review-card__action-btn"
             onClick={toggleComments}
+            aria-expanded={showComments}
+            aria-label="Reply"
           >
-            💬 Reply
+            <span aria-hidden="true">💬</span> Reply
           </button>
 
           {/* Flag */}
@@ -344,8 +360,9 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
               className="review-card__action-btn review-card__action-btn--flag"
               disabled={busy}
               onClick={() => handleAction(buildFlagMsg(address, review.id), "flag review")}
+              aria-label="Flag for moderation"
             >
-              🚩 Flag
+              <span aria-hidden="true">🚩</span> Flag
             </button>
           )}
 
@@ -405,16 +422,14 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           {commentsLoading && (
             <p className="reviews-section__loading">Loading comments…</p>
           )}
-          {!commentsLoading && comments
-            .filter((c) => !c.deleted || c.body === "")
-            .map((c) => (
-              <CommentRow
-                key={c.id}
-                comment={c}
-                address={address}
-                onRefetch={loadComments}
-              />
-            ))}
+          {!commentsLoading && comments.map((c) => (
+            <CommentRow
+              key={c.id}
+              comment={c}
+              address={address}
+              onRefetch={loadComments}
+            />
+          ))}
 
           {/* Reply form */}
           {connected ? (
