@@ -61,6 +61,21 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Q-11: subtle pulse while the authoritative XP is being confirmed with the server. */
+.k-questhub-xp-value--confirming {
+    opacity: 0.6;
+    animation: k-questhub-xp-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes k-questhub-xp-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .k-questhub-xp-value--confirming { animation: none; }
+}
+
 .k-questhub-xp-next {
     font-size: 0.75rem;
     color: var(--color-k-dim);

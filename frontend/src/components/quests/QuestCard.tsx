@@ -25,7 +25,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 export function QuestCard({ quest, completed, available }: QuestCardProps) {
     const nk = useNetworkKey()
     const statusClass = completed ? "completed" : available ? "available" : "locked"
-    const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
+    const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "var(--color-k-muted)"
 
     return (
         <Link to={`/${nk}/quests/${quest.id}`} className={`k-quest-card k-quest-card--${statusClass}`} data-testid={`quest-${quest.id}`}>

@@ -79,9 +79,9 @@
 }
 
 .candidature-unlock__btn--primary {
-    background: linear-gradient(135deg, #00d4aa 0%, #00b890 100%);
-    color: #0a0a0a;
-    box-shadow: 0 0 12px rgba(0, 212, 170, 0.25);
+    background: linear-gradient(135deg, var(--color-k-accent) 0%, var(--color-k-accent-hover) 100%);
+    color: var(--color-k-on-accent);
+    box-shadow: 0 0 12px var(--color-k-accent-border);
     animation: candidature-pulse 2s ease-in-out infinite;
 }
 
