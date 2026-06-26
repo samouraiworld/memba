@@ -7,7 +7,7 @@
 }
 
 .pdao-back-btn {
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     background: none;
     border: none;
@@ -67,7 +67,7 @@
     background: rgba(0, 212, 170, 0.08);
     border-radius: 8px;
     border: 1px solid rgba(0, 212, 170, 0.2);
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     font-family: var(--font-mono);
     display: flex;
@@ -81,7 +81,7 @@
     border: 1px solid rgba(0, 212, 170, 0.3);
     border-radius: 6px;
     padding: 6px 14px;
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
     font-size: 12px;
     font-family: var(--font-mono);
     cursor: pointer;
@@ -116,7 +116,7 @@
 .pdao-chip.active {
     border-color: rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
 }
 
 .pdao-chip:disabled {
@@ -152,7 +152,7 @@
 .pdao-role-chip.active {
     border-color: rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
 }
 
 .pdao-role-chip:disabled {

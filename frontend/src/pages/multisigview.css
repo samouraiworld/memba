@@ -7,7 +7,7 @@
 }
 
 .k-msview__back {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-size: 13px;
   background: none;
   border: none;
@@ -93,7 +93,7 @@
   transition: all 0.15s;
 }
 .k-msview__share-btn--copied {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 .k-msview__actions {
@@ -181,7 +181,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(0, 212, 170, 0.08);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -205,8 +205,8 @@
   transition: all 0.15s;
 }
 .k-msview__tab--active {
-  border-bottom-color: var(--color-k-accent);
-  color: var(--color-k-accent);
+  border-bottom-color: var(--color-k-accent-text);
+  color: var(--color-k-accent-text);
 }
 
 /* ── Activity Rows (reuses dashboard pattern) ────────────────── */

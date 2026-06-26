@@ -137,7 +137,7 @@
 .cms-fetch-btn--ok {
     background: var(--color-k-accent-subtle);
     border-color: var(--color-k-accent-border);
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
 }
 
 .cms-fetch-btn:disabled {
@@ -175,7 +175,7 @@
 /* ── Threshold ──────────────────────────────────────────── */
 .cms-threshold-slider {
     width: 100%;
-    accent-color: var(--color-k-accent);
+    accent-color: var(--color-k-accent-text);
 }
 
 .cms-threshold-hint {
