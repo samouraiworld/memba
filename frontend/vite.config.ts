@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync } from 'node:fs'
 import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
@@ -49,6 +50,42 @@ export default defineConfig({
   plugins: [
     react(),
     safeFlagsPlugin(),
+    // PWA: installable manifest + Workbox service worker. SW is OFF in dev
+    // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
+    // Colors track the real app canvas (--color-k-bg dark = #000000), not a
+    // separate brand value, to stay aligned with the §13 design system.
+    VitePWA({
+      registerType: 'autoUpdate',
+      devOptions: { enabled: false },
+      includeAssets: ['apple-touch-icon.png'],
+      manifest: {
+        name: 'Memba',
+        short_name: 'Memba',
+        id: '/',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#000000',
+        theme_color: '#000000',
+        description: 'Gno-native multisig wallet and DAO governance.',
+        icons: [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,woff2}'],
+        // recharts/jspdf chunks are large; allow them into the precache.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          { urlPattern: /\/fonts\//, handler: 'CacheFirst', options: { cacheName: 'fonts' } },
+          // NEVER cache auth/tx / RPC writes — always hit the network.
+          { urlPattern: ({ url }) => url.pathname.startsWith('/memba.v1.'), handler: 'NetworkOnly' },
+        ],
+      },
+    }),
     // Sentry source map upload — only in production builds with auth token
     ...(process.env.SENTRY_AUTH_TOKEN
       ? [
