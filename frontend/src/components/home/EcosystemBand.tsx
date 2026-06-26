@@ -34,8 +34,10 @@ import { useEcosystemValidators } from "../../hooks/home/useEcosystemValidators"
 import { truncateAddr } from "../../lib/format"
 import "./home.css"
 
-/** Max validator rows shown inline before collapsing to a "view all N" link. */
-const VALIDATOR_TOP_N = 5
+/** Max rows shown inline per section before collapsing to a "view all N" link.
+ *  Kept tight (3) so the band stays compact and dense rather than ballooning. */
+const VALIDATOR_TOP_N = 3
+const TOKEN_TOP_N = 3
 
 export interface EcosystemBandProps {
     networkKey: string
@@ -72,6 +74,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
 
     const showTokens = tokensLoading || tokens.length > 0
     const showValidators = validatorsLoading || validators.length > 0
+    const topTokens = tokens.slice(0, TOKEN_TOP_N)
 
     // Agents stays a count-only tile (omitted at 0 — never a fabricated 0).
     const agentTiles: Tile[] = [
@@ -98,19 +101,26 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                                 loading tokens…
                             </div>
                         ) : (
-                            <ul className="ecosystem-list">
-                                {tokens.map((t) => (
-                                    <li key={t.path} className="ecosystem-list__item">
-                                        <Link to={tokensHref} className="ecosystem-row" data-testid="eco-token-row">
-                                            <span className="ecosystem-row__main">
-                                                <span className="ecosystem-row__name">{t.name}</span>
-                                                <span className="ecosystem-row__badge">{t.symbol}</span>
-                                            </span>
-                                            <span className="ecosystem-row__sub">{t.path}</span>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
+                            <>
+                                <ul className="ecosystem-list">
+                                    {topTokens.map((t) => (
+                                        <li key={t.path} className="ecosystem-list__item">
+                                            <Link to={tokensHref} className="ecosystem-row" data-testid="eco-token-row">
+                                                <span className="ecosystem-row__main">
+                                                    <span className="ecosystem-row__name">{t.name}</span>
+                                                    <span className="ecosystem-row__badge">{t.symbol}</span>
+                                                </span>
+                                                <span className="ecosystem-row__sub">{t.path}</span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                                {tokens.length > TOKEN_TOP_N && (
+                                    <Link to={tokensHref} className="ecosystem-section__viewall" data-testid="eco-tokens-viewall">
+                                        view all {tokenCount} →
+                                    </Link>
+                                )}
+                            </>
                         )}
                     </div>
                 )}
@@ -119,7 +129,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                     <div className="ecosystem-section" data-testid="eco-validators">
                         <Link to={validatorsHref} className="ecosystem-section__header">
                             <span className="ecosystem-section__count">{validatorCount}</span>
-                            <span className="ecosystem-section__label">validators</span>
+                            <span className="ecosystem-section__label">Top validators</span>
                             <span className="ecosystem-section__arrow" aria-hidden="true">→</span>
                         </Link>
                         {validatorsLoading ? (

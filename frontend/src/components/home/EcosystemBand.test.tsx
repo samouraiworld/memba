@@ -157,17 +157,23 @@ describe("EcosystemBand — validators listing", () => {
         expect(row).not.toHaveTextContent("g1abcdefghijklmnopqrstuvwxyz0123456789zz")
     })
 
-    it("caps the listing at the top 5 validators and shows a 'view all N' link", () => {
+    it("caps the listing at the top 3 validators and shows a 'view all N' link", () => {
         vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(8), total: 8, loading: false })
         renderBand()
 
         const section = screen.getByTestId("eco-validators")
-        // Only the top 5 rows rendered — never a 100-row dump.
-        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(5)
+        // Only the top 3 rows rendered — never a long dump (keeps the band compact).
+        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(3)
 
         const viewAll = within(section).getByTestId("eco-validators-viewall")
         expect(viewAll).toHaveTextContent("8")
         expect(viewAll).toHaveAttribute("href", "/test13/validators")
+    })
+
+    it("labels the section 'Top validators' (sorted by power)", () => {
+        vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(3), total: 3, loading: false })
+        renderBand()
+        expect(within(screen.getByTestId("eco-validators")).getByText(/top validators/i)).toBeInTheDocument()
     })
 
     it("renders top validators in the order the hook provides (power desc, not re-sorted)", () => {
