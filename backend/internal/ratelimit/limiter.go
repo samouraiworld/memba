@@ -22,15 +22,16 @@ func DefaultConfigs() map[string]Config {
 	return map[string]Config{
 		"render": {MaxRequests: 30, Window: time.Minute}, // SPA makes 3-6 ABCI calls on page load
 		// "eval" removed in v6 (SEC-01) — /api/eval endpoint was removed
-		"balance":     {MaxRequests: 20, Window: time.Minute},  // Balance check
-		"rpc":         {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
-		"tx":          {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
-		"oauth":       {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
-		"analyst":     {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
-		"upload":      {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
-		"nft":         {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
-		"marketplace": {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
-		"default":     {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
+		"balance":        {MaxRequests: 20, Window: time.Minute},  // Balance check
+		"rpc":            {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
+		"tx":             {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
+		"oauth":          {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
+		"analyst":        {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
+		"upload":         {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
+		"nft":            {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
+		"marketplace":    {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
+		"token_launches": {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
+		"default":        {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }
 

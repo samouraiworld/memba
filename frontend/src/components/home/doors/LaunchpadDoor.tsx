@@ -19,6 +19,7 @@
 import { Door } from "../Door"
 import { useTokenLaunches } from "../../../hooks/home/useTokenLaunches"
 import { truncateAddr } from "../../../lib/format"
+import { formatActivityTime } from "../../../lib/activity"
 import "../home.css"
 
 export interface LaunchpadDoorProps {
@@ -39,7 +40,7 @@ export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
                             <span className="launchpad-door__token-name">{featured.name}</span>
                             <span className="launchpad-door__token-ticker">${featured.symbol}</span>
                         </div>
-                        {(featured.supplyDisplay || featured.holders || featured.admin) && (
+                        {(featured.supplyDisplay || featured.holders || featured.launchedAt || featured.admin) && (
                             <div className="launchpad-door__stats">
                                 {featured.supplyDisplay && (
                                     <span className="launchpad-door__stat">{featured.supplyDisplay} supply</span>
@@ -47,6 +48,11 @@ export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
                                 {featured.holders && (
                                     <span className="launchpad-door__stat">
                                         {featured.holders} {featured.holders === 1 ? "holder" : "holders"}
+                                    </span>
+                                )}
+                                {featured.launchedAt && (
+                                    <span className="launchpad-door__stat launchpad-door__stat--muted" data-testid="launchpad-launched">
+                                        launched {formatActivityTime(featured.launchedAt)} ago
                                     </span>
                                 )}
                                 {featured.admin && (

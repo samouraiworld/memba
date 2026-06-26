@@ -10,7 +10,7 @@ import type { ReactNode } from "react"
 import React from "react"
 
 vi.mock("../../lib/directory", () => ({ fetchTokens: vi.fn() }))
-vi.mock("../../lib/grc20", () => ({ getTokenInfo: vi.fn(), formatSupply: vi.fn() }))
+vi.mock("../../lib/grc20", () => ({ getTokenInfo: vi.fn(), formatSupply: vi.fn(), fetchTokenLaunchDates: vi.fn() }))
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({ networkKey: "test13", rpcUrl: "https://rpc.test13.example" })),
 }))
@@ -28,7 +28,11 @@ function makeWrapper() {
     }
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+    vi.clearAllMocks()
+    // Default: no launch dates (best-effort). Specific tests override.
+    vi.mocked(grc20.fetchTokenLaunchDates).mockResolvedValue({})
+})
 
 describe("useTokenLaunches", () => {
     it("enriches the top-N tokens with supply + admin + holders and reports the full total", async () => {
@@ -43,6 +47,19 @@ describe("useTokenLaunches", () => {
         expect(result.current.total).toBe(3) // full count, not the sliced 2
         expect(result.current.tokens).toHaveLength(2) // only top-2 enriched/shown
         expect(result.current.tokens[0]).toMatchObject({ symbol: "FOO", supplyDisplay: "102.5001", admin: "g1admin", decimals: 6, holders: 2 })
+    })
+
+    it("merges the server launch date by symbol (omitted when the map lacks it)", async () => {
+        vi.mocked(dir.fetchTokens).mockResolvedValue([tok("HOT"), tok("BAR")])
+        vi.mocked(grc20.getTokenInfo).mockResolvedValue(info("100", "g1admin", 6, 0))
+        vi.mocked(grc20.formatSupply).mockReturnValue("0.0001")
+        vi.mocked(grc20.fetchTokenLaunchDates).mockResolvedValue({ HOT: "2026-06-12T00:00:00Z" })
+
+        const { useTokenLaunches } = await import("./useTokenLaunches")
+        const { result } = renderHook(() => useTokenLaunches(2), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.tokens[0]).toMatchObject({ symbol: "HOT", launchedAt: "2026-06-12T00:00:00Z" })
+        expect(result.current.tokens[1].launchedAt).toBeUndefined() // BAR not in the map
     })
 
     it("omits holders when 'Known accounts' is 0/absent (honest)", async () => {

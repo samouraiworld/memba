@@ -36,6 +36,16 @@ describe("LaunchpadDoor", () => {
         expect(screen.getByText(/3 tokens on the launchpad/i)).toBeInTheDocument()
     })
 
+    it("shows the launch date when present", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({
+            tokens: [launch({ launchedAt: new Date(Date.now() - 3 * 86400_000).toISOString() })],
+            total: 1,
+            loading: false,
+        })
+        renderIt()
+        expect(screen.getByTestId("launchpad-launched")).toHaveTextContent(/launched 3d ago/i)
+    })
+
     it("omits supply/creator when unavailable (honest) but still shows the token", () => {
         vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [launch()], total: 1, loading: false })
         renderIt()
