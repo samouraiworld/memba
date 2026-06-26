@@ -7,6 +7,7 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { VISIBLE_NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
+import type { LayoutContext } from "../../types/layout"
 import { DotsThree, PuzzlePiece, SunDim, Moon, MagnifyingGlass } from "@phosphor-icons/react"
 
 // Member relabels the Alerts destination "Activity" in the primary tab row.
@@ -15,6 +16,7 @@ const TAB_LABEL_OVERRIDE: Record<string, string> = { alerts: "Activity" }
 interface MobileTabBarProps {
     connected: boolean
     address: string | null
+    auth: LayoutContext["auth"]
     network: {
         networkKey: string
         networks: Record<string, { label: string }>
@@ -22,7 +24,7 @@ interface MobileTabBarProps {
     }
 }
 
-export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
+export function MobileTabBar({ connected, address, auth, network }: MobileTabBarProps) {
     const location = useLocation()
     const nk = useNetworkKey()
     const [sheetOpen, setSheetOpen] = useState(false)
@@ -105,7 +107,7 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
             </nav>
 
             {/* ⊕ "Act" — floating quick-action button (connected members only) */}
-            <ActFab connected={connected} />
+            <ActFab connected={connected} auth={auth} />
 
             <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
                 <div id="mobile-more-sheet">

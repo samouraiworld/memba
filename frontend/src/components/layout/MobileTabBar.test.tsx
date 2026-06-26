@@ -8,11 +8,12 @@ vi.mock('../../hooks/useNetworkNav', () => ({ useNetworkKey: () => 'test13' }))
 import { MobileTabBar } from './MobileTabBar'
 
 const network = { networkKey: 'test13', networks: {}, switchNetwork: () => {} }
+const authStub = { token: null, isAuthenticated: false, address: '', loading: false, error: null }
 
 function renderBar() {
     return render(
         <MemoryRouter initialEntries={['/test13/']}>
-            <MobileTabBar connected={false} address={null} network={network} />
+            <MobileTabBar connected={false} address={null} auth={authStub as never} network={network} />
         </MemoryRouter>,
     )
 }

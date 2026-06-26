@@ -1451,6 +1451,28 @@ body {
   transform: scale(0.94);
 }
 
+/* Total-pending bubble on the ⊕ — gold on the teal FAB, ringed in the canvas
+   colour so it reads as a distinct badge. */
+.k-act-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-k-govdao);
+  color: var(--color-k-on-govdao);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border: 2px solid var(--color-k-bg);
+  box-sizing: border-box;
+}
+
 /* ── Mobile Tab Bar ────────────────────────────────────────────── */
 .k-mobile-tabbar {
   display: none;

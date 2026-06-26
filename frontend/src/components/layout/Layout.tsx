@@ -273,6 +273,17 @@ export function Layout() {
     )
     const notifs = useNotifications(savedDaoPaths, adena.connected ? adena.address : null)
 
+    // The auth slice handed to routes (via the Outlet context) and to the mobile
+    // tab bar's Act FAB (for live pending-action badges). One source so the two
+    // can't drift.
+    const layoutAuth = {
+        token: auth.token,
+        isAuthenticated: auth.isAuthenticated,
+        address: auth.address,
+        loading: authLoading || auth.loading,
+        error: authError,
+    }
+
     // The main-column content (top bar, banners, routed page, footer) is shared
     // by both shells. Desktop wraps it alongside the Sidebar; mobile renders it
     // alone. Keeping it here (not duplicated in each shell) guarantees the two
@@ -324,7 +335,7 @@ export function Layout() {
                 {isLoggingIn ? (
                     <ConnectingLoader />
                 ) : (
-                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
+                    <Outlet context={{ adena, balance, auth: layoutAuth, isLoggingIn, syncTimedOut }} />
                 )}
             </main>
 
@@ -398,6 +409,7 @@ export function Layout() {
                 <MobileTabBar
                     connected={adena.connected}
                     address={auth.address || adena.address}
+                    auth={layoutAuth}
                     network={network}
                 />
 
