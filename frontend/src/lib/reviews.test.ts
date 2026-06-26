@@ -4,6 +4,15 @@ import {
     parseReviews,
     sortByTrust,
     parseReputationScalar,
+    buildPostReviewMsg,
+    buildEditReviewMsg,
+    buildDeleteReviewMsg,
+    buildReactMsg,
+    buildCommentMsg,
+    buildEditCommentMsg,
+    buildDeleteCommentMsg,
+    buildFlagMsg,
+    REVIEWS_PKG_PATH,
 } from "./reviews"
 
 describe("unwrapQeval", () => {
@@ -74,5 +83,90 @@ describe("parseReputationScalar", () => {
     it("returns 0 on unrecognized format", () => {
         expect(parseReputationScalar("not a scalar")).toBe(0)
         expect(parseReputationScalar("")).toBe(0)
+    })
+})
+
+// ── Write builder tests ──────────────────────────────────────
+
+describe("buildPostReviewMsg", () => {
+    it("builds a PostReview MsgCall", () => {
+        const m = buildPostReviewMsg("g1caller", "g1subject", 5, "great")
+        expect(m.type).toBe("vm/MsgCall")
+        expect(m.value.func).toBe("PostReview")
+        expect(m.value.pkg_path).toBe(REVIEWS_PKG_PATH)
+        expect(m.value.args).toEqual(["g1subject", "5", "great"])
+        expect(m.value.caller).toBe("g1caller")
+    })
+    it("coerces rating to string", () => {
+        const m = buildPostReviewMsg("g1c", "g1s", 3, "ok")
+        expect(typeof (m.value.args as string[])[1]).toBe("string")
+        expect((m.value.args as string[])[1]).toBe("3")
+    })
+    it("sets send to empty string", () => {
+        expect(buildPostReviewMsg("g1c", "g1s", 4, "nice").value.send).toBe("")
+    })
+})
+
+describe("buildEditReviewMsg", () => {
+    it("builds an EditReview MsgCall", () => {
+        const m = buildEditReviewMsg("g1c", 99, 4, "updated")
+        expect(m.value.func).toBe("EditReview")
+        expect(m.value.args).toEqual(["99", "4", "updated"])
+        expect(m.value.caller).toBe("g1c")
+    })
+})
+
+describe("buildDeleteReviewMsg", () => {
+    it("builds a DeleteReview MsgCall", () => {
+        const m = buildDeleteReviewMsg("g1c", 7)
+        expect(m.value.func).toBe("DeleteReview")
+        expect(m.value.args).toEqual(["7"])
+    })
+})
+
+describe("buildReactMsg", () => {
+    it("builds a like React MsgCall", () => {
+        expect(buildReactMsg("g1c", 42, "like").value.args).toEqual(["42", "like"])
+    })
+    it("builds a dislike React MsgCall", () => {
+        const m = buildReactMsg("g1c", 10, "dislike")
+        expect(m.value.func).toBe("React")
+        expect(m.value.args).toEqual(["10", "dislike"])
+    })
+})
+
+describe("buildCommentMsg", () => {
+    it("targets PostComment (not Comment)", () => {
+        const m = buildCommentMsg("g1c", 7, "nice")
+        expect(m.value.func).toBe("PostComment")
+        expect(m.value.args).toEqual(["7", "nice"])
+    })
+    it("sets pkg_path to REVIEWS_PKG_PATH", () => {
+        expect(buildCommentMsg("g1c", 1, "x").value.pkg_path).toBe(REVIEWS_PKG_PATH)
+    })
+})
+
+describe("buildEditCommentMsg", () => {
+    it("builds an EditComment MsgCall", () => {
+        const m = buildEditCommentMsg("g1c", 3, "edited")
+        expect(m.value.func).toBe("EditComment")
+        expect(m.value.args).toEqual(["3", "edited"])
+    })
+})
+
+describe("buildDeleteCommentMsg", () => {
+    it("builds a DeleteComment MsgCall", () => {
+        const m = buildDeleteCommentMsg("g1c", 5)
+        expect(m.value.func).toBe("DeleteComment")
+        expect(m.value.args).toEqual(["5"])
+    })
+})
+
+describe("buildFlagMsg", () => {
+    it("builds a Flag MsgCall", () => {
+        const m = buildFlagMsg("g1c", 12)
+        expect(m.value.func).toBe("Flag")
+        expect(m.value.args).toEqual(["12"])
+        expect(m.value.caller).toBe("g1c")
     })
 })
