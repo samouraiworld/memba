@@ -710,6 +710,17 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
   outline-offset: 2px;
 }
 
+/* Lift + soft shadow on hover (motion-welcome only) — matches the doors. */
+@media (prefers-reduced-motion: no-preference) {
+  .explore-tile {
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .explore-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.45);
+  }
+}
+
 /* ── Activity feed (live across gno.land) ─────────────────────── */
 .activity-feed__list {
   list-style: none;
@@ -1641,6 +1652,7 @@ a.activity-feed__link:focus-visible {
 .value-strip__card:hover {
   border-color: var(--color-k-edge-hover);
   transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.45);
 }
 
 .value-strip__icon {
@@ -1727,16 +1739,18 @@ button.door:focus-visible {
   outline-offset: 2px;
 }
 
-/* Transform-based lift only when motion is welcome (a11y). */
+/* Transform-based lift + soft elevation shadow only when motion is welcome (a11y).
+   The lift now reads as depth rather than a bare position shift. */
 @media (prefers-reduced-motion: no-preference) {
   a.door,
   button.door {
-    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
   }
 
   a.door:hover,
   button.door:hover {
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.45);
   }
 }
 
