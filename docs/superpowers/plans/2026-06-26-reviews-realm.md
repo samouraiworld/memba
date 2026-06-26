@@ -19,7 +19,18 @@
 - **Feature flag `VITE_ENABLE_REVIEWS`** (default OFF) gates the entire frontend feature. It MUST be added to `SAFETY_GATED_FLAGS` in `frontend/src/lib/safeFlags.ts` (it gates on-chain enforcement that is incomplete until the realm is live + reviewed). `.env.example` keeps it `false`. The build-time `assertSafeFlags` gate FAILS a production Netlify build if it is `"true"` in prod env — only flip on (Task 15) after deploy + review + user approval.
 - **Git (BOTH repos):** never commit on `main`/`master`; branch (`feat/...`) + PR. **No Claude attribution** in commits/PRs (no `Co-Authored-By`, no "Generated with" footer). Ask before pushing / opening a PR. Never merge without explicit user approval.
 - **Light-theme guardrail (Memba):** `ci.yml` fails any new hardcoded `color:` hex/hsl/rgb in component CSS. New review CSS must use `--color-k-*-text` tokens or the `.k-brand-text` utility (+ `--ck`). 0 new light-mode offenders is a DoD item.
-- **DRY · YAGNI · TDD · frequent commits.** gno tests: `cd projects/memba/realms/memba_reviews_v1 && gno test .` (or the repo's test target). Frontend tests: `cd frontend && npm test`.
+- **DRY · YAGNI · frequent commits.** Frontend tests (Tasks 10–14): normal vitest TDD — `cd frontend && npm test`. Realm tasks (1–6) use the REVISED validation method below (the installed gno toolchain cannot run interrealm-v2 crossing-function tests).
+
+## Realm validation method (REVISED 2026-06-26 — OVERRIDES the gno test steps in Tasks 1–6)
+
+**Why:** the installed `gno` (and CI's pinned `gno v1.1.0`) cannot compile interrealm-v2 realm *tests* — `uassert/v0`/`testutils/v0` use a `cross` form this toolchain rejects, so `memba_feedback_v2` (the analog) ships with **zero** unit tests; v2 realms are validated by `gno lint` + on-chain. **Verified locally:** (a) `gno lint .` on v2 *production* code is clean; (b) **bare-`testing`** tests (only `import "testing"` — NO `uassert`, NO `testutils`, NO crossing calls like `Fn(cross, …)`) compile and pass; (c) any test that imports `uassert`/`testutils` or calls a crossing function FAILS to compile here.
+
+**Therefore, each realm task's runnable gate is:**
+1. **`gno lint .` clean** (the compile/static gate). Run: `cd projects/memba/realms/memba_reviews_v1 && gno lint .` → expect no output, exit 0.
+2. **Bare-`testing` unit tests for that task's PURE logic** — functions that take no `cur realm` and don't touch `unsafe.*`. Factor the high-risk logic into pure helpers so it IS testable: the reputation transition math (`reactionDelta(old, new) → (likesΔ, dislikesΔ, repΔ)`, `applyDelta`), `jsonEscape`, `clampLimit`/`window` pagination bounds, rating/length validators (`validRating`, `validBody`), `pairKey`. Tests live in `memba_reviews_v1_logic_test.gno`, use plain Go-style assertions (`if got != want { t.Fatalf(...) }`), and MUST pass under `gno test .`.
+3. **Crossing-function behavior** (caller auth via `unsafe.PreviousRealm()`, one-per-`(author,subject)`, multisig-only hide, end-to-end react/flag) is NOT unit-tested here. It is the spec the code must meet, verified by: the **mandatory security review (Task 8)** reasoning through each path, and an **on-chain functional script (Task 9, `projects/memba/scripts/verify-reviews-onchain.sh`)** that runs a `gnokey maketx … React/PostReview/…` sequence against the deployed realm and asserts via `qeval` reads.
+
+**Reading the per-task `uassert`/`cross` test blocks below:** they are the **behavioral spec** (what the code must do), retained for clarity. Do NOT write them as `uassert` files — they won't compile. Instead, for each task: extract its pure logic into the helpers above and write the equivalent **bare-`testing`** assertions for that pure logic; for the crossing behavior, ensure the production code implements it exactly (review + Task 8/9 verify). Refactor freely so logic is pure-testable.
 
 ## Locked sub-decisions (spec §10, resolved for this plan)
 
