@@ -47,7 +47,7 @@
 .tx-confirm-close {
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
     font-size: 24px;
     cursor: pointer;
     padding: 0 4px;
@@ -55,12 +55,12 @@
     transition: color 0.15s;
 }
 .tx-confirm-close:hover {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--color-k-text);
 }
 
 .tx-confirm-memo {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-k-text);
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -72,7 +72,7 @@
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.2);
     font-size: 11px;
-    color: #f5a623;
+    color: var(--color-k-warning-text);
     line-height: 1.5;
 }
 
@@ -103,19 +103,19 @@
 }
 
 .tx-confirm-label {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
     flex-shrink: 0;
 }
 
 .tx-confirm-value {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--color-k-text);
     text-align: right;
     word-break: break-all;
 }
 
 .tx-confirm-func {
     font-weight: 600;
-    color: var(--color-primary, #6c63ff);
+    color: var(--color-k-accent-text, #6c63ff);
 }
 
 .tx-confirm-addr {
@@ -124,7 +124,7 @@
 }
 
 .tx-confirm-send {
-    color: #f5a623;
+    color: var(--color-k-warning-text);
     font-weight: 600;
 }
 
@@ -155,7 +155,7 @@
     background: rgba(255, 82, 82, 0.06);
     border: 1px solid rgba(255, 82, 82, 0.2);
     font-size: 11px;
-    color: #ff5252;
+    color: var(--color-k-danger-text);
     line-height: 1.5;
 }
 
@@ -181,12 +181,12 @@
 
 .tx-confirm-btn--cancel {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.6);
+    border-color: var(--color-k-muted);
+    color: var(--color-k-dim);
 }
 .tx-confirm-btn--cancel:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--color-k-text);
 }
 
 .tx-confirm-btn--confirm {

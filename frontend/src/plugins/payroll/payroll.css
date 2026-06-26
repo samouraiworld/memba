@@ -195,7 +195,7 @@
 .pay-preview__total {
     font-size: 13px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     margin-bottom: 12px;
 }
 
@@ -216,7 +216,7 @@
 
 .pay-preview__addr { color: var(--color-text, #f0f0f0); flex: 2; }
 .pay-preview__role { color: var(--color-text-secondary, #888); flex: 1; }
-.pay-preview__amount { color: var(--color-primary, #00d4aa); flex: 1; text-align: right; }
+.pay-preview__amount { color: var(--color-k-accent-text, #00d4aa); flex: 1; text-align: right; }
 
 /* ── Period ───────────────────────────────────────────── */
 

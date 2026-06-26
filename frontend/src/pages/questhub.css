@@ -612,12 +612,12 @@
 
 .k-questdetail-result--pending {
     background: rgba(255, 165, 2, 0.1);
-    color: var(--color-k-warning);
+    color: var(--color-k-warning-text);
 }
 
 .k-questdetail-result--error {
     background: rgba(255, 71, 87, 0.1);
-    color: var(--color-k-danger);
+    color: var(--color-k-danger-text);
 }
 
 .k-questdetail-back {
@@ -672,7 +672,7 @@
 .k-quest-toast-rankup {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-k-warning);
+    color: var(--color-k-warning-text);
     padding: 2px var(--space-2);
     background: rgba(255, 165, 2, 0.1);
     border-radius: var(--radius-md);
@@ -859,7 +859,7 @@
 }
 
 .k-questdetail-result--pending {
-    color: var(--color-k-warning);
+    color: var(--color-k-warning-text);
 }
 
 /* ── Quest admin review queue ───────────────────────────────── */
@@ -919,7 +919,7 @@
 .k-questadmin-reject {
     padding: var(--space-2) var(--space-4);
     background: transparent;
-    color: var(--color-k-danger);
+    color: var(--color-k-danger-text);
     border: 1px solid var(--color-k-danger);
     border-radius: var(--radius-md);
     cursor: pointer;

@@ -134,14 +134,14 @@
 .msh-threshold {
     font-size: 11px;
     font-family: "JetBrains Mono", monospace;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.08);
     padding: 2px 7px;
     border-radius: 4px;
 }
 
 .msh-threshold-warn {
-    color: #f59e0b;
+    color: var(--color-k-warning-text);
     background: rgba(245, 158, 11, 0.1);
 }
 

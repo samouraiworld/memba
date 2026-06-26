@@ -47,7 +47,7 @@
 /* ── Back Button ─────────────────────────────────────── */
 
 .tv-back-btn {
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-size: 13px;
     background: none;
     border: none;
@@ -84,7 +84,7 @@
 .tv-admin-badge {
     font-size: 11px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
     padding: 3px 8px;
     border-radius: var(--radius-sm, 4px);
@@ -118,7 +118,7 @@
 }
 
 .tv-meta-row__value--accent {
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Balance Card ────────────────────────────────────── */
@@ -146,7 +146,7 @@
 }
 
 .tv-balance-card__amount--positive {
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .tv-balance-card__amount--zero {
@@ -165,7 +165,7 @@
     background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
     border-radius: var(--radius-md, 8px);
     border: 1px solid rgba(0, 212, 170, 0.2);
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-size: 13px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
@@ -192,8 +192,8 @@
 }
 
 .tv-action-tab[data-active="true"] {
-    border-bottom-color: var(--color-primary, #00d4aa);
-    color: var(--color-primary, #00d4aa);
+    border-bottom-color: var(--color-k-accent-text, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Action Form ─────────────────────────────────────── */

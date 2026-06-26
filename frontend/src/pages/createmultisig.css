@@ -12,7 +12,7 @@
 
 /* ── Back button ────────────────────────────────────────── */
 .cms-back-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     background: none;
     border: none;
@@ -94,7 +94,7 @@
 }
 
 .cms-add-member-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 12px;
     background: none;
     border: none;

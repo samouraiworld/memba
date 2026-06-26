@@ -104,7 +104,7 @@
 .coming-soon-features li::before {
     content: "☐";
     flex-shrink: 0;
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-size: 0.9em;
     margin-top: 1px;
 }
@@ -117,7 +117,7 @@
     padding: 10px 20px;
     font-size: var(--text-sm, 0.875rem);
     font-weight: 600;
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: var(--color-primary-bg, rgba(0, 212, 170, 0.08));
     border: 1px solid var(--color-primary-border, rgba(0, 212, 170, 0.15));
     border-radius: var(--radius-md, 8px);

@@ -117,13 +117,13 @@
 .k-msview__action-text {
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
-  color: #f5a623;
+  color: var(--color-k-warning-text);
 }
 .k-msview__action-btn {
   margin-left: auto;
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   background: rgba(245, 166, 35, 0.08);
   border: 1px solid rgba(245, 166, 35, 0.2);
   border-radius: 6px;
