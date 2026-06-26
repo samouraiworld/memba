@@ -1361,20 +1361,115 @@ a.activity-feed__link:focus-visible {
 
 /* ── VisitorHero ──────────────────────────────────────────────────── */
 
+/* Editorial hero: a lead column (headline + CTAs) beside a live proof card.
+   Stacks on narrow viewports. */
 .visitor-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  padding: 28px 16px;
+}
+
+.visitor-hero__lead {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px 16px;
+  min-width: 0;
 }
 
 .visitor-hero__headline {
   font-family: var(--font-sans);
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-k-text);
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.15;
+}
+
+/* ── Hero proof card ──────────────────────────────────────────────── */
+.hero-proof {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-k-edge);
+  border-radius: 12px;
+  background: var(--color-k-panel);
+}
+
+.hero-proof__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-k-muted);
+}
+
+.hero-proof__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.hero-proof__dot.is-live {
+  background: var(--color-k-accent-text);
+  animation: hero-proof-pulse 2s ease-in-out infinite;
+}
+
+.hero-proof__dot.is-offline {
+  background: var(--color-k-danger-text);
+}
+
+@keyframes hero-proof-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.hero-proof__height {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-k-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-proof__height--skeleton {
+  height: 32px;
+  width: 70%;
+  border-radius: 4px;
+  background: var(--color-k-edge);
+  opacity: 0.6;
+}
+
+.hero-proof__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+.hero-proof__empty {
+  font-size: 13px;
+  color: var(--color-k-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-proof__dot.is-live {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .visitor-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }
 
 .visitor-hero__subtitle {
