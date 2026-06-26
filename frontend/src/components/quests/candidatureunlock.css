@@ -92,7 +92,7 @@
 
 .candidature-unlock__btn--secondary {
     background: var(--color-bg-hover);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     border: 1px solid rgba(0, 212, 170, 0.2);
 }
 

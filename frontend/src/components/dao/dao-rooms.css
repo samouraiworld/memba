@@ -65,7 +65,7 @@
 }
 
 .dao-room-private .dao-room-hint {
-    color: #4a4a4a;
+    color: var(--color-k-muted);
 }
 
 /* ── Room Modal Overlay ───────────────────────────────────── */
@@ -130,7 +130,7 @@
 .dao-room-modal-close:hover {
     border-color: rgba(255, 71, 87, 0.3);
     background: rgba(255, 71, 87, 0.08);
-    color: #ff4757;
+    color: var(--color-k-danger-text);
 }
 
 .dao-room-modal-body {

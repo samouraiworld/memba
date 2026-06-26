@@ -24,7 +24,7 @@
 }
 
 .notif-bell-btn:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.06);
 }
 
@@ -110,7 +110,7 @@
 
 .notif-mark-all {
     font-size: 11px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     background: none;
     border: none;
     cursor: pointer;
@@ -206,7 +206,7 @@
 .notif-item-title {
     font-size: 13px;
     font-weight: 500;
-    color: #e0e0e0;
+    color: var(--color-k-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -214,7 +214,7 @@
 
 .notif-item-body {
     font-size: 11px;
-    color: #777;
+    color: var(--color-k-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

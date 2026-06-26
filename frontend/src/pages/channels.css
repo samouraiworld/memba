@@ -53,7 +53,7 @@
     border-radius: 6px;
     border: 1px solid var(--color-border);
     background: transparent;
-    color: var(--color-k-accent, #6366f1);
+    color: var(--color-k-accent-text, #6366f1);
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
 }
@@ -127,7 +127,7 @@
 
 .channels-sidebar-item.active {
     background: rgba(0, 212, 170, 0.06);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .channels-sidebar-item.archived {
@@ -216,11 +216,11 @@
 }
 
 .channels-header .breadcrumb button:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .channels-header .breadcrumb .sep {
-    color: #333;
+    color: var(--color-k-dim);
     font-size: 10px;
 }
 
@@ -248,7 +248,7 @@
 
 .channels-mobile-toggle:hover {
     border-color: rgba(0, 212, 170, 0.2);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 /* ── Empty State ───────────────────────────────────────────── */
@@ -369,7 +369,7 @@
     padding: 2px 6px;
     border-radius: 3px;
     background: rgba(0, 212, 170, 0.1);
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 700;
     letter-spacing: 0.05em;
 }
@@ -394,6 +394,6 @@
 }
 
 .channel-badge--join {
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
 }

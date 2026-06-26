@@ -85,8 +85,8 @@
 }
 
 .dir-tab[data-active="true"] {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+    color: var(--color-k-accent-text);
+    border-bottom-color: var(--color-k-accent-text);
 }
 
 /* ── Search ─────────────────────────────────────── */
@@ -263,7 +263,7 @@ a.dir-card {
 }
 
 .dir-card-stat .stat-value {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-weight: 600;
 }
 
@@ -280,7 +280,7 @@ a.dir-card {
 
 .dir-badge-saved {
     background: var(--color-k-accent-subtle);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .dir-badge-active {
@@ -290,7 +290,7 @@ a.dir-card {
 
 .dir-badge-seed {
     background: rgba(123, 97, 255, 0.08);
-    color: #7b61ff;
+    color: var(--color-k-purple-text);
 }
 
 .dir-arrow {
@@ -312,7 +312,7 @@ a.dir-card {
     justify-content: center;
     font-size: 14px;
     font-weight: 700;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     flex-shrink: 0;
 }
 
@@ -341,7 +341,7 @@ a.dir-card {
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    color: #7b61ff;
+    color: var(--color-k-purple-text);
     flex-shrink: 0;
 }
 
@@ -381,7 +381,7 @@ a.dir-card {
 }
 
 .dir-error p {
-    color: #ef4444;
+    color: var(--color-k-danger-text);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
 }
@@ -451,7 +451,7 @@ a.dir-card {
     border-radius: 4px;
     border: 1px solid var(--color-k-accent-border);
     background: var(--color-k-accent-subtle);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     cursor: pointer;
     font-family: "JetBrains Mono", monospace;
     font-weight: 600;
@@ -490,7 +490,7 @@ a.dir-card {
 
 .dir-inline-badge--live {
     background: var(--color-k-accent-tint);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     border-color: var(--color-k-accent-border-strong);
 }
 
@@ -500,7 +500,7 @@ a.dir-card {
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     font-weight: 600;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     padding: 2px 6px;
     border-radius: 4px;
@@ -544,7 +544,7 @@ a.dir-card {
     justify-content: center;
     font-size: 12px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--color-k-text);
     background: linear-gradient(135deg, hsl(210, 70%, 50%), hsl(280, 60%, 55%));
     flex-shrink: 0;
     border: 1.5px solid var(--color-border-light);
@@ -639,7 +639,7 @@ a.dir-card {
 
 .chain-metric__value {
     font-size: 12px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-weight: 600;
 }
 
@@ -713,7 +713,7 @@ a.dir-card {
 
 .dir-realm-preview__path {
     font-size: 11px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: "JetBrains Mono", monospace;
     font-weight: 600;
     margin-bottom: 6px;
@@ -749,7 +749,7 @@ a.dir-card {
 
 .dir-expand-icon.open {
     transform: rotate(90deg);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .dir-render-preview {
@@ -774,7 +774,7 @@ a.dir-card {
 
 .dir-render-preview__link {
     font-size: 10px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-family: "JetBrains Mono", monospace;
 }
@@ -914,7 +914,7 @@ a.dir-card {
 .dir-lb-score {
     font-size: 14px;
     font-weight: 700;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: "JetBrains Mono", monospace;
     flex-shrink: 0;
 }
@@ -989,7 +989,7 @@ a.dir-card {
 .dir-cross-show-all {
     padding: 6px 10px;
     font-size: 11px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     background: none;
     border: none;
     cursor: pointer;
@@ -1021,7 +1021,7 @@ a.dir-card {
 /* ── Primary Preview Link ─────────────────────── */
 
 .dir-render-preview__link--primary {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-weight: 600;
     background: var(--color-k-accent-subtle);
     border: 1px solid var(--color-k-accent-border);
@@ -1144,8 +1144,8 @@ a.dir-card {
 }
 
 .drawer-tab.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+    color: var(--color-k-accent-text);
+    border-bottom-color: var(--color-k-accent-text);
 }
 
 /* ── Drawer Content ───────────────────────────── */
@@ -1226,7 +1226,7 @@ a.dir-card {
 
 .drawer-deps__item {
     font-size: 11px;
-    color: #61afef;
+    color: var(--color-k-info-text);
     font-family: "JetBrains Mono", monospace;
     padding: 3px 0;
 }
@@ -1238,7 +1238,7 @@ a.dir-card {
 
 .drawer-links__item {
     font-size: 12px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-family: "JetBrains Mono", monospace;
 }
@@ -1284,8 +1284,8 @@ a.dir-card {
 }
 
 .source-tab.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+    color: var(--color-k-accent-text);
+    border-bottom-color: var(--color-k-accent-text);
 }
 
 .source-tab__lines {
@@ -1313,7 +1313,7 @@ a.dir-card {
     border-radius: 4px;
     background: var(--color-k-accent-subtle);
     border: 1px solid var(--color-k-accent-border);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -1381,12 +1381,12 @@ a.dir-card {
 
 /* ── Gno Syntax Highlighting ─────────────────── */
 
-.gno-keyword { color: #c678dd; }
-.gno-string  { color: #98c379; }
-.gno-comment { color: #5c6370; font-style: italic; }
-.gno-type    { color: #61afef; }
-.gno-func    { color: var(--color-primary); }
-.gno-number  { color: #d19a66; }
+.gno-keyword { color: var(--color-k-purple-text); }
+.gno-string  { color: var(--color-k-success-text); }
+.gno-comment { color: var(--color-k-muted); font-style: italic; }
+.gno-type    { color: var(--color-k-info-text); }
+.gno-func    { color: var(--color-k-accent-text); }
+.gno-number  { color: var(--color-k-warning-text); }
 
 /* ── File Tree ────────────────────────────────── */
 
@@ -1480,11 +1480,11 @@ a.dir-card {
 }
 
 .func-list__keyword {
-    color: #c678dd;
+    color: var(--color-k-purple-text);
 }
 
 .func-list__name {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-weight: 600;
 }
 
@@ -1493,7 +1493,7 @@ a.dir-card {
 }
 
 .func-list__returns {
-    color: #61afef;
+    color: var(--color-k-info-text);
 }
 
 /* ── Markdown Lite Styles ─────────────────────── */
@@ -1501,7 +1501,7 @@ a.dir-card {
 .md-h1 { font-size: 18px; font-weight: 700; color: var(--color-text); margin: 16px 0 8px; }
 .md-h2 { font-size: 15px; font-weight: 600; color: var(--color-text-dim); margin: 14px 0 6px; }
 .md-h3 { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); margin: 12px 0 4px; }
-.md-h4 { font-size: 12px; font-weight: 600; color: #bbb; margin: 10px 0 4px; }
+.md-h4 { font-size: 12px; font-weight: 600; color: var(--color-k-dim); margin: 10px 0 4px; }
 .md-p { font-size: 13px; color: var(--color-text-secondary); margin: 4px 0; line-height: 1.6; }
 
 .md-ul, .md-ol {
@@ -1516,7 +1516,7 @@ a.dir-card {
     padding: 1px 5px;
     border-radius: 3px;
     background: var(--color-surface-hover);
-    color: #e06c75;
+    color: var(--color-k-danger-text);
     font-family: "JetBrains Mono", monospace;
     font-size: 12px;
 }
@@ -1533,7 +1533,7 @@ a.dir-card {
 .md-code-block code {
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
-    color: #abb2bf;
+    color: var(--color-k-text);
     line-height: 1.5;
 }
 
@@ -1565,7 +1565,7 @@ a.dir-card {
 }
 
 .md-address {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
 }
 
@@ -1574,7 +1574,7 @@ a.dir-card {
 }
 
 .drawer-render__content a {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
 }
 
@@ -1612,7 +1612,7 @@ a.dir-card {
 
 .token-drawer-symbol {
     font-size: 13px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -1629,7 +1629,7 @@ a.dir-card {
     border-radius: 8px;
     background: var(--color-k-accent-subtle);
     border: 1px solid var(--color-k-accent-border);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     font-family: "JetBrains Mono", monospace;
     font-weight: 600;

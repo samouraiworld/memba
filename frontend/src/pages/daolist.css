@@ -72,7 +72,7 @@
 .k-daolist__action-title {
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   font-weight: 600;
 }
 .k-daolist__action-list {
@@ -96,7 +96,7 @@
   background: rgba(245, 166, 35, 0.06);
 }
 .k-daolist__action-dao {
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   flex-shrink: 0;
 }
 .k-daolist__action-sep {
@@ -108,7 +108,7 @@
   white-space: nowrap;
 }
 .k-daolist__action-arrow {
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -282,7 +282,7 @@
 }
 .k-dao-card__badge--archived {
   background: rgba(245, 166, 35, 0.1);
-  color: #f5a623;
+  color: var(--color-k-warning-text);
 }
 
 /* Card remove button */
@@ -295,7 +295,7 @@
   padding: 4px;
 }
 .k-dao-card__remove:hover {
-  color: #ff4757;
+  color: var(--color-k-danger-text);
 }
 
 /* Card indicators (unvoted / notifications) */
@@ -333,7 +333,7 @@
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
 }
-.k-dao-card__indicator-text--warn { color: #f5a623; }
+.k-dao-card__indicator-text--warn { color: var(--color-k-warning-text); }
 .k-dao-card__indicator-text--info { color: var(--color-k-accent-text); }
 
 /* Card realm path + source link */

@@ -43,7 +43,7 @@
 
 .board-sidebar-item.active {
     background: rgba(0, 212, 170, 0.06);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Thread Cards ──────────────────────────────────────────── */
@@ -92,7 +92,7 @@
 .board-reply-author {
     font-size: 11px;
     font-weight: 600;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -153,13 +153,13 @@
 
 .board-deleted-tag {
     font-size: 10px;
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
     font-style: italic;
 }
 
 .board-mention {
     background: rgba(0, 212, 170, 0.12);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     padding: 1px 4px;
     border-radius: 4px;
     font-size: 12px;
@@ -185,7 +185,7 @@
 }
 
 .board-back-btn:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── G1: Gated Channel Banner ─────────────────────────────── */
@@ -209,7 +209,7 @@
 }
 
 .gated-channel-banner__text strong {
-    color: var(--color-k-warning, #f5a623);
+    color: var(--color-k-warning-text, #f5a623);
 }
 
 /* ── G1: Lock icon on restricted channels in sidebar ──────── */
@@ -235,12 +235,12 @@
 }
 
 .flag-button:hover:not(:disabled) {
-    color: var(--color-k-warning, #f5a623);
+    color: var(--color-k-warning-text, #f5a623);
     background: rgba(245, 166, 35, 0.08);
 }
 
 .flag-button.flagged {
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
     cursor: default;
 }
 
@@ -252,6 +252,6 @@
 .flag-button__error {
     display: block;
     font-size: 9px;
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
     margin-top: 2px;
 }

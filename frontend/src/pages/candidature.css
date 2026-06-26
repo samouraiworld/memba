@@ -81,7 +81,7 @@
 
 .candidature-status__approvals {
     font-size: 11px;
-    color: #ffc107;
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
     margin: 0;
 }
@@ -101,7 +101,7 @@
 
 .candidature-form__cost {
     font-size: 11px;
-    color: #ffc107;
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
     padding: 8px 12px;
     background: rgba(255, 193, 7, 0.06);
@@ -166,7 +166,7 @@
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     border: 1px solid rgba(0, 212, 170, 0.15);
 }
 
@@ -184,7 +184,7 @@
     font-family: JetBrains Mono, monospace;
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
 }
@@ -234,7 +234,7 @@
     font-family: JetBrains Mono, monospace;
     background: rgba(0, 212, 170, 0.1);
     border: 1px solid rgba(0, 212, 170, 0.25);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     cursor: pointer;
 }
 
@@ -288,17 +288,17 @@
 
 .candidature-list__item-badge--pending {
     background: rgba(255, 193, 7, 0.1);
-    color: #ffc107;
+    color: var(--color-k-warning-text);
 }
 
 .candidature-list__item-badge--approved {
     background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    color: var(--color-k-success-text);
 }
 
 .candidature-list__item-badge--rejected {
     background: rgba(244, 67, 54, 0.1);
-    color: #f44336;
+    color: var(--color-k-danger-text);
 }
 
 .candidature-list__item-addr {
@@ -325,7 +325,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: rgba(99, 102, 241, 0.14);
-    color: var(--color-k-accent, #6366f1);
+    color: var(--color-k-accent-text, #6366f1);
     vertical-align: middle;
 }
 
@@ -361,7 +361,7 @@
 
 .candidature-admin-btn--approve {
     border-color: rgba(34, 197, 94, 0.4);
-    color: #22c55e;
+    color: var(--color-k-success-text);
 }
 
 .candidature-admin-btn--approve:hover:not(:disabled) {
@@ -370,7 +370,7 @@
 
 .candidature-admin-btn--reject {
     border-color: rgba(244, 67, 54, 0.4);
-    color: #f44336;
+    color: var(--color-k-danger-text);
 }
 
 .candidature-admin-btn--reject:hover:not(:disabled) {

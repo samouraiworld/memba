@@ -205,7 +205,7 @@
 .k-members__role-remove {
   background: none;
   border: none;
-  color: var(--color-k-danger);
+  color: var(--color-k-danger-text);
   cursor: pointer;
   font-size: 9px;
   padding: 0;
