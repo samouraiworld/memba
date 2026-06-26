@@ -56,7 +56,9 @@
 .vd-loading {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.8rem;
+    min-height: 30vh;
     padding: 3rem 0;
     color: var(--color-k-dim);
     font-size: 0.85rem;

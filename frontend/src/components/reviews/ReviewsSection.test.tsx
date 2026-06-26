@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react"
+import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi } from "vitest"
 import { ReviewsSection } from "./ReviewsSection"
+import { renderWithProviders } from "../../test/test-utils"
 
 vi.mock("../../lib/reviews", () => ({
   fetchReviews: vi.fn().mockResolvedValue([
@@ -28,26 +29,47 @@ vi.mock("../../lib/reviews", () => ({
   REVIEWS_PKG_PATH: "gno.land/r/samcrew/memba_reviews_v1",
 }))
 
-// useAdena: disconnected — field is `connected` (not `isConnected`)
+// Keep block-height → date resolution offline in tests.
+vi.mock("../../lib/blockTimeRpc", () => ({
+  fetchBlockTime: vi.fn().mockResolvedValue(null),
+}))
+
+const connect = vi.fn().mockResolvedValue(false)
 vi.mock("../../hooks/useAdena", () => ({
-  useAdena: () => ({
-    address: "",
-    connected: false,
-    connect: vi.fn(),
-  }),
+  useAdena: () => ({ address: "", connected: false, connect }),
 }))
 
 describe("ReviewsSection", () => {
-  it("shows summary + a review body and a connect gate", async () => {
-    render(<ReviewsSection subject="g1s" />)
+  it("shows summary + a review body, and the write form is visible while logged out", async () => {
+    renderWithProviders(<ReviewsSection subject="g1s" />)
 
-    // Review body renders
     expect(await screen.findByText(/great validator/)).toBeInTheDocument()
-
     // Average displays — sum/count = 5/1 = 5.0
     expect(screen.getByText(/5\.0/)).toBeInTheDocument()
 
-    // Connect gate appears when disconnected — button is present
-    expect(screen.getByRole("button", { name: /connect wallet to review/i })).toBeInTheDocument()
+    // The form (rating radiogroup + Connect & post button) is present without a wallet.
+    expect(screen.getByRole("radiogroup", { name: /your rating/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /connect & post review/i })).toBeInTheDocument()
+  })
+
+  it("triggers wallet connect when posting while logged out (after a rating is chosen)", async () => {
+    connect.mockClear()
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/great validator/)
+
+    // Choose 4 stars, then submit.
+    fireEvent.click(screen.getByRole("radio", { name: /4 stars/i }))
+    fireEvent.click(screen.getByRole("button", { name: /connect & post review/i }))
+
+    await waitFor(() => expect(connect).toHaveBeenCalled())
+  })
+
+  it("does not connect when no rating is selected", async () => {
+    connect.mockClear()
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/great validator/)
+
+    fireEvent.click(screen.getByRole("button", { name: /connect & post review/i }))
+    expect(connect).not.toHaveBeenCalled()
   })
 })
