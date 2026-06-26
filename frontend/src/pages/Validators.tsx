@@ -604,7 +604,7 @@ export default function Validators() {
                                 <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
                                 <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
                                 <Tooltip contentStyle={{ background: "#12121e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span style={{ color: "var(--color-k-text)" }}>{value}</span>} />
                                 <Bar dataKey="critical" name="Critical" stackId="incidents" fill="#ef4444" />
                                 <Bar dataKey="warning" name="Warning" stackId="incidents" fill="#eab308" />
                                 <Bar dataKey="info" name="Info" stackId="incidents" fill="#3b82f6" />

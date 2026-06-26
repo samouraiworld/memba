@@ -23,26 +23,26 @@
     gap: 0.5rem;
     padding: 0.4rem 0 0.2rem;
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
 }
 
 .vd-back {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.72rem;
     transition: color 0.15s;
 }
-.vd-back:hover { color: rgba(0, 255, 170, 1); }
+.vd-back:hover { color: var(--color-k-accent-text); }
 
-.vd-nav__sep { color: rgba(255, 255, 255, 0.2); }
-.vd-nav__current { color: rgba(255, 255, 255, 0.7); font-weight: 600; }
+.vd-nav__sep { color: var(--color-k-muted); }
+.vd-nav__current { color: var(--color-k-text); font-weight: 600; }
 
 .vd-nav__chain {
     margin-left: auto;
     font-size: 0.62rem;
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     border: 1px solid rgba(0, 212, 170, 0.15);
     border-radius: 3px;
     padding: 1px 5px;
@@ -58,7 +58,7 @@
     align-items: center;
     gap: 0.8rem;
     padding: 3rem 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
     font-size: 0.85rem;
 }
 
@@ -75,8 +75,8 @@
 }
 
 .vd-notfound__icon { font-size: 2rem; }
-.vd-notfound h2 { color: rgba(255, 255, 255, 0.85); margin: 0; font-size: 1.1rem; }
-.vd-notfound p { color: rgba(255, 255, 255, 0.45); margin: 0; font-size: 0.8rem; }
+.vd-notfound h2 { color: var(--color-k-text); margin: 0; font-size: 1.1rem; }
+.vd-notfound p { color: var(--color-k-dim); margin: 0; font-size: 0.8rem; }
 
 .vd-btn-back {
     margin-top: 0.5rem;
@@ -84,7 +84,7 @@
     border-radius: 6px;
     background: rgba(0, 212, 170, 0.1);
     border: 1px solid rgba(0, 212, 170, 0.25);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 600;
@@ -120,7 +120,7 @@
     border-radius: 50%;
     background: var(--color-surface-hover);
     border: 1px solid var(--color-border-light);
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-k-text);
     font-weight: 700;
     font-size: 0.78rem;
     flex-shrink: 0;
@@ -129,7 +129,7 @@
 .vd-rank-badge--top3 {
     background: rgba(0, 212, 170, 0.15);
     border-color: rgba(0, 212, 170, 0.35);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .vd-header-card__info {
@@ -142,7 +142,7 @@ h1.vd-moniker {
     margin: 0;
     font-size: 1.35rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--color-k-text);
     line-height: 1.1;
 }
 
@@ -151,7 +151,7 @@ h1.vd-moniker {
     align-items: center;
     gap: 0.3rem;
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
     word-break: break-all;
 }
 
@@ -177,11 +177,11 @@ h1.vd-moniker {
     letter-spacing: 0.04em;
 }
 
-.vd-badge--active   { background: rgba(0, 212, 170, 0.12); color: var(--color-primary); border: 1px solid rgba(0, 212, 170, 0.25); }
-.vd-badge--inactive { background: rgba(255, 80, 80, 0.09); color: rgba(255, 100, 100, 0.9); border: 1px solid rgba(255, 80, 80, 0.2); }
+.vd-badge--active   { background: rgba(0, 212, 170, 0.12); color: var(--color-k-accent-text); border: 1px solid rgba(0, 212, 170, 0.25); }
+.vd-badge--inactive { background: rgba(255, 80, 80, 0.09); color: var(--color-k-danger-text); border: 1px solid rgba(255, 80, 80, 0.2); }
 .vd-badge--proposer {
     background: rgba(255, 196, 0, 0.12);
-    color: rgba(255, 200, 0, 0.95);
+    color: var(--color-k-warning-text);
     border: 1px solid rgba(255, 196, 0, 0.3);
     animation: vd-pulse-proposer 1.2s ease infinite;
 }
@@ -209,9 +209,9 @@ h1.vd-moniker {
     padding: 0.9rem 1rem;
 }
 
-.vd-stat-label { font-size: 0.62rem; color: rgba(255, 255, 255, 0.35); text-transform: uppercase; letter-spacing: 0.06em; }
-.vd-stat-value { font-size: 1.3rem; font-weight: 700; color: rgba(255, 255, 255, 0.9); }
-.vd-stat-hint  { font-size: 0.62rem; color: rgba(255, 255, 255, 0.25); margin-top: 0.1rem; }
+.vd-stat-label { font-size: 0.62rem; color: var(--color-k-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.vd-stat-value { font-size: 1.3rem; font-weight: 700; color: var(--color-k-text); }
+.vd-stat-hint  { font-size: 0.62rem; color: var(--color-k-muted); margin-top: 0.1rem; }
 
 /* ── Power bar ──────────────────────────────────────────── */
 
@@ -236,7 +236,7 @@ h1.vd-moniker {
     right: 0;
     top: -1.1rem;
     font-size: 0.6rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--color-k-muted);
 }
 
 /* ── Generic card ───────────────────────────────────────── */
@@ -254,7 +254,7 @@ h1.vd-moniker {
 .vd-card__title {
     font-size: 0.68rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-k-dim);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding-bottom: 0.4rem;
@@ -275,12 +275,12 @@ h1.vd-moniker {
     min-width: 9rem;
     flex-shrink: 0;
     font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--color-k-muted);
 }
 
 .vd-row__value {
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-k-text);
     display: flex;
     align-items: center;
     gap: 0.3rem;
@@ -303,11 +303,11 @@ h1.vd-moniker {
     gap: 0.15rem;
 }
 
-.vd-perf-label { font-size: 0.62rem; color: rgba(255, 255, 255, 0.35); text-transform: uppercase; letter-spacing: 0.06em; }
+.vd-perf-label { font-size: 0.62rem; color: var(--color-k-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .vd-perf-value { font-size: 1.4rem; font-weight: 700; }
-.vd-perf-value--ok   { color: var(--color-primary); }
-.vd-perf-value--warn { color: rgba(255, 196, 0, 0.9); }
-.vd-perf-value--bad  { color: rgba(255, 80, 80, 0.9); }
+.vd-perf-value--ok   { color: var(--color-k-accent-text); }
+.vd-perf-value--warn { color: var(--color-k-warning-text); }
+.vd-perf-value--bad  { color: var(--color-k-danger-text); }
 
 /* ── External links ─────────────────────────────────────── */
 
@@ -321,7 +321,7 @@ h1.vd-moniker {
     border-radius: 6px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--color-k-dim);
     text-decoration: none;
     font-size: 0.78rem;
     transition: background 0.12s, color 0.12s;
@@ -329,11 +329,11 @@ h1.vd-moniker {
 
 .vd-ext-link:hover {
     background: rgba(0, 212, 170, 0.06);
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--color-k-text);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
-.vd-ext-link__arrow { color: rgba(255, 255, 255, 0.25); font-size: 0.9rem; }
+.vd-ext-link__arrow { color: var(--color-k-muted); font-size: 0.9rem; }
 
 /* ── Misc ───────────────────────────────────────────────── */
 
@@ -342,7 +342,7 @@ h1.vd-moniker {
 }
 
 .vd-link {
-    color: rgba(100, 200, 255, 0.8);
+    color: var(--color-k-info-text);
     text-decoration: none;
 }
 .vd-link:hover { text-decoration: underline; }
@@ -353,12 +353,12 @@ h1.vd-moniker {
     background: none;
     border: none;
     cursor: pointer;
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--color-k-muted);
     padding: 0 2px;
     transition: color 0.12s;
     flex-shrink: 0;
 }
-.vd-copy:hover { color: rgba(0, 212, 170, 0.8); }
+.vd-copy:hover { color: var(--color-k-accent-text); }
 
 /* ── Responsive ─────────────────────────────────────────── */
 
@@ -398,7 +398,7 @@ h1.vd-moniker {
 
 .vd-incident-time {
     font-size: 0.62rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--color-k-muted);
     font-family: "JetBrains Mono", monospace;
     white-space: nowrap;
     min-width: 10rem;
@@ -406,7 +406,7 @@ h1.vd-moniker {
 
 .vd-incident-details {
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-k-dim);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -414,9 +414,9 @@ h1.vd-moniker {
 
 /* ── v2.17.0: Health-colored stat values ───────────────── */
 
-.vd-val-ok       { color: #34d399; }
-.vd-val-warn     { color: #facc15; }
-.vd-val-critical { color: #f87171; }
+.vd-val-ok       { color: var(--color-k-success-text); }
+.vd-val-warn     { color: var(--color-k-warning-text); }
+.vd-val-critical { color: var(--color-k-danger-text); }
 
 /* ── v2.17.0: Health badge on header card ──────────────── */
 
@@ -425,3 +425,17 @@ h1.vd-moniker {
     align-items: center;
     gap: 0.3rem;
 }
+
+/* ── §13: light-theme readability for the BlockHeatmap embedded on this page.
+   The hk-/hm- classes come from hacker-mode.css (neon-on-dark). Scoped under
+   .vd-page so the deprioritized, dark-only /validators/hacker route is untouched. ── */
+[data-theme="light"] .vd-page .hk-card__title,
+[data-theme="light"] .vd-page .hk-card__icon { color: var(--color-k-success-text); }
+[data-theme="light"] .vd-page .hk-heatmap__meta,
+[data-theme="light"] .vd-page .hm-legend { color: var(--color-k-dim); }
+[data-theme="light"] .vd-page .hm-legend__item--perfect,
+[data-theme="light"] .vd-page .hm-legend__item--healthy,
+[data-theme="light"] .vd-page .hm-legend__valset { color: var(--color-k-success-text); }
+[data-theme="light"] .vd-page .hm-legend__item--warn { color: var(--color-k-warning-text); }
+[data-theme="light"] .vd-page .hm-legend__item--critical { color: var(--color-k-danger-text); }
+[data-theme="light"] .vd-page .hm-legend__item--empty { color: var(--color-k-muted); }
