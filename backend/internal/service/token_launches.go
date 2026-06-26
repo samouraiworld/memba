@@ -56,16 +56,26 @@ func HandleTokenLaunches() http.Handler {
 		mu.Unlock()
 
 		go func() {
+			// Always clear the in-flight flag — even on error OR panic — so a
+			// malformed indexer payload can't wedge `refreshing` true and block
+			// every future refresh. recover() also stops a bad response from
+			// taking down the whole process.
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Warn("token launches refresh panicked", "recover", r)
+				}
+				mu.Lock()
+				refreshing = false
+				mu.Unlock()
+			}()
 			ctx, cancel := context.WithTimeout(context.Background(), tokenLaunchScanTimeout)
 			defer cancel()
 			m, err := fetchTokenLaunchDates(ctx, homeSnapshotRPCURL())
-			mu.Lock()
-			refreshing = false
 			if err != nil {
 				slog.Warn("token launches refresh failed", "error", err)
-				mu.Unlock()
 				return
 			}
+			mu.Lock()
 			cached = m
 			cachedAt = time.Now()
 			mu.Unlock()
