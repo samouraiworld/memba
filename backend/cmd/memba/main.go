@@ -186,6 +186,10 @@ func main() {
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
 	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
+	// Token launch dates: server-side cached {symbol: launchedAtISO} map. The
+	// creation-time scan is too slow for the browser (exceeds the 10s indexer
+	// proxy timeout), so it's computed + cached here and refreshed in background.
+	mux.Handle("/api/token-launches", rateLimitMiddleware("token_launches", service.HandleTokenLaunches()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
 	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")

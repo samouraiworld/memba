@@ -7,7 +7,7 @@
  * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
 
-import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID } from "./config"
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig } from "./gasConfig"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -259,6 +259,25 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
         totalSupply: supplyMatch?.[1] || "0",
         admin: adminMatch?.[1] || "",
         knownAccounts: accountsMatch ? parseInt(accountsMatch[1], 10) : undefined,
+    }
+}
+
+/**
+ * Fetch the server-computed {symbol: launchedAtISO} map of token creation times.
+ * The realm stores no creation time; the backend resolves it from the tx-indexer
+ * (too slow for the browser — exceeds the indexer-proxy timeout) and caches it.
+ * Best-effort: returns {} on any failure, so callers simply omit launch dates
+ * (honesty — never fabricated). The map may be empty until the backend's first
+ * background scan completes.
+ */
+export async function fetchTokenLaunchDates(signal?: AbortSignal): Promise<Record<string, string>> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/token-launches`, { signal })
+        if (!res.ok) return {}
+        const data = (await res.json()) as Record<string, string>
+        return data && typeof data === "object" ? data : {}
+    } catch {
+        return {}
     }
 }
 

@@ -25,7 +25,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
 import { fetchTokens, type DirectoryToken } from "../../lib/directory"
-import { getTokenInfo, formatSupply } from "../../lib/grc20"
+import { getTokenInfo, formatSupply, fetchTokenLaunchDates } from "../../lib/grc20"
 
 export interface TokenLaunch extends DirectoryToken {
     /** Decimal-scaled, thousands-grouped total supply; omitted when unknown/zero. */
@@ -36,6 +36,8 @@ export interface TokenLaunch extends DirectoryToken {
     decimals?: number
     /** Holder count (the token ledger's "Known accounts"); omitted when 0/absent. */
     holders?: number
+    /** ISO creation time (server-resolved from the indexer); omitted when unknown. */
+    launchedAt?: string
 }
 
 export interface TokenLaunchesResult {
@@ -56,22 +58,26 @@ export function useTokenLaunches(limit: number): TokenLaunchesResult {
     const query = useQuery({
         queryKey: ["home", "token-launches", networkKey, limit],
         queryFn: async () => {
-            const list = await fetchTokens()
+            // The token list (per-token RPC enrichment) and the server-cached
+            // launch-date map are fetched together; launch dates are best-effort.
+            const [list, launchDates] = await Promise.all([fetchTokens(), fetchTokenLaunchDates()])
             const top = list.slice(0, limit)
             const tokens = await Promise.all(
                 top.map(async (t): Promise<TokenLaunch> => {
+                    const launchedAt = launchDates[t.symbol] || undefined
                     try {
                         const info = await getTokenInfo(rpcUrl, t.symbol)
-                        if (!info) return { ...t }
+                        if (!info) return { ...t, launchedAt }
                         return {
                             ...t,
                             supplyDisplay: formatSupply(info.totalSupply, info.decimals) ?? undefined,
                             admin: info.admin?.trim() || undefined,
                             decimals: info.decimals,
                             holders: info.knownAccounts && info.knownAccounts > 0 ? info.knownAccounts : undefined,
+                            launchedAt,
                         }
                     } catch {
-                        return { ...t } // best-effort: keep name/symbol/path
+                        return { ...t, launchedAt } // best-effort: keep name/symbol/path + date
                     }
                 }),
             )
