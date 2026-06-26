@@ -183,7 +183,7 @@
 }
 
 .msh-empty-icon {
-    color: #333;
+    color: var(--color-k-dim);
     margin-bottom: 4px;
 }
 

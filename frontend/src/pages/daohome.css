@@ -43,11 +43,11 @@
 }
 
 .dao-breadcrumb-btn:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .dao-breadcrumb-sep {
-    color: #333;
+    color: var(--color-k-dim);
     font-size: 10px;
 }
 
@@ -84,7 +84,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(245, 166, 35, 0.1);
-    color: #f5a623;
+    color: var(--color-k-warning-text);
 }
 
 .dao-member-pill {
@@ -98,14 +98,14 @@
 }
 
 .dao-member-pill__check {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 11px;
 }
 
 .dao-member-pill__text {
     font-size: 10px;
     font-family: JetBrains Mono, monospace;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-weight: 600;
 }
 
@@ -148,7 +148,7 @@
 }
 
 .dao-path-source-link:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 /* ── Description ─────────────────────────────────────────── */
@@ -167,7 +167,7 @@
     border-radius: 4px;
     background: rgba(245, 166, 35, 0.05);
     font-size: 10px;
-    color: #f5a623;
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -187,7 +187,7 @@
 
 .dao-username-cta__text {
     font-size: 10px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -253,7 +253,7 @@
 .dao-filter-tab.active {
     border-color: rgba(0, 212, 170, 0.3);
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 /* ── List containers ─────────────────────────────────────── */
@@ -315,7 +315,7 @@
 
 /* ── View all link ───────────────────────────────────────── */
 .dao-view-all-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 12px;
     background: none;
     border: none;
@@ -354,7 +354,7 @@
 }
 
 .dao-treasury-open-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 12px;
     background: none;
     border: none;
@@ -422,7 +422,7 @@
     padding: 1px 6px;
     border-radius: 3px;
     background: rgba(0, 212, 170, 0.08);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
 }
