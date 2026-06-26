@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { screen, waitFor } from "@testing-library/react"
+import { screen, fireEvent } from "@testing-library/react"
 import { renderWithProviders } from "../test/test-utils"
 import type { ValidatorInfo, NetworkStats } from "../lib/validators"
 import type { ValoperWithStatus } from "../lib/valopers"
@@ -92,23 +92,36 @@ vi.mock("../components/validators/NetworkNodesRoster", () => ({
 
 import Validators from "./Validators"
 
-describe("Validators page — section order", () => {
+describe("Validators page — segment tabs", () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
 
-    it("renders the live metrics table BEFORE the valoper roster in document order", async () => {
+    it("renders the three segment tabs", async () => {
         renderWithProviders(<Validators />, { route: "/test13/validators" })
+        await screen.findByTestId("validator-table")
+        expect(screen.getByTestId("seg-validators")).toBeInTheDocument()
+        expect(screen.getByTestId("seg-operators")).toBeInTheDocument()
+        expect(screen.getByTestId("seg-network")).toBeInTheDocument()
+    })
 
-        // Wait for the async loadData to populate both sections.
-        const table = await screen.findByTestId("validator-table")
-        const valoperPanel = await waitFor(() => screen.getByTestId("valoper-panel"))
+    it("defaults to the Validators tab — metrics table shown, operators roster hidden", async () => {
+        renderWithProviders(<Validators />, { route: "/test13/validators" })
+        expect(await screen.findByTestId("validator-table")).toBeInTheDocument()
+        expect(screen.queryByTestId("valoper-panel")).not.toBeInTheDocument()
+    })
 
-        // compareDocumentPosition: DOCUMENT_POSITION_FOLLOWING (4) is set on the
-        // result when `valoperPanel` comes AFTER `table` in the tree.
-        const position = table.compareDocumentPosition(valoperPanel)
-        expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-        // And the inverse must NOT hold (valoper panel does not precede the table).
-        expect(position & Node.DOCUMENT_POSITION_PRECEDING).toBeFalsy()
+    it("Operators tab reveals the valoper roster and hides the metrics table", async () => {
+        renderWithProviders(<Validators />, { route: "/test13/validators" })
+        await screen.findByTestId("validator-table")
+        fireEvent.click(screen.getByTestId("seg-operators"))
+        expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()
+        expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
+    })
+
+    it("deep-links straight to the Operators tab via ?tab=operators", async () => {
+        renderWithProviders(<Validators />, { route: "/test13/validators?tab=operators" })
+        expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()
+        expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
     })
 })
