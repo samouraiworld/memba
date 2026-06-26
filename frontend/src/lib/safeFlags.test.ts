@@ -36,16 +36,14 @@ describe("assertSafeFlags", () => {
             "VITE_ENABLE_SERVICES",
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
-            "VITE_ENABLE_REVIEWS",
         ])
     })
 })
 
-describe("VITE_ENABLE_REVIEWS gate", () => {
-    it("is in SAFETY_GATED_FLAGS and trips assertSafeFlags when true", () => {
-        expect(SAFETY_GATED_FLAGS).toContain("VITE_ENABLE_REVIEWS")
-        expect(() => assertSafeFlags({ VITE_ENABLE_REVIEWS: "true" })).toThrow(/SAFETY GATE FAILED/)
-        expect(() => assertSafeFlags({ VITE_ENABLE_REVIEWS: "false" })).not.toThrow()
+describe("VITE_ENABLE_REVIEWS (enabled — realm deployed + reviewed)", () => {
+    it("is no longer gated, so true does not fail the build", () => {
+        expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_REVIEWS")
+        expect(() => assertSafeFlags({ VITE_ENABLE_REVIEWS: "true" })).not.toThrow()
     })
 })
 
