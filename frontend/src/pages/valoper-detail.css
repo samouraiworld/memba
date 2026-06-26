@@ -542,6 +542,43 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 .vp-quest-empty__link:hover { text-decoration: underline; }
 .vp-quest-foot { display: flex; }
 
+/* ── Unified profile: genesis identity note ──────────────────── */
+.vp-id__note {
+    margin: 0.6rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+    max-width: 60ch;
+}
+
+/* ── Unified profile: Performance tab "not in active set" state ── */
+.vp-perf-inactive {
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 2rem 1.5rem;
+}
+.vp-perf-inactive__icon {
+    font-size: 1.8rem;
+    color: var(--color-warning);
+    line-height: 1;
+}
+.vp-perf-inactive__title { margin: 0; font-size: 1rem; color: var(--color-text); }
+.vp-perf-inactive__body {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+    max-width: 52ch;
+}
+
+/* ── Unified profile: persistent community-reviews section ──────── */
+.vp-reviews {
+    margin-top: 0.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--color-border);
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
     .vp-id { flex-direction: column; }

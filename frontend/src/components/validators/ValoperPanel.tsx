@@ -56,7 +56,7 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
     }, [valopers])
 
     const goTo = (v: ValoperWithStatus) =>
-        nav(`validators/valoper/${v.operatorAddress}`, { state: { valoper: v } })
+        nav(`validators/${v.operatorAddress}`, { state: { valoper: v } })
 
     return (
         <div className="val-valopers" data-testid="valoper-panel">
