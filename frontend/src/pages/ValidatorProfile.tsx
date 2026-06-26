@@ -20,7 +20,8 @@ import {
     Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
     Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
 } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsEnabled } from "../lib/config"
+import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import {
     fetchValopers,
     resolveValidatorProfile,
@@ -117,7 +118,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 /** Persistent community-reviews section (below the tabs, every profile). The on-chain
  *  reviews realm is a later phase, so this is the honest "launching soon" hero. */
-function ReviewsSection() {
+function ReviewsLaunchingSoon() {
     return (
         <section className="vp-reviews" aria-label="Community reviews" data-testid="vp-reviews">
             <div className="vp-review-hero">
@@ -593,7 +594,11 @@ export default function ValidatorProfile() {
             )}
 
             {/* ── Persistent community reviews (below the tabs) ── */}
-            <ReviewsSection />
+            {isReviewsEnabled() && (valoper?.operatorAddress || address) ? (
+                <ReviewsSection subject={(valoper?.operatorAddress ?? address)!} />
+            ) : (
+                <ReviewsLaunchingSoon />
+            )}
         </div>
     )
 }
