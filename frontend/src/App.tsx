@@ -8,6 +8,7 @@ import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
+import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
 // ── Core multisig pages (small, always needed) ──
@@ -51,8 +52,7 @@ const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m
 // otherwise React Router will match the literal string "hacker" as an :address param.
 const Validators = lazy(() => import("./pages/Validators"))
 const ValidatorsHacker = lazy(() => import("./pages/ValidatorsHacker"))
-const ValidatorDetail = lazy(() => import("./pages/ValidatorDetail"))
-const ValoperDetail = lazy(() => import("./pages/ValoperDetail"))
+const ValidatorProfile = lazy(() => import("./pages/ValidatorProfile"))
 
 // ── Multisig Hub (lazy — v2.7) ──
 const MultisigHub = lazy(() => import("./pages/MultisigHub"))
@@ -216,8 +216,9 @@ function App() {
           <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
           {/* CRITICAL: /validators/hacker + /validators/valoper/* must come BEFORE /validators/:address */}
           <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
-          <Route path="validators/valoper/:operatorAddress" element={<Suspense fallback={<PageLoader />}><ValoperDetail /></Suspense>} />
-          <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorDetail /></Suspense>} />
+          {/* Legacy operator route → redirect to the unified canonical profile. */}
+          <Route path="validators/valoper/:operatorAddress" element={<ValoperRouteRedirect />} />
+          <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorProfile /></Suspense>} />
 
           {/* NFT section (Phase 2) — ORDER MATTERS: specific routes before /nft/:realmPath catch-all */}
           {/* Hub: Phase 2 marketplace browse/discover entry point. */}

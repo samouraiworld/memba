@@ -88,6 +88,85 @@ export function computeValoperStatus(
     return signingAddress && activeSigningAddresses.has(signingAddress) ? "active" : "candidate"
 }
 
+/** The three identity cases a unified validator profile can render, plus the
+ *  not-found fallback. See resolveValidatorProfile(). */
+export type ProfileIdentityCase =
+    | "registered-active"     // valoper whose signing key is in the active set
+    | "registered-candidate"  // valoper registered but not currently validating
+    | "genesis"               // in the active set but no valoper record
+    | "not-found"
+
+export interface ValidatorProfileResolution {
+    identityCase: ProfileIdentityCase
+    /** The address the canonical URL should use: the operator address for a
+     *  registered valoper, the signing address for a genesis validator. */
+    canonicalAddress: string
+    /** True when the incoming address ≠ canonicalAddress, so the page should
+     *  redirect (e.g. a signing-address deep link → the operator route). */
+    shouldRedirect: boolean
+    /** The matched valoper record, or null (genesis / not-found). */
+    valoper: ValoperWithStatus | null
+    /** The consensus/signing address whose live metrics to fetch; "" if none. */
+    performanceAddress: string
+    /** Whether performanceAddress is in the live consensus set (→ show metrics). */
+    isActive: boolean
+}
+
+/** Classify an incoming /validators/:address into one identity case, resolving the
+ *  canonical address and whether to redirect. Pure (no I/O) so callers can fetch the
+ *  valoper list + active set once and resolve synchronously.
+ *
+ *  Resolution order matters: a registered valoper is matched (by operator OR signing
+ *  address) before the genesis fallback, because an active valoper's signing address is
+ *  itself in the active set. The operator address is always canonical when a valoper
+ *  record exists; only a genesis validator is canonical by its signing address. */
+export function resolveValidatorProfile(
+    address: string | undefined,
+    valopers: ValoperWithStatus[],
+    activeSigningAddresses: Set<string>,
+): ValidatorProfileResolution {
+    const notFound: ValidatorProfileResolution = {
+        identityCase: "not-found",
+        canonicalAddress: address ?? "",
+        shouldRedirect: false,
+        valoper: null,
+        performanceAddress: "",
+        isActive: false,
+    }
+    if (!address) return notFound
+
+    const byOperator = valopers.find(v => v.operatorAddress === address)
+    const bySigning = byOperator ? null : valopers.find(v => v.signingAddress === address)
+    const matched = byOperator ?? bySigning
+
+    if (matched) {
+        const isActive = matched.status === "active"
+        return {
+            identityCase: isActive ? "registered-active" : "registered-candidate",
+            canonicalAddress: matched.operatorAddress,
+            // Redirect only when reached via a signing-address deep link (never from the
+            // operator route itself — guards against a redirect loop).
+            shouldRedirect: address !== matched.operatorAddress,
+            valoper: matched,
+            performanceAddress: matched.signingAddress,
+            isActive,
+        }
+    }
+
+    if (activeSigningAddresses.has(address)) {
+        return {
+            identityCase: "genesis",
+            canonicalAddress: address,
+            shouldRedirect: false,
+            valoper: null,
+            performanceAddress: address,
+            isActive: true,
+        }
+    }
+
+    return notFound
+}
+
 /** Fetch every registered valoper with its live status.
  *  @param activeSigningAddresses gno addresses (g1…) currently in the consensus set,
  *         i.e. `getValidators(...).map(v => v.gnoAddr)`. */
