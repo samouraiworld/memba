@@ -118,7 +118,7 @@
     border: 1px solid rgba(245, 166, 35, 0.15);
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
-    color: var(--color-warning);
+    color: var(--color-k-warning-text);
 }
 
 /* ── Submit row ─────────────────────────────────────────── */

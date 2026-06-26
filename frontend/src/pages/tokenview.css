@@ -248,7 +248,7 @@
     border: 1px solid rgba(245, 166, 35, 0.15);
     font-size: 11px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    color: var(--color-warning, #f5a623);
+    color: var(--color-k-warning-text, #f5a623);
 }
 
 /* ── Submit Button ───────────────────────────────────── */

@@ -160,7 +160,7 @@
 /* ── Member error / pubkey display ──────────────────────── */
 .cms-member-error {
     font-size: 11px;
-    color: var(--color-warning);
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
     padding-left: 4px;
 }
@@ -197,7 +197,7 @@
     border-radius: 8px;
     background: var(--color-k-amber-subtle);
     border: 1px solid var(--color-k-amber-border);
-    color: var(--color-warning);
+    color: var(--color-k-warning-text);
     font-size: 11px;
     font-family: JetBrains Mono, monospace;
     line-height: 1.6;

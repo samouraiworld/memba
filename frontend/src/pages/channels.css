@@ -84,7 +84,7 @@
 
 .channels-create-error {
     font-size: 11px;
-    color: var(--color-danger, #f44336);
+    color: var(--color-k-danger-text, #f44336);
 }
 
 .channels-create-submit {

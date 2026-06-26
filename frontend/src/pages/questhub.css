@@ -282,7 +282,7 @@
 }
 
 .k-quest-card-status--done {
-    color: var(--color-success, #4caf50);
+    color: var(--color-k-success-text, #4caf50);
 }
 
 .k-quest-card-status--available {
@@ -484,7 +484,7 @@
 }
 
 .k-questdetail-completed {
-    color: var(--color-success, #4caf50);
+    color: var(--color-k-success-text, #4caf50);
     font-weight: 600;
     font-size: 1.125rem;
 }
