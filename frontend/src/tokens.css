@@ -113,7 +113,7 @@
     --color-text: var(--color-k-text);
     --color-text-secondary: var(--color-k-dim);
     --color-text-muted: var(--color-k-muted);
-    --color-text-dim: #d1d5db;
+    --color-text-dim: var(--color-k-dim); /* §13: was #d1d5db (gray-300, ~1.4:1 on light — invisible). The dim tier now uses the AA dim token. */
     --color-bg: var(--color-k-bg);
     --color-bg-card: var(--color-k-elevated);
     --color-bg-hover: rgba(0, 0, 0, 0.02);
