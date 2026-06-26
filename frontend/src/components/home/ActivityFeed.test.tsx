@@ -8,12 +8,16 @@ import { render, screen, fireEvent, within } from "@testing-library/react"
 import type { ActivityItem } from "../../lib/activity"
 
 vi.mock("../../hooks/home/useRecentActivity", () => ({ useRecentActivity: vi.fn() }))
+vi.mock("../../hooks/home/useChainHealth", () => ({ useChainHealth: vi.fn() }))
 
 const { useRecentActivity } = await import("../../hooks/home/useRecentActivity")
+const { useChainHealth } = await import("../../hooks/home/useChainHealth")
 const { ActivityFeed } = await import("./ActivityFeed")
 const { relativeActivityTime } = await import("../../lib/activity")
 
 const mockHook = vi.mocked(useRecentActivity)
+// Default: chain healthy (not degraded). Specific tests override.
+vi.mocked(useChainHealth).mockReturnValue({ health: "healthy", degraded: false, blockAge: 5, loading: false })
 
 const item = (over: Partial<ActivityItem>): ActivityItem => ({
     kind: "call", title: "Approve · gnoswap/gns", actor: "g1abcabcabcabcabcabcabcabcabcabcabcabcabc",
@@ -23,7 +27,10 @@ const item = (over: Partial<ActivityItem>): ActivityItem => ({
 const set = (over: Partial<ReturnType<typeof useRecentActivity>>) =>
     mockHook.mockReturnValue({ items: [], loading: false, error: false, available: true, refetch: vi.fn(), ...over })
 
-beforeEach(() => mockHook.mockReset())
+beforeEach(() => {
+    mockHook.mockReset()
+    vi.mocked(useChainHealth).mockReturnValue({ health: "healthy", degraded: false, blockAge: 5, loading: false })
+})
 
 describe("ActivityFeed", () => {
     it("renders nothing when no indexer is available for the network", () => {
@@ -92,6 +99,13 @@ describe("ActivityFeed", () => {
         fireEvent.click(tokenChip)
         expect(tokenChip).toHaveAttribute("aria-pressed", "true")
         expect(screen.getAllByTestId("activity-row")).toHaveLength(2) // only token rows
+    })
+
+    it("says the feed is PAUSED (not just empty) when the chain is stalled", () => {
+        vi.mocked(useChainHealth).mockReturnValue({ health: "halted", degraded: true, blockAge: 3600, loading: false })
+        set({ items: [] })
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.getByTestId("activity-feed-empty")).toHaveTextContent(/paused.*chain looks stalled/i)
     })
 
     it("hides the filter chips when only one kind is present", () => {

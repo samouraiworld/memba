@@ -12,6 +12,7 @@
 import { useState } from "react"
 import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise, Palette, ChatCircle, Vault } from "@phosphor-icons/react"
 import { useRecentActivity } from "../../hooks/home/useRecentActivity"
+import { useChainHealth } from "../../hooks/home/useChainHealth"
 import { formatActivityTime, type ActivityItem, type ActivityKind } from "../../lib/activity"
 import { getExplorerBaseUrl } from "../../lib/config"
 import { truncateValidatorAddr } from "../../lib/validators"
@@ -95,6 +96,7 @@ export interface ActivityFeedProps {
 
 export function ActivityFeed({ networkKey }: ActivityFeedProps) {
     const { items, loading, error, available, refetch } = useRecentActivity(networkKey)
+    const { degraded: chainStalled } = useChainHealth()
     const [filter, setFilter] = useState<ActivityKind | "all">("all")
     if (!available) return null
 
@@ -152,7 +154,9 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
 
             {!loading && !error && items.length === 0 && (
                 <div className="activity-feed__state" data-testid="activity-feed-empty">
-                    No recent activity in the latest blocks — check back soon.
+                    {chainStalled
+                        ? "Feed paused — the chain looks stalled. New activity will appear once blocks resume."
+                        : "No recent activity in the latest blocks — check back soon."}
                 </div>
             )}
 
