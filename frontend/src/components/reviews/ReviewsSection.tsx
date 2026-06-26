@@ -166,7 +166,7 @@ export function ReviewsSection({ subject }: ReviewsSectionProps) {
 
       {!loading && !loadError && reviews.length > 0 && (
         <div className="reviews-section__list">
-          {reviews.map((r) => (
+          {reviews.filter((r) => !r.deleted).map((r) => (
             <ReviewCard key={r.id} review={r} onRefetch={load} />
           ))}
         </div>

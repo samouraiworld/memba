@@ -237,7 +237,6 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
       "post comment",
       () => { setReplyBody(""); setReplyOpen(false); loadComments() },
     )
-    loadComments()
   }
 
   async function handleEdit() {
@@ -314,7 +313,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           {/* Like */}
           <button
             className="review-card__action-btn review-card__action-btn--like"
-            disabled={busy || !connected}
+            disabled={busy || !connected || isAuthor}
             onClick={() => handleAction(buildReactMsg(address, review.id, "like"), "like review")}
             aria-label={`Like — ${review.likes}`}
           >
@@ -324,7 +323,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           {/* Dislike */}
           <button
             className="review-card__action-btn review-card__action-btn--dislike"
-            disabled={busy || !connected}
+            disabled={busy || !connected || isAuthor}
             onClick={() => handleAction(buildReactMsg(address, review.id, "dislike"), "dislike review")}
             aria-label={`Dislike — ${review.dislikes}`}
           >
