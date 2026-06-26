@@ -26,7 +26,8 @@
   --color-k-amber-border: rgba(255, 165, 2, 0.30);    /* 30% border */
   /* GovDAO refined-gold tokens — scoped to the GovDAO spotlight ONLY (kept
      separate from the global amber/warning tokens, which are used elsewhere). */
-  --color-k-govdao: #c9a227;                          /* refined deep gold accent */
+  --color-k-govdao: #c9a227;                          /* refined deep gold — FILLS/borders/CTA-bg */
+  --color-k-govdao-text: #c9a227;                     /* govdao as TEXT — bright gold reads fine on the dark bg */
   --color-k-govdao-subtle: rgba(201, 162, 39, 0.10);  /* 10% fill */
   --color-k-govdao-tint: rgba(201, 162, 39, 0.10);    /* 10% tint bg */
   --color-k-govdao-border: rgba(201, 162, 39, 0.38);  /* 38% border */
@@ -92,7 +93,8 @@
   /* GovDAO refined-gold tokens — light theme. Text/accent uses a darker gold
      (#9a7b1f) for legible contrast on the light surface; the CTA keeps the deep
      gold fill with dark text. */
-  --color-k-govdao: #836718;                           /* §13: darker gold ~4.7:1 for the small eyebrow text on light (was #9a7b1f ~3.8:1) */
+  --color-k-govdao: #9a7b1f;                           /* gold FILL/border/CTA-bg — near-black CTA text reads ~4.8:1 on it */
+  --color-k-govdao-text: #6a5210;                      /* §13: govdao as TEXT on light — deep gold ~6:1 on the tinted card (the fill gold is only ~3.8:1 as text) */
   --color-k-govdao-subtle: rgba(154, 123, 31, 0.12);
   --color-k-govdao-tint: rgba(201, 162, 39, 0.12);
   --color-k-govdao-border: rgba(154, 123, 31, 0.45);
@@ -302,7 +304,7 @@ a:hover {
   padding: 0 16px;
   border-radius: 8px;
   background: rgba(0, 212, 170, 0.08);
-  color: #00d4aa;
+  color: var(--color-k-accent-text);
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 500;
