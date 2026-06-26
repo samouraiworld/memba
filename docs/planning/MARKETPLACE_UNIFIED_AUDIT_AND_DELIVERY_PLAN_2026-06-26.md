@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-26
 **Owner:** CTO (cross-perspective expert team: 2× Gno core eng, FSE, UX, UI, security, + 5 Gno users)
-**Status:** 🟢 v2 CONFIRMED by expert panel (confirmation pass 2026-06-26: realm = GO-WITH-NOTES, frontend/product = GO; all 9 prior must-fixes verified CLOSED, no W0 blockers). **Wave W0 STARTED 2026-06-26.**
+**Status:** 🟢 v2 CONFIRMED by expert panel (confirmation pass 2026-06-26). **Wave W0 COMPLETE 2026-06-26** (W0.1–W0.5 implemented + tested on branch `feat/marketplace-w0-safety`; G0 gate green — see §9 "W0 — completion record"). Next: W1 on GO.
 **Single source of truth** for the Marketplace program. Supersedes the trading-relevant scope of the per-lane docs (`NFT_MARKETPLACE_*`, `MARKETPLACE_ACTIVATION.md`, `SERVICES_ACTIVATION.md`).
 
 > **v2 changelog (why this differs from v1):** A 3-lens adversarial panel (realm-security, frontend-arch, product/econ) reviewed the v1 plan and returned REWORK / SHIP-WITH-FIXES / REWORK. v2 incorporates every finding: v1 descoped to **NFT + Services** (Tokens + Agents earned as v1.1/v1.2); **per-lane fees** (not flat 2%); **shell-only unification with lane-native trade panels**; **zero XP for trade volume + product KPIs/kill-thresholds at every gate**; on-chain correctness fixes (no `tokenfactory_v2` redeploy, no `Pause` on the fee realm, `SplitProceedsBPS`, safe OTC redesign); and wave-boundary corrections (structured reads/offers/pagination are **realm** changes folded into the v3.1 redeploy, not W0 frontend tasks). Panel findings are archived in §14.
@@ -249,6 +249,16 @@ Full rework to Memba's **black + teal `#00d4aa` + gold `#c9a227`** theme + §13 
 - **W0.4 (frontend)** Retire dead code: `NFTTxToast.tsx`, `NFTImage.tsx`, duplicate escrow builders, stale `escrowTemplate.ts`/`nftTemplate.ts`, fix stale comments. **Do NOT delete `SEED_LISTINGS` until §11 seeding replaces it.**
 - **W0.5 (realm/ops)** Recompile all realms on fresh gno master + `gno test ./...`. **On-chain audit of `escrow_v2` open contracts/balances** (decides in-place setter vs migration for W2).
 - **Exit (G0):** no un-gated trade path; golden-tested parser; realms green on master; escrow fund-state known.
+
+#### W0 — completion record (2026-06-26, branch `feat/marketplace-w0-safety`)
+All five tasks implemented with TDD where applicable; full unit suite + `npm run build` green (one unrelated pre-existing `DAOsTab` timeout flake, proven by isolated 20s-timeout pass).
+- **W0.1 ✅** `isNftMarketV3Valid()` added; `CollectionPublic` now gates on the v3 engine it trades (4 new gating tests + page-test mock updated). v3 stays out of the allowlist → surface correctly dark. Commit `bf96858`.
+- **W0.2 ✅** Listing parser hardened — fixed lossy fractional-price decode (`"2.5"` → 2_500_000, was 2_000_005); golden tests reproduce `render.gno` byte-for-byte; the `truncPath` >2-segment match hazard is pinned for the W1.2 structured-getter fix. Commit `0605ccf`.
+- **W0.3 ✅** `fetchV3Tokens` windowed (default 60) with chunked concurrency (≤12 in-flight) — bounds the O(supply) RPC fan-out; caller-compatible. Commit `fbf30be`.
+- **W0.4 ✅** Removed dead code: `NFTTxToast`, `NFTImage`, retired `nftTemplate`/`grc1155Template` codegen (+ tests). **Triple-check correction:** the confirmation pass claimed `SEED_LISTINGS` is live in `FreelanceServices` — FALSE; `FreelanceServices` reads listings from `api.getServiceListings` (backend) and escrow builders from `lib/marketplace/builders`, so `escrowTemplate.ts`/`SEED_LISTINGS` has **zero live importers**. Kept `escrowTemplate.ts` anyway, reserved for §11 seeding. Commit `07f57b4`.
+- **W0.5 ✅ — two findings:**
+  - **escrow_v2 on-chain audit (test13):** `Render` + `stats` show **Total Contracts: 0, Active: 0, Total Value: 0 ugnot**. The realm custodies **no user funds**, so a W2 redeploy **orphans nothing — a clean redeploy is safe and no migration ceremony is needed** (supersedes the "redeploy + fund migration" worry in §5.2/§12-R4/§9-W2 for test13; re-check on mainnet before that launch).
+  - **Recompile vs fresh upstream gno master (`9e8df24a6`, 2026-06-26):** `memba_market_core`, `memba_collections`, `memba_nft_market_v2`, `memba_nft_v2` all **compile + `gno test` PASS** → confirms the breaking-change analysis (no gno-core API break). `memba_nft_market_v3`'s own code compiles, but standalone `gno test` couldn't resolve its `memba_collections` dependency from the module cache (cross-realm harness wiring, not a code break); its authoritative suite is the deployer gnodev harness (samcrew-deployer#33). The shared gno checkout was restored to its original detached HEAD afterward.
 
 ### Wave W1 — Unified shell + NFT lane live + fee spine
 - **W1.1 (realm)** Build + deploy `memba_market_config` (§5: per-lane map, no Pause, pure getter, 2-step admin, clamp). Add `SplitProceedsBPS` to `memba_market_core` (version bump, re-review). Security review.
