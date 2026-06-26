@@ -38,37 +38,74 @@ export type V3ListingMap = Map<string, V3ListingInfo>
 // ── Token enumeration ─────────────────────────────────────────────────────────
 
 /**
- * Enumerate all tokens for a collection by iterating 0..supply-1.
- * Queries OwnerOf + TokenURI in parallel per token; skips gaps gracefully.
+ * Default enumeration window. Bounds the per-load RPC fan-out: without this, a
+ * collection of N tokens fired 2×N parallel RPC calls (OwnerOf + TokenURI each),
+ * which stalls the page and hammers the node for large collections. True O(1)-per-
+ * page enumeration needs a realm-side paginated getter (TokensOfCollection),
+ * landing with the v3.1 redeploy (Marketplace plan W1.2); until then we window.
+ */
+export const DEFAULT_TOKEN_WINDOW = 60
+
+/** Max RPC requests in flight at once while enumerating a window. */
+export const DEFAULT_TOKEN_CONCURRENCY = 12
+
+export interface FetchV3TokensOpts {
+    /** First tokenId to enumerate (default 0). */
+    offset?: number
+    /** Max tokens to enumerate this call (default DEFAULT_TOKEN_WINDOW). */
+    limit?: number
+    /** Max concurrent RPC requests (default DEFAULT_TOKEN_CONCURRENCY). */
+    concurrency?: number
+}
+
+/**
+ * Enumerate a bounded window of a collection's tokens (tokenIds
+ * `offset..offset+limit-1`, clamped to supply). Queries OwnerOf + TokenURI per
+ * token, chunked to at most `concurrency` requests in flight; skips gaps (no
+ * owner) gracefully and returns tokens sorted by numeric id.
  *
  * @param collectionID - e.g. "creator/slug"
  * @param supply - minted count from CollectionDetail (0-based ceiling)
  * @param collectionPath - defaults to NFT_COLLECTIONS_PATH
+ * @param opts - window + concurrency bounds
  */
 export async function fetchV3Tokens(
     collectionID: string,
     supply: number,
     collectionPath: string = NFT_COLLECTIONS_PATH,
+    opts: FetchV3TokensOpts = {},
 ): Promise<V3Token[]> {
     if (supply <= 0) return []
 
-    const tokens: V3Token[] = []
+    const offset = Math.max(0, opts.offset ?? 0)
+    const limit = Math.max(0, opts.limit ?? DEFAULT_TOKEN_WINDOW)
+    const concurrency = Math.max(1, opts.concurrency ?? DEFAULT_TOKEN_CONCURRENCY)
+    if (limit === 0 || offset >= supply) return []
 
-    await Promise.all(
-        Array.from({ length: supply }, (_, i) => String(i)).map(async (tid) => {
-            try {
-                const [owner, uri] = await Promise.all([
-                    getNFTOwner(collectionPath, collectionID, tid),
-                    getTokenURI(collectionPath, collectionID, tid),
-                ])
-                if (owner) {
-                    tokens.push({ tokenId: tid, owner, uri: uri ?? "" })
+    const end = Math.min(supply, offset + limit)
+    const ids = Array.from({ length: end - offset }, (_, i) => String(offset + i))
+
+    const tokens: V3Token[] = []
+    // Chunked concurrency: process at most `concurrency` ids per wave so a large
+    // window can't spike thousands of simultaneous RPC calls.
+    for (let i = 0; i < ids.length; i += concurrency) {
+        const chunk = ids.slice(i, i + concurrency)
+        await Promise.all(
+            chunk.map(async (tid) => {
+                try {
+                    const [owner, uri] = await Promise.all([
+                        getNFTOwner(collectionPath, collectionID, tid),
+                        getTokenURI(collectionPath, collectionID, tid),
+                    ])
+                    if (owner) {
+                        tokens.push({ tokenId: tid, owner, uri: uri ?? "" })
+                    }
+                } catch {
+                    // Token gap — skip silently
                 }
-            } catch {
-                // Token gap — skip silently
-            }
-        }),
-    )
+            }),
+        )
+    }
 
     // Sort by numeric tokenId order
     tokens.sort((a, b) => parseInt(a.tokenId, 10) - parseInt(b.tokenId, 10))

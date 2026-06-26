@@ -103,6 +103,9 @@ export function useCollectionPublic(id: string): CollectionPublicResult {
             const supply = resolvedDetail.minted
             if (supply > 0) {
                 try {
+                    // Windowed to DEFAULT_TOKEN_WINDOW to bound RPC fan-out (W0.3);
+                    // true per-page enumeration + "load more" lands with the v3.1
+                    // paginated getter in W1.2.
                     const toks = await fetchV3Tokens(id, supply, collectionPath)
                     if (!active) return
                     setTokens(toks)
