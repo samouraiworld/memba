@@ -25,6 +25,12 @@ function safeHttpUrl(url: string): string | null {
     return /^https?:\/\//i.test(url) ? url : null
 }
 
+/** Format a backend timestamp for display, falling back to the raw string if unparseable (Q-13). */
+function formatClaimDate(raw: string): string {
+    const t = Date.parse(raw)
+    return Number.isNaN(t) ? raw : new Date(t).toLocaleString()
+}
+
 export default function QuestAdmin() {
     const { address } = useAdena()
     const auth = useAuth()
@@ -107,7 +113,7 @@ export default function QuestAdmin() {
                             </div>
                             <div className="k-questadmin-claim-meta">
                                 <span title={claim.address}>{claim.address.slice(0, 12)}…</span>
-                                <span>{claim.createdAt}</span>
+                                <span title={claim.createdAt}>{formatClaimDate(claim.createdAt)}</span>
                             </div>
                             {url
                                 ? <a className="k-questadmin-claim-url" href={url} target="_blank" rel="noopener noreferrer">{claim.proofUrl}</a>

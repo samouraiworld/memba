@@ -7,7 +7,7 @@
 
 import { api } from "./api"
 import { trackEvent } from "./analytics"
-import { ALL_QUESTS } from "./gnobuilders"
+import { ALL_QUESTS, CANDIDATURE_XP_THRESHOLD } from "./gnobuilders"
 import { create } from "@bufbuild/protobuf"
 import {
     CompleteQuestRequestSchema,
@@ -53,12 +53,15 @@ export const QUESTS: Quest[] = [
 ]
 
 /**
- * XP threshold required for Memba DAO candidature.
- * v4.0: Raised from 100 to 350 (Gold rank) with GnoBuilders expansion.
- * Existing users who reached 100 XP before v4.0 are grandfathered
- * via the LEGACY_CANDIDATURE_THRESHOLD check.
+ * XP threshold required for Memba DAO candidature (Gold rank, 350 XP).
+ * v4.0: Raised from 100 to 350 with GnoBuilders expansion. Existing users who
+ * reached 100 XP before v4.0 are grandfathered via LEGACY_CANDIDATURE_THRESHOLD.
+ *
+ * Single source of truth lives in gnobuilders.ts (derived from the Gold rank tier,
+ * Q-09); imported above and re-exported here so existing importers from "./quests"
+ * keep working.
  */
-export const CANDIDATURE_XP_THRESHOLD = 350
+export { CANDIDATURE_XP_THRESHOLD }
 
 /** Legacy threshold for grandfathered users who reached 100 XP before v4.0. */
 export const LEGACY_CANDIDATURE_THRESHOLD = 100

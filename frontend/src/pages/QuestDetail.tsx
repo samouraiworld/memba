@@ -274,6 +274,11 @@ export default function QuestDetail() {
                                     {verifying ? "Checking..." : "Verify"}
                                 </button>
                             </div>
+                            <small className="k-questdetail-hint">
+                                Must be a realm/package you deployed under your registered
+                                @username namespace (e.g. <code>gno.land/r/yourname/realm</code>),
+                                live on-chain, and not already used for another deploy quest.
+                            </small>
                         </div>
                     ) : isBackendVerified ? (
                         <button
