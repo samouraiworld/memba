@@ -88,6 +88,17 @@ describe("checkNetworkHealth — clock-skew resilience", () => {
         expect(result.blockAge).toBe(4)
     })
 
+    it("falls back to the client clock when the Date header is present but unparseable", async () => {
+        const block = "2026-06-26T17:00:00.000Z"
+        vi.setSystemTime(new Date("2026-06-26T17:00:07.000Z"))
+        vi.stubGlobal("fetch", vi.fn(async () => mockStatus({ blockTime: block, serverDate: "not-a-date" })))
+
+        const result = await checkNetworkHealth("https://rpc.test")
+
+        expect(result.health).toBe("healthy")
+        expect(result.blockAge).toBe(7)
+    })
+
     it("clamps a slightly-ahead block (server Date just behind block time) to age 0, not a negative", async () => {
         const block = "2026-06-26T17:00:02.000Z"
         const serverNow = "2026-06-26T17:00:00.000Z" // header rounded 2s behind block

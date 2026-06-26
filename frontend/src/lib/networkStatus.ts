@@ -47,11 +47,12 @@ export async function checkNetworkHealth(rpcUrl: string): Promise<NetworkStatusR
             const chainId = data?.result?.node_info?.network || ""
             const latestBlockTime = new Date(syncInfo.latest_block_time)
 
-            // Use the RPC node's own clock (HTTP `Date` response header) as "now",
-            // not the client's. A user whose machine clock is minutes fast must not
-            // see a false "slow"/"halted" reading for a chain that is actually fine —
-            // the node serving /status is the authority on how much real time has
-            // passed since its last block. Fall back to the client clock only when
+            // Use the serving endpoint's clock (the HTTP `Date` response header from
+            // the RPC node or its proxy) as "now", not the client's. A user whose
+            // machine clock is minutes fast must not see a false "slow"/"halted"
+            // reading for a chain that is actually fine — a server-side clock is
+            // NTP-synced and reflects real elapsed time since the last block, whereas
+            // the viewer's clock is arbitrary. Fall back to the client clock only when
             // the header is missing/unparseable. Clamp sub-second rounding to >= 0.
             const serverDateHeader = response.headers.get("date")
             const serverNow = serverDateHeader ? new Date(serverDateHeader).getTime() : NaN
