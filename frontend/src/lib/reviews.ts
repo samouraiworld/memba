@@ -249,6 +249,30 @@ export function buildFlagMsg(caller: string, targetID: number): AminoMsg {
     return buildReviewMsgCall("Flag", [String(targetID)], caller)
 }
 
+/**
+ * HideReview(reviewID uint64)
+ * Moderator-only: hide a review from public view without erasing it.
+ */
+export function buildHideReviewMsg(caller: string, reviewID: number): AminoMsg {
+    return buildReviewMsgCall("HideReview", [String(reviewID)], caller)
+}
+
+/**
+ * HideComment(commentID uint64)
+ * Moderator-only: hide a comment from public view without erasing it.
+ */
+export function buildHideCommentMsg(caller: string, commentID: number): AminoMsg {
+    return buildReviewMsgCall("HideComment", [String(commentID)], caller)
+}
+
+/**
+ * Unhide(targetID uint64)
+ * Moderator-only: restore a hidden review or comment to public view.
+ */
+export function buildUnhideMsg(caller: string, targetID: number): AminoMsg {
+    return buildReviewMsgCall("Unhide", [String(targetID)], caller)
+}
+
 // ── Broadcast helper ─────────────────────────────────────────
 
 /**

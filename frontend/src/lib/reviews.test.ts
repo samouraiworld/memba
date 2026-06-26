@@ -12,6 +12,7 @@ import {
     buildEditCommentMsg,
     buildDeleteCommentMsg,
     buildFlagMsg,
+    buildHideReviewMsg,
     REVIEWS_PKG_PATH,
 } from "./reviews"
 
@@ -52,17 +53,19 @@ describe("parseReviews", () => {
     })
 })
 
+type TrustItem = { id: number; reputation: number; createdAt: number }
+
 describe("sortByTrust", () => {
     it("orders by reputation desc then recency", () => {
-        const a = { id: 1, reputation: 1, createdAt: 100 } as any
-        const b = { id: 2, reputation: 5, createdAt: 50 } as any
-        const c = { id: 3, reputation: 5, createdAt: 90 } as any
+        const a: TrustItem = { id: 1, reputation: 1, createdAt: 100 }
+        const b: TrustItem = { id: 2, reputation: 5, createdAt: 50 }
+        const c: TrustItem = { id: 3, reputation: 5, createdAt: 90 }
         expect(sortByTrust([a, b, c]).map((r) => r.id)).toEqual([3, 2, 1])
     })
     it("does not mutate the input array", () => {
-        const arr = [
-            { id: 1, reputation: 0, createdAt: 10 } as any,
-            { id: 2, reputation: 5, createdAt: 5 } as any,
+        const arr: TrustItem[] = [
+            { id: 1, reputation: 0, createdAt: 10 },
+            { id: 2, reputation: 5, createdAt: 5 },
         ]
         const sorted = sortByTrust(arr)
         expect(arr[0].id).toBe(1) // original unchanged
@@ -168,5 +171,16 @@ describe("buildFlagMsg", () => {
         expect(m.value.func).toBe("Flag")
         expect(m.value.args).toEqual(["12"])
         expect(m.value.caller).toBe("g1c")
+    })
+})
+
+describe("buildHideReviewMsg", () => {
+    it("builds a HideReview MsgCall with correct func name and args", () => {
+        const m = buildHideReviewMsg("g1mod", 99)
+        expect(m.type).toBe("vm/MsgCall")
+        expect(m.value.func).toBe("HideReview")
+        expect(m.value.args).toEqual(["99"])
+        expect(m.value.caller).toBe("g1mod")
+        expect(m.value.pkg_path).toBe(REVIEWS_PKG_PATH)
     })
 })
