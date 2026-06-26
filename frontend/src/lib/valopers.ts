@@ -167,6 +167,36 @@ export function resolveValidatorProfile(
     return notFound
 }
 
+/** Fetch the FULL valoper roster across all pages.
+ *
+ *  The realm paginates `Render("")` at 50 entries/page with a `[N](?page=N)` pager, so
+ *  reading only page 1 silently caps the roster at 50 (and undercounts candidates as new
+ *  operators register). This walks every page until there is no link to the next page,
+ *  the page is empty, or it stops yielding new entries (defensive against a realm that
+ *  clamps an out-of-range `?page=` back to a seen page). */
+export async function fetchValoperListPaged(
+    rpcUrl: string,
+): Promise<{ moniker: string; operatorAddress: string }[]> {
+    const MAX_PAGES = 50 // safety cap (50 × 50 = 2500 valopers) against a missing stop marker
+    const out: { moniker: string; operatorAddress: string }[] = []
+    const seen = new Set<string>()
+    for (let page = 1; page <= MAX_PAGES; page++) {
+        const raw = await queryRender(rpcUrl, VALOPERS_REALM, page === 1 ? "" : `?page=${page}`)
+        if (!raw) break
+        let added = 0
+        for (const e of parseValoperList(raw)) {
+            if (!seen.has(e.operatorAddress)) {
+                seen.add(e.operatorAddress)
+                out.push(e)
+                added++
+            }
+        }
+        if (added === 0) break // realm clamped an out-of-range page → nothing new
+        if (!raw.includes(`?page=${page + 1}`)) break // no link to the next page → last page
+    }
+    return out
+}
+
 /** Fetch every registered valoper with its live status.
  *  @param activeSigningAddresses gno addresses (g1…) currently in the consensus set,
  *         i.e. `getValidators(...).map(v => v.gnoAddr)`. */
@@ -174,10 +204,9 @@ export async function fetchValopers(
     rpcUrl: string,
     activeSigningAddresses: Set<string>,
 ): Promise<ValoperWithStatus[]> {
-    const listRaw = await queryRender(rpcUrl, VALOPERS_REALM, "")
-    if (!listRaw) return []
+    const list = await fetchValoperListPaged(rpcUrl)
+    if (list.length === 0) return []
 
-    const list = parseValoperList(listRaw)
     const details = await Promise.all(
         list.map(async ({ operatorAddress }) => {
             try {

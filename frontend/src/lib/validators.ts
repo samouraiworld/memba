@@ -2,7 +2,7 @@ import type { MonitoringValidatorData, MonitoringIncident } from "./gnomonitorin
 import { ValidatorHealthStatus } from "./validatorHealth"
 import type { ValidatorHealthMeta } from "./validatorHealth"
 import { hexToBech32 } from "./dao/realmAddress"
-import { queryRender } from "./dao/shared"
+import { fetchValoperListPaged } from "./valopers"
 import { getExplorerBaseUrl } from "./config"
 import { resilientRpcCall, directRpcCall } from "./rpcFallback"
 
@@ -242,22 +242,18 @@ export async function fetchValoperMonikers(rpcUrl: string): Promise<Map<string, 
 
     const monikerMap = new Map<string, string>()
     try {
-        const raw = await queryRender(rpcUrl, "gno.land/r/gnops/valopers", "")
-        if (!raw) return monikerMap
-
-        // Parse markdown lines: ` * [Moniker](/r/gnops/valopers:g1addr) - [profile](...)`
-        const lineRegex = /\*\s+\[([^\]]+)\]\(\/r\/gnops\/valopers:(g1[a-z0-9]+)\)/g
-        let match: RegExpExecArray | null
-        while ((match = lineRegex.exec(raw)) !== null) {
-            const moniker = match[1].trim()
-            const addr = match[2].trim()
-            if (moniker && addr) {
-                monikerMap.set(addr.toLowerCase(), moniker)
+        // Read ALL pages (the roster paginates at 50/page) so every registered valoper
+        // is tagged, not just the first 50.
+        const entries = await fetchValoperListPaged(rpcUrl)
+        for (const { moniker, operatorAddress } of entries) {
+            if (moniker && operatorAddress) {
+                monikerMap.set(operatorAddress.toLowerCase(), moniker)
             }
         }
-
-        // Cache successful result
-        _valoperCache = { data: monikerMap, ts: Date.now() }
+        // Cache successful result (only when non-empty, to avoid pinning a transient miss)
+        if (monikerMap.size > 0) {
+            _valoperCache = { data: monikerMap, ts: Date.now() }
+        }
     } catch {
         // Best-effort: valopers query may fail on some chains
     }
