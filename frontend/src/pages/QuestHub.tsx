@@ -44,6 +44,7 @@ export default function QuestHub() {
     const adena = useAdena()
     const [questState, setQuestState] = useState(() => loadQuestProgress())
     const [backendState, setBackendState] = useState<UserQuestState | null>(null)
+    const [backendLoading, setBackendLoading] = useState(false)
 
     useEffect(() => {
         document.title = "GnoBuilders — Memba"
@@ -63,7 +64,15 @@ export default function QuestHub() {
         const addr = adena.address
         if (!addr) return
         let cancelled = false
-        const load = () => { fetchUserQuests(addr).then(s => { if (!cancelled && s) setBackendState(s) }) }
+        const load = () => {
+            setBackendLoading(true)
+            // fetchUserQuests resolves (never throws) — null on unreachable backend.
+            fetchUserQuests(addr).then(s => {
+                if (cancelled) return
+                if (s) setBackendState(s)
+                setBackendLoading(false)
+            })
+        }
         load()
         window.addEventListener("quest-completed", load)
         return () => { cancelled = true; window.removeEventListener("quest-completed", load) }
@@ -86,8 +95,19 @@ export default function QuestHub() {
         return ids
     }, [questState, effectiveBackend])
 
-    // "Syncing" when localStorage has completions the backend hasn't recorded yet.
-    const syncing = effectiveBackend != null && questState.completed.length > effectiveBackend.completed.length
+    // "Syncing" when localStorage holds a completion the backend hasn't recorded
+    // yet — a set difference, not a count compare (Q-10). A count compare is wrong
+    // when the two sides hold the same number of *different* quests (e.g. one earned
+    // on another device), so it could both false-positive and false-negative.
+    const syncing = useMemo(() => {
+        if (!effectiveBackend) return false
+        const backendIds = new Set(effectiveBackend.completed.map(c => c.questId))
+        return questState.completed.some(c => !backendIds.has(c.questId))
+    }, [effectiveBackend, questState])
+
+    // First authoritative fetch in flight (wallet connected, no backend state yet):
+    // signal "confirming" rather than letting the XP silently jump local→server (Q-11).
+    const confirmingXP = adena.address != null && backendLoading && backendState == null
 
     // Curated, completable quests (Phase 0). Everything else is "coming soon".
     const liveQuests = useMemo(() => getLiveQuests(), [])
@@ -148,7 +168,11 @@ export default function QuestHub() {
                 <div className="k-questhub-hero-stats">
                     <RankBadge tier={rank.tier} name={rank.name} color={rank.color} />
                     <div className="k-questhub-xp-info">
-                        <span className="k-questhub-xp-value">{displayXP} XP</span>
+                        <span
+                            className={`k-questhub-xp-value${confirmingXP ? " k-questhub-xp-value--confirming" : ""}`}
+                            aria-busy={confirmingXP}
+                            title={confirmingXP ? "Confirming your XP with the server…" : undefined}
+                        >{displayXP} XP</span>
                         {toNext > 0 && (
                             <span className="k-questhub-xp-next">{toNext} XP to {calculateRank(displayXP + toNext).name}</span>
                         )}
