@@ -116,33 +116,32 @@ function renderWithContext(addr: string, ctx: Partial<LayoutContext>) {
 describe("ValidatorProfile — resolution & routing", () => {
     beforeEach(() => { vi.clearAllMocks(); vi.mocked(fetchUserProfile).mockResolvedValue(null); setActivity() })
 
-    it("registered ACTIVE operator → identity + Performance(active) + persistent reviews; NO Reviews tab", async () => {
+    it("registered ACTIVE operator → identity + performance ON Overview + persistent reviews; NO Reviews/Performance tab", async () => {
         setData([valoper({ status: "active" })], [SIGN])
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         expect(screen.getByText("● Active")).toBeInTheDocument()
         expect(screen.getByTestId("vp-reviews")).toBeInTheDocument()
         expect(screen.queryByRole("tab", { name: "Reviews" })).toBeNull()
-        fireEvent.click(screen.getByRole("tab", { name: /Performance/ }))
+        expect(screen.queryByRole("tab", { name: "Performance" })).toBeNull()
+        // Performance metrics now render on the default Overview tab (no click needed).
         const panel = await screen.findByTestId("perf-panel")
         expect(panel).toHaveAttribute("data-addr", SIGN)
         expect(panel).toHaveAttribute("data-active", "true")
     })
 
-    it("registered CANDIDATE operator → Candidate badge + Performance inactive", async () => {
+    it("registered CANDIDATE operator → Candidate badge + performance inactive on Overview", async () => {
         setData([valoper({ status: "candidate" })], ["g1someoneelse"])
         renderAt(OPERATOR)
         await waitFor(() => expect(screen.getByText("○ Candidate")).toBeInTheDocument())
-        fireEvent.click(screen.getByRole("tab", { name: /Performance/ }))
         expect(await screen.findByTestId("perf-panel")).toHaveAttribute("data-active", "false")
     })
 
-    it("genesis validator (in active set, no valoper) → genesis note + active Performance", async () => {
+    it("genesis validator (in active set, no valoper) → genesis note + active performance on Overview", async () => {
         setData([], [GENESIS])
         renderAt(GENESIS)
         await screen.findByTestId("vp-genesis-note")
         expect(screen.getByRole("heading", { name: "gfanton-1" })).toBeInTheDocument()
-        fireEvent.click(screen.getByRole("tab", { name: /Performance/ }))
         const panel = await screen.findByTestId("perf-panel")
         expect(panel).toHaveAttribute("data-addr", GENESIS)
         expect(panel).toHaveAttribute("data-active", "true")
@@ -214,22 +213,23 @@ describe("ValidatorProfile — identity header & tabs", () => {
         expect(screen.queryByRole("button", { name: /edit profile/i })).not.toBeInTheDocument()
     })
 
-    it("renders a tablist with the five tabs, Overview selected by default (no Reviews tab)", async () => {
+    it("renders a tablist with the four tabs, Overview selected by default (no Reviews/Performance tab)", async () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         const tabs = screen.getAllByRole("tab").map(t => t.textContent)
-        expect(tabs).toEqual(expect.arrayContaining(["Overview", "Performance", "Quests", "Contributions", "Activity"]))
+        expect(tabs).toEqual(expect.arrayContaining(["Overview", "Quests", "Contributions", "Activity"]))
         expect(tabs.some(t => /review/i.test(t || ""))).toBe(false)
+        expect(tabs.some(t => /performance/i.test(t || ""))).toBe(false)
         expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true")
     })
 
-    it("supports keyboard arrow navigation between tabs (Overview → Performance)", async () => {
+    it("supports keyboard arrow navigation between tabs (Overview → Quests)", async () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         const overview = screen.getByRole("tab", { name: "Overview" })
         overview.focus()
         fireEvent.keyDown(overview, { key: "ArrowRight" })
-        expect(screen.getByRole("tab", { name: /Performance/ })).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByRole("tab", { name: "Quests" })).toHaveAttribute("aria-selected", "true")
     })
 
     it("still renders from valoper data alone when fetchUserProfile rejects", async () => {

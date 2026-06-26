@@ -50,7 +50,7 @@ const { VALIDATOR, STATS, VALOPER } = vi.hoisted(() => {
         signingPubKey: "",
         serverType: "cloud",
         description: "",
-        status: "active",
+        status: "candidate",
     } as unknown as ValoperWithStatus
 
     return { VALIDATOR, STATS, VALOPER }
@@ -101,26 +101,26 @@ describe("Validators page — segment tabs", () => {
         renderWithProviders(<Validators />, { route: "/test13/validators" })
         await screen.findByTestId("validator-table")
         expect(screen.getByTestId("seg-validators")).toBeInTheDocument()
-        expect(screen.getByTestId("seg-operators")).toBeInTheDocument()
+        expect(screen.getByTestId("seg-candidates")).toBeInTheDocument()
         expect(screen.getByTestId("seg-network")).toBeInTheDocument()
     })
 
-    it("defaults to the Validators tab — metrics table shown, operators roster hidden", async () => {
+    it("defaults to the Validators tab — metrics table shown, candidates roster hidden", async () => {
         renderWithProviders(<Validators />, { route: "/test13/validators" })
         expect(await screen.findByTestId("validator-table")).toBeInTheDocument()
         expect(screen.queryByTestId("valoper-panel")).not.toBeInTheDocument()
     })
 
-    it("Operators tab reveals the valoper roster and hides the metrics table", async () => {
+    it("Candidates tab reveals the valoper roster and hides the metrics table", async () => {
         renderWithProviders(<Validators />, { route: "/test13/validators" })
         await screen.findByTestId("validator-table")
-        fireEvent.click(screen.getByTestId("seg-operators"))
+        fireEvent.click(screen.getByTestId("seg-candidates"))
         expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()
         expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
     })
 
-    it("deep-links straight to the Operators tab via ?tab=operators", async () => {
-        renderWithProviders(<Validators />, { route: "/test13/validators?tab=operators" })
+    it("deep-links straight to the Candidates tab via ?tab=candidates", async () => {
+        renderWithProviders(<Validators />, { route: "/test13/validators?tab=candidates" })
         expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()
         expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
     })

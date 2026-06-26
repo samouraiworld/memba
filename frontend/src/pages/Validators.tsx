@@ -62,7 +62,7 @@ const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 // The overview page is segmented into three deep-linkable views (?tab=…) so the
 // page is no longer one long scroll: the active consensus set, the registered
 // operators, and the raw network topology are distinct concepts.
-const OVERVIEW_TABS = ["validators", "operators", "network"] as const
+const OVERVIEW_TABS = ["validators", "candidates", "network"] as const
 type OverviewTab = (typeof OVERVIEW_TABS)[number]
 
 /** Tiny copy-to-clipboard button. */
@@ -118,6 +118,9 @@ export default function Validators() {
         if (t === "validators") next.delete("tab"); else next.set("tab", t)
         return next
     })
+    // Active validators already appear in the Validators tab; the Candidates tab
+    // focuses on registered operators not yet in the consensus set.
+    const candidateValopers = useMemo(() => valopers.filter(v => v.status === "candidate"), [valopers])
     const isVisible = useRef(true)
     const abortRef = useRef<AbortController | null>(null)
 
@@ -318,11 +321,11 @@ export default function Validators() {
                     Validators{stats && <span className="val-segtab__count">{stats.totalValidators}</span>}
                 </button>
                 <button
-                    type="button" role="tab" aria-selected={tab === "operators"} data-testid="seg-operators"
-                    className={`val-segtab${tab === "operators" ? " val-segtab--active" : ""}`}
-                    onClick={() => setTab("operators")}
+                    type="button" role="tab" aria-selected={tab === "candidates"} data-testid="seg-candidates"
+                    className={`val-segtab${tab === "candidates" ? " val-segtab--active" : ""}`}
+                    onClick={() => setTab("candidates")}
                 >
-                    Operators{valopers.length > 0 && <span className="val-segtab__count">{valopers.length}</span>}
+                    Candidates{candidateValopers.length > 0 && <span className="val-segtab__count">{candidateValopers.length}</span>}
                 </button>
                 <button
                     type="button" role="tab" aria-selected={tab === "network"} data-testid="seg-network"
@@ -636,9 +639,11 @@ export default function Validators() {
 
             </>)}
 
-            {/* ── Operators tab: registered validator operators (r/gnops/valopers) ── */}
-            {tab === "operators" && (
-                <ValoperPanel valopers={valopers} loading={valopersLoading} />
+            {/* ── Candidates tab: registered operators not yet in the active set ──
+                 Active validators already live in the Validators tab, so this focuses
+                 on candidates. */}
+            {tab === "candidates" && (
+                <ValoperPanel valopers={candidateValopers} loading={valopersLoading} />
             )}
 
             {/* ── Network tab: incidents timeline chart ────────── */}

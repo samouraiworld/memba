@@ -83,7 +83,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 
 const SERVER_TYPE_LABEL: Record<string, string> = { "cloud": "Cloud", "on-prem": "On-prem", "data-center": "Data center" }
 
-const TABS = ["Overview", "Performance", "Quests", "Contributions", "Activity"] as const
+const TABS = ["Overview", "Quests", "Contributions", "Activity"] as const
 type TabKey = (typeof TABS)[number]
 
 function CopyBtn({ text }: { text: string }) {
@@ -417,16 +417,7 @@ export default function ValidatorProfile() {
             {/* ── Overview ── */}
             {tab === "Overview" && (
                 <div role="tabpanel" id="vp-tab-overview" aria-labelledby="vp-tab-overview-btn" data-testid="vp-tab-overview" className="vp-panel">
-                    <div className="vd-card">
-                        <div className="vd-card__title">Snapshot</div>
-                        <div className="vd-stats-grid">
-                            <Stat label="Status" value={isActive ? "Active" : "Candidate"} accent={isActive} />
-                            <Stat label="Love Power" value={profile ? String(profile.lovePowerScore) : "—"} />
-                            <Stat label="Commits" value={profile ? String(profile.totalCommits) : "—"} />
-                            <Stat label="Packages" value={profile ? String(profile.deployedPackages.length) : "—"} />
-                        </div>
-                    </div>
-
+                    {/* Identity first (the signing pubkey + the operator/signing model). */}
                     {valoper && (
                         <div className="vd-card">
                             <div className="vd-card__title">Identity</div>
@@ -439,18 +430,13 @@ export default function ValidatorProfile() {
                         </div>
                     )}
 
+                    {/* Live performance metrics, surfaced by default (was an isolated tab). */}
+                    <ValidatorPerformancePanel signingAddress={resolution.performanceAddress} isActive={isActive} />
+
                     <div className="vp-peek">
-                        <button type="button" className="vp-peek__link" onClick={() => setTab("Performance")}>View performance →</button>
                         <button type="button" className="vp-peek__link" onClick={() => setTab("Activity")}>View activity →</button>
                         <a href={gnowebUrl} target="_blank" rel="noopener noreferrer" className="vp-peek__link">View on gnoweb ↗</a>
                     </div>
-                </div>
-            )}
-
-            {/* ── Performance ── */}
-            {tab === "Performance" && (
-                <div role="tabpanel" id="vp-tab-performance" aria-labelledby="vp-tab-performance-btn" data-testid="vp-tab-performance" className="vp-panel">
-                    <ValidatorPerformancePanel signingAddress={resolution.performanceAddress} isActive={isActive} />
                 </div>
             )}
 
