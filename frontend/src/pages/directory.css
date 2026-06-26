@@ -566,19 +566,19 @@ a.dir-card {
 
 .dir-activity-active {
     background: rgba(255, 193, 7, 0.12);
-    color: hsl(45, 90%, 50%);
+    color: var(--color-k-warning-text);
     border-color: rgba(255, 193, 7, 0.3);
 }
 
 .dir-activity-moderate {
     background: rgba(33, 150, 243, 0.12);
-    color: hsl(210, 80%, 55%);
+    color: var(--color-k-info-text);
     border-color: rgba(33, 150, 243, 0.3);
 }
 
 .dir-activity-newcomer {
     background: rgba(255, 152, 0, 0.12);
-    color: hsl(30, 85%, 55%);
+    color: var(--color-k-warning-text);
     border-color: rgba(255, 152, 0, 0.3);
 }
 
