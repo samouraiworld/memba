@@ -7,6 +7,12 @@ Full changelogs are split by version range for easier navigation:
 ## Unreleased — since v6.3.1 (2026-05-28 → 2026-06-23)
 
 > Large multi-workstream wave merged to `main` after v6.3.1 (~60 PRs). No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
+>
+> ⚠️ **Backlog note:** this log is current through ~#509. The wave from #510 → #585 (Home AAA, validators unification, mobile, §13 light theme, reviews realm, quests) is only partially captured here — it needs a dedicated backfill pass across the owning workstreams.
+
+### Validators — profile bugfixes + roster pagination (2026-06-26)
+- **Validator profile bugfixes (#581).** Review/comment dates now resolve the realm's block-height `createdAt` to real wall-clock time via RPC `/block?height=N` (was rendering "Jan 1970", because `memba_reviews_v1` stores `CreatedAt` as a `runtime.ChainHeight()` block height, not a Unix timestamp). The reviews write-form is now always visible with connect-on-submit — the wallet is only triggered on "Post review" (was replaced by a connect prompt when logged out), with a synchronous double-submit guard. Genesis validators (in the active set, no valoper record) get a name via a valopers+gnomonitoring moniker merge plus a curated gnolove identity-label fallback; the Samourai-crew genesis validator is mapped by address so its name and team contributions resolve. Loading state centered via the canonical `ConnectingLoader`; light-theme white fills in `reviews.css` tokenized; `StarRating` rebuilt as an accessible radiogroup (arrow keys + hover-fill); review action buttons get aria-labels; inverted comment-tombstone filter removed.
+- **Full valoper roster pagination (#585).** `r/gnops/valopers` `Render("")` paginates at 50 entries/page; `fetchValopers` and `fetchValoperMonikers` only read page 1, so the Candidates count and roster moniker tags silently capped at the first 50 (test13 has 77 registered — 50 on page 1, 27 on page 2). New `fetchValoperListPaged` walks every page (stops at the last page / empty / no-new-entries, with a `MAX_PAGES` backstop), so the count and tags now update automatically as operators register.
 
 ### test12 → test13 cutover + auth enforcement + indexer (2026-06-23)
 - **Production cutover to test13.** Chain flip `GNO_CHAIN_ID test12 → test-13` + RPC + accepted-chain-ids (#450); retire test12 from the network selector (#453); backfill `realm-versions.json` with the live test13 realms (#451); fix the gnoweb test13 URL (#454).
