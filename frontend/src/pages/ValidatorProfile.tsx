@@ -52,7 +52,8 @@ import "../components/validators/hacker-mode.css"
 import "./validator-detail.css"
 import "./valoper-detail.css"
 
-const KIND_ICON: Record<ActivityKind, typeof Coins> = {
+// Partial: newer kinds (nft/post/multisig) fall back to Cube via the lookup below.
+const KIND_ICON: Partial<Record<ActivityKind, typeof Coins>> = {
     token: Coins, deploy: Package, governance: Scales, validator: ShieldCheck,
     transfer: ArrowsLeftRight, run: Play, call: Cube,
 }

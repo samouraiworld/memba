@@ -77,6 +77,28 @@ describe("ActivityFeed", () => {
         render(<ActivityFeed networkKey="test13" />)
         expect(screen.getByText(/\+2 more/)).toBeInTheDocument()
     })
+
+    it("shows type-filter chips when several kinds are present and filters on click", () => {
+        set({ items: [
+            item({ kind: "governance", title: "Voted on governance", txHash: "g1" }),
+            item({ kind: "token", title: "Launched a token", txHash: "t1" }),
+            item({ kind: "token", title: "Minted tokens", txHash: "t2" }),
+        ] })
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.getByRole("button", { name: /^all$/i })).toBeInTheDocument()
+        expect(screen.getAllByTestId("activity-row")).toHaveLength(3)
+
+        const tokenChip = screen.getByTestId("activity-chip-token")
+        fireEvent.click(tokenChip)
+        expect(tokenChip).toHaveAttribute("aria-pressed", "true")
+        expect(screen.getAllByTestId("activity-row")).toHaveLength(2) // only token rows
+    })
+
+    it("hides the filter chips when only one kind is present", () => {
+        set({ items: [item({ kind: "call", txHash: "c1" }), item({ kind: "call", txHash: "c2" })] })
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.queryByRole("group", { name: /filter activity/i })).toBeNull()
+    })
 })
 
 describe("relativeActivityTime", () => {

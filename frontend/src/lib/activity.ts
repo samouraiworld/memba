@@ -10,7 +10,9 @@
  * two indexer queries (recent txs + the blocks for their timestamps) around it.
  */
 
-export type ActivityKind = "token" | "deploy" | "governance" | "validator" | "transfer" | "run" | "call"
+export type ActivityKind =
+    | "token" | "deploy" | "governance" | "validator" | "transfer" | "run" | "call"
+    | "nft" | "post" | "multisig"
 
 /** A single message's decoded value, as returned by the indexer message union. */
 export interface IndexerMessageValue {
@@ -59,8 +61,11 @@ function shortPath(p: string): string {
 /** Classify a realm call by its package path (most-specific first). */
 function classifyCall(pkgPath: string): ActivityKind {
     if (/\/gnops\/valopers(\/|$)/.test(pkgPath)) return "validator"
+    if (/(nft_market|memba_nft|memba_collections|nft_launchpad)/.test(pkgPath)) return "nft"
+    if (/multisig/.test(pkgPath)) return "multisig"
     if (/\/gov\/dao(\/|$)/.test(pkgPath) || /_dao(\/|$)/.test(pkgPath) || /\/dao(\/|$)/.test(pkgPath)) return "governance"
     if (/tokenfactory/.test(pkgPath)) return "token"
+    if (/\/boards(\/|$)|\/social(\/|$)/.test(pkgPath)) return "post"
     return "call"
 }
 
@@ -86,6 +91,18 @@ function callTitle(kind: ActivityKind, pkgPath: string, func: string): string {
         return `Governance · ${func}`
     }
     if (kind === "validator") return `Validator · ${func}`
+    if (kind === "nft") {
+        if (/^Buy/i.test(func)) return "Bought an NFT"
+        if (/^List/i.test(func)) return "Listed an NFT"
+        if (/^Mint/i.test(func)) return "Minted an NFT"
+        return `NFT · ${func}`
+    }
+    if (kind === "multisig") {
+        if (/^Execute/i.test(func)) return "Executed a multisig tx"
+        if (/propos/i.test(func)) return "Proposed a multisig tx"
+        return `Multisig · ${func}`
+    }
+    if (kind === "post") return `Posted on ${shortPath(pkgPath)}`
     return `${func} · ${shortPath(pkgPath)}`
 }
 

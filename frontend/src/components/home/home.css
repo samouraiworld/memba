@@ -773,6 +773,53 @@ a.activity-feed__link:focus-visible {
   color: var(--color-k-muted);
 }
 
+.activity-feed__icon--nft {
+  background: var(--color-k-govdao-subtle);
+  color: var(--color-k-govdao-text);
+}
+
+/* ── Activity filter chips ────────────────────────────────────────── */
+.activity-feed__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+.activity-feed__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-k-edge);
+  background: transparent;
+  color: var(--color-k-dim);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.activity-feed__chip:hover {
+  border-color: var(--color-k-edge-hover);
+  color: var(--color-k-text);
+}
+
+.activity-feed__chip.is-active {
+  background: var(--color-k-accent-subtle);
+  border-color: var(--color-k-accent-border, var(--color-k-accent-text));
+  color: var(--color-k-accent-text);
+}
+
+.activity-feed__chip:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-feed__chip {
+    transition: none;
+  }
+}
+
 .activity-feed__body {
   display: flex;
   flex-direction: column;

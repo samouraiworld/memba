@@ -138,6 +138,15 @@ describe("parseActivity — diversity & humanized titles", () => {
         const propose = parseActivity([tx(303, "h", [call("g1a", "gno.land/r/gov/dao", "MustCreateProposal")])], new Map())
         expect(propose[0].title).toMatch(/proposed/i)
     })
+
+    it("classifies NFT, on-chain post, and multisig realm calls into their own kinds", () => {
+        const nft = parseActivity([tx(310, "h", [call("g1a", "gno.land/r/samcrew/memba_nft_market_v3", "Buy")])], new Map())
+        expect(nft[0].kind).toBe("nft")
+        const post = parseActivity([tx(311, "h", [call("g1a", "gno.land/r/demo/boards", "CreatePost")])], new Map())
+        expect(post[0].kind).toBe("post")
+        const ms = parseActivity([tx(312, "h", [call("g1a", "gno.land/r/samcrew/memba_multisig", "Execute")])], new Map())
+        expect(ms[0].kind).toBe("multisig")
+    })
 })
 
 // ── fetchAddressActivity — by-address indexer reads ──────────────────────────
