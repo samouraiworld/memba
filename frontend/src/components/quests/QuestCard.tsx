@@ -16,10 +16,10 @@ interface QuestCardProps {
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-    beginner: "var(--color-success)",
-    intermediate: "var(--color-info)",
-    advanced: "var(--color-warning)",
-    expert: "var(--color-danger)",
+    beginner: "var(--color-k-success-text)",
+    intermediate: "var(--color-k-info-text)",
+    advanced: "var(--color-k-warning-text)",
+    expert: "var(--color-k-danger-text)",
 }
 
 export function QuestCard({ quest, completed, available }: QuestCardProps) {

@@ -51,7 +51,7 @@
 
 .faucet-card-cooldown {
     font-size: 11px;
-    color: #f59e0b;
+    color: var(--color-k-warning-text);
     font-family: "JetBrains Mono", monospace;
     margin-top: 4px;
     display: flex;
@@ -91,7 +91,7 @@
 
 .faucet-card-claimed {
     font-size: 12px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: "JetBrains Mono", monospace;
     display: flex;
     align-items: center;

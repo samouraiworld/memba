@@ -27,10 +27,10 @@ import { useAuth } from "../hooks/useAuth"
 import "./questhub.css"
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-    beginner: "#22c55e",
-    intermediate: "#3b82f6",
-    advanced: "#f59e0b",
-    expert: "#ef4444",
+    beginner: "var(--color-k-success-text)",
+    intermediate: "var(--color-k-info-text)",
+    advanced: "var(--color-k-warning-text)",
+    expert: "var(--color-k-danger-text)",
 }
 
 export default function QuestDetail() {
