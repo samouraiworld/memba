@@ -40,6 +40,12 @@
   --color-k-danger: #ff4757;
   --color-k-warning: #ffa502;
   --color-k-warning-text: #ffa502; /* §13: warning/amber as TEXT — bright amber is legible on the dark bg */
+  /* §13: semantic status colors as TEXT — dark values match the existing
+     hardcoded shades (no dark-theme shift); the light variants deepen for AA. */
+  --color-k-success-text: #34d399; /* emerald — good/healthy/uptime-ok */
+  --color-k-info-text: #60a5fa;    /* blue — info / sentry role */
+  --color-k-purple-text: #c084fc;  /* purple — rpc role */
+  --color-k-danger-text: #f87171;  /* red — critical/down/missed */
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
@@ -107,6 +113,12 @@
   --color-k-danger: #dc2626;
   --color-k-warning: #d97706;
   --color-k-warning-text: #854f0b; /* §13: amber as TEXT on light — amber-800 ~5.9:1 (the bright #ffa502/#f5a623 are ~2:1 as text) */
+  /* §13: semantic status text on light — deep shades for AA (the bright -400
+     tailwind shades used on dark are only ~1.5–2.5:1 as text on the light bg). */
+  --color-k-success-text: #047857; /* emerald-700 ~5.3:1 */
+  --color-k-info-text: #1d4ed8;    /* blue-700 ~6.3:1 */
+  --color-k-purple-text: #7c3aed;  /* violet-600 ~5.4:1 */
+  --color-k-danger-text: #b91c1c;  /* red-700 ~6.1:1 */
 
   /* Component overrides */
   --color-k-cmd-bg: rgba(255, 255, 255, 0.95);
