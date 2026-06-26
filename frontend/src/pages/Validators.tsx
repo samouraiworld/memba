@@ -17,7 +17,7 @@
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls } from "../lib/config"
@@ -58,6 +58,12 @@ import "./validators.css"
 type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks" | "txContrib"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
+
+// The overview page is segmented into three deep-linkable views (?tab=…) so the
+// page is no longer one long scroll: the active consensus set, the registered
+// operators, and the raw network topology are distinct concepts.
+const OVERVIEW_TABS = ["validators", "operators", "network"] as const
+type OverviewTab = (typeof OVERVIEW_TABS)[number]
 
 /** Tiny copy-to-clipboard button. */
 function CopyButton({ text }: { text: string }) {
@@ -100,6 +106,18 @@ export default function Validators() {
     const [search, setSearch] = useState("")
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(50)
+
+    // Active segment (?tab=operators|network; default "validators"). Deep-linkable.
+    const [searchParams, setSearchParams] = useSearchParams()
+    const tabParam = searchParams.get("tab")
+    const tab: OverviewTab = (OVERVIEW_TABS as readonly string[]).includes(tabParam ?? "")
+        ? (tabParam as OverviewTab)
+        : "validators"
+    const setTab = (t: OverviewTab) => setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        if (t === "validators") next.delete("tab"); else next.set("tab", t)
+        return next
+    })
     const isVisible = useRef(true)
     const abortRef = useRef<AbortController | null>(null)
 
@@ -290,6 +308,33 @@ export default function Validators() {
                 </Link>
             </div>
 
+            {/* ── Segment tabs (deep-linkable via ?tab=) ───────── */}
+            <div className="val-segtabs" role="tablist" aria-label="Validators sections">
+                <button
+                    type="button" role="tab" aria-selected={tab === "validators"} data-testid="seg-validators"
+                    className={`val-segtab${tab === "validators" ? " val-segtab--active" : ""}`}
+                    onClick={() => setTab("validators")}
+                >
+                    Validators{stats && <span className="val-segtab__count">{stats.totalValidators}</span>}
+                </button>
+                <button
+                    type="button" role="tab" aria-selected={tab === "operators"} data-testid="seg-operators"
+                    className={`val-segtab${tab === "operators" ? " val-segtab--active" : ""}`}
+                    onClick={() => setTab("operators")}
+                >
+                    Operators{valopers.length > 0 && <span className="val-segtab__count">{valopers.length}</span>}
+                </button>
+                <button
+                    type="button" role="tab" aria-selected={tab === "network"} data-testid="seg-network"
+                    className={`val-segtab${tab === "network" ? " val-segtab--active" : ""}`}
+                    onClick={() => setTab("network")}
+                >
+                    Network{netInfo?.peerCount ? <span className="val-segtab__count">{netInfo.peerCount}</span> : null}
+                </button>
+            </div>
+
+            {/* ── Validators tab: stats + live metrics table ───── */}
+            {tab === "validators" && (<>
             {/* ── Network Overview Cards ───────────────────────── */}
             {stats && (
                 <div className="val-stats-grid" data-testid="network-stats">
@@ -318,11 +363,11 @@ export default function Validators() {
                     </div>
 
                     {netInfo != null && (
-                        <a href="#network-nodes" className="val-stat-card val-stat-card--link" title="Jump to the full network node roster">
+                        <button type="button" onClick={() => setTab("network")} className="val-stat-card val-stat-card--link" title="Open the full network node roster">
                             <span className="val-stat-label">Network Nodes</span>
                             <span className="val-stat-value">{netInfo.peerCount}</span>
-                            <span className="val-stat-hint">Peers seen · view roster ↓</span>
-                        </a>
+                            <span className="val-stat-hint">Peers seen · view roster →</span>
+                        </button>
                     )}
 
                     <div className="val-stat-card">
@@ -589,13 +634,15 @@ export default function Validators() {
                 </div>
             )}
 
-            {/* ── Valopers — validator onboarding registry (r/gnops/valopers) ── */}
-            {(valopers.length > 0 || valopersLoading) && (
+            </>)}
+
+            {/* ── Operators tab: registered validator operators (r/gnops/valopers) ── */}
+            {tab === "operators" && (
                 <ValoperPanel valopers={valopers} loading={valopersLoading} />
             )}
 
-            {/* ── Incidents Timeline Chart ────────────────────── */}
-            {incidentsChartData && incidentsChartData.length > 0 && (
+            {/* ── Network tab: incidents timeline chart ────────── */}
+            {tab === "network" && incidentsChartData && incidentsChartData.length > 0 && (
                     <div className="val-health-banner" style={{ marginBottom: 16 }}>
                         <div className="val-health-banner__title">Incidents Timeline (last 30 days)</div>
                         <ResponsiveContainer width="100%" height={180}>
@@ -613,8 +660,8 @@ export default function Validators() {
                     </div>
             )}
 
-            {/* ── Voting Power Distribution ────────────────────── */}
-            {validators.length > 0 && (
+            {/* ── Voting Power Distribution (Validators tab) ───── */}
+            {tab === "validators" && validators.length > 0 && (
                 <div className="val-power-bar" data-testid="power-distribution">
                     {validators.slice(0, 20).map((v, i) => (
                         <div
@@ -632,8 +679,10 @@ export default function Validators() {
 
             {/* ── 🕵️ Hacker Mode moved to /validators/hacker ─────── */}
 
-            {/* ── Network Nodes roster (Phase 2b) ─────────────────── */}
-            <NetworkNodesRoster netInfo={netInfo} validatorMonikers={valoperMonikers} loading={loading} />
+            {/* ── Network tab: full node roster ────────────────── */}
+            {tab === "network" && (
+                <NetworkNodesRoster netInfo={netInfo} validatorMonikers={valoperMonikers} loading={loading} />
+            )}
         </div>
     )
 }
