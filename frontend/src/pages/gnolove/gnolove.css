@@ -132,7 +132,7 @@
 }
 
 .gl-subnav-link--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -161,7 +161,7 @@
 }
 
 .gl-sync-time--stale {
-    color: #eab308;
+    color: var(--color-k-warning-text);
 }
 
 /* ── Milestone Bar ───────────────────────────── */
@@ -188,7 +188,7 @@
 
 .gl-milestone-count {
     font-size: 11px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
 
@@ -248,7 +248,7 @@
 }
 
 .gl-filter-btn--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -264,7 +264,7 @@
 }
 
 .gl-checkbox input[type="checkbox"] {
-    accent-color: var(--color-k-accent, #00d4aa);
+    accent-color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Score Factors ───────────────────────────── */
@@ -398,7 +398,7 @@
 }
 
 .gl-sortable:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-sortable:focus-visible {
@@ -439,7 +439,7 @@
 }
 
 .gl-contributor-name:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-contributor-login {
@@ -455,6 +455,19 @@
     font-weight: 600;
     font-family: var(--gl-font-mono);
     margin-top: 2px;
+    color: var(--team-color);
+}
+
+/* §13: team brand colors as TEXT — the vivid brand hex (set inline as the
+   --team-color custom prop) is fine on dark but ~1.5–3.8:1 on light. Darken
+   it toward black on light so every team color clears AA (~5:1+) while keeping
+   its hue/identity. Applies to all team-name text (badge / compact / inline). */
+.gl-team-compact-name,
+.gl-team-name-inline { color: var(--team-color); }
+[data-theme="light"] .gl-team-badge,
+[data-theme="light"] .gl-team-compact-name,
+[data-theme="light"] .gl-team-name-inline {
+    color: color-mix(in srgb, var(--team-color) 52%, #000);
 }
 
 .gl-stat-cell {
@@ -464,7 +477,7 @@
 }
 
 .gl-stat-highlight {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 700;
 }
 
@@ -581,27 +594,27 @@
 
 .gl-pr-state--merged {
     background: rgba(168, 85, 247, 0.12);
-    color: #a855f7;
+    color: var(--color-k-purple-text);
 }
 
 .gl-pr-state--open {
     background: rgba(34, 197, 94, 0.12);
-    color: #22c55e;
+    color: var(--color-k-success-text);
 }
 
 .gl-pr-state--closed {
     background: rgba(239, 68, 68, 0.12);
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
 }
 
 .gl-pr-state--blocked {
     background: rgba(239, 68, 68, 0.12);
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
 }
 
 .gl-pr-state--waiting {
     background: rgba(255, 193, 7, 0.12);
-    color: #ffc107;
+    color: var(--color-k-warning-text);
 }
 
 /* ── Repo Grid ───────────────────────────────── */
@@ -662,7 +675,7 @@
 }
 
 .gl-week-btn:hover:not(:disabled) {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -713,7 +726,7 @@
 
 .gl-custom-range-input:focus {
     outline: none;
-    border-color: var(--color-primary);
+    border-color: var(--color-k-accent-text);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
@@ -766,7 +779,7 @@
 }
 
 .gl-tab--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -1089,7 +1102,7 @@
 
 .gl-team-popover-score {
     font-size: 10px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
@@ -1144,7 +1157,7 @@
 }
 
 .gl-repo-filter-item input[type="checkbox"] {
-    accent-color: var(--color-k-accent, #00d4aa);
+    accent-color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-filter-btn--sm {
@@ -1196,7 +1209,7 @@
 }
 
 .gl-export-btn:hover:not(:disabled) {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1213,7 +1226,7 @@
 /* ── Section Summary Link ──────────────────────── */
 
 .gl-section-summary-link {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
     font-size: 11px;
 }
@@ -1343,7 +1356,7 @@
 
 .gl-teams-member-score {
     font-size: 13px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 600;
     font-family: var(--gl-font-mono);
 }
@@ -1664,7 +1677,7 @@
 }
 
 .gl-profile-back:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-profile-header {
@@ -1766,7 +1779,7 @@
 }
 
 .gl-profile-link:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1786,7 +1799,7 @@
 }
 
 .gl-profile-onchain-value {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     word-break: break-all;
 }
 
@@ -1809,7 +1822,7 @@
 }
 
 .gl-profile-copy-btn:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1875,7 +1888,7 @@
 
 .gl-repo-card-profile-name {
     font-size: 13px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
 
@@ -2085,7 +2098,7 @@
     padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.12);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     white-space: nowrap;
     line-height: 1.3;
 }
@@ -2124,7 +2137,7 @@
 
 .gl-section-link {
     font-size: 11px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
     font-family: var(--gl-font-mono);
 }
@@ -2176,7 +2189,7 @@
 .gl-pagination-btn--active {
     background: rgba(0, 212, 170, 0.12);
     border-color: rgba(0, 212, 170, 0.3);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-pagination-ellipsis {
@@ -2281,7 +2294,7 @@
     white-space: nowrap;
 }
 .gl-team-repo:hover .gl-team-repo-name {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 .gl-team-repo-branch {
     font-size: 9px;
@@ -2315,7 +2328,7 @@
     border: 1px solid rgba(255, 71, 87, 0.15);
     font-size: 12px;
     font-family: var(--gl-font-mono);
-    color: #ff8a94;
+    color: var(--color-k-danger-text);
     min-width: 0;
 }
 
@@ -2326,7 +2339,7 @@
 .gl-error-retry {
     background: rgba(255, 71, 87, 0.1);
     border: 1px solid rgba(255, 71, 87, 0.25);
-    color: var(--color-k-danger, #ff4757);
+    color: var(--color-k-danger-text, #ff4757);
     font-size: 11px;
     font-family: var(--gl-font-mono);
     padding: 4px 12px;
@@ -2375,7 +2388,7 @@
 }
 
 .gl-view-btn--active {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.08);
 }
 
@@ -2436,7 +2449,7 @@
 }
 
 .gl-report-narrative__list a {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
 }
 
@@ -2497,7 +2510,7 @@
 }
 
 .gl-report-narrative__stat--blocked .gl-report-narrative__stat-value {
-    color: #ef4444;
+    color: var(--color-k-danger-text);
 }
 
 .gl-report-narrative__stat-label {
@@ -2520,7 +2533,7 @@
 .gl-report-narrative__repo-name {
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: var(--gl-font-mono);
     margin-bottom: 6px;
 }
@@ -2625,7 +2638,7 @@
 }
 
 .gl-repo-multiselect-option input[type="checkbox"] {
-    accent-color: var(--color-primary);
+    accent-color: var(--color-k-accent-text);
 }
 
 /* ── Period Header ─────────────────────────────── */
@@ -2689,7 +2702,7 @@
 .gl-thub-chip-sync {
     background: rgba(52, 211, 153, 0.1);
     border-color: rgba(52, 211, 153, 0.4);
-    color: #34d399;
+    color: var(--color-k-success-text);
 }
 
 .gl-thub-header-body {
@@ -2722,7 +2735,7 @@
 }
 
 .gl-thub-team-social-link:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-thub-period {
@@ -3021,7 +3034,7 @@
 }
 
 .gl-thub-activity-title:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .gl-thub-activity-meta {
@@ -3106,8 +3119,8 @@
 }
 
 .gl-thub-ai-toggle:hover {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
+    color: var(--color-k-accent-text);
+    border-color: var(--color-k-accent-text);
 }
 
 /* ── Focus Areas pills ────────────────────────── */
@@ -3226,10 +3239,10 @@
     font-size: 16px;
 }
 
-.gl-thub-report-stat--merged .gl-thub-report-stat-num { color: #34d399; }
-.gl-thub-report-stat--progress .gl-thub-report-stat-num { color: #60a5fa; }
-.gl-thub-report-stat--review .gl-thub-report-stat-num { color: #fbbf24; }
-.gl-thub-report-stat--blocked .gl-thub-report-stat-num { color: #f87171; }
+.gl-thub-report-stat--merged .gl-thub-report-stat-num { color: var(--color-k-success-text); }
+.gl-thub-report-stat--progress .gl-thub-report-stat-num { color: var(--color-k-info-text); }
+.gl-thub-report-stat--review .gl-thub-report-stat-num { color: var(--color-k-warning-text); }
+.gl-thub-report-stat--blocked .gl-thub-report-stat-num { color: var(--color-k-danger-text); }
 
 .gl-thub-report-recent {
     list-style: none;
@@ -3283,7 +3296,7 @@
     display: inline-block;
     margin-top: 12px;
     font-size: 13px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-weight: 500;
 }
@@ -3317,7 +3330,7 @@
 
 .gl-repo-badge--core {
     background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
+    color: var(--color-k-info-text);
 }
 
 .gl-repo-badge--eco {
@@ -3327,7 +3340,7 @@
 
 [data-theme="light"] .gl-repo-badge--core {
     background: rgba(37, 99, 235, 0.1);
-    color: #2563eb;
+    color: var(--color-k-info-text);
 }
 
 [data-theme="light"] .gl-repo-badge--eco {
@@ -3438,7 +3451,7 @@
 }
 
 .gl-repo-health tbody th a:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-repo-health-cell {
@@ -3448,17 +3461,17 @@
 }
 
 .gl-repo-health-good {
-    color: #22c55e;
+    color: var(--color-k-success-text);
     background: rgba(34, 197, 94, 0.07);
 }
 
 .gl-repo-health-fair {
-    color: #ffc107;
+    color: var(--color-k-warning-text);
     background: rgba(255, 193, 7, 0.08);
 }
 
 .gl-repo-health-poor {
-    color: var(--color-k-danger, #ef4444);
+    color: var(--color-k-danger-text, #ef4444);
     background: rgba(239, 68, 68, 0.10);
 }
 
@@ -3636,7 +3649,7 @@
     font-family: var(--gl-font-mono);
     font-size: 11px;
     font-weight: 600;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.10);
@@ -3943,8 +3956,8 @@
 }
 
 .gl-aircard-toggle:hover {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
+    color: var(--color-k-accent-text);
+    border-color: var(--color-k-accent-text);
 }
 
 /* ── Mobile bottom sheet ──────────────────────── */
@@ -4045,7 +4058,7 @@
 .gl-ms-description p:last-child { margin-bottom: 0; }
 .gl-ms-description strong { color: var(--color-text-primary); font-weight: 600; }
 .gl-ms-description em { font-style: italic; }
-.gl-ms-description a { color: var(--color-primary); text-decoration: none; }
+.gl-ms-description a { color: var(--color-k-accent-text); text-decoration: none; }
 .gl-ms-description a:hover { text-decoration: underline; }
 .gl-ms-description code { font-family: var(--gl-font-mono); font-size: 12px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.06); }
 .gl-ms-description ul, .gl-ms-description ol { margin: 4px 0 8px 20px; padding: 0; }
