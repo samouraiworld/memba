@@ -19,5 +19,20 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Viewport/breakpoint detection must go through the shared useIsMobile()
+      // hook (matchMedia, SSR-safe) — not ad-hoc window.innerWidth reads in
+      // render, which caused mobile/desktop drift (audit M7).
+      'no-restricted-properties': ['error',
+        { object: 'window', property: 'innerWidth', message: 'Use the useIsMobile() hook for viewport/breakpoint logic instead of window.innerWidth.' },
+        { object: 'window', property: 'innerHeight', message: 'Use the useIsMobile() hook for viewport/breakpoint logic instead of window.innerHeight.' },
+      ],
+    },
+  },
+  {
+    // JitsiPiPOverlay reads window.innerWidth/innerHeight for drag-bound clamping
+    // (pixel geometry, not a breakpoint) — a legitimate, non-drift use.
+    files: ['src/components/ui/JitsiPiPOverlay.tsx'],
+    rules: { 'no-restricted-properties': 'off' },
   },
 ])

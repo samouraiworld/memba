@@ -8,9 +8,9 @@
  *   - Short/long inline toggle per project, with a "Read Detailed Report"
  *     label (operator decision Q-3). Empty strings fall back to the legacy
  *     `summary` via `||` (plan R-8 — never `??`).
- *   - On viewports under {@link MOBILE_BREAKPOINT_PX}, the long view opens
- *     as a bottom sheet instead of expanding inline. Detected at mount with
- *     a window-listener so resizes are reactive.
+ *   - On mobile viewports (≤768px, via the shared `useIsMobile` hook), the
+ *     long view opens as a bottom sheet instead of expanding inline. Reactive
+ *     to viewport changes via the hook's matchMedia listener.
  *   - Optional `teamSlug` filters projects to those tagged with that team
  *     (prompt v2 `team` field). Falls back to "show all" when no project
  *     in the report carries a team tag — keeps v1 rollover usable.
@@ -23,8 +23,7 @@ import type { TAIReport, TAIReportProject } from "../../lib/gnoloveSchemas"
 import { AccessibleDialog } from "../AccessibleDialog"
 import { RepoBadge } from "./RepoBadge"
 import { sortReposWithCorePinned } from "../../lib/gnoloveRepo"
-
-const MOBILE_BREAKPOINT_PX = 768
+import { useIsMobile } from "../../hooks/useIsMobile"
 
 interface Props {
     report: TAIReport
@@ -108,19 +107,6 @@ function projectAnchor(name: string): string {
 function currentHash(): string {
     if (typeof window === "undefined") return ""
     return decodeURIComponent(window.location.hash.replace(/^#/, ""))
-}
-
-function useIsMobile(): boolean {
-    const [isMobile, setIsMobile] = useState(() =>
-        typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT_PX,
-    )
-    useEffect(() => {
-        if (typeof window === "undefined") return
-        const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT_PX)
-        window.addEventListener("resize", onResize)
-        return () => window.removeEventListener("resize", onResize)
-    }, [])
-    return isMobile
 }
 
 function ProjectRow({ project, isMobile }: { project: TAIReportProject; isMobile: boolean }) {
