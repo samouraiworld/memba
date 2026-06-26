@@ -1508,12 +1508,30 @@ body {
   transform: translateY(0);
 }
 
+/* Full-width, tall-enough drag zone for swipe-to-dismiss; the visible 36x4 bar
+   is drawn by the ::before so the grab target isn't limited to 4px. */
 .k-bottom-sheet-handle {
+  width: 100%;
+  padding: 10px 0 14px;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.k-bottom-sheet-handle::before {
+  content: "";
+  display: block;
   width: 36px;
   height: 4px;
   border-radius: 2px;
   background: var(--color-k-edge-hover);
-  margin: 0 auto 12px;
+  margin: 0 auto;
+}
+
+.k-bottom-sheet-handle:active {
+  cursor: grabbing;
 }
 
 /* ── B3: Hamburger toggle (hidden by default — shown only at tablet) ── */

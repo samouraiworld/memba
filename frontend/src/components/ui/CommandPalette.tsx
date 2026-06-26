@@ -57,6 +57,15 @@ export function CommandPalette() {
         return () => document.removeEventListener("keydown", handleKeyDown)
     }, [])
 
+    // ── Touch / programmatic open ─────────────────────────
+    // Cmd+K is keyboard-only, so mobile (and any non-keyboard affordance like the
+    // "More" sheet's Search entry) opens the palette by dispatching this event.
+    useEffect(() => {
+        function openPalette() { setOpen(true) }
+        window.addEventListener("open-command-palette", openPalette)
+        return () => window.removeEventListener("open-command-palette", openPalette)
+    }, [])
+
     // Auto-focus input when opened
     useEffect(() => {
         if (open) {

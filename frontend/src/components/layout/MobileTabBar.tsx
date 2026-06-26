@@ -6,7 +6,7 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { VISIBLE_NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
-import { DotsThree, PuzzlePiece, SunDim, Moon } from "@phosphor-icons/react"
+import { DotsThree, PuzzlePiece, SunDim, Moon, MagnifyingGlass } from "@phosphor-icons/react"
 
 // Member relabels the Alerts destination "Activity" in the primary tab row.
 const TAB_LABEL_OVERRIDE: Record<string, string> = { alerts: "Activity" }
@@ -105,6 +105,23 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
 
             <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
                 <div id="mobile-more-sheet">
+                    {/* Search — the touch entry to the command palette (Cmd+K has no
+                        mobile equivalent), dispatched as a decoupled window event. */}
+                    <div className="k-sidebar-section">
+                        <button
+                            type="button"
+                            className="k-sidebar-link"
+                            onClick={() => {
+                                window.dispatchEvent(new CustomEvent("open-command-palette"))
+                                setSheetOpen(false)
+                            }}
+                            style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", font: "inherit" }}
+                        >
+                            <span className="k-sidebar-icon"><MagnifyingGlass size={18} /></span>
+                            <span className="k-sidebar-label">Search…</span>
+                        </button>
+                    </div>
+
                     {/* Navigate section — overflow nav, sourced from the manifest */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Navigate</div>
