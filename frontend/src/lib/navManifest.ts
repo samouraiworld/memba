@@ -73,3 +73,34 @@ export function navForSurface(surface: NavSurface): NavEntry[] {
 export function navForGroup(group: NavGroup): NavEntry[] {
     return NAV.filter((e) => e.group === group)
 }
+
+// ── Mobile tab-bar selection (route-mapped set) ──────────────────────
+// The bottom tab bar and its "More" sheet are CURATED views over the same
+// manifest, so route/label/icon live in one place (no Sidebar↔tab-bar drift).
+// Ordered id lists below preserve today's behaviour; only `alerts` is
+// relabelled "Activity" in the member primary set (a presentation override
+// applied by the tab bar, not stored here).
+const byId = (id: string): NavEntry | undefined => NAV.find((e) => e.id === id)
+const resolve = (ids: string[]): NavEntry[] => ids.map(byId).filter((e): e is NavEntry => !!e)
+
+const PRIMARY_TABS_VISITOR = ['home', 'dao', 'tokens', 'directory']
+const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
+const MORE_NAV_IDS = ['dashboard', 'validators', 'gnolove', 'extensions', 'alerts']
+const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
+
+const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
+
+/** Ordered primary bottom-tab destinations (visitor vs connected member). */
+export function mobilePrimaryTabs(connected: boolean): NavEntry[] {
+    return resolve(connected ? PRIMARY_TABS_MEMBER : PRIMARY_TABS_VISITOR)
+}
+
+/** "More" sheet → Navigate section (overflow nav not in the primary tabs). */
+export function mobileMoreNav(connected: boolean): NavEntry[] {
+    return resolve(MORE_NAV_IDS).filter(visibleFor(connected))
+}
+
+/** "More" sheet → Account section. */
+export function mobileMoreAccount(connected: boolean): NavEntry[] {
+    return resolve(MORE_ACCOUNT_IDS).filter(visibleFor(connected))
+}

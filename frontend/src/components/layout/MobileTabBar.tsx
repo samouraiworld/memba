@@ -1,16 +1,15 @@
 import { useState, useCallback, useEffect } from "react"
-import type { Icon as PhosphorIconType } from "@phosphor-icons/react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { VISIBLE_NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
-import {
-    House, Buildings, Coins, FolderOpen,
-    DotsThree, User, Gear, Briefcase, Megaphone, PuzzlePiece, Bell,
-    ChartBar, LinkSimpleHorizontal, Heart, SunDim, Moon,
-} from "@phosphor-icons/react"
+import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
+import { DotsThree, PuzzlePiece, SunDim, Moon } from "@phosphor-icons/react"
+
+// Member relabels the Alerts destination "Activity" in the primary tab row.
+const TAB_LABEL_OVERRIDE: Record<string, string> = { alerts: "Activity" }
 
 interface MobileTabBarProps {
     connected: boolean
@@ -21,31 +20,6 @@ interface MobileTabBarProps {
         switchNetwork: (key: string) => void
     }
 }
-
-/** Shared tab-entry shape (to allow typing activeTabs uniformly). */
-interface TabDef {
-    to: string
-    Icon: PhosphorIconType
-    label: string
-}
-
-// ── Tab definitions (data-only — icons rendered in component tree) ──
-// Visitor tab set: Home · DAOs · Tokens · Directory · More
-const VISITOR_TABS: TabDef[] = [
-    { to: "/", Icon: House, label: "Home" },
-    { to: "/dao", Icon: Buildings, label: "DAOs" },
-    { to: "/tokens", Icon: Coins, label: "Tokens" },
-    { to: "/directory", Icon: FolderOpen, label: "Directory" },
-]
-
-// Member tab set: Home · DAOs · Tokens · Activity · More
-// (Home returns the member to their Control Room / act-now inbox)
-const MEMBER_TABS: TabDef[] = [
-    { to: "/", Icon: House, label: "Home" },
-    { to: "/dao", Icon: Buildings, label: "DAOs" },
-    { to: "/tokens", Icon: Coins, label: "Tokens" },
-    { to: "/alerts", Icon: Bell, label: "Activity" },
-]
 
 export function MobileTabBar({ connected, address, network }: MobileTabBarProps) {
     const location = useLocation()
@@ -87,21 +61,35 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
         || location.pathname.startsWith(np("/multisig"))
         || location.pathname.startsWith(np("/organizations"))
 
-    // Pick the right tab set: member (connected) uses MEMBER_TABS; visitor uses VISITOR_TABS.
-    const activeTabs: TabDef[] = connected ? MEMBER_TABS : VISITOR_TABS
+    // Primary tabs come from the single nav manifest (route-mapped set).
+    const activeTabs = mobilePrimaryTabs(connected)
+
+    // Render a "More"-sheet nav row from a manifest entry. Profile is the one
+    // entry whose path needs the connected address appended.
+    const renderMoreLink = (entry: NavEntry) => {
+        if (entry.id === "profile" && !address) return null
+        const to = entry.id === "profile" ? `${entry.to}/${address}` : entry.to
+        const Icon = entry.Icon
+        return (
+            <Link key={entry.id} to={np(to)} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
+                <span className="k-sidebar-icon"><Icon size={18} /></span>
+                <span className="k-sidebar-label">{entry.label}</span>
+            </Link>
+        )
+    }
 
     return (
         <div className="k-mobile-only">
             <nav className="k-mobile-tabbar" data-testid="mobile-tabbar" aria-label="Mobile navigation">
                 {activeTabs.map(tab => (
                     <Link
-                        key={tab.to}
+                        key={tab.id}
                         to={np(tab.to)}
                         className={`k-mobile-tab${isTabActive(tab.to) ? " active" : ""}`}
                         aria-current={isTabActive(tab.to) ? "page" : undefined}
                     >
                         <span className="k-mobile-tab-icon"><tab.Icon size={20} /></span>
-                        <span>{tab.label}</span>
+                        <span>{TAB_LABEL_OVERRIDE[tab.id] ?? tab.label}</span>
                     </Link>
                 ))}
                 <button
@@ -117,58 +105,16 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
 
             <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
                 <div id="mobile-more-sheet">
-                    {/* Navigate section — routes missing from bottom tab bar */}
+                    {/* Navigate section — overflow nav, sourced from the manifest */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Navigate</div>
-                        {connected && (
-                            <Link to={np("/dashboard")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon"><ChartBar size={18} /></span>
-                                <span className="k-sidebar-label">Dashboard</span>
-                            </Link>
-                        )}
-                        <Link to={np("/validators")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><LinkSimpleHorizontal size={18} /></span>
-                            <span className="k-sidebar-label">Validators</span>
-                        </Link>
-                        <Link to={np("/gnolove")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><Heart size={18} /></span>
-                            <span className="k-sidebar-label">Gnolove</span>
-                        </Link>
-                        <Link to={np("/extensions")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
-                            <span className="k-sidebar-label">Extensions</span>
-                        </Link>
-                        <Link to={np("/alerts")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><Bell size={18} /></span>
-                            <span className="k-sidebar-label">Alerts</span>
-                        </Link>
+                        {mobileMoreNav(connected).map(renderMoreLink)}
                     </div>
 
-                    {/* Account section */}
+                    {/* Account section — sourced from the manifest */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Account</div>
-                        {connected && address && (
-                            <Link to={np(`/profile/${address}`)} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon"><User size={18} /></span>
-                                <span className="k-sidebar-label">Profile</span>
-                            </Link>
-                        )}
-                        {connected && (
-                            <Link to={np("/settings")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon"><Gear size={18} /></span>
-                                <span className="k-sidebar-label">Settings</span>
-                            </Link>
-                        )}
-                        {connected && (
-                            <Link to={np("/multisig")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                                <span className="k-sidebar-icon"><Briefcase size={18} /></span>
-                                <span className="k-sidebar-label">Multisig</span>
-                            </Link>
-                        )}
-                        <Link to={np("/feedback")} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
-                            <span className="k-sidebar-icon"><Megaphone size={18} /></span>
-                            <span className="k-sidebar-label">Feedback</span>
-                        </Link>
+                        {mobileMoreAccount(connected).map(renderMoreLink)}
                     </div>
 
                     {/* Plugins section */}
