@@ -11,7 +11,11 @@
 
 ---
 
-## 0.1 Shipped status (updated 2026-06-25, live)
+## 0.1 Shipped status (updated 2026-06-26, live)
+
+> **§13 APP-WIDE LIGHT-THEME SWEEP — COMPLETE & LIVE ON PROD (2026-06-26).** 9 PRs merged: `#558` accent-text token · `#559` shell · `#561` validators + ValidatorDetail · `#563` gnolove · `#565` DAO/governance/profile/directory · `#568` tokens/multisig/quests/misc · `#570` semantic-token + cleanup · `#573` inline-TSX tail · `#574` CI guardrail. Method: route every text `color:` through theme-aware `--color-k-*-text` tokens (dark values == prior shades → zero dark regression); 3 systemic token fixes (accent-text, `--color-text-dim` gray-300→AA, legacy `--color-{success,warning,danger,info}`→`-text` fixed ~75 inline usages at once); shared `CopyableAddress`; new `.k-brand-text` utility (color-mix darken of a `--ck` brand hex on light) for role/category/team color maps. **Verified light-mode 0 contrast offenders** (Playwright WCAG audit) on home/validators/ValidatorDetail/gnolove/directory(all tabs)/tokens/quests/DAO-detail; **CI guardrail** (`ci.yml`) now fails any new hardcoded `color:` in component CSS. **Design-system rule:** never hardcode a text color — use a `--color-k-*-text` token or `.k-brand-text`+`--ck`. Deferred (out of light scope): **§13-J** dark-only items (`#444` dao-path/arrows, hacker heatmap). Token vocabulary + rule documented in `docs/DESIGN_SYSTEM.md`.
+>
+> **§12 P3 — on-chain reviews / web-of-trust realm — DESIGN APPROVED (2026-06-26), build pending.** Spec: `docs/superpowers/specs/2026-06-26-reviews-realm-design.md`. Open posting (NOT interactor-gated — user dropped that), hybrid trust (reputation + verified-`@username` badge), hybrid moderation (author delete + community flag + multisig hide), fully on-chain realm + RPC reads, deploy via samcrew-deployer **after a mandatory security review**. Next: `writing-plans`.
 
 Delivered as small, independently-green PRs squash-merged to `main` (each deploy-preview-verified in dark **and** light where UI-facing). Authoritative list:
 
