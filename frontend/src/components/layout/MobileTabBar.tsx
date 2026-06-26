@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
+import { ActFab } from "./ActFab"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { VISIBLE_NETWORKS } from "../../lib/config"
@@ -102,6 +103,9 @@ export function MobileTabBar({ connected, address, network }: MobileTabBarProps)
                     <span>More</span>
                 </button>
             </nav>
+
+            {/* ⊕ "Act" — floating quick-action button (connected members only) */}
+            <ActFab connected={connected} />
 
             <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
                 <div id="mobile-more-sheet">
