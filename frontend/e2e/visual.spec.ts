@@ -25,6 +25,12 @@ const ROUTES = ['/', '/test13/directory', '/test13/validators']
 
 for (const path of ROUTES) {
     test(`desktop visual: ${path}`, async ({ page }) => {
+        // Snapshot baselines are committed as *-chromium-darwin.png only.
+        // CI runs Linux, where Playwright looks for *-chromium-linux.png and
+        // would fail with "missing baseline". Skip in CI until Linux baselines
+        // are generated (tracked as a follow-up); run locally on macOS only.
+        test.skip(!!process.env.CI, 'visual baselines are darwin-only; run locally only')
+
         await page.setViewportSize({ width: 1280, height: 900 })
         await stubNetwork(page)
         await page.goto(path)
@@ -34,6 +40,10 @@ for (const path of ROUTES) {
         await page.waitForTimeout(300)
 
         await expect(page).toHaveScreenshot(
+            // NOTE: the `|| '_home'` branch is dead (for '/', replace() yields
+            // the truthy string '_'), but it stays — the committed baseline
+            // filenames derive from this exact formula, so changing it would
+            // orphan the existing PNGs and force a full regen.
             `desktop${path.replace(/\//g, '_') || '_home'}.png`,
             {
                 fullPage: true,
