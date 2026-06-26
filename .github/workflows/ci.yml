@@ -108,6 +108,26 @@ jobs:
           if [ "$FAIL" = "1" ]; then exit 1; fi
           echo "✅ All safety-gated feature flags are disabled in .env.example"
 
+      - name: "Safety gate: light-theme text colors (§13 — no hardcoded color: in component CSS)"
+        run: |
+          # §13: light-theme contrast is enforced through the theme-aware
+          # --color-k-*-text tokens. A hardcoded color: (hex/hsl/rgb) as TEXT in a
+          # component CSS file is invisible/low-contrast on one theme. Fail on any.
+          # Allowed: the token definitions (tokens.css / index.css), the dark-only
+          # files (hacker-mode, validators-hacker), gated features (nft/marketplace/
+          # studio/freelance), near-black/near-white on a bright fill, and
+          # non-text color properties (border/background/outline/etc).
+          VIOL=$(grep -rnHE "color: ?(#[0-9a-fA-F]{3,8}|hsl\(|rgb\()" src --include='*.css' \
+            | grep -viE "(tokens|index)\.css|hacker-mode|validators-hacker|/nft|marketplace|/studio/|freelance" \
+            | grep -viE "(border|background|outline|text-decoration|caret|column-rule)-color" \
+            | grep -viE "#fff\b|#ffffff|#000\b|#000000|#0a0a14|#1a1a1a|#0a0a0a|#0a1210|#16161d|#1a1200" || true)
+          if [ -n "$VIOL" ]; then
+            echo "::error::Hardcoded text color in component CSS — use a --color-k-*-text token (see docs/DESIGN_SYSTEM.md §13)."
+            echo "$VIOL"
+            exit 1
+          fi
+          echo "✅ No hardcoded text colors in component CSS (light-theme contrast preserved)"
+
       - name: Build
         run: npm run build
 
