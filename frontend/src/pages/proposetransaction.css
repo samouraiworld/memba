@@ -73,8 +73,8 @@
 }
 
 .ptx-tab--active {
-    border-bottom-color: var(--color-k-accent);
-    color: var(--color-k-accent);
+    border-bottom-color: var(--color-k-accent-text);
+    color: var(--color-k-accent-text);
 }
 
 /* ── Form card layout ───────────────────────────────────── */

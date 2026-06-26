@@ -7,7 +7,7 @@
 }
 
 .k-daolist__back {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-size: 13px;
   background: none;
   border: none;
@@ -44,7 +44,7 @@
   border: 1px solid rgba(0, 212, 170, 0.12);
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 .k-daolist__org-dot {
   width: 5px;
@@ -278,7 +278,7 @@
 }
 .k-dao-card__badge--featured {
   background: rgba(0, 212, 170, 0.1);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 .k-dao-card__badge--archived {
   background: rgba(245, 166, 35, 0.1);
@@ -334,7 +334,7 @@
   font-weight: 600;
 }
 .k-dao-card__indicator-text--warn { color: #f5a623; }
-.k-dao-card__indicator-text--info { color: var(--color-k-accent); }
+.k-dao-card__indicator-text--info { color: var(--color-k-accent-text); }
 
 /* Card realm path + source link */
 .k-dao-card__path-row {
@@ -360,7 +360,7 @@
   flex-shrink: 0;
 }
 .k-dao-card__source-link:hover {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 /* Card stats */
@@ -417,7 +417,7 @@
   justify-content: flex-end;
 }
 .k-dao-card__cta-text {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
 }

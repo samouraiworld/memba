@@ -51,7 +51,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                 </div>
                             </div>
                             {hasVoted ? (
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent)" }}>
+                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent-text)" }}>
                                     ✓ Voted
                                 </span>
                             ) : (

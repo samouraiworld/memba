@@ -95,7 +95,7 @@
 .k-dashboard__ms-threshold {
   font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: rgba(0, 212, 170, 0.08);
   padding: 2px 6px;
   border-radius: 4px;
@@ -176,7 +176,7 @@
 .k-dashboard__export-btn {
   background: rgba(0, 212, 170, 0.06);
   border: 1px solid rgba(0, 212, 170, 0.15);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
   padding: 4px 10px;

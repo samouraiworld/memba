@@ -24,7 +24,7 @@
 }
 
 .k-leaderboard-quests-link {
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
     text-decoration: none;
     font-size: 0.875rem;
 }
@@ -96,13 +96,13 @@
 .k-leaderboard-you {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
     margin-left: 4px;
 }
 
 .k-leaderboard-xp {
     font-weight: 600;
-    color: var(--color-k-accent);
+    color: var(--color-k-accent-text);
 }
 
 .k-leaderboard-count {

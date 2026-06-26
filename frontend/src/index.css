@@ -13,6 +13,7 @@
   --color-k-muted: #8a8a8a; /* A11Y-3: WCAG AA ~4.6:1 on #000 (was #555555 = 2.8:1) */
   --color-k-accent: #00d4aa;
   --color-k-accent-hover: #00e6bb;
+  --color-k-accent-text: #00d4aa; /* accent used as TEXT — bright teal reads fine on the dark bg */
   --color-k-on-accent: #0a1210;
   /* Accent tint tokens — replaces color-mix() in component CSS */
   --color-k-accent-subtle: rgba(0, 212, 170, 0.06);   /* 6% fill */
@@ -76,6 +77,7 @@
   --color-k-muted: #4b5563; /* §13: ~7:1 on bg (was #6b7280) — eyebrows/hints, still clearly readable */
   --color-k-accent: #00a88a;
   --color-k-accent-hover: #009478;
+  --color-k-accent-text: #0f6e56; /* §13: accent as TEXT on light needs a deeper teal — ~5.3:1 (the #00a88a accent is only ~2.7:1 as text) */
   --color-k-on-accent: #000000;
   /* Accent tint tokens — light theme */
   --color-k-accent-subtle: rgba(0, 168, 138, 0.08);

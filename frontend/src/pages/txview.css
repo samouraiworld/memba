@@ -9,7 +9,7 @@
 /* ── Back Button (shared pattern) ────────────────────────────── */
 
 .k-txview__back {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-size: 13px;
   background: none;
   border: none;
@@ -51,7 +51,7 @@
   transition: all 0.15s;
 }
 .k-txview__share-btn--copied {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 .k-txview__meta {
   color: var(--color-text-secondary);
@@ -76,7 +76,7 @@
 .k-txview__msg-type {
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: rgba(0, 212, 170, 0.08);
   padding: 2px 8px;
   border-radius: 4px;
@@ -108,7 +108,7 @@
   word-break: break-all;
 }
 .k-txview__field-value--accent {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-weight: 600;
 }
 .k-txview__field-value--raw {
@@ -171,7 +171,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(0, 212, 170, 0.08);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -255,6 +255,6 @@
 .k-txview__hash-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   word-break: break-all;
 }

@@ -105,7 +105,7 @@ button.action-card:focus-visible {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -152,7 +152,7 @@ button.action-card:focus-visible {
 .status-strip__chain {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-weight: 500;
   text-transform: lowercase;
 }
@@ -309,7 +309,7 @@ button.action-card:focus-visible {
 
 .govdao-spotlight__latest-status--passed,
 .govdao-spotlight__latest-status--executed {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 .govdao-spotlight__latest-status--rejected {
@@ -439,7 +439,7 @@ button.action-card:focus-visible {
 
 a.ecosystem-section__header:hover .ecosystem-section__label,
 a.ecosystem-section__header:hover .ecosystem-section__arrow {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 .ecosystem-section__header--static {
@@ -521,7 +521,7 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: var(--color-k-accent-subtle);
   border: 1px solid var(--color-k-accent-border);
   border-radius: 4px;
@@ -557,7 +557,7 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 .ecosystem-section__viewall {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   text-decoration: none;
   padding: 2px 6px;
 }
@@ -647,7 +647,7 @@ a.activity-feed__link:focus-visible {
   height: 26px;
   border-radius: 7px;
   background: var(--color-k-accent-subtle);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 .activity-feed__icon--governance {
@@ -722,7 +722,7 @@ a.activity-feed__link:focus-visible {
   gap: 4px;
   background: none;
   border: none;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -739,7 +739,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .explore-tile__icon {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   flex-shrink: 0;
 }
 
@@ -845,7 +845,7 @@ a.activity-feed__link:focus-visible {
 .featured-door__link--primary {
   background: var(--color-k-accent);
   color: var(--color-k-on-accent);
-  border-color: var(--color-k-accent);
+  border-color: var(--color-k-accent-text);
 }
 
 .featured-door__link--secondary {
@@ -969,7 +969,7 @@ a.activity-feed__link:focus-visible {
   letter-spacing: 0.04em;
 }
 
-.network-health-door__status--healthy  { color: var(--color-k-accent); }
+.network-health-door__status--healthy  { color: var(--color-k-accent-text); }
 .network-health-door__status--degraded { color: var(--color-k-warning, #f59e0b); }
 .network-health-door__status--down     { color: var(--color-k-danger, #ff4757); }
 
@@ -1187,7 +1187,7 @@ a.activity-feed__link:focus-visible {
 
 .wallet-chip--balance {
   border-color: var(--color-k-accent-border);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: var(--color-k-accent-subtle);
 }
 
@@ -1424,7 +1424,7 @@ button.door:focus-visible {
 .door__invitation-link {
   font-family: var(--font-sans);
   font-size: 13px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1580,7 +1580,7 @@ button.door:focus-visible {
 .action-door__chip--vote,
 .action-door__chip--claim,
 .action-door__chip--candidature {
-  border-color: var(--color-k-accent);
+  border-color: var(--color-k-accent-text);
   background: var(--color-k-accent-tint);
 }
 
@@ -1653,7 +1653,7 @@ button.door:focus-visible {
 .action-door__cta--candidature,
 .action-door__cta--claim {
   background: var(--color-k-accent-tint);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   border-color: var(--color-k-accent-border-strong);
 }
 
@@ -1676,7 +1676,7 @@ button.door:focus-visible {
 
 .action-door__caught-up-link {
   font-size: 12px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   text-decoration: none;
   align-self: flex-start;
 }
@@ -1714,7 +1714,7 @@ button.door:focus-visible {
 
 .quick-vote-btn--yes {
   background: var(--color-k-accent-tint);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   border-color: var(--color-k-accent-border);
 }
 
@@ -1752,7 +1752,7 @@ button.door:focus-visible {
 .action-inbox__view-all {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   text-decoration: none;
   letter-spacing: 0.02em;
 }
@@ -1862,7 +1862,7 @@ button.door:focus-visible {
 }
 
 .your-worlds-door__open {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: var(--color-k-accent-tint);
   padding: 1px 7px;
   border-radius: 5px;
