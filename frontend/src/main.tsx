@@ -10,6 +10,8 @@ import { queryClient } from './lib/queryClient'
 import './fonts.css'
 import './tokens.css'
 import './index.css'
+import './mobile-tokens.css'
+import './components/mobile/mobile-primitives.css'
 import App from './App.tsx'
 
 // Apply theme before first paint (avoids flash)
