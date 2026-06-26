@@ -603,6 +603,9 @@ export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
  * predicate (e.g. isNftMarketValid) where a tx targets a specific realm.
  */
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
+/** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
+ * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
+export const isServicesEnabled = (): boolean => import.meta.env.VITE_ENABLE_SERVICES === "true"
 export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 
