@@ -1,0 +1,28 @@
+/**
+ * mobile-tokens.css — additive, mobile-ergonomic design tokens for the
+ * Vault×Pulse mobile rework.
+ *
+ * SCOPE & SAFETY:
+ *   - COLOR is NOT defined here. The mobile UI reuses the shared §13 design
+ *     system (`--color-k-accent` = teal/community, `--color-k-govdao` =
+ *     gold/L1, see docs/DESIGN_SYSTEM.md). Do not fork a parallel palette.
+ *   - This file adds ONLY non-color, mobile-ergonomic constants (`--mb-*`).
+ *     They are consumed exclusively by mobile-scoped CSS (`@media
+ *     (max-width: 768px)`), so defining them on :root is inert on desktop —
+ *     nothing here overrides an existing token or changes desktop rendering.
+ *
+ * Imported after index.css in main.tsx.
+ */
+:root {
+    /* Touch ergonomics */
+    --mb-touch-min: 44px; /* min hit target (Apple HIG / WCAG 2.5.5) */
+
+    /* Mobile chrome */
+    --mb-page-header-height: 52px; /* PageHeader bar height */
+    --mb-action-bar-pad-y: 12px;   /* StickyActionBar vertical padding */
+    --mb-sheet-radius: 20px;       /* bottom-sheet top-corner radius */
+
+    /* Safe-area convenience (resolves to 0px where unsupported) */
+    --mb-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --mb-safe-top: env(safe-area-inset-top, 0px);
+}

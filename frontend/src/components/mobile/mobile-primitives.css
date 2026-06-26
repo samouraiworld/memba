@@ -1,0 +1,81 @@
+/**
+ * mobile-primitives.css — styling for PageHeader + StickyActionBar.
+ *
+ * STRICTLY mobile-scoped: every rule lives inside `@media (max-width: 768px)`
+ * so desktop rendering is never affected (these primitives are used only in
+ * the mobile shell). Colors use the shared §13 tokens; sizing uses --mb-*.
+ */
+
+@media (max-width: 768px) {
+    /* ── PageHeader ─────────────────────────────────────────────── */
+    .mb-page-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: var(--mb-page-header-height);
+        padding: 0 12px;
+        background: var(--color-k-bg);
+        border-bottom: 1px solid var(--color-k-edge);
+    }
+
+    .mb-page-header__back,
+    .mb-page-header__spacer {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: var(--mb-touch-min);
+        min-height: var(--mb-touch-min);
+        flex: 0 0 auto;
+    }
+
+    .mb-page-header__back {
+        color: var(--color-k-text);
+        border-radius: var(--radius-md);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mb-page-header__back:active {
+        background: var(--color-k-hover-surface);
+    }
+
+    .mb-page-header__title {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--color-k-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mb-page-header__action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: var(--mb-touch-min);
+        min-height: var(--mb-touch-min);
+        flex: 0 0 auto;
+    }
+
+    /* ── StickyActionBar ────────────────────────────────────────── */
+    .mb-action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        gap: 8px;
+        padding: var(--mb-action-bar-pad-y) 16px;
+        /* keep the bar above the home indicator / gesture area */
+        padding-bottom: calc(var(--mb-action-bar-pad-y) + var(--mb-safe-bottom));
+        background: var(--color-k-elevated);
+        border-top: 1px solid var(--color-k-edge);
+    }
+
+    /* action children stretch to fill the thumb zone evenly */
+    .mb-action-bar > * {
+        flex: 1 1 auto;
+        min-height: var(--mb-touch-min);
+    }
+}
