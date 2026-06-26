@@ -70,8 +70,15 @@ export function xpToNextRank(xp: number): number {
     return next ? next.xpRequired - xp : 0
 }
 
-/** Candidature threshold — Gold rank (350 XP) */
-export const CANDIDATURE_XP_THRESHOLD_V2 = 350
+/**
+ * Candidature threshold — the single source of truth, DERIVED from the Gold rank
+ * tier so it can never drift from the rank system (Q-09). Gold = "Candidature unlock".
+ */
+export const CANDIDATURE_XP_THRESHOLD =
+    RANK_TIERS.find(t => t.cssClass === "rank-gold")!.xpRequired
+
+/** @deprecated Alias of {@link CANDIDATURE_XP_THRESHOLD}; kept for back-compat. */
+export const CANDIDATURE_XP_THRESHOLD_V2 = CANDIDATURE_XP_THRESHOLD
 
 // ── Quest Definitions ───────────────────────────────────────
 
