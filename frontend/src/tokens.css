@@ -104,12 +104,16 @@
     --color-primary-bg: rgba(0, 168, 138, 0.08);
     --color-primary-border: rgba(0, 168, 138, 0.18);
     --color-primary-hover: rgba(0, 168, 138, 0.12);
-    --color-danger: var(--color-k-danger);
+    /* §13: the legacy semantic tokens are used as TEXT (color:) across the app
+       (incl. ~75 inline TSX usages); their base shades are only ~2.8–4.3:1 on
+       the light bg. Point them at the AA -text variants on light. (Backgrounds
+       use the separate -bg tokens / literal rgba, so fills are unaffected.) */
+    --color-danger: var(--color-k-danger-text);
     --color-danger-bg: rgba(220, 38, 38, 0.06);
-    --color-warning: var(--color-k-warning);
+    --color-warning: var(--color-k-warning-text);
     --color-warning-bg: rgba(217, 119, 6, 0.06);
-    --color-success: #16a34a;
-    --color-info: #2563eb;
+    --color-success: var(--color-k-success-text);
+    --color-info: var(--color-k-info-text);
     --color-text: var(--color-k-text);
     --color-text-secondary: var(--color-k-dim);
     --color-text-muted: var(--color-k-muted);

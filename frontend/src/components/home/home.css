@@ -313,7 +313,7 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__latest-status--rejected {
-  color: var(--color-k-danger);
+  color: var(--color-k-danger-text);
 }
 
 .govdao-spotlight__row {
@@ -970,8 +970,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .network-health-door__status--healthy  { color: var(--color-k-accent-text); }
-.network-health-door__status--degraded { color: var(--color-k-warning, #f59e0b); }
-.network-health-door__status--down     { color: var(--color-k-danger, #ff4757); }
+.network-health-door__status--degraded { color: var(--color-k-warning-text, #f59e0b); }
+.network-health-door__status--down     { color: var(--color-k-danger-text, #ff4757); }
 
 .network-health-door__pulse {
   display: flex;
@@ -1438,7 +1438,7 @@ button.door:focus-visible {
 .door__error-msg {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-k-danger, #ff4757);
+  color: var(--color-k-danger-text, #ff4757);
 }
 
 .door__retry {
@@ -1449,7 +1449,7 @@ button.door:focus-visible {
   border: 1px solid var(--color-k-danger, #ff4757);
   border-radius: 4px;
   background: transparent;
-  color: var(--color-k-danger, #ff4757);
+  color: var(--color-k-danger-text, #ff4757);
   cursor: pointer;
   align-self: flex-start;
 }
@@ -1646,7 +1646,7 @@ button.door:focus-visible {
 
 .action-door__cta--sign {
   background: var(--color-k-amber-tint);
-  color: var(--color-k-warning, #f59e0b);
+  color: var(--color-k-warning-text, #f59e0b);
   border-color: var(--color-k-amber-border);
 }
 
@@ -1720,7 +1720,7 @@ button.door:focus-visible {
 
 .quick-vote-btn--no {
   background: var(--color-k-danger-tint);
-  color: var(--color-k-danger);
+  color: var(--color-k-danger-text);
   border-color: var(--color-k-danger-border);
 }
 
@@ -1876,7 +1876,7 @@ button.door:focus-visible {
 }
 
 .your-worlds-door__stats--degraded {
-  color: var(--color-k-warning);
+  color: var(--color-k-warning-text);
 }
 
 /* ── Responsive: member view ─────────────────────────────────────── */
