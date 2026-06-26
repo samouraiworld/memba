@@ -63,7 +63,7 @@ export function PackagesTab() {
                             }}
                         >
                             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                                <div className="dir-token-avatar" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
+                                <div className="dir-token-avatar" style={{ background: "rgba(99,102,241,0.15)", color: "var(--color-k-purple-text)" }}>
                                     📦
                                 </div>
                                 <div className="dir-card-main">

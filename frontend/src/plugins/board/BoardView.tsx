@@ -405,7 +405,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                 {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
 
                 {connectionLost && !error && (
-                    <div style={{ color: "#f5a623", fontSize: 11, fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
+                    <div style={{ color: "var(--color-k-warning-text)", fontSize: 11, fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
                         Connection lost — retrying...
                     </div>
                 )}

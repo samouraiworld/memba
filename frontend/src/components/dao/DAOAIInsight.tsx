@@ -22,7 +22,7 @@ function verdictToGrade(verdict: string, confidence: number): { grade: string; c
     if (verdict === "approve") {
         if (confidence >= 0.8) return { grade: "A+", color: "var(--color-success)" }
         if (confidence >= 0.6) return { grade: "A", color: "var(--color-success)" }
-        return { grade: "B+", color: "#8bc34a" }
+        return { grade: "B+", color: "var(--color-k-success-text)" }
     }
     if (verdict === "caution") {
         if (confidence >= 0.6) return { grade: "B", color: "var(--color-warning)" }

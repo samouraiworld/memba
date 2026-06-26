@@ -75,7 +75,7 @@ export function TelegramBotCards() {
                             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text)" }}>
                                 {bot.name}
                             </div>
-                            <div style={{ fontSize: 11, color: "#0088cc", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: 11, color: "var(--color-k-info-text)", fontFamily: "JetBrains Mono, monospace" }}>
                                 {bot.handle}
                             </div>
                         </div>

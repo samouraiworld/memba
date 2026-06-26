@@ -223,6 +223,13 @@ a:hover {
   background: transparent;
 }
 
+/* §13-I: brand/role/category color used as TEXT. Components set an arbitrary
+   brand hex inline via the --ck custom property (keeping it available for a
+   `${hex}15` tint background); this darkens it toward black on the light theme
+   so it clears WCAG AA, while leaving the vivid hue on dark untouched. */
+.k-brand-text { color: var(--ck, currentColor); }
+[data-theme="light"] .k-brand-text { color: color-mix(in srgb, var(--ck, currentColor) 55%, #000); }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-k-edge-hover, #333);
   border-radius: 4px;
@@ -498,31 +505,31 @@ a:hover {
 }
 
 .dao-channels-sidebar__item--voice {
-  color: #00d4aa;
+  color: var(--color-k-accent-text);
 }
 
 .dao-channels-sidebar__item--voice:hover:not(:disabled) {
   background: rgba(0, 212, 170, 0.06);
-  color: #00d4aa;
+  color: var(--color-k-accent-text);
 }
 
 .dao-channels-sidebar__item--voice.active {
   background: rgba(0, 212, 170, 0.1);
-  color: #00d4aa;
+  color: var(--color-k-accent-text);
 }
 
 .dao-channels-sidebar__item--private {
-  color: #7c3aed;
+  color: var(--color-k-purple-text);
 }
 
 .dao-channels-sidebar__item--private:hover:not(:disabled) {
   background: rgba(124, 58, 237, 0.06);
-  color: #7c3aed;
+  color: var(--color-k-purple-text);
 }
 
 .dao-channels-sidebar__item--private.active {
   background: rgba(124, 58, 237, 0.1);
-  color: #7c3aed;
+  color: var(--color-k-purple-text);
 }
 
 .dao-channels-sidebar__icon {
@@ -1354,7 +1361,7 @@ body {
   border-radius: 10px;
   background: rgba(0, 212, 170, 0.12);
   border: 1px solid rgba(0, 212, 170, 0.25);
-  color: #00d4aa;
+  color: var(--color-k-accent-text);
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;

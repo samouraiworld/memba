@@ -76,7 +76,7 @@ export function WizardStepMembers({
                         {members.length > 1 && (
                             <button
                                 onClick={() => removeMember(i)}
-                                style={{ background: "none", border: "none", cursor: "pointer", color: "#f44", fontSize: 16, padding: 4 }}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-k-danger-text)", fontSize: 16, padding: 4 }}
                             >
                                 ×
                             </button>

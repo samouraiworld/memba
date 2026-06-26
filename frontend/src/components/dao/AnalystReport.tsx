@@ -24,7 +24,7 @@ const VERDICT_STYLES: Record<string, { bg: string; color: string; label: string 
     approve: { bg: "rgba(76,175,80,0.1)", color: "var(--color-success)", label: "APPROVE" },
     reject: { bg: "rgba(244,67,54,0.1)", color: "var(--color-danger)", label: "REJECT" },
     caution: { bg: "rgba(255,152,0,0.1)", color: "var(--color-warning)", label: "CAUTION" },
-    abstain: { bg: "rgba(158,158,158,0.1)", color: "#9e9e9e", label: "ABSTAIN" },
+    abstain: { bg: "rgba(158,158,158,0.1)", color: "var(--color-k-muted)", label: "ABSTAIN" },
 }
 
 function VerdictBadge({ verdict }: { verdict: string }) {

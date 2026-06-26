@@ -213,7 +213,7 @@ export default function FeedbackPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     <span style={{
                         fontSize: 9, padding: "2px 6px", borderRadius: 3,
-                        background: "rgba(124, 58, 237, 0.1)", color: "#7c3aed",
+                        background: "rgba(124, 58, 237, 0.1)", color: "var(--color-k-purple-text)",
                         fontWeight: 700, letterSpacing: "0.05em",
                         fontFamily: "JetBrains Mono, monospace",
                     }}>COMING ON BETANET</span>
