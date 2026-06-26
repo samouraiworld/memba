@@ -180,7 +180,7 @@ export function TreasuryProposal() {
             <div style={{
                 padding: "14px 18px", borderRadius: 8,
                 background: "rgba(33,150,243,0.06)", border: "1px solid rgba(33,150,243,0.15)",
-                fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#2196f3",
+                fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-info-text)",
             }}>
                 ℹ This creates a DAO proposal. Members must vote to approve the spend.
             </div>

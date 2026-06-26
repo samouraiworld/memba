@@ -105,7 +105,7 @@ export function DAOOverviewCard({
             {/* Title + membership pill */}
             <div className="dao-title-row">
                 <h2 className="dao-title">
-                    <Bank size={20} style={{ color: '#888' }} /> {config?.name || "DAO Governance"}
+                    <Bank size={20} style={{ color: "var(--color-k-dim)" }} /> {config?.name || "DAO Governance"}
                     {config?.isArchived && (
                         <span className="dao-badge-archived">
                             <Archive size={12} /> ARCHIVED

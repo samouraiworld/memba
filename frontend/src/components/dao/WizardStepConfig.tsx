@@ -60,7 +60,7 @@ export function WizardStepConfig({
                 {quorum > 0 && (
                     <div className="k-card" style={{ padding: 12, marginTop: 8, background: "rgba(123,97,255,0.04)", border: "1px solid rgba(123,97,255,0.12)" }}>
                         <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
-                            At least <strong style={{ color: "#7b61ff" }}>{Math.ceil(totalPower * quorum / 100)}</strong> voting power must participate before a proposal can pass or fail.
+                            At least <strong style={{ color: "var(--color-k-purple-text)" }}>{Math.ceil(totalPower * quorum / 100)}</strong> voting power must participate before a proposal can pass or fail.
                         </p>
                     </div>
                 )}
@@ -98,7 +98,7 @@ export function WizardStepConfig({
                 </p>
                 <p style={{ fontSize: 13, color: "var(--color-text)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     A proposal needs <strong style={{ color: "var(--color-primary)" }}>{Math.ceil(totalPower * threshold / 100)}</strong> YES power to pass
-                    {quorum > 0 && <> with at least <strong style={{ color: "#7b61ff" }}>{quorum}%</strong> participation</>}
+                    {quorum > 0 && <> with at least <strong style={{ color: "var(--color-k-purple-text)" }}>{quorum}%</strong> participation</>}
                 </p>
             </div>
 

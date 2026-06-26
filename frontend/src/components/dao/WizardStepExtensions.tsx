@@ -168,7 +168,7 @@ export function WizardStepExtensions({
                     <span style={{
                         fontSize: 9, padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
-                        color: "#7b61ff", fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
                     }}>
                         AUTO-DETECT
                     </span>
@@ -190,7 +190,7 @@ export function WizardStepExtensions({
                     <span style={{
                         fontSize: 9, padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
-                        color: "#7b61ff", fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
                     }}>
                         AUTO-DETECT
                     </span>

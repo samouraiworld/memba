@@ -134,7 +134,7 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                 <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
                                     <span style={{
                                         fontSize: 9, fontFamily: "JetBrains Mono, monospace",
-                                        color: "#3b82f6", background: "rgba(59,130,246,0.08)",
+                                        color: "var(--color-k-info-text)", background: "rgba(59,130,246,0.08)",
                                         padding: "2px 6px", borderRadius: 3, fontWeight: 600,
                                     }}>
                                         📌 PINNED

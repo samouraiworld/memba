@@ -174,7 +174,7 @@ export function Treasury() {
                     style={{
                         padding: "12px 16px", borderRadius: 8,
                         background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
-                        fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623", lineHeight: 1.5,
+                        fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-warning-text)", lineHeight: 1.5,
                     }}
                 >
                     ⚠️ Couldn't load {partialFailures.join(" and ")}. The treasury shown may be incomplete — try refreshing.
@@ -204,7 +204,7 @@ export function Treasury() {
                         style={{
                             padding: "16px 20px", borderRadius: 8, marginBottom: 16,
                             background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
-                            fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                            fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-warning-text)",
                             lineHeight: 1.6,
                         }}
                     >
