@@ -32,7 +32,7 @@ import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { listingKey } from "../lib/v3TokenGrid"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
-import { isNftEnabled, isNftMarketValid } from "../lib/config"
+import { isNftEnabled, isNftMarketV3Valid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
 
@@ -57,12 +57,16 @@ interface ModalState {
 // ── Component ─────────────────────────────────────────────────────────
 
 /**
- * Feature gate (defense-in-depth) — this page renders live Buy/List actions, so
- * it must stay dark until VITE_ENABLE_NFT is flipped and the market realm is
- * valid, even when reached by a direct URL rather than the (also-gated) hub.
+ * Feature gate (defense-in-depth) — this page renders live Buy/List actions on the
+ * v3 engine (TradeModal source="v3" → memba_nft_market_v3), so it must gate on the
+ * v3 market's validity (isNftMarketV3Valid), NOT the v2 predicate. The v3 path stays
+ * out of REALM_ALLOWLIST until v3.1 is registered (Marketplace plan W1.2), so the
+ * page stays correctly dark until then — closing the audit's top 🔴 (rendering live
+ * trades against a realm the allowlist rejects). It also stays dark unless
+ * VITE_ENABLE_NFT is flipped, even when reached by a direct URL.
  */
 export function CollectionPublic() {
-    if (!isNftEnabled() || !isNftMarketValid()) {
+    if (!isNftEnabled() || !isNftMarketV3Valid()) {
         return (
             <ComingSoonGate
                 title="NFT Marketplace"

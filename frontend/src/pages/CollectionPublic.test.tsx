@@ -135,7 +135,9 @@ vi.mock("../hooks/useNetworkNav", () => ({
 vi.mock("../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../lib/config")>()),
     isNftEnabled: () => true,
-    isNftMarketValid: () => true,
+    // The page trades source="v3", so its gate keys off isNftMarketV3Valid (W0.1).
+    // Mock it true so these render/trade tests exercise the live page, not the gate.
+    isNftMarketV3Valid: () => true,
 }))
 
 vi.mock("../lib/formatGnot", () => ({

@@ -17,7 +17,10 @@ import {
     getTelemetryRpcUrls,
     GNO_RPC_URL,
     getUserRegistryPath,
+    isNftMarketValid,
+    isNftMarketV3Valid,
 } from './config'
+import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
 
 describe('config constants', () => {
     it('APP_VERSION matches package.json', () => {
@@ -121,6 +124,34 @@ describe('config constants', () => {
 
     it('GNOLOVE_API_URL defaults to backend.gnolove.world', () => {
         expect(GNOLOVE_API_URL).toBe('https://backend.gnolove.world')
+    })
+})
+
+describe('NFT v3 market gating (W0.1 — gate the page on the engine it trades)', () => {
+    // CollectionPublic trades source="v3" (memba_nft_market_v3), so it must gate on
+    // the v3 market's validity — NOT the v2 predicate it used to use. Until v3.1 is
+    // registered (W1.2) and added to the allowlist, the v3 path is intentionally
+    // excluded, so the page stays correctly dark. This guards the audit's top 🔴:
+    // trading a realm the safety system is set up to reject.
+    it('v3 market path is intentionally NOT in the test13 allowlist yet (page stays dark)', () => {
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(false)
+    })
+
+    it('v2 market path IS allowlisted (the old, mismatched gate)', () => {
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
+    })
+
+    it('isNftMarketV3Valid() is false on the active (test13) network until v3 is registered', () => {
+        // Default active network is test13 (see DEFAULT_NETWORK + getUserRegistryPath test).
+        expect(isNftMarketV3Valid()).toBe(false)
+    })
+
+    it('the v2 and v3 predicates are distinct — the bug was gating v3 trading on the v2 predicate', () => {
+        // isNftMarketValid (v2) currently returns true on test13, which is exactly why
+        // the v2 gate let the v3-trading page render. The v3 predicate must not.
+        expect(isNftMarketValid()).toBe(true)
+        expect(isNftMarketV3Valid()).toBe(false)
+        expect(isNftMarketValid()).not.toBe(isNftMarketV3Valid())
     })
 })
 

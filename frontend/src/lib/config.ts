@@ -13,6 +13,10 @@
  * All env vars read from Vite's import.meta.env with sensible defaults.
  */
 
+// nftConfig is dependency-free (zero imports), so this edge is cycle-safe and
+// keeps the v3 market path single-sourced for the isNftMarketV3Valid() predicate.
+import { NFT_MARKETPLACE_V3_PATH } from "./nftConfig"
+
 // ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = __APP_VERSION__
 
@@ -577,6 +581,15 @@ export function getFeaturedDaoRealm(networkKey: string): string | null {
 export const isTokenFactoryValid = () => isRealmValid(GRC20_FACTORY_PATH)
 export const isEscrowValid = () => isRealmValid(MEMBA_DAO.escrowPath)
 export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
+/**
+ * v3 NFT market (memba_nft_market_v3) validity. Pages that trade on the v3 engine
+ * (e.g. CollectionPublic, source="v3") MUST gate on this, not isNftMarketValid()
+ * (which checks the v2 path). The v3 path is intentionally excluded from
+ * REALM_ALLOWLIST until v3.1 is registered (Marketplace plan W1.2), so this returns
+ * false today and the v3-trading surface stays correctly dark — closing the audit's
+ * top 🔴 (a page rendering live Buy/List against a realm the allowlist rejects).
+ */
+export const isNftMarketV3Valid = () => isRealmValid(NFT_MARKETPLACE_V3_PATH)
 /** Phase 2 launchpad — backed by the canonical memba_collections registry. */
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
