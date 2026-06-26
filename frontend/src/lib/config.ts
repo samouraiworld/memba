@@ -231,6 +231,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // lands with the Phase 3 multi-engine router, so it stays out of the
         // allowlist until then.
         "gno.land/r/samcrew/memba_collections",
+        "gno.land/r/samcrew/memba_reviews_v1",
     ],
 }
 
@@ -531,6 +532,7 @@ export const MEMBA_DAO = {
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
+    reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_reviews_v1",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 
@@ -588,6 +590,8 @@ export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
  * predicate (e.g. isNftMarketValid) where a tx targets a specific realm.
  */
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
+export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
+export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {
