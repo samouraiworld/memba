@@ -39,10 +39,15 @@ export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
                             <span className="launchpad-door__token-name">{featured.name}</span>
                             <span className="launchpad-door__token-ticker">${featured.symbol}</span>
                         </div>
-                        {(featured.supplyDisplay || featured.admin) && (
+                        {(featured.supplyDisplay || featured.holders || featured.admin) && (
                             <div className="launchpad-door__stats">
                                 {featured.supplyDisplay && (
                                     <span className="launchpad-door__stat">{featured.supplyDisplay} supply</span>
+                                )}
+                                {featured.holders && (
+                                    <span className="launchpad-door__stat">
+                                        {featured.holders} {featured.holders === 1 ? "holder" : "holders"}
+                                    </span>
                                 )}
                                 {featured.admin && (
                                     <span className="launchpad-door__stat launchpad-door__stat--muted">

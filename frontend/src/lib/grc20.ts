@@ -32,6 +32,9 @@ export interface TokenInfo {
     decimals: number
     totalSupply: string
     admin: string
+    /** Accounts known to the token's balance ledger (the GRC20 "Known accounts"
+     *  Render field) ≈ holder count. Undefined when the render omits it. */
+    knownAccounts?: number
 }
 
 export interface AminoMsg {
@@ -247,6 +250,7 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
     const decimalsMatch = data.match(/\*\*Decimals\*\*:\s*(\d+)/)
     const supplyMatch = data.match(/\*\*Total supply\*\*:\s*(\d+)/)
     const adminMatch = data.match(/\*\*Admin\*\*:\s*(g\S+)/)
+    const accountsMatch = data.match(/\*\*Known accounts\*\*:\s*(\d+)/)
 
     return {
         name: nameMatch?.[1] || symbol,
@@ -254,6 +258,7 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
         decimals: decimalsMatch ? parseInt(decimalsMatch[1], 10) : 6,
         totalSupply: supplyMatch?.[1] || "0",
         admin: adminMatch?.[1] || "",
+        knownAccounts: accountsMatch ? parseInt(accountsMatch[1], 10) : undefined,
     }
 }
 

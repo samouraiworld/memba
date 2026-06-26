@@ -34,6 +34,8 @@ export interface TokenLaunch extends DirectoryToken {
     admin?: string
     /** Token decimals (for downstream formatting); omitted when unknown. */
     decimals?: number
+    /** Holder count (the token ledger's "Known accounts"); omitted when 0/absent. */
+    holders?: number
 }
 
 export interface TokenLaunchesResult {
@@ -66,6 +68,7 @@ export function useTokenLaunches(limit: number): TokenLaunchesResult {
                             supplyDisplay: formatSupply(info.totalSupply, info.decimals) ?? undefined,
                             admin: info.admin?.trim() || undefined,
                             decimals: info.decimals,
+                            holders: info.knownAccounts && info.knownAccounts > 0 ? info.knownAccounts : undefined,
                         }
                     } catch {
                         return { ...t } // best-effort: keep name/symbol/path

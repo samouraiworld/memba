@@ -19,7 +19,7 @@ const dir = await import("../../lib/directory")
 const grc20 = await import("../../lib/grc20")
 
 const tok = (symbol: string) => ({ slug: symbol, name: `${symbol} Token`, symbol, path: `gno.land/r/x/factory:${symbol}` })
-const info = (totalSupply: string, admin: string, decimals = 6) => ({ name: "", symbol: "", decimals, totalSupply, admin })
+const info = (totalSupply: string, admin: string, decimals = 6, knownAccounts?: number) => ({ name: "", symbol: "", decimals, totalSupply, admin, knownAccounts })
 
 function makeWrapper() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -31,9 +31,9 @@ function makeWrapper() {
 beforeEach(() => vi.clearAllMocks())
 
 describe("useTokenLaunches", () => {
-    it("enriches the top-N tokens with supply + admin and reports the full total", async () => {
+    it("enriches the top-N tokens with supply + admin + holders and reports the full total", async () => {
         vi.mocked(dir.fetchTokens).mockResolvedValue([tok("FOO"), tok("BAR"), tok("BAZ")])
-        vi.mocked(grc20.getTokenInfo).mockResolvedValue(info("102500100", "g1admin", 6))
+        vi.mocked(grc20.getTokenInfo).mockResolvedValue(info("102500100", "g1admin", 6, 2))
         vi.mocked(grc20.formatSupply).mockReturnValue("102.5001")
 
         const { useTokenLaunches } = await import("./useTokenLaunches")
@@ -42,7 +42,18 @@ describe("useTokenLaunches", () => {
 
         expect(result.current.total).toBe(3) // full count, not the sliced 2
         expect(result.current.tokens).toHaveLength(2) // only top-2 enriched/shown
-        expect(result.current.tokens[0]).toMatchObject({ symbol: "FOO", supplyDisplay: "102.5001", admin: "g1admin", decimals: 6 })
+        expect(result.current.tokens[0]).toMatchObject({ symbol: "FOO", supplyDisplay: "102.5001", admin: "g1admin", decimals: 6, holders: 2 })
+    })
+
+    it("omits holders when 'Known accounts' is 0/absent (honest)", async () => {
+        vi.mocked(dir.fetchTokens).mockResolvedValue([tok("FOO")])
+        vi.mocked(grc20.getTokenInfo).mockResolvedValue(info("100", "g1admin", 6, 0))
+        vi.mocked(grc20.formatSupply).mockReturnValue("0.0001")
+
+        const { useTokenLaunches } = await import("./useTokenLaunches")
+        const { result } = renderHook(() => useTokenLaunches(1), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.tokens[0].holders).toBeUndefined()
     })
 
     it("omits supply when formatSupply returns null (zero/unparsable), keeping the row honest", async () => {

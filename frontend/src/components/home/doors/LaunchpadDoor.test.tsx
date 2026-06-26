@@ -21,9 +21,9 @@ const renderIt = () => render(<MemoryRouter><LaunchpadDoor networkKey="test13" /
 beforeEach(() => vi.clearAllMocks())
 
 describe("LaunchpadDoor", () => {
-    it("shows a mini token-card with name, ticker, supply, creator and total count", () => {
+    it("shows a mini token-card with name, ticker, supply, holders, creator and total count", () => {
         vi.mocked(useTokenLaunches).mockReturnValue({
-            tokens: [launch({ supplyDisplay: "102.5001", admin: "g1abcdefghijklmnopqrstuvwxyz0123456789zz" })],
+            tokens: [launch({ supplyDisplay: "102.5001", holders: 2, admin: "g1abcdefghijklmnopqrstuvwxyz0123456789zz" })],
             total: 3,
             loading: false,
         })
@@ -31,6 +31,7 @@ describe("LaunchpadDoor", () => {
         expect(screen.getByText("Canicule")).toBeInTheDocument()
         expect(screen.getByText("$HOT")).toBeInTheDocument()
         expect(screen.getByText(/102\.5001 supply/)).toBeInTheDocument()
+        expect(screen.getByText(/2 holders/i)).toBeInTheDocument()
         expect(screen.getByText(/by g1abcd/i)).toBeInTheDocument()
         expect(screen.getByText(/3 tokens on the launchpad/i)).toBeInTheDocument()
     })
