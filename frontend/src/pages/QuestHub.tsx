@@ -154,6 +154,10 @@ export default function QuestHub() {
     )
     const totalLive = liveQuests.length
 
+    // Q-24: when a filter/search narrows the grid to nothing, offer a one-click reset.
+    const filtersActive = category !== "all" || difficulty !== "all" || status !== "all" || search.trim() !== ""
+    const clearFilters = () => { setCategory("all"); setDifficulty("all"); setStatus("all"); setSearch("") }
+
     return (
         <div className="k-questhub">
             {/* Hero Section */}
@@ -256,7 +260,12 @@ export default function QuestHub() {
             <div className="k-questhub-grid">
                 {filtered.length === 0 ? (
                     <div className="k-questhub-empty">
-                        {search ? "No quests match your search." : "No quests in this category."}
+                        <p>{search ? "No quests match your search." : "No quests match these filters."}</p>
+                        {filtersActive && (
+                            <button type="button" className="k-questhub-clear-filters" onClick={clearFilters}>
+                                Clear filters
+                            </button>
+                        )}
                     </div>
                 ) : (
                     filtered.map(quest => (

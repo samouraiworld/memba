@@ -189,6 +189,27 @@
     text-align: center;
     padding: var(--space-12);
     color: var(--color-k-dim);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Q-24: reset-filters affordance shown when filters narrow the grid to nothing. */
+.k-questhub-clear-filters {
+    background: var(--color-k-accent-subtle);
+    color: var(--color-k-accent-text);
+    border: 1px solid var(--color-k-accent-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.k-questhub-clear-filters:hover {
+    background: var(--color-k-accent-tint);
 }
 
 /* Quest Card */
@@ -832,7 +853,7 @@
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md);
     background: var(--color-k-elevated);
-    opacity: 0.65;
+    opacity: 0.72; /* dimmed "coming soon" teaser, but kept legible (Q-18) */
     cursor: default;
 }
 
