@@ -132,7 +132,7 @@
 }
 
 .gl-subnav-link--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -188,7 +188,7 @@
 
 .gl-milestone-count {
     font-size: 11px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
 
@@ -248,7 +248,7 @@
 }
 
 .gl-filter-btn--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -264,7 +264,7 @@
 }
 
 .gl-checkbox input[type="checkbox"] {
-    accent-color: var(--color-k-accent, #00d4aa);
+    accent-color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Score Factors ───────────────────────────── */
@@ -398,7 +398,7 @@
 }
 
 .gl-sortable:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-sortable:focus-visible {
@@ -439,7 +439,7 @@
 }
 
 .gl-contributor-name:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-contributor-login {
@@ -477,7 +477,7 @@
 }
 
 .gl-stat-highlight {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 700;
 }
 
@@ -675,7 +675,7 @@
 }
 
 .gl-week-btn:hover:not(:disabled) {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -779,7 +779,7 @@
 }
 
 .gl-tab--active {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.08);
     font-weight: 600;
 }
@@ -1102,7 +1102,7 @@
 
 .gl-team-popover-score {
     font-size: 10px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
     flex-shrink: 0;
 }
@@ -1157,7 +1157,7 @@
 }
 
 .gl-repo-filter-item input[type="checkbox"] {
-    accent-color: var(--color-k-accent, #00d4aa);
+    accent-color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-filter-btn--sm {
@@ -1209,7 +1209,7 @@
 }
 
 .gl-export-btn:hover:not(:disabled) {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1226,7 +1226,7 @@
 /* ── Section Summary Link ──────────────────────── */
 
 .gl-section-summary-link {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
     font-size: 11px;
 }
@@ -1356,7 +1356,7 @@
 
 .gl-teams-member-score {
     font-size: 13px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 600;
     font-family: var(--gl-font-mono);
 }
@@ -1677,7 +1677,7 @@
 }
 
 .gl-profile-back:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-profile-header {
@@ -1779,7 +1779,7 @@
 }
 
 .gl-profile-link:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1799,7 +1799,7 @@
 }
 
 .gl-profile-onchain-value {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     word-break: break-all;
 }
 
@@ -1822,7 +1822,7 @@
 }
 
 .gl-profile-copy-btn:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     border-color: rgba(0, 212, 170, 0.2);
 }
 
@@ -1888,7 +1888,7 @@
 
 .gl-repo-card-profile-name {
     font-size: 13px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
 
@@ -2098,7 +2098,7 @@
     padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.12);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     white-space: nowrap;
     line-height: 1.3;
 }
@@ -2137,7 +2137,7 @@
 
 .gl-section-link {
     font-size: 11px;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
     font-family: var(--gl-font-mono);
 }
@@ -2189,7 +2189,7 @@
 .gl-pagination-btn--active {
     background: rgba(0, 212, 170, 0.12);
     border-color: rgba(0, 212, 170, 0.3);
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-pagination-ellipsis {
@@ -2294,7 +2294,7 @@
     white-space: nowrap;
 }
 .gl-team-repo:hover .gl-team-repo-name {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 .gl-team-repo-branch {
     font-size: 9px;
@@ -2735,7 +2735,7 @@
 }
 
 .gl-thub-team-social-link:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-thub-period {
@@ -3451,7 +3451,7 @@
 }
 
 .gl-repo-health tbody th a:hover {
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
 
 .gl-repo-health-cell {
@@ -3649,7 +3649,7 @@
     font-family: var(--gl-font-mono);
     font-size: 11px;
     font-weight: 600;
-    color: var(--color-k-accent, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.10);
