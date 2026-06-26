@@ -109,6 +109,36 @@ a.vp-id__username:hover { text-decoration: underline; }
     white-space: pre-wrap;
 }
 
+/* Markdown bio (rendered + sanitized). Tame the operator-supplied markdown so a
+   structured profile reads as a compact bio, not a full document. */
+.vp-id__bio--md { white-space: normal; }
+.vp-id__bio--md > :first-child { margin-top: 0; }
+.vp-id__bio--md > :last-child { margin-bottom: 0; }
+.vp-id__bio--md .md-p { margin: 0 0 0.5rem; }
+.vp-id__bio--md .md-h1,
+.vp-id__bio--md .md-h2,
+.vp-id__bio--md .md-h3,
+.vp-id__bio--md .md-h4 {
+    margin: 0.6rem 0 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-text);
+    text-transform: none;
+    letter-spacing: 0;
+}
+.vp-id__bio--md .md-ul,
+.vp-id__bio--md .md-ol { margin: 0 0 0.5rem; padding-left: 1.1rem; }
+.vp-id__bio--md li { margin: 0.1rem 0; }
+.vp-id__bio--md a { color: var(--color-k-accent-text); }
+.vp-id__bio--md strong { color: var(--color-text); }
+.vp-id__bio--md .md-inline-code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78em;
+    background: var(--color-surface-active);
+    padding: 0 4px;
+    border-radius: 3px;
+}
+
 .vp-id__socials { display: flex; align-items: center; gap: 0.4rem; }
 .vp-soc {
     display: inline-flex;

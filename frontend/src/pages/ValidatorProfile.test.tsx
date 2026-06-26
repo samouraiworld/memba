@@ -198,6 +198,16 @@ describe("ValidatorProfile — identity header & tabs", () => {
         expect(link).toHaveAttribute("href", "https://test13.testnets.gno.land/u/satoshi")
     })
 
+    it("renders the bio as sanitized markdown, not raw ### / ** markup", async () => {
+        vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile({ bio: "### Networks\n**Mainnets** matter here" }))
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        // raw markdown markers must not be shown literally
+        expect(screen.queryByText(/###/)).toBeNull()
+        // bold renders as <strong>
+        expect(screen.getByText("Mainnets").tagName).toBe("STRONG")
+    })
+
     it("does NOT render an Edit profile button when there is no connected wallet", async () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })

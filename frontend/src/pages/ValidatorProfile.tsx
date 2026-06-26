@@ -29,6 +29,8 @@ import {
 import { getValidators, truncateValidatorAddr } from "../lib/validators"
 import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
+import { renderMarkdown } from "../lib/markdownLite"
+import DOMPurify from "dompurify"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { useAddressActivity } from "../hooks/useAddressActivity"
 import { formatActivityTime, type ActivityItem, type ActivityKind } from "../lib/activity"
@@ -354,7 +356,13 @@ export default function ValidatorProfile() {
                         </div>
                     )}
 
-                    {bio && <p className="vp-id__bio">{bio}</p>}
+                    {bio && (
+                        <div
+                            className="vp-id__bio vp-id__bio--md"
+                            data-testid="vp-bio"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(bio)) }}
+                        />
+                    )}
 
                     {hasSocial && (
                         <div className="vp-id__socials">
