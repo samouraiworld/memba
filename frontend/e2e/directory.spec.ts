@@ -4,8 +4,13 @@ import { test, expect } from '@playwright/test'
  * Directory page E2E tests — verify the Organization Hub renders
  * correctly and interactive elements (tabs, search, cards) work.
  *
- * Note: DAO cards come from seed list + saved DAOs (no live RPC needed).
- * Token and User tabs require ABCI queries to the network.
+ * Note: since PR #549 (useResolvedDirectoryDaos), DAO cards are resolved
+ * against the ACTIVE NETWORK — each seed/saved DAO is confirmed live via
+ * getDAOConfig and dropped if it doesn't resolve. So the rendered DAO count
+ * is environment-dependent (it depends on which realms answer on the live
+ * chain at run time); these tests assert a `>= 1` floor and the search
+ * MECHANISM rather than a fixed count. Token and User tabs require ABCI
+ * queries to the network.
  */
 
 test.describe('Directory Page', () => {
@@ -54,32 +59,36 @@ test.describe('Directory — DAOs Tab', () => {
         expect(count).toBeGreaterThanOrEqual(1)
     })
 
-    test('seed DAO cards are visible', async ({ page }) => {
-        // Wait for cards to render (seed DAOs are sync but component mounts async)
+    test('resolved DAO cards are visible', async ({ page }) => {
+        // At least one seed DAO (e.g. GovDAO) resolves on the active network.
+        // The exact count depends on live resolution (PR #549), so assert the
+        // floor, not a fixed number.
         await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
         const cards = page.locator('[data-testid="dao-card"]')
         const count = await cards.count()
-        // Should have at least GovDAO and Worx DAO
-        expect(count).toBeGreaterThanOrEqual(2)
+        expect(count).toBeGreaterThanOrEqual(1)
     })
 
     test('DAO search filters results', async ({ page }) => {
-        // Wait for all seed cards to render (confirming full data load)
-        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(2, { timeout: 10_000 })
+        // Cards resolve against the live network (PR #549), so the count is not
+        // deterministic. Assert the filter MECHANISM instead: a non-matching
+        // query narrows the list to zero, and clearing restores the original
+        // resolved set.
+        const cards = page.locator('[data-testid="dao-card"]')
+        await cards.first().waitFor({ state: 'visible', timeout: 10_000 })
+        const before = await cards.count()
+        expect(before).toBeGreaterThanOrEqual(1)
 
         const search = page.locator('[data-testid="dao-search"]')
-        await search.fill('GovDAO')
-
+        await search.fill('ZZZNONEXISTENT_QUERY')
         // Allow useDeferredValue to settle on slow CI runners
         await page.waitForTimeout(500)
+        await expect(cards).toHaveCount(0, { timeout: 10_000 })
 
-        // Wait for filter to apply — only GovDAO should match
-        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(1, { timeout: 10_000 })
-
-        // Clear → all cards back
+        // Clear → the originally-resolved cards come back
         await search.clear()
         await page.waitForTimeout(500)
-        await expect(page.locator('[data-testid="dao-card"]')).toHaveCount(2, { timeout: 10_000 })
+        await expect(cards).toHaveCount(before, { timeout: 10_000 })
     })
 
     test('non-matching search shows empty state', async ({ page }) => {
