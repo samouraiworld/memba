@@ -12,16 +12,35 @@
  * consensus key) — and links out to the onboarding flow. This is the visible
  * payoff of the valoper system the gno core team shipped for test13.
  */
-import { useMemo } from "react"
+import { useMemo, type HTMLAttributes } from "react"
 import { type ValoperWithStatus } from "../../lib/valopers"
 import { truncateValidatorAddr } from "../../lib/validators"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { getExplorerBaseUrl } from "../../lib/config"
+import { ValidatorHoverCard } from "./ValidatorHoverCard"
 
 const SERVER_TYPE_LABEL: Record<string, string> = {
     "cloud": "Cloud",
     "on-prem": "On-prem",
     "data-center": "Data center",
+}
+
+/** Compact preview shown in a candidate card's hovercard. */
+function CandidatePreview({ v }: { v: ValoperWithStatus }) {
+    const plain = (v.description || "").replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ").trim()
+    return (
+        <div className="vhc-card">
+            <div className="vhc-head">
+                <span className="vhc-name">{v.moniker}</span>
+                <span className={`vhc-badge ${v.status === "active" ? "vhc-badge--active" : "vhc-badge--candidate"}`}>
+                    {v.status === "active" ? "Active" : "Candidate"}
+                </span>
+            </div>
+            {v.serverType && <div className="vhc-sub">{SERVER_TYPE_LABEL[v.serverType] ?? v.serverType}</div>}
+            {plain && <p className="vhc-bio">{plain.length > 110 ? `${plain.slice(0, 110)}…` : plain}</p>}
+            <div className="vhc-foot">Open profile →</div>
+        </div>
+    )
 }
 
 // gnoweb render path for a single valoper profile — active-network host (never mainnet).
@@ -99,7 +118,9 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                     </header>
                     <div className="val-valopers__grid">
                         {active.map(v => (
-                            <ValoperCard key={v.operatorAddress} valoper={v} onOpen={goTo} />
+                            <ValidatorHoverCard key={v.operatorAddress} content={<CandidatePreview v={v} />}>
+                                <ValoperCard valoper={v} onOpen={goTo} />
+                            </ValidatorHoverCard>
                         ))}
                     </div>
                 </section>
@@ -120,7 +141,9 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
                     </header>
                     <div className="val-valopers__grid">
                         {candidates.map(v => (
-                            <ValoperCard key={v.operatorAddress} valoper={v} onOpen={goTo} />
+                            <ValidatorHoverCard key={v.operatorAddress} content={<CandidatePreview v={v} />}>
+                                <ValoperCard valoper={v} onOpen={goTo} />
+                            </ValidatorHoverCard>
                         ))}
                     </div>
                 </section>
@@ -129,20 +152,22 @@ export function ValoperPanel({ valopers, loading }: ValoperPanelProps) {
     )
 }
 
-interface ValoperCardProps {
+interface ValoperCardProps extends HTMLAttributes<HTMLDivElement> {
     valoper: ValoperWithStatus
     onOpen: (v: ValoperWithStatus) => void
 }
 
 /** A single valoper profile card. Status is conveyed by the enclosing section,
- *  so the card itself carries no redundant status badge. */
-function ValoperCard({ valoper: v, onOpen }: ValoperCardProps) {
+ *  so the card itself carries no redundant status badge. Forwards extra DOM props
+ *  (hover/focus handlers) so the hovercard wrapper can drive the preview. */
+function ValoperCard({ valoper: v, onOpen, ...rest }: ValoperCardProps) {
     return (
         <div
             className="val-valoper-card val-valoper-card--clickable"
             data-testid="valoper-card"
             role="button"
             tabIndex={0}
+            {...rest}
             onClick={() => onOpen(v)}
             onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
