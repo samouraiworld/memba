@@ -258,3 +258,16 @@
   color: var(--color-k-accent-text);
   word-break: break-all;
 }
+
+/* ── Mobile (≤480px): stack each key/value so long addresses & hashes get the
+   full row width instead of fighting the value for space. Desktop untouched. */
+@media (max-width: 480px) {
+  .k-txview__field-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .k-txview__field-value {
+    text-align: left;
+  }
+}

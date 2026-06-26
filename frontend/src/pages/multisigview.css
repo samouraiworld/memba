@@ -254,3 +254,36 @@
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
 }
+
+/* ── Mobile (≤480px) ───────────────────────────────────────────
+   Stack the action banner, drop the info grid to one column, and convert the
+   grid pseudo-tables (members / transactions) into stacked cards — the fixed
+   1fr/auto and 1fr 1fr auto column tracks crush badges and dates at ~390px.
+   All scoped to ≤480px, so the desktop layout is untouched. */
+@media (max-width: 480px) {
+  .k-msview__action-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .k-msview__action-btn {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+
+  .k-msview__info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .k-msview__table-header--2col,
+  .k-msview__table-header--3col {
+    display: none;
+  }
+
+  .k-msview__table-row,
+  .k-msview__tx-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 6px;
+  }
+}
