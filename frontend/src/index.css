@@ -38,6 +38,7 @@
   --color-k-featured-bg: #0c1614;
   --color-k-danger: #ff4757;
   --color-k-warning: #ffa502;
+  --color-k-warning-text: #ffa502; /* §13: warning/amber as TEXT — bright amber is legible on the dark bg */
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
@@ -91,7 +92,7 @@
   /* GovDAO refined-gold tokens — light theme. Text/accent uses a darker gold
      (#9a7b1f) for legible contrast on the light surface; the CTA keeps the deep
      gold fill with dark text. */
-  --color-k-govdao: #9a7b1f;                           /* darker gold for text on light */
+  --color-k-govdao: #836718;                           /* §13: darker gold ~4.7:1 for the small eyebrow text on light (was #9a7b1f ~3.8:1) */
   --color-k-govdao-subtle: rgba(154, 123, 31, 0.12);
   --color-k-govdao-tint: rgba(201, 162, 39, 0.12);
   --color-k-govdao-border: rgba(154, 123, 31, 0.45);
@@ -103,6 +104,7 @@
   --color-k-featured-bg: #f1faf7;
   --color-k-danger: #dc2626;
   --color-k-warning: #d97706;
+  --color-k-warning-text: #854f0b; /* §13: amber as TEXT on light — amber-800 ~5.9:1 (the bright #ffa502/#f5a623 are ~2:1 as text) */
 
   /* Component overrides */
   --color-k-cmd-bg: rgba(255, 255, 255, 0.95);
@@ -189,7 +191,7 @@ body {
 }
 
 a {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
   text-decoration: none;
   transition: color 0.2s;
 }
@@ -214,7 +216,7 @@ a:hover {
 
 ::selection {
   background: rgba(0, 212, 170, 0.2);
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── Component styles ─────────────────────────────────────────────── */
@@ -336,7 +338,7 @@ a:hover {
 }
 
 .k-value-accent {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
 }
 
 /* ── DAO Stat Cards (v2.7 — extracted from inline styles) ────────── */
@@ -396,7 +398,7 @@ a:hover {
 }
 
 .k-stat-accent .k-stat-card__value {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
 }
 
 .k-stat-card__label {
@@ -772,7 +774,7 @@ body {
   padding: 4px 8px;
   border-radius: 5px;
   text-decoration: none;
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
   font-size: 10px;
   font-family: "JetBrains Mono", monospace;
   font-weight: 500;
@@ -823,7 +825,7 @@ body {
 .k-sidebar-cmdk-hint__key {
   font-size: 11px;
   font-weight: 700;
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(0, 212, 170, 0.1);
@@ -902,7 +904,7 @@ body {
 
 .k-sidebar-link.active {
   background: var(--color-k-panel-hover);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   border-left: 2px solid var(--color-k-accent);
 }
 
@@ -925,7 +927,7 @@ body {
   padding: 1px 6px;
   border-radius: 8px;
   background: rgba(0, 212, 170, 0.1);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   flex-shrink: 0;
 }
 
@@ -1035,12 +1037,12 @@ body {
   letter-spacing: 0.05em;
 }
 .k-topbar-badge--alpha {
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   background: rgba(245, 166, 35, 0.1);
   border: 1px solid rgba(245, 166, 35, 0.2);
 }
 .k-topbar-badge--version {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   background: rgba(0, 212, 170, 0.08);
 }
 
@@ -1168,7 +1170,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 .k-topbar-banner__text--error { color: #ff4757; }
-.k-topbar-banner__text--warning { color: #f5a623; }
+.k-topbar-banner__text--warning { color: var(--color-k-warning-text); }
 .k-topbar-banner__text--muted { color: var(--color-text-secondary); font-size: 10px; }
 .k-topbar-banner__dismiss {
   color: var(--color-text-secondary);
@@ -1213,7 +1215,7 @@ body {
   font-size: 10px;
 }
 .k-security-banner__action {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
   font-weight: 600;
 }
 
@@ -1228,17 +1230,17 @@ body {
 .k-topbar-banner__btn--warning {
   background: rgba(245, 166, 35, 0.12);
   border: 1px solid rgba(245, 166, 35, 0.3);
-  color: #f5a623;
+  color: var(--color-k-warning-text);
 }
 .k-topbar-banner__btn--accent {
   background: rgba(0, 212, 170, 0.12);
   border: 1px solid rgba(0, 212, 170, 0.3);
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 .k-topbar-banner__btn--switching {
   background: rgba(245, 166, 35, 0.06);
   border: 1px solid rgba(245, 166, 35, 0.2);
-  color: #f5a623;
+  color: var(--color-k-warning-text);
   cursor: wait;
   opacity: 0.7;
 }
@@ -1293,7 +1295,7 @@ body {
 }
 
 .k-footer-links a:hover {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 /* ── Footer extracted styles (from Layout.tsx inline) ──────────── */
@@ -1308,7 +1310,7 @@ body {
 }
 
 .k-footer-social:hover {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
 }
 
 .k-footer-copy {
@@ -1326,7 +1328,7 @@ body {
 }
 
 .k-footer-disclaimer a {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
 }
 
 .k-toast-network {
@@ -1433,7 +1435,7 @@ body {
 
 .k-mobile-tab:hover,
 .k-mobile-tab.active {
-  color: var(--color-k-accent);
+  color: var(--color-k-accent-text);
 }
 
 .k-mobile-tab .k-mobile-tab-icon {
@@ -1508,7 +1510,7 @@ body {
 }
 
 .k-topbar-hamburger:hover {
-  color: var(--color-k-accent, #00d4aa);
+  color: var(--color-k-accent-text, #00d4aa);
   background: rgba(0, 212, 170, 0.06);
 }
 
