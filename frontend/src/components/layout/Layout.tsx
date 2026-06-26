@@ -11,9 +11,11 @@ import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
 import { buildTokenRequestInfo } from "../../lib/loginChallenge"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
-import { Sidebar } from "./Sidebar"
+import { DesktopShell } from "./DesktopShell"
+import { MobileShell } from "./MobileShell"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
+import { useIsMobile } from "../../hooks/useIsMobile"
 import { CommandPalette } from "../ui/CommandPalette"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { JitsiProvider } from "../../contexts/JitsiContext"
@@ -44,6 +46,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
+    const isMobile = useIsMobile()
     const { compactBalance, balance } = useBalance(adena.connected ? adena.address : null)
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
@@ -270,6 +273,99 @@ export function Layout() {
     )
     const notifs = useNotifications(savedDaoPaths, adena.connected ? adena.address : null)
 
+    // The main-column content (top bar, banners, routed page, footer) is shared
+    // by both shells. Desktop wraps it alongside the Sidebar; mobile renders it
+    // alone. Keeping it here (not duplicated in each shell) guarantees the two
+    // shells stay in lockstep.
+    const mainColumnContent = (
+        <>
+            <TopBar
+                adena={adena}
+                auth={auth}
+                compactBalance={compactBalance}
+                network={network}
+                isLoggingIn={isLoggingIn}
+                authError={authError}
+                onDisconnect={handleDisconnect}
+                onClearError={() => setAuthError(null)}
+                onRetry={retryLogin}
+                notifications={notifs}
+                onToggleSidebar={handleToggleCollapse}
+                addAndSwitchWalletNetwork={async (chainId, chainName, rpcUrl) => {
+                    return adena.switchWalletNetwork(chainId, chainName, rpcUrl)
+                }}
+                onWalletSwitchSuccess={(chainName) => {
+                    setWalletSwitchMsg(`✅ Wallet switched to ${chainName}`)
+                    setTimeout(() => setWalletSwitchMsg(null), 3000)
+                }}
+            />
+
+            {/* ── C-02: Chain Halted Banner ── */}
+            <ChainHaltedBanner
+                networkKey={network.networkKey}
+                onSwitchNetwork={network.switchNetwork}
+            />
+
+            {/* ── test13 cutover: Memba realms not yet deployed on this network ── */}
+            <RealmsNotDeployedBanner
+                deployed={networkHasRealms(network.networkKey)}
+                networkLabel={network.label}
+            />
+
+            {/* ── Address-only session: nudge to upgrade to secure signed login ── */}
+            <AddressOnlyLoginBanner
+                show={adena.connected && auth.isAuthenticated && !adena.pubkeyJSON}
+                faucetUrl={GNO_FAUCET_URL}
+            />
+
+            {/* ── Main ─────────────────────────────────────── */}
+            <main id="main-content" className="k-main">
+                {/* B8: Universal guard — show loader while wallet is syncing */}
+                {isLoggingIn ? (
+                    <ConnectingLoader />
+                ) : (
+                    <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
+                )}
+            </main>
+
+            {/* ── Footer ───────────────────────────────── */}
+            <footer className="k-footer">
+                <div className="k-footer-links">
+                    {[
+                        { href: "https://x.com/samouraicoop", label: "X", icon: <XLogo size={16} weight="fill" /> },
+                        { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: <InstagramLogo size={16} weight="fill" /> },
+                        { href: "https://samourai.tv/", label: "YouTube", icon: <YoutubeLogo size={16} weight="fill" /> },
+                        { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <GithubLogo size={16} weight="fill" /> },
+                        { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: <LinkedinLogo size={16} weight="fill" /> },
+                        { href: "https://t.me/samouraicoop", label: "Telegram", icon: <TelegramLogo size={16} weight="fill" /> },
+                        { href: "mailto:support@samourai.coop", label: "Email", icon: <EnvelopeSimple size={16} weight="fill" /> },
+                    ].map(({ href, label, icon }) => (
+                        <a
+                            key={label}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={label}
+                            className="k-footer-social"
+                        >
+                            {icon}
+                        </a>
+                    ))}
+                </div>
+                <p className="k-footer-copy">
+                    memba v{APP_VERSION} • built by samourai coop
+                </p>
+                <p className="k-footer-disclaimer">
+                    ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
+                    Unaudited, under active development. Use at your own risk.{" "}
+                    <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer">
+                        Tips & sponsorships
+                    </a>{" "}welcome.
+                </p>
+            </footer>
+        </>
+    )
+
     return (
         <OrgProvider>
         <JitsiProvider>
@@ -279,103 +375,24 @@ export function Layout() {
                     Skip to content
                 </a>
 
-                {/* ── Sidebar ──────────────────────────────────────── */}
-                <Sidebar
-                    connected={adena.connected}
-                    address={auth.address || adena.address}
-                    unvotedCount={unvotedCount}
-                    notifUnreadCount={notifs.unreadCount}
-                    collapsed={sidebarCollapsed}
-                    onToggleCollapse={handleToggleCollapse}
-                />
-
-                {/* ── Main column ──────────────────────────────────── */}
-                <div className="k-main-column">
-                    <TopBar
-                        adena={adena}
-                        auth={auth}
-                        compactBalance={compactBalance}
-                        network={network}
-                        isLoggingIn={isLoggingIn}
-                        authError={authError}
-                        onDisconnect={handleDisconnect}
-                        onClearError={() => setAuthError(null)}
-                        onRetry={retryLogin}
-                        notifications={notifs}
-                        onToggleSidebar={handleToggleCollapse}
-                        addAndSwitchWalletNetwork={async (chainId, chainName, rpcUrl) => {
-                            return adena.switchWalletNetwork(chainId, chainName, rpcUrl)
-                        }}
-                        onWalletSwitchSuccess={(chainName) => {
-                            setWalletSwitchMsg(`✅ Wallet switched to ${chainName}`)
-                            setTimeout(() => setWalletSwitchMsg(null), 3000)
-                        }}
-                    />
-
-                    {/* ── C-02: Chain Halted Banner ── */}
-                    <ChainHaltedBanner
-                        networkKey={network.networkKey}
-                        onSwitchNetwork={network.switchNetwork}
-                    />
-
-                    {/* ── test13 cutover: Memba realms not yet deployed on this network ── */}
-                    <RealmsNotDeployedBanner
-                        deployed={networkHasRealms(network.networkKey)}
-                        networkLabel={network.label}
-                    />
-
-                    {/* ── Address-only session: nudge to upgrade to secure signed login ── */}
-                    <AddressOnlyLoginBanner
-                        show={adena.connected && auth.isAuthenticated && !adena.pubkeyJSON}
-                        faucetUrl={GNO_FAUCET_URL}
-                    />
-
-                    {/* ── Main ─────────────────────────────────────── */}
-                    <main id="main-content" className="k-main">
-                        {/* B8: Universal guard — show loader while wallet is syncing */}
-                        {isLoggingIn ? (
-                            <ConnectingLoader />
-                        ) : (
-                            <Outlet context={{ adena, balance, auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: authLoading || auth.loading, error: authError }, isLoggingIn, syncTimedOut }} />
-                        )}
-                    </main>
-
-                    {/* ── Footer ───────────────────────────────── */}
-                    <footer className="k-footer">
-                        <div className="k-footer-links">
-                            {[
-                                { href: "https://x.com/samouraicoop", label: "X", icon: <XLogo size={16} weight="fill" /> },
-                                { href: "https://instagram.com/samourai.tv", label: "Instagram", icon: <InstagramLogo size={16} weight="fill" /> },
-                                { href: "https://samourai.tv/", label: "YouTube", icon: <YoutubeLogo size={16} weight="fill" /> },
-                                { href: "https://github.com/samouraiworld/memba", label: "GitHub", icon: <GithubLogo size={16} weight="fill" /> },
-                                { href: "https://www.linkedin.com/company/samouraicoop/", label: "LinkedIn", icon: <LinkedinLogo size={16} weight="fill" /> },
-                                { href: "https://t.me/samouraicoop", label: "Telegram", icon: <TelegramLogo size={16} weight="fill" /> },
-                                { href: "mailto:support@samourai.coop", label: "Email", icon: <EnvelopeSimple size={16} weight="fill" /> },
-                            ].map(({ href, label, icon }) => (
-                                <a
-                                    key={label}
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    title={label}
-                                    className="k-footer-social"
-                                >
-                                    {icon}
-                                </a>
-                            ))}
-                        </div>
-                        <p className="k-footer-copy">
-                            memba v{APP_VERSION} • built by samourai coop
-                        </p>
-                        <p className="k-footer-disclaimer">
-                            ⚠️ Alpha — experimental open-source software for the gno.land ecosystem.
-                            Unaudited, under active development. Use at your own risk.{" "}
-                            <a href="https://github.com/sponsors/samouraiworld" target="_blank" rel="noopener noreferrer">
-                                Tips & sponsorships
-                            </a>{" "}welcome.
-                        </p>
-                    </footer>
-                </div>
+                {/* ── Shell: desktop renders the Sidebar + main column; mobile
+                    renders the main column alone (no desktop chrome). Both wrap
+                    the same `mainColumnContent`, so the desktop tree is byte-
+                    identical to before the split. ── */}
+                {isMobile ? (
+                    <MobileShell>{mainColumnContent}</MobileShell>
+                ) : (
+                    <DesktopShell
+                        connected={adena.connected}
+                        address={auth.address || adena.address}
+                        unvotedCount={unvotedCount}
+                        notifUnreadCount={notifs.unreadCount}
+                        collapsed={sidebarCollapsed}
+                        onToggleCollapse={handleToggleCollapse}
+                    >
+                        {mainColumnContent}
+                    </DesktopShell>
+                )}
 
                 {/* ── Mobile Tab Bar ────────────────────────────────── */}
                 <MobileTabBar
