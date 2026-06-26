@@ -16,6 +16,7 @@
 
 import type { AminoMsg } from "../grc20"
 import { isRealmValid } from "../config"
+import { NFT_MARKETPLACE_V3_PATH } from "../nftConfig"
 import {
     buildBuyNFTV3Msg,
     buildListForSaleV3Msg,
@@ -63,9 +64,23 @@ function requireAmount(amountUgnot: number | undefined, action: string): number 
     return amountUgnot
 }
 
-function routeNft(listing: UnifiedNft, p: RouteParams): AminoMsg[] {
-    const { collectionID, tokenId } = splitNftId(listing.id)
-    const { caller, action } = p
+/** Low-level NFT (v3) dispatch by explicit collection/token — the reusable core that
+ *  both routeTrade (UnifiedListing) and the trade panels call. Carries the engine
+ *  allowlist guard so neither path can build a tx against an un-allowlisted v3 engine. */
+export interface NftV3RouteParams {
+    collectionID: string
+    tokenId: string
+    action: TradeAction
+    caller: string
+    amountUgnot?: number
+    buyerAddr?: string
+}
+
+export function routeNftV3(p: NftV3RouteParams): AminoMsg[] {
+    if (!isRealmValid(NFT_MARKETPLACE_V3_PATH)) {
+        throw new Error(`engine not available on this network: ${NFT_MARKETPLACE_V3_PATH}`)
+    }
+    const { collectionID, tokenId, caller, action } = p
     switch (action) {
         case "buy":
             return [buildBuyNFTV3Msg(caller, collectionID, tokenId, requireAmount(p.amountUgnot, action))]
@@ -84,6 +99,18 @@ function routeNft(listing: UnifiedNft, p: RouteParams): AminoMsg[] {
         default:
             throw new Error(`unsupported nft action: ${action}`)
     }
+}
+
+function routeNft(listing: UnifiedNft, p: RouteParams): AminoMsg[] {
+    const { collectionID, tokenId } = splitNftId(listing.id)
+    return routeNftV3({
+        collectionID,
+        tokenId,
+        action: p.action,
+        caller: p.caller,
+        amountUgnot: p.amountUgnot,
+        buyerAddr: p.buyerAddr,
+    })
 }
 
 /**

@@ -19,8 +19,9 @@
 
 import { useState, useEffect } from "react"
 import { tradeEngineFor } from "../../lib/tradeEngine"
-import { buildBuyNFTV3Msg, buildListForSaleV3Msg, buildMakeOfferV3Msg, buildAcceptOfferV3Msg, buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
+import { buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
 import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
+import { routeNftV3 } from "../../lib/marketplace/router"
 import { isApprovedForAll } from "../../lib/grc721"
 import { friendlyError } from "../../lib/errorMessages"
 import { PriceBreakdown } from "./PriceBreakdown"
@@ -128,11 +129,11 @@ export function TradeModal({
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            const msg =
+            const msgs =
                 engine.engine === "v3"
-                    ? buildBuyNFTV3Msg(callerAddress, collectionID, tokenId, priceUgnot!)
-                    : buildBuyNFTMsg(callerAddress, engine.marketPath, collectionID, tokenId, priceUgnot!)
-            await doContractBroadcast([msg], `Buy ${collectionID}/${tokenId}`)
+                    ? routeNftV3({ collectionID, tokenId, action: "buy", caller: callerAddress, amountUgnot: priceUgnot! })
+                    : [buildBuyNFTMsg(callerAddress, engine.marketPath, collectionID, tokenId, priceUgnot!)]
+            await doContractBroadcast(msgs, `Buy ${collectionID}/${tokenId}`)
             onSuccess()
         } catch (err) {
             setError(friendlyError(err))
@@ -164,11 +165,11 @@ export function TradeModal({
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            const msg =
+            const msgs =
                 engine.engine === "v3"
-                    ? buildListForSaleV3Msg(callerAddress, collectionID, tokenId, listPriceUgnot)
-                    : buildListForSaleMsg(callerAddress, engine.marketPath, collectionID, tokenId, listPriceUgnot)
-            await doContractBroadcast([msg], `List ${collectionID}/${tokenId} for sale`)
+                    ? routeNftV3({ collectionID, tokenId, action: "list", caller: callerAddress, amountUgnot: listPriceUgnot })
+                    : [buildListForSaleMsg(callerAddress, engine.marketPath, collectionID, tokenId, listPriceUgnot)]
+            await doContractBroadcast(msgs, `List ${collectionID}/${tokenId} for sale`)
             onSuccess()
         } catch (err) {
             setError(friendlyError(err))
@@ -182,11 +183,11 @@ export function TradeModal({
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            const msg =
+            const msgs =
                 engine.engine === "v3"
-                    ? buildMakeOfferV3Msg(callerAddress, collectionID, tokenId, offerAmountUgnot)
-                    : buildMakeOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerAmountUgnot)
-            await doContractBroadcast([msg], `Offer on ${collectionID}/${tokenId}`)
+                    ? routeNftV3({ collectionID, tokenId, action: "offer", caller: callerAddress, amountUgnot: offerAmountUgnot })
+                    : [buildMakeOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerAmountUgnot)]
+            await doContractBroadcast(msgs, `Offer on ${collectionID}/${tokenId}`)
             onSuccess()
         } catch (err) {
             setError(friendlyError(err))
@@ -201,11 +202,11 @@ export function TradeModal({
         const offerBuyer = buyerAddr ?? ""
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            const msg =
+            const msgs =
                 engine.engine === "v3"
-                    ? buildAcceptOfferV3Msg(callerAddress, collectionID, tokenId, offerBuyer)
-                    : buildAcceptOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerBuyer)
-            await doContractBroadcast([msg], `Accept offer on ${collectionID}/${tokenId}`)
+                    ? routeNftV3({ collectionID, tokenId, action: "accept", caller: callerAddress, buyerAddr: offerBuyer })
+                    : [buildAcceptOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerBuyer)]
+            await doContractBroadcast(msgs, `Accept offer on ${collectionID}/${tokenId}`)
             onSuccess()
         } catch (err) {
             setError(friendlyError(err))

@@ -57,6 +57,14 @@ vi.mock("../../lib/grc721", () => ({
     isApprovedForAll: (...args: unknown[]) => mockIsApprovedForAll(...args),
 }))
 
+// The v3 trade actions now route through routeNftV3, which guards on
+// isRealmValid(v3 path). On test13 the v3 path is intentionally un-allowlisted, so
+// mock the guard true to exercise the builders (the gate itself is tested in router.test).
+vi.mock("../../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/config")>()),
+    isRealmValid: () => true,
+}))
+
 // ── Helpers ────────────────────────────────────────────────────
 
 function makeProps(overrides: Partial<Parameters<typeof TradeModal>[0]> = {}) {
