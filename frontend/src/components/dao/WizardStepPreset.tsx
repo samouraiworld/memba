@@ -72,7 +72,7 @@ export function WizardStepPreset({
                             }}
                         >
                             <div style={{ fontSize: 20, marginBottom: 6 }}>{PRESET_ICONS[preset.icon] || preset.icon}</div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: selectedPreset === preset.id ? "#00d4aa" : "#f0f0f0", marginBottom: 4 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: selectedPreset === preset.id ? "var(--color-k-accent-text)" : "var(--color-k-text)", marginBottom: 4 }}>
                                 {preset.name}
                             </div>
                             <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>

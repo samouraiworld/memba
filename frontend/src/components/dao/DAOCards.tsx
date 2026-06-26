@@ -12,7 +12,7 @@ export function StatCard({ label, value, icon, accent }: { label: string; value:
             <div>
                 <div style={{
                     fontSize: 18, fontWeight: 700,
-                    color: accent ? "#00d4aa" : "#f0f0f0",
+                    color: accent ? "var(--color-k-accent-text)" : "var(--color-k-text)",
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     {value}

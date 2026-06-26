@@ -4,7 +4,7 @@
  * @module components/directory/tabs/RealmsTab
  */
 
-import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react"
+import { useState, useEffect, useCallback, useMemo, useDeferredValue, type CSSProperties } from "react"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
 import { fetchRealms, fetchRealmsLive } from "../../../lib/directory"
 import { queryRender } from "../../../lib/dao/shared"
@@ -96,16 +96,14 @@ export function RealmsTab() {
                     <button
                         key={cat}
                         onClick={() => setCategoryFilter(cat)}
-                        className="dir-category-pill"
+                        className={`dir-category-pill${categoryFilter === cat ? " k-brand-text" : ""}`}
                         data-active={categoryFilter === cat}
                         style={{
                             borderColor: categoryFilter === cat
                                 ? (REALM_CATEGORY_COLORS[cat] || "#444")
                                 : undefined,
-                            color: categoryFilter === cat
-                                ? (REALM_CATEGORY_COLORS[cat] || "#888")
-                                : undefined,
-                        }}
+                            ["--ck"]: REALM_CATEGORY_COLORS[cat] || "#888",
+                        } as CSSProperties}
                     >
                         {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </button>
@@ -129,21 +127,21 @@ export function RealmsTab() {
                                 onClick={() => handleRealmClick(r.path)}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                                    <div className="dir-token-avatar" style={{
+                                    <div className="dir-token-avatar k-brand-text" style={{
                                         background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                        color: REALM_CATEGORY_COLORS[r.category] || "#666",
-                                    }}>
+                                        ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                    } as CSSProperties}>
                                         🌐
                                     </div>
                                     <div className="dir-card-main">
                                         <div className="dir-card-name">
                                             {r.name}
                                             <span
-                                                className="dir-inline-badge"
+                                                className="dir-inline-badge k-brand-text"
                                                 style={{
                                                     background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                                    color: REALM_CATEGORY_COLORS[r.category] || "#666",
-                                                }}
+                                                    ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                                } as CSSProperties}
                                             >
                                                 {r.category}
                                             </span>

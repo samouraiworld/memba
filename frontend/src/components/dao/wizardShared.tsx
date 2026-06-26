@@ -70,7 +70,7 @@ export function SummaryItem({ label, value, accent }: { label: string; value: st
             </div>
             <div style={{
                 fontSize: 13, fontWeight: accent ? 700 : 500,
-                color: accent ? "#00d4aa" : "#f0f0f0",
+                color: accent ? "var(--color-k-accent-text)" : "var(--color-k-text)",
                 fontFamily: "JetBrains Mono, monospace", marginTop: 2,
                 wordBreak: "break-all",
             }}>

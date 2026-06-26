@@ -3,6 +3,7 @@
  *
  * Extracted in v1.5.0 from DAOHome.tsx.
  */
+import type { CSSProperties } from "react"
 import type { DAOMember } from "../../lib/dao/shared"
 
 export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: DAOMember; isCurrentUser: boolean; onProfileClick: (addr: string) => void }) {
@@ -56,7 +57,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                         padding: "2px 8px", borderRadius: 4, fontSize: 10,
                         fontFamily: "JetBrains Mono, monospace", fontWeight: 500, whiteSpace: "nowrap",
                         background: member.tier === "T1" ? "rgba(0,212,170,0.1)" : member.tier === "T2" ? "rgba(33,150,243,0.1)" : "rgba(245,166,35,0.1)",
-                        color: member.tier === "T1" ? "#00d4aa" : member.tier === "T2" ? "#2196f3" : "#f5a623",
+                        color: member.tier === "T1" ? "var(--color-k-accent-text)" : member.tier === "T2" ? "var(--color-k-info-text)" : "var(--color-k-warning-text)",
                     }}>
                         {member.tier}
                     </span>
@@ -65,12 +66,12 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                     const rc: Record<string, string> = { admin: "#f5a623", dev: "#00d4aa", finance: "#7b61ff", ops: "#3b82f6", member: "#888" }
                     const c = rc[role] || "#888"
                     return (
-                        <span key={role} style={{
+                        <span key={role} className="k-brand-text" style={{
                             padding: "2px 8px", borderRadius: 4, fontSize: 10,
                             fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
                             whiteSpace: "nowrap",
-                            background: `${c}15`, color: c,
-                        }}>
+                            background: `${c}15`, ["--ck"]: c,
+                        } as CSSProperties}>
                             {role}
                         </span>
                     )
