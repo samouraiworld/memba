@@ -31,6 +31,9 @@ import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { renderMarkdown } from "../lib/markdownLite"
 import DOMPurify from "dompurify"
+import { resolveValidatorIdentity } from "../lib/validatorIdentity"
+import { useGnoloveContributor } from "../hooks/gnolove"
+import { useGnoloveTeam } from "../hooks/gnolove/useGnoloveTeams"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { useAddressActivity } from "../hooks/useAddressActivity"
 import { formatActivityTime, type ActivityItem, type ActivityKind } from "../lib/activity"
@@ -177,6 +180,16 @@ export default function ValidatorProfile() {
         return () => { cancelled = true }
     }, [connectedAddr])
     const effectiveBackend = connectedAddr ? backendQuests : null
+
+    // Curated gnolove identity (team or contributor) behind this validator, so the
+    // Contributions tab shows the real gnolove contributions of the team/person — not an
+    // empty address-keyed lookup. Hooks run unconditionally (disabled when unmapped).
+    const mappedIdentity = resolveValidatorIdentity({
+        moniker: resolution?.valoper?.moniker || genesisMoniker,
+        addresses: [resolution?.valoper?.operatorAddress, resolution?.valoper?.signingAddress, address],
+    })
+    const mappedContributor = useGnoloveContributor(mappedIdentity?.kind === "contributor" ? mappedIdentity.login : "")
+    const mappedTeam = useGnoloveTeam(mappedIdentity?.kind === "team" ? mappedIdentity.slug : undefined)
 
     // Visiting a validator profile counts toward the explorer quest.
     useEffect(() => {
@@ -488,6 +501,49 @@ export default function ValidatorProfile() {
             {/* ── Contributions ── */}
             {tab === "Contributions" && (
                 <div role="tabpanel" id="vp-tab-contributions" aria-labelledby="vp-tab-contributions-btn" data-testid="vp-tab-contributions" className="vp-panel">
+                    {/* Curated gnolove identity (the team/person behind this validator). */}
+                    {mappedIdentity && (
+                        <div className="vd-card" data-testid="vp-mapped-identity">
+                            <div className="vd-card__title">
+                                {mappedIdentity.kind === "team" ? "Team contributions" : "Contributor"}
+                            </div>
+                            {mappedIdentity.kind === "contributor" ? (
+                                <>
+                                    <div className="vp-mapped-head">
+                                        {mappedContributor.data?.avatarUrl && (
+                                            <img className="vp-mapped-avatar" src={mappedContributor.data.avatarUrl} alt={mappedIdentity.label} referrerPolicy="no-referrer" />
+                                        )}
+                                        <div>
+                                            <div className="vp-mapped-name">{mappedContributor.data?.name || mappedIdentity.label}</div>
+                                            <div className="vp-mapped-sub">Contributions tracked as @{mappedIdentity.login} on Gnolove</div>
+                                        </div>
+                                    </div>
+                                    {mappedContributor.data && (
+                                        <div className="vd-stats-grid" style={{ marginTop: "0.6rem" }}>
+                                            <Stat label="Commits" value={String(mappedContributor.data.totalCommits)} accent />
+                                            <Stat label="Pull Requests" value={String(mappedContributor.data.totalPullRequests)} />
+                                            <Stat label="Issues" value={String(mappedContributor.data.totalIssues)} />
+                                        </div>
+                                    )}
+                                    <Link to={np(`gnolove/contributor/${mappedIdentity.login}`)} className="vp-peek__link" style={{ marginTop: "0.6rem", display: "inline-block" }}>
+                                        View on Gnolove →
+                                    </Link>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="vp-mapped-name">{mappedTeam?.name || mappedIdentity.label}</div>
+                                    <div className="vp-mapped-sub">
+                                        {mappedTeam ? `${mappedTeam.members.length} member${mappedTeam.members.length === 1 ? "" : "s"} · ` : ""}
+                                        Contributions tracked as the {mappedIdentity.label} team on Gnolove
+                                    </div>
+                                    <Link to={np(`gnolove/teams/${mappedIdentity.slug}`)} className="vp-peek__link" style={{ marginTop: "0.6rem", display: "inline-block" }}>
+                                        View team on Gnolove →
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {hasContribs ? (
                         <>
                             <div className="vd-card">
@@ -515,12 +571,12 @@ export default function ValidatorProfile() {
                                 </div>
                             )}
                         </>
-                    ) : (
+                    ) : (!mappedIdentity && (
                         <div className="vd-card vp-empty">
                             <p>No gno contributions found for this address.</p>
                             <p className="vp-empty__sub">Contribution stats come from gnolove. If this validator hasn't linked a GitHub identity or has no on-chain activity yet, there's nothing to show.</p>
                         </div>
-                    )}
+                    ))}
                 </div>
             )}
 

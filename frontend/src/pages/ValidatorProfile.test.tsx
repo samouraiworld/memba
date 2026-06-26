@@ -33,18 +33,25 @@ vi.mock("../components/validators/ValidatorPerformancePanel", () => ({
         <div data-testid="perf-panel" data-active={String(isActive)} data-addr={signingAddress} />,
 }))
 
+// gnolove identity hooks (for the curated validator→contributor/team mapping).
+vi.mock("../hooks/gnolove", () => ({ useGnoloveContributor: vi.fn(() => ({ data: null })) }))
+vi.mock("../hooks/gnolove/useGnoloveTeams", () => ({ useGnoloveTeam: vi.fn(() => null) }))
+
 import ValidatorProfile from "./ValidatorProfile"
 import { fetchValopers } from "../lib/valopers"
 import { getValidators } from "../lib/validators"
 import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
 import { useAddressActivity } from "../hooks/useAddressActivity"
 import { loadQuestProgress, fetchUserQuests } from "../lib/quests"
+import { useGnoloveContributor } from "../hooks/gnolove"
+import { useGnoloveTeam } from "../hooks/gnolove/useGnoloveTeams"
 import type { ActivityItem } from "../lib/activity"
 
 const OPERATOR = "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4"
 const SIGN = "g1abc000000000000000000000000000000000sig"
 const GENESIS = "g15sysd4jcpsw7t0n4ffe2hn8ndfup2ae2vwpves"
-const MONIKER = "samourai-crew-1"
+// An UNMAPPED moniker — keeps the default-valoper tests free of the curated mapping.
+const MONIKER = "test-validator-x"
 
 const valoper = (over: Partial<ValoperWithStatus> = {}): ValoperWithStatus => ({
     moniker: MONIKER, description: "Samourai's test13 validator.", operatorAddress: OPERATOR,
@@ -187,7 +194,7 @@ describe("ValidatorProfile — identity header & tabs", () => {
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         expect(screen.queryByRole("img", { name: new RegExp(MONIKER, "i") })).not.toBeInTheDocument()
-        expect(screen.getByTestId("vp-avatar-fallback")).toHaveTextContent(/^S/i)
+        expect(screen.getByTestId("vp-avatar-fallback")).toHaveTextContent(/^T/i)
     })
 
     it("shows @username chip + realm link when the profile has a username", async () => {
@@ -343,6 +350,34 @@ describe("ValidatorProfile — Contributions / Activity / Quests / Reviews", () 
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: MONIKER })
         expect(within(screen.getByTestId("vp-reviews")).getByText(/community reviews/i)).toBeInTheDocument()
+    })
+
+    it("Contributions: a validator mapped to a gnolove CONTRIBUTOR shows its stats + link", async () => {
+        vi.mocked(useGnoloveContributor).mockReturnValue({
+            data: { login: "aeddi", name: "Aeddi", avatarUrl: "https://x/a.png", totalCommits: 120, totalPullRequests: 30, totalIssues: 5 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        setData([valoper({ moniker: "aeddi-1" })], [])
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "aeddi-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Contributions" }))
+        const card = screen.getByTestId("vp-mapped-identity")
+        expect(within(card).getByText("120")).toBeInTheDocument()
+        expect(within(card).getByRole("link", { name: /view on gnolove/i }))
+            .toHaveAttribute("href", "/test13/gnolove/contributor/aeddi")
+    })
+
+    it("Contributions: a validator mapped to a gnolove TEAM links to the team page", async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(useGnoloveTeam).mockReturnValue({ slug: "samouraiworld", name: "Samourai.world", members: ["a", "b"] } as any)
+        setData([valoper({ moniker: "samourai-crew-1" })], [])
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Contributions" }))
+        const card = screen.getByTestId("vp-mapped-identity")
+        expect(within(card).getByText(/2 members/)).toBeInTheDocument()
+        expect(within(card).getByRole("link", { name: /view team on gnolove/i }))
+            .toHaveAttribute("href", "/test13/gnolove/teams/samouraiworld")
     })
 })
 
