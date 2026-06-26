@@ -45,7 +45,7 @@ export function CopyableAddress({ address, full = true, compact = false, fontSiz
             style={{
                 fontSize,
                 fontFamily: "JetBrains Mono, monospace",
-                color: copied ? "#00d4aa" : "#888",
+                color: copied ? "var(--color-k-accent-text)" : "var(--color-k-dim)",
                 cursor: "pointer",
                 wordBreak: "break-all",
                 transition: "color 0.15s",
