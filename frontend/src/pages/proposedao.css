@@ -46,7 +46,7 @@
 
 .pdao-archive-text {
     font-size: 12px;
-    color: var(--color-k-warning);
+    color: var(--color-k-warning-text);
     font-family: var(--font-mono);
 }
 

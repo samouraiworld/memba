@@ -269,7 +269,7 @@ a:hover {
   padding: 0 20px;
   border-radius: 8px;
   background: var(--color-k-accent, #00d4aa);
-  color: var(--color-k-bg, #000);
+  color: var(--color-k-on-accent, #000); /* §13: dark text on the bright teal button — on-accent is dark on BOTH themes (var(--color-k-bg) inverted to near-white on light → 2.9:1) */
   font-size: 14px;
   font-weight: 600;
   border: none;

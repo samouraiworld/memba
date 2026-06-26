@@ -31,7 +31,7 @@
 }
 
 .proposal-notfound-back {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     background: none;
     border: none;
@@ -61,11 +61,11 @@
 }
 
 .proposal-breadcrumb-btn--active {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .proposal-breadcrumb-sep {
-    color: #333;
+    color: var(--color-k-dim);
 }
 
 .proposal-breadcrumb-current {
@@ -99,7 +99,7 @@
 }
 
 .proposal-source-link:hover {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .proposal-status-badge {
@@ -123,7 +123,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(0, 212, 170, 0.06);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -159,7 +159,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 500;
     background: rgba(33, 150, 243, 0.06);
-    color: #5ba3d9;
+    color: var(--color-k-info-text);
     text-transform: uppercase;
 }
 
@@ -188,7 +188,7 @@
     justify-content: center;
     font-size: 14px;
     font-family: JetBrains Mono, monospace;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .proposal-author-name {
@@ -198,7 +198,7 @@
 }
 
 .proposal-author-link {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
 }
 
@@ -249,7 +249,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(33, 150, 243, 0.08);
-    color: #2196f3;
+    color: var(--color-k-info-text);
 }
 
 .proposal-executor-label {
@@ -260,7 +260,7 @@
 }
 
 .proposal-executor-link {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     text-decoration: none;
 }
 
@@ -315,7 +315,7 @@
     background: rgba(0, 212, 170, 0.08);
     border-radius: 8px;
     border: 1px solid rgba(0, 212, 170, 0.2);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     font-family: JetBrains Mono, monospace;
 }
@@ -326,7 +326,7 @@
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.15);
     font-size: 12px;
-    color: #f5a623;
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -352,7 +352,7 @@
 
 .proposal-archived-text {
     font-size: 12px;
-    color: #f5a623;
+    color: var(--color-k-warning-text);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -425,19 +425,19 @@
 .proposal-voted-indicator--yes {
     background: rgba(76, 175, 80, 0.08);
     border: 1px solid rgba(76, 175, 80, 0.2);
-    color: #4caf50;
+    color: var(--color-k-success-text);
 }
 
 .proposal-voted-indicator--no {
     background: rgba(244, 67, 54, 0.08);
     border: 1px solid rgba(244, 67, 54, 0.2);
-    color: #f44336;
+    color: var(--color-k-danger-text);
 }
 
 .proposal-voted-indicator--abstain {
     background: rgba(158, 158, 158, 0.08);
     border: 1px solid rgba(158, 158, 158, 0.2);
-    color: #9e9e9e;
+    color: var(--color-k-muted);
 }
 
 /* ── Responsive ──────────────────────────────────────────── */

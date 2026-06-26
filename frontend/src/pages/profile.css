@@ -16,7 +16,7 @@
 
 /* ── Back button ─────────────────────────────────────────── */
 .profile-back-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     background: none;
     border: none;
@@ -70,7 +70,7 @@
 
 .profile-avatar-fallback {
     font-size: 28px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 /* ── Identity section ────────────────────────────────────── */
@@ -100,7 +100,7 @@
     font-family: JetBrains Mono, monospace;
     font-weight: 600;
     background: rgba(0, 212, 170, 0.1);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
 }
 
 .profile-edit-btn {
@@ -116,13 +116,13 @@
 }
 
 .profile-edit-btn:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    border-color: var(--color-k-accent-text);
+    color: var(--color-k-accent-text);
 }
 
 .profile-saved-indicator {
     font-size: 10px;
-    color: #4caf50;
+    color: var(--color-k-success-text);
     font-family: JetBrains Mono, monospace;
 }
 
@@ -193,7 +193,7 @@
     font-family: JetBrains Mono, monospace;
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     cursor: pointer;
 }
 
@@ -265,7 +265,7 @@
     font-weight: 600;
     background: rgba(88, 166, 255, 0.1);
     border: 1px solid rgba(88, 166, 255, 0.25);
-    color: #58a6ff;
+    color: var(--color-k-info-text);
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
 }
@@ -290,8 +290,8 @@
 }
 
 .profile-unlink-btn:hover {
-    border-color: #ff4757;
-    color: #ff4757;
+    border-color: var(--color-k-danger-text);
+    color: var(--color-k-danger-text);
 }
 
 /* ── Contributions Card ──────────────────────────────────── */
@@ -314,7 +314,7 @@
 
 .profile-contrib-link {
     font-size: 10px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: JetBrains Mono, monospace;
     text-decoration: none;
 }
@@ -366,7 +366,7 @@
 .profile-package-path {
     font-size: 12px;
     font-family: JetBrains Mono, monospace;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     word-break: break-all;
 }
 

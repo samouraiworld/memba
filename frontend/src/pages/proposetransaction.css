@@ -12,7 +12,7 @@
 
 /* ── Back button ────────────────────────────────────────── */
 .ptx-back-btn {
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 13px;
     background: none;
     border: none;

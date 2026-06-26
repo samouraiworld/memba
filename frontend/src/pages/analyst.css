@@ -85,7 +85,7 @@
 
 .analyst-error-text {
     font-size: 11px;
-    color: #f44336;
+    color: var(--color-k-danger-text);
     font-family: "JetBrains Mono", monospace;
 }
 
@@ -306,7 +306,7 @@
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.06);
     border: 1px solid rgba(0, 212, 170, 0.15);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
@@ -369,7 +369,7 @@
 
 .ai-council__retry {
     font-size: 10px;
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-family: "JetBrains Mono", monospace;
     margin-left: auto;
 }
@@ -474,12 +474,12 @@
 }
 
 .ai-council__column-item--risk {
-    color: #e8a87c;
+    color: var(--color-k-warning-text);
     background: rgba(255, 152, 0, 0.04);
 }
 
 .ai-council__column-item--rec {
-    color: #7ec8a8;
+    color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.04);
 }
 
@@ -539,7 +539,7 @@
 
 .ai-council__model-reasoning {
     font-size: 10px;
-    color: #777;
+    color: var(--color-k-muted);
     line-height: 1.4;
     margin: 6px 0 0;
 }
@@ -561,7 +561,7 @@
     border-radius: 4px;
     background: rgba(0, 212, 170, 0.05);
     border: 1px solid rgba(0, 212, 170, 0.1);
-    color: var(--color-primary);
+    color: var(--color-k-accent-text);
     font-size: 9px;
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;

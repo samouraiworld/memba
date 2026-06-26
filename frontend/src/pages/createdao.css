@@ -16,7 +16,7 @@
 /* ── Back Button ─────────────────────────────────────── */
 
 .cdao-back-btn {
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-size: 13px;
     background: none;
     border: none;
@@ -114,7 +114,7 @@
 
 .cdao-step-circle--done {
     background: rgba(0, 212, 170, 0.2);
-    color: var(--color-primary, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     cursor: pointer;
 }
 
