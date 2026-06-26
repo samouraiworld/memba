@@ -30,13 +30,22 @@ describe("assertSafeFlags", () => {
         expect(() => assertSafeFlags({ VITE_ENABLE_NFT: "TRUE" })).not.toThrow()
     })
 
-    it("guards the four fund-moving flags", () => {
+    it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
             "VITE_ENABLE_NFT",
             "VITE_ENABLE_SERVICES",
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
+            "VITE_ENABLE_REVIEWS",
         ])
+    })
+})
+
+describe("VITE_ENABLE_REVIEWS gate", () => {
+    it("is in SAFETY_GATED_FLAGS and trips assertSafeFlags when true", () => {
+        expect(SAFETY_GATED_FLAGS).toContain("VITE_ENABLE_REVIEWS")
+        expect(() => assertSafeFlags({ VITE_ENABLE_REVIEWS: "true" })).toThrow(/SAFETY GATE FAILED/)
+        expect(() => assertSafeFlags({ VITE_ENABLE_REVIEWS: "false" })).not.toThrow()
     })
 })
 

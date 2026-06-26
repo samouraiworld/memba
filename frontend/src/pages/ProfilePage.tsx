@@ -6,7 +6,8 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
-import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl, isReviewsEnabled } from "../lib/config"
+import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection, AdminPanelLink } from "../components/profile"
@@ -292,6 +293,11 @@ export function ProfilePage() {
                 <div className="k-card profile-quest-card">
                     <QuestProgress address={isOwnProfile ? undefined : address} />
                 </div>
+            )}
+
+            {/* ── Community reviews ───────────────────────────────── */}
+            {isReviewsEnabled() && address && (
+                <ReviewsSection subject={address} />
             )}
 
             {/* ── Achievement Badges (gated until badges are minted) ── */}
