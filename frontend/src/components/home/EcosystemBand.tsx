@@ -3,11 +3,12 @@
  *
  * R2-H7: instead of bare counts ("1 tokens / 8 validators"), each section now
  * surfaces the REAL items inline:
- *   - tokens:     name + symbol + short path, from useEcosystemTokens()
- *                 (fetchTokens — the Directory page's token source).
- *   - validators: moniker (or truncated addr) + voting-power share % + status,
- *                 from useEcosystemValidators() (getValidators — power-desc),
- *                 capped at the top 5 with a "view all N →" link.
+ *   - tokens:     name + symbol + on-chain supply, from useTokenLaunches()
+ *                 (fetchTokens + per-token getTokenInfo), capped at the top 3
+ *                 with a "view all N →" link.
+ *   - validators: "Top validators" — moniker (or truncated addr) + voting-power
+ *                 share % + status, from useEcosystemValidators() (getValidators,
+ *                 power-desc), capped at the top 3 with a "view all N →" link.
  *   - agents:     count-only tile (unchanged — no honest network-wide list).
  *
  * The count stays as each section's header.
