@@ -13,7 +13,7 @@
  * @module pages/gnolove/GnoloveTeams
  */
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type CSSProperties } from "react"
 import { Link } from "react-router-dom"
 import { useGnoloveTeams, useGnoloveContributors } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
@@ -69,7 +69,8 @@ export default function GnoloveTeams() {
                                     />
                                 )}
                                 <span
-                                    style={{ color: TEAM_CSS_COLORS[team.color], fontSize: 16, fontWeight: 600 }}
+                                    className="gl-team-name-inline"
+                                    style={{ "--team-color": TEAM_CSS_COLORS[team.color], fontSize: 16, fontWeight: 600 } as CSSProperties}
                                 >
                                     {team.name}
                                 </span>

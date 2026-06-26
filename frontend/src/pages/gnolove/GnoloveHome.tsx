@@ -7,7 +7,7 @@
  * @module pages/gnolove/GnoloveHome
  */
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import { useState, useMemo, useRef, useCallback, type CSSProperties } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { useClickOutside } from "../../hooks/useClickOutside"
@@ -269,7 +269,7 @@ export default function GnoloveHome() {
                             >
                                 <div className="gl-team-compact-top">
                                     <span className="gl-team-compact-rank">#{i + 1}</span>
-                                    <span className="gl-team-compact-name" style={{ color: TEAM_CSS_COLORS[team.color] }}>
+                                    <span className="gl-team-compact-name" style={{ "--team-color": TEAM_CSS_COLORS[team.color] } as CSSProperties}>
                                         {team.name}
                                     </span>
                                 </div>
@@ -569,7 +569,7 @@ function ContributorRow({ user, rank, loginToTeam }: { user: TEnhancedUserWithSt
                         </a>
                         <span className="gl-contributor-login">@{user.login}</span>
                         {team && (
-                            <span className="gl-team-badge" style={{ color: TEAM_CSS_COLORS[team.color] }}>
+                            <span className="gl-team-badge" style={{ "--team-color": TEAM_CSS_COLORS[team.color] } as CSSProperties}>
                                 {team.name}
                             </span>
                         )}
