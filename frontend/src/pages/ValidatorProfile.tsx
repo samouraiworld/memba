@@ -24,7 +24,6 @@ import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl } from "
 import {
     fetchValopers,
     resolveValidatorProfile,
-    type ValoperWithStatus,
     type ValidatorProfileResolution,
 } from "../lib/valopers"
 import { getValidators, truncateValidatorAddr } from "../lib/validators"
@@ -141,7 +140,6 @@ export default function ValidatorProfile() {
     const location = useLocation()
     const np = useNetworkPath()
     const ctx = useOutletContext<LayoutContext | null>()
-    const preset = (location.state as { valoper?: ValoperWithStatus } | null)?.valoper ?? null
 
     const [resolution, setResolution] = useState<ValidatorProfileResolution | null>(null)
     const [genesisMoniker, setGenesisMoniker] = useState<string>("")
