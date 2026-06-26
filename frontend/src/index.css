@@ -1420,6 +1420,59 @@ body {
   display: none;
 }
 
+/* ⊕ "Act" FAB — floating quick-action button, mobile-only (parent .k-mobile-only
+   is display:none on desktop). Sits above the tab bar (z 50) but below an open
+   bottom sheet (z 60). Accent fill + on-accent icon = theme-safe (matches the
+   primary button convention). */
+.k-act-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 55;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.k-act-fab:hover {
+  background: var(--color-k-accent-hover);
+}
+
+.k-act-fab:active {
+  transform: scale(0.94);
+}
+
+/* Total-pending bubble on the ⊕ — gold on the teal FAB, ringed in the canvas
+   colour so it reads as a distinct badge. */
+.k-act-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-k-govdao);
+  color: var(--color-k-on-govdao);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border: 2px solid var(--color-k-bg);
+  box-sizing: border-box;
+}
+
 /* ── Mobile Tab Bar ────────────────────────────────────────────── */
 .k-mobile-tabbar {
   display: none;
@@ -1508,12 +1561,30 @@ body {
   transform: translateY(0);
 }
 
+/* Full-width, tall-enough drag zone for swipe-to-dismiss; the visible 36x4 bar
+   is drawn by the ::before so the grab target isn't limited to 4px. */
 .k-bottom-sheet-handle {
+  width: 100%;
+  padding: 10px 0 14px;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.k-bottom-sheet-handle::before {
+  content: "";
+  display: block;
   width: 36px;
   height: 4px;
   border-radius: 2px;
   background: var(--color-k-edge-hover);
-  margin: 0 auto 12px;
+  margin: 0 auto;
+}
+
+.k-bottom-sheet-handle:active {
+  cursor: grabbing;
 }
 
 /* ── B3: Hamburger toggle (hidden by default — shown only at tablet) ── */
