@@ -25,11 +25,15 @@ vi.mock("../hooks/useNetworkNav", () => ({
     useNetworkKey: () => "test13",
 }))
 
-// NFT feature gate — vi.fn so a test can flip it; default ON so the hub renders.
+// Lane-registry predicates — vi.fn so tests can flip lane liveness. Default: NFT lane
+// live (so the hub renders), Services lane off (no tabs unless a test enables it).
 vi.mock("../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../lib/config")>()),
     isNftEnabled: vi.fn(() => true),
     isNftMarketValid: vi.fn(() => true),
+    isNftMarketV3Valid: vi.fn(() => true),
+    isServicesEnabled: vi.fn(() => false),
+    isEscrowValid: vi.fn(() => false),
 }))
 const configMod = await import("../lib/config")
 
@@ -102,6 +106,13 @@ beforeEach(() => {
     vi.clearAllMocks()
     mockFetchCollections.mockResolvedValue(FIXTURE_COLLECTIONS)
     mockFetchActivity.mockResolvedValue(FIXTURE_ACTIVITY)
+    // Reset lane-registry predicates to defaults (mockReturnValue persists across
+    // clearAllMocks, so a prior test's override would otherwise leak): NFT live,
+    // Services off → one lane, no tabs.
+    ;(configMod.isNftEnabled as ReturnType<typeof vi.fn>).mockReturnValue(true)
+    ;(configMod.isNftMarketV3Valid as ReturnType<typeof vi.fn>).mockReturnValue(true)
+    ;(configMod.isServicesEnabled as ReturnType<typeof vi.fn>).mockReturnValue(false)
+    ;(configMod.isEscrowValid as ReturnType<typeof vi.fn>).mockReturnValue(false)
 })
 
 describe("MarketplaceHub — collection cards", () => {
@@ -260,6 +271,45 @@ describe("MarketplaceHub — empty state", () => {
         await waitFor(() => {
             expect(screen.getByText(/no collections/i)).toBeInTheDocument()
         })
+    })
+})
+
+describe("MarketplaceHub — unified shell (lanes + URL state)", () => {
+    const mockV3 = configMod.isNftMarketV3Valid as ReturnType<typeof vi.fn>
+    const mockSvcEnabled = configMod.isServicesEnabled as ReturnType<typeof vi.fn>
+    const mockEscrow = configMod.isEscrowValid as ReturnType<typeof vi.fn>
+
+    it("shows the gate (no trade surface) when no lane is live", () => {
+        mockV3.mockReturnValue(false) // NFT not live; services already off
+        renderHub()
+        // The gated front door has no search/trade surface.
+        expect(screen.queryByRole("searchbox")).not.toBeInTheDocument()
+        expect(screen.getByText(/one marketplace, enforced on-chain royalties/i)).toBeInTheDocument()
+    })
+
+    it("renders no tabs when only one lane is live", async () => {
+        mockV3.mockReturnValue(true) // only NFT
+        renderHub()
+        await waitFor(() => expect(screen.getAllByText("Alpha Apes").length).toBeGreaterThan(0))
+        expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+    })
+
+    it("renders a tab per live lane and switches lane on click", async () => {
+        mockV3.mockReturnValue(true)
+        mockSvcEnabled.mockReturnValue(true)
+        mockEscrow.mockReturnValue(true) // both NFT + Services live
+        renderHub()
+
+        await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
+        const tabs = screen.getAllByRole("tab")
+        expect(tabs.map((t) => t.textContent)).toEqual(["NFTs", "Services"])
+
+        // NFT lane is active by default → collections load
+        await waitFor(() => expect(screen.getAllByText("Alpha Apes").length).toBeGreaterThan(0))
+
+        // Switch to Services → its placeholder shows, NFT content gone
+        fireEvent.click(screen.getByRole("tab", { name: "Services" }))
+        expect(screen.getByText(/coming in the next release/i)).toBeInTheDocument()
     })
 })
 

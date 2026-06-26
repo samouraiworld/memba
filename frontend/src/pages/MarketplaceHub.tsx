@@ -1,19 +1,20 @@
 /**
- * MarketplaceHub — NFT discovery hub page (/nft).
+ * MarketplaceHub — the unified marketplace front door (/nft, and the future
+ * /marketplace shell).
  *
- * Collector-facing landing page. Replaces tabbed NFTGallery once routing
- * is wired (T9). Renders independently; route wiring is a later task.
+ * One front door over the live asset lanes. The lane registry (lib/marketplace/lanes)
+ * decides which tabs render — a tab appears only when its lane is live (flag + realm
+ * valid), so there are no dead "coming soon" tabs (panel C2). The active lane is
+ * URL-state (?lane=…) so a lane view is shareable. v1 lights the NFT lane; Services
+ * arrives in W2, Tokens/Agents later — each appears here when built.
  *
- * Data:
+ * Data (NFT lane):
  *   fetchVerifiedCollections → grid of collection cards (with search filter)
  *   fetchRecentActivity      → recent sale/offer-accepted activity list
- *
- * Robust states: loading, error (.catch-based — never wedges on "Loading…"),
- * empty-collections, empty-activity.
  */
 
 import { useState, useEffect, useMemo } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "../lib/nftHub"
 import { NFTMedia } from "../components/nft/NFTMedia"
 import { VerifiedBadge } from "../components/nft/VerifiedBadge"
@@ -21,61 +22,120 @@ import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
-import { isNftEnabled, isNftMarketValid } from "../lib/config"
+import { getLiveLanes, type LaneDef } from "../lib/marketplace/lanes"
+import type { AssetType } from "../lib/marketplace/types"
 import type { NFTActivityItem } from "../lib/nftApi"
 import "./marketplace-v2.css"
 
-// ── Component ────────────────────────────────────────────────────────
+// ── Front door ───────────────────────────────────────────────────────
 
 /**
- * Feature gate — the marketplace hub is the live-trading entry point, so it
- * must stay dark in production until VITE_ENABLE_NFT is flipped (and the market
- * realm is valid on the active network). Matches the gate the legacy NFTGallery
- * (the previous /nft page) carried; without it, /nft would expose live on-chain
- * buy/list while the flag is off.
+ * The marketplace renders only its LIVE lanes. When none are live (the default
+ * production state — NFT dark until v3.1 is registered, Services until W2), the whole
+ * surface shows the gate, so live on-chain trade is never reachable while gated.
  */
 export function MarketplaceHub() {
-    if (!isNftEnabled() || !isNftMarketValid()) {
+    const lanes = getLiveLanes()
+    if (lanes.length === 0) {
         return (
             <ComingSoonGate
-                title="NFT Marketplace"
+                title="Marketplace"
                 icon="🖼️"
-                description="Discover, buy, and sell GRC721 NFTs on gno.land — with enforced creator royalties."
+                description="Discover and trade NFTs, services, tokens, and agents on gno.land — one marketplace, enforced on-chain royalties, a DAO-set fee."
                 features={[
-                    "Browse verified collections + recent activity",
-                    "Buy and list in one unified trade flow",
-                    "Enforced on-chain royalties on every sale",
-                    "Live floor + volume per collection",
+                    "Buy, sell, and make offers on NFTs",
+                    "Hire and get hired for services via milestone escrow",
+                    "One front door, one fee, every asset lane",
+                    "Verified collections + live activity",
                 ]}
             />
         )
     }
-    return <MarketplaceHubContent />
+    return <MarketplaceShell lanes={lanes} />
 }
 
-function MarketplaceHubContent() {
+// ── Shell (tabs + URL-state) ─────────────────────────────────────────
+
+function MarketplaceShell({ lanes }: { lanes: LaneDef[] }) {
+    const np = useNetworkPath()
+    const [params, setParams] = useSearchParams()
+
+    const requested = params.get("lane") as AssetType | null
+    const active = lanes.find((l) => l.assetType === requested) ?? lanes[0]
+
+    const selectLane = (assetType: AssetType) => {
+        setParams(
+            (prev) => {
+                prev.set("lane", assetType)
+                return prev
+            },
+            { replace: true },
+        )
+    }
+
+    return (
+        <div className="mhub">
+            <header className="mhub-header">
+                <h1 className="mhub-title">Marketplace</h1>
+                <Link to={np("nft/create")} className="mhub-launch-link" aria-label="Sell on the marketplace">
+                    Sell
+                </Link>
+            </header>
+
+            {lanes.length > 1 && (
+                <nav className="mkt-lane-tabs" role="tablist" aria-label="Marketplace lanes">
+                    {lanes.map((lane) => (
+                        <button
+                            key={lane.assetType}
+                            role="tab"
+                            type="button"
+                            aria-selected={lane.assetType === active.assetType}
+                            className={
+                                "mkt-lane-tab" + (lane.assetType === active.assetType ? " mkt-lane-tab--active" : "")
+                            }
+                            onClick={() => selectLane(lane.assetType)}
+                        >
+                            {lane.label}
+                        </button>
+                    ))}
+                </nav>
+            )}
+
+            <LaneContent assetType={active.assetType} />
+        </div>
+    )
+}
+
+/** Dispatch the active lane to its content. NFT is wired; other live lanes render a
+ *  defensive placeholder until their content lands (so an early-flipped flag can't
+ *  crash the shell). */
+function LaneContent({ assetType }: { assetType: AssetType }) {
+    if (assetType === "nft") return <NftLane />
+    return (
+        <section className="mhub-collections">
+            <p className="mhub-empty">This lane is coming in the next release.</p>
+        </section>
+    )
+}
+
+// ── NFT lane content ─────────────────────────────────────────────────
+
+function NftLane() {
     const np = useNetworkPath()
 
-    // ── Data state ──────────────────────────────────────────────────
     const [collections, setCollections] = useState<HubCollection[]>([])
     const [activity, setActivity] = useState<NFTActivityItem[]>([])
     const [activityError, setActivityError] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-
-    // ── Search state ────────────────────────────────────────────────
     const [query, setQuery] = useState("")
 
-    // ── Load ────────────────────────────────────────────────────────
     useEffect(() => {
         let cancelled = false
-
         fetchVerifiedCollections()
             .then(async (cols) => {
                 if (cancelled) return
                 setCollections(cols)
-
-                // Load activity for all collections in parallel
                 const ids = cols.map((c) => c.id)
                 let acts: NFTActivityItem[] = []
                 let actFailed = false
@@ -90,52 +150,36 @@ function MarketplaceHubContent() {
                 }
             })
             .catch((err: unknown) => {
-                if (!cancelled) {
-                    const msg = err instanceof Error ? err.message : String(err)
-                    setError(msg)
-                }
+                if (!cancelled) setError(err instanceof Error ? err.message : String(err))
             })
             .finally(() => {
                 if (!cancelled) setLoading(false)
             })
-
         return () => {
             cancelled = true
         }
     }, [])
 
-    // ── Client-side search filter ────────────────────────────────────
     const filteredCollections = useMemo(() => {
         const q = query.trim().toLowerCase()
         if (!q) return collections
         return collections.filter((c) => c.name.toLowerCase().includes(q))
     }, [collections, query])
 
-    // ── Render: loading ──────────────────────────────────────────────
     if (loading) {
-        return (
-            <div className="mhub">
-                <p className="mhub-loading">Loading collections…</p>
-            </div>
-        )
+        return <p className="mhub-loading">Loading collections…</p>
     }
-
-    // ── Render: error ────────────────────────────────────────────────
     if (error) {
         return (
-            <div className="mhub">
-                <div className="mhub-error" role="alert">
-                    Failed to load collections: {error}
-                </div>
+            <div className="mhub-error" role="alert">
+                Failed to load collections: {error}
             </div>
         )
     }
 
     return (
-        <div className="mhub">
-            {/* ── Header ─────────────────────────────────────────── */}
-            <header className="mhub-header">
-                <h1 className="mhub-title">NFT Marketplace</h1>
+        <>
+            <div className="mhub-lane-toolbar">
                 <input
                     className="mhub-search"
                     type="search"
@@ -144,16 +188,11 @@ function MarketplaceHubContent() {
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search collections"
                 />
-                <Link
-                    to={np("nft/create")}
-                    className="mhub-launch-link"
-                    aria-label="Launch a collection"
-                >
+                <Link to={np("nft/create")} className="mhub-launch-link" aria-label="Launch a collection">
                     Launch a collection
                 </Link>
-            </header>
+            </div>
 
-            {/* ── Collections ─────────────────────────────────────── */}
             <section className="mhub-collections">
                 <h2 className="mhub-section-title">Collections</h2>
                 {filteredCollections.length === 0 ? (
@@ -179,7 +218,8 @@ function MarketplaceHubContent() {
                                         <VerifiedBadge verified={col.verified} compact />
                                     </div>
                                     <div className="mhub-collection-card__stats">
-                                        Floor {formatGnotCompact(col.floorUgnot)} · Vol {formatGnotCompact(col.volumeUgnot)}
+                                        Floor {formatGnotCompact(col.floorUgnot)} · Vol{" "}
+                                        {formatGnotCompact(col.volumeUgnot)}
                                     </div>
                                 </div>
                             </Link>
@@ -188,7 +228,6 @@ function MarketplaceHubContent() {
                 )}
             </section>
 
-            {/* ── Recent activity ─────────────────────────────────── */}
             <section className="mhub-activity">
                 <h2 className="mhub-section-title">Recent activity</h2>
                 {activityError ? (
@@ -198,12 +237,8 @@ function MarketplaceHubContent() {
                 ) : (
                     <div className="mhub-activity-list">
                         {activity.map((item) => (
-                            <div
-                                key={String(item.saleNo)}
-                                className="mhub-activity-row"
-                            >
+                            <div key={String(item.saleNo)} className="mhub-activity-row">
                                 <div className="mhub-activity-row__thumb">
-                                    {/* Activity items carry no image URI; NFTMedia renders its placeholder */}
                                     <NFTMedia uri="" alt={`Token #${item.tokenId}`} />
                                 </div>
                                 <div className="mhub-activity-row__info">
@@ -214,15 +249,13 @@ function MarketplaceHubContent() {
                                     {formatGnotCompact(item.priceUgnot)}
                                 </span>
                                 {item.createdAt && (
-                                    <span className="mhub-activity-row__time">
-                                        {relativeTime(item.createdAt)}
-                                    </span>
+                                    <span className="mhub-activity-row__time">{relativeTime(item.createdAt)}</span>
                                 )}
                             </div>
                         ))}
                     </div>
                 )}
             </section>
-        </div>
+        </>
     )
 }
