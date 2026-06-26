@@ -253,14 +253,23 @@ button.action-card:focus-visible {
 
 /* ── GovDaoSpotlight (gold Layer-1 governance — replaces the featured hero) ── */
 
+/* Two-column spotlight: a left identity rail + a right "latest governance"
+   preview that fills what used to be dead space. Stacks on narrow viewports. */
 .govdao-spotlight {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 20px;
   background: var(--color-k-govdao-tint);
   border: 1px solid var(--color-k-govdao-border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 18px 20px;
+}
+
+.govdao-spotlight__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .govdao-spotlight__eyebrow {
@@ -285,35 +294,126 @@ button.action-card:focus-visible {
   margin: 0;
 }
 
-.govdao-spotlight__latest {
-  font-size: 12px;
-  color: var(--color-k-dim);
-  margin: 0;
+/* ── Right rail: "latest governance" preview ──────────────────────── */
+.govdao-spotlight__feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 20px;
+  border-left: 1px solid var(--color-k-govdao-border);
 }
 
-.govdao-spotlight__latest-label {
+.govdao-spotlight__feed-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-k-muted);
+  margin-bottom: 2px;
+}
+
+.govdao-spotlight__feed-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.govdao-spotlight__prop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid var(--color-k-edge);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.govdao-spotlight__feed-list .govdao-spotlight__prop:first-child {
+  border-top: none;
+}
+
+.govdao-spotlight__prop-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-k-govdao-text); /* open / in-progress = gold */
+}
+
+.govdao-spotlight__prop-dot--passed,
+.govdao-spotlight__prop-dot--executed {
+  background: var(--color-k-accent-text); /* success = teal */
+}
+
+.govdao-spotlight__prop-dot--rejected {
+  background: var(--color-k-danger-text);
+}
+
+.govdao-spotlight__prop-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-k-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.govdao-spotlight__prop:hover .govdao-spotlight__prop-title {
+  color: var(--color-k-accent-text);
+}
+
+.govdao-spotlight__prop-meta {
+  flex: none;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--color-k-muted);
 }
 
-.govdao-spotlight__latest-title {
-  color: var(--color-k-text);
+.govdao-spotlight__feed-empty {
+  font-size: 12px;
+  color: var(--color-k-dim);
+  margin: 4px 0 0;
 }
 
-.govdao-spotlight__latest-status {
+.govdao-spotlight__feed-all {
+  align-self: flex-end;
+  margin-top: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-k-govdao-text);
-}
-
-.govdao-spotlight__latest-status--passed,
-.govdao-spotlight__latest-status--executed {
   color: var(--color-k-accent-text);
+  text-decoration: none;
 }
 
-.govdao-spotlight__latest-status--rejected {
-  color: var(--color-k-danger-text);
+/* Loading skeleton: three shimmer lines that reserve the rail's height. */
+.govdao-spotlight__feed-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.govdao-spotlight__feed-skeleton span {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--color-k-edge);
+  opacity: 0.6;
+}
+
+.govdao-spotlight__feed-skeleton span:nth-child(2) { width: 85%; }
+.govdao-spotlight__feed-skeleton span:nth-child(3) { width: 70%; }
+
+/* Stack the two rails on narrow viewports; drop the divider. */
+@media (max-width: 640px) {
+  .govdao-spotlight {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .govdao-spotlight__feed {
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid var(--color-k-govdao-border);
+    padding-top: 12px;
+  }
 }
 
 .govdao-spotlight__row {
@@ -324,23 +424,36 @@ button.action-card:focus-visible {
   margin-top: 4px;
 }
 
+/* Gold-outline ghost button (DEC-1). Theme-aware text via --color-k-text
+   (near-white in dark, near-black in light) framed by the gold border.
+   The explicit :hover color is required — without it the global
+   `a:hover { color: accent }` (index.css) leaked teal onto this <Link>. */
 .govdao-spotlight__cta {
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  background: var(--color-k-govdao);
-  color: var(--color-k-on-govdao, #1a1200);
+  background: transparent;
+  color: var(--color-k-text);
+  border: 1px solid var(--color-k-govdao);
   border-radius: 6px;
-  padding: 7px 14px;
+  padding: 6px 13px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .govdao-spotlight__cta:hover {
-  opacity: 0.92;
+  background: var(--color-k-govdao-subtle);
+  color: var(--color-k-text);
 }
 
 .govdao-spotlight__cta:focus-visible {
   outline: 2px solid var(--color-k-govdao);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .govdao-spotlight__cta {
+    transition: none;
+  }
 }
 
 .govdao-spotlight__stat {
@@ -658,6 +771,53 @@ a.activity-feed__link:focus-visible {
 .activity-feed__icon--transfer {
   background: var(--color-k-elevated);
   color: var(--color-k-muted);
+}
+
+.activity-feed__icon--nft {
+  background: var(--color-k-govdao-subtle);
+  color: var(--color-k-govdao-text);
+}
+
+/* ── Activity filter chips ────────────────────────────────────────── */
+.activity-feed__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+.activity-feed__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-k-edge);
+  background: transparent;
+  color: var(--color-k-dim);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.activity-feed__chip:hover {
+  border-color: var(--color-k-edge-hover);
+  color: var(--color-k-text);
+}
+
+.activity-feed__chip.is-active {
+  background: var(--color-k-accent-subtle);
+  border-color: var(--color-k-accent-border, var(--color-k-accent-text));
+  color: var(--color-k-accent-text);
+}
+
+.activity-feed__chip:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-feed__chip {
+    transition: none;
+  }
 }
 
 .activity-feed__body {
@@ -1107,6 +1267,44 @@ a.activity-feed__link:focus-visible {
   color: var(--color-k-dim);
 }
 
+/* Mini token-card (when a token exists): name + $ticker, then on-chain stats. */
+.launchpad-door__token {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.launchpad-door__token-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1.2;
+}
+
+.launchpad-door__token-ticker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-k-accent-text);
+}
+
+.launchpad-door__stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.launchpad-door__stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-text);
+}
+
+.launchpad-door__stat--muted {
+  color: var(--color-k-dim);
+}
+
 /* ── Focus rings for door sub-links (belt-and-suspenders over global rule) */
 
 .featured-door__link:focus-visible {
@@ -1210,20 +1408,115 @@ a.activity-feed__link:focus-visible {
 
 /* ── VisitorHero ──────────────────────────────────────────────────── */
 
+/* Editorial hero: a lead column (headline + CTAs) beside a live proof card.
+   Stacks on narrow viewports. */
 .visitor-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  padding: 28px 16px;
+}
+
+.visitor-hero__lead {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px 16px;
+  min-width: 0;
 }
 
 .visitor-hero__headline {
   font-family: var(--font-sans);
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-k-text);
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.15;
+}
+
+/* ── Hero proof card ──────────────────────────────────────────────── */
+.hero-proof {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-k-edge);
+  border-radius: 12px;
+  background: var(--color-k-panel);
+}
+
+.hero-proof__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-k-muted);
+}
+
+.hero-proof__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.hero-proof__dot.is-live {
+  background: var(--color-k-accent-text);
+  animation: hero-proof-pulse 2s ease-in-out infinite;
+}
+
+.hero-proof__dot.is-offline {
+  background: var(--color-k-danger-text);
+}
+
+@keyframes hero-proof-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.hero-proof__height {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-k-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-proof__height--skeleton {
+  height: 32px;
+  width: 70%;
+  border-radius: 4px;
+  background: var(--color-k-edge);
+  opacity: 0.6;
+}
+
+.hero-proof__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+.hero-proof__empty {
+  font-size: 13px;
+  color: var(--color-k-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-proof__dot.is-live {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .visitor-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }
 
 .visitor-hero__subtitle {
@@ -1270,11 +1563,13 @@ a.activity-feed__link:focus-visible {
   opacity: 0.88;
 }
 
-/* Secondary: ghost — transparent + edge border */
+/* Secondary: ghost — transparent + edge border. Border uses the stronger
+   edge token so it clears the ≥3:1 contrast bar on the near-black dark bg
+   (the default --color-k-edge was near-invisible). */
 .visitor-hero__cta--secondary {
   background: transparent;
   color: var(--color-k-text);
-  border: 1px solid var(--color-k-edge);
+  border: 1px solid var(--color-k-edge-hover);
 }
 
 .visitor-hero__cta--secondary:hover {
@@ -1320,6 +1615,78 @@ a.activity-feed__link:focus-visible {
   .visitor-hero__cta {
     text-align: center;
     justify-content: center;
+  }
+}
+
+/* ── ValueStrip — plain-language on-ramp (visitor) ────────────────── */
+.value-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.value-strip__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--color-k-edge);
+  border-radius: 10px;
+  background: var(--color-k-panel);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.value-strip__card:hover {
+  border-color: var(--color-k-edge-hover);
+  transform: translateY(-1px);
+}
+
+.value-strip__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 8px;
+  color: var(--color-k-accent-text);
+  background: var(--color-k-accent-subtle);
+}
+
+.value-strip__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.value-strip__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-text);
+  line-height: 1.25;
+}
+
+.value-strip__sub {
+  font-size: 11px;
+  color: var(--color-k-dim);
+  line-height: 1.3;
+}
+
+@media (max-width: 640px) {
+  .value-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-strip__card {
+    transition: none;
+  }
+  .value-strip__card:hover {
+    transform: none;
   }
 }
 

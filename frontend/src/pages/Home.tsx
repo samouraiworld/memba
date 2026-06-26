@@ -20,6 +20,7 @@ import { useNetworkKey } from "../hooks/useNetworkNav"
 import { StatusStrip } from "../components/home/StatusStrip"
 import { ActionInbox } from "../components/home/ActionInbox"
 import { VisitorHero } from "../components/home/VisitorHero"
+import { ValueStrip } from "../components/home/ValueStrip"
 import { ShowcaseBoard } from "../components/home/ShowcaseBoard"
 import { BelowFold } from "../components/home/BelowFold"
 import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
@@ -69,9 +70,10 @@ export function Home({ mode }: HomeProps) {
                 {/* Zone 1: brand/network heartbeat */}
                 <StatusStrip />
 
-                {/* Zone 2: SPINE — visitor hero */}
+                {/* Zone 2: SPINE — visitor hero + plain-language on-ramp */}
                 <div className="home-spine" data-testid="home-spine-visitor">
                     <VisitorHero />
+                    <ValueStrip networkKey={activeNetworkKey} />
                 </div>
 
                 {/* Zone 3: BOARD — ShowcaseBoard (board of doors, Phase 1) */}

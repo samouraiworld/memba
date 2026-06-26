@@ -10,7 +10,9 @@
  * two indexer queries (recent txs + the blocks for their timestamps) around it.
  */
 
-export type ActivityKind = "token" | "deploy" | "governance" | "validator" | "transfer" | "run" | "call"
+export type ActivityKind =
+    | "token" | "deploy" | "governance" | "validator" | "transfer" | "run" | "call"
+    | "nft" | "post" | "multisig"
 
 /** A single message's decoded value, as returned by the indexer message union. */
 export interface IndexerMessageValue {
@@ -59,9 +61,49 @@ function shortPath(p: string): string {
 /** Classify a realm call by its package path (most-specific first). */
 function classifyCall(pkgPath: string): ActivityKind {
     if (/\/gnops\/valopers(\/|$)/.test(pkgPath)) return "validator"
+    if (/(nft_market|memba_nft|memba_collections|nft_launchpad)/.test(pkgPath)) return "nft"
+    if (/multisig/.test(pkgPath)) return "multisig"
     if (/\/gov\/dao(\/|$)/.test(pkgPath) || /_dao(\/|$)/.test(pkgPath) || /\/dao(\/|$)/.test(pkgPath)) return "governance"
     if (/tokenfactory/.test(pkgPath)) return "token"
+    if (/\/boards(\/|$)|\/social(\/|$)/.test(pkgPath)) return "post"
     return "call"
+}
+
+/** Does this realm path look like a DAO realm (so a deployment of it = "Created a DAO")? */
+function isDaoPath(pkgPath: string): boolean {
+    return /_dao(\/|$)/.test(pkgPath) || /\/dao(\/|$)/.test(pkgPath)
+}
+
+/** Verb-first, human title for a classified MsgCall — turns the monotonous
+ *  "Governance · Approve" rows into scannable sentences ("Voted on governance").
+ *  Honest: derived only from realm + func (no fabricated subjects). */
+function callTitle(kind: ActivityKind, pkgPath: string, func: string): string {
+    if (kind === "token") {
+        if (/^New/i.test(func)) return "Launched a token"
+        if (/^Mint/i.test(func)) return "Minted tokens"
+        if (/^Burn/i.test(func)) return "Burned tokens"
+        return `Token · ${func}`
+    }
+    if (kind === "governance") {
+        if (/vote/i.test(func)) return "Voted on governance"
+        if (/propos/i.test(func)) return "Proposed on governance"
+        if (/^Execute/i.test(func)) return "Executed a proposal"
+        return `Governance · ${func}`
+    }
+    if (kind === "validator") return `Validator · ${func}`
+    if (kind === "nft") {
+        if (/^Buy/i.test(func)) return "Bought an NFT"
+        if (/^List/i.test(func)) return "Listed an NFT"
+        if (/^Mint/i.test(func)) return "Minted an NFT"
+        return `NFT · ${func}`
+    }
+    if (kind === "multisig") {
+        if (/^Execute/i.test(func)) return "Executed a multisig tx"
+        if (/propos/i.test(func)) return "Proposed a multisig tx"
+        return `Multisig · ${func}`
+    }
+    if (kind === "post") return `Posted on ${shortPath(pkgPath)}`
+    return `${func} · ${shortPath(pkgPath)}`
 }
 
 /** Map one message value → the display fields of an activity item, or null if unclassifiable. */
@@ -70,18 +112,14 @@ function mapMessage(v: IndexerMessageValue):
     switch (v.__typename) {
         case "MsgAddPackage": {
             const path = v.package?.path ?? ""
-            return { kind: "deploy", title: `Deployed ${shortPath(path)}`, actor: v.creator ?? "", pkgPath: path }
+            const title = isDaoPath(path) ? `Created a DAO · ${shortPath(path)}` : `Deployed ${shortPath(path)}`
+            return { kind: "deploy", title, actor: v.creator ?? "", pkgPath: path }
         }
         case "MsgCall": {
             const pkgPath = v.pkg_path ?? ""
             const func = v.func ?? ""
             const kind = classifyCall(pkgPath)
-            const title =
-                kind === "token" ? `Token · ${func}` :
-                kind === "governance" ? `Governance · ${func}` :
-                kind === "validator" ? `Validator · ${func}` :
-                `${func} · ${shortPath(pkgPath)}`
-            return { kind, title, actor: v.caller ?? "", pkgPath, func }
+            return { kind, title: callTitle(kind, pkgPath, func), actor: v.caller ?? "", pkgPath, func }
         }
         case "BankMsgSend":
             return { kind: "transfer", title: `Sent ${v.amount ?? ""}`.trim(), actor: v.from_address ?? "" }
@@ -100,9 +138,9 @@ function mapMessage(v: IndexerMessageValue):
 export function parseActivity(
     txs: IndexerTx[],
     blockTime: Map<number, string>,
-    opts?: { limit?: number },
+    opts?: { limit?: number; maxPerSource?: number },
 ): ActivityItem[] {
-    const items: ActivityItem[] = []
+    const all: ActivityItem[] = []
     for (const t of [...txs].sort((a, b) => b.block_height - a.block_height)) {
         const msgs = t.messages ?? []
         let primary: ReturnType<typeof mapMessage> = null
@@ -111,7 +149,7 @@ export function parseActivity(
             if (primary) break
         }
         if (!primary) continue
-        items.push({
+        all.push({
             ...primary,
             txHash: t.hash,
             blockHeight: t.block_height,
@@ -119,7 +157,31 @@ export function parseActivity(
             extraCount: Math.max(0, msgs.length - 1),
         })
     }
-    return opts?.limit != null ? items.slice(0, opts.limit) : items
+
+    // Diversity cap (home feed): a single busy realm+func (e.g. a flood of
+    // "Approve" on one governance realm) must not dominate the visible window.
+    // We keep at most `maxPerSource` per (kind|pkgPath|func), preserving
+    // newest-first order, so crowded-out kinds (deploys, transfers, launches)
+    // surface. Excess rows are dropped from the *preview*, not the chain — the
+    // feed is honest about being a recent, diversified sample. Unset (the
+    // by-address path) keeps every row.
+    const max = opts?.maxPerSource
+    const selected = max == null
+        ? all
+        : (() => {
+            const seen = new Map<string, number>()
+            const out: ActivityItem[] = []
+            for (const it of all) {
+                const key = `${it.kind}|${it.pkgPath ?? ""}|${it.func ?? ""}`
+                const n = seen.get(key) ?? 0
+                if (n >= max) continue
+                seen.set(key, n + 1)
+                out.push(it)
+            }
+            return out
+        })()
+
+    return opts?.limit != null ? selected.slice(0, opts.limit) : selected
 }
 
 /** Compact relative time ("just now" / "5m" / "3h" / "2d") from an ISO string,
@@ -210,7 +272,9 @@ export async function fetchRecentActivity(
         // timestamps are optional — items still render without them
     }
 
-    return parseActivity(transactions ?? [], blockTime, { limit })
+    // maxPerSource diversifies the chain-wide feed so one busy realm can't wall
+    // out everything else (the "10× Approve" problem).
+    return parseActivity(transactions ?? [], blockTime, { limit, maxPerSource: 3 })
 }
 
 // ── By-address activity (one profile's own on-chain txs) ──────────────────────
