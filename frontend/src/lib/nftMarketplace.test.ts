@@ -99,6 +99,106 @@ describe("parseMarketplaceRender", () => {
     })
 })
 
+// ── Golden tests: EXACT memba_nft_market_v3 render.gno output ────────────
+// These fixtures reproduce the real realm output byte-for-byte (renderHome /
+// renderSales), so the parser is pinned to the actual on-chain contract — not a
+// hand-simplified shape. Key realm facts encoded here (market.gno:364-378):
+//   - Price is always "%d.%06d GNOT" (always 6 fractional digits).
+//   - Seller/Buyer are truncAddr'd: >13 chars → first 10 + "...".
+//   - Collection is truncPath'd: a path with >2 "/"-segments → last segment only;
+//     a 1- or 2-segment collectionID (the launchpad norm, e.g. "genesis" or
+//     "alice/cats") passes through UNCHANGED.
+//   - renderHome caps at 50 rows and appends a "… showing first 50 of N" line.
+const V3_HOME_GOLDEN = `# NFT Marketplace
+
+**Active Listings:** 2
+**Total Volume:** 6.500000 GNOT
+
+| # | Collection | Token | Price | Seller |
+|---|-----------|-------|-------|--------|
+| 1 | genesis | token_42 | 1.000000 GNOT | g1pucv5exv... |
+| 2 | alice/cool-cats | 7 | 5.500000 GNOT | g1abcdefgh... |
+`
+
+describe("parseMarketplaceRender — golden (real render.gno output)", () => {
+    it("parses the active-listings count and both rows", () => {
+        const { listings, stats } = parseMarketplaceRender(V3_HOME_GOLDEN)
+        expect(stats.activeListings).toBe(2)
+        expect(listings).toHaveLength(2)
+    })
+
+    it("preserves a 1- or 2-segment collectionID through truncPath (match works)", () => {
+        const { listings } = parseMarketplaceRender(V3_HOME_GOLDEN)
+        // truncPath only truncates >2-segment paths; launchpad slugs pass through.
+        expect(listings[0].nftRealm).toBe("genesis")
+        expect(listings[1].nftRealm).toBe("alice/cool-cats")
+    })
+
+    it("exposes the realm's truncated seller (full address needs the W1.2 structured getter)", () => {
+        const { listings } = parseMarketplaceRender(V3_HOME_GOLDEN)
+        // truncAddr → first 10 chars + "..."; do NOT use this for trade-critical paths.
+        expect(listings[0].seller).toBe("g1pucv5exv...")
+        expect(listings[0].seller.endsWith("...")).toBe(true)
+    })
+
+    it("decodes the 6-digit fractional price exactly", () => {
+        const { listings } = parseMarketplaceRender(V3_HOME_GOLDEN)
+        expect(listings[0].priceUgnot).toBe(1_000_000)
+        expect(listings[1].priceUgnot).toBe(5_500_000)
+    })
+
+    it("ignores the **Total Volume:** line and does not parse it as a row", () => {
+        const { listings } = parseMarketplaceRender(V3_HOME_GOLDEN)
+        expect(listings.every((l) => l.tokenId !== "")).toBe(true)
+        expect(listings).toHaveLength(2)
+    })
+
+    // W1.2 GUARD: documents the latent truncPath match hazard. The REALM applies
+    // truncPath BEFORE emitting, so when a collectionID has >2 "/"-segments (e.g. a
+    // full realm path) the Collection cell already holds only the last segment. The
+    // parser returns that verbatim, so fetchV3Listings' `l.nftRealm === collectionID`
+    // compares "memba_collections" against the full "gno.land/r/samcrew/memba_collections"
+    // and silently misses. The structured getter in W1.2 removes this; this pins it.
+    it("returns the realm-truncated collection cell verbatim — the W1.2 match hazard", () => {
+        const fullId = "gno.land/r/samcrew/memba_collections"
+        // What the realm actually writes for a >2-segment id: truncPath → last segment.
+        const render = `# NFT Marketplace
+
+**Active Listings:** 1
+**Total Volume:** 1.000000 GNOT
+
+| # | Collection | Token | Price | Seller |
+|---|-----------|-------|-------|--------|
+| 1 | memba_collections | t1 | 1.000000 GNOT | g1abcdefgh... |
+`
+        const { listings } = parseMarketplaceRender(render)
+        expect(listings[0].nftRealm).toBe("memba_collections")
+        // The downstream equality check against the full id therefore fails silently:
+        expect(listings[0].nftRealm).not.toBe(fullId)
+    })
+
+    // ROBUSTNESS: the realm always emits %06d, but the parser must not silently
+    // corrupt a non-6-digit fraction if the format ever drifts. Old code did
+    // `parseInt(frac)` raw, so "2.5" → 2_000_005 ugnot instead of 2_500_000.
+    it("scales non-6-digit fractional prices correctly (format-drift safety)", () => {
+        const drift = `# NFT Marketplace
+
+**Active Listings:** 3
+**Total Volume:** 0.000000 GNOT
+
+| # | Collection | Token | Price | Seller |
+|---|-----------|-------|-------|--------|
+| 1 | c | a | 2.5 GNOT | g1abcdefgh... |
+| 2 | c | b | 3.05 GNOT | g1abcdefgh... |
+| 3 | c | d | 7 GNOT | g1abcdefgh... |
+`
+        const { listings } = parseMarketplaceRender(drift)
+        expect(listings[0].priceUgnot).toBe(2_500_000) // "2.5"  → 2.500000
+        expect(listings[1].priceUgnot).toBe(3_050_000) // "3.05" → 3.050000
+        expect(listings[2].priceUgnot).toBe(7_000_000) // "7"    → 7.000000
+    })
+})
+
 describe("parseSalesRender", () => {
     it("parses sales from markdown table", () => {
         const sales = parseSalesRender(SALES_RENDER)

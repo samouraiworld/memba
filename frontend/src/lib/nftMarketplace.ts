@@ -85,9 +85,14 @@ export function parseMarketplaceRender(data: string): { listings: NFTListing[]; 
     let match: RegExpExecArray | null
     while ((match = rowRe.exec(data)) !== null) {
         const priceStr = match[4]
-        // Convert "1.500000" GNOT to ugnot
-        const [whole, frac] = priceStr.split(".")
-        const ugnot = (parseInt(whole, 10) || 0) * 1_000_000 + (parseInt(frac || "0", 10) || 0)
+        // Convert "1.500000" GNOT → ugnot. The fractional part is scaled to 6
+        // decimal places (1 GNOT = 1_000_000 ugnot), so it must be padded/truncated
+        // to exactly 6 digits before parsing — otherwise "1.5" decodes as 1_000_005
+        // instead of 1_500_000. The realm always emits %06d, but this stays correct
+        // if the format ever drifts.
+        const [whole, frac = ""] = priceStr.split(".")
+        const fracUgnot = parseInt(frac.padEnd(6, "0").slice(0, 6), 10) || 0
+        const ugnot = (parseInt(whole, 10) || 0) * 1_000_000 + fracUgnot
 
         listings.push({
             index: parseInt(match[1], 10),
