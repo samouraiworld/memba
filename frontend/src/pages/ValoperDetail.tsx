@@ -15,7 +15,10 @@
  *  realm are SEPARATE follow-ups, scaffolded here as honest "coming soon". */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, useLocation, useOutletContext, useParams } from "react-router-dom"
-import { Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple } from "@phosphor-icons/react"
+import {
+    Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
+    Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
+} from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import {
@@ -24,14 +27,68 @@ import {
     computeValoperStatus,
     type ValoperWithStatus,
 } from "../lib/valopers"
-import { getValidators } from "../lib/validators"
+import { getValidators, truncateValidatorAddr } from "../lib/validators"
 import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { useNetworkPath } from "../hooks/useNetworkNav"
+import { useAddressActivity } from "../hooks/useAddressActivity"
+import { formatActivityTime, type ActivityItem, type ActivityKind } from "../lib/activity"
+import { loadQuestProgress, fetchUserQuests, type UserQuestState } from "../lib/quests"
+import { getQuestById, calculateRank, xpToNextRank } from "../lib/gnobuilders"
 import { ValoperEditDialog } from "../components/validators/ValoperEditDialog"
 import type { LayoutContext } from "../types/layout"
 import "./validator-detail.css"
 import "./valoper-detail.css"
+
+/** Icon per activity kind — mirrors the home ActivityFeed mapping. */
+const KIND_ICON: Record<ActivityKind, typeof Coins> = {
+    token: Coins,
+    deploy: Package,
+    governance: Scales,
+    validator: ShieldCheck,
+    transfer: ArrowsLeftRight,
+    run: Play,
+    call: Cube,
+}
+
+/** gnoweb realm link for an item with a package path; null otherwise. */
+function activityHref(item: ActivityItem): string | null {
+    if (!item.pkgPath) return null
+    return `${getExplorerBaseUrl()}${item.pkgPath.replace(/^gno\.land/, "")}`
+}
+
+/** One on-chain activity row, in the ActivityFeed style but page-token-driven. */
+function ActivityRow({ item }: { item: ActivityItem }) {
+    const Icon = KIND_ICON[item.kind] ?? Cube
+    const href = activityHref(item)
+    const when = formatActivityTime(item.time)
+    const inner = (
+        <>
+            <span className={`vp-act__icon vp-act__icon--${item.kind}`} aria-hidden="true">
+                <Icon size={15} weight="bold" />
+            </span>
+            <span className="vp-act__body">
+                <span className="vp-act__title">
+                    {item.title}
+                    {item.extraCount > 0 && <span className="vp-act__more"> · +{item.extraCount} more</span>}
+                </span>
+                <span className="vp-act__meta">
+                    {item.actor && <span className="vp-act__actor vd-mono">{truncateValidatorAddr(item.actor)}</span>}
+                    {when && <span className="vp-act__when">{when}</span>}
+                </span>
+            </span>
+        </>
+    )
+    return (
+        <li className="vp-act__row" data-testid="vp-activity-row">
+            {href ? (
+                <a className="vp-act__link" href={href} target="_blank" rel="noopener noreferrer">{inner}</a>
+            ) : (
+                <span className="vp-act__link vp-act__link--static">{inner}</span>
+            )}
+        </li>
+    )
+}
 
 const SERVER_TYPE_LABEL: Record<string, string> = {
     "cloud": "Cloud",
@@ -115,6 +172,41 @@ export default function ValoperDetail() {
     const [avatarError, setAvatarError] = useState(false)
     const [editOpen, setEditOpen] = useState(false)
     const abortRef = useRef<AbortController | null>(null)
+
+    // ── Activity tab (P2a): this profile's OWN on-chain txs, by operator address.
+    // Hooks must run unconditionally (before the early returns below), so it's
+    // declared here; the panel itself only renders once the page has loaded.
+    const activity = useAddressActivity(operatorAddress)
+
+    // ── Quests tab (P2b): quest progress is per-connected-user (not readable for
+    // an arbitrary address), so it's only shown to the OWNER. We load the viewer's
+    // OWN progress (local + backend-authoritative) unconditionally, then gate the
+    // display on owner-detection below. Non-owners never see another wallet's data.
+    const connectedAddr = ctx?.adena.address ?? ""
+    const isAuthed = !!ctx?.auth.isAuthenticated && !!ctx?.auth.token
+    const [localQuests, setLocalQuests] = useState<UserQuestState>(() => loadQuestProgress())
+    const [backendQuests, setBackendQuests] = useState<UserQuestState | null>(null)
+
+    // Refresh local (optimistic) quest state on any completion in this session.
+    useEffect(() => {
+        const onComplete = () => setLocalQuests(loadQuestProgress())
+        window.addEventListener("quest-completed", onComplete)
+        return () => window.removeEventListener("quest-completed", onComplete)
+    }, [])
+
+    // Backend XP is authoritative (it's what the leaderboard shows). Fetch it for
+    // the CONNECTED wallet only — never for an arbitrary profile address. We don't
+    // reset state synchronously on disconnect (that would be a cascading-render
+    // setState-in-effect); instead `effectiveBackend` below ignores fetched state
+    // unless a wallet is connected, so a previous wallet's data can't leak.
+    useEffect(() => {
+        if (!connectedAddr) return
+        let cancelled = false
+        void fetchUserQuests(connectedAddr).then((s) => { if (!cancelled && s) setBackendQuests(s) })
+        return () => { cancelled = true }
+    }, [connectedAddr])
+    // Only trust fetched backend quests while a wallet is connected.
+    const effectiveBackend = connectedAddr ? backendQuests : null
 
     const load = useCallback(async () => {
         if (!operatorAddress) return
@@ -237,12 +329,9 @@ export default function ValoperDetail() {
     // operator address (its stable identity). Only then can the profile be edited —
     // editing someone else's profile is not possible (and the backend re-checks the
     // auth token's address on write). A null context (no Layout outlet) ⇒ not owner.
-    const connectedAddr = ctx?.adena.address ?? ""
-    const isOwner =
-        !!connectedAddr &&
-        !!ctx?.auth.isAuthenticated &&
-        !!ctx?.auth.token &&
-        connectedAddr === valoper.operatorAddress
+    // (connectedAddr / isAuthed are computed above, before the early returns, so the
+    // quest hooks can run unconditionally.)
+    const isOwner = !!connectedAddr && isAuthed && connectedAddr === valoper.operatorAddress
     const avatar = resolveAvatarUrl(profile?.avatarUrl || profile?.githubAvatar || "")
     const showAvatar = !!avatar && !avatarError
     const bio = profile?.bio || profile?.githubBio || valoper.description || ""
@@ -274,6 +363,25 @@ export default function ValoperDetail() {
         profile.deployedPackages.length > 0
     )
     const votes = profile?.governanceVotes ?? []
+
+    // ── Owner quest view (P2b) — only meaningful when isOwner. Backend XP is
+    // authoritative; the completed set is the union (local optimistic + backend),
+    // so a just-completed quest shows immediately. Each row carries catalog
+    // metadata (title/icon/xp) resolved from the unified registry.
+    // Computed inline (not useMemo) because this runs AFTER the early returns
+    // above — a conditional hook would violate the Rules of Hooks. The work is
+    // trivial (a handful of quest lookups), so memoization buys nothing.
+    const ownerXP = (effectiveBackend ?? localQuests).totalXP
+    const ownerRank = calculateRank(ownerXP)
+    const ownerToNext = xpToNextRank(ownerXP)
+    const completedQuestIds = new Set(localQuests.completed.map(c => c.questId))
+    if (effectiveBackend) for (const c of effectiveBackend.completed) completedQuestIds.add(c.questId)
+    const completedQuestRows = [...completedQuestIds]
+        .map(id => getQuestById(id))
+        .filter((q): q is NonNullable<ReturnType<typeof getQuestById>> => !!q)
+        .sort((a, b) => b.xp - a.xp)
+    // "Syncing" when local has completions the backend hasn't recorded yet.
+    const questsSyncing = effectiveBackend != null && localQuests.completed.length > effectiveBackend.completed.length
 
     return (
         <div className="vd-page" data-testid="valoper-detail-page">
@@ -474,13 +582,69 @@ export default function ValoperDetail() {
                 </div>
             )}
 
-            {/* ── Quests (coming soon — P2) ────────────────────────── */}
+            {/* ── Quests (P2b — owner-only; progress is per-connected-wallet) ── */}
             {tab === "Quests" && (
                 <div role="tabpanel" id="vp-tab-quests" aria-labelledby="vp-tab-quests-btn" data-testid="vp-tab-quests" className="vp-panel">
-                    <ComingSoonPanel
-                        title="Quests & achievements are coming soon"
-                        body="Validator quests and earned badges will show here. This surface is not live yet."
-                    />
+                    {isOwner ? (
+                        <>
+                            <div className="vd-card">
+                                <div className="vp-quest-head">
+                                    <div className="vp-quest-head__xp">
+                                        <span className="vp-quest-head__rank" style={{ color: ownerRank.color }}>
+                                            {ownerRank.name}
+                                        </span>
+                                        <span className="vp-quest-head__total">{ownerXP} XP</span>
+                                        {questsSyncing && (
+                                            <span className="vp-quest-head__sync" title="Saving your latest progress to the server">
+                                                syncing…
+                                            </span>
+                                        )}
+                                    </div>
+                                    {ownerToNext > 0 && (
+                                        <span className="vp-quest-head__next">
+                                            {ownerToNext} XP to {calculateRank(ownerXP + ownerToNext).name}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {completedQuestRows.length > 0 ? (
+                                    <div className="vp-quests">
+                                        {completedQuestRows.map((q) => (
+                                            <div key={q.id} className="vp-quest" data-testid="vp-quest-row">
+                                                <span className="vp-quest__icon" aria-hidden="true">{q.icon}</span>
+                                                <span className="vp-quest__body">
+                                                    <span className="vp-quest__title">{q.title}</span>
+                                                    <span className="vp-quest__desc">{q.description}</span>
+                                                </span>
+                                                <span className="vp-quest__xp">+{q.xp} XP</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="vp-quest-empty">
+                                        You haven't completed any quests yet.{" "}
+                                        <Link to={np("quests")} className="vp-quest-empty__link">Browse quests →</Link>
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="vp-quest-foot">
+                                <Link to={np("quests")} className="vp-peek__link">Open GnoBuilders →</Link>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="vd-card vp-empty">
+                            <p>Quest progress is private to the wallet holder.</p>
+                            <p className="vp-empty__sub">
+                                Quests and XP are tracked per connected wallet, so they're only visible to the
+                                person who owns this address. Connect with this wallet to see your own quests, or
+                                explore the catalog on the GnoBuilders page.
+                            </p>
+                            <Link to={np("quests")} className="vp-peek__link" style={{ marginTop: 8 }}>
+                                Open GnoBuilders →
+                            </Link>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -539,9 +703,49 @@ export default function ValoperDetail() {
                 </div>
             )}
 
-            {/* ── Activity (gov votes now; full feed is P2) ────────── */}
+            {/* ── Activity (P2a — this address's own on-chain txs + gov votes) ── */}
             {tab === "Activity" && (
                 <div role="tabpanel" id="vp-tab-activity" aria-labelledby="vp-tab-activity-btn" data-testid="vp-tab-activity" className="vp-panel">
+                    {/* On-chain transactions for this operator address, from the indexer. */}
+                    {activity.available && (
+                        <div className="vd-card">
+                            <div className="vd-card__title">On-chain activity</div>
+
+                            {activity.loading && (
+                                <ol className="vp-act__list" aria-hidden="true" data-testid="vp-activity-loading">
+                                    {[0, 1, 2, 3].map((i) => <li key={i} className="vp-act__row vp-act__row--skeleton" />)}
+                                </ol>
+                            )}
+
+                            {!activity.loading && activity.error && (
+                                <div className="vp-act__state" data-testid="vp-activity-error">
+                                    <span>Couldn't reach the indexer.</span>
+                                    <button type="button" className="vp-act__retry" onClick={() => activity.refetch()}>
+                                        <ArrowClockwise size={13} aria-hidden="true" /> Retry
+                                    </button>
+                                </div>
+                            )}
+
+                            {!activity.loading && !activity.error && activity.items.length === 0 && (
+                                <div className="vp-act__state" data-testid="vp-activity-empty">
+                                    No recent on-chain activity for this address.
+                                </div>
+                            )}
+
+                            {!activity.loading && !activity.error && activity.items.length > 0 && (
+                                <>
+                                    <ol className="vp-act__list" data-testid="vp-activity-list">
+                                        {activity.items.map((item) => <ActivityRow key={item.txHash} item={item} />)}
+                                    </ol>
+                                    <p className="vp-act__note">
+                                        Showing recent transactions from the chain indexer (most recent first).
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Governance votes — a distinct, gnolove-sourced section. */}
                     {votes.length > 0 ? (
                         <div className="vd-card">
                             <div className="vd-card__title">Governance votes ({votes.length})</div>
@@ -561,17 +765,14 @@ export default function ValoperDetail() {
                             </div>
                         </div>
                     ) : (
-                        <div className="vd-card vp-empty">
-                            <p>No governance votes recorded for this address yet.</p>
-                        </div>
+                        // Only show the votes empty-state when the indexer feed is unavailable
+                        // (otherwise the on-chain card above already carries the empty message).
+                        !activity.available && (
+                            <div className="vd-card vp-empty">
+                                <p>No governance votes recorded for this address yet.</p>
+                            </div>
+                        )
                     )}
-
-                    <div className="vd-card">
-                        <ComingSoonPanel
-                            title="Full on-chain activity is coming soon"
-                            body="Governance votes are a first cut. A complete by-address activity feed (transactions, deployments, transfers) from the chain indexer is on the way."
-                        />
-                    </div>
                 </div>
             )}
         </div>

@@ -4,8 +4,8 @@
  * returned by indexer.test13.testnets.gno.land (MsgCall / MsgAddPackage /
  * BankMsgSend / MsgRun / UnexpectedMessage).
  */
-import { describe, it, expect } from "vitest"
-import { parseActivity, type IndexerTx } from "./activity"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { parseActivity, fetchAddressActivity, type IndexerTx } from "./activity"
 
 const tx = (block_height: number, hash: string, messages: { value: Record<string, unknown> }[]): IndexerTx =>
     ({ hash, block_height, success: true, messages }) as IndexerTx
@@ -95,5 +95,118 @@ describe("parseActivity", () => {
 
     it("never fabricates: an empty tx list yields no items", () => {
         expect(parseActivity([], new Map())).toEqual([])
+    })
+})
+
+// ── fetchAddressActivity — by-address indexer reads ──────────────────────────
+
+const INDEXER = "https://memba-backend.fly.dev/api/indexer"
+const ADDR = "g1k7asng8uzf74xs0tsrfwytldl76hs4l3asglym"
+
+/** Build a fetch mock that answers each GraphQL op by inspecting the query text.
+ *  `txs` is what the `transactions` query returns (null models "no rows"). */
+function mockIndexer(opts: {
+    tip?: number
+    txs?: IndexerTx[] | null
+    blocks?: { height: number; time: string }[]
+    transactionsError?: string
+}) {
+    return vi.fn(async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { query: string }
+        const q = body.query
+        if (q.includes("latestBlockHeight")) {
+            return { ok: true, json: async () => ({ data: { latestBlockHeight: opts.tip ?? 463000 } }) } as Response
+        }
+        if (q.includes("transactions(")) {
+            if (opts.transactionsError) {
+                return { ok: true, json: async () => ({ errors: [{ message: opts.transactionsError }] }) } as Response
+            }
+            return { ok: true, json: async () => ({ data: { transactions: opts.txs ?? null } }) } as Response
+        }
+        if (q.includes("getBlocks")) {
+            return { ok: true, json: async () => ({ data: { getBlocks: opts.blocks ?? [] } }) } as Response
+        }
+        throw new Error(`unexpected query: ${q}`)
+    })
+}
+
+describe("fetchAddressActivity", () => {
+    beforeEach(() => { vi.restoreAllMocks() })
+    afterEach(() => { vi.restoreAllMocks() })
+
+    it("maps the address's transactions to activity items, newest first, with times", async () => {
+        const txs: IndexerTx[] = [
+            { hash: "old", block_height: 100, messages: [{ value: { __typename: "MsgCall", caller: ADDR, pkg_path: "gno.land/r/x/a", func: "F" } }] },
+            { hash: "new", block_height: 200, messages: [{ value: { __typename: "MsgAddPackage", creator: ADDR, package: { path: "gno.land/r/x/b" } } }] },
+        ]
+        const fetchMock = mockIndexer({ tip: 463000, txs, blocks: [{ height: 200, time: "2026-06-25T13:00:00Z" }] })
+        vi.stubGlobal("fetch", fetchMock)
+
+        const items = await fetchAddressActivity(INDEXER, ADDR)
+        expect(items.map(i => i.txHash)).toEqual(["new", "old"]) // newest block first
+        expect(items[0]).toMatchObject({ kind: "deploy", actor: ADDR, pkgPath: "gno.land/r/x/b", time: "2026-06-25T13:00:00Z" })
+        expect(items[1]).toMatchObject({ kind: "call", actor: ADDR, func: "F" })
+    })
+
+    it("filters by the address across caller, creator, from_address and to_address (OR)", async () => {
+        const fetchMock = mockIndexer({ txs: [] })
+        vi.stubGlobal("fetch", fetchMock)
+        await fetchAddressActivity(INDEXER, ADDR)
+
+        // Find the body of the `transactions(` call and assert all positions are present.
+        const txCall = fetchMock.mock.calls.find(c => JSON.parse(String(c[1]?.body)).query.includes("transactions("))!
+        const q = JSON.parse(String(txCall[1]?.body)).query as string
+        expect(q).toContain(`caller:"${ADDR}"`)
+        expect(q).toContain(`creator:"${ADDR}"`)
+        expect(q).toContain(`from_address:"${ADDR}"`)
+        expect(q).toContain(`to_address:"${ADDR}"`)
+        // windowed (bounded) — never an unbounded full-history scan
+        expect(q).toMatch(/from_block_height:\d+/)
+        expect(q).toMatch(/to_block_height:\d+/)
+    })
+
+    it("returns an empty list (no throw) when the indexer reports no rows (transactions: null)", async () => {
+        vi.stubGlobal("fetch", mockIndexer({ txs: null }))
+        await expect(fetchAddressActivity(INDEXER, ADDR)).resolves.toEqual([])
+    })
+
+    it("honors the limit, slicing to the newest N", async () => {
+        const txs: IndexerTx[] = Array.from({ length: 30 }, (_, i) => ({
+            hash: `h${i}`, block_height: 1000 + i,
+            messages: [{ value: { __typename: "MsgCall", caller: ADDR, pkg_path: "p", func: "F" } }],
+        }))
+        vi.stubGlobal("fetch", mockIndexer({ txs }))
+        const items = await fetchAddressActivity(INDEXER, ADDR, { limit: 5 })
+        expect(items).toHaveLength(5)
+        expect(items[0].blockHeight).toBe(1029) // newest
+    })
+
+    it("propagates a hard indexer error so the caller can retry", async () => {
+        vi.stubGlobal("fetch", mockIndexer({ transactionsError: "boom" }))
+        await expect(fetchAddressActivity(INDEXER, ADDR)).rejects.toThrow(/boom/)
+    })
+
+    it("still returns items when the timestamps (getBlocks) query fails", async () => {
+        const txs: IndexerTx[] = [
+            { hash: "h", block_height: 100, messages: [{ value: { __typename: "MsgCall", caller: ADDR, pkg_path: "p", func: "F" } }] },
+        ]
+        const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+            const q = JSON.parse(String(init?.body)).query as string
+            if (q.includes("latestBlockHeight")) return { ok: true, json: async () => ({ data: { latestBlockHeight: 463000 } }) } as Response
+            if (q.includes("transactions(")) return { ok: true, json: async () => ({ data: { transactions: txs } }) } as Response
+            // getBlocks fails hard
+            return { ok: false, status: 500, json: async () => ({}) } as Response
+        })
+        vi.stubGlobal("fetch", fetchMock)
+        const items = await fetchAddressActivity(INDEXER, ADDR)
+        expect(items).toHaveLength(1)
+        expect(items[0].time).toBeUndefined()
+    })
+
+    it("does not query the indexer for a malformed address", async () => {
+        const fetchMock = mockIndexer({ txs: [] })
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(fetchAddressActivity(INDEXER, "not-an-address")).resolves.toEqual([])
+        expect(fetchMock).not.toHaveBeenCalled()
     })
 })

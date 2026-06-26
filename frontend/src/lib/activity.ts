@@ -212,3 +212,99 @@ export async function fetchRecentActivity(
 
     return parseActivity(transactions ?? [], blockTime, { limit })
 }
+
+// ── By-address activity (one profile's own on-chain txs) ──────────────────────
+
+/**
+ * How many recent blocks back to scan for one address's activity. The indexer's
+ * `transactions` field exposes NO server-side limit/order args, so it streams
+ * EVERY matching tx — and the public proxy times out ("upstream fetch failed")
+ * on an unbounded full-history scan for an active address. Windowing keeps the
+ * query inside the proxy's budget. ~40k blocks ≈ the last ~1.5–2 days on test13
+ * (~3.8s/block). This is the honest limitation: the profile Activity tab shows a
+ * RECENT window, not the address's entire history. Env-overridable for ops.
+ */
+const ADDRESS_WINDOW_BLOCKS = (() => {
+    const raw = Number(import.meta.env.VITE_PROFILE_ACTIVITY_WINDOW_BLOCKS)
+    return Number.isFinite(raw) && raw > 0 ? raw : 40_000
+})()
+const ADDRESS_DEFAULT_LIMIT = 20
+
+/** A bech32 g1… address. Used only to build the indexer string filter — we never
+ *  interpolate untrusted free text, and an address fails this guard otherwise. */
+function isAddr(a: string): boolean {
+    return /^g1[0-9a-z]+$/.test(a)
+}
+
+/**
+ * Recent on-chain activity for ONE address — the transactions where it is the
+ * caller (MsgCall / MsgRun), the package creator (MsgAddPackage), or the sender
+ * or recipient of a transfer (BankMsgSend). The indexer's `message` filter list
+ * is OR-combined, so a single query catches every position. Results stream
+ * ascending by height; `parseActivity` re-sorts newest-first and trims to `limit`.
+ *
+ * Honest by construction: an address with nothing in the window yields an empty
+ * list (the indexer returns `transactions: null` → coerced to `[]`), never a
+ * fabricated row. Throws on a hard indexer error so the caller can offer retry.
+ * Returns `[]` (no throw) for a malformed address.
+ */
+export async function fetchAddressActivity(
+    indexerUrl: string,
+    address: string,
+    opts?: { limit?: number; signal?: AbortSignal; windowBlocks?: number },
+): Promise<ActivityItem[]> {
+    if (!isAddr(address)) return []
+    const limit = opts?.limit ?? ADDRESS_DEFAULT_LIMIT
+    const window = opts?.windowBlocks ?? ADDRESS_WINDOW_BLOCKS
+
+    const { latestBlockHeight: tip } = await gql<{ latestBlockHeight: number }>(
+        indexerUrl, `{ latestBlockHeight }`, opts?.signal,
+    )
+    if (!tip || tip <= 0) return []
+    const from = Math.max(1, tip - window)
+
+    // OR across every address position a tx can hold this address in.
+    const messageFilter =
+        `[{ vm_param:{ exec:{ caller:"${address}" }}},` +
+        `{ vm_param:{ add_package:{ creator:"${address}" }}},` +
+        `{ vm_param:{ run:{ caller:"${address}" }}},` +
+        `{ bank_param:{ send:{ from_address:"${address}" }}},` +
+        `{ bank_param:{ send:{ to_address:"${address}" }}}]`
+
+    const { transactions } = await gql<{ transactions: IndexerTx[] | null }>(
+        indexerUrl,
+        `{ transactions(filter:{ from_block_height:${from}, to_block_height:${tip}, message:${messageFilter} }) {
+            hash block_height
+            messages { value { __typename
+                ... on MsgCall { caller pkg_path func }
+                ... on MsgAddPackage { creator package { path } }
+                ... on BankMsgSend { from_address to_address amount }
+            } }
+        } }`,
+        opts?.signal,
+    )
+
+    const txs = transactions ?? []
+    if (txs.length === 0) return []
+
+    // Best-effort timestamps for the (few) blocks we actually surface — newest
+    // first, then capped — so we never request times for thousands of blocks.
+    const heights = [...new Set(txs.map(t => t.block_height))].sort((a, b) => b - a).slice(0, limit)
+    const blockTime = new Map<number, string>()
+    if (heights.length > 0) {
+        const lo = Math.min(...heights)
+        const hi = Math.max(...heights)
+        try {
+            const { getBlocks } = await gql<{ getBlocks: { height: number; time: string }[] }>(
+                indexerUrl,
+                `{ getBlocks(where:{height:{gt:${lo - 1}, lt:${hi + 1}}}) { height time } }`,
+                opts?.signal,
+            )
+            for (const b of getBlocks ?? []) blockTime.set(b.height, b.time)
+        } catch {
+            // timestamps are optional — items still render without them
+        }
+    }
+
+    return parseActivity(txs, blockTime, { limit })
+}
