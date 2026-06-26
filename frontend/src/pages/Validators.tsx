@@ -39,6 +39,7 @@ import {
 } from "../lib/validators"
 import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { ValoperPanel } from "../components/validators/ValoperPanel"
+import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
 import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
@@ -81,6 +82,28 @@ function CopyButton({ text }: { text: string }) {
         >
             {copied ? <CheckCircle size={13} weight="fill" className="val-copy-ok" /> : <Copy size={13} />}
         </button>
+    )
+}
+
+/** Compact preview shown in the row hovercard. */
+function ValidatorRowPreview({ v }: { v: ValidatorInfo }) {
+    return (
+        <div className="vhc-card">
+            <div className="vhc-head">
+                <span className="vhc-name">{v.moniker || truncateValidatorAddr(v.address)}</span>
+                <span className={`val-health-badge ${healthCssClass(v.healthStatus)}`}>
+                    <span className="val-health-badge__icon">{healthIcon(v.healthStatus)}</span>
+                    <span className="val-health-badge__label">{healthLabel(v.healthStatus)}</span>
+                </span>
+            </div>
+            <dl className="vhc-rows">
+                <div><dt>Voting power</dt><dd className="val-mono">{formatVotingPower(v.votingPower)} · {v.powerPercent.toFixed(1)}%</dd></div>
+                {v.uptimePercent != null && <div><dt>Uptime</dt><dd>{v.uptimePercent}%</dd></div>}
+                {v.participationRate != null && <div><dt>Participation</dt><dd>{v.participationRate}%</dd></div>}
+                <div><dt>Rank</dt><dd>#{v.rank}</dd></div>
+            </dl>
+            <div className="vhc-foot">Open profile →</div>
+        </div>
     )
 }
 
@@ -495,8 +518,8 @@ export default function Validators() {
                     </thead>
                     <tbody>
                         {paginated.map(v => (
+                            <ValidatorHoverCard key={v.address} content={<ValidatorRowPreview v={v} />}>
                             <tr
-                                key={v.address}
                                 className="val-row"
                                 data-testid={`validator-row-${v.rank}`}
                                 onClick={() => navigate(`/validators/${v.gnoAddr || v.address}`)}
@@ -607,6 +630,7 @@ export default function Validators() {
                                     ) : "—"}
                                 </td>
                             </tr>
+                            </ValidatorHoverCard>
                         ))}
                     </tbody>
                 </table>
