@@ -9,11 +9,38 @@ import type { UserProfile } from "../lib/profile"
 import type { Token } from "../gen/memba/v1/memba_pb"
 
 vi.mock("../lib/dao/shared", () => ({ queryRender: vi.fn() }))
-vi.mock("../lib/validators", () => ({ getValidators: vi.fn().mockResolvedValue([]) }))
+vi.mock("../lib/validators", () => ({
+    getValidators: vi.fn().mockResolvedValue([]),
+    // Address-truncation helper reused by the Activity rows; keep a faithful stub.
+    truncateValidatorAddr: (a: string) => (a.length > 12 ? `${a.slice(0, 8)}…${a.slice(-4)}` : a),
+}))
 vi.mock("../lib/profile", () => ({ fetchUserProfile: vi.fn(), updateBackendProfile: vi.fn() }))
+// On-chain by-address activity hook (P2a) — default empty; tests override.
+vi.mock("../hooks/useAddressActivity", () => ({ useAddressActivity: vi.fn() }))
+// Quest progress sources (P2b) — owner-only. Keep gnobuilders (pure catalog) real.
+vi.mock("../lib/quests", async (orig) => ({
+    ...(await orig<typeof import("../lib/quests")>()),
+    loadQuestProgress: vi.fn(() => ({ completed: [], totalXP: 0 })),
+    fetchUserQuests: vi.fn().mockResolvedValue(null),
+}))
 
 import { queryRender } from "../lib/dao/shared"
 import { fetchUserProfile, updateBackendProfile } from "../lib/profile"
+import { useAddressActivity } from "../hooks/useAddressActivity"
+import { loadQuestProgress, fetchUserQuests } from "../lib/quests"
+import type { ActivityItem } from "../lib/activity"
+
+/** Default the activity hook to an available-but-empty state for every test. */
+function setActivity(over: Partial<ReturnType<typeof useAddressActivity>> = {}) {
+    vi.mocked(useAddressActivity).mockReturnValue({
+        items: [], loading: false, error: false, available: true, refetch: vi.fn(), ...over,
+    })
+}
+
+const actItem = (over: Partial<ActivityItem> = {}): ActivityItem => ({
+    kind: "call", title: "Approve · gnoswap/gns", actor: OPERATOR, pkgPath: "gno.land/r/gnoswap/gns",
+    func: "Approve", txHash: "h1", blockHeight: 100, extraCount: 0, ...over,
+})
 
 const OPERATOR = "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4"
 
@@ -102,6 +129,9 @@ describe("ValoperDetail — Blend layout", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile())
+        vi.mocked(loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
+        vi.mocked(fetchUserQuests).mockResolvedValue(null)
+        setActivity()
     })
 
     // ── identity header ──────────────────────────────────────────
@@ -228,27 +258,80 @@ describe("ValoperDetail — Blend layout", () => {
         expect(within(panel).getByText(/no .*contribution/i)).toBeInTheDocument()
     })
 
-    // ── Activity tab (gov votes, first cut) ──────────────────────
+    // ── Activity tab (P2a — real on-chain txs by address + gov votes) ─────
 
-    it("Activity tab shows governance votes plus a 'more coming' note", async () => {
+    it("Activity tab renders on-chain transaction rows for the address", async () => {
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        setActivity({
+            items: [
+                actItem({ txHash: "h1", title: "Deployed r/demo/foo", kind: "deploy", pkgPath: "gno.land/r/demo/foo" }),
+                actItem({ txHash: "h2", title: "Approve · gnoswap/gns", kind: "call" }),
+            ],
+        })
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
+
+        const panel = screen.getByTestId("vp-tab-activity")
+        const rows = within(panel).getAllByTestId("vp-activity-row")
+        expect(rows).toHaveLength(2)
+        expect(within(panel).getByText("Deployed r/demo/foo")).toBeInTheDocument()
+        // the deploy row links to the realm on gnoweb
+        const link = within(panel).getByRole("link", { name: /Deployed r\/demo\/foo/i })
+        expect(link.getAttribute("href")).toContain("/r/demo/foo")
+    })
+
+    it("Activity tab shows an honest empty state when the address has no on-chain activity", async () => {
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        setActivity({ items: [] }) // available, not loading, no error, empty
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
+
+        const panel = screen.getByTestId("vp-tab-activity")
+        expect(within(panel).getByText(/no recent on-chain activity/i)).toBeInTheDocument()
+        // honest framing of the windowed limitation, not a fake "coming soon"
+        expect(within(panel).queryByText(/coming soon/i)).not.toBeInTheDocument()
+    })
+
+    it("Activity tab shows a retry when the indexer errors", async () => {
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        const refetch = vi.fn()
+        setActivity({ error: true, refetch })
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
+
+        const panel = screen.getByTestId("vp-tab-activity")
+        const retry = within(panel).getByRole("button", { name: /retry/i })
+        fireEvent.click(retry)
+        expect(refetch).toHaveBeenCalled()
+    })
+
+    it("Activity tab shows a loading skeleton while fetching", async () => {
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        setActivity({ loading: true })
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
+        expect(within(screen.getByTestId("vp-tab-activity")).getByTestId("vp-activity-loading")).toBeInTheDocument()
+    })
+
+    it("Activity tab still lists governance votes alongside the on-chain feed", async () => {
         vi.mocked(queryRender).mockResolvedValue(DETAIL)
         vi.mocked(fetchUserProfile).mockResolvedValue(
-            makeProfile({
-                governanceVotes: [
-                    { proposalId: "12", proposalTitle: "Raise the gas cap", vote: "YES" },
-                ],
-            }),
+            makeProfile({ governanceVotes: [{ proposalId: "12", proposalTitle: "Raise the gas cap", vote: "YES" }] }),
         )
+        setActivity({ items: [actItem()] })
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: "samourai-crew-1" })
         fireEvent.click(screen.getByRole("tab", { name: "Activity" }))
 
         const panel = screen.getByTestId("vp-tab-activity")
         expect(within(panel).getByText(/Raise the gas cap/)).toBeInTheDocument()
-        expect(within(panel).getByText(/coming/i)).toBeInTheDocument()
     })
 
-    // ── Reviews + Quests (coming soon) ───────────────────────────
+    // ── Reviews (coming soon) ────────────────────────────────────
 
     it("Reviews tab is an honest coming-soon placeholder", async () => {
         vi.mocked(queryRender).mockResolvedValue(DETAIL)
@@ -259,13 +342,19 @@ describe("ValoperDetail — Blend layout", () => {
         expect(within(panel).getByText(/reviews are coming soon/i)).toBeInTheDocument()
     })
 
-    it("Quests tab is an honest coming-soon placeholder", async () => {
+    // ── Quests tab (P2b — owner-only progress) ───────────────────
+
+    it("Quests tab shows the private note for a non-owner / disconnected viewer", async () => {
         vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        // renderAt has no Layout outlet → not the owner
         renderAt(OPERATOR)
         await screen.findByRole("heading", { name: "samourai-crew-1" })
         fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
         const panel = screen.getByTestId("vp-tab-quests")
-        expect(within(panel).getByText(/quests .*are coming soon/i)).toBeInTheDocument()
+        expect(within(panel).getByText(/private to the wallet holder/i)).toBeInTheDocument()
+        // not a fake list, not a hard "coming soon"
+        expect(within(panel).queryByTestId("vp-quest-row")).not.toBeInTheDocument()
+        expect(within(panel).queryByText(/coming soon/i)).not.toBeInTheDocument()
     })
 
     it("Overview tab shows the community-reviews hero placeholder", async () => {
@@ -321,6 +410,9 @@ describe("ValoperDetail — owner Edit-profile flow (P1b)", () => {
         vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile())
         vi.mocked(updateBackendProfile).mockResolvedValue(undefined)
         vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        vi.mocked(loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
+        vi.mocked(fetchUserQuests).mockResolvedValue(null)
+        setActivity()
     })
 
     // ── owner-gate ───────────────────────────────────────────────
@@ -455,5 +547,79 @@ describe("ValoperDetail — owner Edit-profile flow (P1b)", () => {
 
         await waitFor(() => expect(saveBtn).toBeDisabled())
         resolveSave()
+    })
+})
+
+// ════════════════════════════════════════════════════════════════
+// P2b — Quests tab (owner-only quest progress)
+// ════════════════════════════════════════════════════════════════
+
+describe("ValoperDetail — Quests tab (P2b owner-gate)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(fetchUserProfile).mockResolvedValue(makeProfile())
+        vi.mocked(queryRender).mockResolvedValue(DETAIL)
+        vi.mocked(loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
+        vi.mocked(fetchUserQuests).mockResolvedValue(null)
+        setActivity()
+    })
+
+    it("shows the OWNER's completed quests + XP when the connected wallet === operator", async () => {
+        // connect-wallet (10xp) + view-validator (10xp) completed → 20 XP.
+        vi.mocked(loadQuestProgress).mockReturnValue({
+            completed: [
+                { questId: "connect-wallet", completedAt: 1 },
+                { questId: "view-validator", completedAt: 2 },
+            ],
+            totalXP: 20,
+        })
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
+
+        const panel = screen.getByTestId("vp-tab-quests")
+        // XP total surfaced
+        expect(within(panel).getByText(/20 XP/i)).toBeInTheDocument()
+        // a completed quest is listed (catalog title for connect-wallet)
+        expect(within(panel).getByText(/Wallet Connected|Connect Wallet/i)).toBeInTheDocument()
+        // it is NOT the private note
+        expect(within(panel).queryByText(/private to the wallet holder/i)).not.toBeInTheDocument()
+    })
+
+    it("does NOT show quest progress for a non-owner — shows the private note instead (owner-gate)", async () => {
+        const OTHER = "g1someoneelse00000000000000000000000000xx"
+        // Even if (hypothetically) local progress existed, a non-owner must not see it.
+        vi.mocked(loadQuestProgress).mockReturnValue({
+            completed: [{ questId: "connect-wallet", completedAt: 1 }],
+            totalXP: 10,
+        })
+        renderWithContext(OPERATOR, ownerContext(OTHER))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
+
+        const panel = screen.getByTestId("vp-tab-quests")
+        expect(within(panel).getByText(/private to the wallet holder/i)).toBeInTheDocument()
+        expect(within(panel).queryByTestId("vp-quest-row")).not.toBeInTheDocument()
+    })
+
+    it("prefers backend quest XP over localStorage for the owner", async () => {
+        vi.mocked(loadQuestProgress).mockReturnValue({
+            completed: [{ questId: "connect-wallet", completedAt: 1 }],
+            totalXP: 10,
+        })
+        // Backend is authoritative: 350 XP (Gold).
+        vi.mocked(fetchUserQuests).mockResolvedValue({
+            completed: [
+                { questId: "connect-wallet", completedAt: 1 },
+                { questId: "join-dao", completedAt: 2 },
+            ],
+            totalXP: 350,
+        })
+        renderWithContext(OPERATOR, ownerContext(OPERATOR))
+        await screen.findByRole("heading", { name: "samourai-crew-1" })
+        fireEvent.click(screen.getByRole("tab", { name: "Quests" }))
+
+        const panel = screen.getByTestId("vp-tab-quests")
+        expect(await within(panel).findByText(/350 XP/i)).toBeInTheDocument()
     })
 })
