@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest"
-import { parseValoperList, parseValoperDetail, computeValoperStatus } from "./valopers"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { parseValoperList, parseValoperDetail, computeValoperStatus, fetchValoperListPaged } from "./valopers"
+
+// Mock the realm render layer so we can drive multi-page roster responses.
+vi.mock("./dao/shared", () => ({ queryRender: vi.fn() }))
+import { queryRender } from "./dao/shared"
+const mockRender = vi.mocked(queryRender)
 
 // Fixtures mirror the exact output of gno.land/r/gnops/valopers:
 //   renderHome  → " * [Moniker](/r/gnops/valopers:g1op) - [profile](/r/demo/profile:u/g1op)"
@@ -24,6 +29,43 @@ Register your validator by calling Register(...).
 
     it("returns an empty array when there are no valopers", () => {
         expect(parseValoperList("No valopers to display.")).toEqual([])
+    })
+})
+
+describe("fetchValoperListPaged", () => {
+    beforeEach(() => mockRender.mockReset())
+
+    const line = (m: string, a: string) => ` * [${m}](/r/gnops/valopers:${a}) - [profile](/r/demo/profile:u/${a})`
+
+    it("walks every page until there is no link to the next page", async () => {
+        const page1 = [line("v1", "g1aaa"), line("v2", "g1bbb")].join("\n") + "\n\n**1** | [2](?page=2)"
+        const page2 = [line("v3", "g1ccc")].join("\n") + "\n\n[1](?page=1) | **2**"
+        mockRender.mockImplementation(async (_rpc, _pkg, path) => (path === "" ? page1 : page2))
+
+        const all = await fetchValoperListPaged("rpc")
+        expect(all.map(v => v.operatorAddress)).toEqual(["g1aaa", "g1bbb", "g1ccc"])
+        expect(mockRender).toHaveBeenCalledTimes(2) // page 1 + page 2, then stops (no ?page=3)
+    })
+
+    it("stops on a single un-paged page", async () => {
+        mockRender.mockResolvedValueOnce(line("solo", "g1solo")) // no pager marker
+        const all = await fetchValoperListPaged("rpc")
+        expect(all).toHaveLength(1)
+        expect(mockRender).toHaveBeenCalledTimes(1)
+    })
+
+    it("stops (no infinite loop) if the realm clamps an out-of-range page back to page 1", async () => {
+        // Both pages claim a next page but return the SAME entries → dedup yields nothing new.
+        const looping = line("v1", "g1aaa") + "\n\n**1** | [2](?page=2)"
+        mockRender.mockResolvedValue(looping)
+        const all = await fetchValoperListPaged("rpc")
+        expect(all.map(v => v.operatorAddress)).toEqual(["g1aaa"])
+        expect(mockRender).toHaveBeenCalledTimes(2) // page 1, page 2 adds nothing → break
+    })
+
+    it("returns empty when the first page is empty", async () => {
+        mockRender.mockResolvedValueOnce("")
+        expect(await fetchValoperListPaged("rpc")).toEqual([])
     })
 })
 
