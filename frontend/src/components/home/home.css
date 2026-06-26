@@ -324,23 +324,36 @@ button.action-card:focus-visible {
   margin-top: 4px;
 }
 
+/* Gold-outline ghost button (DEC-1). Theme-aware text via --color-k-text
+   (near-white in dark, near-black in light) framed by the gold border.
+   The explicit :hover color is required — without it the global
+   `a:hover { color: accent }` (index.css) leaked teal onto this <Link>. */
 .govdao-spotlight__cta {
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
-  background: var(--color-k-govdao);
-  color: var(--color-k-on-govdao, #1a1200);
+  background: transparent;
+  color: var(--color-k-text);
+  border: 1px solid var(--color-k-govdao);
   border-radius: 6px;
-  padding: 7px 14px;
+  padding: 6px 13px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .govdao-spotlight__cta:hover {
-  opacity: 0.92;
+  background: var(--color-k-govdao-subtle);
+  color: var(--color-k-text);
 }
 
 .govdao-spotlight__cta:focus-visible {
   outline: 2px solid var(--color-k-govdao);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .govdao-spotlight__cta {
+    transition: none;
+  }
 }
 
 .govdao-spotlight__stat {
@@ -1270,11 +1283,13 @@ a.activity-feed__link:focus-visible {
   opacity: 0.88;
 }
 
-/* Secondary: ghost — transparent + edge border */
+/* Secondary: ghost — transparent + edge border. Border uses the stronger
+   edge token so it clears the ≥3:1 contrast bar on the near-black dark bg
+   (the default --color-k-edge was near-invisible). */
 .visitor-hero__cta--secondary {
   background: transparent;
   color: var(--color-k-text);
-  border: 1px solid var(--color-k-edge);
+  border: 1px solid var(--color-k-edge-hover);
 }
 
 .visitor-hero__cta--secondary:hover {
