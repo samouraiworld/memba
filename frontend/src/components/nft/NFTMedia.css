@@ -11,22 +11,12 @@
     background: var(--color-surface);
 }
 
-/* ── Placeholder (empty uri or load error) ───────────────── */
-.nft-media-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+/* ── Fallback (empty uri or load error) — generated teal/black art ── */
+.nft-media-fallback {
+    /* Inherits .nft-media-img (block, 100% w/h, object-fit: cover). The
+       min-height guarantees a non-zero, layout-stable tile even when the
+       caller does not size the container. */
     min-height: 80px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border-light);
-    color: var(--color-text-muted);
-}
-
-.nft-media-placeholder__icon {
-    display: block;
-    opacity: 0.4;
 }
 
 /* ── Skeleton shimmer while loading ─────────────────────── */
