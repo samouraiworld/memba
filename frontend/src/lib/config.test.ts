@@ -127,31 +127,33 @@ describe('config constants', () => {
     })
 })
 
-describe('NFT v3 market gating (W0.1 — gate the page on the engine it trades)', () => {
-    // CollectionPublic trades source="v3" (memba_nft_market_v3), so it must gate on
-    // the v3 market's validity — NOT the v2 predicate it used to use. Until v3.1 is
-    // registered (W1.2) and added to the allowlist, the v3 path is intentionally
-    // excluded, so the page stays correctly dark. This guards the audit's top 🔴:
-    // trading a realm the safety system is set up to reject.
-    it('v3 market path is intentionally NOT in the test13 allowlist yet (page stays dark)', () => {
-        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(false)
+describe('NFT v3 market gating (gate the page on the engine it trades)', () => {
+    // CollectionPublic trades source="v3" (memba_nft_market_v3_1), so it gates on the
+    // v3 market's validity — NOT the v2 predicate it used to use. The v3.1 engine was
+    // DEPLOYED + REGISTERED on test13 (2026-06-27, sole registered market), so its path
+    // is now allowlisted and isNftMarketV3Valid() is true. The trade surface ALSO
+    // requires VITE_ENABLE_NFT=true (isNftEnabled()), which is force-false in prod — so
+    // prod stays dark until the deploy-preview G1 verify, even though the realm is valid.
+    it('v3.1 market path IS allowlisted on test13 (deployed + registered)', () => {
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
     })
 
     it('v2 market path IS allowlisted (the old, mismatched gate)', () => {
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
     })
 
-    it('isNftMarketV3Valid() is false on the active (test13) network until v3 is registered', () => {
+    it('isNftMarketV3Valid() is true on the active (test13) network (v3.1 registered)', () => {
         // Default active network is test13 (see DEFAULT_NETWORK + getUserRegistryPath test).
-        expect(isNftMarketV3Valid()).toBe(false)
+        // The realm being valid does NOT alone surface the page — isNftEnabled() (the
+        // VITE_ENABLE_NFT flag) is the remaining gate, force-false in prod.
+        expect(isNftMarketV3Valid()).toBe(true)
     })
 
-    it('the v2 and v3 predicates are distinct — the bug was gating v3 trading on the v2 predicate', () => {
-        // isNftMarketValid (v2) currently returns true on test13, which is exactly why
-        // the v2 gate let the v3-trading page render. The v3 predicate must not.
+    it('v2 and v3 are distinct predicates (the bug was gating v3 trading on the v2 predicate)', () => {
+        // Both are valid on test13 now, but they remain separate functions keyed off
+        // distinct paths — the v3-trading page must never depend on the v2 predicate.
         expect(isNftMarketValid()).toBe(true)
-        expect(isNftMarketV3Valid()).toBe(false)
-        expect(isNftMarketValid()).not.toBe(isNftMarketV3Valid())
+        expect(isNftMarketV3Valid()).toBe(true)
     })
 })
 

@@ -233,15 +233,13 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // verified-collection badge (both key off this registry).
         "gno.land/r/samcrew/memba_collections",
         "gno.land/r/samcrew/memba_reviews_v1",
-        // ── Marketplace W1 go-live (atomic flip) ──────────────────────────────
-        // The v3.1 trading engine (memba_nft_market_v3_1) + its DAO fee-config realm
-        // are FULLY frontend-wired (offers read + accept-offer + chain-read fee row,
-        // Marketplace W1 go-live PR) but stay OUT of this allowlist until the realms
-        // are deployed & registered on-chain (W1 deploy runbook). isNftMarketV3Valid()
-        // keys off the engine path, so the whole trade surface stays dark until then.
-        // AT GO-LIVE, uncomment the next line AND set Netlify VITE_ENABLE_NFT=true
-        // together — both gates must open in the same release:
-        //   "gno.land/r/samcrew/memba_nft_market_v3_1",
+        // ── Marketplace W1 go-live ────────────────────────────────────────────
+        // The v3.1 trading engine — DEPLOYED + REGISTERED on test13 (2026-06-27,
+        // multisig seq 51-53; sole registered market on memba_collections). The
+        // engine reads its DAO fee/treasury from memba_market_config. isNftMarketV3Valid()
+        // keys off this path; the trade surface ALSO requires VITE_ENABLE_NFT=true, so
+        // prod stays dark (flag is force-false there) until the deploy-preview G1 verify.
+        "gno.land/r/samcrew/memba_nft_market_v3_1",
     ],
 }
 
