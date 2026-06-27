@@ -173,10 +173,27 @@
 
 html {
   color-scheme: dark;
+  /* Kill the default grey/blue tap flash on touch devices; press feedback comes
+     from the touch-only :active rules below. (Touch-only property — desktop is
+     unaffected.) */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
+}
+
+/* Native press feedback on touch devices ONLY — desktop (hover + fine pointer)
+   is excluded, so mouse interaction and the desktop look are unchanged. */
+@media (hover: none) and (pointer: coarse) {
+  a:active,
+  button:active,
+  [role="button"]:active,
+  .k-card:active,
+  .k-mobile-tab:active {
+    opacity: 0.6;
+    transition: opacity 0.04s ease;
+  }
 }
 
 /* ── Focus Visibility (WCAG 2.1 AA §2.4.7) ──────────────────────── */
@@ -200,7 +217,10 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* dvh tracks the *dynamic* viewport so content isn't cut off behind the
+     mobile address bar; 100vh stays as the fallback for older browsers. */
   min-height: 100vh;
+  min-height: 100dvh;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -760,6 +780,7 @@ body {
 .k-app-layout {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────── */
