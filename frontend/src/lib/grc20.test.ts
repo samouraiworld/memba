@@ -19,6 +19,7 @@ import {
     buildFaucetMsg,
     toAdenaMessages,
     formatTokenAmount,
+    formatSupply,
     PLATFORM_FEE_RATE,
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
@@ -218,6 +219,29 @@ describe('formatTokenAmount', () => {
 
     it('handles large amounts', () => {
         expect(formatTokenAmount(10000000000000n, 6)).toBe('10000000')
+    })
+})
+
+// ── formatSupply (home cards: raw total-supply string → display) ───
+
+describe('formatSupply', () => {
+    it('scales by decimals and groups thousands (real CANICULE token)', () => {
+        // 102500100 base units, 6 decimals → 102.5001 display
+        expect(formatSupply('102500100', 6)).toBe('102.5001')
+    })
+
+    it('adds thousand separators to large whole supplies', () => {
+        expect(formatSupply('1000000000000', 6)).toBe('1,000,000')
+    })
+
+    it('returns null for a zero or unparsable supply (omit, never show "0")', () => {
+        expect(formatSupply('0', 6)).toBeNull()
+        expect(formatSupply('', 6)).toBeNull()
+        expect(formatSupply('not-a-number', 6)).toBeNull()
+    })
+
+    it('handles 0 decimals (whole-unit token)', () => {
+        expect(formatSupply('21000000', 0)).toBe('21,000,000')
     })
 })
 

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
+// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
+test.describe.configure({ mode: 'serial' })
+
 /**
  * Validators page E2E tests — verify the validator dashboard renders
  * and interactive elements work without backend authentication.
@@ -146,7 +150,7 @@ test.describe('Validators Page', () => {
 })
 
 test.describe('Validators Page — Mobile', () => {
-    test('table is scrollable on mobile viewport', async ({ page }) => {
+    test('roster renders as cards (not the dense table) on mobile viewport', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/validators')
 
@@ -168,12 +172,11 @@ test.describe('Validators Page — Mobile', () => {
             test.skip(true, 'Validator RPC returned error')
         }
 
-        const table = page.locator('[data-testid="validator-table"]')
-        await expect(table).toBeVisible({ timeout: 20_000 })
-
-        // Table wrapper should allow horizontal scroll
-        const wrapper = page.locator('.val-table-wrap')
-        const overflowX = await wrapper.evaluate(el => getComputedStyle(el).overflowX)
-        expect(overflowX).toBe('auto')
+        // On a phone the roster is vertical cards, and the desktop table — which
+        // forced horizontal scroll across 6-13 columns — is not rendered at all.
+        const cards = page.locator('[data-testid="validator-cards"]')
+        await expect(cards).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator('[data-testid="validator-table"]')).toHaveCount(0)
+        expect(await page.locator('.val-card').count()).toBeGreaterThan(0)
     })
 })

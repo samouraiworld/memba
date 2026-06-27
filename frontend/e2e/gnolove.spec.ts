@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
+// double-load the gnolove API under parallel workers. See playwright.config.ts.
+test.describe.configure({ mode: 'serial' })
+
 /**
  * Gnolove section E2E tests — verify the contributor analytics section
  * renders correctly and sub-navigation works.

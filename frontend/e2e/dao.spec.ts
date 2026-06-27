@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
+// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
+test.describe.configure({ mode: 'serial' })
+
 /**
  * DAO E2E — verifies DAO Hub, GovDAO page, Create DAO, and proposal pages.
  * No wallet required — tests page structure and ABCI data rendering.

@@ -36,6 +36,19 @@ var (
 	})
 )
 
+// QuestRateLimitExceeded counts per-address quest rate-limit rejections by
+// endpoint (quest_write / quest_claim). A rising rate is the farming/sybil signal
+// to watch before the badge mint carries value (Q-03/Q-16): a single wallet
+// repeatedly hitting its quota, or many wallets doing so in lockstep, shows here.
+// Incremented in internal/service.rateLimitUser alongside the slog.Warn.
+var QuestRateLimitExceeded = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "memba_quest_rate_limit_exceeded_total",
+		Help: "Per-address quest rate-limit rejections by endpoint — the farming/sybil signal to watch.",
+	},
+	[]string{"endpoint"},
+)
+
 // NFTEventDropped counts NFT events the indexer skipped as malformed (audit
 // F2/F12): e.g. a Sale with an unknown `via` or missing/garbled
 // price/fee/royalty. These are otherwise silent — a nonzero rate signals

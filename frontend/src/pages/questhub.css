@@ -61,6 +61,21 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Q-11: subtle pulse while the authoritative XP is being confirmed with the server. */
+.k-questhub-xp-value--confirming {
+    opacity: 0.6;
+    animation: k-questhub-xp-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes k-questhub-xp-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .k-questhub-xp-value--confirming { animation: none; }
+}
+
 .k-questhub-xp-next {
     font-size: 0.75rem;
     color: var(--color-k-dim);
@@ -174,6 +189,27 @@
     text-align: center;
     padding: var(--space-12);
     color: var(--color-k-dim);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Q-24: reset-filters affordance shown when filters narrow the grid to nothing. */
+.k-questhub-clear-filters {
+    background: var(--color-k-accent-subtle);
+    color: var(--color-k-accent-text);
+    border: 1px solid var(--color-k-accent-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.k-questhub-clear-filters:hover {
+    background: var(--color-k-accent-tint);
 }
 
 /* Quest Card */
@@ -644,6 +680,17 @@
     max-width: 360px;
 }
 
+/* On mobile the bottom tab bar owns the bottom strip, so lift the toast above
+   it (bar height + home-indicator inset) instead of letting it sit behind. */
+@media (max-width: 768px) {
+    .k-quest-toast {
+        bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+        left: 12px;
+        right: 12px;
+        max-width: none;
+    }
+}
+
 .k-quest-toast--visible {
     transform: translateY(0);
     opacity: 1;
@@ -817,7 +864,7 @@
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md);
     background: var(--color-k-elevated);
-    opacity: 0.65;
+    opacity: 0.72; /* dimmed "coming soon" teaser, but kept legible (Q-18) */
     cursor: default;
 }
 

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
+// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
+test.describe.configure({ mode: 'serial' })
+
 /**
  * Directory page E2E tests — verify the Organization Hub renders
  * correctly and interactive elements (tabs, search, cards) work.

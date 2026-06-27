@@ -1,5 +1,7 @@
 # Validator Profile Pages — Audit & Implementation Plan
 
+> **Status: ✅ SHIPPED (2026-06-26).** All 5 reported bugs + polish merged in **#581** (`aefc0f1`). The follow-up roster-pagination fix (candidate count capped at 50) shipped in **#585** (`e2bd46d`). Deferred (see §4): review subject-orphaning, token-family unification (`vd-*`/`vp-*`/`reviews-*`), optimistic updates, and a prod visual eyeball.
+
 **Date:** 2026-06-26
 **Scope:** The single-validator profile page `/:network/validators/:address` (`ValidatorProfile.tsx`) and its persistent Reviews section. One focused, reviewable PR: the 5 reported bugs **+** the high-impact theme / a11y / loading polish surfaced by audit.
 **Reference subject:** `g1k7asng8uzf74xs0tsrfwytldl76hs4l3asglym` (the Samourai-crew validator).

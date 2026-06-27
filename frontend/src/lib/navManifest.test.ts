@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { NAV, navForSurface, type NavEntry } from './navManifest'
+import {
+    NAV, navForSurface, mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount,
+    type NavEntry,
+} from './navManifest'
 
 describe('nav manifest', () => {
     test('entry ids are unique', () => {
@@ -35,5 +38,38 @@ describe('nav manifest', () => {
             expect(desktop).toContainEqual(e)
             expect(mobile).toContainEqual(e)
         }
+    })
+})
+
+describe('mobile nav selectors (tab bar source of truth)', () => {
+    const ids = (entries: NavEntry[]) => entries.map((e) => e.id)
+
+    test('visitor primary tabs = Home·DAOs·Tokens·Directory (route-mapped)', () => {
+        expect(ids(mobilePrimaryTabs(false))).toEqual(['home', 'dao', 'tokens', 'directory'])
+    })
+
+    test('member primary tabs swap Directory → Activity (alerts)', () => {
+        expect(ids(mobilePrimaryTabs(true))).toEqual(['home', 'dao', 'tokens', 'alerts'])
+    })
+
+    test('primary tabs resolve to real manifest entries (route/label/icon)', () => {
+        for (const e of [...mobilePrimaryTabs(true), ...mobilePrimaryTabs(false)]) {
+            expect(NAV).toContainEqual(e)
+            expect(e.to.startsWith('/')).toBe(true)
+        }
+    })
+
+    test('More→Navigate: visitor sees no auth-gated entries; member gains Dashboard', () => {
+        expect(ids(mobileMoreNav(false))).not.toContain('dashboard')
+        expect(ids(mobileMoreNav(true))).toContain('dashboard')
+        // always-visible overflow nav
+        for (const id of ['validators', 'gnolove', 'extensions']) {
+            expect(ids(mobileMoreNav(false))).toContain(id)
+        }
+    })
+
+    test('More→Account: auth-gated profile/settings/multisig only when connected; feedback always', () => {
+        expect(ids(mobileMoreAccount(false))).toEqual(['feedback'])
+        expect(ids(mobileMoreAccount(true))).toEqual(['profile', 'settings', 'multisig', 'feedback'])
     })
 })

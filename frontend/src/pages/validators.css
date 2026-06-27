@@ -558,6 +558,96 @@
     .val-toolbar-right {
         justify-content: space-between;
     }
+
+    /* ── Mobile roster: vertical cards instead of the dense table ──
+       (the table is not rendered on mobile — Validators picks per useIsMobile) */
+    .val-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .val-card {
+        display: block;
+        padding: 14px;
+        border: 1px solid var(--color-k-edge);
+        border-radius: 10px;
+        background: var(--color-k-panel);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .val-card:active {
+        background: var(--color-k-elevated);
+    }
+
+    .val-card__head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .val-card__id {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .val-card__moniker {
+        font-weight: 600;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .val-card__addr {
+        font-size: 11px;
+        color: var(--color-k-dim);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .val-card__stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 12px;
+    }
+
+    .val-card__stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .val-card__stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-k-dim);
+    }
+
+    .val-card__stat-val {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Trim the stacked sections on mobile: drop the decorative distribution bar
+       and tighten the health banner. */
+    .val-power-bar {
+        display: none;
+    }
+
+    .val-health-banner__grid {
+        gap: 8px;
+    }
+
+    .val-health-banner__count {
+        font-size: 20px;
+    }
 }
 
 @media (max-width: 480px) {

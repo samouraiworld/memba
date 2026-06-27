@@ -14,7 +14,74 @@ import {
     buildFlagMsg,
     buildHideReviewMsg,
     REVIEWS_PKG_PATH,
+    mergeReviewsByAuthor,
+    summaryFromReviews,
+    makeOptimisticReview,
+    upsertReviewByAuthor,
+    type OnChainReview,
 } from "./reviews"
+
+function review(over: Partial<OnChainReview>): OnChainReview {
+    return {
+        id: 1, subject: "g1op", author: "g1a", rating: 5, body: "ok",
+        createdAt: 100, editedAt: 0, deleted: false, likes: 0, dislikes: 0,
+        flags: 0, reputation: 0, ...over,
+    }
+}
+
+describe("mergeReviewsByAuthor", () => {
+    const OP = "g1op", SIGN = "g1sign"
+
+    it("merges two subjects and prefers the canonical-subject review when an author is on both", () => {
+        const opList = [review({ id: 3, subject: OP, author: "g1alice", body: "new", createdAt: 491 })]
+        const signList = [
+            review({ id: 1, subject: SIGN, author: "g1alice", body: "old", createdAt: 478 }),
+            review({ id: 2, subject: SIGN, author: "g1bob", body: "awesome", createdAt: 479 }),
+        ]
+        const merged = mergeReviewsByAuthor([opList, signList], OP)
+        // alice kept on canonical (id 3), bob recovered from signing (id 2)
+        expect(merged.map((r) => r.id).sort()).toEqual([2, 3])
+        expect(merged.find((r) => r.author === "g1alice")!.body).toBe("new")
+        expect(merged.find((r) => r.author === "g1bob")!.body).toBe("awesome")
+    })
+
+    it("keeps the most recent when an author has reviews on two non-canonical subjects", () => {
+        const a = review({ id: 1, subject: "g1x", author: "g1a", createdAt: 10 })
+        const b = review({ id: 2, subject: "g1y", author: "g1a", createdAt: 20 })
+        expect(mergeReviewsByAuthor([[a], [b]], OP).map((r) => r.id)).toEqual([2])
+    })
+
+    it("drops deleted reviews", () => {
+        const merged = mergeReviewsByAuthor([[review({ author: "g1a", deleted: true })]], OP)
+        expect(merged).toHaveLength(0)
+    })
+})
+
+describe("summaryFromReviews", () => {
+    it("computes count / sum / average over live reviews", () => {
+        const s = summaryFromReviews([review({ rating: 5 }), review({ author: "g1b", rating: 3 })])
+        expect(s).toEqual({ count: 2, sum: 8, average: 4 })
+    })
+    it("is zero for an empty list", () => {
+        expect(summaryFromReviews([])).toEqual({ count: 0, sum: 0, average: 0 })
+    })
+})
+
+describe("optimistic helpers", () => {
+    it("makeOptimisticReview marks a pending review (id<0, createdAt 0)", () => {
+        const o = makeOptimisticReview("g1a", 4, "hi", "g1op")
+        expect(o.id).toBeLessThan(0)
+        expect(o.createdAt).toBe(0)
+        expect(o).toMatchObject({ author: "g1a", rating: 4, body: "hi", subject: "g1op" })
+    })
+    it("upsertReviewByAuthor replaces the same author's review (realm edits on re-post)", () => {
+        const existing = [review({ id: 1, author: "g1a", body: "old" }), review({ id: 2, author: "g1b" })]
+        const next = upsertReviewByAuthor(existing, makeOptimisticReview("g1a", 5, "new", "g1op"))
+        expect(next.filter((r) => r.author === "g1a")).toHaveLength(1)
+        expect(next.find((r) => r.author === "g1a")!.body).toBe("new")
+        expect(next.find((r) => r.author === "g1b")).toBeDefined()
+    })
+})
 
 describe("unwrapQeval", () => {
     it('strips the gno ("..." string) wrapper and unquotes', () => {

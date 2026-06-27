@@ -173,10 +173,27 @@
 
 html {
   color-scheme: dark;
+  /* Kill the default grey/blue tap flash on touch devices; press feedback comes
+     from the touch-only :active rules below. (Touch-only property — desktop is
+     unaffected.) */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
+}
+
+/* Native press feedback on touch devices ONLY — desktop (hover + fine pointer)
+   is excluded, so mouse interaction and the desktop look are unchanged. */
+@media (hover: none) and (pointer: coarse) {
+  a:active,
+  button:active,
+  [role="button"]:active,
+  .k-card:active,
+  .k-mobile-tab:active {
+    opacity: 0.6;
+    transition: opacity 0.04s ease;
+  }
 }
 
 /* ── Focus Visibility (WCAG 2.1 AA §2.4.7) ──────────────────────── */
@@ -200,7 +217,10 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* dvh tracks the *dynamic* viewport so content isn't cut off behind the
+     mobile address bar; 100vh stays as the fallback for older browsers. */
   min-height: 100vh;
+  min-height: 100dvh;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -581,20 +601,71 @@ a:hover {
     border-top: 1px solid var(--color-border);
     padding: 8px 0 0;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
+    /* Single swipeable row instead of a cramped 3-4 row wrap that ate ~30% of
+       the viewport — keeps every channel reachable without the vertical cost. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+
+  .dao-channels-sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .dao-channels-sidebar__header {
-    width: 100%;
+    flex: 0 0 auto;
   }
 
   .dao-channels-sidebar__divider {
-    width: 100%;
+    display: none;
   }
 
   .dao-channels-sidebar__item {
     flex: 0 0 auto;
+  }
+}
+
+/* The compact DAO stat grid is a fixed 3 columns everywhere; on a narrow phone
+   9 stats in 3 columns read as cramped — drop to 2 readable columns. */
+@media (max-width: 480px) {
+  .k-stat-grid--compact {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── DAO member / proposal cards ───────────────────────────────────
+   Layout extracted from inline styles so the badge rows can restack on a
+   phone (inline styles can't be media-queried). Desktop values are unchanged;
+   only the ≤480px column-stack is new. */
+.dao-member-card {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.dao-proposal-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  /* Stack the identity over the tier/role badges (member) and the title over
+     the status badges (proposal) instead of fighting for horizontal space. */
+  .dao-member-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dao-proposal-card__header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -709,6 +780,7 @@ body {
 .k-app-layout {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────── */
@@ -880,7 +952,13 @@ body {
 .net-status-toast__dismiss { background: none; border: none; color: var(--color-text-secondary); font-size: 16px; cursor: pointer; padding: 0 4px; }
 
 @media (max-width: 640px) {
-  .net-status-toast { bottom: 70px; right: 12px; left: 12px; }
+  /* Clear the bottom tab bar + the home-indicator safe area, or the toast sits
+     behind the tab bar on notched phones (56px bar + inset, not a flat 70px). */
+  .net-status-toast {
+    bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 12px);
+    right: 12px;
+    left: 12px;
+  }
 }
 
 .k-sidebar-section {
@@ -1420,6 +1498,59 @@ body {
   display: none;
 }
 
+/* ⊕ "Act" FAB — floating quick-action button, mobile-only (parent .k-mobile-only
+   is display:none on desktop). Sits above the tab bar (z 50) but below an open
+   bottom sheet (z 60). Accent fill + on-accent icon = theme-safe (matches the
+   primary button convention). */
+.k-act-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 55;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.k-act-fab:hover {
+  background: var(--color-k-accent-hover);
+}
+
+.k-act-fab:active {
+  transform: scale(0.94);
+}
+
+/* Total-pending bubble on the ⊕ — gold on the teal FAB, ringed in the canvas
+   colour so it reads as a distinct badge. */
+.k-act-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-k-govdao);
+  color: var(--color-k-on-govdao);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border: 2px solid var(--color-k-bg);
+  box-sizing: border-box;
+}
+
 /* ── Mobile Tab Bar ────────────────────────────────────────────── */
 .k-mobile-tabbar {
   display: none;
@@ -1508,12 +1639,30 @@ body {
   transform: translateY(0);
 }
 
+/* Full-width, tall-enough drag zone for swipe-to-dismiss; the visible 36x4 bar
+   is drawn by the ::before so the grab target isn't limited to 4px. */
 .k-bottom-sheet-handle {
+  width: 100%;
+  padding: 10px 0 14px;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.k-bottom-sheet-handle::before {
+  content: "";
+  display: block;
   width: 36px;
   height: 4px;
   border-radius: 2px;
   background: var(--color-k-edge-hover);
-  margin: 0 auto 12px;
+  margin: 0 auto;
+}
+
+.k-bottom-sheet-handle:active {
+  cursor: grabbing;
 }
 
 /* ── B3: Hamburger toggle (hidden by default — shown only at tablet) ── */

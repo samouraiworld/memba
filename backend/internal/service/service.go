@@ -17,6 +17,8 @@ import (
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
+	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
 // MultisigService implements the ConnectRPC MultisigService.
@@ -36,6 +38,11 @@ type MultisigService struct {
 	// nil in production (the real defaultVerifyOnChainQuest is used); tests
 	// inject a deterministic stub so they never hit the network. See quest_verify.go.
 	verifyOnChainQuest func(ctx context.Context, addr, questID, proof string) (bool, error)
+
+	// userLimiter is the per-address quest rate limiter (Q-03). nil disables it
+	// (the default in tests); production wires it via SetUserLimiter with the app
+	// context so the GC goroutine stops on shutdown.
+	userLimiter *ratelimit.Limiter
 
 	// Home snapshot cache (Phase 2) — single entry per chain_id, in-memory,
 	// serve-stale-on-error. See home_rpc.go.
@@ -108,6 +115,34 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 		homeCachedAt:     make(map[string]time.Time),
 		homeQuery:        abciQuery,
 	}, nil
+}
+
+// SetUserLimiter installs the per-address quest rate limiter (Q-03). Wired in
+// production (cmd/memba) with the app context; left nil in tests, which disables
+// per-user limiting so existing quest tests are unaffected.
+func (s *MultisigService) SetUserLimiter(l *ratelimit.Limiter) {
+	s.userLimiter = l
+}
+
+// rateLimitUser enforces the per-address quest quota for endpoint. Returns a
+// ResourceExhausted error when the wallet has exceeded its quota, nil otherwise
+// (including when no limiter is configured). The error is deliberately terse —
+// it carries no per-user detail an attacker could use to probe the window.
+func (s *MultisigService) rateLimitUser(addr, endpoint string) error {
+	if s.userLimiter == nil {
+		return nil
+	}
+	if !s.userLimiter.AllowKey(addr, endpoint) {
+		// Observability (Q-16): the farming/sybil signal. The counter is the durable
+		// signal (alert on its rate); the Warn is a supplementary breadcrumb. Both
+		// fire only on rejection, off the hot success path. Log volume is bounded by
+		// the per-IP limiter per source, but scales with attacker count under
+		// coordinated abuse — sample/downgrade to Debug if a real wave makes it noisy.
+		metrics.QuestRateLimitExceeded.WithLabelValues(endpoint).Inc()
+		slog.Warn("quest rate limit exceeded", "address", addr, "endpoint", endpoint)
+		return connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("quest rate limit exceeded — slow down and retry shortly"))
+	}
+	return nil
 }
 
 // authenticate validates a token and returns the user address.

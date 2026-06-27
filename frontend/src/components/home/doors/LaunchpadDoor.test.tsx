@@ -1,38 +1,62 @@
 /**
- * LaunchpadDoor.test.tsx — the launchpad card now shows the live token count
- * from the home snapshot when available (honest: omitted → promo fallback, never
- * a fabricated 0). Snapshot data is real once B1 is fixed (#528, merged).
+ * LaunchpadDoor.test.tsx — the launchpad card shows a live mini token-card for
+ * the newest token (name + ticker + on-chain supply + creator) plus the total
+ * count. Honest: supply/creator omitted when absent; an empty factory shows the
+ * promo, never a fabricated "0".
  */
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import type { HomeSnapshot } from "../../../lib/homeApi"
+import type { TokenLaunch } from "../../../hooks/home/useTokenLaunches"
 
-vi.mock("../../../hooks/home/useHomeSnapshot", () => ({ useHomeSnapshot: vi.fn() }))
+vi.mock("../../../hooks/home/useTokenLaunches", () => ({ useTokenLaunches: vi.fn() }))
 
-const { useHomeSnapshot } = await import("../../../hooks/home/useHomeSnapshot")
+const { useTokenLaunches } = await import("../../../hooks/home/useTokenLaunches")
 const { LaunchpadDoor } = await import("./LaunchpadDoor")
 
-const snap = (tokens: number) => ({ counts: { tokens } } as unknown as HomeSnapshot)
+const launch = (over: Partial<TokenLaunch> = {}): TokenLaunch =>
+    ({ slug: "HOT", name: "Canicule", symbol: "HOT", path: "gno.land/r/x/factory:HOT", ...over })
 const renderIt = () => render(<MemoryRouter><LaunchpadDoor networkKey="test13" /></MemoryRouter>)
 
+beforeEach(() => vi.clearAllMocks())
+
 describe("LaunchpadDoor", () => {
-    it("shows the live token count when the snapshot is usable", () => {
-        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap(12), usable: true, isLoading: false })
+    it("shows a mini token-card with name, ticker, supply, holders, creator and total count", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({
+            tokens: [launch({ supplyDisplay: "102.5001", holders: 2, admin: "g1abcdefghijklmnopqrstuvwxyz0123456789zz" })],
+            total: 3,
+            loading: false,
+        })
         renderIt()
-        expect(screen.getByText("12")).toBeInTheDocument()
-        expect(screen.getByText(/tokens created/i)).toBeInTheDocument()
+        expect(screen.getByText("Canicule")).toBeInTheDocument()
+        expect(screen.getByText("$HOT")).toBeInTheDocument()
+        expect(screen.getByText(/102\.5001 supply/)).toBeInTheDocument()
+        expect(screen.getByText(/2 holders/i)).toBeInTheDocument()
+        expect(screen.getByText(/by g1abcd/i)).toBeInTheDocument()
+        expect(screen.getByText(/3 tokens on the launchpad/i)).toBeInTheDocument()
     })
 
-    it("singularizes for exactly one token", () => {
-        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap(1), usable: true, isLoading: false })
+    it("shows the launch date when present", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({
+            tokens: [launch({ launchedAt: new Date(Date.now() - 3 * 86400_000).toISOString() })],
+            total: 1,
+            loading: false,
+        })
         renderIt()
-        expect(screen.getByText("1")).toBeInTheDocument()
-        expect(screen.getByText(/^token created$/i)).toBeInTheDocument()
+        expect(screen.getByTestId("launchpad-launched")).toHaveTextContent(/launched 3d ago/i)
     })
 
-    it("falls back to the promo (never a fabricated 0) when the snapshot is not usable", () => {
-        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: null, usable: false, isLoading: false })
+    it("omits supply/creator when unavailable (honest) but still shows the token", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [launch()], total: 1, loading: false })
+        renderIt()
+        expect(screen.getByText("Canicule")).toBeInTheDocument()
+        expect(screen.getByText(/1 token on the launchpad/i)).toBeInTheDocument()
+        expect(screen.queryByText(/supply/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/^by /i)).not.toBeInTheDocument()
+    })
+
+    it("falls back to the promo (never a fabricated 0) when there are no tokens", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
         renderIt()
         expect(screen.getByText(/launch a token in minutes/i)).toBeInTheDocument()
         expect(screen.queryByText("0")).not.toBeInTheDocument()

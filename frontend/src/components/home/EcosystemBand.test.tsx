@@ -7,11 +7,11 @@ import type { ValidatorInfo } from "../../lib/validators"
 import { ValidatorHealthStatus } from "../../lib/validatorHealth"
 
 vi.mock("../../hooks/home/useHomeSnapshot", () => ({ useHomeSnapshot: vi.fn() }))
-vi.mock("../../hooks/home/useEcosystemTokens", () => ({ useEcosystemTokens: vi.fn() }))
+vi.mock("../../hooks/home/useTokenLaunches", () => ({ useTokenLaunches: vi.fn() }))
 vi.mock("../../hooks/home/useEcosystemValidators", () => ({ useEcosystemValidators: vi.fn() }))
 
 const { useHomeSnapshot } = await import("../../hooks/home/useHomeSnapshot")
-const { useEcosystemTokens } = await import("../../hooks/home/useEcosystemTokens")
+const { useTokenLaunches } = await import("../../hooks/home/useTokenLaunches")
 const { useEcosystemValidators } = await import("../../hooks/home/useEcosystemValidators")
 const { EcosystemBand } = await import("./EcosystemBand")
 
@@ -71,15 +71,16 @@ const renderBand = () => render(<MemoryRouter><EcosystemBand networkKey="test13"
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: null, usable: false, isLoading: false })
-    vi.mocked(useEcosystemTokens).mockReturnValue({ tokens: [], loading: false })
+    vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
     vi.mocked(useEcosystemValidators).mockReturnValue({ validators: [], total: 0, loading: false })
 })
 
 describe("EcosystemBand — tokens listing", () => {
     it("lists the real token rows (name + symbol + path) under the tokens count", () => {
         vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 2, agents: 0, validators: 0 }), usable: true, isLoading: false })
-        vi.mocked(useEcosystemTokens).mockReturnValue({
+        vi.mocked(useTokenLaunches).mockReturnValue({
             tokens: [token({ name: "Foo Token", symbol: "FOO" }), token({ name: "Bar", symbol: "BAR", path: "gno.land/r/x:BAR" })],
+            total: 2,
             loading: false,
         })
         renderBand()
@@ -93,9 +94,36 @@ describe("EcosystemBand — tokens listing", () => {
         expect(rows[0]).toHaveTextContent("gno.land/r/samcrew/tokenfactory_v2:FOO")
     })
 
+    it("shows the token supply when enriched (else falls back to the path)", () => {
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: null, usable: false, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({
+            tokens: [{ ...token({ name: "Canicule", symbol: "HOT" }), supplyDisplay: "102.5001" }],
+            total: 1,
+            loading: false,
+        })
+        renderBand()
+        expect(within(screen.getByTestId("eco-tokens")).getByTestId("eco-token-row")).toHaveTextContent("102.5001 supply")
+    })
+
+    it("singularises the tokens label at a count of 1 (MH-13: '1 token', not '1 tokens')", () => {
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 1 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token()], total: 1, loading: false })
+        renderBand()
+        const header = within(screen.getByTestId("eco-tokens")).getByText(/^tokens?$/)
+        expect(header).toHaveTextContent(/^token$/)
+    })
+
+    it("pluralises the tokens label for a count greater than 1", () => {
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 3 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token(), token({ name: "B", symbol: "B", path: "gno.land/r/x:B" })], total: 3, loading: false })
+        renderBand()
+        const header = within(screen.getByTestId("eco-tokens")).getByText(/^tokens?$/)
+        expect(header).toHaveTextContent(/^tokens$/)
+    })
+
     it("links the tokens section to /{network}/tokens", () => {
         vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 1 }), usable: true, isLoading: false })
-        vi.mocked(useEcosystemTokens).mockReturnValue({ tokens: [token()], loading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token()], total: 1, loading: false })
         renderBand()
 
         const section = screen.getByTestId("eco-tokens")
@@ -104,9 +132,26 @@ describe("EcosystemBand — tokens listing", () => {
         links.forEach((a) => expect(a).toHaveAttribute("href", "/test13/tokens"))
     })
 
+    it("surfaces 'view all N' when the authoritative count exceeds the rows shown (MH-14: stale cached list ≠ fresh count)", () => {
+        // The header count comes from the fresh backend snapshot (3) while the
+        // token rows come from the 5-min sessionStorage-cached fetchTokens (still 1
+        // right after two new tokens are created). The band must NOT imply the
+        // single row is the whole set — it surfaces "view all 3".
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 3 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token({ name: "Canicule", symbol: "HOT" })], total: 1, loading: false })
+        renderBand()
+
+        const section = screen.getByTestId("eco-tokens")
+        expect(within(section).getAllByTestId("eco-token-row")).toHaveLength(1)
+        expect(within(section).getByText(/^tokens$/)).toBeInTheDocument() // plural header (count = 3)
+        const viewAll = within(section).getByTestId("eco-tokens-viewall")
+        expect(viewAll).toHaveTextContent("3")
+        expect(viewAll).toHaveAttribute("href", "/test13/tokens")
+    })
+
     it("omits the tokens section entirely when the list is empty (no fabricated rows)", () => {
         vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 5 }), usable: true, isLoading: false })
-        vi.mocked(useEcosystemTokens).mockReturnValue({ tokens: [], loading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
         renderBand()
 
         expect(screen.queryByTestId("eco-tokens")).not.toBeInTheDocument()
@@ -114,7 +159,7 @@ describe("EcosystemBand — tokens listing", () => {
     })
 
     it("shows a compact loading state while tokens are fetching (no rows yet)", () => {
-        vi.mocked(useEcosystemTokens).mockReturnValue({ tokens: [], loading: true })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: true })
         renderBand()
 
         expect(screen.getByTestId("eco-tokens")).toBeInTheDocument()
@@ -157,17 +202,35 @@ describe("EcosystemBand — validators listing", () => {
         expect(row).not.toHaveTextContent("g1abcdefghijklmnopqrstuvwxyz0123456789zz")
     })
 
-    it("caps the listing at the top 5 validators and shows a 'view all N' link", () => {
+    it("caps the listing at the top 3 validators and shows a 'view all N' link", () => {
         vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(8), total: 8, loading: false })
         renderBand()
 
         const section = screen.getByTestId("eco-validators")
-        // Only the top 5 rows rendered — never a 100-row dump.
-        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(5)
+        // Only the top 3 rows rendered — never a long dump (keeps the band compact).
+        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(3)
 
         const viewAll = within(section).getByTestId("eco-validators-viewall")
         expect(viewAll).toHaveTextContent("8")
         expect(viewAll).toHaveAttribute("href", "/test13/validators")
+    })
+
+    it("surfaces 'view all N' when the snapshot count exceeds the fetched rows (MH-14)", () => {
+        // Snapshot says 12 validators but only 3 were fetched/shown → must offer
+        // "view all 12", not silently imply 3 is the whole set.
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ validators: 12 }), usable: true, isLoading: false })
+        vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(3), total: 3, loading: false })
+        renderBand()
+
+        const section = screen.getByTestId("eco-validators")
+        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(3)
+        expect(within(section).getByTestId("eco-validators-viewall")).toHaveTextContent("12")
+    })
+
+    it("labels the section 'Top validators' (sorted by power)", () => {
+        vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(3), total: 3, loading: false })
+        renderBand()
+        expect(within(screen.getByTestId("eco-validators")).getByText(/top validators/i)).toBeInTheDocument()
     })
 
     it("renders top validators in the order the hook provides (power desc, not re-sorted)", () => {
