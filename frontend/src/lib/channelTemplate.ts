@@ -165,6 +165,7 @@ func assertHasTokens(addr address) {}`
 
 import (
 \t"chain/runtime"
+\t"chain/runtime/unsafe"
 \t"strconv"
 \t"strings"
 
@@ -227,7 +228,7 @@ func init() {
 \tlastPostBlock = make(map[string]int64)
 \tmembers = avl.NewTree()
 \tflaggedBy = make(map[string]bool)
-\tadminAddr = runtime.PreviousRealm().Address()
+\tadminAddr = unsafe.PreviousRealm().Address()
 \tmembers.Set(string(adminAddr), "admin") // deployer is first member
 ${channelInit}
 \t// Set initial channel order
@@ -238,14 +239,14 @@ ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).
 
 // AddMember registers a DAO member. Admin only.
 func AddMember(_ realm, addr address, role string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tmembers.Set(string(addr), role)
 }
 
 // RemoveMember removes a member. Admin only.
 func RemoveMember(_ realm, addr address) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tif addr == adminAddr {
 \t\tpanic("cannot remove admin")
@@ -371,7 +372,7 @@ func renderACL(channelName string) string {
 // ── Write Actions ─────────────────────────────────────────
 
 func PostThread(cur realm, channel, title, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertHasTokens(caller)
@@ -406,7 +407,7 @@ func PostThread(cur realm, channel, title, body string) int {
 }
 
 func PostReply(cur realm, channel string, threadID int, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertHasTokens(caller)
@@ -442,7 +443,7 @@ func PostReply(cur realm, channel string, threadID int, body string) int {
 // FlagThread lets any member flag a thread for moderation. After flagThreshold
 // distinct flags the thread is auto-hidden from listings and detail views.
 func FlagThread(cur realm, channel string, threadID int) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tflagKey := channel + "/" + strconv.Itoa(threadID) + "/" + string(caller)
 \tif flaggedBy[flagKey] {
@@ -472,7 +473,7 @@ func FlagThread(cur realm, channel string, threadID int) {
 // ── Edit / Delete ─────────────────────────────────────────
 
 func EditThread(cur realm, channel string, threadID int, newBody string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tblockHeight := runtime.ChainHeight()
 \tif len(newBody) == 0 || len(newBody) > 8192 {
@@ -500,7 +501,7 @@ func EditThread(cur realm, channel string, threadID int, newBody string) {
 }
 
 func DeleteThread(cur realm, channel string, threadID int) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tfor i, ch := range channels {
 \t\tif ch.Name == channel {
@@ -522,7 +523,7 @@ func DeleteThread(cur realm, channel string, threadID int) {
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name, description, ctype string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \t_ = description // reserved for future per-channel descriptions
 \tif len(name) == 0 || len(name) > 30 {

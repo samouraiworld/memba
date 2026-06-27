@@ -89,6 +89,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 // ── Constants ────────────────────────────────────────────────
@@ -157,7 +158,7 @@ func RegisterAgent(
 	endpoint, transport, pricing, version string,
 	pricePerCall int64,
 ) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 
 	if _, exists := agents.Get(id); exists {
 		panic("agent ID already exists: " + id)
@@ -200,7 +201,7 @@ func UpdateAgent(
 	id, description, capabilities, endpoint, version string,
 	pricePerCall int64,
 ) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	val, exists := agents.Get(id)
 	if !exists {
 		panic("agent not found: " + id)
@@ -227,7 +228,7 @@ func UpdateAgent(
 
 // ReviewAgent adds a review for an agent.
 func ReviewAgent(cur realm, agentId string, rating int, comment string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 
 	val, exists := agents.Get(agentId)
 	if !exists {
@@ -258,7 +259,7 @@ func ReviewAgent(cur realm, agentId string, rating int, comment string) {
 
 // RemoveAgent removes an agent (admin or creator only).
 func RemoveAgent(cur realm, id string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	val, exists := agents.Get(id)
 	if !exists {
 		panic("agent not found")
@@ -276,12 +277,12 @@ func RemoveAgent(cur realm, id string) {
 // DepositCredits deposits GNOT as prepaid credits for an agent.
 // Send ugnot with the transaction to fund the credits.
 func DepositCredits(cur realm, agentId string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if _, exists := agents.Get(agentId); !exists {
 		panic("agent not found")
 	}
 
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	if len(sent) == 0 || sent.AmountOf("ugnot") == 0 {
 		panic("must send ugnot to deposit credits")
 	}
@@ -298,7 +299,7 @@ func DepositCredits(cur realm, agentId string) {
 // UseCredit deducts one invocation credit. Only the agent creator can call this.
 // Returns the remaining credits.
 func UseCredit(cur realm, agentId, userAddr string) int64 {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	val, exists := agents.Get(agentId)
 	if !exists {
 		panic("agent not found")
@@ -361,7 +362,7 @@ func GetUsage(agentId, userAddr string) int64 {
 // RefundCredits refunds remaining credits to the user.
 // Auto-refund: callable by user or admin after 30 days (not enforced in v1).
 func RefundCredits(cur realm, agentId string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	key := agentId + "/" + string(caller)
 
 	cval, cexists := credits.Get(key)
@@ -377,8 +378,8 @@ func RefundCredits(cur realm, agentId string) {
 	credits.Set(key, int64(0))
 
 	// Transfer credits back via banker
-	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-	bnk.SendCoins(runtime.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", balance)})
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	bnk.SendCoins(unsafe.CurrentRealm().Address(), caller, chain.Coins{chain.NewCoin("ugnot", balance)})
 }
 
 // ── Render ───────────────────────────────────────────────────

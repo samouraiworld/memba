@@ -191,6 +191,7 @@ export function generateDAOCode(config: DAOCreationConfig): string {
 
 import (
 \t"chain/runtime"
+\t"chain/runtime/unsafe"
 \t"strings"
 \t"strconv"
 
@@ -387,7 +388,7 @@ func renderVotes(p *Proposal) string {
 // ── Actions ───────────────────────────────────────────────
 
 func Propose(cur realm, title, desc, category string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
 \tassertCategory(category)
@@ -414,7 +415,7 @@ func Propose(cur realm, title, desc, category string) int {
 }
 
 func VoteOnProposal(cur realm, id int, vote string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
 \tp := getProposal(id)
@@ -461,7 +462,7 @@ func VoteOnProposal(cur realm, id int, vote string) {
 }
 
 func ExecuteProposal(cur realm, id int) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertMember(caller)
 \tp := getProposal(id)
 \tif p == nil {
@@ -511,7 +512,7 @@ func newProposal(caller address, title, desc, category, actionType, actionData s
 }
 
 func ProposeAddMember(cur realm, targetAddr address, power int, roles string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
 \tif _, exists := members.Get(string(targetAddr)); exists {
@@ -524,7 +525,7 @@ func ProposeAddMember(cur realm, targetAddr address, power int, roles string) in
 }
 
 func ProposeRemoveMember(cur realm, targetAddr address) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
 \tassertMember(targetAddr)
@@ -534,7 +535,7 @@ func ProposeRemoveMember(cur realm, targetAddr address) int {
 }
 
 func ProposeAssignRole(cur realm, targetAddr address, role string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
 \tassertMember(targetAddr)
@@ -608,7 +609,7 @@ func executeAssignRole(data string) {
 // ── Role Management (admin-only) ──────────────────────────
 
 func AssignRole(cur realm, target address, role string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tassertRole(role)
 \tval, exists := members.Get(string(target))
@@ -625,7 +626,7 @@ func AssignRole(cur realm, target address, role string) {
 }
 
 func RemoveRole(cur realm, target address, role string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tif role == "admin" {
 \t\tadminCount := 0
@@ -657,7 +658,7 @@ func RemoveRole(cur realm, target address, role string) {
 // ── Archive Management ────────────────────────────────────
 
 func Archive(cur realm) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tarchived = true
 }

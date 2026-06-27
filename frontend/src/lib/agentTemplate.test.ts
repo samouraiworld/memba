@@ -70,9 +70,9 @@ describe("generateAgentRegistryCode — chain API compliance", () => {
         expect(importBlock).not.toContain('"std"')
     })
 
-    it("uses runtime.PreviousRealm().Address() for caller identity", () => {
+    it("uses unsafe.PreviousRealm().Address() for caller identity", () => {
         const code = getCode()
-        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).toContain("unsafe.PreviousRealm().Address()")
         expect(code).not.toContain("std.PreviousRealm()")
         expect(code).not.toContain("chain.PreviousRealm()")
         expect(code).not.toContain(".Addr()")
@@ -85,22 +85,22 @@ describe("generateAgentRegistryCode — chain API compliance", () => {
         expect(code).not.toContain("chain.GetHeight()")
     })
 
-    it("uses runtime.CurrentRealm().Address() for realm address", () => {
+    it("uses unsafe.CurrentRealm().Address() for realm address", () => {
         const code = getCode()
-        expect(code).toContain("runtime.CurrentRealm().Address()")
+        expect(code).toContain("unsafe.CurrentRealm().Address()")
         expect(code).not.toContain("std.CurrentRealm()")
         expect(code).not.toContain("chain.CurrentRealm()")
     })
 
-    it("uses banker.OriginSend() for payment checks", () => {
+    it("uses unsafe.OriginSend() for payment checks", () => {
         const code = getCode()
-        expect(code).toContain("banker.OriginSend()")
+        expect(code).toContain("unsafe.OriginSend()")
         expect(code).not.toContain("std.GetOrigSend")
     })
 
-    it("uses banker.NewBanker(banker.BankerTypeRealmSend)", () => {
+    it("uses banker.NewBanker(banker.BankerTypeRealmSend, cur)", () => {
         const code = getCode()
-        expect(code).toContain("banker.NewBanker(banker.BankerTypeRealmSend)")
+        expect(code).toContain("banker.NewBanker(banker.BankerTypeRealmSend, cur)")
         expect(code).not.toContain("std.GetBanker")
         expect(code).not.toContain("chain.GetBanker")
     })
@@ -200,7 +200,7 @@ describe("generateAgentRegistryCode — config embedding", () => {
 describe("agentTemplate security", () => {
     it("RegisterAgent stores caller as Creator", () => {
         const body = getFuncBody(getCode(), "RegisterAgent", "UpdateAgent")
-        expect(body).toContain("runtime.PreviousRealm().Address()")
+        expect(body).toContain("unsafe.PreviousRealm().Address()")
         expect(body).toContain("Creator:")
     })
 
@@ -221,7 +221,7 @@ describe("agentTemplate security", () => {
 
     it("DepositCredits checks sent coins", () => {
         const body = getFuncBody(getCode(), "DepositCredits", "UseCredit")
-        expect(body).toContain("banker.OriginSend()")
+        expect(body).toContain("unsafe.OriginSend()")
     })
 
     it("RefundCredits sends coins and zeroes balance", () => {
