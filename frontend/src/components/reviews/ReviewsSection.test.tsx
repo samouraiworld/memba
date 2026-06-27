@@ -1,33 +1,32 @@
 import { screen, fireEvent, waitFor } from "@testing-library/react"
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ReviewsSection } from "./ReviewsSection"
 import { renderWithProviders } from "../../test/test-utils"
+import type { OnChainReview } from "../../lib/reviews"
 
-vi.mock("../../lib/reviews", () => ({
-  fetchReviews: vi.fn().mockResolvedValue([
-    {
-      id: 1,
-      subject: "g1s",
-      author: "g1a",
-      rating: 5,
-      body: "great validator",
-      createdAt: 1,
-      editedAt: 0,
-      deleted: false,
-      likes: 2,
-      dislikes: 0,
-      flags: 0,
-      reputation: 3,
-      username: "@alice",
-    },
-  ]),
-  fetchSummary: vi.fn().mockResolvedValue({ count: 1, average: 5, sum: 5 }),
-  fetchComments: vi.fn().mockResolvedValue([]),
-  attachUsernames: vi.fn().mockImplementation((x: unknown[]) => Promise.resolve(x)),
-  buildPostReviewMsg: vi.fn(),
-  submitMsg: vi.fn(),
-  REVIEWS_PKG_PATH: "gno.land/r/samcrew/memba_reviews_v1",
-}))
+function review(over: Partial<OnChainReview>): OnChainReview {
+  return {
+    id: 1, subject: "g1s", author: "g1a", rating: 5, body: "ok",
+    createdAt: 10, editedAt: 0, deleted: false, likes: 0, dislikes: 0,
+    flags: 0, reputation: 0, ...over,
+  }
+}
+
+const fetchReviews = vi.fn()
+const submitMsg = vi.fn()
+
+// Keep the real pure helpers (merge/summary/optimistic); stub only the network calls.
+vi.mock("../../lib/reviews", async (importActual) => {
+  const actual = await importActual<typeof import("../../lib/reviews")>()
+  return {
+    ...actual,
+    fetchReviews: (s: string) => fetchReviews(s),
+    fetchComments: vi.fn().mockResolvedValue([]),
+    attachUsernames: vi.fn().mockImplementation((x: unknown[]) => Promise.resolve(x)),
+    buildPostReviewMsg: vi.fn().mockReturnValue({}),
+    submitMsg: (...a: unknown[]) => submitMsg(...a),
+  }
+})
 
 // Keep block-height → date resolution offline in tests.
 vi.mock("../../lib/blockTimeRpc", () => ({
@@ -35,41 +34,72 @@ vi.mock("../../lib/blockTimeRpc", () => ({
 }))
 
 const connect = vi.fn().mockResolvedValue(false)
-vi.mock("../../hooks/useAdena", () => ({
-  useAdena: () => ({ address: "", connected: false, connect }),
-}))
+let adena = { address: "", connected: false, connect }
+vi.mock("../../hooks/useAdena", () => ({ useAdena: () => adena }))
 
 describe("ReviewsSection", () => {
-  it("shows summary + a review body, and the write form is visible while logged out", async () => {
+  beforeEach(() => {
+    fetchReviews.mockReset().mockResolvedValue([
+      review({ id: 1, subject: "g1s", author: "g1a", body: "great validator", rating: 5, reputation: 3, username: "@alice" }),
+    ])
+    submitMsg.mockReset().mockResolvedValue("hash")
+    connect.mockReset().mockResolvedValue(false)
+    adena = { address: "", connected: false, connect }
+  })
+
+  it("shows the review body + a client-computed average, with the form visible logged-out", async () => {
     renderWithProviders(<ReviewsSection subject="g1s" />)
-
     expect(await screen.findByText(/great validator/)).toBeInTheDocument()
-    // Average displays — sum/count = 5/1 = 5.0
     expect(screen.getByText(/5\.0/)).toBeInTheDocument()
-
-    // The form (rating radiogroup + Connect & post button) is present without a wallet.
     expect(screen.getByRole("radiogroup", { name: /your rating/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /connect & post review/i })).toBeInTheDocument()
   })
 
-  it("triggers wallet connect when posting while logged out (after a rating is chosen)", async () => {
-    connect.mockClear()
+  it("shows a 'select a rating' hint while no rating is chosen, and does not connect on submit", async () => {
     renderWithProviders(<ReviewsSection subject="g1s" />)
     await screen.findByText(/great validator/)
+    expect(screen.getByTestId("reviews-rating-hint")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /connect & post review/i }))
+    expect(connect).not.toHaveBeenCalled()
+  })
 
-    // Choose 4 stars, then submit.
+  it("triggers wallet connect when posting after a rating is chosen", async () => {
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/great validator/)
     fireEvent.click(screen.getByRole("radio", { name: /4 stars/i }))
     fireEvent.click(screen.getByRole("button", { name: /connect & post review/i }))
-
     await waitFor(() => expect(connect).toHaveBeenCalled())
   })
 
-  it("does not connect when no rating is selected", async () => {
-    connect.mockClear()
-    renderWithProviders(<ReviewsSection subject="g1s" />)
-    await screen.findByText(/great validator/)
+  it("merges reviews across the canonical subject + an alias address (orphaned reviews recovered)", async () => {
+    // operator subject has one review; the signing alias has a different author's review.
+    fetchReviews.mockImplementation((s: string) =>
+      Promise.resolve(
+        s === "g1op"
+          ? [review({ id: 3, subject: "g1op", author: "g1alice", body: "from operator" })]
+          : [review({ id: 2, subject: "g1sign", author: "g1bob", body: "from signing" })],
+      ),
+    )
+    renderWithProviders(<ReviewsSection subject="g1op" aliasSubjects={["g1sign"]} />)
+    expect(await screen.findByText(/from operator/)).toBeInTheDocument()
+    expect(await screen.findByText(/from signing/)).toBeInTheDocument()
+    // 2 distinct authors → "2 reviews"
+    expect(screen.getByText(/2 reviews/)).toBeInTheDocument()
+  })
 
-    fireEvent.click(screen.getByRole("button", { name: /connect & post review/i }))
-    expect(connect).not.toHaveBeenCalled()
+  it("optimistically shows a just-posted review before the chain reflects it", async () => {
+    adena = { address: "g1me", connected: true, connect }
+    // Chain still returns only the old review (read-after-write lag).
+    fetchReviews.mockResolvedValue([review({ id: 1, author: "g1other", body: "existing" })])
+    renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/existing/)
+
+    fireEvent.click(screen.getByRole("radio", { name: /5 stars/i }))
+    fireEvent.change(screen.getByLabelText(/review \(optional\)/i), { target: { value: "my fresh take" } })
+    fireEvent.click(screen.getByRole("button", { name: /post review/i }))
+
+    // Appears immediately even though the chain fetch doesn't include it yet.
+    expect(await screen.findByText(/my fresh take/)).toBeInTheDocument()
+    expect(submitMsg).toHaveBeenCalled()
   })
 })

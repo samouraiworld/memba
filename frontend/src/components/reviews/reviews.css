@@ -457,6 +457,18 @@
 }
 
 /* ── Shared button helpers ───────────────────────────────────────────── */
+.reviews-section__submit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reviews-section__hint {
+  font-size: var(--text-xs, 0.64rem);
+  color: var(--color-k-muted);
+}
+
 .reviews-btn-primary {
   background: var(--color-k-accent);
   color: var(--color-k-on-accent);
@@ -467,6 +479,11 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
+}
+
+.reviews-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .reviews-btn-primary:hover {

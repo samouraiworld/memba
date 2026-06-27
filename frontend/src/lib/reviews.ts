@@ -108,6 +108,56 @@ export function sortByTrust<T extends { reputation: number; createdAt: number }>
     return [...items].sort((a, b) => b.reputation - a.reputation || b.createdAt - a.createdAt)
 }
 
+/**
+ * Merge review lists fetched from several subject addresses into one, deduped by author.
+ *
+ * A validator's reviews can be split across addresses: when a genesis validator later
+ * registers a valoper, its canonical subject flips from the signing address to the
+ * operator address, stranding earlier reviews under the old key. We read BOTH and merge.
+ *
+ * Dedup rule (per author, since the realm allows one review per author+subject): keep the
+ * review on the canonical subject if present; otherwise the most recently created.
+ * Deleted reviews are dropped. Result is sorted by trust.
+ */
+export function mergeReviewsByAuthor(lists: OnChainReview[][], canonicalSubject: string): OnChainReview[] {
+    const byAuthor = new Map<string, OnChainReview>()
+    for (const list of lists) {
+        for (const r of list) {
+            if (r.deleted) continue
+            const existing = byAuthor.get(r.author)
+            if (!existing) { byAuthor.set(r.author, r); continue }
+            const rCanon = r.subject === canonicalSubject
+            const eCanon = existing.subject === canonicalSubject
+            if (rCanon && !eCanon) byAuthor.set(r.author, r)
+            else if (rCanon === eCanon && r.createdAt > existing.createdAt) byAuthor.set(r.author, r)
+        }
+    }
+    return sortByTrust([...byAuthor.values()])
+}
+
+/** Client-side summary (count / sum / average) over a (already merged/deduped) review list. */
+export function summaryFromReviews(reviews: OnChainReview[]): SubjectSummary {
+    const live = reviews.filter((r) => !r.deleted)
+    const sum = live.reduce((s, r) => s + r.rating, 0)
+    return { count: live.length, sum, average: live.length ? sum / live.length : 0 }
+}
+
+/** A local, not-yet-confirmed review for optimistic display right after posting. id<0 and
+ *  createdAt=0 mark it as pending (no real block height yet). */
+export function makeOptimisticReview(author: string, rating: number, body: string, subject: string): OnChainReview {
+    return {
+        id: -1, subject, author, rating, body,
+        createdAt: 0, editedAt: 0, deleted: false,
+        likes: 0, dislikes: 0, flags: 0, reputation: 0,
+    }
+}
+
+/** Insert-or-replace a review by author (the realm edits an author's existing review on
+ *  re-post), keeping the list sorted by trust. */
+export function upsertReviewByAuthor(list: OnChainReview[], review: OnChainReview): OnChainReview[] {
+    return sortByTrust([review, ...list.filter((r) => r.author !== review.author)])
+}
+
 // ── Internal RPC helper ──────────────────────────────────────
 
 async function evalJSON(expr: string): Promise<string> {
