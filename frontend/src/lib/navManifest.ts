@@ -85,7 +85,11 @@ const resolve = (ids: string[]): NavEntry[] => ids.map(byId).filter((e): e is Na
 
 const PRIMARY_TABS_VISITOR = ['home', 'dao', 'tokens', 'directory']
 const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
-const MORE_NAV_IDS = ['dashboard', 'validators', 'gnolove', 'extensions', 'alerts']
+// Overflow nav for the "More" sheet. Includes `directory` + `quests` so every
+// sidebar destination is reachable on mobile (they aren't primary tabs); the
+// per-audience primary tabs are filtered out at render time so nothing is shown
+// twice (see mobileMoreNav).
+const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
@@ -97,7 +101,10 @@ export function mobilePrimaryTabs(connected: boolean): NavEntry[] {
 
 /** "More" sheet → Navigate section (overflow nav not in the primary tabs). */
 export function mobileMoreNav(connected: boolean): NavEntry[] {
-    return resolve(MORE_NAV_IDS).filter(visibleFor(connected))
+    const primaryIds = new Set(mobilePrimaryTabs(connected).map((e) => e.id))
+    return resolve(MORE_NAV_IDS)
+        .filter(visibleFor(connected))
+        .filter((e) => !primaryIds.has(e.id))
 }
 
 /** "More" sheet → Account section. */
