@@ -22,6 +22,7 @@ import { tradeEngineFor } from "../../lib/tradeEngine"
 import { buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
 import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
 import { routeNftV3 } from "../../lib/marketplace/router"
+import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
 import { friendlyError } from "../../lib/errorMessages"
 import { PriceBreakdown } from "./PriceBreakdown"
@@ -71,6 +72,19 @@ export function TradeModal({
 
     // ── shared ──────────────────────────────────────────────
     const [error, setError] = useState<string | null>(null)
+
+    // Fee row mirrors the on-chain rate. Start at the engine default (so the breakdown
+    // is never blank) and, for v3, replace it with the DAO-set memba_market_config rate.
+    // fetchLaneFeeBps is fail-safe (falls back to the default on any read error).
+    const [feeBps, setFeeBps] = useState(engine.feeBps)
+    useEffect(() => {
+        if (engine.engine !== "v3") return
+        let cancelled = false
+        fetchLaneFeeBps("nft").then((bps) => {
+            if (!cancelled) setFeeBps(bps)
+        })
+        return () => { cancelled = true }
+    }, [engine.engine])
 
     // ── buy / accept ────────────────────────────────────────
     const [confirming, setConfirming] = useState(false)
@@ -258,7 +272,7 @@ export function TradeModal({
                     <>
                         <PriceBreakdown
                             priceUgnot={priceUgnot}
-                            feeBps={engine.feeBps}
+                            feeBps={feeBps}
                             royaltyBps={royaltyBps}
                         />
 
@@ -353,7 +367,7 @@ export function TradeModal({
                                 {isListValid && (
                                     <PriceBreakdown
                                         priceUgnot={listPriceUgnot}
-                                        feeBps={engine.feeBps}
+                                        feeBps={feeBps}
                                         royaltyBps={royaltyBps}
                                     />
                                 )}

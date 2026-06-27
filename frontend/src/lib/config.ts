@@ -230,12 +230,18 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // Phase 2 canonical launchpad registry — deployed 2026-06-17 (multisig
         // seq 43). isNftLaunchpadValid() now flips true so /nft/create,
         // /nft/collection/:id and /nft/creator/:address surface, along with the
-        // verified-collection badge (both key off this registry). The v3 trading
-        // engine (memba_nft_market_v3) is live but not yet frontend-wired — it
-        // lands with the Phase 3 multi-engine router, so it stays out of the
-        // allowlist until then.
+        // verified-collection badge (both key off this registry).
         "gno.land/r/samcrew/memba_collections",
         "gno.land/r/samcrew/memba_reviews_v1",
+        // ── Marketplace W1 go-live (atomic flip) ──────────────────────────────
+        // The v3.1 trading engine (memba_nft_market_v3_1) + its DAO fee-config realm
+        // are FULLY frontend-wired (offers read + accept-offer + chain-read fee row,
+        // Marketplace W1 go-live PR) but stay OUT of this allowlist until the realms
+        // are deployed & registered on-chain (W1 deploy runbook). isNftMarketV3Valid()
+        // keys off the engine path, so the whole trade surface stays dark until then.
+        // AT GO-LIVE, uncomment the next line AND set Netlify VITE_ENABLE_NFT=true
+        // together — both gates must open in the same release:
+        //   "gno.land/r/samcrew/memba_nft_market_v3_1",
     ],
 }
 

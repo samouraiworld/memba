@@ -75,6 +75,11 @@ const mockFetchNFTCollection = vi.fn()
 const mockFetchV3Tokens = vi.fn()
 const mockFetchV3Listings = vi.fn()
 const mockFetchNFTActivity = vi.fn()
+const mockFetchOffersForToken = vi.fn()
+
+vi.mock("../lib/marketplace/v3Reads", () => ({
+    fetchOffersForToken: (...args: unknown[]) => mockFetchOffersForToken(...args),
+}))
 
 vi.mock("../lib/launchpadReads", () => ({
     fetchCollectionDetail: (...args: unknown[]) => mockFetchCollectionDetail(...args),
@@ -149,6 +154,52 @@ describe("useCollectionPublic — happy path", () => {
 
         // supply = detail.minted = 3
         expect(mockFetchV3Tokens).toHaveBeenCalledWith(COL_ID, 3, expect.anything())
+    })
+})
+
+describe("useCollectionPublic — offers (viewer-scoped)", () => {
+    const OWNER1 = "g1owner000000000000000000000000000001"
+
+    beforeEach(() => {
+        mockFetchCollectionDetail.mockResolvedValue({ ...BASE_DETAIL })
+        mockFetchNFTCollection.mockResolvedValue({ ...BASE_STATS })
+        mockFetchV3Tokens.mockResolvedValue([...BASE_TOKENS])
+        mockFetchV3Listings.mockResolvedValue(new Map(BASE_LISTINGS))
+        mockFetchNFTActivity.mockResolvedValue([...BASE_ACTIVITY])
+        mockFetchOffersForToken.mockReset()
+        mockFetchOffersForToken.mockResolvedValue([
+            { buyer: "g1buyer00000000000000000000000000009", amountUgnot: 3_000_000, createdBlk: 100 },
+        ])
+    })
+
+    it("reads offers ONLY for the viewer's owned tokens", async () => {
+        // BASE_TOKENS[0] is owned by OWNER1; pass OWNER1 as the viewer.
+        const { result } = renderHook(() => useCollectionPublic(COL_ID, OWNER1))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // Exactly one owned token → exactly one offers read, keyed by that tokenId.
+        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(1)
+        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "0", expect.any(String))
+        expect(result.current.offers.get("0")).toHaveLength(1)
+    })
+
+    it("skips offer reads entirely when logged out (no viewer)", async () => {
+        const { result } = renderHook(() => useCollectionPublic(COL_ID))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(mockFetchOffersForToken).not.toHaveBeenCalled()
+        expect(result.current.offers.size).toBe(0)
+    })
+
+    it("a failed offer read degrades to no offers (never errors)", async () => {
+        mockFetchOffersForToken.mockReset()
+        mockFetchOffersForToken.mockRejectedValue(new Error("offers read down"))
+
+        const { result } = renderHook(() => useCollectionPublic(COL_ID, OWNER1))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.error).toBeNull()
+        expect(result.current.offers.size).toBe(0)
     })
 })
 

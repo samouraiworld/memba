@@ -58,6 +58,13 @@ vi.mock("../../lib/grc721", () => ({
     isApprovedForAll: (...args: unknown[]) => mockIsApprovedForAll(...args),
 }))
 
+// The fee row reads the DAO-set rate from memba_market_config. Mock it to a value
+// distinct from the engine default (200) so a test can prove the live read wins.
+const mockFetchLaneFeeBps = vi.fn().mockResolvedValue(300)
+vi.mock("../../lib/marketplace/v3Reads", () => ({
+    fetchLaneFeeBps: (...args: unknown[]) => mockFetchLaneFeeBps(...args),
+}))
+
 // The v3 trade actions now route through routeNftV3, which guards on
 // isRealmValid(v3 path). On test13 the v3 path is intentionally un-allowlisted, so
 // mock the guard true to exercise the builders (the gate itself is tested in router.test).
@@ -117,6 +124,14 @@ describe("TradeModal — buy (v3)", () => {
         expect(screen.getByText(/Platform Fee/)).toBeInTheDocument()
         expect(screen.getByText(/Creator Royalty/)).toBeInTheDocument()
         expect(screen.getByText("Seller Receives")).toBeInTheDocument()
+    })
+
+    it("fee row mirrors the on-chain rate from memba_market_config (not the static default)", async () => {
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)
+
+        // fetchLaneFeeBps("nft") resolves to 300 → the breakdown must show 3.0%, not 2.0%.
+        expect(mockFetchLaneFeeBps).toHaveBeenCalledWith("nft")
+        await waitFor(() => expect(screen.getByText(/Platform Fee \(3\.0%\)/)).toBeInTheDocument())
     })
 })
 

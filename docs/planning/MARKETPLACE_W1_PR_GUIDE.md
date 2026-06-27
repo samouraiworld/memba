@@ -34,7 +34,13 @@
 
 ## What's NOT in these PRs (the go-live gate — yours)
 1. **Multisig deploy** (deployer, per #37's runbook): `memba_market_core` → `memba_market_config` → `memba_nft_market_v3_1` → pause-first `RegisterMarket(g1hu6u2q…)` → smoke-test.
-2. **Go-live wiring** (a small follow-up memba PR I prepare after deploy, ~1 day): add `memba_nft_market_v3_1` to `REALM_ALLOWLIST.test13` + flip `VITE_ENABLE_NFT`, wire `v3Reads` (`fetchListingsPage`/`fetchOffersForToken`/`fetchLaneFeeBps`) into `useCollectionPublic` (offers ON, accept-offer, chain-read fee row, drop the regex scrape), verify on a deploy-preview. The read layer + parsers are already built + golden-tested in #592; this is the thin integration on top, plus confirming the exact `vm/qeval` multi-line string encoding against the live realm.
+2. **Go-live wiring** — ✅ **now BUILT (dark), in the Marketplace W1 go-live PR (stacks on #592).** `fetchOffersForToken` wired into `useCollectionPublic` (viewer-scoped, bounded to owned tokens), the **accept-offer** action wired end-to-end (best offer → `buyerAddr` → `TradeModal`), the **Make-offer** loop enabled, and the **fee row reads live** from `memba_market_config` (`fetchLaneFeeBps`) instead of the static 200. All dormant behind `isNftMarketV3Valid()` + `VITE_ENABLE_NFT`. Full suite green (2942). Merging it ships **zero** live surface. What remains is only the **atomic activation** (below) + confirming the exact `vm/qeval` multi-line string encoding against the live realm.
+
+### Atomic activation (do these two together, in ONE release, AFTER deploy + smoke-test)
+1. Uncomment `"gno.land/r/samcrew/memba_nft_market_v3_1"` in `REALM_ALLOWLIST.test13` (`frontend/src/lib/config.ts`).
+2. Set Netlify `VITE_ENABLE_NFT=true` (and remove it from `SAFETY_GATED_FLAGS` only once the realm is confirmed live).
+3. Deploy-preview verify → **G1 gate**: a listed token Buys, an owned token Lists, a non-owner can Offer, an owner sees + Accepts the best offer, and the fee row shows the on-chain rate. Confirm `unwrapQevalString` handles the realm's actual multi-line encoding (the one thing gnodev can't fully prove — falls back safely if the format differs).
+4. Rollback = re-comment the allowlist line OR set `VITE_ENABLE_NFT=false` (either gate alone darkens it).
 
 ## Open items to confirm before/at deploy
 - **Config admin/treasury = `g10kw7e…`** (the real 2-of-2 multisig) — confirmed; intentionally differs from the legacy realms' single-key `g1x7k…` (pre-existing gap).

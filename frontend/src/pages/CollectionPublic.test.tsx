@@ -82,11 +82,18 @@ const FIXTURE_ACTIVITY = [
 
 // ── Mock useCollectionPublic ──────────────────────────────────────────
 
+// Token #2 (owned by ME) has a standing offer, so the owner can accept it.
+const OFFER_BUYER = "g1buyer00000000000000000000000000009"
+const FIXTURE_OFFERS = new Map([
+    ["2", [{ buyer: OFFER_BUYER, amountUgnot: 3_000_000, createdBlk: 100 }]],
+])
+
 const mockHookReturn = {
     detail: FIXTURE_DETAIL,
     stats: FIXTURE_STATS,
     tokens: FIXTURE_TOKENS,
     listings: FIXTURE_LISTINGS,
+    offers: FIXTURE_OFFERS,
     activity: FIXTURE_ACTIVITY,
     loading: false,
     error: null,
@@ -304,20 +311,53 @@ describe("CollectionPublic — Items tab: listed token → Buy", () => {
     })
 })
 
-describe("CollectionPublic — Items tab: unlisted token → Offer (OFFERS_ENABLED=false)", () => {
-    it("does NOT render a Make-offer button for an unlisted token not owned by viewer (gated until Phase 3)", async () => {
+describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
+    it("opens TradeModal with action='offer' for an unlisted token not owned by the viewer", async () => {
         renderPage()
 
-        // Token #1 is not listed, owned by TOKEN_OWNER_1 (not ME).
-        // With OFFERS_ENABLED=false, no Make-offer button should appear and the
-        // offer modal must not open. The "Not listed" label should still be visible.
+        // Token #1 is not listed, owned by TOKEN_OWNER_1 (not ME). The offer loop is
+        // live (read + accept wired), so a non-owner sees a Make-offer button.
         await waitFor(() => {
-            expect(screen.getAllByText(/Cool NFTs/).length).toBeGreaterThan(0)
+            expect(screen.getAllByRole("button", { name: /Make offer/i }).length).toBeGreaterThan(0)
         })
 
-        expect(screen.queryAllByRole("button", { name: /Make offer/i })).toHaveLength(0)
-        expect(screen.queryByTestId("trade-modal")).not.toBeInTheDocument()
-        expect(screen.getAllByText(/Not listed/i).length).toBeGreaterThan(0)
+        fireEvent.click(screen.getAllByRole("button", { name: /Make offer/i })[0])
+
+        await waitFor(() => {
+            expect(screen.getByTestId("trade-modal")).toBeInTheDocument()
+        })
+
+        expect(capturedTradeProps.at(-1)).toMatchObject({
+            action: "offer",
+            source: "v3",
+            collectionID: COL_ID,
+            tokenId: "1",
+        })
+    })
+})
+
+describe("CollectionPublic — Items tab: owned token with offer → Accept", () => {
+    it("opens TradeModal with action='accept' and the best offer's buyer for an owned token", async () => {
+        renderPage()
+
+        // Token #2 is owned by ME and has a standing 3 GNOT offer from OFFER_BUYER.
+        await waitFor(() => {
+            expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThan(0)
+        })
+
+        fireEvent.click(screen.getAllByRole("button", { name: /Accept/i })[0])
+
+        await waitFor(() => {
+            expect(screen.getByTestId("trade-modal")).toBeInTheDocument()
+        })
+
+        expect(capturedTradeProps.at(-1)).toMatchObject({
+            action: "accept",
+            source: "v3",
+            collectionID: COL_ID,
+            tokenId: "2",
+            buyerAddr: OFFER_BUYER,
+        })
     })
 })
 
