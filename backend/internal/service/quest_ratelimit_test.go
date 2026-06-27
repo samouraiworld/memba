@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
@@ -32,6 +34,10 @@ func TestCompleteQuest_PerAddressRateLimit(t *testing.T) {
 		return err
 	}
 
+	// Measure the rejection counter as a delta so the assertion is robust to other
+	// tests touching the same process-global metric (Q-16 observability).
+	before := testutil.ToFloat64(metrics.QuestRateLimitExceeded.WithLabelValues(ratelimit.QuestWriteEndpoint))
+
 	if err := call(alice); err != nil {
 		t.Fatalf("call 1 should pass: %v", err)
 	}
@@ -44,6 +50,9 @@ func TestCompleteQuest_PerAddressRateLimit(t *testing.T) {
 	}
 	if connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("expected ResourceExhausted, got %v (%v)", connect.CodeOf(err), err)
+	}
+	if delta := testutil.ToFloat64(metrics.QuestRateLimitExceeded.WithLabelValues(ratelimit.QuestWriteEndpoint)) - before; delta != 1 {
+		t.Fatalf("expected rate-limit counter to increment by 1, got delta %v", delta)
 	}
 
 	// A different wallet is unaffected — its own bucket.
