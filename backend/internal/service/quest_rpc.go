@@ -399,6 +399,14 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 		if err != nil {
 			return nil, internalError("SyncQuests", err)
 		}
+
+		// Q-05: issue an attestation voucher for synced completions too. Many
+		// off-chain quest UI triggers call completeQuest() WITHOUT the auth token,
+		// so they reach the backend only via this sync path — without this, those
+		// completions would never get an on-chain voucher. Idempotent per
+		// (addr, questId); no-op when attestation is disabled. This also backfills
+		// vouchers for completions recorded before attestation was enabled.
+		s.issueAttestationVoucher(ctx, userAddr, questID)
 	}
 
 	state, err := s.loadUserQuestState(ctx, userAddr)

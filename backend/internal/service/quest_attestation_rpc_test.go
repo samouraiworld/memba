@@ -92,6 +92,33 @@ func TestCompleteQuest_VoucherIsIdempotent(t *testing.T) {
 	}
 }
 
+// SyncQuests must also issue vouchers — many off-chain quest UI triggers reach
+// the backend only via sync (not CompleteQuest), so without this they'd never
+// attest. This also backfills completions recorded before attestation was on.
+func TestSyncQuests_IssuesAttestationVouchers(t *testing.T) {
+	h := setup(t)
+	signer, _ := attestation.NewFromSeedHex(testAttestationSeed)
+	h.svc.SetAttestationSigner(signer)
+	token := h.makeToken(t, "g1dave")
+
+	if _, err := h.svc.SyncQuests(context.Background(), connect.NewRequest(&membav1.SyncQuestsRequest{
+		AuthToken: token,
+		Completions: []*membav1.QuestCompletion{
+			{QuestId: "use-cmdk", CompletedAt: "2026-06-27T00:00:00Z"}, // off_chain, low-trust accept
+		},
+	})); err != nil {
+		t.Fatal("SyncQuests:", err)
+	}
+
+	resp, err := h.svc.GetAttestationVouchers(context.Background(), connect.NewRequest(&membav1.GetAttestationVouchersRequest{Address: "g1dave"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Msg.Vouchers) != 1 || resp.Msg.Vouchers[0].QuestId != "use-cmdk" {
+		t.Fatalf("sync should issue a voucher for the off-chain quest, got %+v", resp.Msg.Vouchers)
+	}
+}
+
 // Disabled by default (no signer): no voucher issued, and the response carries no
 // realm/signer — so the frontend cleanly shows nothing.
 func TestAttestation_DisabledWhenNoSigner(t *testing.T) {
