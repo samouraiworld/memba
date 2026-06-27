@@ -237,3 +237,54 @@ func TestLimiter_WindowExpiry(t *testing.T) {
 		t.Error("should be allowed after window expires")
 	}
 }
+
+func TestLimiter_AllowKey_Isolation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	l := New(ctx, map[string]Config{"quest_write": {MaxRequests: 2, Window: time.Minute}})
+
+	// Two distinct keys (e.g. wallet addresses) get independent buckets.
+	first := l.AllowKey("g1alice", "quest_write")
+	second := l.AllowKey("g1alice", "quest_write")
+	if !first || !second {
+		t.Fatal("first two calls for alice should pass")
+	}
+	if l.AllowKey("g1alice", "quest_write") {
+		t.Error("third call for alice should be limited")
+	}
+	if !l.AllowKey("g1bob", "quest_write") {
+		t.Error("bob has his own bucket and should pass")
+	}
+}
+
+func TestLimiter_AllowKey_NoSubnetBucketing(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	l := New(ctx, map[string]Config{"k": {MaxRequests: 1, Window: time.Minute}})
+
+	// Unlike Allow (which /24-buckets IPs), AllowKey uses the key verbatim, so two
+	// addresses that would share a /24 if treated as IPs do NOT share a bucket.
+	if !l.AllowKey("1.2.3.4", "k") {
+		t.Fatal("first key should pass")
+	}
+	if !l.AllowKey("1.2.3.5", "k") {
+		t.Error("a different verbatim key must not share the bucket")
+	}
+}
+
+func TestPerUserQuestConfigs_DefaultsAndOverride(t *testing.T) {
+	def := PerUserQuestConfigs(nil)
+	if def[QuestWriteEndpoint].MaxRequests != 10 || def[QuestClaimEndpoint].MaxRequests != 5 {
+		t.Fatalf("unexpected defaults: %+v", def)
+	}
+	over := PerUserQuestConfigs(func(name string, d int) int {
+		if name == "MEMBA_QUEST_WRITE_RPM" {
+			return 3
+		}
+		return d
+	})
+	if over[QuestWriteEndpoint].MaxRequests != 3 || over[QuestClaimEndpoint].MaxRequests != 5 {
+		t.Fatalf("env override not applied: %+v", over)
+	}
+}
