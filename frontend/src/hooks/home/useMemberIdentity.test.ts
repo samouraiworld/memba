@@ -30,8 +30,10 @@ beforeEach(() => { vi.clearAllMocks() })
 const ADDR = "g1q9abc123def456ghijklmnopqrstuvwxyz0000"
 
 describe("useMemberIdentity", () => {
-    it("uses the resolved @username for the display name + initials", async () => {
-        vi.mocked(profile.resolveOnChainUsername).mockResolvedValue("alice")
+    it("uses the resolved @username for the display name + initials (no double @)", async () => {
+        // resolveOnChainUsername returns a display-ready "@handle" (real shape);
+        // the hook must store the BARE handle so displayName isn't "@@alice".
+        vi.mocked(profile.resolveOnChainUsername).mockResolvedValue("@alice")
         const { useMemberIdentity } = await import("./useMemberIdentity")
         const { result } = renderHook(() => useMemberIdentity(ADDR), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.username).toBe("alice"))
@@ -68,7 +70,7 @@ describe("useMemberIdentity", () => {
         const { result } = renderHook(() => useMemberIdentity(ADDR), { wrapper: makeWrapper() })
         // Before the username resolves, the display name is already the address.
         expect(result.current.displayName).toMatch(/^g1q9/)
-        resolve("bob")
+        resolve("@bob")
         await waitFor(() => expect(result.current.displayName).toBe("@bob"))
     })
 })
