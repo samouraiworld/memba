@@ -25,6 +25,11 @@ import (
 	"strings"
 )
 
+// RealmPath is the deployed attestation realm (test13). The client broadcasts
+// RecordCompletion here; echoed in GetAttestationVouchers so the frontend need
+// not hardcode it.
+const RealmPath = "gno.land/r/samcrew/memba_quest_attestation_v1"
+
 // fieldSep separates voucher fields in the canonical message. No field may
 // contain it (the realm rejects it too) — this keeps the message unambiguous.
 const fieldSep = "|"

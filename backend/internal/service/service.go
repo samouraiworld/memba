@@ -16,6 +16,7 @@ import (
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
@@ -43,6 +44,10 @@ type MultisigService struct {
 	// (the default in tests); production wires it via SetUserLimiter with the app
 	// context so the GC goroutine stops on shutdown.
 	userLimiter *ratelimit.Limiter
+
+	// attSigner issues on-chain attestation vouchers (Q-05). nil disables
+	// attestation (the default; production sets it from MEMBA_ATTESTATION_SEED).
+	attSigner *attestation.Signer
 
 	// Home snapshot cache (Phase 2) — single entry per chain_id, in-memory,
 	// serve-stale-on-error. See home_rpc.go.
@@ -122,6 +127,13 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 // per-user limiting so existing quest tests are unaffected.
 func (s *MultisigService) SetUserLimiter(l *ratelimit.Limiter) {
 	s.userLimiter = l
+}
+
+// SetAttestationSigner installs the offline attestation signer (Q-05). Wired in
+// production from MEMBA_ATTESTATION_SEED; nil (the default, incl. tests) disables
+// attestation so no vouchers are issued and GetAttestationVouchers is empty.
+func (s *MultisigService) SetAttestationSigner(signer *attestation.Signer) {
+	s.attSigner = signer
 }
 
 // rateLimitUser enforces the per-address quest quota for endpoint. Returns a

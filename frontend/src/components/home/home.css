@@ -1438,6 +1438,185 @@ a.activity-feed__link:focus-visible {
   }
 }
 
+/* ── MemberHero ───────────────────────────────────────────────────── */
+
+/* Editorial connected-member anchor: an identity lead column beside a standing
+   "proof object" (XP / rank / candidature meter). Mirrors .visitor-hero so the
+   logged-in page reads at the same bar; stacks at ≤720px. */
+.member-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  padding: 28px 16px;
+}
+
+.member-hero__lead {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.member-hero__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-k-muted);
+}
+
+.member-hero__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.member-hero__avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-k-accent-text);
+  background: var(--color-k-accent-subtle);
+  border: 1px solid var(--color-k-accent-border);
+}
+
+.member-hero__name {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-k-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Wallet chips live inside the hero lead now — no separate full-bleed band. */
+.member-hero__lead .wallet-chips {
+  padding: 0;
+  background: none;
+  border-bottom: none;
+}
+
+/* ── Member standing proof card (right column) ─────────────────────── */
+.member-standing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-k-edge);
+  border-radius: 12px;
+  background: var(--color-k-panel);
+}
+
+.member-standing__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-k-muted);
+}
+
+.member-standing__rank-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.member-standing__xp {
+  font-family: var(--font-mono);
+  color: var(--color-k-text);
+  line-height: 1;
+}
+
+.member-standing__xp-value {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.member-standing__xp-unit {
+  font-size: 14px;
+  color: var(--color-k-dim);
+}
+
+.member-standing__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-k-edge);
+  overflow: hidden;
+}
+
+.member-standing__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-k-accent);
+  transition: width 0.4s ease;
+}
+
+.member-standing__hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-k-dim);
+}
+
+.member-standing__cta {
+  align-self: flex-start;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-k-accent-text);
+  text-decoration: none;
+}
+
+.member-standing__cta:hover {
+  text-decoration: underline;
+}
+
+.member-standing__cta--eligible {
+  margin-top: 2px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--color-k-accent);
+  color: var(--color-k-on-accent);
+}
+
+.member-standing__cta--eligible:hover {
+  text-decoration: none;
+  opacity: 0.9;
+}
+
+.member-standing__cta:focus-visible {
+  outline: 2px solid var(--color-k-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-standing__bar-fill { transition: none; }
+}
+
+@media (max-width: 720px) {
+  .member-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 20px 14px;
+  }
+}
+
 /* ── VisitorHero ──────────────────────────────────────────────────── */
 
 /* Editorial hero: a lead column (headline + CTAs) beside a live proof card.
@@ -2167,6 +2346,24 @@ button.door:focus-visible {
   outline: 2px solid var(--color-k-accent);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* Member "Act now" controls are the highest-stakes taps in the app (sign / vote
+   / claim — a mis-tap can cast the wrong on-chain vote), yet they were ~26px.
+   Bring them to the 44px minimum on phones. Mobile-scoped — desktop unchanged. */
+@media (max-width: 768px) {
+  .action-door__cta,
+  .quick-vote-btn,
+  .action-inbox__view-all,
+  .action-door__caught-up-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .quick-vote-btn {
+    justify-content: center;
+  }
 }
 
 /* ── YourWorldsPanel ─────────────────────────────────────────────── */

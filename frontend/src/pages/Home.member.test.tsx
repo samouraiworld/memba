@@ -78,6 +78,29 @@ vi.mock("../hooks/home/useNetworkPulse", () => ({
     })),
 }))
 
+// ── Mock MemberHero data hooks (avoid RPC/backend in the shell test) ──────────
+vi.mock("../hooks/home/useMemberIdentity", () => ({
+    useMemberIdentity: vi.fn(() => ({
+        loading: false,
+        username: undefined,
+        displayName: "g1q9…xyz7",
+        initials: "Q9",
+    })),
+}))
+vi.mock("../hooks/home/useMemberStanding", () => ({
+    useMemberStanding: vi.fn(() => ({
+        loading: false,
+        totalXP: 0,
+        rank: { tier: 0, name: "Newcomer", xpRequired: 0, color: "#6b7280", cssClass: "rank-newcomer", perks: [] },
+        nextRank: { tier: 1, name: "Bronze Explorer", xpRequired: 50, color: "#cd7f32", cssClass: "rank-bronze", perks: [] },
+        xpToNext: 50,
+        candidatureThreshold: 350,
+        xpToCandidature: 350,
+        candidatureProgress: 0,
+        isEligible: false,
+    })),
+}))
+
 // ── Mock useHomeActions (ActionInbox dep) ─────────────────────────────────────
 vi.mock("../hooks/home/useHomeActions", () => ({
     useHomeActions: vi.fn(() => ({
