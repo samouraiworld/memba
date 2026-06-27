@@ -9,8 +9,11 @@
  * gnobuilders tier system, so a brand-new member reads as an honest "Newcomer"
  * starting rung (0 XP is a real value here, not a fabricated one).
  *
- * Local progress renders instantly (initialData); the backend value reconciles in
- * the background, so the hero never flashes a skeleton for a value we already hold.
+ * Local progress renders instantly (placeholderData); the backend value reconciles
+ * in the background, so the hero never flashes a skeleton for a value we already
+ * hold. The local placeholder is only surfaced for an authenticated member — an
+ * unauthenticated render shows the honest Newcomer (0 XP) baseline, never another
+ * session's leftover localStorage XP.
  *
  * @module hooks/home/useMemberStanding
  */
@@ -70,7 +73,11 @@ export function useMemberStanding(
         retry: false,
     })
 
-    const totalXP = query.data?.totalXP ?? 0
+    // Only trust the query value (backend-authoritative, with the local placeholder)
+    // for a genuinely connected member — react-query still evaluates placeholderData
+    // for a disabled query, so without this gate a disconnected render would surface
+    // another session's leftover localStorage XP. Unauthenticated → honest 0.
+    const totalXP = isAuthenticated && address ? (query.data?.totalXP ?? 0) : 0
     const rank = calculateRank(totalXP)
     const nextRank = RANK_TIERS[rank.tier + 1]
     const xpToNext = xpToNextRank(totalXP)

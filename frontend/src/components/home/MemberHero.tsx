@@ -33,8 +33,10 @@ function truncateAddress(addr: string): string {
  * string: useBalance only ever emits a "… GNOT" string ("— GNOT" loading,
  * "? GNOT" error, "0 GNOT" empty), so a string check can never honour the
  * honesty contract. Show the chip only for a strictly positive on-chain balance. */
-export function WalletChips({ balance, rawUgnot, address }: { balance: string; rawUgnot: bigint; address: string }) {
-    const showBalance = rawUgnot > 0n
+export function WalletChips({ balance, rawUgnot, address }: { balance: string; rawUgnot?: bigint; address: string }) {
+    // Gate at the component boundary (rawUgnot is optional on LayoutContext): the
+    // honesty contract holds for every caller, not just those that remember `?? 0n`.
+    const showBalance = (rawUgnot ?? 0n) > 0n
     const showAddress = !!address
 
     if (!showBalance && !showAddress) return null
@@ -61,7 +63,7 @@ function MemberStandingCard({ standing, networkKey }: { standing: MemberStanding
     const pct = Math.round(candidatureProgress * 100)
 
     return (
-        <aside className="member-standing" data-testid="member-standing" aria-label="Membership progress">
+        <section className="member-standing" data-testid="member-standing" aria-label="Membership progress" role="region">
             <span className="member-standing__label">
                 <span
                     className="member-standing__rank-dot"
@@ -111,7 +113,7 @@ function MemberStandingCard({ standing, networkKey }: { standing: MemberStanding
                     </Link>
                 </>
             )}
-        </aside>
+        </section>
     )
 }
 
@@ -131,7 +133,7 @@ export function MemberHero() {
                     <span className="member-hero__avatar" aria-hidden="true">{identity.initials}</span>
                     <span className="member-hero__name" data-testid="member-hero-name">{identity.displayName}</span>
                 </div>
-                <WalletChips balance={balance} rawUgnot={rawUgnot ?? 0n} address={address} />
+                <WalletChips balance={balance} rawUgnot={rawUgnot} address={address} />
             </div>
 
             <MemberStandingCard standing={standing} networkKey={networkKey} />

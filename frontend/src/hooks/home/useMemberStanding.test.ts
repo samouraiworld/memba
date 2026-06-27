@@ -77,6 +77,26 @@ describe("useMemberStanding", () => {
         expect(result.current.nextRank?.name).toBe("Bronze Explorer")
     })
 
+    it("does not leak local XP into an unauthenticated render (honest 0 baseline)", async () => {
+        // react-query still evaluates placeholderData for a disabled query, so a
+        // disconnected member must NOT surface leftover localStorage XP.
+        vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 999 })
+        const { useMemberStanding } = await import("./useMemberStanding")
+        const { result } = renderHook(() => useMemberStanding("g1abc", false), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.totalXP).toBe(0)
+        expect(result.current.rank.name).toBe("Newcomer")
+        expect(quests.fetchUserQuests).not.toHaveBeenCalled()
+    })
+
+    it("returns the honest 0 baseline when there is no address", async () => {
+        vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 500 })
+        const { useMemberStanding } = await import("./useMemberStanding")
+        const { result } = renderHook(() => useMemberStanding(null, true), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.totalXP).toBe(0)
+    })
+
     it("exposes xpToNext toward the next rank", async () => {
         vi.mocked(quests.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 60 })
         vi.mocked(quests.fetchUserQuests).mockResolvedValue({ completed: [], totalXP: 60 })
