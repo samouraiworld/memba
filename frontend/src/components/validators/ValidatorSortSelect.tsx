@@ -38,7 +38,10 @@ interface ValidatorSortSelectProps {
  */
 export function ValidatorSortSelect({ sortKey, sortAsc, hasMonitoring, onChange }: ValidatorSortSelectProps) {
     const options = hasMonitoring ? [...BASE_OPTIONS, ...MONITORING_OPTIONS] : BASE_OPTIONS
-    const current = `${sortKey}:${sortAsc ? "asc" : "desc"}`
+    const wanted = `${sortKey}:${sortAsc ? "asc" : "desc"}`
+    // Fall back to the first option if the active sort isn't one we offer (e.g. a
+    // desktop-only column sort like missedBlocks) so the select never goes blank.
+    const current = options.some(o => o.value === wanted) ? wanted : options[0].value
 
     return (
         <select
