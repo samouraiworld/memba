@@ -33,6 +33,8 @@ import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { listingKey } from "../lib/v3TokenGrid"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { StatStrip } from "../components/ui/StatStrip"
+import { EmptyState } from "../components/ui/EmptyState"
 import { isNftEnabled, isNftMarketV3Valid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
@@ -126,6 +128,18 @@ function CollectionPublicContent() {
     const isAdmin = me !== "" && me === detail.admin
     const firstTokenUri = tokens.length > 0 ? tokens[0].uri : ""
 
+    // Stats with on-chain fallbacks so a cold/failed indexer never shows bare dashes:
+    // floor + listed are derivable from the live listings, supply from on-chain detail;
+    // only volume genuinely needs the indexer (historical sales) → null = "unavailable".
+    const listingPrices = [...listings.values()].map((l) => l.priceUgnot)
+    const floorUgnot = stats?.floorPriceUgnot ?? (listingPrices.length ? Math.min(...listingPrices) : null)
+    const statItems = [
+        { label: "Floor", value: floorUgnot != null ? formatGnotCompact(floorUgnot) : null },
+        { label: "Volume", value: stats ? formatGnotCompact(stats.totalVolumeUgnot) : null },
+        { label: "Listed", value: stats ? Number(stats.activeListings) : listings.size },
+        { label: "Supply", value: stats ? Number(stats.supply) : detail.minted },
+    ]
+
     const handleModalClose = () => setModal(null)
     const handleModalSuccess = () => {
         setModal(null)
@@ -154,32 +168,7 @@ function CollectionPublicContent() {
             </header>
 
             {/* ── Stats strip ─────────────────────────────────────── */}
-            <div className="cpub-stats">
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Floor</span>
-                    <span className="cpub-stat__value">
-                        {stats ? formatGnotCompact(stats.floorPriceUgnot) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Volume</span>
-                    <span className="cpub-stat__value">
-                        {stats ? formatGnotCompact(stats.totalVolumeUgnot) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Listed</span>
-                    <span className="cpub-stat__value">
-                        {stats ? String(stats.activeListings) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Supply</span>
-                    <span className="cpub-stat__value">
-                        {stats ? String(stats.supply) : detail.minted}
-                    </span>
-                </div>
-            </div>
+            <StatStrip className="cpub-statstrip" stats={statItems} />
 
             {/* ── Tabs ────────────────────────────────────────────── */}
             <div className="cpub-tabs" role="tablist">
@@ -215,7 +204,11 @@ function CollectionPublicContent() {
             {activeTab === "items" && (
                 <section className="cpub-panel">
                     {tokens.length === 0 ? (
-                        <p className="mhub-empty">No tokens minted yet.</p>
+                        <EmptyState
+                            icon="ti-photo"
+                            title="No tokens yet"
+                            body="This collection hasn't minted any tokens."
+                        />
                     ) : (
                         <div className="cpub-token-grid">
                             {tokens.map((token) => {

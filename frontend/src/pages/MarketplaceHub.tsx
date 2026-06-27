@@ -14,7 +14,8 @@
  */
 
 import { useState, useEffect, useMemo } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { EmptyState } from "../components/ui/EmptyState"
 import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "../lib/nftHub"
 import { NFTMedia } from "../components/nft/NFTMedia"
 import { VerifiedBadge } from "../components/nft/VerifiedBadge"
@@ -122,6 +123,7 @@ function LaneContent({ assetType }: { assetType: AssetType }) {
 
 function NftLane() {
     const np = useNetworkPath()
+    const navigate = useNavigate()
 
     const [collections, setCollections] = useState<HubCollection[]>([])
     const [activity, setActivity] = useState<NFTActivityItem[]>([])
@@ -196,11 +198,16 @@ function NftLane() {
             <section className="mhub-collections">
                 <h2 className="mhub-section-title">Collections</h2>
                 {filteredCollections.length === 0 ? (
-                    <p className="mhub-empty">
-                        {query.trim()
-                            ? "No collections match your search."
-                            : "No collections yet. Be the first to launch one."}
-                    </p>
+                    query.trim() ? (
+                        <EmptyState icon="ti-search-off" title="No matches" body="No collections match your search." />
+                    ) : (
+                        <EmptyState
+                            icon="ti-photo"
+                            title="No collections yet"
+                            body="Be the first to launch a collection on the marketplace."
+                            action={{ label: "Launch a collection", onClick: () => navigate(np("nft/create")) }}
+                        />
+                    )
                 ) : (
                     <div className="mhub-grid">
                         {filteredCollections.map((col) => (
