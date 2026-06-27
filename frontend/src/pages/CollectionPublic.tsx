@@ -247,6 +247,14 @@ function CollectionPublicContent() {
                                                     Not listed
                                                 </span>
                                             )}
+                                            {best && (
+                                                <span
+                                                    className="cpub-token-card__best-offer"
+                                                    title="Highest standing offer on this token"
+                                                >
+                                                    Offer {formatGnotCompact(best.amountUgnot)}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="cpub-token-card__actions">
                                             {me === "" ? (

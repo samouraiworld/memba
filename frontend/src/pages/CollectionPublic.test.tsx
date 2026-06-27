@@ -82,9 +82,11 @@ const FIXTURE_ACTIVITY = [
 
 // ── Mock useCollectionPublic ──────────────────────────────────────────
 
-// Token #2 (owned by ME) has a standing offer, so the owner can accept it.
+// Token #2 (owned by ME) has a standing offer → owner can accept.
+// Token #0 (listed, owned by someone else) has a standing offer → buyer sees the badge.
 const OFFER_BUYER = "g1buyer00000000000000000000000000009"
 const FIXTURE_OFFERS = new Map([
+    ["0", [{ buyer: "g1buyerA0000000000000000000000000001", amountUgnot: 1_500_000, createdBlk: 90 }]],
     ["2", [{ buyer: OFFER_BUYER, amountUgnot: 3_000_000, createdBlk: 100 }]],
 ])
 
@@ -332,6 +334,17 @@ describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
             source: "v3",
             collectionID: COL_ID,
             tokenId: "1",
+        })
+    })
+})
+
+describe("CollectionPublic — buyer-facing best-offer badge", () => {
+    it("shows the best standing offer on a listed token the viewer does not own", async () => {
+        renderPage()
+
+        // Token #0 is listed (owned by TOKEN_OWNER_1, not ME) and has a 1.5 GNOT offer.
+        await waitFor(() => {
+            expect(screen.getByText(/Offer 1\.5 GNOT/)).toBeInTheDocument()
         })
     })
 })

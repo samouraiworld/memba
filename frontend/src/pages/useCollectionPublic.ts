@@ -24,7 +24,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { fetchCollectionDetail } from "../lib/launchpadReads"
 import { fetchNFTCollection, fetchNFTActivity } from "../lib/nftApi"
-import { fetchV3Tokens, fetchV3Listings, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
+import { fetchV3Tokens, fetchV3Listings, listingKey, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
 import { fetchOffersForToken, type TokenOffer } from "../lib/marketplace/v3Reads"
 import { tradeEngineFor } from "../lib/tradeEngine"
 import type { CollectionDetail } from "../lib/launchpad"
@@ -34,14 +34,15 @@ import type { NFTCollectionStats, NFTActivityItem } from "../lib/nftApi"
 const { collectionPath, marketPath } = tradeEngineFor("v3")
 
 /**
- * Cap on the number of viewer-owned tokens we fan out offer reads for. Offers are
- * only actionable by an owner (accept), so we read them ONLY for the connected
- * viewer's holdings on this page — and bound that to keep RPC fan-out predictable
- * even for a whale who owns a large slice of a collection.
+ * Cap on the number of tokens we fan out offer reads for. We read offers for the
+ * tokens "in play" — listed tokens (so a BUYER sees a best-offer badge) ∪ the
+ * viewer's owned tokens (so the OWNER can accept) — and bound the union to keep RPC
+ * fan-out predictable on a large collection. v3.1 has no bulk-offers getter (the
+ * engine is deploy-frozen at #37), so this stays per-token via GetOffersForToken.
  */
 const MAX_OFFER_TOKENS = 40
 
-/** Per-token offers, keyed by tokenId. Empty when logged out (no one to accept). */
+/** Per-token offers, keyed by tokenId, for listed + viewer-owned tokens. */
 export type OfferMap = Map<string, TokenOffer[]>
 
 export interface CollectionPublicResult {
@@ -49,7 +50,7 @@ export interface CollectionPublicResult {
     stats: NFTCollectionStats | null
     tokens: V3Token[]
     listings: V3ListingMap
-    /** Offers on the viewer's OWNED tokens (so the owner can accept). Empty otherwise. */
+    /** Offers on listed tokens (buyer best-offer badge) + viewer-owned tokens (owner accept). */
     offers: OfferMap
     activity: NFTActivityItem[]
     loading: boolean
@@ -82,6 +83,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
             // ── First wave: parallel fetches that don't need supply ───────────
             // detail is core; stats/listings/activity are resilient.
             let resolvedDetail: CollectionDetail | null = null
+            let resolvedListings: V3ListingMap = new Map()
             try {
                 const [det, st, lst, act] = await Promise.all([
                     fetchCollectionDetail(id),
@@ -93,6 +95,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
                 if (!active) return
 
                 resolvedDetail = det
+                resolvedListings = lst
                 setDetail(det)
                 setStats(st)
                 setListings(lst)
@@ -125,7 +128,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
                     const toks = await fetchV3Tokens(id, supply, collectionPath)
                     if (!active) return
                     setTokens(toks)
-                    await loadOffers(toks)
+                    await loadOffers(toks, resolvedListings)
                 } catch {
                     // Token enumeration failure is non-fatal; leave tokens as [].
                     if (!active) return
@@ -137,18 +140,22 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
             }
         }
 
-        // ── Offers: read ONLY the viewer's owned tokens (the accept actor) ────
-        // Logged out → skip entirely (no one to accept). Resilient: any failed read
-        // yields no offers for that token; the page degrades to "no offers", never errors.
-        async function loadOffers(toks: V3Token[]) {
-            if (!viewer) return
-            const owned = toks.filter((t) => t.owner === viewer).slice(0, MAX_OFFER_TOKENS)
-            if (owned.length === 0) return
+        // ── Offers: read the tokens "in play" — listed (buyer badge) ∪ owned (accept) ──
+        // Resilient: any failed read yields no offers for that token; the page degrades
+        // to "no offers", never errors. Bounded to MAX_OFFER_TOKENS.
+        async function loadOffers(toks: V3Token[], lst: V3ListingMap) {
+            const wanted = new Set<string>()
+            for (const t of toks) {
+                if (lst.has(listingKey(id, t.tokenId))) wanted.add(t.tokenId) // listed → buyer badge
+                if (viewer && t.owner === viewer) wanted.add(t.tokenId) // owned → owner accept
+            }
+            const ids = [...wanted].slice(0, MAX_OFFER_TOKENS)
+            if (ids.length === 0) return
             const results = await Promise.all(
-                owned.map((t) =>
-                    fetchOffersForToken(id, t.tokenId, marketPath)
-                        .then((o) => [t.tokenId, o] as const)
-                        .catch(() => [t.tokenId, [] as TokenOffer[]] as const),
+                ids.map((tokenId) =>
+                    fetchOffersForToken(id, tokenId, marketPath)
+                        .then((o) => [tokenId, o] as const)
+                        .catch(() => [tokenId, [] as TokenOffer[]] as const),
                 ),
             )
             if (!active) return
