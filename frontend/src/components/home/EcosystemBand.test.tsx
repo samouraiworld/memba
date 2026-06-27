@@ -132,6 +132,23 @@ describe("EcosystemBand — tokens listing", () => {
         links.forEach((a) => expect(a).toHaveAttribute("href", "/test13/tokens"))
     })
 
+    it("surfaces 'view all N' when the authoritative count exceeds the rows shown (MH-14: stale cached list ≠ fresh count)", () => {
+        // The header count comes from the fresh backend snapshot (3) while the
+        // token rows come from the 5-min sessionStorage-cached fetchTokens (still 1
+        // right after two new tokens are created). The band must NOT imply the
+        // single row is the whole set — it surfaces "view all 3".
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 3 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token({ name: "Canicule", symbol: "HOT" })], total: 1, loading: false })
+        renderBand()
+
+        const section = screen.getByTestId("eco-tokens")
+        expect(within(section).getAllByTestId("eco-token-row")).toHaveLength(1)
+        expect(within(section).getByText(/^tokens$/)).toBeInTheDocument() // plural header (count = 3)
+        const viewAll = within(section).getByTestId("eco-tokens-viewall")
+        expect(viewAll).toHaveTextContent("3")
+        expect(viewAll).toHaveAttribute("href", "/test13/tokens")
+    })
+
     it("omits the tokens section entirely when the list is empty (no fabricated rows)", () => {
         vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 5 }), usable: true, isLoading: false })
         vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
@@ -196,6 +213,18 @@ describe("EcosystemBand — validators listing", () => {
         const viewAll = within(section).getByTestId("eco-validators-viewall")
         expect(viewAll).toHaveTextContent("8")
         expect(viewAll).toHaveAttribute("href", "/test13/validators")
+    })
+
+    it("surfaces 'view all N' when the snapshot count exceeds the fetched rows (MH-14)", () => {
+        // Snapshot says 12 validators but only 3 were fetched/shown → must offer
+        // "view all 12", not silently imply 3 is the whole set.
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ validators: 12 }), usable: true, isLoading: false })
+        vi.mocked(useEcosystemValidators).mockReturnValue({ validators: validators(3), total: 3, loading: false })
+        renderBand()
+
+        const section = screen.getByTestId("eco-validators")
+        expect(within(section).getAllByTestId("eco-validator-row")).toHaveLength(3)
+        expect(within(section).getByTestId("eco-validators-viewall")).toHaveTextContent("12")
     })
 
     it("labels the section 'Top validators' (sorted by power)", () => {
