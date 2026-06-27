@@ -724,6 +724,48 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 /* ── Activity feed (live across gno.land) ─────────────────────── */
+
+/* Head row: the eyebrow + a live "updated N ago" pulse (MH-17). */
+.activity-feed__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-feed__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-k-dim);
+  white-space: nowrap;
+}
+
+.activity-feed__live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-k-accent-text);
+  animation: hero-proof-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-feed__live-dot { animation: none; }
+}
+
+/* Per-row category label (MH-17 B1) — the kind, as text, not just the icon. */
+.activity-feed__kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-k-accent-text);
+  flex: none;
+}
+
 .activity-feed__list {
   list-style: none;
   margin: 0;

@@ -17,6 +17,9 @@ export interface RecentActivityResult {
     error: boolean
     /** False when the active network has no indexer — the feed should not render. */
     available: boolean
+    /** ms timestamp of the last successful fetch (react-query `dataUpdatedAt`),
+     *  for the feed's "updated N ago" liveness label. 0 before the first fetch. */
+    updatedAt: number
     refetch: () => void
 }
 
@@ -30,18 +33,19 @@ export function useRecentActivity(networkKey: string): RecentActivityResult {
         queryFn: ({ signal }) => fetchRecentActivity(indexerUrl as string, { limit: LIMIT, signal }),
         enabled: !!indexerUrl,
         staleTime: 30_000,
-        refetchInterval: 60_000, // pauses automatically while the tab is hidden
+        refetchInterval: 30_000, // tighter cadence (A3); pauses while the tab is hidden
         retry: false,
     })
 
     if (!indexerUrl) {
-        return { items: [], loading: false, error: false, available: false, refetch: () => {} }
+        return { items: [], loading: false, error: false, available: false, updatedAt: 0, refetch: () => {} }
     }
     return {
         items: query.data ?? [],
         loading: query.isPending,
         error: query.isError,
         available: true,
+        updatedAt: query.dataUpdatedAt,
         refetch: query.refetch,
     }
 }
