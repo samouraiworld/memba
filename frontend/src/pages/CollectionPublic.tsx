@@ -137,7 +137,7 @@ function CollectionPublicContent() {
             {/* ── Header ──────────────────────────────────────────── */}
             <header className="cpub-header">
                 <div className="cpub-hero-media">
-                    <NFTMedia uri={firstTokenUri} alt={detail.name} className="cpub-hero-media__img" />
+                    <NFTMedia uri={firstTokenUri} alt={detail.name} seed={id} className="cpub-hero-media__img" />
                 </div>
                 <div className="cpub-header-body">
                     <h1 className="cpub-title">{detail.name}</h1>
@@ -231,6 +231,7 @@ function CollectionPublicContent() {
                                             <NFTMedia
                                                 uri={token.uri}
                                                 alt={`Token #${token.tokenId}`}
+                                                seed={`${id}/${token.tokenId}`}
                                                 className="cpub-token-card__img"
                                             />
                                         </div>
@@ -343,6 +344,7 @@ function CollectionPublicContent() {
                                         <NFTMedia
                                             uri={tokens.find(t => t.tokenId === item.tokenId)?.uri ?? ""}
                                             alt={`Token #${item.tokenId}`}
+                                            seed={`${id}/${item.tokenId}`}
                                         />
                                     </div>
                                     <div className="mhub-activity-row__info">

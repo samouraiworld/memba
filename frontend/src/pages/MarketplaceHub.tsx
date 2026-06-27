@@ -210,7 +210,7 @@ function NftLane() {
                                 className="mhub-collection-card"
                             >
                                 <div className="mhub-collection-card__thumb">
-                                    <NFTMedia uri="" alt={col.name} />
+                                    <NFTMedia uri="" alt={col.name} seed={col.id} />
                                 </div>
                                 <div className="mhub-collection-card__body">
                                     <div className="mhub-collection-card__name-row">
@@ -239,7 +239,7 @@ function NftLane() {
                         {activity.map((item) => (
                             <div key={String(item.saleNo)} className="mhub-activity-row">
                                 <div className="mhub-activity-row__thumb">
-                                    <NFTMedia uri="" alt={`Token #${item.tokenId}`} />
+                                    <NFTMedia uri="" alt={`Token #${item.tokenId}`} seed={item.tokenId} />
                                 </div>
                                 <div className="mhub-activity-row__info">
                                     <span className="mhub-activity-row__token">Token #{item.tokenId}</span>
