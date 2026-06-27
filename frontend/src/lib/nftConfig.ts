@@ -49,6 +49,13 @@ export const NFT_MARKETPLACE_V3_PATH = "gno.land/r/samcrew/memba_nft_market_v3_1
 export const NFT_MARKET_V3_ADDR = "g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0"
 
 /**
+ * DAO fee spine — the per-lane protocol fee + treasury every engine reads at settlement.
+ * The frontend reads GetFeeBPS("nft") from here so the fee row mirrors the on-chain rate
+ * (never a hardcoded constant). Deployed before the engine (deploy runbook).
+ */
+export const MEMBA_MARKET_CONFIG_PATH = "gno.land/r/samcrew/memba_market_config"
+
+/**
  * Default collection ID for the live genesis drop.
  * Name: "Memba Genesis", symbol: MGEN, 3 tokens minted to the multisig.
  */

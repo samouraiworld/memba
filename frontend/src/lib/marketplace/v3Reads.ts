@@ -16,7 +16,10 @@
 
 import { queryEval } from "../dao/shared"
 import { GNO_RPC_URL } from "../config"
-import { NFT_MARKETPLACE_V3_PATH } from "../nftConfig"
+import { NFT_MARKETPLACE_V3_PATH, MEMBA_MARKET_CONFIG_PATH, PLATFORM_FEE_BPS_V3 } from "../nftConfig"
+
+/** Max fee bps the DAO can set (memba_market_config.MaxFeeBPS). Reject reads above it. */
+const MAX_FEE_BPS = 500
 
 export interface StructuredListing {
     collectionID: string
@@ -91,6 +94,32 @@ export async function fetchListingsPage(
     const raw = await queryEval(GNO_RPC_URL, marketPath, `GetListingsPage(${offset}, ${limit})`)
     if (!raw) return []
     return parseListingsPage(unwrapQevalString(raw))
+}
+
+/** Parse a `GetFeeBPS` qeval return — `(200 int)` / `(50 int64)` — to a number, or null. */
+export function parseFeeBps(raw: string | null): number | null {
+    if (!raw) return null
+    const m = raw.match(/\((\d+)\s+int(?:64)?\)/)
+    return m ? Number(m[1]) : null
+}
+
+/**
+ * Read the per-lane protocol fee (bps) from memba_market_config so the fee row mirrors
+ * the on-chain rate. FAIL-SAFE: falls back to the engine default and ignores any
+ * implausible value (>MaxFeeBPS) — the fee row must never be blank or absurd.
+ */
+export async function fetchLaneFeeBps(
+    lane = "nft",
+    configPath: string = MEMBA_MARKET_CONFIG_PATH,
+): Promise<number> {
+    try {
+        const raw = await queryEval(GNO_RPC_URL, configPath, `GetFeeBPS(${JSON.stringify(lane)})`)
+        const bps = parseFeeBps(raw)
+        if (bps !== null && bps >= 0 && bps <= MAX_FEE_BPS) return bps
+    } catch {
+        /* config realm not live yet, or read failed — fall back */
+    }
+    return PLATFORM_FEE_BPS_V3
 }
 
 /** Fetch a token's active offers via `GetOffersForToken(collectionID, tokenId)`. */

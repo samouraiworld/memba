@@ -3,6 +3,7 @@ import {
     parseListingsPage,
     parseOffersForToken,
     unwrapQevalString,
+    parseFeeBps,
 } from "./v3Reads"
 
 const SELLER = "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj" // full bech32, not truncated
@@ -47,6 +48,19 @@ describe("parseOffersForToken (GetOffersForToken: buyer|amount|createdBlk)", () 
     it("returns [] for empty / no-offers", () => {
         expect(parseOffersForToken("")).toEqual([])
         expect(parseOffersForToken("\n  \n")).toEqual([])
+    })
+})
+
+describe("parseFeeBps (GetFeeBPS qeval return)", () => {
+    it("parses int and int64 returns", () => {
+        expect(parseFeeBps("(200 int)")).toBe(200)
+        expect(parseFeeBps("(50 int64)")).toBe(50)
+        expect(parseFeeBps("(0 int)")).toBe(0)
+    })
+    it("returns null for empty / unparseable", () => {
+        expect(parseFeeBps(null)).toBeNull()
+        expect(parseFeeBps("")).toBeNull()
+        expect(parseFeeBps("(oops string)")).toBeNull()
     })
 })
 
