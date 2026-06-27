@@ -44,7 +44,7 @@ type Tab = "items" | "activity" | "about"
 // ── TradeModal state ──────────────────────────────────────────────────
 
 interface ModalState {
-    action: "buy" | "list" | "offer" | "accept"
+    action: "buy" | "list" | "offer" | "accept" | "cancel"
     tokenId: string
     priceUgnot?: number
     seller?: string
@@ -223,7 +223,10 @@ function CollectionPublicContent() {
                                 const listing = listings.get(lk)
                                 const isOwner = me !== "" && token.owner === me
                                 const isListed = listing !== undefined
-                                const best = bestOffer(offers.get(token.tokenId) ?? [])
+                                const tokenOffers = offers.get(token.tokenId) ?? []
+                                const best = bestOffer(tokenOffers)
+                                // The viewer's OWN standing offer on this token (so they see it + can cancel).
+                                const myOffer = me === "" ? undefined : tokenOffers.find((o) => o.buyer === me)
 
                                 return (
                                     <div key={token.tokenId} className="cpub-token-card">
@@ -254,6 +257,7 @@ function CollectionPublicContent() {
                                                     title="Highest standing offer on this token"
                                                 >
                                                     Offer {formatGnotCompact(best.amountUgnot)}
+                                                    {myOffer && best.buyer === me ? " · yours" : ""}
                                                 </span>
                                             )}
                                         </div>
@@ -292,32 +296,52 @@ function CollectionPublicContent() {
                                                         </button>
                                                     )}
                                                 </>
-                                            ) : isListed ? (
-                                                <button
-                                                    className="cpub-action-btn"
-                                                    onClick={() =>
-                                                        setModal({
-                                                            action: "buy",
-                                                            tokenId: token.tokenId,
-                                                            priceUgnot: listing!.priceUgnot,
-                                                            seller: listing!.seller,
-                                                        })
-                                                    }
-                                                >
-                                                    Buy
-                                                </button>
                                             ) : (
-                                                <button
-                                                    className="cpub-action-btn"
-                                                    onClick={() =>
-                                                        setModal({
-                                                            action: "offer",
-                                                            tokenId: token.tokenId,
-                                                        })
-                                                    }
-                                                >
-                                                    Make offer
-                                                </button>
+                                                <>
+                                                    {isListed && (
+                                                        <button
+                                                            className="cpub-action-btn"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    action: "buy",
+                                                                    tokenId: token.tokenId,
+                                                                    priceUgnot: listing!.priceUgnot,
+                                                                    seller: listing!.seller,
+                                                                })
+                                                            }
+                                                        >
+                                                            Buy
+                                                        </button>
+                                                    )}
+                                                    {myOffer ? (
+                                                        <button
+                                                            className="cpub-action-btn cpub-action-btn--cancel"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    action: "cancel",
+                                                                    tokenId: token.tokenId,
+                                                                    priceUgnot: myOffer.amountUgnot,
+                                                                })
+                                                            }
+                                                        >
+                                                            Cancel offer ({formatGnotCompact(myOffer.amountUgnot)})
+                                                        </button>
+                                                    ) : (
+                                                        !isListed && (
+                                                            <button
+                                                                className="cpub-action-btn"
+                                                                onClick={() =>
+                                                                    setModal({
+                                                                        action: "offer",
+                                                                        tokenId: token.tokenId,
+                                                                    })
+                                                                }
+                                                            >
+                                                                Make offer
+                                                            </button>
+                                                        )
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>
