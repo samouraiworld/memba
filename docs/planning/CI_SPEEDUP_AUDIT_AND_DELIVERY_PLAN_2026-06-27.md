@@ -1,8 +1,8 @@
 # CI Speed-Up — Audit & Delivery Plan (2026-06-27)
 
-**Status:** Vetted by a 4-lens expert panel (CI/DevOps · Test-reliability · Security-gate · Pragmatic-CTO). All facts verified against the repo at HEAD. **AWAITING GO.** No code changed yet.
+**Status:** Vetted by a 4-lens expert panel (CI/DevOps · Test-reliability · Security-gate · Pragmatic-CTO). All facts verified against the repo at HEAD. **Phase 0 IMPLEMENTED & green as [#598](https://github.com/samouraiworld/memba/pull/598) + [#599](https://github.com/samouraiworld/memba/pull/599) — NOT merged (awaiting GO / low-PR window).** Measured results recorded below.
 
-**Goal:** Cut green CI wall-clock from **~20–21 min → ~8–10 min** with zero coverage loss, zero new flake, and **zero disruption to in-flight PRs** (mobile / marketplace / quests / profile streams).
+**Goal:** Cut green CI wall-clock from **~20–21 min** with zero coverage loss, zero new flake, and **zero disruption to in-flight PRs** (mobile / marketplace / quests / profile streams). Phase 0 measured **~13–15 min**; the full ~8–10 min target needs Phase 1.
 
 ---
 
@@ -13,7 +13,18 @@ Ship **Phase 0 only** to start: two config-only PRs, **job names unchanged**, ea
 1. **Run E2E + Lighthouse once** (gate those steps to the Node-22 matrix leg). Keeps build+unit on both Node versions, keeps both required checks. → removes one full ~12 min E2E leg + a duplicate Lighthouse.
 2. **`workers: 2`** in `playwright.config.ts` (already `fullyParallel: true`, so this is a one-liner). → remaining E2E leg ~12 min → ~5–7 min.
 
-Expected after Phase 0: **~8–10 min**. **Stop here if good enough** — for a small team mid-stream it likely is. Phases 1–2 are optional polish for a quiet window.
+**Measured after Phase 0 (both PRs green, 2026-06-27): ~13–15 min** — not the ~8–10 first projected. Still a ~30% wall-clock cut + ~halved runner-minutes, zero coverage loss. **Stop here if good enough**, or continue to Phase 1 for ~8–10. Phase 2 is optional polish.
+
+### Measured outcome (2026-06-27, #598 + #599 both green)
+
+| | Node 20 leg | Node 22 leg | Note |
+|---|---|---|---|
+| Baseline | 18m25s | 17m21s | full pipeline ×2 |
+| #598 alone (E2E once) | **4m14s** | 18m28s | Node-20 drops E2E/Lighthouse → big **runner-minute** save, but wall-clock still gated by Node-22's serial E2E |
+| #599 alone (workers:2) | 13m58s | 12m34s | **E2E ~12 min → ~6 min** on each leg — parallelism worked |
+| **Both merged (projected)** | ~4 m | **~12.5 m** | Node-22 = build+unit+E2E(workers:2); this leg + Docker tail = the floor |
+
+**Lesson:** matrix legs run in parallel, so wall-clock = the *slowest leg*. #598's gain is runner-minutes, not wall-clock; #599's is the real wall-clock cut. The remaining floor is E2E **stacked on** build+unit inside the Node-22 leg, then Docker (`needs: [backend, frontend]`). Sub-10-min needs Phase 1 (unblock Docker) and/or splitting E2E into its own parallel job — the latter deliberately deferred for blast-radius (new required-check name).
 
 ---
 
@@ -65,7 +76,7 @@ Inside the frontend job: **E2E = 12m21s**, unit 2m20s, build 32s, Lighthouse ~30
 - **Before merging:** capture a **first-attempt E2E pass-rate baseline** over ~20 runs on current `workers:1`.
 - **Mitigation (fold into PR-B or a precursor):** mark the live-RPC specs serial — `test.describe.configure({ mode: 'serial' })` in `validators.spec.ts`, `dao.spec.ts`, `directory.spec.ts`, `gnolove*.spec.ts` — so only the deterministic specs run 2-wide. Replace fragile `waitForLoadState('networkidle')` calls with explicit element waits (they never settle under concurrency).
 
-**Phase 0 result:** ~20–21 → **~8–10 min.** ← *Stop here if satisfied.*
+**Phase 0 result (measured):** ~20–21 → **~13–15 min** (#598 + #599, both green). ← *Stop here if satisfied; Phase 1 unlocks ~8–10.*
 
 ---
 
