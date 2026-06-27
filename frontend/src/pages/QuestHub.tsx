@@ -27,6 +27,7 @@ import {
     type QuestDifficulty,
 } from "../lib/gnobuilders"
 import { RankBadge } from "../components/quests/RankBadge"
+import { AttestationPanel } from "../components/quests/AttestationPanel"
 import { QuestCard } from "../components/quests/QuestCard"
 import "./questhub.css"
 
@@ -194,6 +195,10 @@ export default function QuestHub() {
                     </div>
                 </div>
             </div>
+
+            {/* On-chain attestation (Q-05) — renders only when the backend issues
+                vouchers (i.e. attestation is enabled) and the user is connected. */}
+            {adena.address && <AttestationPanel address={adena.address} />}
 
             {/* Category Tabs */}
             <div className="k-questhub-tabs" role="tablist" aria-label="Quest categories">

@@ -1,0 +1,111 @@
+/* AttestationPanel — Q-05 A.4 on-chain attestation (tokenized, light/dark safe) */
+
+.k-attest {
+    margin-top: var(--space-6);
+    padding: var(--space-5);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg);
+    background: var(--color-k-panel);
+}
+
+.k-attest-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.k-attest-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-k-text);
+}
+
+.k-attest-sub {
+    font-size: 0.75rem;
+    color: var(--color-k-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.k-attest-note {
+    margin: var(--space-2) 0 var(--space-4);
+    font-size: 0.813rem;
+    color: var(--color-k-muted);
+}
+
+.k-attest-error {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-k-danger-subtle, rgba(255, 71, 87, 0.08));
+    color: var(--color-k-danger-text);
+    font-size: 0.813rem;
+}
+
+.k-attest-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.k-attest-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md);
+    background: var(--color-k-elevated);
+}
+
+.k-attest-quest {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--color-k-text);
+}
+
+.k-attest-xp {
+    font-size: 0.688rem;
+    font-weight: 600;
+    color: var(--color-k-accent-text);
+    background: var(--color-k-accent-subtle);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+}
+
+.k-attest-done {
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--color-k-accent-text);
+    white-space: nowrap;
+}
+
+.k-attest-btn {
+    background: var(--color-k-accent-subtle);
+    color: var(--color-k-accent-text);
+    border: 1px solid var(--color-k-accent-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-1) var(--space-3);
+    font-size: 0.813rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.k-attest-btn:hover:not(:disabled) {
+    background: var(--color-k-accent-tint);
+}
+
+.k-attest-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
