@@ -21,8 +21,9 @@ beforeEach(() => vi.clearAllMocks())
 
 describe("useActorUsernames", () => {
     it("maps the addresses that have a registered username (omits the rest)", async () => {
+        // resolveOnChainUsername returns a display-ready "@handle" (real shape).
         vi.mocked(profile.resolveOnChainUsername).mockImplementation(async (a: string) =>
-            a === "g1alice" ? "alice" : "")
+            a === "g1alice" ? "@alice" : "")
         const { useActorUsernames } = await import("./useActorUsernames")
         const { result } = renderHook(() => useActorUsernames(["g1alice", "g1nobody"]), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.size).toBe(1))
@@ -33,7 +34,7 @@ describe("useActorUsernames", () => {
     it("is best-effort: one address throwing does not drop the others", async () => {
         vi.mocked(profile.resolveOnChainUsername).mockImplementation(async (a: string) => {
             if (a === "g1boom") throw new Error("rpc down")
-            return "bob"
+            return "@bob"
         })
         const { useActorUsernames } = await import("./useActorUsernames")
         const { result } = renderHook(() => useActorUsernames(["g1boom", "g1bob"]), { wrapper: makeWrapper() })
@@ -49,7 +50,7 @@ describe("useActorUsernames", () => {
     })
 
     it("resolves each distinct address only once even if it repeats", async () => {
-        vi.mocked(profile.resolveOnChainUsername).mockResolvedValue("dup")
+        vi.mocked(profile.resolveOnChainUsername).mockResolvedValue("@dup")
         const { useActorUsernames } = await import("./useActorUsernames")
         const { result } = renderHook(() => useActorUsernames(["g1x", "g1x", "g1x"]), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.get("g1x")).toBe("dup"))

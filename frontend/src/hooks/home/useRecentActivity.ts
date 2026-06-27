@@ -32,7 +32,7 @@ export function useRecentActivity(networkKey: string): RecentActivityResult {
         queryKey: ["useRecentActivity", networkKey, indexerUrl],
         queryFn: ({ signal }) => fetchRecentActivity(indexerUrl as string, { limit: LIMIT, signal }),
         enabled: !!indexerUrl,
-        staleTime: 30_000,
+        staleTime: 25_000, // just under the poll interval → a real freshness window between fetches
         refetchInterval: 30_000, // tighter cadence (A3); pauses while the tab is hidden
         retry: false,
     })

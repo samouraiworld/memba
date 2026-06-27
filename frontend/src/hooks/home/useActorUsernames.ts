@@ -26,7 +26,10 @@ export function useActorUsernames(actors: string[]): Map<string, string> {
             await Promise.all(
                 distinct.map(async (addr) => {
                     try {
-                        const name = await resolveOnChainUsername(addr)
+                        // resolveOnChainUsername returns a display-ready "@handle";
+                        // store the BARE handle so the consumer owns the "@" prefix
+                        // (avoids "@@handle").
+                        const name = (await resolveOnChainUsername(addr)).replace(/^@/, "")
                         if (name) map.set(addr, name)
                     } catch {
                         /* best-effort: leave this actor as a truncated address */

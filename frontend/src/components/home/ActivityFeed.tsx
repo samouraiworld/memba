@@ -89,6 +89,7 @@ function ActivityRow({ item, now, usernames }: { item: ActivityItem; now: number
                 </span>
                 <span className="activity-feed__meta">
                     <span className="activity-feed__kind" data-testid="activity-kind">{KIND_LABEL[item.kind]}</span>
+                    {item.actor && <span className="activity-feed__sep" aria-hidden="true">·</span>}
                     {item.actor && (
                         <span
                             className={`activity-feed__actor ${username ? "" : "val-mono"}`.trim()}

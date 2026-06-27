@@ -750,7 +750,12 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
   border-radius: 50%;
   flex: none;
   background: var(--color-k-accent-text);
-  animation: hero-proof-pulse 2s ease-in-out infinite;
+  animation: activity-live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes activity-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -763,6 +768,11 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
   font-size: 10px;
   letter-spacing: 0.02em;
   color: var(--color-k-accent-text);
+  flex: none;
+}
+
+.activity-feed__sep {
+  color: var(--color-k-edge-hover);
   flex: none;
 }
 
