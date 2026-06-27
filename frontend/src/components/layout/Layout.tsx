@@ -47,7 +47,7 @@ export function Layout() {
     const adena = useAdena()
     const auth = useAuth()
     const isMobile = useIsMobile()
-    const { compactBalance, balance } = useBalance(adena.connected ? adena.address : null)
+    const { compactBalance, balance, rawUgnot } = useBalance(adena.connected ? adena.address : null)
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
@@ -335,7 +335,7 @@ export function Layout() {
                 {isLoggingIn ? (
                     <ConnectingLoader />
                 ) : (
-                    <Outlet context={{ adena, balance, auth: layoutAuth, isLoggingIn, syncTimedOut }} />
+                    <Outlet context={{ adena, balance, rawUgnot, auth: layoutAuth, isLoggingIn, syncTimedOut }} />
                 )}
             </main>
 

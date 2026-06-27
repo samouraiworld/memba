@@ -95,7 +95,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                     <div className="ecosystem-section" data-testid="eco-tokens">
                         <Link to={tokensHref} className="ecosystem-section__header">
                             <span className="ecosystem-section__count">{tokenCount}</span>
-                            <span className="ecosystem-section__label">tokens</span>
+                            <span className="ecosystem-section__label">{tokenCount === 1 ? "token" : "tokens"}</span>
                             <span className="ecosystem-section__arrow" aria-hidden="true">→</span>
                         </Link>
                         {tokensLoading ? (

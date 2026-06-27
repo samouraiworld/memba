@@ -105,6 +105,22 @@ describe("EcosystemBand — tokens listing", () => {
         expect(within(screen.getByTestId("eco-tokens")).getByTestId("eco-token-row")).toHaveTextContent("102.5001 supply")
     })
 
+    it("singularises the tokens label at a count of 1 (MH-13: '1 token', not '1 tokens')", () => {
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 1 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token()], total: 1, loading: false })
+        renderBand()
+        const header = within(screen.getByTestId("eco-tokens")).getByText(/^tokens?$/)
+        expect(header).toHaveTextContent(/^token$/)
+    })
+
+    it("pluralises the tokens label for a count greater than 1", () => {
+        vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 3 }), usable: true, isLoading: false })
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token(), token({ name: "B", symbol: "B", path: "gno.land/r/x:B" })], total: 3, loading: false })
+        renderBand()
+        const header = within(screen.getByTestId("eco-tokens")).getByText(/^tokens?$/)
+        expect(header).toHaveTextContent(/^tokens$/)
+    })
+
     it("links the tokens section to /{network}/tokens", () => {
         vi.mocked(useHomeSnapshot).mockReturnValue({ snapshot: snap({ tokens: 1 }), usable: true, isLoading: false })
         vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [token()], total: 1, loading: false })
