@@ -148,7 +148,28 @@
       "version": "v3",
       "date": "2026-06-17",
       "liveVerified": "2026-06-23",
-      "note": "v3 trading engine (addr g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj). Deployed but deliberately NOT frontend-wired — excluded from REALM_ALLOWLIST.test13 until the Phase-3 multi-engine router."
+      "note": "v3 trading engine (addr g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj). Deployed but deliberately NOT frontend-wired — excluded from REALM_ALLOWLIST.test13 until the Phase-3 multi-engine router. RETIRED 2026-06-27: UnregisterMarket'd (IsRegisteredMarket=false) when v3.1 took over as the sole fee-routing engine; abandoned."
+    },
+    "memba_market_core_v2": {
+      "path": "gno.land/p/samcrew/memba_market_core_v2",
+      "version": "v1",
+      "date": "2026-06-27",
+      "liveVerified": "2026-06-27",
+      "note": "Shared split-math package (SplitProceedsBPS + MaxFeeBPS=500). NEW path: the old gno.land/p/samcrew/memba_market_core on-chain was the stale Phase-0 build (only SplitProceeds, no BPS), immutable, so it was abandoned. Verified live: SplitProceedsBPS(1e6,200,0)=20000 (2%). Deployed multisig seq 51."
+    },
+    "memba_market_config": {
+      "path": "gno.land/r/samcrew/memba_market_config",
+      "version": "v1",
+      "date": "2026-06-27",
+      "liveVerified": "2026-06-27",
+      "note": "DAO per-lane fee spine. Verified live: GetFeeBPS nft=200/service=200/token=50; GetTreasury()=GetAdmin()=g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh (samourai-crew 2-of-2 multisig). No Pause by design. Deployed multisig seq 52."
+    },
+    "memba_nft_market_v3_1": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v3_1",
+      "version": "v3.1",
+      "date": "2026-06-27",
+      "liveVerified": "2026-06-27",
+      "note": "Config-reading NFT engine, addr g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0 (MarketAddress() verified). Reads fee/treasury from memba_market_config; settles via memba_market_core_v2.SplitProceedsBPS. SOLE registered market on memba_collections (IsRegisteredMarket=true verified). Deployed multisig seq 53. Frontend-wired + allowlisted (memba#612)."
     }
   },
   "gnoland1": {},
