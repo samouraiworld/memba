@@ -68,6 +68,27 @@ describe('mobile nav selectors (tab bar source of truth)', () => {
         }
     })
 
+    test('More→Navigate reaches quests + directory (mobile parity with the sidebar)', () => {
+        // quests is a sidebar primary but never a mobile tab — must be in More
+        expect(ids(mobileMoreNav(false))).toContain('quests')
+        expect(ids(mobileMoreNav(true))).toContain('quests')
+        // directory IS a visitor primary tab → excluded from visitor More (no
+        // dup); a member has no directory tab, so it surfaces in their More
+        expect(ids(mobileMoreNav(false))).not.toContain('directory')
+        expect(ids(mobileMoreNav(true))).toContain('directory')
+    })
+
+    test('More→Navigate never repeats a current primary tab', () => {
+        for (const connected of [true, false]) {
+            const primary = new Set(ids(mobilePrimaryTabs(connected)))
+            for (const id of ids(mobileMoreNav(connected))) {
+                expect(primary.has(id), `${id} is both a primary tab and a More row`).toBe(false)
+            }
+        }
+        // the member "Activity" (alerts) tab is no longer duplicated in More
+        expect(ids(mobileMoreNav(true))).not.toContain('alerts')
+    })
+
     test('More→Account: auth-gated profile/settings/multisig only when connected; feedback always', () => {
         expect(ids(mobileMoreAccount(false))).toEqual(['feedback'])
         expect(ids(mobileMoreAccount(true))).toEqual(['profile', 'settings', 'multisig', 'feedback'])
