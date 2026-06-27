@@ -41,7 +41,7 @@ export interface BaseListing {
     engine: { path: string; addr: string }
 }
 
-export type NftAction = "buy" | "offer" | "list"
+export type NftAction = "buy" | "offer" | "list" | "delist"
 export interface UnifiedNft extends BaseListing {
     assetType: "nft"
     /** Unit price (one token). */

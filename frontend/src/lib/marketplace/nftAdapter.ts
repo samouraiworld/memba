@@ -39,11 +39,17 @@ export interface NftAdapterInput {
     feeBps?: number
 }
 
-/** Action set for a token given ownership + listed state. Offers are structural here;
- *  the panel gates whether to render them (offers go live with v3.1, W1.2/W1.4). */
-function actionsFor(isOwner: boolean, isListed: boolean): NftAction[] {
-    if (isOwner) return ["list"]
-    if (isListed) return ["buy", "offer"]
+/**
+ * Action set for a token. Offers are structural here; the panel gates whether to render
+ * them (offers go live with v3.1). Note:
+ *  - the OWNER of a LISTED token gets `delist` (not `list`) — listed owners must be able
+ *    to remove the listing (review finding H1);
+ *  - `buy` is tied STRICTLY to a buyable listing (priced > 0), never inferred from
+ *    "listed" alone, so a 0-price record can never surface a buy button (review H2).
+ */
+function actionsFor(isOwner: boolean, isListed: boolean, isBuyable: boolean): NftAction[] {
+    if (isOwner) return isListed ? ["delist"] : ["list"]
+    if (isBuyable) return ["buy", "offer"]
     return ["offer"]
 }
 
@@ -53,8 +59,10 @@ export function toUnifiedNftListings(input: NftAdapterInput): UnifiedNft[] {
     const feeBps = input.feeBps ?? PLATFORM_FEE_BPS_V3
     return input.tokens.map((tok) => {
         const listing = input.listings.get(listingKey(input.collectionID, tok.tokenId))
+        const priceUgnot = listing?.priceUgnot ?? 0
         const isOwner = input.me !== "" && tok.owner === input.me
         const isListed = listing !== undefined
+        const isBuyable = isListed && priceUgnot > 0
         return {
             assetType: "nft",
             id: `${input.collectionID}/${tok.tokenId}`,
@@ -65,9 +73,9 @@ export function toUnifiedNftListings(input: NftAdapterInput): UnifiedNft[] {
             feeBps,
             source: "chain",
             engine: { path: engine.marketPath, addr: engine.marketAddr },
-            price: { amount: BigInt(listing?.priceUgnot ?? 0), denom: "ugnot" },
+            price: { amount: BigInt(priceUgnot), denom: "ugnot" },
             royaltyBps: input.royaltyBps,
-            actions: actionsFor(isOwner, isListed),
+            actions: actionsFor(isOwner, isListed, isBuyable),
         }
     })
 }

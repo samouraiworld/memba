@@ -35,12 +35,27 @@ describe("toUnifiedNftListings", () => {
         expect(out[0].engine.path).toContain("memba_nft_market_v3")
     })
 
-    it("owned token → list action, zero price", () => {
+    it("owned UNLISTED token → list action, zero price", () => {
         const out = toUnifiedNftListings(makeInput())
         const owned = out.find((l) => l.id === "alice/cats/0")!
         expect(owned.actions).toEqual(["list"])
         expect(owned.price.amount).toBe(0n)
         expect(owned.seller).toBe(ME) // full owner address
+    })
+
+    it("owned LISTED token → delist (owner must be able to remove their listing)", () => {
+        const listings: V3ListingMap = new Map([[`${COLLECTION}/0`, { priceUgnot: 50_000_000, seller: ME }]])
+        const out = toUnifiedNftListings(makeInput({ listings }))
+        const owned = out.find((l) => l.id === "alice/cats/0")!
+        expect(owned.actions).toEqual(["delist"])
+    })
+
+    it("a 0-price listing is NOT buyable → offer only (no broken buy button)", () => {
+        const listings: V3ListingMap = new Map([[`${COLLECTION}/1`, { priceUgnot: 0, seller: "g1trunc..." }]])
+        const out = toUnifiedNftListings(makeInput({ listings }))
+        const t1 = out.find((l) => l.id === "alice/cats/1")!
+        expect(t1.actions).toEqual(["offer"])
+        expect(t1.price.amount).toBe(0n)
     })
 
     it("listed token owned by another → buy + offer, real price, full seller", () => {
