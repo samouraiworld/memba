@@ -17,6 +17,7 @@ import (
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
@@ -132,6 +133,11 @@ func (s *MultisigService) rateLimitUser(addr, endpoint string) error {
 		return nil
 	}
 	if !s.userLimiter.AllowKey(addr, endpoint) {
+		// Observability (Q-16): the farming/sybil signal. Logged + counted here,
+		// not on the hot success path. Only fires on actual rejections, which are
+		// themselves bounded by the per-IP limiter, so this can't be log-flooded.
+		metrics.QuestRateLimitExceeded.WithLabelValues(endpoint).Inc()
+		slog.Warn("quest rate limit exceeded", "address", addr, "endpoint", endpoint)
 		return connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("quest rate limit exceeded — slow down and retry shortly"))
 	}
 	return nil
