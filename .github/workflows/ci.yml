@@ -160,14 +160,22 @@ jobs:
             echo "::warning::Total JS ${TOTAL_KB}KB exceeds 3MB — review lazy loading"
           fi
 
+      # E2E + Lighthouse are gated to the Node 22 leg only. They exercise the
+      # built bundle in a browser (Playwright) / a static preview (Lighthouse) —
+      # the Node *runner* version is irrelevant to what executes there, so running
+      # them on both matrix legs was pure duplicated wall-clock (~12min E2E ×2).
+      # Build + unit + all safety gates STILL run on both Node 20 and 22. The job
+      # name is unchanged, so both required status checks still post.
       - name: Install Playwright
+        if: matrix.node-version == '22'
         run: npx playwright install chromium --with-deps
 
       - name: E2E tests
+        if: matrix.node-version == '22'
         run: npx playwright test --project=chromium --reporter=list
 
       - name: Upload E2E artifacts on failure
-        if: failure()
+        if: failure() && matrix.node-version == '22'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-node${{ matrix.node-version }}
@@ -180,12 +188,13 @@ jobs:
         run: npm audit --audit-level=high --omit=dev
 
       - name: Lighthouse CI
+        if: matrix.node-version == '22'
         run: |
           npm install -g @lhci/cli
           lhci autorun --config=lighthouserc.json || echo "::warning::Lighthouse budget exceeded — check artifacts"
 
       - name: Upload Lighthouse report
-        if: always()
+        if: always() && matrix.node-version == '22'
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report-node${{ matrix.node-version }}
