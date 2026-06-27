@@ -43,7 +43,9 @@ export function useMemberIdentity(address: string | null): MemberIdentity {
     })
 
     const addr = address ?? ""
-    const username = query.data ? query.data : undefined
+    // resolveOnChainUsername returns a display-ready "@handle"; store the BARE
+    // handle so displayName (`@${username}`) and the initials don't double the "@".
+    const username = query.data ? query.data.replace(/^@/, "") : undefined
     const displayName = username ? `@${username}` : truncateAddr(addr)
     const initials = deriveInitials(username, addr)
 
