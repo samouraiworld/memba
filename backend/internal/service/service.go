@@ -133,9 +133,11 @@ func (s *MultisigService) rateLimitUser(addr, endpoint string) error {
 		return nil
 	}
 	if !s.userLimiter.AllowKey(addr, endpoint) {
-		// Observability (Q-16): the farming/sybil signal. Logged + counted here,
-		// not on the hot success path. Only fires on actual rejections, which are
-		// themselves bounded by the per-IP limiter, so this can't be log-flooded.
+		// Observability (Q-16): the farming/sybil signal. The counter is the durable
+		// signal (alert on its rate); the Warn is a supplementary breadcrumb. Both
+		// fire only on rejection, off the hot success path. Log volume is bounded by
+		// the per-IP limiter per source, but scales with attacker count under
+		// coordinated abuse — sample/downgrade to Debug if a real wave makes it noisy.
 		metrics.QuestRateLimitExceeded.WithLabelValues(endpoint).Inc()
 		slog.Warn("quest rate limit exceeded", "address", addr, "endpoint", endpoint)
 		return connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("quest rate limit exceeded — slow down and retry shortly"))
