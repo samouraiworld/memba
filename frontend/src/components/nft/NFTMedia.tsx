@@ -2,81 +2,64 @@
  * NFTMedia — Hardened media renderer for NFT token URIs.
  *
  * Supersedes NFTImage. Key improvements:
- * - Empty uri → styled placeholder immediately (no <img>)
+ * - Empty uri → deterministic generated fallback art immediately (no <img> load)
  * - Non-empty uri → <img loading="lazy" src={nftImageUrl(uri)}>
- * - On load error → clean SVG placeholder tile (no emoji)
+ * - On load error → swap to the same generated fallback (no broken-image flash)
  * - Self-contained styling via co-located NFTMedia.css
+ *
+ * The fallback is a teal/black blockie seeded by `seed` (or `alt` when no seed
+ * is given) so every item gets a distinct, stable, non-empty tile with zero
+ * backend work — see lib/nftFallbackArt.
  */
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { nftImageUrl } from "../../lib/nftApi"
+import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import "./NFTMedia.css"
 
 interface Props {
     uri: string
     alt: string
+    /** Identity used to seed the generated fallback. Defaults to `alt`. */
+    seed?: string
     className?: string
 }
 
-/** Tabler-style "image broken" SVG icon used in the placeholder tile. */
-function PlaceholderIcon() {
+/** Deterministic generated artwork shown when there is no usable image. */
+function Fallback({ alt, seed }: { alt: string; seed: string }) {
+    const src = useMemo(() => nftFallbackUri(seed), [seed])
     return (
-        <svg
-            className="nft-media-placeholder__icon"
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            {/* Frame */}
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            {/* Mountain/landscape suggestion */}
-            <polyline points="3 17 8 12 11 15 14 12 21 19" />
-            {/* Sun dot */}
-            <circle cx="8.5" cy="8.5" r="1.5" />
-        </svg>
+        <img
+            src={src}
+            alt={alt}
+            className="nft-media-img nft-media-fallback"
+            data-testid="nft-media-fallback"
+        />
     )
 }
 
-function Placeholder({ alt }: { alt: string }) {
-    return (
-        <div
-            className="nft-media-placeholder"
-            aria-label={alt}
-            data-testid="nft-media-placeholder"
-        >
-            <PlaceholderIcon />
-        </div>
-    )
-}
-
-export function NFTMedia({ uri, alt, className }: Props) {
+export function NFTMedia({ uri, alt, seed, className }: Props) {
+    const fallbackSeed = seed || alt
     const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
 
     const rootClass = ["nft-media-root", className].filter(Boolean).join(" ")
 
-    // Empty URI → placeholder immediately, never render an <img>
+    // Empty URI → generated fallback immediately, never attempt a network <img>
     if (!uri) {
         return (
             <div className={rootClass}>
-                <Placeholder alt={alt} />
+                <Fallback alt={alt} seed={fallbackSeed} />
             </div>
         )
     }
 
     const src = nftImageUrl(uri)
 
-    // Error state → swap to placeholder
+    // Error state → swap to the generated fallback
     if (status === "error") {
         return (
             <div className={rootClass}>
-                <Placeholder alt={alt} />
+                <Fallback alt={alt} seed={fallbackSeed} />
             </div>
         )
     }
