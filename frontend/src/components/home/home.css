@@ -2169,6 +2169,24 @@ button.door:focus-visible {
   border-radius: 2px;
 }
 
+/* Member "Act now" controls are the highest-stakes taps in the app (sign / vote
+   / claim — a mis-tap can cast the wrong on-chain vote), yet they were ~26px.
+   Bring them to the 44px minimum on phones. Mobile-scoped — desktop unchanged. */
+@media (max-width: 768px) {
+  .action-door__cta,
+  .quick-vote-btn,
+  .action-inbox__view-all,
+  .action-door__caught-up-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .quick-vote-btn {
+    justify-content: center;
+  }
+}
+
 /* ── YourWorldsPanel ─────────────────────────────────────────────── */
 
 .your-worlds-panel {
