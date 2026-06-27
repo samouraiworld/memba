@@ -524,7 +524,9 @@ button.action-card:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
-  align-items: start;
+  /* stretch (not start) so the cards in a row share the tallest card's height —
+     a tidy, equal-size band even when token/validator row counts differ (MH-15). */
+  align-items: stretch;
 }
 
 .ecosystem-section {
