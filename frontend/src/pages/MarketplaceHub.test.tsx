@@ -149,6 +149,19 @@ describe("MarketplaceHub — collection cards", () => {
         expect(link).toHaveAttribute("href", "/test/nft/collection/g1creator/alpha-apes")
     })
 
+    it("the verified-only toggle hides unverified collections", async () => {
+        renderHub()
+
+        await waitFor(() => expect(screen.getByRole("link", { name: /beta cats/i })).toBeInTheDocument())
+        expect(screen.getByRole("link", { name: /alpha apes/i })).toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole("checkbox", { name: /verified/i }))
+
+        // Beta Cats is unverified → its card is filtered out; Alpha Apes (verified) stays.
+        expect(screen.queryByRole("link", { name: /beta cats/i })).not.toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /alpha apes/i })).toBeInTheDocument()
+    })
+
     it("displays floor and volume for each collection", async () => {
         renderHub()
 

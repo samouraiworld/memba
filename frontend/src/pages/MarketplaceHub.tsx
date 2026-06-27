@@ -131,6 +131,8 @@ function NftLane() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [query, setQuery] = useState("")
+    const [sortBy, setSortBy] = useState<"volume" | "floor" | "name">("volume")
+    const [verifiedOnly, setVerifiedOnly] = useState(false)
 
     useEffect(() => {
         let cancelled = false
@@ -164,9 +166,15 @@ function NftLane() {
 
     const filteredCollections = useMemo(() => {
         const q = query.trim().toLowerCase()
-        if (!q) return collections
-        return collections.filter((c) => c.name.toLowerCase().includes(q))
-    }, [collections, query])
+        let list = collections
+        if (q) list = list.filter((c) => c.name.toLowerCase().includes(q))
+        if (verifiedOnly) list = list.filter((c) => c.verified)
+        const sorted = [...list]
+        if (sortBy === "floor") sorted.sort((a, b) => (b.floorUgnot > a.floorUgnot ? 1 : b.floorUgnot < a.floorUgnot ? -1 : 0))
+        else if (sortBy === "volume") sorted.sort((a, b) => (b.volumeUgnot > a.volumeUgnot ? 1 : b.volumeUgnot < a.volumeUgnot ? -1 : 0))
+        else sorted.sort((a, b) => a.name.localeCompare(b.name))
+        return sorted
+    }, [collections, query, verifiedOnly, sortBy])
 
     if (loading) {
         return <p className="mhub-loading">Loading collections…</p>
@@ -190,6 +198,20 @@ function NftLane() {
                     onChange={(e) => setQuery(e.target.value)}
                     aria-label="Search collections"
                 />
+                <select
+                    className="mhub-sort"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "volume" | "floor" | "name")}
+                    aria-label="Sort collections"
+                >
+                    <option value="volume">Volume</option>
+                    <option value="floor">Floor</option>
+                    <option value="name">Name</option>
+                </select>
+                <label className="mhub-verified-toggle">
+                    <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />
+                    Verified
+                </label>
                 <Link to={np("nft/create")} className="mhub-launch-link" aria-label="Launch a collection">
                     Launch a collection
                 </Link>
