@@ -17,9 +17,10 @@ import { extractPkgName } from "./sanitizer"
 
 /** Standard Gno imports available for templates. */
 export type GnoImport =
-    | "chain/runtime"   // PreviousRealm, CurrentRealm, ChainHeight
-    | "chain/banker"    // NewBanker, OriginSend, BankerTypeRealmSend
-    | "chain"           // Coins, NewCoin
+    | "chain/runtime"        // ChainHeight (test13/interrealm-v2)
+    | "chain/runtime/unsafe" // PreviousRealm, CurrentRealm, OriginSend, OriginCaller
+    | "chain/banker"         // NewBanker(type, cur), BankerTypeRealmSend
+    | "chain"                // Coins, NewCoin
     | "strconv"         // Atoi, Itoa, FormatInt, etc.
     | "strings"         // Split, Join, TrimSpace, etc.
     | "gno.land/p/nt/avl/v0"   // AVL tree (matches deployed contracts on test12)

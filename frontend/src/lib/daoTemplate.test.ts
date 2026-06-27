@@ -87,9 +87,9 @@ describe('generateDAOCode', () => {
         expect(code).toContain('func RemoveRole(cur realm,')
     })
 
-    it('uses runtime.PreviousRealm (not OriginCaller)', () => {
+    it('uses unsafe.PreviousRealm (not OriginCaller)', () => {
         const code = generateDAOCode(makeConfig())
-        expect(code).toContain('runtime.PreviousRealm().Address()')
+        expect(code).toContain('unsafe.PreviousRealm().Address()')
         expect(code).not.toContain('runtime.OriginCaller()')
     })
 

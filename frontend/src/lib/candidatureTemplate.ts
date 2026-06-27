@@ -301,7 +301,7 @@ export function generateCandidatureCode(config: CandidatureConfig = defaultCandi
     return `package candidature
 
 import (
-\t"chain/runtime"
+\t"chain/runtime/unsafe"
 \t"strings"
 \t"strconv"
 )
@@ -321,11 +321,11 @@ var (
 )
 
 func init() {
-\tadminAddr = runtime.PreviousRealm().Address()
+\tadminAddr = unsafe.PreviousRealm().Address()
 }
 
 func Apply(cur realm, bio, skills string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tfor _, a := range applications {
 \t\tif a.Applicant == caller && a.Status == "pending" {
 \t\t\tpanic("you already have a pending application")

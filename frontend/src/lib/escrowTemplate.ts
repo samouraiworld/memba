@@ -163,6 +163,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 const (
@@ -222,7 +223,7 @@ func init() {
 
 // CreateContract creates a new escrow contract with milestones.
 func CreateContract(cur realm, freelancer address, title, description string, milestones string) string {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	id := strconv.Itoa(nextID)
 	nextID++
 
@@ -248,7 +249,7 @@ func CreateContract(cur realm, freelancer address, title, description string, mi
 
 // FundMilestone deposits funds for a specific milestone.
 func FundMilestone(cur realm, contractId string, milestoneIdx int) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller {
@@ -266,7 +267,7 @@ func FundMilestone(cur realm, contractId string, milestoneIdx int) {
 		panic("milestone already funded")
 	}
 
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	if sent.AmountOf("ugnot") < ms.Amount {
 		panic(ufmt.Sprintf("insufficient funds: need %d ugnot", ms.Amount))
 	}
@@ -278,7 +279,7 @@ func FundMilestone(cur realm, contractId string, milestoneIdx int) {
 
 // CompleteMilestone marks a milestone as completed by the freelancer.
 func CompleteMilestone(cur realm, contractId string, milestoneIdx int) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if milestoneIdx < 0 || milestoneIdx >= len(c.Milestones) {
@@ -299,7 +300,7 @@ func CompleteMilestone(cur realm, contractId string, milestoneIdx int) {
 
 // ReleaseFunds releases funds to freelancer after client approves completion.
 func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller && string(caller) != AdminAddress {
@@ -336,8 +337,8 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 	}
 	contracts.Set(contractId, c)
 
-	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-	realmAddr := runtime.CurrentRealm().Address()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	realmAddr := unsafe.CurrentRealm().Address()
 
 	// Pay freelancer
 	bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
@@ -349,7 +350,7 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 
 // RaiseDispute escalates a milestone to admin arbitration.
 func RaiseDispute(cur realm, contractId string, milestoneIdx int) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller && c.Freelancer != caller {
@@ -371,7 +372,7 @@ func RaiseDispute(cur realm, contractId string, milestoneIdx int) {
 
 // ResolveDispute resolves a dispute (admin only). Refund=true refunds client, false pays freelancer.
 func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient bool) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if string(caller) != AdminAddress {
 		panic("only admin can resolve disputes")
 	}
@@ -395,8 +396,8 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 	c.Status = StatusActive
 	contracts.Set(contractId, c)
 
-	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-	realmAddr := runtime.CurrentRealm().Address()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	realmAddr := unsafe.CurrentRealm().Address()
 
 	if refundClient {
 		bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", ms.Amount)})
@@ -412,7 +413,7 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 
 // CancelContract cancels with cancellation fee.
 func CancelContract(cur realm, contractId string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	c := getContract(contractId)
 
 	if c.Client != caller {
@@ -432,8 +433,8 @@ func CancelContract(cur realm, contractId string) {
 	c.Status = StatusCancelled
 	contracts.Set(contractId, c)
 
-	bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-	realmAddr := runtime.CurrentRealm().Address()
+	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	realmAddr := unsafe.CurrentRealm().Address()
 
 	// Refund funded milestones minus cancellation fee
 	for _, ms := range c.Milestones {

@@ -33,9 +33,9 @@ describe("generateBoardCode", () => {
         expect(code).toContain('package mydao_board')
     })
 
-    it("imports std for address, height, and caller", () => {
+    it("imports chain/runtime/unsafe for caller", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain('"chain/runtime"')
+        expect(code).toContain('"chain/runtime/unsafe"')
         expect(code).not.toContain('"std"')
     })
 
@@ -61,7 +61,7 @@ describe("generateBoardCode", () => {
     it("generates CreateThread function with membership check", () => {
         const code = generateBoardCode(config)
         expect(code).toContain("func CreateThread(cur realm,")
-        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).toContain("unsafe.PreviousRealm().Address()")
         expect(code).toContain("assertIsMember(caller)")
     })
 
@@ -79,7 +79,7 @@ describe("generateBoardCode", () => {
 
     it("sets adminAddr in init (deployer is admin)", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("adminAddr = runtime.PreviousRealm().Address()")
+        expect(code).toContain("adminAddr = unsafe.PreviousRealm().Address()")
     })
 
     it("uses address type (modern Gno pattern)", () => {
@@ -88,9 +88,9 @@ describe("generateBoardCode", () => {
         expect(code).not.toContain("Author    std.Address")
     })
 
-    it("uses runtime.PreviousRealm().Address() for caller identification", () => {
+    it("uses unsafe.PreviousRealm().Address() for caller identification", () => {
         const code = generateBoardCode(config)
-        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).toContain("unsafe.PreviousRealm().Address()")
         expect(code).not.toContain("std.GetOrigCaller()")
     })
 

@@ -61,16 +61,16 @@ describe("generateEscrowCode — chain API compliance", () => {
         expect(importBlock).not.toContain('"std"')
     })
 
-    it("uses runtime.PreviousRealm().Address() for caller identity", () => {
+    it("uses unsafe.PreviousRealm().Address() for caller identity", () => {
         const code = getCode()
-        expect(code).toContain("runtime.PreviousRealm().Address()")
+        expect(code).toContain("unsafe.PreviousRealm().Address()")
         expect(code).not.toContain("std.PreviousRealm()")
         expect(code).not.toContain("chain.PreviousRealm()")
     })
 
-    it("uses banker.NewBanker(banker.BankerTypeRealmSend)", () => {
+    it("uses banker.NewBanker(banker.BankerTypeRealmSend, cur)", () => {
         const code = getCode()
-        expect(code).toContain("banker.NewBanker(banker.BankerTypeRealmSend)")
+        expect(code).toContain("banker.NewBanker(banker.BankerTypeRealmSend, cur)")
         expect(code).not.toContain("std.GetBanker")
         expect(code).not.toContain("chain.GetBanker")
     })
@@ -82,9 +82,9 @@ describe("generateEscrowCode — chain API compliance", () => {
         expect(code).not.toContain("std.NewCoin")
     })
 
-    it("uses banker.OriginSend() (not std.GetOrigSend)", () => {
+    it("uses unsafe.OriginSend() (not std.GetOrigSend)", () => {
         const code = getCode()
-        expect(code).toContain("banker.OriginSend()")
+        expect(code).toContain("unsafe.OriginSend()")
         expect(code).not.toContain("std.GetOrigSend")
         expect(code).not.toContain("chain.OrigSend")
     })
@@ -96,9 +96,9 @@ describe("generateEscrowCode — chain API compliance", () => {
         expect(code).not.toContain("chain.GetHeight")
     })
 
-    it("uses runtime.CurrentRealm().Address()", () => {
+    it("uses unsafe.CurrentRealm().Address()", () => {
         const code = getCode()
-        expect(code).toContain("runtime.CurrentRealm().Address()")
+        expect(code).toContain("unsafe.CurrentRealm().Address()")
         expect(code).not.toContain("std.CurrentRealm")
         expect(code).not.toContain("chain.CurrentRealm")
     })

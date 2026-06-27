@@ -70,7 +70,7 @@ export function generateBoardCode(config: BoardConfig): string {
     return `package ${pkgName}
 
 import (
-\t"chain/runtime"
+\t"chain/runtime/unsafe"
 \t"strconv"
 \t"strings"
 )
@@ -115,7 +115,7 @@ var (
 
 func init() {
 \tlastPostBlock = make(map[string]int64)
-\tadminAddr = runtime.PreviousRealm().Address()
+\tadminAddr = unsafe.PreviousRealm().Address()
 ${channelInit}
 }
 
@@ -196,7 +196,7 @@ func renderThread(channelName string, threadID int) string {
 // ── Write Actions ─────────────────────────────────────────
 
 func CreateThread(cur realm, channel, title, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
@@ -228,7 +228,7 @@ func CreateThread(cur realm, channel, title, body string) int {
 }
 
 func ReplyToThread(cur realm, channel string, threadID int, body string) int {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsMember(caller)
 \tassertCanPost(caller)
 \tassertChannel(channel)
@@ -261,7 +261,7 @@ func ReplyToThread(cur realm, channel string, threadID int, body string) int {
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name string) {
-\tcaller := runtime.PreviousRealm().Address()
+\tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tif len(name) == 0 || len(name) > 30 {
 \t\tpanic("channel name must be 1-30 characters")
