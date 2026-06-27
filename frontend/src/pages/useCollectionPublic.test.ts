@@ -81,8 +81,11 @@ vi.mock("../lib/marketplace/v3Reads", () => ({
     fetchOffersForToken: (...args: unknown[]) => mockFetchOffersForToken(...args),
 }))
 
+const mockIsCollectionVerified = vi.fn()
+
 vi.mock("../lib/launchpadReads", () => ({
     fetchCollectionDetail: (...args: unknown[]) => mockFetchCollectionDetail(...args),
+    isCollectionVerified: (...args: unknown[]) => mockIsCollectionVerified(...args),
 }))
 
 vi.mock("../lib/nftApi", () => ({
@@ -114,6 +117,8 @@ vi.mock("../lib/tradeEngine", () => ({
 beforeEach(() => {
     mockFetchOffersForToken.mockReset()
     mockFetchOffersForToken.mockResolvedValue([])
+    mockIsCollectionVerified.mockReset()
+    mockIsCollectionVerified.mockResolvedValue(false)
 })
 
 describe("useCollectionPublic — happy path", () => {
@@ -161,6 +166,21 @@ describe("useCollectionPublic — happy path", () => {
 
         // supply = detail.minted = 3
         expect(mockFetchV3Tokens).toHaveBeenCalledWith(COL_ID, 3, expect.anything())
+    })
+
+    it("exposes the on-chain verified flag (true when the collection is verified)", async () => {
+        mockIsCollectionVerified.mockResolvedValue(true)
+        const { result } = renderHook(() => useCollectionPublic(COL_ID))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.verified).toBe(true)
+    })
+
+    it("defaults verified to false when the read fails (never fabricates a badge)", async () => {
+        mockIsCollectionVerified.mockRejectedValue(new Error("verify read down"))
+        const { result } = renderHook(() => useCollectionPublic(COL_ID))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.verified).toBe(false)
+        expect(result.current.error).toBeNull()
     })
 })
 

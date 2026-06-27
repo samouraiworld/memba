@@ -2,11 +2,14 @@
  * CreateCollectionLaunchpad — Phase 2, Model A launchpad.
  *
  * Registers a new collection INTO the shared `memba_collections` registry
- * (centrally tradable), as opposed to the legacy code-gen wizard that emits a
- * standalone realm. One CreateCollection MsgCall (pays the 1 GNOT create fee);
+ * (centrally tradable). One CreateCollection MsgCall (pays the 1 GNOT create fee);
  * mint-phase config + minting happen afterward on the created collection.
  *
- * Route: /nft/create (replaces the legacy NFTLaunchpad wizard).
+ * AAA rework (Phase A2): a sectioned form (Identity / Royalty / Supply) beside a live
+ * preview card that updates as you type, plain-language validation, and honest
+ * "permanent" framing — replacing the flat, off-brand single-column form.
+ *
+ * Route: /nft/create
  *
  * @module pages/CreateCollectionLaunchpad
  */
@@ -15,8 +18,9 @@ import { useState, useMemo, useEffect, useCallback } from "react"
 import { useOutletContext, Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
-import { isNftLaunchpadValid } from "../lib/config"
-import { NFT_COLLECTIONS_PATH } from "../lib/nftConfig"
+import { NFTMedia } from "../components/nft/NFTMedia"
+import { isNftEnabled, isNftLaunchpadValid } from "../lib/config"
+import { NFT_COLLECTIONS_PATH, PLATFORM_FEE_BPS_V3 } from "../lib/nftConfig"
 import {
     buildCreateCollectionMsg,
     isValidSlug,
@@ -27,16 +31,16 @@ import {
     ROYALTY_SENTINEL,
 } from "../lib/launchpad"
 import type { LayoutContext } from "../types/layout"
-import "./nft-launchpad.css"
+import "./create-collection.css"
 
-const NFT_ENABLED = import.meta.env.VITE_ENABLE_NFT === "true"
+const FEE_GNOT = CREATE_FEE_UGNOT / 1_000_000
 
 export function CreateCollectionLaunchpad() {
-    if (!NFT_ENABLED) {
+    if (!isNftEnabled()) {
         return (
             <ComingSoonGate
-                title="Launch a Collection"
-                icon="🚀"
+                title="Launch a collection"
+                icon="🖼️"
                 description="Launch an NFT collection on Memba — instantly tradable on the marketplace, with enforced creator royalties."
                 features={[
                     "Open, permissionless collection launch",
@@ -70,7 +74,7 @@ function CreateCollectionContent() {
     const [createdId, setCreatedId] = useState<string | null>(null)
 
     useEffect(() => {
-        document.title = "Launch a Collection — Memba"
+        document.title = "Launch a collection — Memba"
     }, [])
 
     // Realm not deployed on this network yet → don't let users sign a doomed tx.
@@ -86,6 +90,23 @@ function CreateCollectionContent() {
     const slugOk = isValidSlug(slug)
     const collectionID = connectedAddress && slugOk ? deriveCollectionID(connectedAddress, slug) : ""
     const formValid = slugOk && name.trim() !== "" && symbol.trim() !== "" && connectedAddress !== ""
+
+    // Plain-language royalty for the preview + sample (the on-chain value uses the sentinel).
+    const royaltyDisplayPct = useDefaultRoyalty
+        ? DEFAULT_ROYALTY_BPS / 100
+        : Math.min(Math.max(parseFloat(royaltyPct) || 0, 0), MAX_ROYALTY_BPS / 100)
+
+    const disabledReason = !connectedAddress
+        ? "Connect your wallet to launch."
+        : !name.trim()
+          ? "Add a collection name."
+          : !slugOk
+            ? "Add a valid URL slug."
+            : !symbol.trim()
+              ? "Add a symbol."
+              : !launchpadLive
+                ? "The launchpad isn't live on this network yet."
+                : ""
 
     const onSubmit = useCallback(async () => {
         setError(null)
@@ -115,111 +136,163 @@ function CreateCollectionContent() {
         }
     }, [formValid, connectedAddress, slug, name, symbol, royaltyBps, royaltyRecip, mintCustody, maxSupply, maxPerWallet])
 
+    // ── Success ──────────────────────────────────────────────────────────
     if (createdId) {
         return (
-            <div className="launchpad-page">
-                <h1>🎉 Collection launched</h1>
-                <p>
-                    Your collection <code>{createdId}</code> is live in the Memba registry. Next, configure its mint
-                    phase and price, then mint or open it to the public.
-                </p>
-                <Link to={np(`nft/collection/${createdId}`)}>Open collection →</Link>
+            <div className="lp">
+                <div className="lp-success">
+                    <div className="lp-success__cover">
+                        <NFTMedia uri="" alt={name || createdId} seed={createdId} />
+                    </div>
+                    <h1 className="lp-title">Collection launched</h1>
+                    <p className="lp-subtitle">
+                        <code>{createdId}</code> is live in the Memba registry. Set its mint phase and price next, then
+                        mint or open it to the public.
+                    </p>
+                    <div className="lp-success__actions">
+                        <Link className="lp-cta" to={np(`nft/studio/${createdId}`)}>
+                            Set up minting
+                        </Link>
+                        <Link className="lp-cta lp-cta--ghost" to={np(`nft/collection/${createdId}`)}>
+                            View collection
+                        </Link>
+                    </div>
+                </div>
             </div>
         )
     }
 
+    // ── Form ─────────────────────────────────────────────────────────────
     return (
-        <div className="launchpad-page">
-            <h1>🚀 Launch a Collection</h1>
-            <p className="launchpad-subtitle">
-                Register a collection into the Memba registry — instantly tradable on the marketplace, with enforced
-                creator royalties. Launch fee: <strong>{CREATE_FEE_UGNOT / 1_000_000} GNOT</strong>.
-            </p>
+        <div className="lp">
+            <header className="lp-header">
+                <h1 className="lp-title">Launch a collection</h1>
+                <p className="lp-subtitle">
+                    Register a collection into the Memba registry — instantly tradable, with enforced creator
+                    royalties. Launch fee <strong>{FEE_GNOT} GNOT</strong>.
+                </p>
+            </header>
 
             {!launchpadLive && (
-                <div className="launchpad-warning" role="status">
-                    ⏳ The launchpad registry is not live on this network yet. You can prepare your collection below;
+                <div className="lp-warning" role="status">
+                    The launchpad registry isn't live on this network yet. You can prepare your collection below;
                     submission unlocks once <code>memba_collections</code> is deployed.
                 </div>
             )}
 
-            <label className="form-group">
-                <span>Slug (permanent identity — lowercase, digits, hyphens)</span>
-                <input
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase())}
-                    placeholder="my-collection"
-                    maxLength={64}
-                />
-                {slug !== "" && !slugOk && <small className="form-error">Must match ^[a-z0-9-]{"{1,64}"}$</small>}
-                {collectionID && <small className="form-hint">Collection ID: <code>{collectionID}</code></small>}
-            </label>
+            <div className="lp-grid">
+                {/* ── Form ── */}
+                <div className="lp-form">
+                    <section className="lp-section">
+                        <p className="lp-section__title">Identity</p>
+                        <div className="lp-field">
+                            <label htmlFor="lp-name">Name</label>
+                            <input id="lp-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Memba Genesis" />
+                        </div>
+                        <div className="lp-row">
+                            <div className="lp-field" style={{ flex: 1 }}>
+                                <label htmlFor="lp-slug">URL slug</label>
+                                <input
+                                    id="lp-slug"
+                                    value={slug}
+                                    onChange={(e) => setSlug(e.target.value.toLowerCase())}
+                                    placeholder="memba-genesis"
+                                    maxLength={64}
+                                />
+                            </div>
+                            <div className="lp-field" style={{ width: 120 }}>
+                                <label htmlFor="lp-symbol">Symbol</label>
+                                <input id="lp-symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="MGEN" maxLength={16} />
+                            </div>
+                        </div>
+                        {slug !== "" && !slugOk && (
+                            <small className="lp-error">Use lowercase letters, numbers, and hyphens only.</small>
+                        )}
+                        {collectionID && (
+                            <small className="lp-hint">Collection ID <code>{collectionID}</code> · permanent</small>
+                        )}
+                    </section>
 
-            <label className="form-group">
-                <span>Name (display)</span>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Collection" />
-            </label>
+                    <section className="lp-section">
+                        <p className="lp-section__title">Royalty</p>
+                        <label className="lp-check">
+                            <input type="checkbox" checked={useDefaultRoyalty} onChange={(e) => setUseDefaultRoyalty(e.target.checked)} />
+                            Use the Memba default ({DEFAULT_ROYALTY_BPS / 100}%)
+                        </label>
+                        {!useDefaultRoyalty && (
+                            <div className="lp-field">
+                                <label htmlFor="lp-royalty">Creator royalty (%)</label>
+                                <input
+                                    id="lp-royalty"
+                                    type="number"
+                                    min="0"
+                                    max={MAX_ROYALTY_BPS / 100}
+                                    step="0.25"
+                                    value={royaltyPct}
+                                    onChange={(e) => setRoyaltyPct(e.target.value)}
+                                />
+                            </div>
+                        )}
+                        <small className="lp-hint">
+                            On a 100 GNOT sale you earn <strong>{royaltyDisplayPct} GNOT</strong> · enforced atomically on
+                            every secondary sale (max {MAX_ROYALTY_BPS / 100}%).
+                        </small>
+                    </section>
 
-            <label className="form-group">
-                <span>Symbol</span>
-                <input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="MYC" maxLength={16} />
-            </label>
+                    <section className="lp-section">
+                        <p className="lp-section__title">Supply</p>
+                        <div className="lp-row">
+                            <div className="lp-field" style={{ flex: 1 }}>
+                                <label htmlFor="lp-max">Max supply</label>
+                                <input id="lp-max" type="number" min="0" value={maxSupply} onChange={(e) => setMaxSupply(e.target.value)} />
+                            </div>
+                            <div className="lp-field" style={{ flex: 1 }}>
+                                <label htmlFor="lp-perwallet">Max per wallet</label>
+                                <input id="lp-perwallet" type="number" min="0" value={maxPerWallet} onChange={(e) => setMaxPerWallet(e.target.value)} />
+                            </div>
+                        </div>
+                        <small className="lp-hint">0 = unlimited.</small>
 
-            <fieldset className="form-group">
-                <legend>Creator royalty</legend>
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={useDefaultRoyalty}
-                        onChange={(e) => setUseDefaultRoyalty(e.target.checked)}
-                    />
-                    Use Memba default ({DEFAULT_ROYALTY_BPS / 100}%)
-                </label>
-                {!useDefaultRoyalty && (
-                    <input
-                        type="number"
-                        min="0"
-                        max={MAX_ROYALTY_BPS / 100}
-                        step="0.25"
-                        value={royaltyPct}
-                        onChange={(e) => setRoyaltyPct(e.target.value)}
-                    />
-                )}
-                <small className="form-hint">
-                    Applied on every secondary sale (max {MAX_ROYALTY_BPS / 100}%). Enforced atomically by the market.
-                </small>
-            </fieldset>
+                        <details className="lp-advanced">
+                            <summary>Advanced — custody</summary>
+                            <div className="lp-field">
+                                <label htmlFor="lp-recip">Royalty recipient (blank = you)</label>
+                                <input id="lp-recip" value={royaltyRecip} onChange={(e) => setRoyaltyRecip(e.target.value)} placeholder={connectedAddress || "g1…"} />
+                            </div>
+                            <div className="lp-field">
+                                <label htmlFor="lp-custody">Mint-proceeds custody (blank = you)</label>
+                                <input id="lp-custody" value={mintCustody} onChange={(e) => setMintCustody(e.target.value)} placeholder={connectedAddress || "g1…"} />
+                            </div>
+                        </details>
+                    </section>
 
-            <details>
-                <summary>Advanced</summary>
-                <label className="form-group">
-                    <span>Royalty recipient (blank = you)</span>
-                    <input value={royaltyRecip} onChange={(e) => setRoyaltyRecip(e.target.value)} placeholder={connectedAddress || "g1…"} />
-                </label>
-                <label className="form-group">
-                    <span>Mint-proceeds custody (blank = you)</span>
-                    <input value={mintCustody} onChange={(e) => setMintCustody(e.target.value)} placeholder={connectedAddress || "g1…"} />
-                </label>
-                <label className="form-group">
-                    <span>Max supply (0 = unlimited)</span>
-                    <input type="number" min="0" value={maxSupply} onChange={(e) => setMaxSupply(e.target.value)} />
-                </label>
-                <label className="form-group">
-                    <span>Max per wallet (0 = unlimited)</span>
-                    <input type="number" min="0" value={maxPerWallet} onChange={(e) => setMaxPerWallet(e.target.value)} />
-                </label>
-            </details>
+                    {error && <div className="lp-error" role="alert">{error}</div>}
 
-            {error && <div className="form-error" role="alert">{error}</div>}
+                    <button className="lp-cta lp-cta--block" disabled={!formValid || submitting || !launchpadLive} onClick={onSubmit}>
+                        {submitting ? "Launching…" : `Launch collection · ${FEE_GNOT} GNOT`}
+                    </button>
+                    {disabledReason && <small className="lp-hint lp-hint--center">{disabledReason}</small>}
+                    <p className="lp-fineprint">Slug, symbol, and royalty are permanent once launched.</p>
+                </div>
 
-            <button
-                className="btn-primary"
-                disabled={!formValid || submitting || !launchpadLive}
-                onClick={onSubmit}
-            >
-                {submitting ? "Launching…" : `Launch (${CREATE_FEE_UGNOT / 1_000_000} GNOT)`}
-            </button>
-            {!connectedAddress && <small className="form-hint">Connect your wallet to launch.</small>}
+                {/* ── Live preview ── */}
+                <aside className="lp-aside">
+                    <p className="lp-section__title">Live preview</p>
+                    <div className="lp-preview" data-testid="create-preview">
+                        <div className="lp-preview__cover">
+                            <NFTMedia uri="" alt={name || "collection preview"} seed={collectionID || slug || name} />
+                        </div>
+                        <div className="lp-preview__body">
+                            <div className="lp-preview__name">{name || "Untitled collection"}</div>
+                            <div className="lp-preview__sym">{symbol || "—"}</div>
+                            <div className="lp-preview__row"><span>Royalty</span><span>{royaltyDisplayPct}%</span></div>
+                            <div className="lp-preview__row"><span>Max supply</span><span>{Number(maxSupply) > 0 ? maxSupply : "Unlimited"}</span></div>
+                            <div className="lp-preview__row"><span>DAO fee</span><span>{(PLATFORM_FEE_BPS_V3 / 100).toFixed(1)}%</span></div>
+                        </div>
+                    </div>
+                    <p className="lp-hint">Auto-generated cover until you upload art. Updates as you type.</p>
+                </aside>
+            </div>
         </div>
     )
 }

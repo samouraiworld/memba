@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react"
-import { fetchCollectionDetail } from "../lib/launchpadReads"
+import { fetchCollectionDetail, isCollectionVerified } from "../lib/launchpadReads"
 import { fetchNFTCollection, fetchNFTActivity } from "../lib/nftApi"
 import { fetchV3Tokens, fetchV3Listings, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
 import { fetchOffersForToken, type TokenOffer } from "../lib/marketplace/v3Reads"
@@ -55,6 +55,8 @@ export interface CollectionPublicResult {
      *  badge, and the offerer's "your offer / cancel" affordance. */
     offers: OfferMap
     activity: NFTActivityItem[]
+    /** On-chain verified-collection flag (real meta read; false on failure — never fabricated). */
+    verified: boolean
     loading: boolean
     error: string | null
     reload: () => void
@@ -67,6 +69,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
     const [listings, setListings] = useState<V3ListingMap>(new Map())
     const [offers, setOffers] = useState<OfferMap>(new Map())
     const [activity, setActivity] = useState<NFTActivityItem[]>([])
+    const [verified, setVerified] = useState(false)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -81,16 +84,18 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
             setLoading(true)
             setError(null)
             setOffers(new Map())
+            setVerified(false)
 
             // ── First wave: parallel fetches that don't need supply ───────────
-            // detail is core; stats/listings/activity are resilient.
+            // detail is core; stats/listings/activity/verified are resilient.
             let resolvedDetail: CollectionDetail | null = null
             try {
-                const [det, st, lst, act] = await Promise.all([
+                const [det, st, lst, act, ver] = await Promise.all([
                     fetchCollectionDetail(id),
                     fetchNFTCollection(id).catch(() => null),
                     fetchV3Listings(id, marketPath).catch(() => new Map() as V3ListingMap),
                     fetchNFTActivity(id).catch(() => [] as NFTActivityItem[]),
+                    isCollectionVerified(id).catch(() => false),
                 ])
 
                 if (!active) return
@@ -100,6 +105,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
                 setStats(st)
                 setListings(lst)
                 setActivity(act)
+                setVerified(ver)
 
                 if (det === null) {
                     // Collection not found — treat as a core failure.
@@ -171,5 +177,5 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
         setFetchEpoch((n) => n + 1)
     }, [])
 
-    return { detail, stats, tokens, listings, offers, activity, loading, error, reload }
+    return { detail, stats, tokens, listings, offers, activity, verified, loading, error, reload }
 }

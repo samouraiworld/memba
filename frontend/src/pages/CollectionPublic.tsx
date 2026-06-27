@@ -23,7 +23,7 @@
  * @module pages/CollectionPublic
  */
 
-import { useState } from "react"
+import { useState, type CSSProperties } from "react"
 import { useParams, useOutletContext, Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { useCollectionPublic } from "./useCollectionPublic"
@@ -33,6 +33,10 @@ import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { listingKey } from "../lib/v3TokenGrid"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
+import { StatStrip } from "../components/ui/StatStrip"
+import { EmptyState } from "../components/ui/EmptyState"
+import { VerifiedBadge } from "../components/nft/VerifiedBadge"
+import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { isNftEnabled, isNftMarketV3Valid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
@@ -50,6 +54,13 @@ interface ModalState {
     seller?: string
     /** For action="accept": the buyer whose offer the owner is accepting. */
     buyerAddr?: string
+}
+
+/** A deterministic banner gradient from the collection id (matches NFTMedia's generated-art hue). */
+function bannerStyle(id: string): CSSProperties {
+    let h = 0
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360
+    return { background: `linear-gradient(120deg, hsl(${h} 42% 9%), hsl(${h} 48% 17%))` }
 }
 
 /** The strongest (highest-amount) offer in a list, or null. */
@@ -97,7 +108,7 @@ function CollectionPublicContent() {
     const me = adena?.address || ""
     const np = useNetworkPath()
 
-    const { detail, stats, tokens, listings, offers, activity, loading, error, reload } =
+    const { detail, stats, tokens, listings, offers, activity, verified, loading, error, reload } =
         useCollectionPublic(id, me)
 
     const [activeTab, setActiveTab] = useState<Tab>("items")
@@ -126,6 +137,18 @@ function CollectionPublicContent() {
     const isAdmin = me !== "" && me === detail.admin
     const firstTokenUri = tokens.length > 0 ? tokens[0].uri : ""
 
+    // Stats with on-chain fallbacks so a cold/failed indexer never shows bare dashes:
+    // floor + listed are derivable from the live listings, supply from on-chain detail;
+    // only volume genuinely needs the indexer (historical sales) → null = "unavailable".
+    const listingPrices = [...listings.values()].map((l) => l.priceUgnot)
+    const floorUgnot = stats?.floorPriceUgnot ?? (listingPrices.length ? Math.min(...listingPrices) : null)
+    const statItems = [
+        { label: "Floor", value: floorUgnot != null ? formatGnotCompact(floorUgnot) : null },
+        { label: "Volume", value: stats ? formatGnotCompact(stats.totalVolumeUgnot) : null },
+        { label: "Listed", value: stats ? Number(stats.activeListings) : listings.size },
+        { label: "Supply", value: stats ? Number(stats.supply) : detail.minted },
+    ]
+
     const handleModalClose = () => setModal(null)
     const handleModalSuccess = () => {
         setModal(null)
@@ -136,50 +159,30 @@ function CollectionPublicContent() {
         <div className="cpub">
             {/* ── Header ──────────────────────────────────────────── */}
             <header className="cpub-header">
-                <div className="cpub-hero-media">
-                    <NFTMedia uri={firstTokenUri} alt={detail.name} seed={id} className="cpub-hero-media__img" />
-                </div>
-                <div className="cpub-header-body">
-                    <h1 className="cpub-title">{detail.name}</h1>
-                    <p className="cpub-creator">by {detail.creator}</p>
+                <div className="cpub-banner" style={bannerStyle(id)} />
+                <div className="cpub-header-row">
+                    <div className="cpub-avatar">
+                        <NFTMedia uri={firstTokenUri} alt={detail.name} seed={id} className="cpub-avatar__img" />
+                    </div>
                     {isAdmin && (
-                        <Link
-                            to={np(`nft/studio/${id}`)}
-                            className="cpub-studio-link"
-                        >
-                            Manage in Studio →
+                        <Link to={np(`nft/studio/${id}`)} className="cpub-studio-link">
+                            Manage in Studio
                         </Link>
                     )}
+                </div>
+                <div className="cpub-header-body">
+                    <div className="cpub-title-row">
+                        <h1 className="cpub-title">{detail.name}</h1>
+                        <VerifiedBadge verified={verified} />
+                    </div>
+                    <p className="cpub-creator">
+                        by <CopyableAddress address={detail.creator} compact fontSize={13} />
+                    </p>
                 </div>
             </header>
 
             {/* ── Stats strip ─────────────────────────────────────── */}
-            <div className="cpub-stats">
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Floor</span>
-                    <span className="cpub-stat__value">
-                        {stats ? formatGnotCompact(stats.floorPriceUgnot) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Volume</span>
-                    <span className="cpub-stat__value">
-                        {stats ? formatGnotCompact(stats.totalVolumeUgnot) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Listed</span>
-                    <span className="cpub-stat__value">
-                        {stats ? String(stats.activeListings) : "—"}
-                    </span>
-                </div>
-                <div className="cpub-stat">
-                    <span className="cpub-stat__label">Supply</span>
-                    <span className="cpub-stat__value">
-                        {stats ? String(stats.supply) : detail.minted}
-                    </span>
-                </div>
-            </div>
+            <StatStrip className="cpub-statstrip" stats={statItems} />
 
             {/* ── Tabs ────────────────────────────────────────────── */}
             <div className="cpub-tabs" role="tablist">
@@ -215,7 +218,11 @@ function CollectionPublicContent() {
             {activeTab === "items" && (
                 <section className="cpub-panel">
                     {tokens.length === 0 ? (
-                        <p className="mhub-empty">No tokens minted yet.</p>
+                        <EmptyState
+                            icon="ti-photo"
+                            title="No tokens yet"
+                            body="This collection hasn't minted any tokens."
+                        />
                     ) : (
                         <div className="cpub-token-grid">
                             {tokens.map((token) => {
@@ -401,13 +408,13 @@ function CollectionPublicContent() {
                         <div className="cpub-about-row">
                             <dt className="cpub-about-row__term">Creator</dt>
                             <dd className="cpub-about-row__def">
-                                <code>{detail.creator}</code>
+                                <CopyableAddress address={detail.creator} />
                             </dd>
                         </div>
                         <div className="cpub-about-row">
                             <dt className="cpub-about-row__term">Admin</dt>
                             <dd className="cpub-about-row__def">
-                                <code>{detail.admin}</code>
+                                <CopyableAddress address={detail.admin} />
                             </dd>
                         </div>
                         <div className="cpub-about-row">

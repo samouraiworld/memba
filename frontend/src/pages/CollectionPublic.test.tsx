@@ -101,6 +101,7 @@ const mockHookReturn = {
     listings: FIXTURE_LISTINGS,
     offers: FIXTURE_OFFERS,
     activity: FIXTURE_ACTIVITY,
+    verified: true,
     loading: false,
     error: null,
     reload: vi.fn(),
@@ -220,10 +221,11 @@ describe("CollectionPublic — header", () => {
         })
     })
 
-    it("renders 'by {creator}'", async () => {
+    it("renders the creator as a copyable, truncated address", async () => {
         renderPage()
         await waitFor(() => {
-            expect(screen.getByText(/by g1creator/)).toBeInTheDocument()
+            // CopyableAddress compact truncates g1creator → g1cr…tor
+            expect(screen.getByText(/g1cr…tor/)).toBeInTheDocument()
         })
     })
 })
