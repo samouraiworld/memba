@@ -204,6 +204,9 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
   const isAuthor = connected && address === review.author
   const isModerator = connected && address === MODERATOR
   const authorLabel = review.username || truncateAddr(review.author)
+  // Optimistic, not-yet-confirmed review (temp id < 0): show a "Posting…" chip and hide the
+  // on-chain actions (they'd target an invalid id until the chain reflects the write).
+  const pending = review.id < 0
 
   const loadComments = useCallback(async () => {
     setCommentsLoading(true)
@@ -280,9 +283,15 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           <StarRating value={review.rating} size="sm" />
         </div>
         <div style={{ textAlign: "right" }}>
-          <ReviewDate height={review.createdAt} className="review-card__date" />
-          {review.editedAt > 0 && (
-            <span className="review-card__edited"> (edited)</span>
+          {pending ? (
+            <span className="review-card__pending" data-testid="review-pending">Posting…</span>
+          ) : (
+            <>
+              <ReviewDate height={review.createdAt} className="review-card__date" />
+              {review.editedAt > 0 && (
+                <span className="review-card__edited"> (edited)</span>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -321,8 +330,8 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
         />
       )}
 
-      {/* Actions */}
-      {!editMode && (
+      {/* Actions — hidden while the optimistic review is still pending confirmation. */}
+      {!editMode && !pending && (
         <div className="review-card__actions">
           {/* Like */}
           <button

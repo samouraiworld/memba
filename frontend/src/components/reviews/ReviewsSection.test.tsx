@@ -98,8 +98,9 @@ describe("ReviewsSection", () => {
     fireEvent.change(screen.getByLabelText(/review \(optional\)/i), { target: { value: "my fresh take" } })
     fireEvent.click(screen.getByRole("button", { name: /post review/i }))
 
-    // Appears immediately even though the chain fetch doesn't include it yet.
+    // Appears immediately even though the chain fetch doesn't include it yet, marked pending.
     expect(await screen.findByText(/my fresh take/)).toBeInTheDocument()
+    expect(screen.getByTestId("review-pending")).toBeInTheDocument()
     expect(submitMsg).toHaveBeenCalled()
   })
 })

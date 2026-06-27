@@ -107,6 +107,13 @@
   white-space: nowrap;
 }
 
+.review-card__pending {
+  font-size: var(--text-xs, 0.64rem);
+  color: var(--color-k-accent-text);
+  white-space: nowrap;
+  font-style: italic;
+}
+
 .review-card__edited {
   font-size: var(--text-xs, 0.64rem);
   color: var(--color-k-warning-text);
