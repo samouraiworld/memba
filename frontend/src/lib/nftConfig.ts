@@ -30,14 +30,23 @@ export const NFT_COLLECTIONS_PATH = "gno.land/r/samcrew/memba_collections"
  */
 export const NFT_MARKET_ADDR = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u"
 
-/** On-chain path to the v3 NFT marketplace realm (memba_nft_market_v3). */
-export const NFT_MARKETPLACE_V3_PATH = "gno.land/r/samcrew/memba_nft_market_v3"
+/**
+ * On-chain path to the v3.1 NFT marketplace engine (memba_nft_market_v3_1).
+ *
+ * v3.1 is a NEW path: the original memba_nft_market_v3 (g1pucv5…) is occupied + was
+ * never registered, and gno paths are immutable, so the config-reading engine deploys
+ * fresh here. This path is deliberately NOT in REALM_ALLOWLIST.test13 until v3.1 is
+ * deployed + registered — so isNftMarketV3Valid() stays false and the trade surface
+ * stays dark. Flip the constant + the allowlist entry TOGETHER at go-live (runbook §5.2).
+ */
+export const NFT_MARKETPLACE_V3_PATH = "gno.land/r/samcrew/memba_nft_market_v3_1"
 
 /**
- * Bech32 address of the v3 marketplace realm.
- * Used as `operator` in SetApprovalForAll calls on memba_collections.
+ * Bech32 address of the v3.1 marketplace engine (deterministic from the new path; also
+ * returned live by memba_nft_market_v3_1.MarketAddress()). Used as `operator` in
+ * SetApprovalForAll calls on memba_collections.
  */
-export const NFT_MARKET_V3_ADDR = "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj"
+export const NFT_MARKET_V3_ADDR = "g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0"
 
 /**
  * Default collection ID for the live genesis drop.

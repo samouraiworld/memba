@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { TradeModal } from "./TradeModal"
+import { NFT_MARKET_V3_ADDR } from "../../lib/nftConfig"
 
 // ── Shared test fixtures ───────────────────────────────────────
 
@@ -153,13 +154,13 @@ describe("TradeModal — list (v3, not approved)", () => {
 
         await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
 
-        // The first broadcast must be approval with the correct arg order, NOT listing
+        // The first broadcast must be approval with the correct arg order, NOT listing.
         // v3 signature: buildSetApprovalForAllV3Msg(caller, collectionID, operatorAddr, approved)
-        // engine.marketAddr for v3 = NFT_MARKET_V3_ADDR = "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj"
+        // operator = engine.marketAddr = NFT_MARKET_V3_ADDR (the v3.1 engine address).
         expect(mockBuildSetApprovalForAllV3Msg).toHaveBeenCalledWith(
             CALLER,
             COLLECTION_ID,
-            "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj",
+            NFT_MARKET_V3_ADDR,
             true,
         )
         expect(mockBuildListForSaleV3Msg).not.toHaveBeenCalled()
