@@ -48,7 +48,7 @@ type Tab = "items" | "activity" | "about"
 // ── TradeModal state ──────────────────────────────────────────────────
 
 interface ModalState {
-    action: "buy" | "list" | "offer" | "accept" | "cancel"
+    action: "buy" | "list" | "offer" | "accept" | "cancel" | "delist"
     tokenId: string
     priceUgnot?: number
     seller?: string
@@ -286,6 +286,20 @@ function CollectionPublicContent() {
                                                             }
                                                         >
                                                             List
+                                                        </button>
+                                                    )}
+                                                    {isListed && (
+                                                        <button
+                                                            className="cpub-action-btn cpub-action-btn--cancel"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    action: "delist",
+                                                                    tokenId: token.tokenId,
+                                                                    priceUgnot: listing!.priceUgnot,
+                                                                })
+                                                            }
+                                                        >
+                                                            Delist
                                                         </button>
                                                     )}
                                                     {best && (
