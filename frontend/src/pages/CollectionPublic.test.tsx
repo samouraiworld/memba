@@ -36,7 +36,7 @@ const FIXTURE_DETAIL = {
     phase: 2,
     mintPrice: 1_000_000,
     payDenom: "ugnot",
-    minted: 3,
+    minted: 4,
     maxSupply: 100,
     paused: false,
 }
@@ -44,7 +44,7 @@ const FIXTURE_DETAIL = {
 const FIXTURE_STATS = {
     name: "Cool NFTs",
     symbol: "COOL",
-    supply: 3n,
+    supply: 4n,
     floorPriceUgnot: 2_000_000n,
     totalVolumeUgnot: 10_000_000n,
     totalSales: 5n,
@@ -53,12 +53,14 @@ const FIXTURE_STATS = {
 }
 
 // Token 0: listed by TOKEN_OWNER_1
-// Token 1: owned by TOKEN_OWNER_1, not listed
+// Token 1: owned by TOKEN_OWNER_1, not listed, MY offer (→ cancel)
 // Token 2: owned by viewer (ME), not listed
+// Token 3: owned by TOKEN_OWNER_1, not listed, no offer (→ make offer)
 const FIXTURE_TOKENS = [
     { tokenId: "0", owner: TOKEN_OWNER_1, uri: "ipfs://token0" },
     { tokenId: "1", owner: TOKEN_OWNER_1, uri: "ipfs://token1" },
     { tokenId: "2", owner: ME, uri: "ipfs://token2" },
+    { tokenId: "3", owner: TOKEN_OWNER_1, uri: "ipfs://token3" },
 ]
 
 // listingKey uses "collectionID/tokenId" format
@@ -84,9 +86,11 @@ const FIXTURE_ACTIVITY = [
 
 // Token #2 (owned by ME) has a standing offer → owner can accept.
 // Token #0 (listed, owned by someone else) has a standing offer → buyer sees the badge.
+// Token #1 (unlisted, owned by someone else) has MY standing offer → I can cancel it.
 const OFFER_BUYER = "g1buyer00000000000000000000000000009"
 const FIXTURE_OFFERS = new Map([
     ["0", [{ buyer: "g1buyerA0000000000000000000000000001", amountUgnot: 1_500_000, createdBlk: 90 }]],
+    ["1", [{ buyer: ME, amountUgnot: 2_000_000, createdBlk: 95 }]],
     ["2", [{ buyer: OFFER_BUYER, amountUgnot: 3_000_000, createdBlk: 100 }]],
 ])
 
@@ -314,11 +318,11 @@ describe("CollectionPublic — Items tab: listed token → Buy", () => {
 })
 
 describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
-    it("opens TradeModal with action='offer' for an unlisted token not owned by the viewer", async () => {
+    it("opens TradeModal with action='offer' for an unlisted token not owned by the viewer (no prior offer)", async () => {
         renderPage()
 
-        // Token #1 is not listed, owned by TOKEN_OWNER_1 (not ME). The offer loop is
-        // live (read + accept wired), so a non-owner sees a Make-offer button.
+        // Token #3 is not listed, owned by TOKEN_OWNER_1 (not ME), with no offer from ME
+        // → a non-owner sees a Make-offer button.
         await waitFor(() => {
             expect(screen.getAllByRole("button", { name: /Make offer/i }).length).toBeGreaterThan(0)
         })
@@ -333,7 +337,32 @@ describe("CollectionPublic — Items tab: unlisted token → Offer", () => {
             action: "offer",
             source: "v3",
             collectionID: COL_ID,
+            tokenId: "3",
+        })
+    })
+})
+
+describe("CollectionPublic — Items tab: my standing offer → Cancel", () => {
+    it("shows 'Cancel offer' (not 'Make offer') and opens TradeModal action='cancel' for a token the viewer has offered on", async () => {
+        renderPage()
+
+        // Token #1: unlisted, owned by TOKEN_OWNER_1, with MY 2 GNOT offer → I can cancel.
+        await waitFor(() => {
+            expect(screen.getAllByRole("button", { name: /Cancel offer/i }).length).toBeGreaterThan(0)
+        })
+
+        fireEvent.click(screen.getAllByRole("button", { name: /Cancel offer/i })[0])
+
+        await waitFor(() => {
+            expect(screen.getByTestId("trade-modal")).toBeInTheDocument()
+        })
+
+        expect(capturedTradeProps.at(-1)).toMatchObject({
+            action: "cancel",
+            source: "v3",
+            collectionID: COL_ID,
             tokenId: "1",
+            priceUgnot: 2_000_000,
         })
     })
 })

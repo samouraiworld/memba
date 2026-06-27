@@ -164,7 +164,7 @@ describe("useCollectionPublic — happy path", () => {
     })
 })
 
-describe("useCollectionPublic — offers (listed ∪ owned)", () => {
+describe("useCollectionPublic — offers (every windowed token)", () => {
     // BASE_LISTINGS lists token "0"; BASE_TOKENS[1] (token "1") is owned by OWNER2, unlisted.
     const OWNER2 = "g1owner000000000000000000000000000002"
 
@@ -180,26 +180,26 @@ describe("useCollectionPublic — offers (listed ∪ owned)", () => {
         ])
     })
 
-    it("reads offers for the union of LISTED (buyer badge) and viewer-OWNED (accept) tokens", async () => {
-        // viewer = OWNER2 owns token "1" (unlisted); token "0" is listed but not owned.
+    it("reads offers for EVERY windowed token (owner accept · buyer badge · offerer's own)", async () => {
+        // BASE_TOKENS has 3 tokens — all get an offer read so all three roles resolve,
+        // incl. the offerer seeing their own standing offer on an unlisted token they
+        // don't own (the previous listed∪owned scoping left the offerer blind).
         const { result } = renderHook(() => useCollectionPublic(COL_ID, OWNER2))
         await waitFor(() => expect(result.current.loading).toBe(false))
 
-        // Union {listed "0"} ∪ {owned "1"} → exactly two reads.
-        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(2)
-        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "0", expect.any(String))
-        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "1", expect.any(String))
-        expect(result.current.offers.get("0")).toHaveLength(1)
-        expect(result.current.offers.get("1")).toHaveLength(1)
+        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(3)
+        for (const tid of ["0", "1", "2"]) {
+            expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, tid, expect.any(String))
+            expect(result.current.offers.get(tid)).toHaveLength(1)
+        }
     })
 
-    it("still reads LISTED tokens when logged out (buyer badge), but no owned reads", async () => {
+    it("reads offers for all tokens even when logged out (buyer badges)", async () => {
         const { result } = renderHook(() => useCollectionPublic(COL_ID))
         await waitFor(() => expect(result.current.loading).toBe(false))
 
-        // Only the listed token "0" — no viewer means no owned set.
-        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(1)
-        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "0", expect.any(String))
+        // No viewer, but offers still power the public best-offer badges.
+        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(3)
         expect(result.current.offers.get("0")).toHaveLength(1)
     })
 

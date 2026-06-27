@@ -20,7 +20,7 @@
 import { useState, useEffect } from "react"
 import { tradeEngineFor } from "../../lib/tradeEngine"
 import { buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
-import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
+import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildCancelOfferMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
 import { routeNftV3 } from "../../lib/marketplace/router"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
@@ -30,7 +30,7 @@ import "./TradeModal.css"
 
 // ── Types ─────────────────────────────────────────────────────
 
-export type TradeAction = "buy" | "list" | "offer" | "accept"
+export type TradeAction = "buy" | "list" | "offer" | "accept" | "cancel"
 type TradeSource = "v2" | "v3"
 
 export interface TradeModalProps {
@@ -229,6 +229,24 @@ export function TradeModal({
         }
     }
 
+    const handleCancelOffer = async () => {
+        setConfirming(true)
+        setError(null)
+        try {
+            const { doContractBroadcast } = await import("../../lib/grc20")
+            const msgs =
+                engine.engine === "v3"
+                    ? routeNftV3({ collectionID, tokenId, action: "cancel-offer", caller: callerAddress })
+                    : [buildCancelOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId)]
+            await doContractBroadcast(msgs, `Cancel offer on ${collectionID}/${tokenId}`)
+            onSuccess()
+        } catch (err) {
+            setError(friendlyError(err))
+        } finally {
+            setConfirming(false)
+        }
+    }
+
     // ── Title per action ─────────────────────────────────────
 
     const titles: Record<TradeAction, string> = {
@@ -236,6 +254,7 @@ export function TradeModal({
         list: "List for Sale",
         offer: "Make Offer",
         accept: "Accept Offer",
+        cancel: "Cancel Offer",
     }
 
     // ── List two-step: mirror V3ListForSaleModal ─────────────
@@ -480,6 +499,28 @@ export function TradeModal({
                                 disabled={confirming}
                             >
                                 {confirming ? "Accepting…" : "Accept Offer"}
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {/* ── CANCEL OFFER ────────────────────────────────── */}
+                {action === "cancel" && (
+                    <>
+                        <p className="trade-modal__hint">
+                            Cancel your standing offer
+                            {priceUgnot !== undefined && <> of <strong>{(priceUgnot / 1_000_000).toFixed(2)} GNOT</strong></>}
+                            {" "}on this token. The escrowed amount is returned to your wallet.
+                        </p>
+
+                        {error && <p className="trade-modal__error" role="alert">{error}</p>}
+
+                        <div className="trade-modal__actions">
+                            <button className="trade-modal__cancel" onClick={onClose} disabled={confirming}>
+                                Keep Offer
+                            </button>
+                            <button className="trade-modal__confirm" onClick={handleCancelOffer} disabled={confirming}>
+                                {confirming ? "Cancelling…" : "Cancel Offer & Reclaim"}
                             </button>
                         </div>
                     </>

@@ -29,6 +29,8 @@ const mockBuildMakeOfferV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", va
 const mockBuildMakeOfferMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildAcceptOfferV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildAcceptOfferMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
+const mockBuildCancelOfferV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
+const mockBuildCancelOfferMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildSetApprovalForAllV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildSetApprovalForAllMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 
@@ -37,6 +39,7 @@ vi.mock("../../lib/nftMarketplaceV3", () => ({
     buildListForSaleV3Msg: (...args: unknown[]) => mockBuildListForSaleV3Msg(...args),
     buildMakeOfferV3Msg: (...args: unknown[]) => mockBuildMakeOfferV3Msg(...args),
     buildAcceptOfferV3Msg: (...args: unknown[]) => mockBuildAcceptOfferV3Msg(...args),
+    buildCancelOfferV3Msg: (...args: unknown[]) => mockBuildCancelOfferV3Msg(...args),
     buildSetApprovalForAllV3Msg: (...args: unknown[]) => mockBuildSetApprovalForAllV3Msg(...args),
 }))
 
@@ -45,6 +48,7 @@ vi.mock("../../lib/nftMarketplace", () => ({
     buildListForSaleMsg: (...args: unknown[]) => mockBuildListForSaleMsg(...args),
     buildMakeOfferMsg: (...args: unknown[]) => mockBuildMakeOfferMsg(...args),
     buildAcceptOfferMsg: (...args: unknown[]) => mockBuildAcceptOfferMsg(...args),
+    buildCancelOfferMsg: (...args: unknown[]) => mockBuildCancelOfferMsg(...args),
     buildSetApprovalForAllMsg: (...args: unknown[]) => mockBuildSetApprovalForAllMsg(...args),
 }))
 
@@ -216,6 +220,24 @@ describe("TradeModal — accept (v3)", () => {
             TOKEN_ID,
             BUYER_ADDR,
         )
+        expect(onSuccess).toHaveBeenCalled()
+    })
+})
+
+describe("TradeModal — cancel offer (v3)", () => {
+    it("builds buildCancelOfferV3Msg with (caller, collectionID, tokenId) and reclaims", async () => {
+        const onSuccess = vi.fn()
+        render(
+            <TradeModal {...makeProps({ action: "cancel", source: "v3", priceUgnot: PRICE_UGNOT, onSuccess })} />,
+        )
+
+        const confirmBtn = await screen.findByRole("button", { name: /reclaim/i })
+        fireEvent.click(confirmBtn)
+
+        await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
+
+        expect(mockBuildCancelOfferV3Msg).toHaveBeenCalledWith(CALLER, COLLECTION_ID, TOKEN_ID)
+        expect(mockBuildAcceptOfferV3Msg).not.toHaveBeenCalled()
         expect(onSuccess).toHaveBeenCalled()
     })
 })
