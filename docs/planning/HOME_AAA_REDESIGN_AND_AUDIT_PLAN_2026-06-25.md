@@ -416,7 +416,7 @@ Every page/component: home, directory, validators, valoper/profile, DAO pages, p
 
 ## 14. Connected / member home — AAA pass (audit + plan, 2026-06-27)
 
-> **Status:** AUDIT DONE — phased plan below — **AWAITING USER GO** before any implementation.
+> **Status (2026-06-27):** GO received; building. **SHIPPED to `main`:** W-M0 **#602** (MH-02 wallet honesty + MH-13 token plural + MH-14 ecosystem count↔rows) · **#608** (MH-15 equal cards + MH-16 genesis-validator monikers). **IN FLIGHT:** W-M1 **#604** (MemberHero — code-reviewed, green, behind:0, merging). **NEXT:** MH-17 (activity feed, §14.7) → W-M3 (empty-state uplift) → W-M4/M5/M6.
 > **Worktree:** `/Users/zxxma/Desktop/Code/Gno/_worktrees/memba-home-member` · branch `feat/home-member-aaa` (off `origin/main` @ `d761125`/#595).
 > **Context:** The visitor (logged-out) home shipped to the editorial AAA bar (#584/#589/#590/#593). That work was visitor + desktop-first. The **connected/member spine predates it and was never brought to the same bar.** This section is the audit of the member home + a phased delivery plan to close the gap, plus the result of a 390px mobile verification of the already-shipped (shared) sections.
 
@@ -446,6 +446,7 @@ The visitor, by contrast, gets an **editorial hero** (`VisitorHero`: 30px headli
 | **MH-15** | **P2** | **Ecosystem band cards unequal height** (user-reported, 2026-06-27): the "tokens" and "Top validators" cards render at different heights (different row counts) — should be the same size for a tidy band. | `home.css` `.ecosystem-band__sections` / `.ecosystem-section` | Make the sections grid stretch to equal height (e.g. `align-items: stretch` / equal-height grid + flexible inner). |
 | **MH-16** | **P2** | **Ecosystem band validators show addresses, not monikers** (user-reported, 2026-06-27): the top-3-by-power are genesis validators **unregistered in `r/gnops/valopers`**, so `fetchValoperMonikers` returns no name → honest truncated-address fallback. User wants names. The full validators page resolves names via **gnomonitoring** (`mergeWithMonitoringData`) and/or **net_info node monikers** — sources the band's `useEcosystemValidators` deliberately skips. | `useEcosystemValidators.ts` / `lib/validators.ts` | If gnomonitoring/net_info carries a name for these addrs, add that (cheap) source to the band's enrichment; **verify a real name exists before wiring** (never fabricate — if no on-chain/monitoring name exists, the address fallback stays). |
 | **MH-14** | **P1** | **Ecosystem band header count can exceed the rows shown** (user-reported: header "3 tokens", list shows 1). The header count comes from the fresh backend snapshot while the rows come from `fetchTokens` (5-min `sessionStorage` cache) — right after a token launch the count jumps to 3 while the cached list still holds 1, and the "view all" gate keyed off the *stale list length* so no "view all 3" appeared → looks complete-but-wrong (count contradicts visible rows). Verified: fresh prod load shows all 3 correctly; the divergence is the transient cache window. | `EcosystemBand.tsx:75,122,169` | Count = `max(snapshot, listLength)`; show "view all N" whenever count > rows shown (applied to tokens **and** validators). |
+| **MH-17** | **P2** | **"Live across gno.land" feed looks like it isn't auto-updating** (user-reported, 2026-06-27), and the displayed info could be optimized. It DOES poll (`useRecentActivity` `refetchInterval: 60_000`, pauses tab-hidden) but (a) there's no visible liveness cue, (b) relative times (`formatActivityTime`) don't tick between fetches so rows look frozen, (c) test13 content barely changes (gnoswap approvals dominate). Per-row info is icon + title + truncated-addr actor + relative time + "+N more" — the kind/category is icon-only per row (label lives only in the filter chips). | `ActivityFeed.tsx`, `useRecentActivity.ts`, `lib/activity.ts` | See §14.7 ideas. Recommended first pass: **A1+A2 (liveness visible) + B1 (per-row category) + B2 (actor @username)**. |
 
 ### 14.3 Honest data palette (feasibility lens — what the member hero MAY show)
 **SAFE high-value adds** (real + always meaningful, journey-framed not empty):
@@ -474,3 +475,21 @@ The visitor, by contrast, gets an **editorial hero** (`VisitorHero`: 30px headli
 2. **GovDAO placement:** ✅ **keep `GovDaoSpotlight` in the shared board for v1** (lower-risk); the member hero leads with personal standing. (W-M4 reduces to ordering, not relocating GovDAO.)
 3. **Avatar source:** default **initials-only for v1**, progressive-enhance to gnolove/backend avatar only if CSP `img-src` already allows it (it allows `avatars.githubusercontent.com` per §9.6) — never block the hero on an image.
 4. **Scope:** ✅ **full plan W-M0 → W-M6**, sequenced as small independent PRs, **pausing for explicit user OK before each merge** (per the hard rules in §0).
+
+### 14.7 MH-17 — "Live across gno.land" activity feed: liveness + display (ideas)
+The feed already polls (`refetchInterval: 60_000`); the problem is it doesn't *feel* live and the rows could carry more scannable info. Honesty contract holds throughout — every row stays a real tx; absent fields omitted; degrade to address/skeleton/retry, never fabricate.
+
+**A — make liveness visible (cheap; directly fixes "not updating"):**
+- **A1** · a pulsing `● live` dot on the "live across gno.land" eyebrow + an `updated Ns ago` label that resets each refetch.
+- **A2** · tick relative times on a light 15–30s interval so `just now → 1m → 2m` advances *between* fetches (today they freeze until the next 60s re-render).
+- **A3** · tighten the poll 60s → 30s (keep the tab-hidden pause).
+
+**B — optimize displayed info (the "category, etc." ask):**
+- **B1** · per-row **category label** (Governance / Token / NFT…) beside the icon — today the kind is icon-only per row; the text label only lives in the filter chips.
+- **B2** · resolve the actor **address → @username** (reuse `resolveOnChainUsername` from the member-hero work) → `@alice` not `g1abc…xyz`, honest address fallback.
+- **B3** · collapse repetitive noise: tighten the existing per-source diversity cap, or group "×N similar" into one row, so it isn't a wall of gnoswap approvals.
+
+**C — optional polish:**
+- **C1** · subtle slide-in/highlight for genuinely new tx rows (reduced-motion safe). · **C2** · richer humanized titles (clearer realm/func).
+
+**Recommended first pass:** **A1 + A2 + B1 + B2** ("feels live + scannable"). B3/C1/C2 = follow-up. Own PR, after W-M1 lands.
