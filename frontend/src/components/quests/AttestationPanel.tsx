@@ -16,6 +16,7 @@ import {
     type AttestationState,
 } from "../../lib/attestation"
 import { doContractBroadcast } from "../../lib/grc20"
+import { isUserCancellation, friendlyError } from "../../lib/errorMessages"
 import "./attestationpanel.css"
 
 export function AttestationPanel({ address }: { address: string }) {
@@ -47,8 +48,9 @@ export function AttestationPanel({ address }: { address: string }) {
             // Confirm against the realm's authoritative record (degrade gracefully).
             setRecorded(await fetchRecordedQuestIds(state.realmPath, address))
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "Attestation failed"
-            setError(msg.includes("cancelled") ? null : msg)
+            // Silently dismiss a user-rejected/cancelled tx; surface real failures
+            // via the shared formatter (matches the other broadcast panels).
+            setError(isUserCancellation(err) ? null : friendlyError(err))
         } finally {
             setBusy(null)
         }
