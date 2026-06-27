@@ -6,7 +6,7 @@
  * Wires together:
  *  - useCollectionPublic (T6) for all data
  *  - NFTMedia (T1) for token images
- *  - TradeModal (T3) for buy / list / offer actions (source="v3")
+ *  - TradeModal (T3) for buy / list / offer / accept actions (source="v3")
  *  - VerifiedBadge for collection trust signal
  *
  * Design decisions / omissions logged here:
@@ -14,8 +14,9 @@
  *  - verified: CollectionDetail has no `verified` field — isCollectionVerified() is
  *    a separate async call. We skip it here (no extra fetch in this hook) and don't
  *    render VerifiedBadge to avoid a fabricated value.
- *  - ACCEPT: useCollectionPublic exposes no per-token offer data (buyer address),
- *    so the accept action is NOT wired. Noted per brief.
+ *  - ACCEPT: useCollectionPublic(id, me) reads offers on the viewer's OWNED tokens
+ *    (v3.1 GetOffersForToken → full buyer address), so an owner can accept the best
+ *    offer. The offer loop (make → see → accept) is now complete.
  *  - owners: NFTCollectionStats has no `owners` field — stats strip uses
  *    Floor / Volume / Listed / Supply only (4 stats, not 5).
  *
@@ -32,14 +33,9 @@ import { formatGnotCompact } from "../lib/formatGnot"
 import { relativeTime } from "../lib/format"
 import { listingKey } from "../lib/v3TokenGrid"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
-import { isNftEnabled, isNftMarketValid } from "../lib/config"
+import { isNftEnabled, isNftMarketV3Valid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
-
-// ── Feature flags ─────────────────────────────────────────────────────
-
-// Phase 3: re-enable when accept-offer is wired (hook needs per-token offer data)
-const OFFERS_ENABLED = false
 
 // ── Tab types ─────────────────────────────────────────────────────────
 
@@ -48,21 +44,35 @@ type Tab = "items" | "activity" | "about"
 // ── TradeModal state ──────────────────────────────────────────────────
 
 interface ModalState {
-    action: "buy" | "list" | "offer"
+    action: "buy" | "list" | "offer" | "accept"
     tokenId: string
     priceUgnot?: number
     seller?: string
+    /** For action="accept": the buyer whose offer the owner is accepting. */
+    buyerAddr?: string
+}
+
+/** The strongest (highest-amount) offer in a list, or null. */
+function bestOffer(offers: { buyer: string; amountUgnot: number }[]) {
+    return offers.reduce<{ buyer: string; amountUgnot: number } | null>(
+        (best, o) => (best === null || o.amountUgnot > best.amountUgnot ? o : best),
+        null,
+    )
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
 /**
- * Feature gate (defense-in-depth) — this page renders live Buy/List actions, so
- * it must stay dark until VITE_ENABLE_NFT is flipped and the market realm is
- * valid, even when reached by a direct URL rather than the (also-gated) hub.
+ * Feature gate (defense-in-depth) — this page renders live Buy/List actions on the
+ * v3 engine (TradeModal source="v3" → memba_nft_market_v3), so it must gate on the
+ * v3 market's validity (isNftMarketV3Valid), NOT the v2 predicate. The v3 path stays
+ * out of REALM_ALLOWLIST until v3.1 is registered (Marketplace plan W1.2), so the
+ * page stays correctly dark until then — closing the audit's top 🔴 (rendering live
+ * trades against a realm the allowlist rejects). It also stays dark unless
+ * VITE_ENABLE_NFT is flipped, even when reached by a direct URL.
  */
 export function CollectionPublic() {
-    if (!isNftEnabled() || !isNftMarketValid()) {
+    if (!isNftEnabled() || !isNftMarketV3Valid()) {
         return (
             <ComingSoonGate
                 title="NFT Marketplace"
@@ -87,8 +97,8 @@ function CollectionPublicContent() {
     const me = adena?.address || ""
     const np = useNetworkPath()
 
-    const { detail, stats, tokens, listings, activity, loading, error, reload } =
-        useCollectionPublic(id)
+    const { detail, stats, tokens, listings, offers, activity, loading, error, reload } =
+        useCollectionPublic(id, me)
 
     const [activeTab, setActiveTab] = useState<Tab>("items")
     const [modal, setModal] = useState<ModalState | null>(null)
@@ -213,6 +223,7 @@ function CollectionPublicContent() {
                                 const listing = listings.get(lk)
                                 const isOwner = me !== "" && token.owner === me
                                 const isListed = listing !== undefined
+                                const best = bestOffer(offers.get(token.tokenId) ?? [])
 
                                 return (
                                     <div key={token.tokenId} className="cpub-token-card">
@@ -236,25 +247,51 @@ function CollectionPublicContent() {
                                                     Not listed
                                                 </span>
                                             )}
+                                            {best && (
+                                                <span
+                                                    className="cpub-token-card__best-offer"
+                                                    title="Highest standing offer on this token"
+                                                >
+                                                    Offer {formatGnotCompact(best.amountUgnot)}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="cpub-token-card__actions">
                                             {me === "" ? (
                                                 <span className="cpub-wallet-hint">
                                                     Connect wallet
                                                 </span>
-                                            ) : isOwner && !isListed ? (
-                                                <button
-                                                    className="cpub-action-btn"
-                                                    onClick={() =>
-                                                        setModal({
-                                                            action: "list",
-                                                            tokenId: token.tokenId,
-                                                        })
-                                                    }
-                                                >
-                                                    List
-                                                </button>
-                                            ) : isListed && !isOwner ? (
+                                            ) : isOwner ? (
+                                                <>
+                                                    {!isListed && (
+                                                        <button
+                                                            className="cpub-action-btn"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    action: "list",
+                                                                    tokenId: token.tokenId,
+                                                                })
+                                                            }
+                                                        >
+                                                            List
+                                                        </button>
+                                                    )}
+                                                    {best && (
+                                                        <button
+                                                            className="cpub-action-btn cpub-action-btn--accept"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    action: "accept",
+                                                                    tokenId: token.tokenId,
+                                                                    buyerAddr: best.buyer,
+                                                                })
+                                                            }
+                                                        >
+                                                            Accept {formatGnotCompact(best.amountUgnot)}
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : isListed ? (
                                                 <button
                                                     className="cpub-action-btn"
                                                     onClick={() =>
@@ -268,7 +305,7 @@ function CollectionPublicContent() {
                                                 >
                                                     Buy
                                                 </button>
-                                            ) : !isListed && !isOwner && OFFERS_ENABLED ? (
+                                            ) : (
                                                 <button
                                                     className="cpub-action-btn"
                                                     onClick={() =>
@@ -280,7 +317,7 @@ function CollectionPublicContent() {
                                                 >
                                                     Make offer
                                                 </button>
-                                            ) : null}
+                                            )}
                                         </div>
                                     </div>
                                 )
@@ -373,6 +410,7 @@ function CollectionPublicContent() {
                     tokenId={modal.tokenId}
                     priceUgnot={modal.priceUgnot}
                     seller={modal.seller}
+                    buyerAddr={modal.buyerAddr}
                     royaltyBps={detail.royaltyBps}
                     callerAddress={me}
                     onClose={handleModalClose}

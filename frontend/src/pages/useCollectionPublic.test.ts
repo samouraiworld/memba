@@ -75,6 +75,11 @@ const mockFetchNFTCollection = vi.fn()
 const mockFetchV3Tokens = vi.fn()
 const mockFetchV3Listings = vi.fn()
 const mockFetchNFTActivity = vi.fn()
+const mockFetchOffersForToken = vi.fn()
+
+vi.mock("../lib/marketplace/v3Reads", () => ({
+    fetchOffersForToken: (...args: unknown[]) => mockFetchOffersForToken(...args),
+}))
 
 vi.mock("../lib/launchpadReads", () => ({
     fetchCollectionDetail: (...args: unknown[]) => mockFetchCollectionDetail(...args),
@@ -103,6 +108,13 @@ vi.mock("../lib/tradeEngine", () => ({
 }))
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+// Offers fire for listed tokens in every scenario (BASE_LISTINGS lists token "0"), so
+// give a clean default for all tests; the offers-specific describe overrides it.
+beforeEach(() => {
+    mockFetchOffersForToken.mockReset()
+    mockFetchOffersForToken.mockResolvedValue([])
+})
 
 describe("useCollectionPublic — happy path", () => {
     beforeEach(() => {
@@ -149,6 +161,57 @@ describe("useCollectionPublic — happy path", () => {
 
         // supply = detail.minted = 3
         expect(mockFetchV3Tokens).toHaveBeenCalledWith(COL_ID, 3, expect.anything())
+    })
+})
+
+describe("useCollectionPublic — offers (listed ∪ owned)", () => {
+    // BASE_LISTINGS lists token "0"; BASE_TOKENS[1] (token "1") is owned by OWNER2, unlisted.
+    const OWNER2 = "g1owner000000000000000000000000000002"
+
+    beforeEach(() => {
+        mockFetchCollectionDetail.mockResolvedValue({ ...BASE_DETAIL })
+        mockFetchNFTCollection.mockResolvedValue({ ...BASE_STATS })
+        mockFetchV3Tokens.mockResolvedValue([...BASE_TOKENS])
+        mockFetchV3Listings.mockResolvedValue(new Map(BASE_LISTINGS))
+        mockFetchNFTActivity.mockResolvedValue([...BASE_ACTIVITY])
+        mockFetchOffersForToken.mockReset()
+        mockFetchOffersForToken.mockResolvedValue([
+            { buyer: "g1buyer00000000000000000000000000009", amountUgnot: 3_000_000, createdBlk: 100 },
+        ])
+    })
+
+    it("reads offers for the union of LISTED (buyer badge) and viewer-OWNED (accept) tokens", async () => {
+        // viewer = OWNER2 owns token "1" (unlisted); token "0" is listed but not owned.
+        const { result } = renderHook(() => useCollectionPublic(COL_ID, OWNER2))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // Union {listed "0"} ∪ {owned "1"} → exactly two reads.
+        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(2)
+        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "0", expect.any(String))
+        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "1", expect.any(String))
+        expect(result.current.offers.get("0")).toHaveLength(1)
+        expect(result.current.offers.get("1")).toHaveLength(1)
+    })
+
+    it("still reads LISTED tokens when logged out (buyer badge), but no owned reads", async () => {
+        const { result } = renderHook(() => useCollectionPublic(COL_ID))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // Only the listed token "0" — no viewer means no owned set.
+        expect(mockFetchOffersForToken).toHaveBeenCalledTimes(1)
+        expect(mockFetchOffersForToken).toHaveBeenCalledWith(COL_ID, "0", expect.any(String))
+        expect(result.current.offers.get("0")).toHaveLength(1)
+    })
+
+    it("a failed offer read degrades to no offers (never errors)", async () => {
+        mockFetchOffersForToken.mockReset()
+        mockFetchOffersForToken.mockRejectedValue(new Error("offers read down"))
+
+        const { result } = renderHook(() => useCollectionPublic(COL_ID, OWNER2))
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.error).toBeNull()
+        expect(result.current.offers.size).toBe(0)
     })
 })
 

@@ -17,7 +17,10 @@ import {
     getTelemetryRpcUrls,
     GNO_RPC_URL,
     getUserRegistryPath,
+    isNftMarketValid,
+    isNftMarketV3Valid,
 } from './config'
+import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
 
 describe('config constants', () => {
     it('APP_VERSION matches package.json', () => {
@@ -121,6 +124,36 @@ describe('config constants', () => {
 
     it('GNOLOVE_API_URL defaults to backend.gnolove.world', () => {
         expect(GNOLOVE_API_URL).toBe('https://backend.gnolove.world')
+    })
+})
+
+describe('NFT v3 market gating (gate the page on the engine it trades)', () => {
+    // CollectionPublic trades source="v3" (memba_nft_market_v3_1), so it gates on the
+    // v3 market's validity — NOT the v2 predicate it used to use. The v3.1 engine was
+    // DEPLOYED + REGISTERED on test13 (2026-06-27, sole registered market), so its path
+    // is now allowlisted and isNftMarketV3Valid() is true. The trade surface ALSO
+    // requires VITE_ENABLE_NFT=true (isNftEnabled()), which is force-false in prod — so
+    // prod stays dark until the deploy-preview G1 verify, even though the realm is valid.
+    it('v3.1 market path IS allowlisted on test13 (deployed + registered)', () => {
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
+    })
+
+    it('v2 market path IS allowlisted (the old, mismatched gate)', () => {
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
+    })
+
+    it('isNftMarketV3Valid() is true on the active (test13) network (v3.1 registered)', () => {
+        // Default active network is test13 (see DEFAULT_NETWORK + getUserRegistryPath test).
+        // The realm being valid does NOT alone surface the page — isNftEnabled() (the
+        // VITE_ENABLE_NFT flag) is the remaining gate, force-false in prod.
+        expect(isNftMarketV3Valid()).toBe(true)
+    })
+
+    it('v2 and v3 are distinct predicates (the bug was gating v3 trading on the v2 predicate)', () => {
+        // Both are valid on test13 now, but they remain separate functions keyed off
+        // distinct paths — the v3-trading page must never depend on the v2 predicate.
+        expect(isNftMarketValid()).toBe(true)
+        expect(isNftMarketV3Valid()).toBe(true)
     })
 })
 

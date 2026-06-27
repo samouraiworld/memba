@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { TradeModal } from "./TradeModal"
+import { NFT_MARKET_V3_ADDR } from "../../lib/nftConfig"
 
 // ── Shared test fixtures ───────────────────────────────────────
 
@@ -55,6 +56,21 @@ vi.mock("../../lib/grc20", () => ({
 const mockIsApprovedForAll = vi.fn()
 vi.mock("../../lib/grc721", () => ({
     isApprovedForAll: (...args: unknown[]) => mockIsApprovedForAll(...args),
+}))
+
+// The fee row reads the DAO-set rate from memba_market_config. Mock it to a value
+// distinct from the engine default (200) so a test can prove the live read wins.
+const mockFetchLaneFeeBps = vi.fn().mockResolvedValue(300)
+vi.mock("../../lib/marketplace/v3Reads", () => ({
+    fetchLaneFeeBps: (...args: unknown[]) => mockFetchLaneFeeBps(...args),
+}))
+
+// The v3 trade actions now route through routeNftV3, which guards on
+// isRealmValid(v3 path). On test13 the v3 path is intentionally un-allowlisted, so
+// mock the guard true to exercise the builders (the gate itself is tested in router.test).
+vi.mock("../../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/config")>()),
+    isRealmValid: () => true,
 }))
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -109,6 +125,14 @@ describe("TradeModal — buy (v3)", () => {
         expect(screen.getByText(/Creator Royalty/)).toBeInTheDocument()
         expect(screen.getByText("Seller Receives")).toBeInTheDocument()
     })
+
+    it("fee row mirrors the on-chain rate from memba_market_config (not the static default)", async () => {
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)
+
+        // fetchLaneFeeBps("nft") resolves to 300 → the breakdown must show 3.0%, not 2.0%.
+        expect(mockFetchLaneFeeBps).toHaveBeenCalledWith("nft")
+        await waitFor(() => expect(screen.getByText(/Platform Fee \(3\.0%\)/)).toBeInTheDocument())
+    })
 })
 
 describe("TradeModal — buy (v2)", () => {
@@ -145,13 +169,13 @@ describe("TradeModal — list (v3, not approved)", () => {
 
         await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
 
-        // The first broadcast must be approval with the correct arg order, NOT listing
+        // The first broadcast must be approval with the correct arg order, NOT listing.
         // v3 signature: buildSetApprovalForAllV3Msg(caller, collectionID, operatorAddr, approved)
-        // engine.marketAddr for v3 = NFT_MARKET_V3_ADDR = "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj"
+        // operator = engine.marketAddr = NFT_MARKET_V3_ADDR (the v3.1 engine address).
         expect(mockBuildSetApprovalForAllV3Msg).toHaveBeenCalledWith(
             CALLER,
             COLLECTION_ID,
-            "g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj",
+            NFT_MARKET_V3_ADDR,
             true,
         )
         expect(mockBuildListForSaleV3Msg).not.toHaveBeenCalled()
