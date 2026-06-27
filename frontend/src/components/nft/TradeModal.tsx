@@ -20,7 +20,7 @@
 import { useState, useEffect } from "react"
 import { tradeEngineFor } from "../../lib/tradeEngine"
 import { buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
-import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildCancelOfferMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
+import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildCancelOfferMsg, buildDelistMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
 import { routeNftV3 } from "../../lib/marketplace/router"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
@@ -30,7 +30,7 @@ import "./TradeModal.css"
 
 // ── Types ─────────────────────────────────────────────────────
 
-export type TradeAction = "buy" | "list" | "offer" | "accept" | "cancel"
+export type TradeAction = "buy" | "list" | "offer" | "accept" | "cancel" | "delist"
 type TradeSource = "v2" | "v3"
 
 export interface TradeModalProps {
@@ -247,6 +247,24 @@ export function TradeModal({
         }
     }
 
+    const handleDelist = async () => {
+        setConfirming(true)
+        setError(null)
+        try {
+            const { doContractBroadcast } = await import("../../lib/grc20")
+            const msgs =
+                engine.engine === "v3"
+                    ? routeNftV3({ collectionID, tokenId, action: "delist", caller: callerAddress })
+                    : [buildDelistMsg(callerAddress, engine.marketPath, collectionID, tokenId)]
+            await doContractBroadcast(msgs, `Delist ${collectionID}/${tokenId}`)
+            onSuccess()
+        } catch (err) {
+            setError(friendlyError(err))
+        } finally {
+            setConfirming(false)
+        }
+    }
+
     // ── Title per action ─────────────────────────────────────
 
     const titles: Record<TradeAction, string> = {
@@ -255,6 +273,7 @@ export function TradeModal({
         offer: "Make Offer",
         accept: "Accept Offer",
         cancel: "Cancel Offer",
+        delist: "Delist NFT",
     }
 
     // ── List two-step: mirror V3ListForSaleModal ─────────────
@@ -521,6 +540,28 @@ export function TradeModal({
                             </button>
                             <button className="trade-modal__confirm" onClick={handleCancelOffer} disabled={confirming}>
                                 {confirming ? "Cancelling…" : "Cancel Offer & Reclaim"}
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {/* ── DELIST ──────────────────────────────────────── */}
+                {action === "delist" && (
+                    <>
+                        <p className="trade-modal__hint">
+                            Take this token off sale
+                            {priceUgnot !== undefined && <> (listed at <strong>{(priceUgnot / 1_000_000).toFixed(2)} GNOT</strong>)</>}
+                            . It stays in your wallet — you can relist it anytime.
+                        </p>
+
+                        {error && <p className="trade-modal__error" role="alert">{error}</p>}
+
+                        <div className="trade-modal__actions">
+                            <button className="trade-modal__cancel" onClick={onClose} disabled={confirming}>
+                                Keep Listed
+                            </button>
+                            <button className="trade-modal__confirm" onClick={handleDelist} disabled={confirming}>
+                                {confirming ? "Delisting…" : "Delist"}
                             </button>
                         </div>
                     </>

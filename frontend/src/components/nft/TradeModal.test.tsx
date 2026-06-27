@@ -31,6 +31,8 @@ const mockBuildAcceptOfferV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", 
 const mockBuildAcceptOfferMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildCancelOfferV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildCancelOfferMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
+const mockBuildDelistV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
+const mockBuildDelistMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildSetApprovalForAllV3Msg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 const mockBuildSetApprovalForAllMsg = vi.fn().mockReturnValue({ type: "vm/MsgCall", value: {} })
 
@@ -40,6 +42,7 @@ vi.mock("../../lib/nftMarketplaceV3", () => ({
     buildMakeOfferV3Msg: (...args: unknown[]) => mockBuildMakeOfferV3Msg(...args),
     buildAcceptOfferV3Msg: (...args: unknown[]) => mockBuildAcceptOfferV3Msg(...args),
     buildCancelOfferV3Msg: (...args: unknown[]) => mockBuildCancelOfferV3Msg(...args),
+    buildDelistV3Msg: (...args: unknown[]) => mockBuildDelistV3Msg(...args),
     buildSetApprovalForAllV3Msg: (...args: unknown[]) => mockBuildSetApprovalForAllV3Msg(...args),
 }))
 
@@ -49,6 +52,7 @@ vi.mock("../../lib/nftMarketplace", () => ({
     buildMakeOfferMsg: (...args: unknown[]) => mockBuildMakeOfferMsg(...args),
     buildAcceptOfferMsg: (...args: unknown[]) => mockBuildAcceptOfferMsg(...args),
     buildCancelOfferMsg: (...args: unknown[]) => mockBuildCancelOfferMsg(...args),
+    buildDelistMsg: (...args: unknown[]) => mockBuildDelistMsg(...args),
     buildSetApprovalForAllMsg: (...args: unknown[]) => mockBuildSetApprovalForAllMsg(...args),
 }))
 
@@ -238,6 +242,21 @@ describe("TradeModal — cancel offer (v3)", () => {
 
         expect(mockBuildCancelOfferV3Msg).toHaveBeenCalledWith(CALLER, COLLECTION_ID, TOKEN_ID)
         expect(mockBuildAcceptOfferV3Msg).not.toHaveBeenCalled()
+        expect(onSuccess).toHaveBeenCalled()
+    })
+})
+
+describe("TradeModal — delist (v3)", () => {
+    it("builds buildDelistV3Msg with (caller, collectionID, tokenId) and broadcasts", async () => {
+        const onSuccess = vi.fn()
+        render(<TradeModal {...makeProps({ action: "delist", source: "v3", priceUgnot: PRICE_UGNOT, onSuccess })} />)
+
+        const confirmBtn = await screen.findByRole("button", { name: /^delist$/i })
+        fireEvent.click(confirmBtn)
+
+        await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
+
+        expect(mockBuildDelistV3Msg).toHaveBeenCalledWith(CALLER, COLLECTION_ID, TOKEN_ID)
         expect(onSuccess).toHaveBeenCalled()
     })
 })

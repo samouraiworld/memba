@@ -36,7 +36,7 @@ const FIXTURE_DETAIL = {
     phase: 2,
     mintPrice: 1_000_000,
     payDenom: "ugnot",
-    minted: 4,
+    minted: 5,
     maxSupply: 100,
     paused: false,
 }
@@ -44,7 +44,7 @@ const FIXTURE_DETAIL = {
 const FIXTURE_STATS = {
     name: "Cool NFTs",
     symbol: "COOL",
-    supply: 4n,
+    supply: 5n,
     floorPriceUgnot: 2_000_000n,
     totalVolumeUgnot: 10_000_000n,
     totalSales: 5n,
@@ -56,18 +56,22 @@ const FIXTURE_STATS = {
 // Token 1: owned by TOKEN_OWNER_1, not listed, MY offer (→ cancel)
 // Token 2: owned by viewer (ME), not listed
 // Token 3: owned by TOKEN_OWNER_1, not listed, no offer (→ make offer)
+// Token 4: owned by viewer (ME), LISTED (→ delist)
 const FIXTURE_TOKENS = [
     { tokenId: "0", owner: TOKEN_OWNER_1, uri: "ipfs://token0" },
     { tokenId: "1", owner: TOKEN_OWNER_1, uri: "ipfs://token1" },
     { tokenId: "2", owner: ME, uri: "ipfs://token2" },
     { tokenId: "3", owner: TOKEN_OWNER_1, uri: "ipfs://token3" },
+    { tokenId: "4", owner: ME, uri: "ipfs://token4" },
 ]
 
 // listingKey uses "collectionID/tokenId" format
 const LISTING_KEY_0 = `${COL_ID}/0`
+const LISTING_KEY_4 = `${COL_ID}/4`
 
 const FIXTURE_LISTINGS = new Map([
     [LISTING_KEY_0, { priceUgnot: 2_000_000, seller: TOKEN_OWNER_1 }],
+    [LISTING_KEY_4, { priceUgnot: 3_000_000, seller: ME }],
 ])
 
 const FIXTURE_ACTIVITY = [
@@ -425,6 +429,30 @@ describe("CollectionPublic — Items tab: owned token → List", () => {
             source: "v3",
             collectionID: COL_ID,
             tokenId: "2",
+        })
+    })
+})
+
+describe("CollectionPublic — Items tab: owned + listed token → Delist", () => {
+    it("opens TradeModal with action='delist' for a listed token owned by the viewer", async () => {
+        renderPage()
+
+        // Token #4 is owned by ME and listed → the owner can take it off sale.
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /Delist/i })).toBeInTheDocument()
+        })
+
+        fireEvent.click(screen.getByRole("button", { name: /Delist/i }))
+
+        await waitFor(() => {
+            expect(screen.getByTestId("trade-modal")).toBeInTheDocument()
+        })
+
+        expect(capturedTradeProps.at(-1)).toMatchObject({
+            action: "delist",
+            source: "v3",
+            collectionID: COL_ID,
+            tokenId: "4",
         })
     })
 })
