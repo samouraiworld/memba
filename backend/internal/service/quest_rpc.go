@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
@@ -254,7 +256,86 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 	// Check if user reached a new rank tier — queue rank badge mint
 	s.checkAndQueueRankBadge(ctx, userAddr, state.TotalXp)
 
+	// Issue an on-chain attestation voucher for this completion (Q-05). Best-effort
+	// and idempotent; no-op when the attestation signer is unconfigured.
+	s.issueAttestationVoucher(ctx, userAddr, questID)
+
 	return connect.NewResponse(&membav1.CompleteQuestResponse{State: state}), nil
+}
+
+// issueAttestationVoucher signs + persists an on-chain attestation voucher for a
+// completion (Q-05). No-op when the signer is unconfigured or a voucher already
+// exists for (addr, questID). The backend never broadcasts — the user does.
+func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, questID string) {
+	if s.attSigner == nil {
+		return
+	}
+	// Skip if already issued (avoids re-signing on idempotent re-completion).
+	var exists int
+	_ = s.db.QueryRowContext(ctx,
+		`SELECT 1 FROM attestation_vouchers WHERE address = ? AND quest_id = ?`, addr, questID,
+	).Scan(&exists)
+	if exists == 1 {
+		return
+	}
+	xp, ok := validQuests[questID]
+	if !ok {
+		return
+	}
+	v, err := s.attSigner.IssueVoucher(addr, questID, int(xp))
+	if err != nil {
+		slog.Warn("attestation voucher issue failed", "address", addr, "quest", questID, "err", err)
+		return
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO attestation_vouchers (address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, ?, ?)`,
+		v.Address, v.QuestID, v.XP, v.Nonce, v.SigHex,
+	); err != nil {
+		slog.Warn("attestation voucher persist failed", "address", addr, "quest", questID, "err", err)
+	}
+}
+
+// GetAttestationVouchers returns the backend-signed vouchers for an address so
+// the client can broadcast them to the attestation realm (Q-05). Public read;
+// empty (with no realm/signer) when attestation is disabled.
+func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *connect.Request[membav1.GetAttestationVouchersRequest]) (*connect.Response[membav1.GetAttestationVouchersResponse], error) {
+	resp := &membav1.GetAttestationVouchersResponse{}
+	if s.attSigner == nil {
+		return connect.NewResponse(resp), nil
+	}
+	resp.RealmPath = attestation.RealmPath
+	resp.SignerPubkeyHex = s.attSigner.PublicKeyHex()
+
+	addr := strings.TrimSpace(req.Msg.Address)
+	if addr == "" {
+		return connect.NewResponse(resp), nil
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT quest_id, xp, nonce, sig_hex FROM attestation_vouchers WHERE address = ? ORDER BY created_at, quest_id`, addr,
+	)
+	if err != nil {
+		return nil, internalError("GetAttestationVouchers", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var (
+			questID, nonce, sigHex string
+			xp                     int
+		)
+		if err := rows.Scan(&questID, &xp, &nonce, &sigHex); err != nil {
+			return nil, internalError("GetAttestationVouchers.scan", err)
+		}
+		resp.Vouchers = append(resp.Vouchers, &membav1.AttestationVoucher{
+			QuestId: questID,
+			Xp:      uint32(xp), // #nosec G115 -- quest XP is small (<=1000)
+			Nonce:   nonce,
+			SigHex:  sigHex,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, internalError("GetAttestationVouchers.rows", err)
+	}
+	return connect.NewResponse(resp), nil
 }
 
 // GetUserQuests returns quest progress for any user. No auth required (public).
