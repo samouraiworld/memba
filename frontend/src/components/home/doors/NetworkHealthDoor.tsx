@@ -26,6 +26,8 @@ import { Door } from "../Door"
 import { useValidatorHealth } from "../../../hooks/home/useValidatorHealth"
 import { useNetworkPulse } from "../../../hooks/home/useNetworkPulse"
 import { useBlockTimeSeries } from "../../../hooks/home/useBlockTimeSeries"
+import { useChainHealth } from "../../../hooks/home/useChainHealth"
+import { formatBlockAge } from "../../../lib/networkStatus"
 import "../home.css"
 
 export interface NetworkHealthDoorProps {
@@ -115,6 +117,10 @@ export function NetworkHealthDoor({ networkKey }: NetworkHealthDoorProps) {
     // Recent block intervals for the sparkline — via the /api/indexer proxy
     // (same path as the activity feed). Empty/unavailable → no sparkline.
     const { series } = useBlockTimeSeries()
+    // Chain-liveness: the validator set looks "healthy" even while the chain is
+    // halted (no signature data on the home), so consult the shared halt signal
+    // and tell the truth instead of a misleading "X / Y healthy".
+    const chain = useChainHealth()
 
     const validatorsHref = `/${networkKey}/validators`
 
@@ -125,6 +131,27 @@ export function NetworkHealthDoor({ networkKey }: NetworkHealthDoorProps) {
                 state="loading"
                 eyebrow="network health"
             />
+        )
+    }
+
+    // The chain itself is stalled/unreachable: don't show a healthy validator
+    // count that contradicts the rest of the page. (P0-A2 page-level consistency.)
+    if (chain.degraded) {
+        return (
+            <Door variant="stat" state="ready" eyebrow="network health" href={validatorsHref}>
+                <div className="network-health-door">
+                    <span className="network-health-door__status network-health-door__status--down" data-testid="network-health-stalled">
+                        {chain.health === "unreachable" ? "unreachable" : "network stalled"}
+                    </span>
+                    {Number.isFinite(chain.blockAge) && chain.blockAge > 0 && (
+                        <span className="network-health-door__pulse">
+                            <span className="network-health-door__pulse-item network-health-door__pulse-item--muted">
+                                last block {formatBlockAge(chain.blockAge)}
+                            </span>
+                        </span>
+                    )}
+                </div>
+            </Door>
         )
     }
 

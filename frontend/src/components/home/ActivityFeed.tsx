@@ -9,8 +9,10 @@
  *
  * @module components/home/ActivityFeed
  */
-import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise } from "@phosphor-icons/react"
+import { useState } from "react"
+import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise, Palette, ChatCircle, Vault } from "@phosphor-icons/react"
 import { useRecentActivity } from "../../hooks/home/useRecentActivity"
+import { useChainHealth } from "../../hooks/home/useChainHealth"
 import { formatActivityTime, type ActivityItem, type ActivityKind } from "../../lib/activity"
 import { getExplorerBaseUrl } from "../../lib/config"
 import { truncateValidatorAddr } from "../../lib/validators"
@@ -24,7 +26,27 @@ const KIND_ICON: Record<ActivityKind, typeof Coins> = {
     transfer: ArrowsLeftRight,
     run: Play,
     call: Cube,
+    nft: Palette,
+    post: ChatCircle,
+    multisig: Vault,
 }
+
+/** Short, human chip labels per kind (for the filter row). */
+const KIND_LABEL: Record<ActivityKind, string> = {
+    token: "Tokens",
+    deploy: "Deploys",
+    governance: "Governance",
+    validator: "Validators",
+    transfer: "Transfers",
+    run: "Scripts",
+    call: "Calls",
+    nft: "NFTs",
+    post: "Posts",
+    multisig: "Multisig",
+}
+
+/** Priority order for showing filter chips (most interesting first). */
+const KIND_ORDER: ActivityKind[] = ["governance", "token", "nft", "deploy", "transfer", "multisig", "post", "validator", "run", "call"]
 
 /** Realm link on gnoweb for an item with a package path; null otherwise. */
 function itemHref(item: ActivityItem): string | null {
@@ -74,11 +96,44 @@ export interface ActivityFeedProps {
 
 export function ActivityFeed({ networkKey }: ActivityFeedProps) {
     const { items, loading, error, available, refetch } = useRecentActivity(networkKey)
+    const { degraded: chainStalled } = useChainHealth()
+    const [filter, setFilter] = useState<ActivityKind | "all">("all")
     if (!available) return null
+
+    // Distinct kinds present, in priority order — the basis for the filter chips.
+    const presentKinds = KIND_ORDER.filter((k) => items.some((it) => it.kind === k))
+    const showChips = !loading && !error && items.length > 0 && presentKinds.length > 1
+    const activeFilter = filter !== "all" && presentKinds.includes(filter) ? filter : "all"
+    const shown = activeFilter === "all" ? items : items.filter((it) => it.kind === activeFilter)
 
     return (
         <section className="activity-feed" data-testid="activity-feed">
             <div className="below-fold__eyebrow">live across gno.land</div>
+
+            {showChips && (
+                <div className="activity-feed__filters" role="group" aria-label="Filter activity by type">
+                    <button
+                        type="button"
+                        className={`activity-feed__chip ${activeFilter === "all" ? "is-active" : ""}`}
+                        aria-pressed={activeFilter === "all"}
+                        onClick={() => setFilter("all")}
+                    >
+                        All
+                    </button>
+                    {presentKinds.map((k) => (
+                        <button
+                            key={k}
+                            type="button"
+                            className={`activity-feed__chip ${activeFilter === k ? "is-active" : ""}`}
+                            aria-pressed={activeFilter === k}
+                            data-testid={`activity-chip-${k}`}
+                            onClick={() => setFilter(k)}
+                        >
+                            {KIND_LABEL[k]}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {loading && (
                 <ol className="activity-feed__list" aria-hidden="true">
@@ -99,13 +154,15 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
 
             {!loading && !error && items.length === 0 && (
                 <div className="activity-feed__state" data-testid="activity-feed-empty">
-                    No recent activity in the latest blocks — check back soon.
+                    {chainStalled
+                        ? "Feed paused — the chain looks stalled. New activity will appear once blocks resume."
+                        : "No recent activity in the latest blocks — check back soon."}
                 </div>
             )}
 
             {!loading && !error && items.length > 0 && (
                 <ol className="activity-feed__list" data-testid="activity-feed-list">
-                    {items.map((item) => (
+                    {shown.map((item) => (
                         <ActivityRow key={item.txHash} item={item} />
                     ))}
                 </ol>

@@ -21,10 +21,12 @@ import type { BlockTimeSeries } from "../../../hooks/home/useBlockTimeSeries"
 vi.mock("../../../hooks/home/useValidatorHealth", () => ({ useValidatorHealth: vi.fn() }))
 vi.mock("../../../hooks/home/useNetworkPulse", () => ({ useNetworkPulse: vi.fn() }))
 vi.mock("../../../hooks/home/useBlockTimeSeries", () => ({ useBlockTimeSeries: vi.fn() }))
+vi.mock("../../../hooks/home/useChainHealth", () => ({ useChainHealth: vi.fn() }))
 
 const { useValidatorHealth } = await import("../../../hooks/home/useValidatorHealth")
 const { useNetworkPulse } = await import("../../../hooks/home/useNetworkPulse")
 const { useBlockTimeSeries } = await import("../../../hooks/home/useBlockTimeSeries")
+const { useChainHealth } = await import("../../../hooks/home/useChainHealth")
 const { NetworkHealthDoor } = await import("./NetworkHealthDoor")
 
 const HEALTHY: ValidatorHealth = {
@@ -39,6 +41,8 @@ describe("NetworkHealthDoor — block-time sparkline", () => {
     beforeEach(() => {
         vi.mocked(useValidatorHealth).mockReturnValue(HEALTHY)
         vi.mocked(useNetworkPulse).mockReturnValue(PULSE)
+        // Chain healthy by default so the door renders the normal stat/sparkline path.
+        vi.mocked(useChainHealth).mockReturnValue({ health: "healthy", degraded: false, blockAge: 3, loading: false })
     })
 
     it("renders the sparkline SVG when the interval series is non-empty", () => {

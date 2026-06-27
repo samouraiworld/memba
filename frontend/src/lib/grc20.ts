@@ -7,7 +7,7 @@
  * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
 
-import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID } from "./config"
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig } from "./gasConfig"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -32,6 +32,9 @@ export interface TokenInfo {
     decimals: number
     totalSupply: string
     admin: string
+    /** Accounts known to the token's balance ledger (the GRC20 "Known accounts"
+     *  Render field) ≈ holder count. Undefined when the render omits it. */
+    knownAccounts?: number
 }
 
 export interface AminoMsg {
@@ -247,6 +250,7 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
     const decimalsMatch = data.match(/\*\*Decimals\*\*:\s*(\d+)/)
     const supplyMatch = data.match(/\*\*Total supply\*\*:\s*(\d+)/)
     const adminMatch = data.match(/\*\*Admin\*\*:\s*(g\S+)/)
+    const accountsMatch = data.match(/\*\*Known accounts\*\*:\s*(\d+)/)
 
     return {
         name: nameMatch?.[1] || symbol,
@@ -254,6 +258,26 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
         decimals: decimalsMatch ? parseInt(decimalsMatch[1], 10) : 6,
         totalSupply: supplyMatch?.[1] || "0",
         admin: adminMatch?.[1] || "",
+        knownAccounts: accountsMatch ? parseInt(accountsMatch[1], 10) : undefined,
+    }
+}
+
+/**
+ * Fetch the server-computed {symbol: launchedAtISO} map of token creation times.
+ * The realm stores no creation time; the backend resolves it from the tx-indexer
+ * (too slow for the browser — exceeds the indexer-proxy timeout) and caches it.
+ * Best-effort: returns {} on any failure, so callers simply omit launch dates
+ * (honesty — never fabricated). The map may be empty until the backend's first
+ * background scan completes.
+ */
+export async function fetchTokenLaunchDates(signal?: AbortSignal): Promise<Record<string, string>> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/token-launches`, { signal })
+        if (!res.ok) return {}
+        const data = (await res.json()) as Record<string, string>
+        return data && typeof data === "object" ? data : {}
+    } catch {
+        return {}
     }
 }
 
@@ -421,6 +445,27 @@ export function formatTokenAmount(amount: bigint, decimals: number = MEMBA_TOKEN
     if (frac === 0n) return whole.toString()
     const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "")
     return `${whole}.${fracStr}`
+}
+
+/**
+ * Format a raw total-supply string (base units, as parsed from the token Render)
+ * for compact display on the home cards: decimal-scaled and thousands-grouped.
+ * Returns `null` for a zero/unparsable supply so callers OMIT it (honesty — never
+ * render a misleading "0"). e.g. ("102500100", 6) → "102.5001".
+ */
+export function formatSupply(rawSupply: string, decimals: number): string | null {
+    if (!/^\d+$/.test(rawSupply)) return null
+    let amount: bigint
+    try {
+        amount = BigInt(rawSupply)
+    } catch {
+        return null
+    }
+    if (amount === 0n) return null
+    const scaled = formatTokenAmount(amount, decimals) // "102.5001" / "1000000"
+    const [whole, frac] = scaled.split(".")
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    return frac ? `${grouped}.${frac}` : grouped
 }
 
 // ── Internal Helpers ──────────────────────────────────────────

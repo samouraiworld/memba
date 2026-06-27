@@ -52,6 +52,40 @@ describe("useGovDao", () => {
         expect(result.current.href).toBe("/test13/dao/gno.land/r/gov/dao")
     })
 
+    it("exposes up to 4 latest proposals (newest-first) with per-proposal hrefs, honest about vote%/author/date", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(CONFIG)
+        const props = [
+            { ...openProposal(10), title: "Ten", status: "passed" as const, author: "@alice", yesPercent: 80, noPercent: 20, createdAt: "2026-06-20T00:00:00Z" },
+            { ...openProposal(9), title: "Nine", author: "" }, // no author, 0 vote%, no date
+            openProposal(8), openProposal(7), openProposal(6), // 5 total → only 4 surfaced
+        ]
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue(props)
+        const { useGovDao } = await import("./useGovDao")
+        const { result } = renderHook(() => useGovDao("test13"), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        const lp = result.current.latestProposals!
+        expect(lp).toHaveLength(4)
+        expect(lp[0]).toMatchObject({
+            id: 10, title: "Ten", status: "passed", author: "@alice",
+            yesPercent: 80, noPercent: 20, createdAt: "2026-06-20T00:00:00Z",
+            href: "/test13/dao/gno.land/r/gov/dao/proposal/10",
+        })
+        // honesty: empty author, 0 vote%, and absent date are omitted (undefined)
+        expect(lp[1].author).toBeUndefined()
+        expect(lp[1].yesPercent).toBeUndefined()
+        expect(lp[1].createdAt).toBeUndefined()
+        expect(lp[1].href).toBe("/test13/dao/gno.land/r/gov/dao/proposal/9")
+    })
+
+    it("returns an empty latestProposals array (not undefined) when there are none", async () => {
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(CONFIG)
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+        const { useGovDao } = await import("./useGovDao")
+        const { result } = renderHook(() => useGovDao("test13"), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.latestProposals).toEqual([])
+    })
+
     it("picks the most recent proposal by id (newest-first list)", async () => {
         vi.mocked(daoMod.getDAOConfig).mockResolvedValue(CONFIG)
         vi.mocked(daoMod.getDAOProposals).mockResolvedValue([openProposal(9), openProposal(2)])

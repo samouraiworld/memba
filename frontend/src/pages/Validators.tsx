@@ -15,7 +15,10 @@
  * Hacker Mode: matrix CLI aesthetic, monospace, neon green.
  */
 
-import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
+import { useIsMobile } from "../hooks/useIsMobile"
+import { ValidatorCard } from "../components/validators/ValidatorCard"
+import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
@@ -55,8 +58,6 @@ import {
     type NetworkHealthSummary,
 } from "../lib/validatorHealth"
 import "./validators.css"
-
-type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks" | "txContrib"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
@@ -109,6 +110,8 @@ function ValidatorRowPreview({ v }: { v: ValidatorInfo }) {
 
 export default function Validators() {
     const navigate = useNetworkNav()
+    const nk = useNetworkKey()
+    const isMobile = useIsMobile()
     const [validators, setValidators] = useState<ValidatorInfo[]>([])
     const [stats, setStats] = useState<NetworkStats | null>(null)
     const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)
@@ -253,6 +256,10 @@ export default function Validators() {
         else { setSortKey(key); setSortAsc(key === "rank") }
     }
 
+    // Mobile shows a lighter page (25 rows of cards) regardless of the desktop
+    // page-size dropdown, halving the initial roster height on a phone.
+    const effectivePageSize = isMobile ? Math.min(pageSize, 25) : pageSize
+
     // Memoize filter + sort + paginate
     const { filtered, paginated, totalPages, currentPage, paginatedStart, paginatedEnd } = useMemo(() => {
         const f = validators
@@ -272,14 +279,14 @@ export default function Validators() {
                 return mul * ((av as number) - (bv as number))
             })
 
-        const tp = Math.max(1, Math.ceil(f.length / pageSize))
+        const tp = Math.max(1, Math.ceil(f.length / effectivePageSize))
         const cp = Math.min(page, tp)
-        const start = (cp - 1) * pageSize
-        const end = Math.min(start + pageSize, f.length)
+        const start = (cp - 1) * effectivePageSize
+        const end = Math.min(start + effectivePageSize, f.length)
         const p = f.slice(start, end)
 
         return { filtered: f, paginated: p, totalPages: tp, currentPage: cp, paginatedStart: start, paginatedEnd: end }
-    }, [validators, search, sortKey, sortAsc, page, pageSize])
+    }, [validators, search, sortKey, sortAsc, page, effectivePageSize])
 
     // Reset to page 1 on search change
     useEffect(() => { setPage(1) }, [search, pageSize])
@@ -462,16 +469,28 @@ export default function Validators() {
                     data-testid="validator-search"
                 />
                 <div className="val-toolbar-right">
-                    <select
-                        className="val-page-size"
-                        value={pageSize}
-                        onChange={e => setPageSize(Number(e.target.value))}
-                        data-testid="validator-page-size"
-                    >
-                        <option value={25}>25 / page</option>
-                        <option value={50}>50 / page</option>
-                        <option value={100}>100 / page</option>
-                    </select>
+                    {isMobile ? (
+                        // Mobile cards have no sortable column headers — restore sort
+                        // parity here (and the roster is clamped to 25, so the
+                        // page-size dropdown is moot on a phone).
+                        <ValidatorSortSelect
+                            sortKey={sortKey}
+                            sortAsc={sortAsc}
+                            hasMonitoring={hasMonitoring}
+                            onChange={(k, a) => { setSortKey(k); setSortAsc(a) }}
+                        />
+                    ) : (
+                        <select
+                            className="val-page-size"
+                            value={pageSize}
+                            onChange={e => setPageSize(Number(e.target.value))}
+                            data-testid="validator-page-size"
+                        >
+                            <option value={25}>25 / page</option>
+                            <option value={50}>50 / page</option>
+                            <option value={100}>100 / page</option>
+                        </select>
+                    )}
                     <span className="val-count">
                         {filtered.length} validator{filtered.length !== 1 ? "s" : ""}
                     </span>
@@ -479,6 +498,18 @@ export default function Validators() {
             </div>
 
             {/* ── Validator Table ──────────────────────────────── */}
+            {isMobile ? (
+                <div className="val-cards" data-testid="validator-cards">
+                    {paginated.map(v => (
+                        <ValidatorCard
+                            key={v.address}
+                            v={v}
+                            hasMonitoring={hasMonitoring}
+                            to={`/${nk}/validators/${v.gnoAddr || v.address}`}
+                        />
+                    ))}
+                </div>
+            ) : (
             <div className="val-table-wrap">
                 <table className="val-table" data-testid="validator-table">
                     <thead>
@@ -635,6 +666,7 @@ export default function Validators() {
                     </tbody>
                 </table>
             </div>
+            )}
 
             {/* ── Pagination Controls ─────────────────────────── */}
             {totalPages > 1 && (

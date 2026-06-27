@@ -52,7 +52,8 @@ import "../components/validators/hacker-mode.css"
 import "./validator-detail.css"
 import "./valoper-detail.css"
 
-const KIND_ICON: Record<ActivityKind, typeof Coins> = {
+// Partial: newer kinds (nft/post/multisig) fall back to Cube via the lookup below.
+const KIND_ICON: Partial<Record<ActivityKind, typeof Coins>> = {
     token: Coins, deploy: Package, governance: Scales, validator: ShieldCheck,
     transfer: ArrowsLeftRight, run: Play, call: Cube,
 }
@@ -658,7 +659,16 @@ export default function ValidatorProfile() {
 
             {/* ── Persistent community reviews (below the tabs) ── */}
             {isReviewsEnabled() && (valoper?.operatorAddress || address) ? (
-                <ReviewsSection subject={(valoper?.operatorAddress ?? address)!} />
+                (() => {
+                    // Post to the operator address (stable identity). Merge reads from the
+                    // signing address + the raw URL address too, so reviews posted before the
+                    // valoper registered (keyed to the signing address) still show.
+                    const reviewSubject = (valoper?.operatorAddress ?? address)!
+                    const aliasSubjects = [valoper?.signingAddress, address].filter(
+                        (a): a is string => !!a && a !== reviewSubject,
+                    )
+                    return <ReviewsSection subject={reviewSubject} aliasSubjects={aliasSubjects} />
+                })()
             ) : (
                 <ReviewsLaunchingSoon />
             )}

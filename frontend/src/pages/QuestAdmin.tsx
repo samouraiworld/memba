@@ -101,12 +101,12 @@ export default function QuestAdmin() {
                 <div className="k-questhub-empty">No pending claims. 🎉</div>
             )}
 
-            <div className="k-questadmin-list">
+            <div className="k-questadmin-list" role="list" aria-label="Pending quest claims">
                 {claims.map(claim => {
                     const quest = getQuestById(claim.questId)
                     const url = safeHttpUrl(claim.proofUrl)
                     return (
-                        <div key={String(claim.id)} className="k-questadmin-claim">
+                        <div key={String(claim.id)} className="k-questadmin-claim" role="listitem">
                             <div className="k-questadmin-claim-head">
                                 <span className="k-questadmin-claim-quest">{quest?.icon} {quest?.title ?? claim.questId}</span>
                                 <span className="k-quest-card-xp">+{quest?.xp ?? 0} XP</span>

@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
+	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
 // validQuests maps quest IDs to their XP values.
@@ -186,6 +187,12 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 		return nil, err
 	}
 
+	// Q-03: per-address quota, checked before the expensive on-chain verify so a
+	// sybil/farming wallet can't fan out the verification load (Q-04) or grind XP.
+	if err := s.rateLimitUser(userAddr, ratelimit.QuestWriteEndpoint); err != nil {
+		return nil, err
+	}
+
 	questID := strings.TrimSpace(req.Msg.QuestId)
 	if _, ok := validQuests[questID]; !ok {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
@@ -270,6 +277,12 @@ func (s *MultisigService) GetUserQuests(ctx context.Context, req *connect.Reques
 func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[membav1.SyncQuestsRequest]) (*connect.Response[membav1.SyncQuestsResponse], error) {
 	userAddr, err := s.authenticate(req.Msg.AuthToken)
 	if err != nil {
+		return nil, err
+	}
+
+	// Q-03: per-address quota — SyncQuests re-verifies a whole batch on-chain, so
+	// it shares the same write bucket as CompleteQuest.
+	if err := s.rateLimitUser(userAddr, ratelimit.QuestWriteEndpoint); err != nil {
 		return nil, err
 	}
 
@@ -615,6 +628,11 @@ const (
 func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Request[membav1.SubmitQuestClaimRequest]) (*connect.Response[membav1.SubmitQuestClaimResponse], error) {
 	userAddr, err := s.authenticate(req.Msg.AuthToken)
 	if err != nil {
+		return nil, err
+	}
+
+	// Q-03: stricter per-address quota on self-report submissions (spammable proof).
+	if err := s.rateLimitUser(userAddr, ratelimit.QuestClaimEndpoint); err != nil {
 		return nil, err
 	}
 

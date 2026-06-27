@@ -14,6 +14,7 @@ import { useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../../types/layout"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { ACTIVE_HEADLINE } from "./visitorHeroHeadlines"
+import { NetworkProofCard } from "./NetworkProofCard"
 
 export function VisitorHero() {
     const { adena } = useOutletContext<LayoutContext>()
@@ -22,6 +23,7 @@ export function VisitorHero() {
 
     return (
         <section className="visitor-hero" data-testid="visitor-hero">
+            <div className="visitor-hero__lead">
             <h1 className="visitor-hero__headline">
                 {ACTIVE_HEADLINE}
             </h1>
@@ -65,6 +67,10 @@ export function VisitorHero() {
             <p className="visitor-hero__hint">
                 No wallet needed to look around.
             </p>
+            </div>
+
+            {/* Right column: live proof object — the product is alive */}
+            <NetworkProofCard />
         </section>
     )
 }

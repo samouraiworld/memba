@@ -14,6 +14,11 @@ export interface LayoutContext {
         signArbitrary: (data: string) => Promise<string | null>
     }
     balance: string
+    /** Raw wallet balance in ugnot. The honest truthiness gate for the balance
+     *  display: the `balance` string is always a "… GNOT" placeholder (loading
+     *  "— GNOT", error "? GNOT", empty "0 GNOT"), so consumers must gate on this
+     *  numeric (> 0n) rather than the string. Optional for back-compat. */
+    rawUgnot?: bigint
     auth: {
         token: Token | null
         isAuthenticated: boolean

@@ -98,6 +98,57 @@ describe("parseActivity", () => {
     })
 })
 
+describe("parseActivity — diversity & humanized titles", () => {
+    it("caps how many items one busy source contributes so a single realm can't flood the feed", () => {
+        const txs: IndexerTx[] = []
+        // 6 identical gov/dao Approve txs (newest-first by height) …
+        for (let i = 0; i < 6; i++) txs.push(tx(200 - i, `g${i}`, [call("g1x", "gno.land/r/gov/dao", "Approve")]))
+        // … plus two other sources crowded out today
+        txs.push(tx(120, "d1", [addpkg("g1y", "gno.land/r/demo/foo")]))
+        txs.push(tx(119, "t1", [send("g1z", "g1w", "5ugnot")]))
+
+        const items = parseActivity(txs, new Map(), { limit: 12, maxPerSource: 2 })
+        const approves = items.filter((i) => i.pkgPath === "gno.land/r/gov/dao" && i.func === "Approve")
+        expect(approves).toHaveLength(2) // capped, not 6
+        expect(items.some((i) => i.kind === "deploy")).toBe(true) // crowded-out source surfaces
+        expect(items.some((i) => i.kind === "transfer")).toBe(true)
+        expect(items[0].blockHeight).toBe(200) // newest-first order preserved
+    })
+
+    it("does not cap when maxPerSource is unset (by-address path keeps full history)", () => {
+        const txs = Array.from({ length: 5 }, (_, i) => tx(50 - i, `h${i}`, [call("g1x", "gno.land/r/gov/dao", "Approve")]))
+        expect(parseActivity(txs, new Map(), { limit: 12 })).toHaveLength(5)
+    })
+
+    it("humanizes a tokenfactory New as a token launch", () => {
+        const items = parseActivity([tx(300, "h", [call("g1a", "gno.land/r/samcrew/tokenfactory_v2", "New")])], new Map())
+        expect(items[0].kind).toBe("token")
+        expect(items[0].title).toMatch(/launched a token/i)
+    })
+
+    it("labels a DAO-realm deployment as a DAO creation, not a bare deploy", () => {
+        const items = parseActivity([tx(301, "h", [addpkg("g1a", "gno.land/r/samcrew/memba_dao")])], new Map())
+        expect(items[0].kind).toBe("deploy")
+        expect(items[0].title).toMatch(/created a dao/i)
+    })
+
+    it("verb-izes a governance vote and proposal", () => {
+        const vote = parseActivity([tx(302, "h", [call("g1a", "gno.land/r/gov/dao", "VoteOnProposal")])], new Map())
+        expect(vote[0].title).toMatch(/voted on governance/i)
+        const propose = parseActivity([tx(303, "h", [call("g1a", "gno.land/r/gov/dao", "MustCreateProposal")])], new Map())
+        expect(propose[0].title).toMatch(/proposed/i)
+    })
+
+    it("classifies NFT, on-chain post, and multisig realm calls into their own kinds", () => {
+        const nft = parseActivity([tx(310, "h", [call("g1a", "gno.land/r/samcrew/memba_nft_market_v3", "Buy")])], new Map())
+        expect(nft[0].kind).toBe("nft")
+        const post = parseActivity([tx(311, "h", [call("g1a", "gno.land/r/demo/boards", "CreatePost")])], new Map())
+        expect(post[0].kind).toBe("post")
+        const ms = parseActivity([tx(312, "h", [call("g1a", "gno.land/r/samcrew/memba_multisig", "Execute")])], new Map())
+        expect(ms[0].kind).toBe("multisig")
+    })
+})
+
 // ── fetchAddressActivity — by-address indexer reads ──────────────────────────
 
 const INDEXER = "https://memba-backend.fly.dev/api/indexer"

@@ -1,14 +1,10 @@
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import {
-    House, ChartBar, Buildings, Coins, FolderOpen,
-    Briefcase, User, Gear, Megaphone, PuzzlePiece,
-    LinkSimpleHorizontal, Bell, Heart, Robot,
-    Handshake, ImageSquare, Bank, GameController,
-} from "@phosphor-icons/react"
+import { Gear } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
+import { NAV } from "../../lib/navManifest"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -74,6 +70,22 @@ function SidebarLink({ to, icon, label, badge, badgeText, badgeInactive, auth, c
     )
 }
 
+// ── Manifest-sourced link ─────────────────────────────────────────────
+// Route + label + icon come from the single nav manifest (no duplication
+// with the mobile tab bar); per-link chrome (badges, auth, env-flag pills)
+// stays here as props.
+function navById(id: string) {
+    const e = NAV.find(n => n.id === id)
+    if (!e) throw new Error(`Sidebar: navManifest is missing id "${id}"`)
+    return e
+}
+
+function ManifestLink({ id, ...rest }: { id: string } & Omit<SidebarLinkProps, "to" | "icon" | "label">) {
+    const e = navById(id)
+    const Icon = e.Icon
+    return <SidebarLink to={e.to} icon={<Icon size={18} />} label={e.label} {...rest} />
+}
+
 // ── Cmd+K Discovery Hint ──────────────────────────────────────────────
 
 const CMDK_HINT_KEY = "memba_cmdk_seen"
@@ -123,7 +135,7 @@ function SidebarExtensions({ connected, collapsed }: { connected: boolean; colla
 
     return (
         <nav className="k-sidebar-section" aria-label="Extensions">
-            <SidebarLink to="/extensions" icon={<PuzzlePiece size={18} />} label="Extensions" connected={connected} collapsed={collapsed} />
+            <ManifestLink id="extensions" connected={connected} collapsed={collapsed} />
             {!collapsed && (
                 <button
                     className="k-sidebar-expand-btn"
@@ -137,15 +149,15 @@ function SidebarExtensions({ connected, collapsed }: { connected: boolean; colla
             )}
             {expanded && (
                 <>
-                    <SidebarLink to="/marketplace" icon={<Robot size={18} />} label="Marketplace"
+                    <ManifestLink id="marketplace"
                         badgeText={import.meta.env.VITE_ENABLE_MARKETPLACE === "true" ? "new" : "soon"}
                         badgeInactive={import.meta.env.VITE_ENABLE_MARKETPLACE !== "true"}
                         connected={connected} collapsed={collapsed} />
-                    <SidebarLink to="/services" icon={<Handshake size={18} />} label="Services"
+                    <ManifestLink id="services"
                         badgeText={import.meta.env.VITE_ENABLE_SERVICES === "true" ? "new" : "soon"}
                         badgeInactive={import.meta.env.VITE_ENABLE_SERVICES !== "true"}
                         connected={connected} collapsed={collapsed} />
-                    <SidebarLink to="/nft" icon={<ImageSquare size={18} />} label="NFT"
+                    <ManifestLink id="nft"
                         badgeText={import.meta.env.VITE_ENABLE_NFT === "true" ? "new" : "soon"}
                         badgeInactive={import.meta.env.VITE_ENABLE_NFT !== "true"}
                         connected={connected} collapsed={collapsed} />
@@ -192,16 +204,16 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
 
             {/* ── Section 1: Navigation ─────────────────────────── */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
-                {!connected && <SidebarLink to="/" icon={<House size={18} />} label="Home" connected={connected} collapsed={collapsed} />}
-                <SidebarLink to="/dashboard" icon={<ChartBar size={18} />} label="Dashboard" auth connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/dao" icon={<Buildings size={18} />} label="DAOs" badge={unvotedCount + notifUnreadCount} connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/tokens" icon={<Coins size={18} />} label="Tokens" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/directory" icon={<FolderOpen size={18} />} label="Directory" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/validators" icon={<LinkSimpleHorizontal size={18} />} label="Validators" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/alerts" icon={<Bell size={18} />} label="Alerts" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/multisig" icon={<Briefcase size={18} />} label="Multisig" auth connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/gnolove" icon={<Heart size={18} />} label="Gnolove" connected={connected} collapsed={collapsed} />
-                <SidebarLink to="/quests" icon={<GameController size={18} />} label="Quests" connected={connected} collapsed={collapsed} />
+                {!connected && <ManifestLink id="home" connected={connected} collapsed={collapsed} />}
+                <ManifestLink id="dashboard" auth connected={connected} collapsed={collapsed} />
+                <ManifestLink id="dao" badge={unvotedCount + notifUnreadCount} connected={connected} collapsed={collapsed} />
+                <ManifestLink id="tokens" connected={connected} collapsed={collapsed} />
+                <ManifestLink id="directory" connected={connected} collapsed={collapsed} />
+                <ManifestLink id="validators" connected={connected} collapsed={collapsed} />
+                <ManifestLink id="alerts" connected={connected} collapsed={collapsed} />
+                <ManifestLink id="multisig" auth connected={connected} collapsed={collapsed} />
+                <ManifestLink id="gnolove" connected={connected} collapsed={collapsed} />
+                <ManifestLink id="quests" connected={connected} collapsed={collapsed} />
                 {address === ZOOMA_ADDRESS && (
                     <SidebarLink to="/quest-admin" icon={<Gear size={18} />} label="Quest Admin" connected={connected} collapsed={collapsed} />
                 )}
@@ -215,24 +227,25 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
             <div className="k-sidebar-user">
                 {/* Org indicator — hidden until Teams feature is production-ready */}
                 <div className="k-sidebar-section">
-                    {connected && address && (
-                        <SidebarLink to={`/profile/${address}`} icon={<User size={18} />} label="Profile" connected={connected} collapsed={collapsed} />
-                    )}
+                    {connected && address && (() => {
+                        const p = navById("profile")
+                        const PIcon = p.Icon
+                        // Profile is the one entry whose path needs the address appended.
+                        return <SidebarLink to={`${p.to}/${address}`} icon={<PIcon size={18} />} label={p.label} connected={connected} collapsed={collapsed} />
+                    })()}
                     {/* Teams hidden until production-ready */}
                     {connected && (
-                        <SidebarLink to="/settings" icon={<Gear size={18} />} label="Settings" connected={connected} collapsed={collapsed} />
+                        <ManifestLink id="settings" connected={connected} collapsed={collapsed} />
                     )}
                     {connected && (
-                        <SidebarLink
-                            to="/candidature"
-                            icon={<Bank size={18} />}
-                            label="Candidature"
+                        <ManifestLink
+                            id="candidature"
                             connected={connected}
                             collapsed={collapsed}
                             badge={canApplyForMembership() ? 1 : undefined}
                         />
                     )}
-                    <SidebarLink to="/feedback" icon={<Megaphone size={18} />} label="Feedback" connected={connected} collapsed={collapsed} />
+                    <ManifestLink id="feedback" connected={connected} collapsed={collapsed} />
                 </div>
             </div>
         </aside>

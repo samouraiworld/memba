@@ -107,6 +107,19 @@ func main() {
 	// Initialize per-endpoint rate limiter with app context for clean shutdown.
 	limiter = ratelimit.New(ctx, ratelimit.DefaultConfigs())
 
+	// Per-address quest rate limiter (Q-03) — layered on the per-IP limiter above.
+	// Stops a sybil farm rotating IPs from grinding XP on one wallet and throttles
+	// the expensive on-chain verification fan-out. Configurable via MEMBA_QUEST_*_RPM.
+	envInt := func(name string, def int) int {
+		if v := os.Getenv(name); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				return n
+			}
+		}
+		return def
+	}
+	svc.SetUserLimiter(ratelimit.New(ctx, ratelimit.PerUserQuestConfigs(envInt)))
+
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
@@ -186,6 +199,10 @@ func main() {
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
 	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
+	// Token launch dates: server-side cached {symbol: launchedAtISO} map. The
+	// creation-time scan is too slow for the browser (exceeds the 10s indexer
+	// proxy timeout), so it's computed + cached here and refreshed in background.
+	mux.Handle("/api/token-launches", rateLimitMiddleware("token_launches", service.HandleTokenLaunches()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
 	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")

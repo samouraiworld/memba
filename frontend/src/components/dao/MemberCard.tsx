@@ -12,8 +12,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
         : member.address
     return (
         <div
-            className="k-card"
-            style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer", transition: "border-color 0.15s" }}
+            className="k-card dao-member-card"
             onClick={() => onProfileClick(member.address)}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
