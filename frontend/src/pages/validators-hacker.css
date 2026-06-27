@@ -13,6 +13,28 @@
     gap: 0;
     min-height: 80vh;
     font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+
+    /* Self-contained dark "console" surface.
+       The hacker view is a terminal and is dark-only by design (the §13
+       light-theme guardrail in ci.yml explicitly exempts hacker-mode /
+       validators-hacker). Its content is built from hardcoded white/neon
+       colors that assume a dark backdrop, so in light theme they were stranded
+       on a near-white page surface (unreadable). Pinning a dark console here
+       makes the view render identically in both themes — and reads as a
+       deliberate terminal panel embedded in the light app. */
+    background: #07090c;
+    border: 1px solid rgba(0, 255, 170, 0.15);
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem 1.5rem;
+
+    /* Pin the semantic tokens this view borrows to their dark values so internal
+       surfaces and borders stay legible regardless of the app theme. */
+    --color-border: #222222;
+    --color-border-light: #222222;
+    --color-surface: rgba(255, 255, 255, 0.03);
+    --color-surface-hover: rgba(255, 255, 255, 0.06);
+    --color-surface-active: rgba(255, 255, 255, 0.08);
+    color-scheme: dark;
 }
 
 /* ── Breadcrumb nav ─────────────────────────────────────── */
