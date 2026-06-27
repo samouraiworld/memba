@@ -6,10 +6,12 @@
  * the actual validator rows, so the band's inline listing needs its own source.
  *
  * CHEAP SUBSET: calls getValidators() — the same single auto-paginated consensus
- * query useValidatorHealth uses — PLUS fetchValoperMonikers(), which is ONE
- * cached Render parse that names the rows (so the band shows "gno-core-01"
- * instead of "g1abc…xyz"). It deliberately avoids the heavy ~100-call
- * /validators-page enrichment (fetchLastBlockSignatures / getAggregatedNetPeers).
+ * query useValidatorHealth uses — PLUS two cheap, cached name sources so the band
+ * shows "gno-core-val-01" instead of "g1abc…xyz": fetchValoperMonikers() (ONE
+ * on-chain Render parse, PRIMARY) and fetchMonitoringParticipation() (ONE cached
+ * gnomonitoring call, SECONDARY — it names the genesis validators that aren't
+ * registered in r/gnops/valopers, MH-16). It deliberately avoids the heavy
+ * ~100-call /validators-page enrichment (fetchLastBlockSignatures / getAggregatedNetPeers).
  * getValidators() already returns the list sorted by voting power (desc), so
  * callers can slice top-N.
  *
@@ -24,6 +26,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
 import { getValidators, fetchValoperMonikers, type ValidatorInfo } from "../../lib/validators"
+import { fetchMonitoringParticipation } from "../../lib/gnomonitoring"
 
 const STALE_TIME = 60_000 // 1 minute (matches useValidatorHealth)
 
@@ -64,11 +67,26 @@ export function useEcosystemValidators(): EcosystemValidators {
     const query = useQuery({
         queryKey: ["home", "ecosystem-validators", rpcUrl],
         queryFn: async () => {
-            const [validators, monikers] = await Promise.all([
+            // Two cheap, cached name sources. valopers (on-chain) is PRIMARY;
+            // gnomonitoring participation is SECONDARY — it names the genesis
+            // validators (top-by-power) that aren't registered in r/gnops/valopers
+            // (MH-16), so the band shows "gno-core-val-01" instead of "g1zhmw…".
+            const [validators, valoperMonikers, participation] = await Promise.all([
                 getValidators(rpcUrl),
                 fetchValoperMonikers(rpcUrl).catch(() => new Map<string, string>()),
+                fetchMonitoringParticipation().catch(() => null),
             ])
-            return applyMonikers(validators, monikers)
+            let named = applyMonikers(validators, valoperMonikers)
+            if (participation && participation.length > 0) {
+                const monitoringMonikers = new Map<string, string>()
+                for (const p of participation) {
+                    if (p.moniker?.trim()) monitoringMonikers.set(p.addr.toLowerCase(), p.moniker)
+                }
+                // applyMonikers keeps any existing (valopers) name, so this only
+                // fills the still-unnamed rows.
+                named = applyMonikers(named, monitoringMonikers)
+            }
+            return named
         },
         staleTime: STALE_TIME,
     })

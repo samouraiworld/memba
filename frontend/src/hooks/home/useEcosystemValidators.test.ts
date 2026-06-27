@@ -29,11 +29,18 @@ vi.mock("../../lib/validators", () => ({
     getAggregatedNetPeers: vi.fn().mockRejectedValue(new Error("MUST NOT BE CALLED: getAggregatedNetPeers")),
 }))
 
+// gnomonitoring participation = the SECONDARY moniker source (names genesis
+// validators that aren't registered in r/gnops/valopers). One cached call.
+vi.mock("../../lib/gnomonitoring", () => ({
+    fetchMonitoringParticipation: vi.fn().mockResolvedValue(null),
+}))
+
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({ networkKey: "test13", rpcUrl: "https://rpc.test13.gno.land" })),
 }))
 
 const validatorMod = await import("../../lib/validators")
+const monitoringMod = await import("../../lib/gnomonitoring")
 
 function makeWrapper() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -112,6 +119,53 @@ describe("useEcosystemValidators", () => {
 
         expect(result.current.validators[0].moniker).toBe("gno-core-01")
         expect(validatorMod.fetchValoperMonikers).toHaveBeenCalledTimes(1)
+    })
+
+    it("names genesis validators via gnomonitoring participation when valopers has no name (MH-16)", async () => {
+        // The top-by-power genesis validators aren't registered in r/gnops/valopers,
+        // so fetchValoperMonikers returns nothing for them — gnomonitoring fills in.
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1zhmw2f", moniker: "" }),
+        ])
+        vi.mocked(validatorMod.fetchValoperMonikers).mockResolvedValue(new Map())
+        vi.mocked(monitoringMod.fetchMonitoringParticipation).mockResolvedValue([
+            { addr: "g1zhmw2f", moniker: "gno-core-val-01", participationRate: 100 },
+        ])
+
+        const { useEcosystemValidators } = await import("./useEcosystemValidators")
+        const { result } = renderHook(() => useEcosystemValidators(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.validators[0].moniker).toBe("gno-core-val-01")
+    })
+
+    it("prefers the valopers moniker over gnomonitoring (valopers is primary)", async () => {
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1aaa", moniker: "" }),
+        ])
+        vi.mocked(validatorMod.fetchValoperMonikers).mockResolvedValue(new Map([["g1aaa", "from-valopers"]]))
+        vi.mocked(monitoringMod.fetchMonitoringParticipation).mockResolvedValue([
+            { addr: "g1aaa", moniker: "from-monitoring", participationRate: 100 },
+        ])
+
+        const { useEcosystemValidators } = await import("./useEcosystemValidators")
+        const { result } = renderHook(() => useEcosystemValidators(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.validators[0].moniker).toBe("from-valopers")
+    })
+
+    it("degrades when gnomonitoring is unreachable (still returns the list, names blank)", async () => {
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([makeValidator({ gnoAddr: "g1aaa", moniker: "" })])
+        vi.mocked(validatorMod.fetchValoperMonikers).mockResolvedValue(new Map())
+        vi.mocked(monitoringMod.fetchMonitoringParticipation).mockRejectedValue(new Error("monitoring down"))
+
+        const { useEcosystemValidators } = await import("./useEcosystemValidators")
+        const { result } = renderHook(() => useEcosystemValidators(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.validators).toHaveLength(1)
+        expect(result.current.validators[0].moniker).toBe("")
     })
 
     it("does NOT call the HEAVY enrichment fns (signatures / net-peers)", async () => {
