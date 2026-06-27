@@ -85,7 +85,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#333")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "")}
         >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div className="dao-proposal-card__header">
                 <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)", fontWeight: 500 }}>

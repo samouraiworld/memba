@@ -614,6 +614,41 @@ a:hover {
   }
 }
 
+/* ── DAO member / proposal cards ───────────────────────────────────
+   Layout extracted from inline styles so the badge rows can restack on a
+   phone (inline styles can't be media-queried). Desktop values are unchanged;
+   only the ≤480px column-stack is new. */
+.dao-member-card {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.dao-proposal-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  /* Stack the identity over the tier/role badges (member) and the title over
+     the status badges (proposal) instead of fighting for horizontal space. */
+  .dao-member-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dao-proposal-card__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* ── Realm Address Badge (v2.7 — discreet grey, was purple) ─────── */
 .k-realm-address {
   display: inline-flex;

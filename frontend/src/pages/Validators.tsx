@@ -18,6 +18,7 @@
 import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
 import { useIsMobile } from "../hooks/useIsMobile"
 import { ValidatorCard } from "../components/validators/ValidatorCard"
+import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
@@ -57,8 +58,6 @@ import {
     type NetworkHealthSummary,
 } from "../lib/validatorHealth"
 import "./validators.css"
-
-type SortKey = "rank" | "votingPower" | "powerPercent" | "participationRate" | "uptimePercent" | "missedBlocks" | "txContrib"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
@@ -470,16 +469,28 @@ export default function Validators() {
                     data-testid="validator-search"
                 />
                 <div className="val-toolbar-right">
-                    <select
-                        className="val-page-size"
-                        value={pageSize}
-                        onChange={e => setPageSize(Number(e.target.value))}
-                        data-testid="validator-page-size"
-                    >
-                        <option value={25}>25 / page</option>
-                        <option value={50}>50 / page</option>
-                        <option value={100}>100 / page</option>
-                    </select>
+                    {isMobile ? (
+                        // Mobile cards have no sortable column headers — restore sort
+                        // parity here (and the roster is clamped to 25, so the
+                        // page-size dropdown is moot on a phone).
+                        <ValidatorSortSelect
+                            sortKey={sortKey}
+                            sortAsc={sortAsc}
+                            hasMonitoring={hasMonitoring}
+                            onChange={(k, a) => { setSortKey(k); setSortAsc(a) }}
+                        />
+                    ) : (
+                        <select
+                            className="val-page-size"
+                            value={pageSize}
+                            onChange={e => setPageSize(Number(e.target.value))}
+                            data-testid="validator-page-size"
+                        >
+                            <option value={25}>25 / page</option>
+                            <option value={50}>50 / page</option>
+                            <option value={100}>100 / page</option>
+                        </select>
+                    )}
                     <span className="val-count">
                         {filtered.length} validator{filtered.length !== 1 ? "s" : ""}
                     </span>
