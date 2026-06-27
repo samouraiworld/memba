@@ -107,6 +107,19 @@ func main() {
 	// Initialize per-endpoint rate limiter with app context for clean shutdown.
 	limiter = ratelimit.New(ctx, ratelimit.DefaultConfigs())
 
+	// Per-address quest rate limiter (Q-03) — layered on the per-IP limiter above.
+	// Stops a sybil farm rotating IPs from grinding XP on one wallet and throttles
+	// the expensive on-chain verification fan-out. Configurable via MEMBA_QUEST_*_RPM.
+	envInt := func(name string, def int) int {
+		if v := os.Getenv(name); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				return n
+			}
+		}
+		return def
+	}
+	svc.SetUserLimiter(ratelimit.New(ctx, ratelimit.PerUserQuestConfigs(envInt)))
+
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
