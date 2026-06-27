@@ -434,4 +434,27 @@ Both experts require a human/security gate for the new on-chain-write & key-cust
 
 ---
 
-*End of audit & plan. Decisions locked; validation GREEN-WITH-CONDITIONS and folded; cleared to start on a dedicated branch under the §16 (4-condition) merge-autonomy contract. Issue IDs (Q-NN) are the stable handles for execution PRs and review gates.*
+## 18. Delivery Status / Close-out (2026-06-27)
+
+What actually shipped from this plan, with the audit's "remaining gaps" reconciled against the code.
+
+### ✅ Delivered & merged
+- **Q-05 — on-chain XP attestation: DELIVERED + LIVE-VERIFIED end-to-end on test13.** Realm `gno.land/r/samcrew/memba_quest_attestation_v1` deployed + `SetSigner`'d (2-of-2 multisig); offline ed25519 **voucher** model (Model B), backend signer (`MEMBA_ATTESTATION_SEED`, dormant when unset), QuestHub attestation panel. A real completion recorded **15 XP on-chain**, signer-verified. PRs: #582 (audit/plan/ADR), deployer#38 (realm), deployer#40 (`SetSigner` helper), #605 (signer), #610 (backend issuance + `GetAttestationVouchers`), #613 (frontend), #619 (also issue on `SyncQuests` → every completion attests). Signer key **rotated** after a seed exposure during activation; old key inert.
+- **Q-03 — per-address rate limiting:** #596 (security-reviewed).
+- **Q-16 — rate-limit observability (the farming signal):** #601.
+- **Q-09–Q-25 polish (the genuinely-missing subset):** #583, #586 — threshold single-source, accurate sync indicator + XP-confirming state, color tokenization, clear-filters, semantic claims list, localized dates, deploy hint.
+
+### 🔁 Audit overstatements (verified already-shipped — no work needed)
+Q-07 (3 CI parity tests already cover XP+verification+self-report; backend has no `category` concept), Q-17 (`trackNetworkVisit`/`verifySocial` both wired), Q-18-clutter (coming-soon already a clean `<details>`), **Q-21** (global `:focus-visible` exists), **Q-23-text** (difficulty text already rendered), **Q-25** (SelfReportForm already labeled), **Leaderboard** (routed at App.tsx), **self-report UI** (built + wired), **AchievementGrid** (mounted, gated behind `VITE_ENABLE_BADGES`).
+
+### ⏳ Open (gated on the user / external state — not code-blocked)
+- **Q-01 badges** — code-complete (frontend mounted, mint CLI, runbook). Needs the operational mint ceremony: IPFS pin → `badge-mint` drain → multisig sign → flip `VITE_ENABLE_BADGES`. Turnkey.
+- **Q-02 verifier expansion** — blocked on **zero live test13 activity** (0 proposals / 0 threads), so render-parse verifiers can't be written + live-validated. Unblock = seed real activity (and a username for deploy quests) → then implement+validate.
+- **Phase 4 (mainnet)** — soulbound badges, sybil heuristics, on-chain settlement hardening — a separate go, per §17.2 guardrail.
+
+### Known follow-ups (logged)
+- Attestation immediacy: most off-chain quest *triggers* call `completeQuest(id)` without the auth token, so they attest only via the next `SyncQuests` (covered by #619, but with a small latency). Optional nicety: pass the token in those triggers for instant vouchers.
+
+---
+
+*Delivered: Q-05 attestation live on test13, plus Q-03/Q-16 hardening and the genuine polish. Q-01/Q-02 are user/external-gated, not code-blocked. End of plan.*
