@@ -70,10 +70,16 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
     const tokensHref = `/${networkKey}/tokens`
     const validatorsHref = `/${networkKey}/validators`
 
-    // Header counts: prefer the live snapshot count; fall back to the fetched
-    // total so the header never contradicts the rows rendered below.
-    const tokenCount = counts?.tokens ?? tokenTotal
-    const validatorCount = counts?.validators ?? validatorTotal
+    // Header counts: the authoritative total is the GREATER of the fresh backend
+    // snapshot and the fetched list length (tokenfactory tokens / the valset are
+    // append-only, so neither source over-counts). Using max() — rather than
+    // preferring one source — keeps the count honest when the two diverge, e.g.
+    // the snapshot reports 3 tokens while the 5-min-cached fetchTokens still holds
+    // 1 right after a launch (MH-14). The "view all N" affordance below then keys
+    // off this count vs the rows actually shown, so the band never implies a
+    // partial/stale list is the whole set.
+    const tokenCount = Math.max(counts?.tokens ?? 0, tokenTotal)
+    const validatorCount = Math.max(counts?.validators ?? 0, validatorTotal)
 
     const showTokens = tokensLoading || tokens.length > 0
     const showValidators = validatorsLoading || validators.length > 0
@@ -95,7 +101,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                     <div className="ecosystem-section" data-testid="eco-tokens">
                         <Link to={tokensHref} className="ecosystem-section__header">
                             <span className="ecosystem-section__count">{tokenCount}</span>
-                            <span className="ecosystem-section__label">tokens</span>
+                            <span className="ecosystem-section__label">{tokenCount === 1 ? "token" : "tokens"}</span>
                             <span className="ecosystem-section__arrow" aria-hidden="true">→</span>
                         </Link>
                         {tokensLoading ? (
@@ -119,7 +125,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                                         </li>
                                     ))}
                                 </ul>
-                                {tokenTotal > TOKEN_TOP_N && (
+                                {tokenCount > tokens.length && (
                                     <Link to={tokensHref} className="ecosystem-section__viewall" data-testid="eco-tokens-viewall">
                                         view all {tokenCount} →
                                     </Link>
@@ -166,13 +172,13 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                                         )
                                     })}
                                 </ul>
-                                {validatorTotal > VALIDATOR_TOP_N && (
+                                {validatorCount > topValidators.length && (
                                     <Link
                                         to={validatorsHref}
                                         className="ecosystem-section__viewall"
                                         data-testid="eco-validators-viewall"
                                     >
-                                        view all {validatorTotal} →
+                                        view all {validatorCount} →
                                     </Link>
                                 )}
                             </>

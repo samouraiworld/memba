@@ -36,9 +36,15 @@ function truncateAddress(addr: string): string {
     return `${addr.slice(0, 4)}…${addr.slice(-4)}`
 }
 
-/** Wallet chips row — balance + address, both optional (honest: omit when absent). */
-function WalletChips({ balance, address }: { balance: string; address: string }) {
-    const showBalance = balance && balance !== "0"
+/** Wallet chips row — balance + address, both optional (honest: omit when absent).
+ *
+ * The balance display is gated on the numeric `rawUgnot`, NOT the `balance`
+ * string: useBalance only ever emits a "… GNOT" string ("— GNOT" loading,
+ * "? GNOT" error, "0 GNOT" empty), so a string check can never honour the
+ * honesty contract (it would render the forbidden "—"/"0"). Show the chip only
+ * for a strictly positive on-chain balance. */
+function WalletChips({ balance, rawUgnot, address }: { balance: string; rawUgnot: bigint; address: string }) {
+    const showBalance = rawUgnot > 0n
     const showAddress = !!address
 
     // If neither chip would render, skip the row entirely
@@ -61,7 +67,7 @@ function WalletChips({ balance, address }: { balance: string; address: string })
 }
 
 export function Home({ mode }: HomeProps) {
-    const { adena, balance } = useOutletContext<LayoutContext>()
+    const { adena, balance, rawUgnot } = useOutletContext<LayoutContext>()
     const activeNetworkKey = useNetworkKey()
 
     if (mode === "visitor") {
@@ -93,6 +99,7 @@ export function Home({ mode }: HomeProps) {
             <StatusStrip />
             <WalletChips
                 balance={balance}
+                rawUgnot={rawUgnot ?? 0n}
                 address={adena.connected ? adena.address : ""}
             />
 

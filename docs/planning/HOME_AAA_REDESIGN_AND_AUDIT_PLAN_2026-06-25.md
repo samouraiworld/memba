@@ -411,3 +411,64 @@ User request (2026-06-25): turn the validator/candidate profile page (`ValoperDe
 
 ### Scope
 Every page/component: home, directory, validators, valoper/profile, DAO pages, proposals, tokens, multisig, quests, gnolove, alerts, settings, modals/drawers, toasts, forms, badges/pills. Overlaps Wave 6a (light-theme) + the per-page fixes already shipped — supersede those with the systematic standard. High priority (foundational); do as its own focused effort.
+
+---
+
+## 14. Connected / member home — AAA pass (audit + plan, 2026-06-27)
+
+> **Status:** AUDIT DONE — phased plan below — **AWAITING USER GO** before any implementation.
+> **Worktree:** `/Users/zxxma/Desktop/Code/Gno/_worktrees/memba-home-member` · branch `feat/home-member-aaa` (off `origin/main` @ `d761125`/#595).
+> **Context:** The visitor (logged-out) home shipped to the editorial AAA bar (#584/#589/#590/#593). That work was visitor + desktop-first. The **connected/member spine predates it and was never brought to the same bar.** This section is the audit of the member home + a phased delivery plan to close the gap, plus the result of a 390px mobile verification of the already-shipped (shared) sections.
+
+### 14.0 Method
+3-lens expert audit (visual · UX · data-feasibility), code-mapped against `origin/main`. Live-connected verification needs Adena (no local wallet) → **must verify on a deploy-preview**; the shared/visitor sections were verified live at 390px on prod this session. Standards unchanged: Revolut/Qonto bar · honesty contract (omit absent data, never `0`/`—`) · §13 light-theme tokens only (both themes) · TDD · a11y · per-wave PRs.
+
+### 14.1 What the member home is today (code map)
+Member branch (`pages/Home.tsx:90-116`): `StatusStrip` → `WalletChips` (2 bare mono spans) → `ActionInbox` ("Act now") → `YourWorldsPanel` ("Your organisations") → **then the same shared `ShowcaseBoard` + `BelowFold` the visitor sees, in visitor order.**
+The visitor, by contrast, gets an **editorial hero** (`VisitorHero`: 30px headline + CTAs + `NetworkProofCard` live proof object) + `ValueStrip`. **The member has no hero at all** — it opens on impersonal network chrome and a (usually empty) action list.
+
+### 14.2 Consolidated findings (deduped across the 3 lenses; prefix `MH-`)
+| ID | Sev | Finding | Anchor | Fix direction |
+|----|-----|---------|--------|---------------|
+| **MH-01** | **P0** | **Member has no above-the-fold hero.** Spec §3.2 locked a 2-col member hero (GovDAO spotlight + "your next move"); it shipped as a bare inbox heading. The logged-in/“paying” user lands on a *thinner, flatter* page than an anonymous visitor. **Single biggest gap (all 3 lenses).** | `Home.tsx:90-102` vs `VisitorHero.tsx` | Build the member hero (§14.4 W-M1). |
+| **MH-02** | **P0** | **`WalletChips` honesty guard is dead → renders `— GNOT` / `0 GNOT`.** Guard is `balance !== "0"`, but `useBalance` only emits `"— GNOT"` (loading) / `"? GNOT"` (error) / `"0 GNOT"` (empty) / `"X.Y GNOT"` — never bare `"0"`. So the forbidden `—`/`0` always render. **Verified in code.** | `Home.tsx:41`; `useBalance.ts:35,79,99` | Omit chip unless `rawUgnot > 0n` (thread the numeric, don’t string-match). TDD. Small. |
+| **MH-03** | **P0** | **Reachable, motivating member data surfaced nowhere.** `resolveOnChainUsername`, `fetchUserProfile` (avatar), and full quests (`getCompletionPercent`/`fetchUserQuests`/`TOTAL_POSSIBLE_XP`, candidature threshold = 350) all exist; the home consumes only the binary `canApplyForMembership()`. Progress *toward* eligibility is invisible. | `useHomeActions.ts:95`; `lib/quests.ts`; `lib/profile.ts` | Surface identity + XP/level/candidature-progress on the spine (W-M1/W-M2). |
+| **MH-04** | **P0** | **Spec §3.2 item 7 "Your quests" (XP/level progress + next-quest) was never built.** `BelowFold` renders only the shared visitor band. The strongest new-member loop (earn XP → 350 → eligible) has no home presence except an all-or-nothing inbox row that only appears *after* you already qualify. | `BelowFold.tsx:19-27` | Build the member quests progress surface (W-M2). |
+| **MH-05** | **P1** | **Stacked-empty case reads as a dead end.** Dominant testnet state = "You're all caught up." + "Pin a DAO" — two adjacent empties both saying "go elsewhere"; *less* motivating than the visitor hero. | `ActionInbox.tsx:93-114`; `YourWorldsPanel.tsx:80-150` | Make caught-up a *positive* standing/next-step moment (W-M3). |
+| **MH-06** | **P1** | **"Browse/Join/Explore DAOs" repeated 4+ times** (caught-up door, cold-start invite, worlds-board invitation, + shared ExploreGrid/DirectoryDoor) while the member-specific job (quests) is offered nowhere. | `ActionInbox.tsx:104`; `YourWorldsPanel.tsx:71-76,87` | De-dup; one distinct next step per empty state (W-M3). |
+| **MH-07** | **P1** | **Member sees the visitor showcase verbatim, in visitor order;** GovDAO spotlight that spec wanted *in the member hero* sits below an empty inbox. | `Home.tsx:104-114`; `ShowcaseBoard.tsx:57` | Re-order for logged-in context (W-M4). |
+| MH-08 | P2 | **WalletChips not an editorial anchor** — 10px mono pills in a 2nd `border-bottom` band under StatusStrip; reads as a debug ribbon. No name/avatar/role. | `home.css:1393-1425` | Fold identity into the hero (W-M1); merge the two stacked bands. |
+| MH-09 | P2 | **Page reads as a stack of widgets** — every member section uses the same flat 13px section title; no type-scale crescendo, no focal point. | `home.css:1941,2189` | Hero focal tier above (W-M1) demotes section titles to 2nd tier. |
+| MH-10 | P2 | **Emoji action chips** (`🗳 ✍ 🎁 🌱`) clash with the Phosphor/`ti` icon set used elsewhere; render inconsistently cross-platform. | `ActionDoor.tsx:28-46` | Swap to icon components (W-M5). |
+| MH-11 | P2 | **Two near-duplicate action primitives** (`ActionCard` rail+`ti` vs `ActionDoor` chip+Door) visible in the same scroll. | `ActionCard.tsx` / `doors/ActionDoor.tsx` | Consolidate to one (W-M5). |
+| MH-12 | P3 | **Hardcoded hex fallbacks** in member CSS (`var(--color-k-warning,#f59e0b)` etc.) — §13 says tokens only; a fallback bakes a wrong color into the other theme. | `home.css:181,1988,2049` | Drop the hex fallbacks (W-M5). |
+| MH-13 | P3 | Ecosystem band "**1 tokens**" not singularized (shared/visitor copy nit, surfaced during mobile pass). | `EcosystemBand` | Pluralize (fold into W-M0 copy pass). |
+| **MH-14** | **P1** | **Ecosystem band header count can exceed the rows shown** (user-reported: header "3 tokens", list shows 1). The header count comes from the fresh backend snapshot while the rows come from `fetchTokens` (5-min `sessionStorage` cache) — right after a token launch the count jumps to 3 while the cached list still holds 1, and the "view all" gate keyed off the *stale list length* so no "view all 3" appeared → looks complete-but-wrong (count contradicts visible rows). Verified: fresh prod load shows all 3 correctly; the divergence is the transient cache window. | `EcosystemBand.tsx:75,122,169` | Count = `max(snapshot, listLength)`; show "view all N" whenever count > rows shown (applied to tokens **and** validators). |
+
+### 14.3 Honest data palette (feasibility lens — what the member hero MAY show)
+**SAFE high-value adds** (real + always meaningful, journey-framed not empty):
+- **Identity:** truncated address (always present), `@username` when registered (else omit), avatar/initials (gnolove/backend, else initials).
+- **Wallet balance** — after the MH-02 honesty fix.
+- **Quests XP / level / completion% / candidature progress** — always computable locally; 0 XP frames as an onboarding rung, not a bare 0; eligibility is backend-authoritative.
+- **Shared network pulse** (block height / validators / chain health) — reliably non-zero.
+
+**EMPTINESS TRAPS — degrade to "all caught up"/invitation, NEVER a bare 0:** # open proposals awaiting my vote · # multisig sigs pending · GovDAO open-proposal/member counts · per-DAO open counts (all ~0 on test13: `memba_dao` 0 proposals, GovDAO ~1 member/0 open).
+**HARD-EXCLUDE for v1:** ecosystem **DAO-count tile** (no registry source, §5.3) · **live activity feed counts** as member metric. **"# DAOs I'm a member of"** is a quiet trap — it’s inferred over *localStorage-saved* DAOs, not a true on-chain membership index; present as "your saved worlds," never an authoritative count.
+
+### 14.4 Phased plan (member AAA pass) — small independent PRs, preview- + both-theme-verified
+- **W-M0 · Honesty + copy quick-fixes (ship first, tiny).** MH-02 WalletChips `rawUgnot>0n` honesty fix (TDD) + MH-13 "1 token(s)" pluralization + **MH-14 ecosystem count↔rows consistency** (count = `max(snapshot,list)`, "view all N" when count > rows shown — tokens + validators). Independent of the redesign; lands immediately. *Effort S.*
+- **W-M1 · Member hero (centerpiece — closes spec §3.2 #2, MH-01/03/08/09).** New member-spine hero, 2-col desktop → stacks mobile, reusing the visitor `hero-*` vocabulary so it matches the shipped system. **Left:** identity + standing (greeting/@username/avatar, honest balance, **XP→350 candidature progress meter**). **Right:** "your next move" (top `useHomeActions` item) **or a positive caught-up state**. Honesty everywhere (omit/invite, never 0). TDD + a11y + both themes. *Effort L.*
+- **W-M2 · Member quests progress surface (closes never-built §3.2 #7, MH-04).** XP/level bar + next-quest CTA + candidature progress (from `lib/quests.ts`). May be the hero's left column (fold into W-M1) or a dedicated panel — decided by W-M1 layout. Honest empty = onboarding invitation. *Effort M.*
+- **W-M3 · Empty-state uplift + CTA de-dup (MH-05/06).** "All caught up" → positive standing/next-step; reframe `YourWorldsPanel` cold-start; remove the 4× "browse DAOs" duplication so each empty has a distinct job. *Effort M.*
+- **W-M4 · Member board re-order (MH-07).** Lead the logged-in board with personal standing + GovDAO; demote the shared marketing board for members. *Effort M. (decision-gated — see 14.6.)*
+- **W-M5 · Consistency cleanup (MH-10/11/12).** Icon vocabulary for action chips; consolidate ActionCard/ActionDoor; drop hardcoded hex fallbacks. *Effort M.*
+- **W-M6 · Verify.** New member surfaces at 390px in **both themes on a deploy-preview** (needs Adena → user-assisted), desktop both themes, a11y, §13 guardrail green.
+
+### 14.5 Mobile verification of SHIPPED (shared) sections — result (390px, prod, light)
+**All shipped sections pass** — no overflow, clean stacking: editorial hero → stacks (headline → CTAs → NetworkProofCard full-width); GovDAO spotlight single-column (gold intact, proposal list stacks); 4 cards + ecosystem listings (tokens + Top-validators rows) stack; Launchpad mini-card real (CANICULE); **activity feed is live with diverse data** (gnoswap test_token approvals — the deferred-feed note in §0.1 is now stale on test13). Nits only (non-blocking): aggressive feed-title truncation, slight coming-soon 2-col cramp at 390, "1 tokens" plural (MH-13). **No mobile blocker fixes needed in shipped sections** — Phase-3 mobile (#594) held. Connected-only surfaces (wallet chips / inbox / your-worlds) can't render locally — they’re exactly what W-M1–M3 rework, and get verified on the deploy-preview.
+
+### 14.6 Decisions — LOCKED (user GO, 2026-06-27)
+1. **Member hero anchor (W-M1):** ✅ **identity + XP→350 candidature-progress meter** is the hero's #1 surface (greeting/@username/avatar + honest balance + progress). Closes spec §3.2 #2 + #7.
+2. **GovDAO placement:** ✅ **keep `GovDaoSpotlight` in the shared board for v1** (lower-risk); the member hero leads with personal standing. (W-M4 reduces to ordering, not relocating GovDAO.)
+3. **Avatar source:** default **initials-only for v1**, progressive-enhance to gnolove/backend avatar only if CSP `img-src` already allows it (it allows `avatars.githubusercontent.com` per §9.6) — never block the hero on an image.
+4. **Scope:** ✅ **full plan W-M0 → W-M6**, sequenced as small independent PRs, **pausing for explicit user OK before each merge** (per the hard rules in §0).

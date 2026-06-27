@@ -155,7 +155,8 @@ beforeEach(() => {
             disconnect: vi.fn(),
             signArbitrary: vi.fn(),
         },
-        balance: "0",
+        balance: "0 GNOT",
+        rawUgnot: 0n,
         auth: {
             token: null,
             isAuthenticated: false,
@@ -238,6 +239,7 @@ describe("Home member — wallet chips", () => {
                 signArbitrary: vi.fn(),
             },
             balance: "1240 GNOT",
+            rawUgnot: 1240_000_000n,
             auth: {
                 token: null,
                 isAuthenticated: true,
@@ -267,6 +269,7 @@ describe("Home member — wallet chips", () => {
                 signArbitrary: vi.fn(),
             },
             balance: "1240 GNOT",
+            rawUgnot: 1240_000_000n,
             auth: {
                 token: null,
                 isAuthenticated: true,
@@ -286,30 +289,50 @@ describe("Home member — wallet chips", () => {
         expect(addrChip.textContent).toContain("…")
     })
 
-    it("omits balance chip when balance is 0", () => {
-        mockOutletContext.mockReturnValue({
-            adena: {
-                connected: true,
-                address: "g1q9abc123def456xyz7",
-                pubkeyJSON: "",
-                chainId: "test13",
-                installed: true,
-                loading: false,
-                connect: vi.fn(),
-                disconnect: vi.fn(),
-                signArbitrary: vi.fn(),
-            },
-            balance: "0",
-            auth: {
-                token: null,
-                isAuthenticated: true,
-                address: "g1q9abc123def456xyz7",
-                loading: false,
-                error: null,
-            },
-            isLoggingIn: false,
-            syncTimedOut: false,
-        })
+    // Honesty contract (MH-02): omit the balance chip whenever the numeric
+    // balance is not strictly positive — gated on rawUgnot, never the display
+    // string. useBalance never emits a bare "0"; it emits "0 GNOT" (empty
+    // account), "— GNOT" (loading) and "? GNOT" (error), each with rawUgnot 0n.
+    // All three must be omitted, never rendered as a fabricated 0/— value.
+    const connectedWith = (balance: string, rawUgnot: bigint) => ({
+        adena: {
+            connected: true,
+            address: "g1q9abc123def456xyz7",
+            pubkeyJSON: "",
+            chainId: "test13",
+            installed: true,
+            loading: false,
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            signArbitrary: vi.fn(),
+        },
+        balance,
+        rawUgnot,
+        auth: {
+            token: null,
+            isAuthenticated: true,
+            address: "g1q9abc123def456xyz7",
+            loading: false,
+            error: null,
+        },
+        isLoggingIn: false,
+        syncTimedOut: false,
+    })
+
+    it("omits balance chip for an empty account (0 GNOT / rawUgnot 0n)", () => {
+        mockOutletContext.mockReturnValue(connectedWith("0 GNOT", 0n))
+        renderWithProviders(<Home mode="member" />, { route: "/test13/" })
+        expect(screen.queryByTestId("wallet-chip-balance")).not.toBeInTheDocument()
+    })
+
+    it("omits balance chip while loading (— GNOT placeholder, never shown)", () => {
+        mockOutletContext.mockReturnValue(connectedWith("— GNOT", 0n))
+        renderWithProviders(<Home mode="member" />, { route: "/test13/" })
+        expect(screen.queryByTestId("wallet-chip-balance")).not.toBeInTheDocument()
+    })
+
+    it("omits balance chip on a fetch error (? GNOT placeholder, never shown)", () => {
+        mockOutletContext.mockReturnValue(connectedWith("? GNOT", 0n))
         renderWithProviders(<Home mode="member" />, { route: "/test13/" })
         expect(screen.queryByTestId("wallet-chip-balance")).not.toBeInTheDocument()
     })
@@ -334,6 +357,7 @@ describe("Home member — wallet chips", () => {
                 signArbitrary: vi.fn(),
             },
             balance: "100 GNOT",
+            rawUgnot: 100_000_000n,
             auth: {
                 token: null,
                 isAuthenticated: true,
