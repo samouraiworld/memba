@@ -35,6 +35,10 @@ service MultisigService {
   rpc SubmitQuestClaim(SubmitQuestClaimRequest) returns (SubmitQuestClaimResponse);
   rpc ReviewQuestClaim(ReviewQuestClaimRequest) returns (ReviewQuestClaimResponse);
   rpc ListPendingClaims(ListPendingClaimsRequest) returns (ListPendingClaimsResponse);
+  // On-chain attestation (Q-05): backend-signed vouchers a user broadcasts to
+  // the memba_quest_attestation_v1 realm. Public read; empty when the backend
+  // attestation signer is not configured.
+  rpc GetAttestationVouchers(GetAttestationVouchersRequest) returns (GetAttestationVouchersResponse);
 
   // Teams — Collaborative workspaces for DAO management
   rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
@@ -317,6 +321,28 @@ message GetUserQuestsRequest {
 
 message GetUserQuestsResponse {
   UserQuestState state = 1;
+}
+
+// AttestationVoucher is a backend-signed voucher the user broadcasts to the
+// memba_quest_attestation_v1 realm: RecordCompletion(address, quest_id, xp,
+// nonce, sig_hex). The signature is over canonical "address|quest_id|xp|nonce".
+message AttestationVoucher {
+  string quest_id = 1;
+  uint32 xp = 2;
+  string nonce = 3;
+  string sig_hex = 4; // hex ed25519 signature
+}
+
+message GetAttestationVouchersRequest {
+  string address = 1; // no auth required — public read
+}
+
+message GetAttestationVouchersResponse {
+  repeated AttestationVoucher vouchers = 1;
+  // realm_path + signer_pubkey_hex are echoed so the client can build/verify the
+  // broadcast call without hardcoding them. Empty when attestation is disabled.
+  string realm_path = 2;
+  string signer_pubkey_hex = 3;
 }
 
 // SyncQuests allows the frontend to upload localStorage quests on first backend connection.

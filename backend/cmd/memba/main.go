@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
+	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
 	"github.com/samouraiworld/memba/backend/internal/indexer"
@@ -119,6 +120,18 @@ func main() {
 		return def
 	}
 	svc.SetUserLimiter(ratelimit.New(ctx, ratelimit.PerUserQuestConfigs(envInt)))
+
+	// Attestation signer (Q-05) — offline ed25519 key that signs quest vouchers
+	// the user broadcasts to memba_quest_attestation_v1. Unset = attestation off.
+	if seed := os.Getenv("MEMBA_ATTESTATION_SEED"); seed != "" {
+		signer, err := attestation.NewFromSeedHex(seed)
+		if err != nil {
+			slog.Error("invalid MEMBA_ATTESTATION_SEED — attestation disabled", "error", err)
+			os.Exit(1)
+		}
+		svc.SetAttestationSigner(signer)
+		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex())
+	}
 
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
