@@ -680,6 +680,17 @@
     max-width: 360px;
 }
 
+/* On mobile the bottom tab bar owns the bottom strip, so lift the toast above
+   it (bar height + home-indicator inset) instead of letting it sit behind. */
+@media (max-width: 768px) {
+    .k-quest-toast {
+        bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+        left: 12px;
+        right: 12px;
+        max-width: none;
+    }
+}
+
 .k-quest-toast--visible {
     transform: translateY(0);
     opacity: 1;

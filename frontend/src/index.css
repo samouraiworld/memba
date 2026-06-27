@@ -952,7 +952,13 @@ body {
 .net-status-toast__dismiss { background: none; border: none; color: var(--color-text-secondary); font-size: 16px; cursor: pointer; padding: 0 4px; }
 
 @media (max-width: 640px) {
-  .net-status-toast { bottom: 70px; right: 12px; left: 12px; }
+  /* Clear the bottom tab bar + the home-indicator safe area, or the toast sits
+     behind the tab bar on notched phones (56px bar + inset, not a flat 70px). */
+  .net-status-toast {
+    bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 12px);
+    right: 12px;
+    left: 12px;
+  }
 }
 
 .k-sidebar-section {
