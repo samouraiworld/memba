@@ -9,15 +9,18 @@ import type { ActivityItem } from "../../lib/activity"
 
 vi.mock("../../hooks/home/useRecentActivity", () => ({ useRecentActivity: vi.fn() }))
 vi.mock("../../hooks/home/useChainHealth", () => ({ useChainHealth: vi.fn() }))
+vi.mock("../../hooks/home/useNow", () => ({ useNow: vi.fn() }))
+vi.mock("../../hooks/home/useActorUsernames", () => ({ useActorUsernames: vi.fn() }))
 
 const { useRecentActivity } = await import("../../hooks/home/useRecentActivity")
 const { useChainHealth } = await import("../../hooks/home/useChainHealth")
+const { useNow } = await import("../../hooks/home/useNow")
+const { useActorUsernames } = await import("../../hooks/home/useActorUsernames")
 const { ActivityFeed } = await import("./ActivityFeed")
 const { relativeActivityTime } = await import("../../lib/activity")
 
+const NOW = Date.parse("2026-06-25T12:00:00Z")
 const mockHook = vi.mocked(useRecentActivity)
-// Default: chain healthy (not degraded). Specific tests override.
-vi.mocked(useChainHealth).mockReturnValue({ health: "healthy", degraded: false, blockAge: 5, loading: false })
 
 const item = (over: Partial<ActivityItem>): ActivityItem => ({
     kind: "call", title: "Approve · gnoswap/gns", actor: "g1abcabcabcabcabcabcabcabcabcabcabcabcabc",
@@ -25,11 +28,13 @@ const item = (over: Partial<ActivityItem>): ActivityItem => ({
 })
 
 const set = (over: Partial<ReturnType<typeof useRecentActivity>>) =>
-    mockHook.mockReturnValue({ items: [], loading: false, error: false, available: true, refetch: vi.fn(), ...over })
+    mockHook.mockReturnValue({ items: [], loading: false, error: false, available: true, updatedAt: NOW, refetch: vi.fn(), ...over })
 
 beforeEach(() => {
     mockHook.mockReset()
     vi.mocked(useChainHealth).mockReturnValue({ health: "healthy", degraded: false, blockAge: 5, loading: false })
+    vi.mocked(useNow).mockReturnValue(NOW)
+    vi.mocked(useActorUsernames).mockReturnValue(new Map())
 })
 
 describe("ActivityFeed", () => {
@@ -112,6 +117,58 @@ describe("ActivityFeed", () => {
         set({ items: [item({ kind: "call", txHash: "c1" }), item({ kind: "call", txHash: "c2" })] })
         render(<ActivityFeed networkKey="test13" />)
         expect(screen.queryByRole("group", { name: /filter activity/i })).toBeNull()
+    })
+
+    // ── MH-17: liveness + display ────────────────────────────────────────────
+    it("shows a live 'updated N ago' label when there is data and the chain is healthy", () => {
+        set({ items: [item({ txHash: "h1" })], updatedAt: NOW }) // now === updatedAt → "just now"
+        render(<ActivityFeed networkKey="test13" />)
+        const live = screen.getByTestId("activity-feed-live")
+        expect(live).toHaveTextContent(/updated just now/i)
+    })
+
+    it("computes the 'updated N ago' label from updatedAt vs the ticking now", () => {
+        set({ items: [item({ txHash: "h1" })], updatedAt: NOW - 5 * 60_000 }) // 5 minutes ago
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.getByTestId("activity-feed-live")).toHaveTextContent(/updated 5m ago/i)
+    })
+
+    it("does NOT claim 'live' when the chain is stalled", () => {
+        vi.mocked(useChainHealth).mockReturnValue({ health: "halted", degraded: true, blockAge: 3600, loading: false })
+        set({ items: [item({ txHash: "h1" })] })
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.queryByTestId("activity-feed-live")).toBeNull()
+    })
+
+    it("does NOT show the live label while loading or on error", () => {
+        set({ loading: true })
+        const { rerender } = render(<ActivityFeed networkKey="test13" />)
+        expect(screen.queryByTestId("activity-feed-live")).toBeNull()
+        set({ error: true })
+        rerender(<ActivityFeed networkKey="test13" />)
+        expect(screen.queryByTestId("activity-feed-live")).toBeNull()
+    })
+
+    it("labels each row with its category (kind), not just the icon (B1)", () => {
+        set({ items: [item({ kind: "governance", title: "Voted", txHash: "g1" })] })
+        render(<ActivityFeed networkKey="test13" />)
+        expect(screen.getByTestId("activity-kind")).toHaveTextContent("Governance")
+    })
+
+    it("shows the actor as @username when one resolves, else the truncated address (B2)", () => {
+        const addr = "g1aliceaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        vi.mocked(useActorUsernames).mockReturnValue(new Map([[addr, "alice"]]))
+        set({ items: [item({ actor: addr, txHash: "u1" })] })
+        const { rerender } = render(<ActivityFeed networkKey="test13" />)
+        expect(screen.getByTestId("activity-actor")).toHaveTextContent("@alice")
+
+        // No username → truncated address fallback (never blank).
+        vi.mocked(useActorUsernames).mockReturnValue(new Map())
+        set({ items: [item({ actor: addr, txHash: "u1" })] })
+        rerender(<ActivityFeed networkKey="test13" />)
+        const actor = screen.getByTestId("activity-actor")
+        expect(actor).not.toHaveTextContent("@alice")
+        expect(actor.textContent).toMatch(/g1alic/)
     })
 })
 

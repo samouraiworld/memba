@@ -7,13 +7,20 @@
  * → a retry; while loading → skeletons. Hides entirely on networks without an
  * indexer (useRecentActivity → available:false).
  *
+ * Liveness (MH-17): the feed polls every 30s; a `● updated N ago` label (driven
+ * by a ticking `useNow`) makes that visible and keeps the per-row relative times
+ * alive between fetches. Each row carries its category (kind) label and resolves
+ * the actor address to an `@username` when one is registered (best-effort).
+ *
  * @module components/home/ActivityFeed
  */
 import { useState } from "react"
 import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise, Palette, ChatCircle, Vault } from "@phosphor-icons/react"
 import { useRecentActivity } from "../../hooks/home/useRecentActivity"
 import { useChainHealth } from "../../hooks/home/useChainHealth"
-import { formatActivityTime, type ActivityItem, type ActivityKind } from "../../lib/activity"
+import { useNow } from "../../hooks/home/useNow"
+import { useActorUsernames } from "../../hooks/home/useActorUsernames"
+import { relativeActivityTime, type ActivityItem, type ActivityKind } from "../../lib/activity"
 import { getExplorerBaseUrl } from "../../lib/config"
 import { truncateValidatorAddr } from "../../lib/validators"
 import "./home.css"
@@ -31,7 +38,7 @@ const KIND_ICON: Record<ActivityKind, typeof Coins> = {
     multisig: Vault,
 }
 
-/** Short, human chip labels per kind (for the filter row). */
+/** Short, human chip labels per kind (for the filter row + per-row category). */
 const KIND_LABEL: Record<ActivityKind, string> = {
     token: "Tokens",
     deploy: "Deploys",
@@ -54,10 +61,20 @@ function itemHref(item: ActivityItem): string | null {
     return `${getExplorerBaseUrl()}${item.pkgPath.replace(/^gno\.land/, "")}`
 }
 
-function ActivityRow({ item }: { item: ActivityItem }) {
+/** "updated just now" / "updated 5m ago" from a ms timestamp (honest: omitted
+ *  when there's no successful fetch yet). */
+function updatedLabel(updatedAt: number, now: number): string {
+    if (!updatedAt) return ""
+    const rel = relativeActivityTime(new Date(updatedAt).toISOString(), now)
+    if (!rel) return ""
+    return rel === "just now" ? "updated just now" : `updated ${rel} ago`
+}
+
+function ActivityRow({ item, now, usernames }: { item: ActivityItem; now: number; usernames: Map<string, string> }) {
     const Icon = KIND_ICON[item.kind] ?? Cube
     const href = itemHref(item)
-    const when = formatActivityTime(item.time)
+    const when = relativeActivityTime(item.time, now)
+    const username = item.actor ? usernames.get(item.actor) : undefined
     const inner = (
         <>
             <span className={`activity-feed__icon activity-feed__icon--${item.kind}`} aria-hidden="true">
@@ -71,7 +88,16 @@ function ActivityRow({ item }: { item: ActivityItem }) {
                     )}
                 </span>
                 <span className="activity-feed__meta">
-                    {item.actor && <span className="activity-feed__actor val-mono">{truncateValidatorAddr(item.actor)}</span>}
+                    <span className="activity-feed__kind" data-testid="activity-kind">{KIND_LABEL[item.kind]}</span>
+                    {item.actor && <span className="activity-feed__sep" aria-hidden="true">·</span>}
+                    {item.actor && (
+                        <span
+                            className={`activity-feed__actor ${username ? "" : "val-mono"}`.trim()}
+                            data-testid="activity-actor"
+                        >
+                            {username ? `@${username}` : truncateValidatorAddr(item.actor)}
+                        </span>
+                    )}
                     {when && <span className="activity-feed__when">{when}</span>}
                 </span>
             </span>
@@ -95,8 +121,10 @@ export interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ networkKey }: ActivityFeedProps) {
-    const { items, loading, error, available, refetch } = useRecentActivity(networkKey)
+    const { items, loading, error, available, updatedAt, refetch } = useRecentActivity(networkKey)
     const { degraded: chainStalled } = useChainHealth()
+    const now = useNow(15_000)
+    const usernames = useActorUsernames(items.map((it) => it.actor))
     const [filter, setFilter] = useState<ActivityKind | "all">("all")
     if (!available) return null
 
@@ -106,9 +134,22 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
     const activeFilter = filter !== "all" && presentKinds.includes(filter) ? filter : "all"
     const shown = activeFilter === "all" ? items : items.filter((it) => it.kind === activeFilter)
 
+    // Liveness label only in the healthy success-with-data state (a stalled chain
+    // shows the "paused" empty state instead, and we never claim "live" then).
+    const showLive = !loading && !error && items.length > 0 && !chainStalled
+    const updated = updatedLabel(updatedAt, now)
+
     return (
         <section className="activity-feed" data-testid="activity-feed">
-            <div className="below-fold__eyebrow">live across gno.land</div>
+            <div className="activity-feed__head">
+                <span className="below-fold__eyebrow">live across gno.land</span>
+                {showLive && updated && (
+                    <span className="activity-feed__live" data-testid="activity-feed-live" aria-live="polite">
+                        <span className="activity-feed__live-dot" aria-hidden="true" />
+                        {updated}
+                    </span>
+                )}
+            </div>
 
             {showChips && (
                 <div className="activity-feed__filters" role="group" aria-label="Filter activity by type">
@@ -163,7 +204,7 @@ export function ActivityFeed({ networkKey }: ActivityFeedProps) {
             {!loading && !error && items.length > 0 && (
                 <ol className="activity-feed__list" data-testid="activity-feed-list">
                     {shown.map((item) => (
-                        <ActivityRow key={item.txHash} item={item} />
+                        <ActivityRow key={item.txHash} item={item} now={now} usernames={usernames} />
                     ))}
                 </ol>
             )}

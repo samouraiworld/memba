@@ -93,6 +93,9 @@ const (
 	// MultisigServiceListPendingClaimsProcedure is the fully-qualified name of the MultisigService's
 	// ListPendingClaims RPC.
 	MultisigServiceListPendingClaimsProcedure = "/memba.v1.MultisigService/ListPendingClaims"
+	// MultisigServiceGetAttestationVouchersProcedure is the fully-qualified name of the
+	// MultisigService's GetAttestationVouchers RPC.
+	MultisigServiceGetAttestationVouchersProcedure = "/memba.v1.MultisigService/GetAttestationVouchers"
 	// MultisigServiceCreateTeamProcedure is the fully-qualified name of the MultisigService's
 	// CreateTeam RPC.
 	MultisigServiceCreateTeamProcedure = "/memba.v1.MultisigService/CreateTeam"
@@ -172,6 +175,10 @@ type MultisigServiceClient interface {
 	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
 	ReviewQuestClaim(context.Context, *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error)
 	ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error)
+	// On-chain attestation (Q-05): backend-signed vouchers a user broadcasts to
+	// the memba_quest_attestation_v1 realm. Public read; empty when the backend
+	// attestation signer is not configured.
+	GetAttestationVouchers(context.Context, *connect.Request[v1.GetAttestationVouchersRequest]) (*connect.Response[v1.GetAttestationVouchersResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -327,6 +334,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("ListPendingClaims")),
 			connect.WithClientOptions(opts...),
 		),
+		getAttestationVouchers: connect.NewClient[v1.GetAttestationVouchersRequest, v1.GetAttestationVouchersResponse](
+			httpClient,
+			baseURL+MultisigServiceGetAttestationVouchersProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetAttestationVouchers")),
+			connect.WithClientOptions(opts...),
+		),
 		createTeam: connect.NewClient[v1.CreateTeamRequest, v1.CreateTeamResponse](
 			httpClient,
 			baseURL+MultisigServiceCreateTeamProcedure,
@@ -434,43 +447,44 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // multisigServiceClient implements MultisigServiceClient.
 type multisigServiceClient struct {
-	getChallenge         *connect.Client[v1.GetChallengeRequest, v1.GetChallengeResponse]
-	getToken             *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
-	createOrJoinMultisig *connect.Client[v1.CreateOrJoinMultisigRequest, v1.CreateOrJoinMultisigResponse]
-	multisigInfo         *connect.Client[v1.MultisigInfoRequest, v1.MultisigInfoResponse]
-	multisigs            *connect.Client[v1.MultisigsRequest, v1.MultisigsResponse]
-	createTransaction    *connect.Client[v1.CreateTransactionRequest, v1.CreateTransactionResponse]
-	getTransaction       *connect.Client[v1.GetTransactionRequest, v1.GetTransactionResponse]
-	transactions         *connect.Client[v1.TransactionsRequest, v1.TransactionsResponse]
-	signTransaction      *connect.Client[v1.SignTransactionRequest, v1.SignTransactionResponse]
-	completeTransaction  *connect.Client[v1.CompleteTransactionRequest, v1.CompleteTransactionResponse]
-	getProfile           *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
-	updateProfile        *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
-	completeQuest        *connect.Client[v1.CompleteQuestRequest, v1.CompleteQuestResponse]
-	getUserQuests        *connect.Client[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse]
-	syncQuests           *connect.Client[v1.SyncQuestsRequest, v1.SyncQuestsResponse]
-	getUserRank          *connect.Client[v1.GetUserRankRequest, v1.GetUserRankResponse]
-	getLeaderboard       *connect.Client[v1.GetLeaderboardRequest, v1.GetLeaderboardResponse]
-	submitQuestClaim     *connect.Client[v1.SubmitQuestClaimRequest, v1.SubmitQuestClaimResponse]
-	reviewQuestClaim     *connect.Client[v1.ReviewQuestClaimRequest, v1.ReviewQuestClaimResponse]
-	listPendingClaims    *connect.Client[v1.ListPendingClaimsRequest, v1.ListPendingClaimsResponse]
-	createTeam           *connect.Client[v1.CreateTeamRequest, v1.CreateTeamResponse]
-	getTeam              *connect.Client[v1.GetTeamRequest, v1.GetTeamResponse]
-	getMyTeams           *connect.Client[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse]
-	joinTeam             *connect.Client[v1.JoinTeamRequest, v1.JoinTeamResponse]
-	leaveTeam            *connect.Client[v1.LeaveTeamRequest, v1.LeaveTeamResponse]
-	updateTeamMemberRole *connect.Client[v1.UpdateTeamMemberRoleRequest, v1.UpdateTeamMemberRoleResponse]
-	favoriteAgent        *connect.Client[v1.FavoriteAgentRequest, v1.FavoriteAgentResponse]
-	getFavorites         *connect.Client[v1.GetFavoritesRequest, v1.GetFavoritesResponse]
-	getAgentStats        *connect.Client[v1.GetAgentStatsRequest, v1.GetAgentStatsResponse]
-	createServiceListing *connect.Client[v1.CreateServiceListingRequest, v1.CreateServiceListingResponse]
-	getServiceListings   *connect.Client[v1.GetServiceListingsRequest, v1.GetServiceListingsResponse]
-	updateServiceListing *connect.Client[v1.UpdateServiceListingRequest, v1.UpdateServiceListingResponse]
-	getNFTCollection     *connect.Client[v1.GetNFTCollectionRequest, v1.GetNFTCollectionResponse]
-	getNFTActivity       *connect.Client[v1.GetNFTActivityRequest, v1.GetNFTActivityResponse]
-	getNFTPortfolio      *connect.Client[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse]
-	listNFTTokens        *connect.Client[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse]
-	getHomeSnapshot      *connect.Client[v1.GetHomeSnapshotRequest, v1.GetHomeSnapshotResponse]
+	getChallenge           *connect.Client[v1.GetChallengeRequest, v1.GetChallengeResponse]
+	getToken               *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
+	createOrJoinMultisig   *connect.Client[v1.CreateOrJoinMultisigRequest, v1.CreateOrJoinMultisigResponse]
+	multisigInfo           *connect.Client[v1.MultisigInfoRequest, v1.MultisigInfoResponse]
+	multisigs              *connect.Client[v1.MultisigsRequest, v1.MultisigsResponse]
+	createTransaction      *connect.Client[v1.CreateTransactionRequest, v1.CreateTransactionResponse]
+	getTransaction         *connect.Client[v1.GetTransactionRequest, v1.GetTransactionResponse]
+	transactions           *connect.Client[v1.TransactionsRequest, v1.TransactionsResponse]
+	signTransaction        *connect.Client[v1.SignTransactionRequest, v1.SignTransactionResponse]
+	completeTransaction    *connect.Client[v1.CompleteTransactionRequest, v1.CompleteTransactionResponse]
+	getProfile             *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
+	updateProfile          *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	completeQuest          *connect.Client[v1.CompleteQuestRequest, v1.CompleteQuestResponse]
+	getUserQuests          *connect.Client[v1.GetUserQuestsRequest, v1.GetUserQuestsResponse]
+	syncQuests             *connect.Client[v1.SyncQuestsRequest, v1.SyncQuestsResponse]
+	getUserRank            *connect.Client[v1.GetUserRankRequest, v1.GetUserRankResponse]
+	getLeaderboard         *connect.Client[v1.GetLeaderboardRequest, v1.GetLeaderboardResponse]
+	submitQuestClaim       *connect.Client[v1.SubmitQuestClaimRequest, v1.SubmitQuestClaimResponse]
+	reviewQuestClaim       *connect.Client[v1.ReviewQuestClaimRequest, v1.ReviewQuestClaimResponse]
+	listPendingClaims      *connect.Client[v1.ListPendingClaimsRequest, v1.ListPendingClaimsResponse]
+	getAttestationVouchers *connect.Client[v1.GetAttestationVouchersRequest, v1.GetAttestationVouchersResponse]
+	createTeam             *connect.Client[v1.CreateTeamRequest, v1.CreateTeamResponse]
+	getTeam                *connect.Client[v1.GetTeamRequest, v1.GetTeamResponse]
+	getMyTeams             *connect.Client[v1.GetMyTeamsRequest, v1.GetMyTeamsResponse]
+	joinTeam               *connect.Client[v1.JoinTeamRequest, v1.JoinTeamResponse]
+	leaveTeam              *connect.Client[v1.LeaveTeamRequest, v1.LeaveTeamResponse]
+	updateTeamMemberRole   *connect.Client[v1.UpdateTeamMemberRoleRequest, v1.UpdateTeamMemberRoleResponse]
+	favoriteAgent          *connect.Client[v1.FavoriteAgentRequest, v1.FavoriteAgentResponse]
+	getFavorites           *connect.Client[v1.GetFavoritesRequest, v1.GetFavoritesResponse]
+	getAgentStats          *connect.Client[v1.GetAgentStatsRequest, v1.GetAgentStatsResponse]
+	createServiceListing   *connect.Client[v1.CreateServiceListingRequest, v1.CreateServiceListingResponse]
+	getServiceListings     *connect.Client[v1.GetServiceListingsRequest, v1.GetServiceListingsResponse]
+	updateServiceListing   *connect.Client[v1.UpdateServiceListingRequest, v1.UpdateServiceListingResponse]
+	getNFTCollection       *connect.Client[v1.GetNFTCollectionRequest, v1.GetNFTCollectionResponse]
+	getNFTActivity         *connect.Client[v1.GetNFTActivityRequest, v1.GetNFTActivityResponse]
+	getNFTPortfolio        *connect.Client[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse]
+	listNFTTokens          *connect.Client[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse]
+	getHomeSnapshot        *connect.Client[v1.GetHomeSnapshotRequest, v1.GetHomeSnapshotResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -571,6 +585,11 @@ func (c *multisigServiceClient) ReviewQuestClaim(ctx context.Context, req *conne
 // ListPendingClaims calls memba.v1.MultisigService.ListPendingClaims.
 func (c *multisigServiceClient) ListPendingClaims(ctx context.Context, req *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error) {
 	return c.listPendingClaims.CallUnary(ctx, req)
+}
+
+// GetAttestationVouchers calls memba.v1.MultisigService.GetAttestationVouchers.
+func (c *multisigServiceClient) GetAttestationVouchers(ctx context.Context, req *connect.Request[v1.GetAttestationVouchersRequest]) (*connect.Response[v1.GetAttestationVouchersResponse], error) {
+	return c.getAttestationVouchers.CallUnary(ctx, req)
 }
 
 // CreateTeam calls memba.v1.MultisigService.CreateTeam.
@@ -685,6 +704,10 @@ type MultisigServiceHandler interface {
 	SubmitQuestClaim(context.Context, *connect.Request[v1.SubmitQuestClaimRequest]) (*connect.Response[v1.SubmitQuestClaimResponse], error)
 	ReviewQuestClaim(context.Context, *connect.Request[v1.ReviewQuestClaimRequest]) (*connect.Response[v1.ReviewQuestClaimResponse], error)
 	ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error)
+	// On-chain attestation (Q-05): backend-signed vouchers a user broadcasts to
+	// the memba_quest_attestation_v1 realm. Public read; empty when the backend
+	// attestation signer is not configured.
+	GetAttestationVouchers(context.Context, *connect.Request[v1.GetAttestationVouchersRequest]) (*connect.Response[v1.GetAttestationVouchersResponse], error)
 	// Teams — Collaborative workspaces for DAO management
 	CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error)
 	GetTeam(context.Context, *connect.Request[v1.GetTeamRequest]) (*connect.Response[v1.GetTeamResponse], error)
@@ -836,6 +859,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("ListPendingClaims")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetAttestationVouchersHandler := connect.NewUnaryHandler(
+		MultisigServiceGetAttestationVouchersProcedure,
+		svc.GetAttestationVouchers,
+		connect.WithSchema(multisigServiceMethods.ByName("GetAttestationVouchers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	multisigServiceCreateTeamHandler := connect.NewUnaryHandler(
 		MultisigServiceCreateTeamProcedure,
 		svc.CreateTeam,
@@ -980,6 +1009,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceReviewQuestClaimHandler.ServeHTTP(w, r)
 		case MultisigServiceListPendingClaimsProcedure:
 			multisigServiceListPendingClaimsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetAttestationVouchersProcedure:
+			multisigServiceGetAttestationVouchersHandler.ServeHTTP(w, r)
 		case MultisigServiceCreateTeamProcedure:
 			multisigServiceCreateTeamHandler.ServeHTTP(w, r)
 		case MultisigServiceGetTeamProcedure:
@@ -1101,6 +1132,10 @@ func (UnimplementedMultisigServiceHandler) ReviewQuestClaim(context.Context, *co
 
 func (UnimplementedMultisigServiceHandler) ListPendingClaims(context.Context, *connect.Request[v1.ListPendingClaimsRequest]) (*connect.Response[v1.ListPendingClaimsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.ListPendingClaims is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetAttestationVouchers(context.Context, *connect.Request[v1.GetAttestationVouchersRequest]) (*connect.Response[v1.GetAttestationVouchersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetAttestationVouchers is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) CreateTeam(context.Context, *connect.Request[v1.CreateTeamRequest]) (*connect.Response[v1.CreateTeamResponse], error) {

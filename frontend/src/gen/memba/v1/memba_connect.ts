@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetProfileRequest, GetProfileResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetAttestationVouchersRequest, GetAttestationVouchersResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetProfileRequest, GetProfileResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -202,6 +202,19 @@ export const MultisigService = {
       name: "ListPendingClaims",
       I: ListPendingClaimsRequest,
       O: ListPendingClaimsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * On-chain attestation (Q-05): backend-signed vouchers a user broadcasts to
+     * the memba_quest_attestation_v1 realm. Public read; empty when the backend
+     * attestation signer is not configured.
+     *
+     * @generated from rpc memba.v1.MultisigService.GetAttestationVouchers
+     */
+    getAttestationVouchers: {
+      name: "GetAttestationVouchers",
+      I: GetAttestationVouchersRequest,
+      O: GetAttestationVouchersResponse,
       kind: MethodKind.Unary,
     },
     /**
