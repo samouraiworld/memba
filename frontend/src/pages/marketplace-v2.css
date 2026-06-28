@@ -445,6 +445,12 @@
     border-color: var(--color-primary-border);
 }
 
+.cpub-token-card__link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
 .cpub-token-card__media {
     aspect-ratio: 1;
     overflow: hidden;

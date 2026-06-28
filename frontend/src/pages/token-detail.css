@@ -1,0 +1,172 @@
+.tkd {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-2) 0 var(--space-6);
+}
+
+.tkd-back {
+    display: inline-block;
+    margin-bottom: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-dim);
+    text-decoration: none;
+}
+
+.tkd-back:hover {
+    color: var(--color-text);
+}
+
+.tkd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+    align-items: start;
+}
+
+.tkd-art {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 0.5px solid var(--color-border);
+}
+
+.tkd-art img,
+.tkd-art svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.tkd-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.tkd-title {
+    margin: 0;
+    font-size: var(--text-2xl, 22px);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.tkd-owner {
+    margin: var(--space-1) 0 var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-dim);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tkd-you {
+    color: var(--color-k-accent-text, var(--color-primary));
+}
+
+.tkd-price-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--color-border);
+    background: var(--color-surface-1, rgba(255, 255, 255, 0.03));
+    margin-bottom: var(--space-3);
+}
+
+.tkd-price-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-dim);
+}
+
+.tkd-price {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+}
+
+.tkd-bestoffer {
+    font-size: var(--text-xs);
+    color: var(--color-k-accent-text, #5fe3cf);
+    font-family: var(--font-mono);
+}
+
+.tkd-royalty {
+    margin: 0 0 var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--color-text-dim);
+}
+
+.tkd-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.tkd-btn {
+    padding: var(--space-3);
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-k-accent, #2dd4bf);
+    color: var(--color-bg, #06281f);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--transition-fast, 0.15s);
+}
+
+.tkd-btn:hover {
+    opacity: 0.88;
+}
+
+.tkd-btn--accept {
+    background: var(--color-success, #1a7f4b);
+    color: #fff;
+}
+
+.tkd-btn--ghost {
+    background: transparent;
+    border: 0.5px solid var(--color-border-strong, rgba(255, 255, 255, 0.16));
+    color: var(--color-text);
+}
+
+.tkd-meta {
+    margin: 0;
+    border-top: 0.5px solid var(--color-border);
+    padding-top: var(--space-3);
+}
+
+.tkd-meta > div {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-1) 0;
+}
+
+.tkd-meta dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-dim);
+}
+
+.tkd-meta dd {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+
+.tkd-meta dd a {
+    color: var(--color-k-accent-text, var(--color-primary));
+    text-decoration: none;
+}
+
+.tkd-mono {
+    font-family: var(--font-mono);
+}
+
+@media (max-width: 720px) {
+    .tkd-grid {
+        grid-template-columns: 1fr;
+    }
+}
