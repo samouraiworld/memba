@@ -278,6 +278,24 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
+	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The
+	// shutdown checkpoint (below) only fires on graceful stop.
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if _, err := database.Exec("PRAGMA wal_checkpoint(PASSIVE)"); err != nil {
+					slog.Warn("periodic WAL checkpoint failed", "error", err)
+				}
+			}
+		}
+	}()
+
 	go func() {
 		slog.Info("server starting", "port", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -489,14 +507,26 @@ func rateLimitMiddleware(endpoint string, next http.Handler) http.Handler {
 
 // ── Health handler ───────────────────────────────────────────────
 
+// healthPingTimeout bounds the DB Ping in the health handler so it doesn't
+// block indefinitely when the single SQLite writer connection is held by the
+// tailer or a long RPC. Fly's health check timeout is 10s; 2s gives us
+// headroom for file-stat + memory-stat + JSON encode.
+const healthPingTimeout = 2 * time.Second
+
+// walSizeWarnBytes logs a warning when the WAL exceeds this threshold,
+// indicating that periodic checkpointing may not be keeping up.
+const walSizeWarnBytes = 50 * 1024 * 1024 // 50 MB
+
 func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		status := "ok"
 		httpCode := http.StatusOK
 
-		// DB liveness
+		// DB liveness — bounded Ping so health doesn't block on the single writer conn.
 		dbStatus := "ok"
-		if err := database.Ping(); err != nil {
+		pingCtx, cancel := context.WithTimeout(r.Context(), healthPingTimeout)
+		defer cancel()
+		if err := database.PingContext(pingCtx); err != nil {
 			dbStatus = "unreachable"
 			status = "degraded"
 			httpCode = http.StatusServiceUnavailable
@@ -510,6 +540,12 @@ func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
 		}
 		if info, err := os.Stat(cleanPath + "-wal"); err == nil {
 			walSize = info.Size()
+		}
+
+		// WAL size alert — log when WAL grows beyond threshold
+		if walSize > walSizeWarnBytes {
+			slog.Warn("WAL file exceeds threshold — checkpoint may be stalled",
+				"wal_size_mb", walSize/(1024*1024), "threshold_mb", walSizeWarnBytes/(1024*1024))
 		}
 
 		// Memory

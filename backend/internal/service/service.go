@@ -99,7 +99,7 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 			return nil, err
 		}
 		slog.Warn("generated ephemeral keypair — set ED25519_SEED to persist",
-			"seed", hex.EncodeToString(privateKey.Seed()))
+			"pubkey_prefix", hex.EncodeToString(publicKey[:8])+"…")
 	}
 
 	chainID := os.Getenv("GNO_CHAIN_ID")

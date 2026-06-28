@@ -154,7 +154,7 @@ func TestMakeToken_UnboundChallenge_SignedAccepted(t *testing.T) {
 // TestMakeToken_UnboundChallenge_EmptySigRejected: an unbound challenge with NO
 // signature has no ownership proof and must be rejected (regardless of the gate).
 func TestMakeToken_UnboundChallenge_EmptySigRejected(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "") // phase 1 (default allow) — still must reject unbound+unsigned
+	t.Setenv(AllowUnsignedAuthEnv, "") // fail-closed default — still must reject unbound+unsigned
 	serverPub, serverPriv := generateTestKeypair(t)
 	infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, "test12")
 
@@ -176,22 +176,22 @@ func TestMakeToken_UnboundChallenge_InvalidSig_PhaseBoundary(t *testing.T) {
 	serverPub, serverPriv := generateTestKeypair(t)
 	const chainID = "test12"
 
-	t.Run("phase 1 mints (lockout-safe)", func(t *testing.T) {
-		t.Setenv(AllowUnsignedAuthEnv, "") // default allow
+	t.Run("opt-in mints (dev mode)", func(t *testing.T) {
+		t.Setenv(AllowUnsignedAuthEnv, "1") // explicit opt-in
 		infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, chainID)
 		garbage := base64.StdEncoding.EncodeToString([]byte("not a valid secp256k1 signature!"))
 		tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, garbage, chainID)
 		if err != nil || tok == nil {
-			t.Fatalf("phase 1: unbound + invalid sig must mint (lockout-safe), got err=%v", err)
+			t.Fatalf("opt-in: unbound + invalid sig must mint (dev mode), got err=%v", err)
 		}
 	})
 
-	t.Run("phase 2 rejects (impersonation closed)", func(t *testing.T) {
-		t.Setenv(AllowUnsignedAuthEnv, "0") // enforce
+	t.Run("default rejects (fail-closed)", func(t *testing.T) {
+		t.Setenv(AllowUnsignedAuthEnv, "") // fail-closed default
 		infoJSON, _, _, _ := unboundLoginAuthInfo(t, serverPriv, chainID)
 		garbage := base64.StdEncoding.EncodeToString([]byte("not a valid secp256k1 signature!"))
 		if _, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, garbage, chainID); err == nil {
-			t.Fatal("phase 2: unbound + invalid sig must be rejected (impersonation boundary)")
+			t.Fatal("fail-closed default: unbound + invalid sig must be rejected")
 		}
 	})
 }
@@ -256,8 +256,8 @@ func TestMakeToken_TxShapedSignature_RejectedWhenEnforced(t *testing.T) {
 // mismatch) must NOT block login — it is logged and a token is still minted, like the
 // empty-sig case. This prevents the 403 outage where a real-but-non-matching Adena
 // signature hard-failed every login.
-func TestMakeToken_TxShapedSignature_InvalidAllowedInPhase1(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "") // default allow (phase 1)
+func TestMakeToken_TxShapedSignature_InvalidAllowedWhenOptedIn(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "1") // explicit opt-in
 	serverPub, serverPriv := generateTestKeypair(t)
 	const chainID = "test12"
 	infoJSON, priv, addr, challenge := loginAuthInfo(t, serverPriv, chainID)
@@ -265,7 +265,7 @@ func TestMakeToken_TxShapedSignature_InvalidAllowedInPhase1(t *testing.T) {
 
 	tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, sig, chainID)
 	if err != nil {
-		t.Fatalf("phase 1 must accept (log + mint) an invalid signature, got: %v", err)
+		t.Fatalf("opt-in must accept (log + mint) an invalid signature, got: %v", err)
 	}
 	if tok == nil {
 		t.Fatal("expected a token in phase 1")
@@ -303,7 +303,7 @@ func addressOnlyAuthInfo(t *testing.T, serverPriv []byte, chainID string) (strin
 // only path possible since Adena won't sign/reveal a pubkey for it. The minted
 // token validates.
 func TestMakeToken_AddressOnly_AllowedWhenUnsigned(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "") // default-allow
+	t.Setenv(AllowUnsignedAuthEnv, "1") // explicit opt-in (dev/staging posture)
 	serverPub, serverPriv := generateTestKeypair(t)
 	const chainID = "test-13"
 	infoJSON, _ := addressOnlyAuthInfo(t, serverPriv, chainID)

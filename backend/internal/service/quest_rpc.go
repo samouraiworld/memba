@@ -652,11 +652,14 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 	// Now populate the user_ranks cache (cursor is closed, connection is free)
 	for _, u := range users {
 		tier, name := calculateRankTier(u.totalXP)
-		_, _ = s.db.ExecContext(ctx,
+		if _, err := s.db.ExecContext(ctx,
 			`INSERT OR REPLACE INTO user_ranks (address, rank_tier, rank_name, total_xp, quests_completed, updated_at)
 			 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
 			u.addr, tier, name, u.totalXP, u.questsComplete,
-		)
+		); err != nil {
+			slog.Warn("computeLeaderboard: rank cache write failed",
+				"address", u.addr, "error", err)
+		}
 	}
 
 	// Sort by XP desc, with a deterministic tiebreak (quests desc, address asc)
@@ -698,11 +701,14 @@ func (s *MultisigService) computeLeaderboard(ctx context.Context, limit, offset 
 // updateUserRankCache updates the user_ranks cache after a quest completion.
 func (s *MultisigService) updateUserRankCache(ctx context.Context, address string, state *membav1.UserQuestState) {
 	tier, name := calculateRankTier(state.TotalXp)
-	_, _ = s.db.ExecContext(ctx,
+	if _, err := s.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO user_ranks (address, rank_tier, rank_name, total_xp, quests_completed, updated_at)
 		 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
 		address, tier, name, state.TotalXp, len(state.Completed),
-	)
+	); err != nil {
+		slog.Warn("updateUserRankCache: write failed (cache stale until next leaderboard recompute)",
+			"address", address, "error", err)
+	}
 }
 
 // ── GnoBuilders: Quest Claim RPCs ───────────────────────────
@@ -765,11 +771,14 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 // The actual on-chain mint happens when a background worker processes the queue
 // (or an admin triggers it). INSERT OR IGNORE prevents duplicates.
 func (s *MultisigService) queueBadgeMint(ctx context.Context, address, questID string) {
-	_, _ = s.db.ExecContext(ctx,
+	if _, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO badge_mints (address, quest_id, mint_status, created_at)
 		 VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
 		address, questID,
-	)
+	); err != nil {
+		slog.Warn("queueBadgeMint: insert failed",
+			"address", address, "quest_id", questID, "error", err)
+	}
 }
 
 // checkAndQueueRankBadge checks if the user reached a new rank tier and queues a mint.
@@ -791,11 +800,14 @@ func (s *MultisigService) checkAndQueueRankBadge(ctx context.Context, address st
 		return // Already queued or error
 	}
 
-	_, _ = s.db.ExecContext(ctx,
+	if _, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO badge_mints (address, quest_id, mint_status, created_at)
 		 VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
 		address, rankQuestID,
-	)
+	); err != nil {
+		slog.Warn("checkAndQueueRankBadge: insert failed",
+			"address", address, "rank_quest_id", rankQuestID, "error", err)
+	}
 }
 
 // ── Admin: Quest Claim Review ───────────────────────────────
@@ -869,10 +881,12 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 	// If approved, complete the quest for the user
 	if approved {
 		now := time.Now().UTC().Format(time.RFC3339)
-		_, _ = s.db.ExecContext(ctx,
+		if _, err := s.db.ExecContext(ctx,
 			`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, ?)`,
 			claimAddr, questID, now,
-		)
+		); err != nil {
+			return nil, internalError("ReviewQuestClaim.complete", err)
+		}
 
 		// Update rank cache
 		state, err := s.loadUserQuestState(ctx, claimAddr)

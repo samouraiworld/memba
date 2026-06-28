@@ -61,3 +61,11 @@ var NFTEventDropped = promauto.NewCounterVec(
 	},
 	[]string{"event"},
 )
+
+// IndexerLag is the computed lag in blocks (chain_head - last_block). A direct
+// alertable gauge — fire when > 30 for more than 2 minutes. Set in the tailer
+// alongside IndexerLastBlock/IndexerChainHead (Wave 1 hardening).
+var IndexerLag = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "memba_indexer_lag_blocks",
+	Help: "Number of blocks the indexer is behind the chain tip; alert when > 30.",
+})
