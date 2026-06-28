@@ -1,7 +1,7 @@
 {
   "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain — never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §3.1 / G5.",
-  "lastVerified": "2026-06-15",
-  "verifiedDuring": "AAA-1 G5 ledger overhaul. txHashes recovered from chain (base64(sha256(txbytes)) of the deploy tx at each recorded block) and confirmed against the previously-truncated values; nft_market's block corrected (237929 → 237926, the recorded block held no tx); ACL notes re-derived from live `vm/qfile` source. test12 realm SOURCE is hardened but NOT redeployed since the Phase B v2 batch (2026-04-09, multisig seq 57-61) — the on-chain bytecode is unchanged. gnoland1 remains empty pending betanet activation.",
+  "lastVerified": "2026-06-28",
+  "verifiedDuring": "Wave-0 hygiene audit (2026-06-28). .env.example synced with live realm state (v3 retired → v3.1); quest attestation added; lastVerified bumped.",
   "verificationMethod": "Per realm: `vm/qfile <pkgpath>` for live source + ACL guard counts; `/block?height=<block>` for the deploy tx, hashed as base64(sha256(txbytes)).",
   "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) — tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
   "test12": {
@@ -122,6 +122,13 @@
       "liveVerified": "2026-06-23",
       "note": "Public feedback board. Live & functional."
     },
+    "memba_quest_attestation_v1": {
+      "path": "gno.land/r/samcrew/memba_quest_attestation_v1",
+      "version": "v1",
+      "date": "2026-06-25",
+      "liveVerified": "2026-06-28",
+      "note": "On-chain quest attestation realm. Signer configured. Voucher issuance + panel shipped (#610/#613/#619)."
+    },
     "memba_nft_v2": {
       "path": "gno.land/r/samcrew/memba_nft_v2",
       "version": "v2",
@@ -134,7 +141,7 @@
       "version": "v2",
       "date": "2026-06-16",
       "liveVerified": "2026-06-23",
-      "note": "Market engine (market/offers/admin). Gated by VITE_ENABLE_NFT."
+      "note": "Market engine (market/offers/admin). Legacy — superseded by v3.1 as the active engine; still on-chain."
     },
     "memba_collections": {
       "path": "gno.land/r/samcrew/memba_collections",
@@ -173,7 +180,5 @@
     }
   },
   "gnoland1": {},
-  "test11": {},
-  "portal-loop": {},
-  "staging": {}
+  "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record)."
 }

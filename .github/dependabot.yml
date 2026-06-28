@@ -5,10 +5,9 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    # Paused for the v7.1 program (Phase 0 through Phase 6 — re-open in Phase 6
-    # by raising back to 10). See docs/DEPENDENCY_POLICY.md §5 and
-    # docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md §4 (PR0b).
-    open-pull-requests-limit: 0
+    # Re-enabled 2026-06-28 (Wave 0 audit). v7.1 program freeze is over.
+    # Major updates ignored (semver-major); grouped by ecosystem for manageable PRs.
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "frontend"
@@ -39,7 +38,7 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "backend"
@@ -60,7 +59,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "ci"
