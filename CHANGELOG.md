@@ -4,11 +4,29 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased — since v6.3.1 (2026-05-28 → 2026-06-23)
+## Unreleased — since v6.3.1 (2026-05-28 → present)
 
-> Large multi-workstream wave merged to `main` after v6.3.1 (~60 PRs). No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
+> Large multi-workstream wave merged to `main` after v6.3.1. No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
 >
-> ⚠️ **Backlog note:** this log is current through ~#509. The wave from #510 → #585 (Home AAA, validators unification, mobile, §13 light theme, reviews realm, quests) is only partially captured here — it needs a dedicated backfill pass across the owning workstreams.
+> ⚠️ **Backlog note:** the wave from #510 → #585 (Home AAA, validators unification, mobile, §13 light theme, reviews realm, quests) is only partially captured here. A backfill pass is in progress.
+
+### Security Hardening — Wave 1 (#644, 2026-06-28)
+- **Auth fail-closed by default.** `MEMBA_ALLOW_UNSIGNED_AUTH` default inverted from permissive→reject. Unset/missing env var now **rejects** unsigned auth (impersonation closed). Explicit `=1` required for dev mode only. fly.toml env var removed (default is now secure).
+- **Ed25519 seed log redacted.** Ephemeral keypair generation no longer logs the raw seed to stdout — logs an 8-byte public key prefix instead (SEC-13).
+- **Quest claim error observability.** 5 silently-swallowed `_, _ =` DB write errors across `queueBadgeMint`, `updateUserRankCache`, `checkAndQueueRankBadge`, and leaderboard cache now emit `slog.Warn` with address + error context.
+- **ReviewQuestClaim data fix.** Approved quest completion INSERT now returns error to caller instead of silently failing — was a data-loss bug where claim status showed "approved" but XP was never granted.
+- **Health handler resilience.** DB Ping bounded to 2s context timeout — prevents health check blocking under SQLite `MaxOpenConns(1)` when the single writer conn is held by the tailer or a long RPC.
+- **Periodic WAL checkpoint.** `PRAGMA wal_checkpoint(PASSIVE)` every 5 minutes bounds WAL growth during runtime. The existing shutdown TRUNCATE only fires on graceful stop — a crash leaves a large WAL that slows recovery.
+- **WAL size alerting.** Health handler logs `slog.Warn` when WAL exceeds 50MB threshold.
+- **Indexer lag metric.** New `memba_indexer_lag_blocks` Prometheus gauge (chain_head − last_block) for direct alerting. Structured warning emitted when lag exceeds 30 blocks.
+- **Team LeaveTeam fix.** Last-member team cleanup DELETEs now return errors instead of silently failing.
+
+### Workspace Hygiene — Wave 0 (#631, 2026-06-28)
+- **`.env.example` sync.** `VITE_ENABLE_NFT=true` (production reality since #617), `NFT_RPC_URL` → `rpc.testnet13.samourai.live` (our node, avoids public rate limits), `NFT_WATCHED_REALMS` → `v3_1` (drop retired v3). Updated `realm-versions.json` with `memba_quest_attestation_v1`.
+- **CI safety gate fix.** `.github/workflows/ci.yml` safety-check step fixed for clean env (was hard-failing on CI where no `.env` exists).
+- **Dependabot re-enabled.** Weekly checks for npm, gomod, and GitHub Actions dependencies.
+- **`.gitignore` hardened.** Excludes dev artifacts (`*.db`, `*.db-wal`, `*.db-shm`, `coverage/`, `.DS_Store`).
+- **Workspace cleanup.** Pruned 4 stale worktrees, 49 merged local branches, 6 obsolete stashes. Reset Gno repo to `origin/master`.
 
 ### Quests — on-chain XP attestation (live on test13) + hardening + polish (#582/#583/#586/#596/#601/#605/#610/#613/#619, deployer #38/#39/#40, 2026-06-27)
 - **Quest XP is now cryptographically settled on-chain (Q-05), not just a backend DB row — live-verified end-to-end on test13.** The audit's central finding was a fully centralized XP ledger; this adds a verifiable on-chain record without giving the backend a hot key. Model = **offline-signed voucher**: the backend holds an *offline* ed25519 key and signs a voucher `(address, questId, xp, nonce)` on a verified completion; the **user broadcasts** it (`RecordCompletion`) to the new immutable realm `gno.land/r/samcrew/memba_quest_attestation_v1`, which verifies the signature (`crypto/ed25519.Verify`) + rejects reused nonces & separator-injection + bounds XP, then records it. The signature — not the caller — is the authority, so there's no custody blast radius beyond a per-voucher XP cap; the signer is owner-multisig-rotatable. Realm deployed + `SetSigner`'d (2-of-2 multisig); backend signer wired via `MEMBA_ATTESTATION_SEED` (dormant when unset); a QuestHub **"On-chain attestation"** panel surfaces claimable vouchers and broadcasts via Adena. Proven live: a real completion recorded **15 XP on-chain** (signer-verified). Chosen over a hot-key relayer by a cross-perspective panel; the realm and signer paths were each independently security-reviewed before merge. (#582 audit+plan+ADR · deployer#38 realm · deployer#40 `SetSigner` helper · #605 signer · #610 backend issuance + `GetAttestationVouchers` · #613 frontend · #619 also-issue-on-sync so every completion attests.)
