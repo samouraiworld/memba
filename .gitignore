@@ -46,6 +46,11 @@ coverage/
 # Agent
 .agents/
 .claude/
+.remember/
+.superpowers/
 
 # Local Netlify folder
 .netlify
+
+# Development screenshots (moved from workspace root)
+docs/screenshots/
