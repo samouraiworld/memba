@@ -2,12 +2,13 @@
 
 This document tracks items to be addressed before the mainnet release.
 
-## Chain Status (2026-05-11)
+## Chain Status (2026-06-28)
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **testnet12** | ✅ Active | Primary development target. All 9 samcrew realms deployed (Phase B v2 ACL fixes live 2026-04-09, multisig seq 57-61). gnoweb: [gnoweb.test12.moul.p2p.team](https://gnoweb.test12.moul.p2p.team/r/samcrew). |
-| **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5 (`MEMBA_V7_1_IMPLEMENTATION_PLAN.md` §9). |
+| **testnet13** | ✅ Active | Primary development target. All samcrew realms deployed including `memba_quest_attestation_v1`, `memba_nft_market_v3_1`. Memba RPC: `rpc.testnet13.samourai.live`. |
+| **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
+| **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5. |
 | **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |
 
 ## v7.1 progress
@@ -126,6 +127,13 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | Error Message Hardening | v2.22.1 | `friendlyError()` no longer leaks internal paths |
 | Token Fee Display | v2.22.1 | Fixed "5%" label to "2.5%" |
 | Upstream Compatibility Shield | v2.21.0 | Parser V1/V2, GovDAO constants, 63 tests |
+| Auth Fail-Closed Default | post-v6.3.1 | `MEMBA_ALLOW_UNSIGNED_AUTH` default → reject (#644) |
+| Ed25519 Seed Redaction | post-v6.3.1 | Logs pubkey prefix only, never raw seed (#644) |
+| Health/WAL Resilience | post-v6.3.1 | 2s ping timeout, periodic WAL checkpoint, 50MB alert (#644) |
+| Indexer Lag Metric | post-v6.3.1 | `memba_indexer_lag_blocks` Prometheus gauge (#644) |
+| A11y Gate (axe-core) | post-v6.3.1 | WCAG 2.0/2.1 AA E2E on 5 key routes (#646, #647) |
+| NavManifest Completeness | post-v6.3.1 | 5 tests prevent hidden-page drift (#646) |
 
 ---
-*Updated 2026-05-11 during v7.1 Phase 1 stale-doc refresh (PR1.6). gnoland1 status corrected (HALTED → transfer-locked), v7.1 progress section added. Custody section will be added in PR1.3 — placeholder above. Last substantive update was 2026-04-07 during v4.0-beta.*
+*Updated 2026-06-28 during Wave 0-4 security/quality audit session. Chain table corrected (test13 primary, test12 retired). Security hardening items added to completed table. Previous update: 2026-05-11 during v7.1 Phase 1.*
+
