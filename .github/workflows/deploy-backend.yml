@@ -67,7 +67,7 @@ jobs:
       # GHCR image mirror — authoritative rollback source when Fly registry expires.
       # See docs/OPS_RUNBOOK.md §rollback.
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
