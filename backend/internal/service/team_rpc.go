@@ -289,8 +289,12 @@ func (s *MultisigService) LeaveTeam(ctx context.Context, req *connect.Request[me
 				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("last admin cannot leave — transfer admin role first"))
 			}
 			// Last member leaving: delete the whole team
-			_, _ = s.db.ExecContext(ctx, `DELETE FROM team_members WHERE team_id = ?`, teamID)
-			_, _ = s.db.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, teamID)
+			if _, err := s.db.ExecContext(ctx, `DELETE FROM team_members WHERE team_id = ?`, teamID); err != nil {
+				return nil, internalError("LeaveTeam.deleteMembers", err)
+			}
+			if _, err := s.db.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, teamID); err != nil {
+				return nil, internalError("LeaveTeam.deleteTeam", err)
+			}
 			return connect.NewResponse(&membav1.LeaveTeamResponse{}), nil
 		}
 	}
