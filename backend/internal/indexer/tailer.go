@@ -147,6 +147,14 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		return
 	}
 
+	// Compute and export indexer lag for alerting (Wave 1 hardening).
+	lag := latest - cursor
+	metrics.IndexerLag.Set(float64(lag))
+	if lag > 30 {
+		log.Warn("nft tailer: indexer lag exceeds threshold",
+			"lag_blocks", lag, "cursor", cursor, "chain_head", latest)
+	}
+
 	// Reorg detection: if we have a stored hash for the cursor block, re-fetch
 	// the chain's hash for that block and compare. A mismatch means the cursor
 	// block was replaced — roll back and replay from cursor-1.

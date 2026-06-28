@@ -210,21 +210,18 @@ func sessionPubkeysAccepted() bool {
 // A user signature is the ONLY proof of private-key ownership: pubkeys are public
 // on-chain and the challenge binding only proves the challenge was *requested* for
 // a pubkey, so an empty signature lets anyone mint a token for any address
-// (impersonation). Rollout:
-//   - Phase 1 (default / unset / "1" / "true"): empty sigs ACCEPTED but emitted on
-//     the auth_login gate-signal metric, so the signed-login ratio can be observed
-//     before enforcing. Lockout-safe — deploying this does not break current
-//     unsigned clients.
-//   - Phase 2 ("0" / "false"): empty sigs REJECTED. Flip once the observed
-//     signed-login ratio ≈ 100% (24h token TTL means stragglers re-auth within a day).
+// (impersonation). FAIL-CLOSED by default (Wave 1 hardening, 2026-06-28).
+//
+//   - Default / unset / "0" / "false": empty sigs REJECTED (secure posture).
+//   - Explicit opt-in "1" / "true": empty sigs ACCEPTED (dev mode only).
 const AllowUnsignedAuthEnv = "MEMBA_ALLOW_UNSIGNED_AUTH"
 
 func allowUnsignedAuth() bool {
 	switch os.Getenv(AllowUnsignedAuthEnv) {
-	case "0", "false", "FALSE":
-		return false // Phase 2: enforce
+	case "1", "true", "TRUE":
+		return true // Explicit dev opt-in only
 	default:
-		return true // Phase 1: accept + log (default, lockout-safe)
+		return false // Secure default: reject unsigned auth
 	}
 }
 

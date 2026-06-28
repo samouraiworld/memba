@@ -22,8 +22,8 @@ func TestAllowUnsignedAuth_EnvLogic(t *testing.T) {
 		env  string
 		want bool
 	}{
-		{"", true}, {"1", true}, {"true", true}, {"whatever", true}, // Phase 1 (default allow)
-		{"0", false}, {"false", false}, {"FALSE", false}, // Phase 2 (enforce)
+		{"1", true}, {"true", true}, {"TRUE", true},                  // Explicit dev opt-in
+		{"", false}, {"0", false}, {"false", false}, {"whatever", false}, // Secure default (fail-closed)
 	}
 	for _, c := range cases {
 		t.Setenv(AllowUnsignedAuthEnv, c.env)
@@ -60,31 +60,30 @@ func buildEmptySigAuthInfo(t *testing.T, serverPriv ed25519.PrivateKey, chainID 
 	return string(b)
 }
 
-// Phase 1 default (lockout-safe): an empty signature is still accepted so current
-// unsigned clients are not locked out — but the auth_login gate signal records it.
-func TestMakeToken_EmptySig_AllowedByDefault(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "") // unset → default allow
+// Explicit opt-in: an empty signature is accepted when the env flag is "1".
+func TestMakeToken_EmptySig_AllowedWhenOptedIn(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "1") // explicit dev opt-in
 	serverPub, serverPriv := generateTestKeypair(t)
 	infoJSON := buildEmptySigAuthInfo(t, serverPriv, "test12")
 
 	tok, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, "", "test12")
 	if err != nil {
-		t.Fatalf("Phase 1 default must mint a token for an empty sig, got: %v", err)
+		t.Fatalf("explicit opt-in must mint a token for an empty sig, got: %v", err)
 	}
 	if tok == nil {
 		t.Fatal("expected a token")
 	}
 }
 
-// Phase 2 (enforce): the same empty-signature request must be rejected.
-func TestMakeToken_EmptySig_RejectedWhenEnforced(t *testing.T) {
-	t.Setenv(AllowUnsignedAuthEnv, "0") // enforce
+// Default (fail-closed): the same empty-signature request must be rejected.
+func TestMakeToken_EmptySig_RejectedByDefault(t *testing.T) {
+	t.Setenv(AllowUnsignedAuthEnv, "") // unset → fail-closed default
 	serverPub, serverPriv := generateTestKeypair(t)
 	infoJSON := buildEmptySigAuthInfo(t, serverPriv, "test12")
 
 	_, err := MakeToken(serverPriv, serverPub, time.Hour, infoJSON, "", "test12")
 	if err == nil {
-		t.Fatal("enforcement on: empty signature must be rejected (impersonation guard)")
+		t.Fatal("fail-closed default: empty signature must be rejected (impersonation guard)")
 	}
 	if !strings.Contains(err.Error(), "user signature is required") {
 		t.Fatalf("expected 'user signature is required', got: %v", err)
