@@ -25,9 +25,15 @@ const FAIL_IMPACTS = new Set(['critical', 'serious'])
 
 for (const route of ROUTES) {
     test(`a11y: ${route.name} (${route.path}) has no critical/serious violations`, async ({ page }) => {
-        await page.goto(route.path)
-        // Wait for the page to settle (lazy loads, skeleton screens, etc.)
+        await page.goto(route.path, { waitUntil: 'domcontentloaded' })
+
+        // SPA redirects (e.g. / → /gnoland1 → home) can trigger after initial
+        // load. Wait for the URL to stabilize and main content to render.
         await page.waitForLoadState('networkidle')
+        // Give React a tick to finish any redirects/lazy-loads
+        await page.waitForTimeout(1000)
+        // Wait for the app shell to be present (post-redirect)
+        await page.waitForSelector('[data-testid="app-shell"], #root > *', { timeout: 10_000 })
 
         const results = await new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
