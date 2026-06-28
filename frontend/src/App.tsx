@@ -88,6 +88,7 @@ const GnoloveMilestone = lazy(() => import("./pages/gnolove/GnoloveMilestone"))
 // ── NFT section (lazy — v3.0 gallery → v3.1 launchpad → Phase 2 marketplace) ──
 const MarketplaceHub = lazy(() => import("./pages/MarketplaceHub").then(m => ({ default: m.MarketplaceHub })))
 const CollectionPublic = lazy(() => import("./pages/CollectionPublic").then(m => ({ default: m.CollectionPublic })))
+const TokenDetail = lazy(() => import("./pages/TokenDetail").then(m => ({ default: m.TokenDetail })))
 const LegacyCollectionView = lazy(() => import("./pages/LegacyCollectionView").then(m => ({ default: m.LegacyCollectionView })))
 const CreateCollectionLaunchpad = lazy(() => import("./pages/CreateCollectionLaunchpad"))
 const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
@@ -230,6 +231,7 @@ function App() {
           {/* Collection public page: detail / mint / activity. NftGate preserves the
               #472 route-level VITE_ENABLE_NFT enforcement on top of page self-gating. */}
           <Route path="nft/collection/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><CollectionPublic /></Suspense></NftGate>} />
+          <Route path="nft/token/:creator/:slug/:tokenId" element={<NftGate><Suspense fallback={<PageLoader />}><TokenDetail /></Suspense></NftGate>} />
           {/* Creator profiles — must be before nft/:realmPath catch-all */}
           <Route path="nft/creator/:address" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
           <Route path="nft/creator" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />

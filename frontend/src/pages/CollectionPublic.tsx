@@ -237,37 +237,42 @@ function CollectionPublicContent() {
 
                                 return (
                                     <div key={token.tokenId} className="cpub-token-card">
-                                        <div className="cpub-token-card__media">
-                                            <NFTMedia
-                                                uri={token.uri}
-                                                alt={`Token #${token.tokenId}`}
-                                                seed={`${id}/${token.tokenId}`}
-                                                className="cpub-token-card__img"
-                                            />
-                                        </div>
-                                        <div className="cpub-token-card__body">
-                                            <span className="cpub-token-card__id">
-                                                #{token.tokenId}
-                                            </span>
-                                            {isListed ? (
-                                                <span className="cpub-token-card__price">
-                                                    {formatGnotCompact(listing!.priceUgnot)}
+                                        <Link
+                                            className="cpub-token-card__link"
+                                            to={np(`nft/token/${id}/${token.tokenId}`)}
+                                        >
+                                            <div className="cpub-token-card__media">
+                                                <NFTMedia
+                                                    uri={token.uri}
+                                                    alt={`Token #${token.tokenId}`}
+                                                    seed={`${id}/${token.tokenId}`}
+                                                    className="cpub-token-card__img"
+                                                />
+                                            </div>
+                                            <div className="cpub-token-card__body">
+                                                <span className="cpub-token-card__id">
+                                                    #{token.tokenId}
                                                 </span>
-                                            ) : (
-                                                <span className="cpub-token-card__unlisted">
-                                                    Not listed
-                                                </span>
-                                            )}
-                                            {best && (
-                                                <span
-                                                    className="cpub-token-card__best-offer"
-                                                    title="Highest standing offer on this token"
-                                                >
-                                                    Offer {formatGnotCompact(best.amountUgnot)}
-                                                    {myOffer && best.buyer === me ? " · yours" : ""}
-                                                </span>
-                                            )}
-                                        </div>
+                                                {isListed ? (
+                                                    <span className="cpub-token-card__price">
+                                                        {formatGnotCompact(listing!.priceUgnot)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="cpub-token-card__unlisted">
+                                                        Not listed
+                                                    </span>
+                                                )}
+                                                {best && (
+                                                    <span
+                                                        className="cpub-token-card__best-offer"
+                                                        title="Highest standing offer on this token"
+                                                    >
+                                                        Offer {formatGnotCompact(best.amountUgnot)}
+                                                        {myOffer && best.buyer === me ? " · yours" : ""}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </Link>
                                         <div className="cpub-token-card__actions">
                                             {me === "" ? (
                                                 <span className="cpub-wallet-hint">
