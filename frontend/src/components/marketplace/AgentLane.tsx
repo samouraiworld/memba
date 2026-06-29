@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { fetchAgents, type AgentListing } from "../../lib/agentRegistry"
+import { nftFallbackUri } from "../../lib/nftFallbackArt"
 
 export default function AgentLane() {
     const [agents, setAgents] = useState<AgentListing[]>([])
@@ -32,6 +33,12 @@ export default function AgentLane() {
             <div className="um-grid">
                 {agents.map(agent => (
                     <div key={agent.id} className="k-card" style={{ display: "flex", flexDirection: "column", padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
+                        <div style={{ width: "100%", height: "140px", position: "relative", backgroundColor: "var(--color-bg-tertiary)", overflow: "hidden" }}>
+                            <img src={nftFallbackUri(agent.id)} alt={agent.name} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }} />
+                            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "48px", background: "linear-gradient(to top, var(--color-bg-primary), transparent)" }}>
+                                🤖
+                            </div>
+                        </div>
                         <div style={{ padding: "24px", flex: 1, display: "flex", flexDirection: "column" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
                                 <div>
