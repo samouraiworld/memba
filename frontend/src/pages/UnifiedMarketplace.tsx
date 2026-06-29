@@ -1,6 +1,5 @@
 import { Suspense, lazy } from "react"
-import { Routes, Route, Navigate, NavLink, Link, useLocation, useSearchParams } from "react-router-dom"
-import { useNetworkPath } from "../hooks/useNetworkNav"
+import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 
 // Lazy-load the lane components so the shell stays light
@@ -11,7 +10,6 @@ const AgentLane = lazy(() => import("../components/marketplace/AgentLane"))
 import "./unified-marketplace.css"
 
 export default function UnifiedMarketplace() {
-    const np = useNetworkPath()
     const { pathname } = useLocation()
     const [searchParams, setSearchParams] = useSearchParams()
 
@@ -35,24 +33,7 @@ export default function UnifiedMarketplace() {
                             : "Discover, buy, and sell verified digital collectibles and art."}
                     </p>
                     
-                    {/* Primary call to action per lane */}
-                    <div className="um-hero-actions">
-                        {!isServices && !isAgents && (
-                            <Link to={np("nft/create")} className="k-btn-primary">
-                                Sell an Asset
-                            </Link>
-                        )}
-                        {isServices && (
-                            <button className="k-btn-primary" onClick={() => alert("Service creation coming soon.")}>
-                                Offer a Service
-                            </button>
-                        )}
-                        {isAgents && (
-                            <button className="k-btn-primary" onClick={() => alert("Agent deployment coming soon.")}>
-                                Deploy an Agent
-                            </button>
-                        )}
-                    </div>
+                    {/* Actions moved to profile/asset pages for cleaner discovery UX */}
                 </div>
             </header>
 

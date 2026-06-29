@@ -3,6 +3,7 @@ import { useAdena } from "../../hooks/useAdena"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { buildCreateContractMsg } from "../../lib/marketplace/builders"
 import type { AminoMsg } from "../../lib/grc20"
+import { nftFallbackUri } from "../../lib/nftFallbackArt"
 
 // Mock services for MVP
 const MOCK_SERVICES = [
@@ -87,8 +88,11 @@ export default function ServiceLane() {
             <div className="um-grid">
                 {MOCK_SERVICES.map(svc => (
                     <div key={svc.id} className="k-card" style={{ display: "flex", flexDirection: "column", padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-                        <div style={{ width: "100%", height: "140px", backgroundColor: "var(--color-bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "64px" }}>
-                            {svc.image}
+                        <div style={{ width: "100%", height: "140px", position: "relative", backgroundColor: "var(--color-bg-tertiary)", overflow: "hidden" }}>
+                            <img src={nftFallbackUri(svc.id)} alt={svc.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "64px", background: "rgba(0,0,0,0.4)" }}>
+                                {svc.image}
+                            </div>
                         </div>
                         <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
