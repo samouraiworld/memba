@@ -1,6 +1,6 @@
 module github.com/samouraiworld/memba/backend
 
-go 1.24.0
+go 1.25.9
 
 require (
 	connectrpc.com/connect v1.20.0
