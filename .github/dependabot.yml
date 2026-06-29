@@ -12,6 +12,10 @@ updates:
       - "dependencies"
       - "frontend"
     groups:
+      remotion:
+        patterns:
+          - "remotion"
+          - "@remotion/*"
       tanstack:
         patterns:
           - "@tanstack/*"
@@ -21,6 +25,12 @@ updates:
       clerk:
         patterns:
           - "@clerk/*"
+      connectrpc:
+        patterns:
+          - "@connectrpc/*"
+      bufbuild:
+        patterns:
+          - "@bufbuild/*"
       eslint:
         patterns:
           - "eslint"
@@ -63,3 +73,7 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
