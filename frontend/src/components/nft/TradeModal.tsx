@@ -253,7 +253,7 @@ export function TradeModal({
             
             msgs = msgs.concat(acceptMsgs)
 
-            await doContractBroadcast(msgs as any[], `Accept offer on ${collectionID}/${tokenId}`)
+            await doContractBroadcast(msgs as unknown as AminoMsg[], `Accept offer on ${collectionID}/${tokenId}`)
             if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return

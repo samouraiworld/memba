@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react"
-import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { fetchAgents, type AgentListing } from "../../lib/agentRegistry"
 
 export default function AgentLane() {
-    const np = useNetworkPath()
     const [agents, setAgents] = useState<AgentListing[]>([])
     const [loading, setLoading] = useState(true)
 
