@@ -341,3 +341,72 @@ export function buildApproveMsg(
         },
     }
 }
+
+// ── Phase 10: NFT Floor Offers (v3.2 Engine) ─────────────────
+// Engine Path: gno.land/r/samcrew/memba_nft_offers_v1
+
+/**
+ * Build MsgCall for MakeFloorOffer(collectionID, durationBlks)
+ * Sends escrow `ugnot`.
+ */
+export function buildMakeFloorOfferMsg(
+    caller: string,
+    offersRealmPath: string,
+    collectionID: string,
+    offerUgnot: number,
+    durationBlks: number,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: `${offerUgnot}ugnot`,
+            pkg_path: offersRealmPath,
+            func: "MakeFloorOffer",
+            args: [collectionID, String(durationBlks)],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for CancelFloorOffer(collectionID)
+ */
+export function buildCancelFloorOfferMsg(
+    caller: string,
+    offersRealmPath: string,
+    collectionID: string,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: offersRealmPath,
+            func: "CancelFloorOffer",
+            args: [collectionID],
+        },
+    }
+}
+
+/**
+ * Build MsgCall for AcceptFloorOffer(collectionID, tid, buyer)
+ * The caller (seller) accepts an open floor offer from `buyer` and supplies their `tokenId`.
+ */
+export function buildAcceptFloorOfferMsg(
+    caller: string,
+    offersRealmPath: string,
+    collectionID: string,
+    tokenId: string,
+    buyerAddr: string,
+): AminoMsg {
+    return {
+        type: "vm/MsgCall",
+        value: {
+            caller,
+            send: "",
+            pkg_path: offersRealmPath,
+            func: "AcceptFloorOffer",
+            args: [collectionID, tokenId, buyerAddr],
+        },
+    }
+}

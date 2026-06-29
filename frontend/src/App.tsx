@@ -18,21 +18,22 @@ import { MultisigView } from "./pages/MultisigView"
 import { ProposeTransaction } from "./pages/ProposeTransaction"
 import { TransactionView } from "./pages/TransactionView"
 
+// ── Critical Synchronous Pages (Optimized Loading) ──
+import { ProfilePage } from "./pages/ProfilePage"
+import UnifiedMarketplace from "./pages/UnifiedMarketplace"
+import { DAOList } from "./pages/DAOList"
+import { TokenDashboard } from "./pages/TokenDashboard"
+
 // ── Home — the Control Room landing (lazy so it stays out of the main entry chunk) ──
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })))
 
 // ── Token pages (lazy — loaded on /tokens or /create-token) ──
 const CreateToken = lazy(() => import("./pages/CreateToken").then(m => ({ default: m.CreateToken })))
-const TokenDashboard = lazy(() => import("./pages/TokenDashboard").then(m => ({ default: m.TokenDashboard })))
 const TokenView = lazy(() => import("./pages/TokenView").then(m => ({ default: m.TokenView })))
 
 // ── DAO pages (lazy — loaded on /dao/*) ──
-const DAOList = lazy(() => import("./pages/DAOList").then(m => ({ default: m.DAOList })))
 const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
 import { DAORouter } from "./components/dao/DAORouter"
-
-// ── Profile page (lazy) ──
-const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
 
 // ── GitHub OAuth callback (lazy) ──
 const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ default: m.GithubCallback })))
@@ -93,9 +94,6 @@ const CreateCollectionLaunchpad = lazy(() => import("./pages/CreateCollectionLau
 const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
 const StudioHome = lazy(() => import("./pages/studio/StudioHome").then(m => ({ default: m.StudioHome })))
 const StudioManage = lazy(() => import("./pages/studio/StudioManage").then(m => ({ default: m.StudioManage })))
-
-// ── AI Agent Marketplace & Unified Commerce Hub (v3.0) ──
-const UnifiedMarketplace = lazy(() => import("./pages/UnifiedMarketplace"))
 
 // ── Candidature page (lazy — v2.28) ──
 const CandidaturePage = lazy(() => import("./pages/CandidaturePage"))

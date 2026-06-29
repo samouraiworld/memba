@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -12,6 +12,7 @@ import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection, AdminPanelLink } from "../components/profile"
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
+import { ProfileAssets } from "../components/profile/ProfileAssets"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
 import { QuestProgress } from "../components/ui/QuestProgress"
 import { AchievementGrid } from "../components/quests/AchievementGrid"
@@ -28,6 +29,9 @@ export function ProfilePage() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
     const { adena, auth, isLoggingIn } = useOutletContext<LayoutContext>()
+    const [searchParams, setSearchParams] = useSearchParams()
+
+    const activeTab = searchParams.get("tab") || "identity"
 
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
@@ -267,192 +271,177 @@ export function ProfilePage() {
                 </div>
             )}
 
-            {/* ── Social Links ─────────────────────────────────────── */}
-            {hasSocials(profile) && (
-                <div className="profile-socials-row">
-                    {profile?.socialLinks.github && (
-                        <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="var(--color-surface-light)" />} label="GitHub" />
-                    )}
-                    {profile?.socialLinks.twitter && (
-                        <SocialLink href={`https://x.com/${profile.socialLinks.twitter}`} icon="𝕏" label="Twitter/X" />
-                    )}
-                    {profile?.socialLinks.website && (
-                        <SocialLink href={profile.socialLinks.website} icon="🌐" label="Website" />
-                    )}
-                    {profile?.username && (
-                        <SocialLink href={profile.userRealmUrl} icon="⛓" label="gno.land" />
-                    )}
-                </div>
+            {/* ── Profile Tabs ──────────────────────────────────────── */}
+            <div className="profile-tabs-nav">
+                <button className={`profile-tab-btn ${activeTab === "identity" ? "active" : ""}`} onClick={() => setSearchParams({ tab: "identity" })}>👤 Identity</button>
+                <button className={`profile-tab-btn ${activeTab === "daos" ? "active" : ""}`} onClick={() => setSearchParams({ tab: "daos" })}>🏛️ DAOs</button>
+                <button className={`profile-tab-btn ${activeTab === "assets" ? "active" : ""}`} onClick={() => setSearchParams({ tab: "assets" })}>💰 Assets</button>
+            </div>
+
+            {/* ── Assets Tab ─────────────────────────────────────── */}
+            {activeTab === "assets" && address && (
+                <ProfileAssets address={address} />
             )}
 
-            {/* ── DAO Memberships ─────────────────────────────────── */}
-            {address && <DAOMembershipsCard address={address} isOwnProfile={isOwnProfile} />}
-
-            {/* ── Quest Progress ──────────────────────────────────── */}
-            {address && (
-                <div className="k-card profile-quest-card">
-                    <QuestProgress address={isOwnProfile ? undefined : address} />
-                </div>
+            {/* ── DAOs Tab ─────────────────────────────────────── */}
+            {activeTab === "daos" && address && (
+                <DAOMembershipsCard address={address} isOwnProfile={isOwnProfile} />
             )}
 
-            {/* ── Community reviews ───────────────────────────────── */}
-            {isReviewsEnabled() && address && (
-                <ReviewsSection subject={address} />
-            )}
-
-            {/* ── Achievement Badges (gated until badges are minted) ── */}
-            {address && import.meta.env.VITE_ENABLE_BADGES === "true" && (
-                <div className="k-card profile-quest-card">
-                    <AchievementGrid address={address} />
-                </div>
-            )}
-
-            {/* ── Link GitHub CTA (own profile, no GitHub linked) ──── */}
-            {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (
-                <div className="k-card profile-github-cta">
-                    <div className="profile-github-cta-row">
-                        <div className="profile-github-icon-box">
-                            <GitHubIcon size={22} color="var(--color-accent-blue-link)" />
-                        </div>
-                        <div className="profile-github-cta-text">
-                            <h4 className="profile-github-cta-title">
-                                Link your GitHub account
-                            </h4>
-                            <p className="profile-github-cta-desc">
-                                Link your GitHub to verify your on-chain identity and show your contribution stats, avatar, and deployed packages.
-                            </p>
-                        </div>
-                        <button
-                            onClick={async () => {
-                                // Save address for OAuth return redirect (F3)
-                                if (adena.address) sessionStorage.setItem("returnToProfile", adena.address)
-                                try {
-                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`)
-                                    const data = await res.json()
-                                    const state = data.state || ""
-                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
-                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${state}`
-                                } catch {
-                                    // Fallback: redirect without state (will fail validation, but won't crash)
-                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
-                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user`
-                                }
-                            }}
-                            className="profile-github-link-btn"
-                        >
-                            <GitHubIcon size={12} color="var(--color-accent-blue-link)" /> Link GitHub →
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Unlink GitHub (own profile, GitHub already linked) ── */}
-            {isOwnProfile && profile && (profile.socialLinks.github || profile.githubLogin) && auth.isAuthenticated && (
-                <button
-                    onClick={async () => {
-                        try {
-                            if (!auth.token) return
-                            await updateBackendProfile(auth.token, { github: "" })
-                            loadProfile()
-                        } catch { /* silent */ }
-                    }}
-                    className="profile-unlink-btn"
-                >
-                    Unlink GitHub
-                </button>
-            )}
-
-            {/* ── Gnolove Contribution Stats ───────────────────────── */}
-            {profile && profile.lovePowerScore > 0 && (
-                <div className="k-card profile-contrib-card">
-                    <div className="profile-contrib-header">
-                        <h3 className="profile-contrib-title">
-                            ❤️ Gno Contributions
-                        </h3>
-                        <a href="/gnolove" className="profile-contrib-link">
-                            View full analytics →
-                        </a>
-                    </div>
-
-                    <div className="profile-contrib-grid">
-                        <ContribStat label="Love Power" value={String(profile.lovePowerScore)} icon="💜" accent />
-                        <ContribStat label="Commits" value={String(profile.totalCommits)} icon="📝" />
-                        <ContribStat label="Pull Requests" value={String(profile.totalPRs)} icon="🔀" />
-                        <ContribStat label="Issues" value={String(profile.totalIssues)} icon="🐛" />
-                        <ContribStat label="Reviews" value={String(profile.totalReviews)} icon="👁" />
-                    </div>
-
-                    {/* Score formula note */}
-                    <div className="profile-score-formula">
-                        Score = commits×10 + PRs×2 + issues×0.5 + reviews×2
-                    </div>
-                </div>
-            )}
-
-            {/* ── Deployed Packages/Realms ──────────────────────────── */}
-            {profile && profile.deployedPackages.length > 0 && (
-                <div className="k-card profile-packages-card">
-                    <h3 className="profile-section-title">
-                        📦 Deployed Packages ({profile.deployedPackages.length})
-                    </h3>
-                    <div className="profile-packages-list">
-                        {profile.deployedPackages.slice(0, 20).map((pkg) => (
-                            <a
-                                key={pkg.path}
-                                href={`${explorerUrl}/${pkg.path}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="k-card profile-package-item"
-                            >
-                                <span className="profile-package-path">
-                                    {pkg.path}
-                                </span>
-                                <span className="profile-package-block">
-                                    Block #{pkg.blockHeight}
-                                </span>
-                            </a>
-                        ))}
-                        {profile.deployedPackages.length > 20 && (
-                            <div className="profile-packages-more">
-                                +{profile.deployedPackages.length - 20} more
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* ── Governance Votes / My Votes ────────────────────────── */}
-            {profile && isOwnProfile && <MyVotesSection address={address || ""} gnoloveVotes={profile.governanceVotes} />}
-            {profile && !isOwnProfile && profile.governanceVotes.length > 0 && (
-                <div className="k-card profile-votes-card">
-                    <h3 className="profile-section-title">
-                        🗳️ Governance Votes ({profile.governanceVotes.length})
-                    </h3>
-                    <div className="profile-votes-list">
-                        {profile.governanceVotes.slice(0, 20).map((v, i) => {
-                            const voteColor = v.vote === "YES" ? "var(--color-success)" : v.vote === "NO" ? "var(--color-status-error-alt)" : "var(--color-text-secondary)"
-                            return (
-                                <div key={i} className="k-card profile-vote-item">
-                                    <div>
-                                        <span className="profile-vote-id">
-                                            Prop #{v.proposalId}
-                                        </span>
-                                        <span className="profile-vote-title">
-                                            {v.proposalTitle}
-                                        </span>
-                                    </div>
-                                    <span
-                                        className="profile-vote-badge"
-                                        style={{ background: `${voteColor}15`, color: voteColor }}
-                                    >
-                                        {v.vote}
-                                    </span>
+            {/* ── Identity Tab ─────────────────────────────────────── */}
+            {activeTab === "identity" && (
+                <div className="profile-identity-tab-content">
+                    <div className="profile-identity-grid">
+                        {/* ── Left Column ── */}
+                        <div className="profile-identity-col">
+                            {/* Social Links */}
+                            {hasSocials(profile) && (
+                                <div className="profile-socials-row">
+                                    {profile?.socialLinks.github && (
+                                        <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="var(--color-surface-light)" />} label="GitHub" />
+                                    )}
+                                    {profile?.socialLinks.twitter && (
+                                        <SocialLink href={`https://x.com/${profile.socialLinks.twitter}`} icon="𝕏" label="Twitter/X" />
+                                    )}
+                                    {profile?.socialLinks.website && (
+                                        <SocialLink href={profile.socialLinks.website} icon="🌐" label="Website" />
+                                    )}
+                                    {profile?.username && (
+                                        <SocialLink href={profile.userRealmUrl} icon="⛓" label="gno.land" />
+                                    )}
                                 </div>
-                            )
-                        })}
+                            )}
+
+                            {/* Quest Progress */}
+                            {address && (
+                                <div className="k-card profile-quest-card">
+                                    <QuestProgress address={isOwnProfile ? undefined : address} />
+                                </div>
+                            )}
+
+                            {/* Link GitHub CTA */}
+                            {isOwnProfile && profile && !profile.githubLogin && !profile.socialLinks.github && (
+                                <div className="k-card profile-github-cta">
+                                    <div className="profile-github-cta-row">
+                                        <div className="profile-github-icon-box">
+                                            <GitHubIcon size={22} color="var(--color-accent-blue-link)" />
+                                        </div>
+                                        <div className="profile-github-cta-text">
+                                            <h4 className="profile-github-cta-title">Link your GitHub account</h4>
+                                            <p className="profile-github-cta-desc">Verify your identity and show your stats.</p>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                if (adena.address) sessionStorage.setItem("returnToProfile", adena.address)
+                                                try {
+                                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`)
+                                                    const data = await res.json()
+                                                    const state = data.state || ""
+                                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
+                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${state}`
+                                                } catch {
+                                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
+                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user`
+                                                }
+                                            }}
+                                            className="profile-github-link-btn"
+                                        >
+                                            <GitHubIcon size={12} color="var(--color-accent-blue-link)" /> Link GitHub →
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Unlink GitHub */}
+                            {isOwnProfile && profile && (profile.socialLinks.github || profile.githubLogin) && auth.isAuthenticated && (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            if (!auth.token) return
+                                            await updateBackendProfile(auth.token, { github: "" })
+                                            loadProfile()
+                                        } catch { /* silent */ }
+                                    }}
+                                    className="profile-unlink-btn"
+                                >
+                                    Unlink GitHub
+                                </button>
+                            )}
+
+                            {/* Community reviews */}
+                            {isReviewsEnabled() && address && (
+                                <ReviewsSection subject={address} />
+                            )}
+                        </div>
+
+                        {/* ── Right Column ── */}
+                        <div className="profile-identity-col">
+                            {/* Gnolove Contribution Stats */}
+                            {profile && profile.lovePowerScore > 0 && (
+                                <div className="k-card profile-contrib-card">
+                                    <div className="profile-contrib-header">
+                                        <h3 className="profile-contrib-title">❤️ Gno Contributions</h3>
+                                        <a href="/gnolove" className="profile-contrib-link">View analytics →</a>
+                                    </div>
+                                    <div className="profile-contrib-grid">
+                                        <ContribStat label="Love Power" value={String(profile.lovePowerScore)} icon="💜" accent />
+                                        <ContribStat label="Commits" value={String(profile.totalCommits)} icon="📝" />
+                                        <ContribStat label="Pull Requests" value={String(profile.totalPRs)} icon="🔀" />
+                                        <ContribStat label="Issues" value={String(profile.totalIssues)} icon="🐛" />
+                                        <ContribStat label="Reviews" value={String(profile.totalReviews)} icon="👁" />
+                                    </div>
+                                    <div className="profile-score-formula">Score = commits×10 + PRs×2 + issues×0.5 + reviews×2</div>
+                                </div>
+                            )}
+
+                            {/* Achievement Badges */}
+                            {address && import.meta.env.VITE_ENABLE_BADGES === "true" && (
+                                <div className="k-card profile-quest-card">
+                                    <AchievementGrid address={address} />
+                                </div>
+                            )}
+
+                            {/* Deployed Packages */}
+                            {profile && profile.deployedPackages.length > 0 && (
+                                <div className="k-card profile-packages-card">
+                                    <h3 className="profile-section-title">📦 Deployed Packages ({profile.deployedPackages.length})</h3>
+                                    <div className="profile-packages-list">
+                                        {profile.deployedPackages.slice(0, 20).map((pkg) => (
+                                            <a key={pkg.path} href={`${explorerUrl}/${pkg.path}`} target="_blank" rel="noopener noreferrer" className="k-card profile-package-item">
+                                                <span className="profile-package-path">{pkg.path}</span>
+                                                <span className="profile-package-block">Block #{pkg.blockHeight}</span>
+                                            </a>
+                                        ))}
+                                        {profile.deployedPackages.length > 20 && (
+                                            <div className="profile-packages-more">+{profile.deployedPackages.length - 20} more</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Governance Votes */}
+                            {profile && isOwnProfile && <MyVotesSection address={address || ""} gnoloveVotes={profile.governanceVotes} />}
+                            {profile && !isOwnProfile && profile.governanceVotes.length > 0 && (
+                                <div className="k-card profile-votes-card">
+                                    <h3 className="profile-section-title">🗳️ Governance Votes ({profile.governanceVotes.length})</h3>
+                                    <div className="profile-votes-list">
+                                        {profile.governanceVotes.slice(0, 20).map((v, i) => {
+                                            const voteColor = v.vote === "YES" ? "var(--color-success)" : v.vote === "NO" ? "var(--color-status-error-alt)" : "var(--color-text-secondary)"
+                                            return (
+                                                <div key={i} className="k-card profile-vote-item">
+                                                    <div>
+                                                        <span className="profile-vote-id">Prop #{v.proposalId}</span>
+                                                        <span className="profile-vote-title">{v.proposalTitle}</span>
+                                                    </div>
+                                                    <span className="profile-vote-badge" style={{ background: `${voteColor}15`, color: voteColor }}>{v.vote}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
 
             {/* ── Empty State ───────────────────────────────────────── */}
             {profile && !profile.username && !profile.githubLogin && profile.deployedPackages.length === 0 && profile.governanceVotes.length === 0 && (
@@ -465,6 +454,8 @@ export function ProfilePage() {
                         This address has no registered username, GitHub activity, or on-chain deployments.
                     </p>
                 </div>
+            )}
+            </div>
             )}
 
             <ErrorToast message={error} onDismiss={() => setError(null)} />

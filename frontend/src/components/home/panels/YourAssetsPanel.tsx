@@ -32,9 +32,9 @@ export function YourAssetsPanel() {
             <div className="your-worlds-board">
                 {hasUgnot ? (
                     <a 
-                        href={np("market/nfts")}
+                        href={np(`profile/${adena.address}?tab=assets`)}
                         className="k-card" 
-                        style={{ display: "flex", alignItems: "center", gap: "16px", textDecoration: "none", color: "inherit", padding: "16px" }}
+                        style={{ display: "flex", alignItems: "center", gap: "16px", textDecoration: "none", color: "inherit", padding: "16px", transition: "transform 0.2s ease, border-color 0.2s ease" }}
                     >
                         <div style={{ width: "48px", height: "48px", borderRadius: "8px", background: "var(--color-bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }}>
                             💰
@@ -45,7 +45,7 @@ export function YourAssetsPanel() {
                         </div>
                         <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-primary)" }}>
-                                {formatGnotCompact(rawUgnot)} GNOT
+                                {formatGnotCompact(rawUgnot)}
                             </div>
                         </div>
                     </a>
@@ -63,7 +63,7 @@ export function YourAssetsPanel() {
                     variant="invitation"
                     state="empty"
                     eyebrow="no digital assets"
-                    invitation={{ label: "Explore NFTs", href: np("market/nfts") }}
+                    invitation={{ label: "View Portfolio", href: np(`profile/${adena.address}?tab=assets`) }}
                 />
             </div>
         </div>

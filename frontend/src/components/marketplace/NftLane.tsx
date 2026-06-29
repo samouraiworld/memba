@@ -110,16 +110,20 @@ export default function NftLane() {
                             className="k-card"
                             style={{
                                 display: "flex", flexDirection: "column", padding: 0, overflow: "hidden",
-                                textDecoration: "none", transition: "transform 0.2s, box-shadow 0.2s",
-                                border: "1px solid var(--color-border)"
+                                textDecoration: "none", transition: "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s",
+                                border: "1px solid rgba(255, 255, 255, 0.05)",
+                                borderRadius: "16px",
+                                background: "var(--color-bg-secondary)"
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = "translateY(-4px)"
-                                e.currentTarget.style.boxShadow = "0 12px 24px rgba(0,0,0,0.2)"
+                                e.currentTarget.style.transform = "translateY(-6px)"
+                                e.currentTarget.style.boxShadow = "0 20px 40px rgba(0,0,0,0.4)"
+                                e.currentTarget.style.borderColor = "var(--color-primary)"
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = "translateY(0)"
                                 e.currentTarget.style.boxShadow = "none"
+                                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)"
                             }}
                         >
                             {/* Full-bleed banner */}
