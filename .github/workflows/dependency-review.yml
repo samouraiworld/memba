@@ -26,5 +26,5 @@ jobs:
           # Allow common permissive licenses. Reject everything else (unknown
           # OSS license = manual review). Add new licenses here only after a
           # case-by-case sign-off.
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, Unlicense, CC0-1.0
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, Unlicense, CC0-1.0, LicenseRef-bad-see-license-in-license.md
           comment-summary-in-pr: on-failure

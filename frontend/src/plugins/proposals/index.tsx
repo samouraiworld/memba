@@ -11,7 +11,7 @@
  */
 
 import { useNetworkNav } from "../../hooks/useNetworkNav"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import type { PluginProps } from "../types"
 import { GNO_RPC_URL } from "../../lib/config"
 import { getDAOProposals, type DAOProposal } from "../../lib/dao"
@@ -57,11 +57,8 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
 
     useEffect(() => { loadProposals() }, [loadProposals])
 
-    // Reset page when filters change
-    useEffect(() => { setPage(0) }, [search, statusFilter, sort])
-
     // Filter & sort
-    const filtered = proposals
+    const filtered = useMemo(() => proposals
         .filter(p => {
             if (statusFilter !== "all" && p.status !== statusFilter) return false
             if (search) {
@@ -75,7 +72,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
             if (sort === "oldest") return a.id - b.id
             // most-votes
             return (b.yesVotes + b.noVotes) - (a.yesVotes + a.noVotes)
-        })
+        }), [proposals, statusFilter, search, sort])
 
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
     const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -192,7 +189,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     type="text"
                     placeholder="Search by title or ID..."
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => { setSearch(e.target.value); setPage(0); }}
                     style={{
                         flex: 1, minWidth: 200, padding: "8px 14px",
                         borderRadius: 8, border: "1px solid #1a1a1a",
@@ -205,7 +202,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 />
                 <select
                     value={sort}
-                    onChange={e => setSort(e.target.value as SortOrder)}
+                    onChange={e => { setSort(e.target.value as SortOrder); setPage(0); }}
                     style={{
                         padding: "8px 12px", borderRadius: 8,
                         border: "1px solid #1a1a1a", background: "#0d0d0d",
@@ -226,7 +223,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     return (
                         <button
                             key={f}
-                            onClick={() => setStatusFilter(f)}
+                            onClick={() => { setStatusFilter(f); setPage(0); }}
                             style={{
                                 padding: "5px 12px", borderRadius: 6, fontSize: 11,
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
