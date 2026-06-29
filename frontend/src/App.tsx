@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom"
 import { useAdena } from "./hooks/useAdena"
 import { useNetworkKey } from "./hooks/useNetworkNav"
@@ -18,11 +18,11 @@ import { MultisigView } from "./pages/MultisigView"
 import { ProposeTransaction } from "./pages/ProposeTransaction"
 import { TransactionView } from "./pages/TransactionView"
 
-// ── Critical Synchronous Pages (Optimized Loading) ──
-import { ProfilePage } from "./pages/ProfilePage"
-import UnifiedMarketplace from "./pages/UnifiedMarketplace"
-import { DAOList } from "./pages/DAOList"
-import { TokenDashboard } from "./pages/TokenDashboard"
+// ── Critical Lazy Pages (Prefetched for Performance) ──
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
+const UnifiedMarketplace = lazy(() => import("./pages/UnifiedMarketplace"))
+const DAOList = lazy(() => import("./pages/DAOList").then(m => ({ default: m.DAOList })))
+const TokenDashboard = lazy(() => import("./pages/TokenDashboard").then(m => ({ default: m.TokenDashboard })))
 
 // ── Home — the Control Room landing (lazy so it stays out of the main entry chunk) ──
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })))
@@ -164,6 +164,25 @@ function NetworkGate() {
 }
 
 function App() {
+  // Prefetch critical routes in the background after initial render
+  // to achieve instant navigation without exceeding the main chunk size budget.
+  useEffect(() => {
+    const prefetch = async () => {
+      try {
+        await Promise.all([
+          import("./pages/ProfilePage"),
+          import("./pages/UnifiedMarketplace"),
+          import("./pages/DAOList"),
+          import("./pages/TokenDashboard")
+        ])
+      } catch (e) {
+        console.debug("Prefetching failed:", e)
+      }
+    }
+    // Delay prefetching to ensure main thread is free
+    setTimeout(prefetch, 1000)
+  }, [])
+
   return (
     <BrowserRouter>
       <ScrollToTop />
