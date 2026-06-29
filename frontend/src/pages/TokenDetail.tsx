@@ -188,6 +188,7 @@ function TokenDetailContent() {
                     buyerAddr={modal.buyerAddr}
                     royaltyBps={detail.royaltyBps}
                     callerAddress={me}
+                    isListed={isListed}
                     onClose={close}
                     onSuccess={onSuccess}
                 />

@@ -86,7 +86,6 @@ const GnoloveAIReports = lazy(() => import("./pages/gnolove/GnoloveAIReports"))
 const GnoloveMilestone = lazy(() => import("./pages/gnolove/GnoloveMilestone"))
 
 // ── NFT section (lazy — v3.0 gallery → v3.1 launchpad → Phase 2 marketplace) ──
-const MarketplaceHub = lazy(() => import("./pages/MarketplaceHub").then(m => ({ default: m.MarketplaceHub })))
 const CollectionPublic = lazy(() => import("./pages/CollectionPublic").then(m => ({ default: m.CollectionPublic })))
 const TokenDetail = lazy(() => import("./pages/TokenDetail").then(m => ({ default: m.TokenDetail })))
 const LegacyCollectionView = lazy(() => import("./pages/LegacyCollectionView").then(m => ({ default: m.LegacyCollectionView })))
@@ -95,11 +94,8 @@ const CreatorProfile = lazy(() => import("./pages/CreatorProfile"))
 const StudioHome = lazy(() => import("./pages/studio/StudioHome").then(m => ({ default: m.StudioHome })))
 const StudioManage = lazy(() => import("./pages/studio/StudioManage").then(m => ({ default: m.StudioManage })))
 
-// ── AI Agent Marketplace (lazy — v3.0) ──
-const Marketplace = lazy(() => import("./pages/Marketplace"))
-
-// ── Freelance Services (lazy — v3.0) ──
-const FreelanceServices = lazy(() => import("./pages/FreelanceServices"))
+// ── AI Agent Marketplace & Unified Commerce Hub (v3.0) ──
+const UnifiedMarketplace = lazy(() => import("./pages/UnifiedMarketplace"))
 
 // ── Candidature page (lazy — v2.28) ──
 const CandidaturePage = lazy(() => import("./pages/CandidaturePage"))
@@ -222,8 +218,8 @@ function App() {
           <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorProfile /></Suspense>} />
 
           {/* NFT section (Phase 2) — ORDER MATTERS: specific routes before /nft/:realmPath catch-all */}
-          {/* Hub: Phase 2 marketplace browse/discover entry point. */}
-          <Route path="nft" element={<Suspense fallback={<PageLoader />}><MarketplaceHub /></Suspense>} />
+          {/* Hub: Redirect old /nft to the unified marketplace */}
+          <Route path="nft" element={<Navigate to="../marketplace/nfts" replace />} />
           {/* Create: register into the shared memba_collections registry. */}
           <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><CreateCollectionLaunchpad /></Suspense>} />
           {/* Advanced wizard retired — redirect to /nft/create, preserving :network prefix. */}
@@ -241,15 +237,14 @@ function App() {
           {/* LAST: legacy catch-all for standalone realm paths (e.g. /nft/gno.land/r/...). */}
           <Route path="nft/:realmPath" element={<NftGate><Suspense fallback={<PageLoader />}><LegacyCollectionView /></Suspense></NftGate>} />
 
-          {/* Freelance Services (v3.0) */}
-          <Route path="services" element={<Suspense fallback={<PageLoader />}><FreelanceServices /></Suspense>} />
+          {/* Freelance Services (v3.0) - redirected to unified marketplace */}
+          <Route path="services" element={<Navigate to="../marketplace/services" replace />} />
 
           {/* Extensions Hub (v2.6) */}
           <Route path="extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
 
-          {/* AI Agent Marketplace (v3.0) */}
-          <Route path="marketplace" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
-          <Route path="marketplace/:agentId" element={<Suspense fallback={<PageLoader />}><Marketplace /></Suspense>} />
+          {/* Unified Marketplace (v3.0) */}
+          <Route path="marketplace/*" element={<Suspense fallback={<PageLoader />}><UnifiedMarketplace /></Suspense>} />
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
