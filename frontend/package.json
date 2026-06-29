@@ -14,7 +14,7 @@
     "test:e2e:guardrails": "playwright test --project=chromium --project=iphone --project=pixel e2e/desktop-layout.spec.ts e2e/mobile/shell.mobile.spec.ts e2e/mobile/home.mobile.spec.ts"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.11.0",
+    "@bufbuild/protobuf": "^2.12.1",
     "@clerk/clerk-react": "^5.61.8",
     "@clerk/themes": "^2.4.62",
     "@connectrpc/connect": "^2.1.1",
