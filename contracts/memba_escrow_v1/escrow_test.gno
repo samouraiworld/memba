@@ -1,21 +1,21 @@
 package memba_escrow_v1
 
 import (
-	"std"
+	"chain"
 	"testing"
 )
 
 func TestEscrowLifecycle(t *testing.T) {
-	buyer := std.Address("g1buyer000000000000000000000000000000000")
-	seller := std.Address("g1seller00000000000000000000000000000000")
+	buyer := address("g1buyer000000000000000000000000000000000")
+	seller := address("g1seller00000000000000000000000000000000")
 
 	// Mock banker setup
-	std.TestSetOrigCaller(buyer)
-	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 10000}}, nil)
+	testing.SetOriginCaller(buyer)
+	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 10000}})
 
 	// Create contract
 	id := CreateContract(seller, "Test Service", "Description", "milestones")
-	
+
 	if len(contracts) != 1 {
 		t.Fatalf("expected 1 contract, got %d", len(contracts))
 	}
@@ -29,7 +29,9 @@ func TestEscrowLifecycle(t *testing.T) {
 	}
 
 	// Release funds
-	std.TestSetOrigCaller(buyer)
+	testing.SetOriginCaller(buyer)
+	testing.SetOriginSend(nil) // clear origin send
+	testing.IssueCoins(buyer, chain.Coins{{Denom: "ugnot", Amount: 10000}})
 	ReleaseFunds(id)
 
 	if contracts[id].Status != "released" {
@@ -46,15 +48,18 @@ func TestEscrowLifecycle(t *testing.T) {
 }
 
 func TestEscrowRefund(t *testing.T) {
-	buyer := std.Address("g1buyer000000000000000000000000000000000")
-	seller := std.Address("g1seller00000000000000000000000000000000")
+	buyer := address("g1buyer000000000000000000000000000000000")
+	seller := address("g1seller00000000000000000000000000000000")
 
-	std.TestSetOrigCaller(buyer)
-	std.TestSetOrigSend(std.Coins{{Denom: "ugnot", Amount: 20000}}, nil)
+	testing.SetOriginCaller(buyer)
+	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 20000}})
 
 	id := CreateContract(seller, "Test Service 2", "Desc", "miles")
 
-	std.TestSetOrigCaller(buyer)
+	// Refund
+	testing.SetOriginCaller(buyer)
+	testing.SetOriginSend(nil) // clear origin send
+	testing.IssueCoins(buyer, chain.Coins{{Denom: "ugnot", Amount: 20000}})
 	Refund(id)
 
 	if contracts[id].Status != "refunded" {

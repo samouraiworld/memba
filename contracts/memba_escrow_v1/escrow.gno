@@ -1,20 +1,22 @@
 package memba_escrow_v1
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type EscrowContract struct {
-	ID         int
-	Buyer      std.Address
-	Seller     std.Address
-	Title      string
-	Amount     int64
-	Status     string // "funded", "released", "disputed", "refunded"
-	CreatedAt  time.Time
+	ID        int
+	Buyer     address
+	Seller    address
+	Title     string
+	Amount    int64
+	Status    string // "funded", "released", "disputed", "refunded"
+	CreatedAt time.Time
 }
 
 var (
@@ -23,14 +25,14 @@ var (
 )
 
 const (
-	FeeRecipient = std.Address("g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v") // Samouraï Coop Multisig
+	FeeRecipient = address("g1pavqfezrge9kgkrkrahqm982yhw5j45v0zw27v") // Samouraï Coop Multisig
 )
 
 // CreateContract initiates an escrow contract.
 // Requires ugnot sent in the call matching the price.
-func CreateContract(seller std.Address, title string, description string, milestones string) int {
-	caller := std.GetOrigCaller()
-	sent := std.GetOrigSend()
+func CreateContract(seller address, title string, description string, milestones string) int {
+	caller := runtime.OriginCaller()
+	sent := banker.OriginSend()
 
 	if len(sent) != 1 || sent[0].Denom != "ugnot" {
 		panic("must send exactly one denom (ugnot)")
@@ -68,7 +70,7 @@ func ReleaseFunds(id int) {
 		panic("escrow is not in funded state")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := runtime.OriginCaller()
 	if caller != c.Buyer {
 		panic("only buyer can release funds")
 	}
@@ -80,16 +82,16 @@ func ReleaseFunds(id int) {
 	feeAmount := (c.Amount * 2) / 100
 	sellerAmount := c.Amount - feeAmount
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.CurrentRealm().Addr()
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	pkgAddr := runtime.CurrentRealm().Address()
 
 	// Send to seller
 	if sellerAmount > 0 {
-		banker.SendCoins(pkgAddr, c.Seller, std.Coins{{Denom: "ugnot", Amount: sellerAmount}})
+		banker_.SendCoins(pkgAddr, c.Seller, chain.Coins{{Denom: "ugnot", Amount: sellerAmount}})
 	}
 	// Send to fee recipient
 	if feeAmount > 0 {
-		banker.SendCoins(pkgAddr, FeeRecipient, std.Coins{{Denom: "ugnot", Amount: feeAmount}})
+		banker_.SendCoins(pkgAddr, FeeRecipient, chain.Coins{{Denom: "ugnot", Amount: feeAmount}})
 	}
 }
 
@@ -104,7 +106,7 @@ func Refund(id int) {
 		panic("escrow is not in funded state")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := runtime.OriginCaller()
 	if caller != c.Buyer {
 		panic("only buyer can cancel/refund")
 	}
@@ -116,16 +118,16 @@ func Refund(id int) {
 	cancelFee := (c.Amount * 5) / 100
 	refundAmount := c.Amount - cancelFee
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgAddr := std.CurrentRealm().Addr()
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	pkgAddr := runtime.CurrentRealm().Address()
 
 	// Send cancel fee to seller
 	if cancelFee > 0 {
-		banker.SendCoins(pkgAddr, c.Seller, std.Coins{{Denom: "ugnot", Amount: cancelFee}})
+		banker_.SendCoins(pkgAddr, c.Seller, chain.Coins{{Denom: "ugnot", Amount: cancelFee}})
 	}
 	// Refund buyer
 	if refundAmount > 0 {
-		banker.SendCoins(pkgAddr, c.Buyer, std.Coins{{Denom: "ugnot", Amount: refundAmount}})
+		banker_.SendCoins(pkgAddr, c.Buyer, chain.Coins{{Denom: "ugnot", Amount: refundAmount}})
 	}
 }
 
