@@ -18,7 +18,7 @@
     "@clerk/clerk-react": "^5.61.8",
     "@clerk/themes": "^2.4.62",
     "@connectrpc/connect": "^2.1.1",
-    "@connectrpc/connect-web": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.2",
     "@phosphor-icons/react": "^2.1.10",
     "@remotion/player": "^4.0.446",
     "@sentry/react": "^10.62.0",
