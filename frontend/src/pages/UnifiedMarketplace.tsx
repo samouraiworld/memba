@@ -53,13 +53,13 @@ export default function UnifiedMarketplace() {
             {/* ── Unified Navigation Tabs & Search ──────────────── */}
             <div className="um-nav-container">
                 <nav className="um-tabs" role="tablist">
-                    <NavLink to="nfts" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
+                    <NavLink role="tab" to="nfts" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
                         <span className="um-tab-icon">🖼️</span> NFTs & Art
                     </NavLink>
-                    <NavLink to="services" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
+                    <NavLink role="tab" to="services" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
                         <span className="um-tab-icon">💼</span> Services
                     </NavLink>
-                    <NavLink to="agents" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
+                    <NavLink role="tab" to="agents" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
                         <span className="um-tab-icon">🤖</span> AI Agents
                     </NavLink>
                 </nav>
