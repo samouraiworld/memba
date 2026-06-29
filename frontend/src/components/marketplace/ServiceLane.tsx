@@ -1,12 +1,11 @@
 import { useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
 import { formatGnotCompact } from "../../lib/formatGnot"
-import { buildCreateContractMsg } from "../../lib/marketplace/builders"
-import type { AminoMsg } from "../../lib/grc20"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
+import { HireServiceModal, type Service } from "./HireServiceModal"
 
 // Mock services for MVP
-const MOCK_SERVICES = [
+const MOCK_SERVICES: Service[] = [
     {
         id: "svc-1",
         title: "Smart Contract Audit",
@@ -42,41 +41,14 @@ const MOCK_SERVICES = [
 export default function ServiceLane() {
     const adena = useAdena()
     
-    const [hiringService, setHiringService] = useState<typeof MOCK_SERVICES[0] | null>(null)
-    const [isConfirming, setIsConfirming] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [hiringService, setHiringService] = useState<Service | null>(null)
 
-    const handleHire = async (service: typeof MOCK_SERVICES[0]) => {
+    const handleHireClick = (service: Service) => {
         if (!adena.connected || !adena.address) {
             alert("Please connect your wallet first.")
             return
         }
-        
-        setIsConfirming(true)
-        setError(null)
-        
-        try {
-            const { doContractBroadcast } = await import("../../lib/grc20")
-            // We use the v1 escrow contract path (from config or hardcoded for test13)
-            const escrowPath = "gno.land/r/samcrew/memba_escrow_v1" 
-            
-            const msg = buildCreateContractMsg(
-                adena.address,
-                escrowPath,
-                service.freelancer,
-                service.title,
-                service.description,
-                service.milestones
-            )
-
-            await doContractBroadcast([msg as unknown as AminoMsg], `Hire ${service.freelancer} for ${service.title}`)
-            alert(`Success! You have hired ${service.freelancer} for ${service.title}.`)
-            setHiringService(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : String(err))
-        } finally {
-            setIsConfirming(false)
-        }
+        setHiringService(service)
     }
 
     return (
@@ -112,27 +84,24 @@ export default function ServiceLane() {
                                 </div>
                             </div>
 
-                            {hiringService?.id === svc.id ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                    {error && <div style={{ color: "var(--color-error)", fontSize: "12px" }}>{error}</div>}
-                                    <div style={{ display: "flex", gap: "8px" }}>
-                                        <button className="k-btn-primary" style={{ flex: 1 }} onClick={() => handleHire(svc)} disabled={isConfirming}>
-                                            {isConfirming ? "Confirming..." : "Sign Escrow Tx"}
-                                        </button>
-                                        <button className="k-btn-secondary" onClick={() => { setHiringService(null); setError(null); }} disabled={isConfirming}>
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button className="k-btn-secondary" style={{ width: "100%" }} onClick={() => setHiringService(svc)}>
-                                    Hire Freelancer
-                                </button>
-                            )}
+                            <button className="k-btn-secondary" style={{ width: "100%" }} onClick={() => handleHireClick(svc)}>
+                                Hire Freelancer
+                            </button>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {hiringService && (
+                <HireServiceModal 
+                    service={hiringService} 
+                    onClose={() => setHiringService(null)}
+                    onSuccess={() => {
+                        setHiringService(null)
+                        alert(`Success! Escrow contract created for ${hiringService.title}.`)
+                    }}
+                />
+            )}
         </div>
     )
 }

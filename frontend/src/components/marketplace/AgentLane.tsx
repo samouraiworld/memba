@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react"
 import { fetchAgents, type AgentListing } from "../../lib/agentRegistry"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
+import { DeployAgentModal } from "./DeployAgentModal"
 
 export default function AgentLane() {
     const [agents, setAgents] = useState<AgentListing[]>([])
     const [loading, setLoading] = useState(true)
+    const [deployingAgent, setDeployingAgent] = useState<AgentListing | null>(null)
 
     useEffect(() => {
         let mounted = true
@@ -72,13 +74,24 @@ export default function AgentLane() {
                                 </div>
                             </div>
 
-                            <button className="k-btn-primary" style={{ width: "100%" }} onClick={() => alert("Agent deployment modal coming soon!")}>
+                            <button className="k-btn-primary" style={{ width: "100%" }} onClick={() => setDeployingAgent(agent)}>
                                 Deploy Agent
                             </button>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {deployingAgent && (
+                <DeployAgentModal 
+                    agent={deployingAgent}
+                    onClose={() => setDeployingAgent(null)}
+                    onSuccess={() => {
+                        setDeployingAgent(null)
+                        alert(`Success! Credits purchased for ${deployingAgent.name}.`)
+                    }}
+                />
+            )}
         </div>
     )
 }
