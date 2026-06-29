@@ -1,0 +1,4 @@
+module = "gno.land/r/samcrew/memba_escrow_v1"
+
+[require]
+"gno.land/p/demo/uassert" = "v0.0.0-latest"
