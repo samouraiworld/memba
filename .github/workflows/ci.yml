@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: 'backend/go.mod'
           cache-dependency-path: backend/go.sum
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: backend/coverage.out
@@ -58,7 +58,7 @@ jobs:
           work-dir: backend
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: backend
@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload frontend coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-node${{ matrix.node-version }}
           path: frontend/coverage/
@@ -180,7 +180,7 @@ jobs:
 
       - name: Upload E2E artifacts on failure
         if: failure() && matrix.node-version == '22'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-node${{ matrix.node-version }}
           path: |
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always() && matrix.node-version == '22'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lighthouse-report-node${{ matrix.node-version }}
           path: frontend/.lighthouseci/
