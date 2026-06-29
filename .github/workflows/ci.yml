@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.11'
+          go-version: '1.24.0'
           cache-dependency-path: backend/go.sum
 
       - name: Build
@@ -60,6 +60,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
+          version: latest
           working-directory: backend
   frontend:
     name: Frontend (React · Node ${{ matrix.node-version }})
