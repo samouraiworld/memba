@@ -28,7 +28,7 @@ import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 import { RealmsNotDeployedBanner } from "../ui/RealmsNotDeployedBanner"
-import { AddressOnlyLoginBanner } from "../ui/AddressOnlyLoginBanner"
+import { ActivationModal } from "../ui/ActivationModal"
 import { networkHasRealms, GNO_FAUCET_URL } from "../../lib/config"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
@@ -323,11 +323,15 @@ export function Layout() {
                 networkLabel={network.label}
             />
 
-            {/* ── Address-only session: nudge to upgrade to secure signed login ── */}
-            <AddressOnlyLoginBanner
-                show={adena.connected && auth.isAuthenticated && !adena.pubkeyJSON}
-                faucetUrl={GNO_FAUCET_URL}
-            />
+            {/* ── Address-only session: block UI and force Activation ── */}
+            {adena.connected && auth.isAuthenticated && !adena.pubkeyJSON && (
+                <ActivationModal
+                    address={adena.address}
+                    rawUgnot={rawUgnot}
+                    faucetUrl={GNO_FAUCET_URL}
+                    onSuccess={() => window.location.reload()}
+                />
+            )}
 
             {/* ── Main ─────────────────────────────────────── */}
             <main id="main-content" className="k-main">
