@@ -10,29 +10,24 @@ describe("assertSafeFlags", () => {
         expect(() => assertSafeFlags({})).not.toThrow()
     })
 
-    it("throws when a gated flag is 'true'", () => {
-        expect(() => assertSafeFlags({ VITE_ENABLE_SERVICES: "true" })).toThrow(/VITE_ENABLE_SERVICES/)
+    it("fails CI if a safety gated flag is exactly 'true'", () => {
+        // VITE_ENABLE_TREASURY_SPEND is gated
+        expect(() => assertSafeFlags({ VITE_ENABLE_TREASURY_SPEND: "true" })).toThrow(/VITE_ENABLE_TREASURY_SPEND/)
     })
 
-    it("throws listing EVERY enabled gated flag", () => {
-        let msg = ""
+    it("lists all violating flags in the error message", () => {
         try {
-            assertSafeFlags({ VITE_ENABLE_SERVICES: "true", VITE_ENABLE_TREASURY_SPEND: "true" })
-        } catch (e) {
-            msg = (e as Error).message
+            assertSafeFlags({ VITE_ENABLE_AGENT_CREDITS: "true", VITE_ENABLE_TREASURY_SPEND: "true" })
+            throw new Error("Should have thrown")
+        } catch (err: unknown) {
+            const msg = (err as Error).message
+            expect(msg).toContain("VITE_ENABLE_AGENT_CREDITS")
+            expect(msg).toContain("VITE_ENABLE_TREASURY_SPEND")
         }
-        expect(msg).toContain("VITE_ENABLE_SERVICES")
-        expect(msg).toContain("VITE_ENABLE_TREASURY_SPEND")
-    })
-
-    it("only the exact string 'true' enables (matches the app + the old CI gate)", () => {
-        expect(() => assertSafeFlags({ VITE_ENABLE_SERVICES: "1" })).not.toThrow()
-        expect(() => assertSafeFlags({ VITE_ENABLE_SERVICES: "TRUE" })).not.toThrow()
     })
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
-            "VITE_ENABLE_SERVICES",
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
         ])

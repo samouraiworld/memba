@@ -153,7 +153,7 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "buy", caller: callerAddress, amountUgnot: priceUgnot! })
                     : [buildBuyNFTMsg(callerAddress, engine.marketPath, collectionID, tokenId, priceUgnot || 0)]
             await doContractBroadcast(msgs, `Buy ${collectionID}/${tokenId}`)
-            if (process.env.NODE_ENV === "test") {
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
@@ -194,7 +194,7 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "list", caller: callerAddress, amountUgnot: listPriceUgnot })
                     : [buildListForSaleMsg(callerAddress, engine.marketPath, collectionID, tokenId, listPriceUgnot)]
             await doContractBroadcast(msgs, `List ${collectionID}/${tokenId} for sale`)
-            if (process.env.NODE_ENV === "test") {
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
@@ -217,7 +217,7 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "offer", caller: callerAddress, amountUgnot: offerAmountUgnot })
                     : [buildMakeOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId, offerAmountUgnot)]
             await doContractBroadcast(msgs, `Offer on ${collectionID}/${tokenId}`)
-            if (process.env.NODE_ENV === "test") {
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
@@ -253,8 +253,8 @@ export function TradeModal({
             
             msgs = msgs.concat(acceptMsgs)
 
-            await doContractBroadcast(msgs, `Accept offer on ${collectionID}/${tokenId}`)
-            if (process.env.NODE_ENV === "test") {
+            await doContractBroadcast(msgs as any[], `Accept offer on ${collectionID}/${tokenId}`)
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
@@ -277,7 +277,7 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "cancel-offer", caller: callerAddress })
                     : [buildCancelOfferMsg(callerAddress, engine.marketPath, collectionID, tokenId)]
             await doContractBroadcast(msgs, `Cancel offer on ${collectionID}/${tokenId}`)
-            if (process.env.NODE_ENV === "test") {
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
@@ -300,7 +300,7 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "delist", caller: callerAddress })
                     : [buildDelistMsg(callerAddress, engine.marketPath, collectionID, tokenId)]
             await doContractBroadcast(msgs, `Delist ${collectionID}/${tokenId}`)
-            if (process.env.NODE_ENV === "test") {
+            if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return
             }
