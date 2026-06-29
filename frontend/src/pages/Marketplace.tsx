@@ -736,7 +736,7 @@ function CreditSection({ agentId, address, onError }: {
                     style={{
                         padding: "12px 16px", borderRadius: 8, fontSize: 12,
                         background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
-                        fontFamily: "JetBrains Mono, monospace", color: "#f5a623",
+                        fontFamily: "JetBrains Mono, monospace", color: "var(--color-accent-gold)",
                         lineHeight: 1.6,
                     }}
                 >

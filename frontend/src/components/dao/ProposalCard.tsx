@@ -53,11 +53,11 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
                 <div style={{ width: `${participationPct}%`, height: "100%", display: "flex", transition: "width 0.4s ease" }}>
                     <div style={{
                         width: `${yesFraction}%`, height: "100%",
-                        background: "#4caf50", transition: "width 0.3s",
+                        background: "var(--color-success)", transition: "width 0.3s",
                     }} />
                     <div style={{
                         width: `${noFraction}%`, height: "100%",
-                        background: "#f44336", transition: "width 0.3s",
+                        background: "var(--color-status-error-alt)", transition: "width 0.3s",
                     }} />
                 </div>
                 {/* Threshold marker */}
@@ -82,7 +82,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
             className="k-card"
             onClick={onClick}
             style={{ padding: "16px 20px", cursor: "pointer", transition: "border-color 0.15s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#333")}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-text-dim)")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "")}
         >
             <div className="dao-proposal-card__header">

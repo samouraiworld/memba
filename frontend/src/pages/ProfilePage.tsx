@@ -271,7 +271,7 @@ export function ProfilePage() {
             {hasSocials(profile) && (
                 <div className="profile-socials-row">
                     {profile?.socialLinks.github && (
-                        <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="#f0f0f0" />} label="GitHub" />
+                        <SocialLink href={profile.socialLinks.github.startsWith("http") ? profile.socialLinks.github : `https://github.com/${profile.socialLinks.github}`} icon={<GitHubIcon size={14} color="var(--color-surface-light)" />} label="GitHub" />
                     )}
                     {profile?.socialLinks.twitter && (
                         <SocialLink href={`https://x.com/${profile.socialLinks.twitter}`} icon="𝕏" label="Twitter/X" />
@@ -312,7 +312,7 @@ export function ProfilePage() {
                 <div className="k-card profile-github-cta">
                     <div className="profile-github-cta-row">
                         <div className="profile-github-icon-box">
-                            <GitHubIcon size={22} color="#58a6ff" />
+                            <GitHubIcon size={22} color="var(--color-accent-blue-link)" />
                         </div>
                         <div className="profile-github-cta-text">
                             <h4 className="profile-github-cta-title">
@@ -340,7 +340,7 @@ export function ProfilePage() {
                             }}
                             className="profile-github-link-btn"
                         >
-                            <GitHubIcon size={12} color="#58a6ff" /> Link GitHub →
+                            <GitHubIcon size={12} color="var(--color-accent-blue-link)" /> Link GitHub →
                         </button>
                     </div>
                 </div>
@@ -430,7 +430,7 @@ export function ProfilePage() {
                     </h3>
                     <div className="profile-votes-list">
                         {profile.governanceVotes.slice(0, 20).map((v, i) => {
-                            const voteColor = v.vote === "YES" ? "#4caf50" : v.vote === "NO" ? "#f44336" : "#888"
+                            const voteColor = v.vote === "YES" ? "var(--color-success)" : v.vote === "NO" ? "var(--color-status-error-alt)" : "var(--color-text-secondary)"
                             return (
                                 <div key={i} className="k-card profile-vote-item">
                                     <div>

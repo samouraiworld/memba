@@ -68,8 +68,8 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
                             transition: "color 0.15s",
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
-                        onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                        onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}
+                        onMouseLeave={e => e.currentTarget.style.color = "var(--color-text-muted)"}
                     >
                         Manage channels →
                     </button>
@@ -98,7 +98,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                                 {isInPublicRoom && (
                                     <span style={{
                                         marginLeft: 6, width: 6, height: 6, borderRadius: "50%",
-                                        background: "#00d4aa", display: "inline-block",
+                                        background: "var(--color-brand)", display: "inline-block",
                                         animation: "pulse-dot 2s ease-in-out infinite",
                                     }} />
                                 )}
@@ -139,7 +139,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                                 {isInMembersRoom && (
                                     <span style={{
                                         marginLeft: 6, width: 6, height: 6, borderRadius: "50%",
-                                        background: "#00d4aa", display: "inline-block",
+                                        background: "var(--color-brand)", display: "inline-block",
                                         animation: "pulse-dot 2s ease-in-out infinite",
                                     }} />
                                 )}

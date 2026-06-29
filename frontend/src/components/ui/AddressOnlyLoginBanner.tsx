@@ -35,7 +35,7 @@ export function AddressOnlyLoginBanner({ show, faucetUrl }: AddressOnlyLoginBann
                 alignItems: "center",
                 gap: "12px",
                 fontSize: "0.875rem",
-                color: "var(--text-primary, #fff)",
+                color: "var(--text-primary, var(--color-text-primary))",
                 animation: "fadeIn 0.3s ease-out",
             }}
         >

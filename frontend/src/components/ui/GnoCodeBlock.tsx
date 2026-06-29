@@ -14,8 +14,8 @@ export function GnoCodeBlock({ code, maxHeight = 500 }: GnoCodeBlockProps) {
 
     return (
         <pre style={{
-            background: "#1e1e2e",
-            border: "1px solid #333",
+            background: "var(--color-surface-overlay)",
+            border: "1px solid var(--color-text-dim)",
             borderRadius: 8,
             padding: "16px 20px",
             fontSize: 11,

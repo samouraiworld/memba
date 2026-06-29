@@ -43,7 +43,7 @@ export function DashboardIdentityCard({ address, username, avatarUrl, balance, o
                     <span style={{ fontSize: 16, fontWeight: 600 }}>
                         {username || "Anonymous"}
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: balance.startsWith("?") ? "#f5a623" : "#00d4aa" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: balance.startsWith("?") ? "var(--color-accent-gold)" : "var(--color-brand)" }}>
                         {balance}
                     </span>
                 </div>

@@ -133,17 +133,17 @@ export function WhatsNewToast() {
                 {/* Feature entries */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                     <NetworkItem
-                        color="#00d4aa"
+                        color="var(--color-brand)"
                         title="AI Governance Analyst"
                         desc="10 free AI models analyze proposals and DAO health from different perspectives."
                     />
                     <NetworkItem
-                        color="#8b5cf6"
+                        color="var(--color-accent-purple-alt)"
                         title="Directory Source Explorer"
                         desc="Browse realm source code, functions, and dependencies — all in-app."
                     />
                     <NetworkItem
-                        color="#2dd4bf"
+                        color="var(--color-accent-teal)"
                         title="Teams & Candidature"
                         desc="Team descriptions, copy invite codes, quest-gated DAO membership."
                     />

@@ -51,7 +51,7 @@ export function WizardStepConfig({
                         style={{ flex: 1 }}
                     />
                     <span style={{
-                        fontSize: 20, fontWeight: 700, color: quorum > 0 ? "#7b61ff" : "#555",
+                        fontSize: 20, fontWeight: 700, color: quorum > 0 ? "var(--color-accent-purple)" : "var(--color-text-muted)",
                         fontFamily: "JetBrains Mono, monospace", minWidth: 50, textAlign: "center",
                     }}>
                         {quorum}%
@@ -80,7 +80,7 @@ export function WizardStepConfig({
                                     fontFamily: "JetBrains Mono, monospace", textTransform: "capitalize",
                                     background: active ? "rgba(0,212,170,0.08)" : "transparent",
                                     border: `1px solid ${active ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.08)"}`,
-                                    color: active ? "#00d4aa" : "#555",
+                                    color: active ? "var(--color-brand)" : "var(--color-text-muted)",
                                     transition: "all 0.15s",
                                 }}
                             >

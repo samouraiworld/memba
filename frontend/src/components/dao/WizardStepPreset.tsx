@@ -82,8 +82,8 @@ export function WizardStepPreset({
                                 {preset.roles.map((r) => (
                                     <span key={r} style={{
                                         fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                                        background: `${ROLE_COLORS[r] || "#888"}15`,
-                                        color: ROLE_COLORS[r] || "#888",
+                                        background: `${ROLE_COLORS[r] || "var(--color-text-secondary)"}15`,
+                                        color: ROLE_COLORS[r] || "var(--color-text-secondary)",
                                         fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {ROLE_ICONS[r] || "•"} {r}

@@ -17,6 +17,7 @@ import {
     LinkSimpleHorizontal, Bell, Briefcase, Heart, GameController,
     PuzzlePiece, Robot, Handshake, ImageSquare,
     User, Gear, Bank, Megaphone,
+    UsersThree, Trophy, ClockCounterClockwise, ShieldStar,
 } from '@phosphor-icons/react'
 
 export type NavGroup = 'primary' | 'manage' | 'account'
@@ -49,10 +50,12 @@ export const NAV: NavEntry[] = [
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'primary', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'primary', showOn: 'both' },
     { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'primary', showOn: 'both' },
+    { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'primary', showOn: 'both' },
 
     // ── Manage / extend ─────────────────────────────────────────────
     { id: 'multisig', to: '/multisig', label: 'Multisig', Icon: Briefcase, group: 'manage', showOn: 'both', requiresAuth: true },
     { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'manage', showOn: 'both' },
+    { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'manage', showOn: 'both', requiresAuth: true },
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
     { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
     { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
@@ -62,6 +65,8 @@ export const NAV: NavEntry[] = [
     { id: 'settings', to: '/settings', label: 'Settings', Icon: Gear, group: 'account', showOn: 'both', requiresAuth: true },
     { id: 'candidature', to: '/candidature', label: 'Candidature', Icon: Bank, group: 'account', showOn: 'both', requiresAuth: true },
     { id: 'feedback', to: '/feedback', label: 'Feedback', Icon: Megaphone, group: 'account', showOn: 'both' },
+    { id: 'changelogs', to: '/changelogs', label: 'Changelogs', Icon: ClockCounterClockwise, group: 'account', showOn: 'both' },
+    { id: 'quest-admin', to: '/quest-admin', label: 'Quest Admin', Icon: ShieldStar, group: 'account', showOn: 'desktop', requiresAuth: true },
 ]
 
 /** Entries visible on a given surface ('both' shows on each). */

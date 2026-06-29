@@ -92,7 +92,7 @@ export function GithubCallback() {
             fontFamily: "JetBrains Mono, monospace",
         }}>
             <div className="k-card" style={{ padding: 32, textAlign: "center" }}>
-                <GitHubIcon size={48} color="#58a6ff" style={{ margin: "0 auto 16px" }} />
+                <GitHubIcon size={48} color="var(--color-accent-blue-link)" style={{ margin: "0 auto 16px" }} />
 
                 {step === "exchanging" && (
                     <>
@@ -102,7 +102,7 @@ export function GithubCallback() {
                         <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                             Exchanging OAuth code for your GitHub identity.
                         </p>
-                        <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid #333", borderTop: "2px solid #00d4aa", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                        <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
                     </>
                 )}
 
@@ -121,7 +121,7 @@ export function GithubCallback() {
                             </div>
                         </div>
                         <p style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Saving to your Memba profile...</p>
-                        <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid #333", borderTop: "2px solid #00d4aa", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                        <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
                     </>
                 )}
 

@@ -162,7 +162,7 @@ export default function QuestDetail() {
         )
     }
 
-    const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "#6b7280"
+    const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "var(--color-text-disabled)"
     const isDeployQuest = quest.id.startsWith("deploy-")
     const isSelfReport = quest.verification === "self_report"
     const isBackendVerified = isBackendVerifiedQuest(quest.id)

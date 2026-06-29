@@ -111,8 +111,8 @@ export function DAOMembers() {
                     <div className="k-members__power-bar">
                         {tiers.map((t) => {
                             const pct = totalPower > 0 ? (t.power / totalPower) * 100 : 0
-                            const colors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
-                            return <div key={t.tier} style={{ width: `${pct}%`, background: colors[t.tier] || "#888", transition: "width 0.4s" }} />
+                            const colors: Record<string, string> = { T1: "var(--color-brand)", T2: "var(--color-info)", T3: "var(--color-accent-gold)" }
+                            return <div key={t.tier} style={{ width: `${pct}%`, background: colors[t.tier] || "var(--color-text-secondary)", transition: "width 0.4s" }} />
                         })}
                     </div>
                 </div>
@@ -121,10 +121,10 @@ export function DAOMembers() {
             {/* Tier Filters */}
             {tiers.length > 0 && (
                 <div className="k-members__filters">
-                    <FilterButton label="All" count={members.length} active={tierFilter === "all"} onClick={() => setTierFilter("all")} color="#f0f0f0" />
+                    <FilterButton label="All" count={members.length} active={tierFilter === "all"} onClick={() => setTierFilter("all")} color="var(--color-surface-light)" />
                     {tiers.map((t) => {
-                        const colors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
-                        return <FilterButton key={t.tier} label={t.tier} count={t.memberCount} active={tierFilter === t.tier} onClick={() => setTierFilter(t.tier)} color={colors[t.tier] || "#888"} />
+                        const colors: Record<string, string> = { T1: "var(--color-brand)", T2: "var(--color-info)", T3: "var(--color-accent-gold)" }
+                        return <FilterButton key={t.tier} label={t.tier} count={t.memberCount} active={tierFilter === t.tier} onClick={() => setTierFilter(t.tier)} color={colors[t.tier] || "var(--color-text-secondary)"} />
                     })}
                 </div>
             )}
@@ -132,10 +132,10 @@ export function DAOMembers() {
             {/* Role Filters */}
             {allRoles.length > 0 && (
                 <div className="k-members__filters">
-                    <FilterButton label="All Roles" count={members.length} active={roleFilter === "all"} onClick={() => setRoleFilter("all")} color="#f0f0f0" />
+                    <FilterButton label="All Roles" count={members.length} active={roleFilter === "all"} onClick={() => setRoleFilter("all")} color="var(--color-surface-light)" />
                     {allRoles.map((role) => {
                         const count = members.filter((m) => m.roles.includes(role)).length
-                        return <FilterButton key={role} label={role} count={count} active={roleFilter === role} onClick={() => setRoleFilter(role)} color={roleColors[role] || "#888"} />
+                        return <FilterButton key={role} label={role} count={count} active={roleFilter === role} onClick={() => setRoleFilter(role)} color={roleColors[role] || "var(--color-text-secondary)"} />
                     })}
                 </div>
             )}
@@ -171,11 +171,11 @@ export function DAOMembers() {
 
 // ── Components ────────────────────────────────────────────
 
-const tierColors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
-const roleColors: Record<string, string> = { admin: "#f5a623", dev: "#00d4aa", finance: "#7b61ff", ops: "#3b82f6", member: "#888" }
+const tierColors: Record<string, string> = { T1: "var(--color-brand)", T2: "var(--color-info)", T3: "var(--color-accent-gold)" }
+const roleColors: Record<string, string> = { admin: "var(--color-accent-gold)", dev: "var(--color-brand)", finance: "var(--color-accent-purple)", ops: "var(--color-info)", member: "var(--color-text-secondary)" }
 
 function TierSummaryCard({ tier, totalPower }: { tier: TierInfo; totalPower: number }) {
-    const color = tierColors[tier.tier] || "#888"
+    const color = tierColors[tier.tier] || "var(--color-text-secondary)"
     const pct = totalPower > 0 ? Math.round((tier.power / totalPower) * 100) : 0
     return (
         <div className="k-members__tier-card">
@@ -198,8 +198,8 @@ function FilterButton({ label, count, active, onClick, color }: {
             onClick={onClick}
             style={{
                 background: active ? "rgba(255,255,255,0.06)" : "transparent",
-                border: `1px solid ${active ? color + "44" : "#1a1a1a"}`,
-                color: active ? color : "#888",
+                border: `1px solid ${active ? color + "44" : "var(--color-surface-base)"}`,
+                color: active ? color : "var(--color-text-secondary)",
             }}
         >
             {label}<span className="k-members__filter-count">({count})</span>
@@ -213,7 +213,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRol
     onRemoveRole: (target: string, role: string) => void; actionLoading: boolean;
 }) {
     const [showActions, setShowActions] = useState(false)
-    const tierColor = tierColors[member.tier] || "#666"
+    const tierColor = tierColors[member.tier] || "var(--color-text-secondary)"
     const unassignedRoles = availableRoles.filter((r) => !member.roles.includes(r))
 
     return (
@@ -239,7 +239,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRol
 
                 <div className="k-members__roles">
                     {member.roles.map((role) => {
-                        const color = roleColors[role] || "#888"
+                        const color = roleColors[role] || "var(--color-text-secondary)"
                         return (
                             <span key={role} className="k-members__role-badge" style={{ background: `${color}15`, color }}>
                                 {role}
@@ -266,7 +266,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRol
                             className="k-members__assign-btn"
                             onClick={() => { onAssignRole(member.address, role); setShowActions(false) }}
                             disabled={actionLoading}
-                            style={{ color: roleColors[role] || "#888", opacity: actionLoading ? 0.5 : 1 }}
+                            style={{ color: roleColors[role] || "var(--color-text-secondary)", opacity: actionLoading ? 0.5 : 1 }}
                         >
                             + {role}
                         </button>

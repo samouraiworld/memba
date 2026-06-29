@@ -190,9 +190,9 @@ const ENTRIES: ChangelogEntry[] = [
 // ── Tag styling ──────────────────────────────────────────────
 
 const TAG_COLORS: Record<Tag, string> = {
-    memba: "#00d4aa",
-    network: "#8b5cf6",
-    "gno-core": "#f59e0b",
+    memba: "var(--color-brand)",
+    network: "var(--color-accent-purple-alt)",
+    "gno-core": "var(--color-accent-gold)",
 }
 
 const TAG_LABELS: Record<Tag, string> = {
@@ -222,7 +222,7 @@ export function Changelogs() {
         <div id="changelogs-page" style={{ maxWidth: 680 }}>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-                <ClockCounterClockwise size={22} color="#00d4aa" />
+                <ClockCounterClockwise size={22} color="var(--color-brand)" />
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>Changelogs</h2>
             </div>
 
@@ -244,8 +244,8 @@ export function Changelogs() {
                                 ? (tag === "all" ? "rgba(255,255,255,0.06)" : TAG_COLORS[tag as Tag] + "12")
                                 : "rgba(255,255,255,0.02)",
                             color: filter === tag
-                                ? (tag === "all" ? "#f0f0f0" : TAG_COLORS[tag as Tag])
-                                : "#666",
+                                ? (tag === "all" ? "var(--color-surface-light)" : TAG_COLORS[tag as Tag])
+                                : "var(--color-text-secondary)",
                             cursor: "pointer",
                             fontFamily: "JetBrains Mono, monospace",
                             fontSize: 11, fontWeight: 500,

@@ -19,10 +19,10 @@ export function VoteStat({ label, count, color, icon }: { label: string; count: 
     )
 }
 
-const tierColors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
+const tierColors: Record<string, string> = { T1: "var(--color-brand)", T2: "var(--color-info)", T3: "var(--color-accent-gold)" }
 
 export function TierVoteBlock({ record }: { record: VoteRecord }) {
-    const color = tierColors[record.tier] || "#888"
+    const color = tierColors[record.tier] || "var(--color-text-secondary)"
     return (
         <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>

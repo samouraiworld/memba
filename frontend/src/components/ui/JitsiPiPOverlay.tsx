@@ -244,7 +244,7 @@ export function JitsiPiPOverlay() {
                     }}>
                         <span style={{
                             width: 6, height: 6, borderRadius: "50%",
-                            background: "#00d4aa", display: "inline-block",
+                            background: "var(--color-brand)", display: "inline-block",
                             animation: "pulse-dot 2s ease-in-out infinite",
                             boxShadow: "0 0 6px rgba(0,212,170,0.5)",
                         }} />

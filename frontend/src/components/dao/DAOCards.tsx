@@ -28,11 +28,11 @@ export function StatCard({ label, value, icon, accent }: { label: string; value:
 export function TierBar({ tier, totalPower }: { tier: TierInfo; totalPower: number }) {
     const pct = totalPower > 0 ? Math.round((tier.power / totalPower) * 100) : 0
     const tierColors: Record<string, string> = {
-        T1: "#00d4aa",
-        T2: "#2196f3",
-        T3: "#f5a623",
+        T1: "var(--color-brand)",
+        T2: "var(--color-info)",
+        T3: "var(--color-accent-gold)",
     }
-    const color = tierColors[tier.tier] || "#888"
+    const color = tierColors[tier.tier] || "var(--color-text-secondary)"
 
     return (
         <div>
@@ -49,7 +49,7 @@ export function TierBar({ tier, totalPower }: { tier: TierInfo; totalPower: numb
                     {tier.power} power ({pct}%)
                 </span>
             </div>
-            <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: 6, background: "var(--color-surface-base)", borderRadius: 3, overflow: "hidden" }}>
                 <div style={{
                     width: `${pct}%`, height: "100%",
                     background: `linear-gradient(90deg, ${color}, ${color}88)`,

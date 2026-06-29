@@ -14,11 +14,11 @@ export type Step = 1 | 2 | 3 | 4 | 5
 // ── Role Colors ───────────────────────────────────────────
 
 export const ROLE_COLORS: Record<string, string> = {
-    admin: "#f5a623",
-    dev: "#00d4aa",
-    finance: "#7b61ff",
-    ops: "#3b82f6",
-    member: "#888",
+    admin: "var(--color-accent-gold)",
+    dev: "var(--color-brand)",
+    finance: "var(--color-accent-purple)",
+    ops: "var(--color-info)",
+    member: "var(--color-text-secondary)",
 }
 
 export const ROLE_ICONS: Record<string, string> = {

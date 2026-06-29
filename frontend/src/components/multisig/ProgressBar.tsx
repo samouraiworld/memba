@@ -20,7 +20,7 @@ export function ProgressBar({ current, threshold, total }: ProgressBarProps) {
                         width: `${Math.min(percentage, 100)}%`,
                         background: isReady
                             ? "linear-gradient(90deg, var(--color-k-accent), var(--color-k-accent-hover))"
-                            : "linear-gradient(90deg, var(--color-k-warning), #ffbb33)",
+                            : "linear-gradient(90deg, var(--color-k-warning), var(--color-accent-gold-bright))",
                         borderRadius: 4,
                         transition: "width 0.3s ease, background 0.3s ease",
                     }}

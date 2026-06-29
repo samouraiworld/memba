@@ -42,7 +42,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {[1, 2, 3].map(i => (
-                        <div key={i} style={{ height: 40, borderRadius: 8, background: "linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%)", backgroundSize: "400% 100%", animation: "skeleton-shimmer 1.5s ease-in-out infinite" }} />
+                        <div key={i} style={{ height: 40, borderRadius: 8, background: "linear-gradient(90deg, var(--color-surface-base) 25%, var(--color-surface-raised) 50%, var(--color-surface-base) 75%)", backgroundSize: "400% 100%", animation: "skeleton-shimmer 1.5s ease-in-out infinite" }} />
                     ))}
                 </div>
             </div>
@@ -51,7 +51,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
 
     if (allVotes.length === 0) {
         return (
-            <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
+            <div className="k-dashed" style={{ background: "var(--color-surface-black)", padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🗳️</div>
                 <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     No votes yet
@@ -79,8 +79,8 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                     padding: "3px 8px", borderRadius: 4, fontSize: 9, border: "1px solid",
                                     fontFamily: "JetBrains Mono, monospace", fontWeight: 600, cursor: "pointer",
                                     background: filter === f ? "rgba(0,212,170,0.08)" : "transparent",
-                                    color: filter === f ? "#00d4aa" : "#555",
-                                    borderColor: filter === f ? "rgba(0,212,170,0.2)" : "#222",
+                                    color: filter === f ? "var(--color-brand)" : "var(--color-text-muted)",
+                                    borderColor: filter === f ? "rgba(0,212,170,0.2)" : "var(--color-surface-raised)",
                                 }}
                             >
                                 {f}
@@ -91,7 +91,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {filtered.slice(0, 30).map((v, i) => {
-                    const voteColor = v.vote === "YES" ? "#4caf50" : v.vote === "NO" ? "#f44336" : "#888"
+                    const voteColor = v.vote === "YES" ? "var(--color-success)" : v.vote === "NO" ? "var(--color-status-error-alt)" : "var(--color-text-secondary)"
                     const daoName = "daoName" in v ? v.daoName : undefined
                     const daoSlug = "daoSlug" in v ? v.daoSlug : undefined
                     return (
@@ -108,8 +108,8 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                 <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: 8 }}>
                                     {daoSlug ? (
                                         <a href={`/dao/${daoSlug}/${v.proposalId}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}
-                                            onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
-                                            onMouseLeave={e => e.currentTarget.style.color = "#ccc"}
+                                            onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}
+                                            onMouseLeave={e => e.currentTarget.style.color = "var(--color-text-subtle)"}
                                         >
                                             {v.proposalTitle}
                                         </a>

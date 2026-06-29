@@ -709,13 +709,13 @@ export default function Validators() {
                         <ResponsiveContainer width="100%" height={180}>
                             <BarChart data={incidentsChartData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
                                 <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-                                <XAxis dataKey="date" tick={{ fill: "#666", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
-                                <YAxis tick={{ fill: "#666", fontSize: 9 }} allowDecimals={false} />
-                                <Tooltip contentStyle={{ background: "#12121e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
+                                <XAxis dataKey="date" tick={{ fill: "var(--color-text-secondary)", fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
+                                <YAxis tick={{ fill: "var(--color-text-secondary)", fontSize: 9 }} allowDecimals={false} />
+                                <Tooltip contentStyle={{ background: "var(--color-surface-abyss)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }} />
                                 <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} formatter={(value) => <span style={{ color: "var(--color-k-text)" }}>{value}</span>} />
-                                <Bar dataKey="critical" name="Critical" stackId="incidents" fill="#ef4444" />
-                                <Bar dataKey="warning" name="Warning" stackId="incidents" fill="#eab308" />
-                                <Bar dataKey="info" name="Info" stackId="incidents" fill="#3b82f6" />
+                                <Bar dataKey="critical" name="Critical" stackId="incidents" fill="var(--color-danger)" />
+                                <Bar dataKey="warning" name="Warning" stackId="incidents" fill="var(--color-status-warning-muted)" />
+                                <Bar dataKey="info" name="Info" stackId="incidents" fill="var(--color-info)" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

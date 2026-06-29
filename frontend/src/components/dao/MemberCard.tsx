@@ -22,8 +22,8 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                     onClick={() => onProfileClick(member.address)}
                     title="View profile"
                     style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, color: "var(--color-text-muted)", transition: "color 0.15s", flexShrink: 0 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-brand)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
                 >
                     👤
                 </button>
@@ -62,8 +62,8 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                     </span>
                 )}
                 {member.roles.map((role) => {
-                    const rc: Record<string, string> = { admin: "#f5a623", dev: "#00d4aa", finance: "#7b61ff", ops: "#3b82f6", member: "#888" }
-                    const c = rc[role] || "#888"
+                    const rc: Record<string, string> = { admin: "var(--color-accent-gold)", dev: "var(--color-brand)", finance: "var(--color-accent-purple)", ops: "var(--color-info)", member: "var(--color-text-secondary)" }
+                    const c = rc[role] || "var(--color-text-secondary)"
                     return (
                         <span key={role} className="k-brand-text" style={{
                             padding: "2px 8px", borderRadius: 4, fontSize: 10,

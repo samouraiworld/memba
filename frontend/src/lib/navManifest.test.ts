@@ -56,11 +56,9 @@ const EXCLUDED_ROUTES = new Set([
 
 // Routes that ARE top-level pages users should reach but are missing from
 // navManifest. Add them to navManifest, then remove from here.
-const KNOWN_MISSING = new Set([
-    'organizations',       // Has a route but no nav entry — add to manifest
-    'quest-admin',         // Admin page — consider admin nav section
-    'leaderboard',         // Linked from quests — consider adding to manifest
-    'changelogs',          // Public page — consider adding to manifest or footer
+// As of v7.2: all previously missing routes have been added to the manifest.
+const KNOWN_MISSING = new Set<string>([
+    // (empty — all routes now covered)
 ])
 
 describe('navManifest completeness', () => {

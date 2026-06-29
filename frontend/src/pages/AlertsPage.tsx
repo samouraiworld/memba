@@ -289,7 +289,7 @@ function AlertsContent() {
                             <button style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                                 height: 40, padding: "0 24px", borderRadius: 8,
-                                background: "#00d4aa", color: "#000", fontSize: 13,
+                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: 13,
                                 fontWeight: 600, border: "none", cursor: "pointer",
                                 boxShadow: "0 0 24px rgba(0,212,170,0.2)",
                                 fontFamily: "JetBrains Mono, monospace",

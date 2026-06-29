@@ -113,7 +113,7 @@ export function UserRedirect() {
             <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                 Resolving @{username}...
             </p>
-            <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid #333", borderTop: "2px solid #00d4aa", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+            <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
         </div>
     )
 }

@@ -48,7 +48,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{
                         width: 8, height: 8, borderRadius: "50%",
-                        background: "#00d4aa", display: "inline-block",
+                        background: "var(--color-brand)", display: "inline-block",
                         animation: "pulse-dot 2s ease-in-out infinite",
                         boxShadow: "0 0 8px rgba(0,212,170,0.5)",
                     }} />

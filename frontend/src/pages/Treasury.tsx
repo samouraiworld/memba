@@ -214,7 +214,7 @@ export function Treasury() {
                 )}
 
                 {assets.length === 0 ? (
-                    <div className="k-dashed" style={{ background: "#0c0c0c", padding: 32, textAlign: "center" }}>
+                    <div className="k-dashed" style={{ background: "var(--color-surface-black)", padding: 32, textAlign: "center" }}>
                         <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
                             No assets found in treasury
                         </p>
@@ -235,7 +235,7 @@ export function Treasury() {
                             display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
                             padding: "8px 20px", fontSize: 10, color: "var(--color-text-muted)",
                             fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase",
-                            letterSpacing: "0.05em", borderBottom: "1px solid #1a1a1a",
+                            letterSpacing: "0.05em", borderBottom: "1px solid var(--color-surface-base)",
                         }}>
                             <span>Asset</span>
                             <span>Symbol</span>
@@ -254,7 +254,7 @@ export function Treasury() {
                                     transition: "border-color 0.15s",
                                 }}
                                 onClick={() => asset.type === "grc20" && navigate(`/tokens/${asset.symbol}`)}
-                                onMouseEnter={(e) => e.currentTarget.style.borderColor = "#333"}
+                                onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--color-text-dim)"}
                                 onMouseLeave={(e) => e.currentTarget.style.borderColor = ""}
                             >
                                 <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>
@@ -262,7 +262,7 @@ export function Treasury() {
                                 </span>
                                 <span style={{
                                     fontSize: 11, fontFamily: "JetBrains Mono, monospace",
-                                    color: asset.type === "grc20" ? "#00d4aa" : "#f5a623",
+                                    color: asset.type === "grc20" ? "var(--color-brand)" : "var(--color-accent-gold)",
                                 }}>
                                     {asset.type === "grc20" ? `$${asset.symbol}` : asset.symbol}
                                 </span>
@@ -292,7 +292,7 @@ function StatCard({ label, value, icon, accent }: { label: string; value: string
             <div>
                 <div style={{
                     fontSize: 20, fontWeight: 700,
-                    color: accent ? "#00d4aa" : "#f0f0f0",
+                    color: accent ? "var(--color-brand)" : "var(--color-surface-light)",
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     {value}

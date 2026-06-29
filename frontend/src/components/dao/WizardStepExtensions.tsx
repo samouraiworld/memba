@@ -86,12 +86,12 @@ export function WizardStepExtensions({
                         onClick={() => onEnableBoardChange(!enableBoard)}
                         style={{
                             width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                            background: enableBoard ? "#00d4aa" : "rgba(255,255,255,0.1)",
+                            background: enableBoard ? "var(--color-brand)" : "rgba(255,255,255,0.1)",
                             position: "relative", transition: "background 0.2s",
                         }}
                     >
                         <div style={{
-                            width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                            width: 18, height: 18, borderRadius: "50%", background: "var(--color-text-primary)",
                             position: "absolute", top: 3,
                             left: enableBoard ? 23 : 3, transition: "left 0.2s",
                         }} />

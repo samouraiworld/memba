@@ -158,7 +158,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <span style={{
                                 width: 6, height: 6, borderRadius: "50%",
-                                background: "#00d4aa", flexShrink: 0,
+                                background: "var(--color-brand)", flexShrink: 0,
                             }} />
                             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>GNOT</span>
                             <span style={{
@@ -202,7 +202,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                     <span style={{
                                         width: 6, height: 6, borderRadius: "50%",
-                                        background: "#7c3aed", flexShrink: 0,
+                                        background: "var(--color-accent-purple-deep)", flexShrink: 0,
                                     }} />
                                     <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                                         {token.symbol}

@@ -75,7 +75,7 @@ function ContributionHeatmap({ data }: { data: Array<{ date: string; count: numb
         if (intensity < 0.25) return "rgba(0, 212, 170, 0.15)"
         if (intensity < 0.5) return "rgba(0, 212, 170, 0.35)"
         if (intensity < 0.75) return "rgba(0, 212, 170, 0.6)"
-        return "#00d4aa"
+        return "var(--color-brand)"
     }
 
     return (
@@ -92,7 +92,7 @@ function ContributionHeatmap({ data }: { data: Array<{ date: string; count: numb
                         key={i}
                         x={leftPad + m.x * (CELL_SIZE + CELL_GAP)}
                         y={12}
-                        fill="#666"
+                        fill="var(--color-text-secondary)"
                         fontSize={9}
                         fontFamily="JetBrains Mono, monospace"
                     >
@@ -105,7 +105,7 @@ function ContributionHeatmap({ data }: { data: Array<{ date: string; count: numb
                             key={i}
                             x={0}
                             y={topPad + i * (CELL_SIZE + CELL_GAP) + CELL_SIZE - 2}
-                            fill="#555"
+                            fill="var(--color-text-muted)"
                             fontSize={8}
                             fontFamily="JetBrains Mono, monospace"
                         >
@@ -146,7 +146,7 @@ function ContributionHeatmap({ data }: { data: Array<{ date: string; count: numb
                                         ? "rgba(0,212,170,0.35)"
                                         : i === 3
                                           ? "rgba(0,212,170,0.6)"
-                                          : "#00d4aa",
+                                          : "var(--color-brand)",
                         }}
                     />
                 ))}
@@ -182,7 +182,7 @@ function findTeam(login: string) {
 // ── Recharts Tooltip ────────────────────────────────────────
 
 const CHART_TOOLTIP_STYLE = {
-    background: "#1a1a2e",
+    background: "var(--color-surface-panel)",
     border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: 8,
     fontSize: 12,
@@ -332,7 +332,7 @@ export default function GnoloveContributorProfile() {
                             className="gl-profile-badge"
                             style={{
                                 background: TEAM_CSS_COLORS[team.color],
-                                color: "#000",
+                                color: "var(--color-text-contrast)",
                                 padding: "2px 10px",
                                 borderRadius: 12,
                                 fontSize: 12,
@@ -422,27 +422,27 @@ export default function GnoloveContributorProfile() {
                                     <AreaChart data={monthlyData} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
                                         <defs>
                                             <linearGradient id="gradCommits" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#4a9eff" stopOpacity={0.4} />
-                                                <stop offset="100%" stopColor="#4a9eff" stopOpacity={0} />
+                                                <stop offset="0%" stopColor="var(--color-accent-blue-bright)" stopOpacity={0.4} />
+                                                <stop offset="100%" stopColor="var(--color-accent-blue-bright)" stopOpacity={0} />
                                             </linearGradient>
                                             <linearGradient id="gradPrs" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
-                                                <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                                                <stop offset="0%" stopColor="var(--color-success)" stopOpacity={0.4} />
+                                                <stop offset="100%" stopColor="var(--color-success)" stopOpacity={0} />
                                             </linearGradient>
                                             <linearGradient id="gradIssues" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#ffc107" stopOpacity={0.4} />
-                                                <stop offset="100%" stopColor="#ffc107" stopOpacity={0} />
+                                                <stop offset="0%" stopColor="var(--color-status-warning-alt)" stopOpacity={0.4} />
+                                                <stop offset="100%" stopColor="var(--color-status-warning-alt)" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <XAxis
                                             dataKey="period"
-                                            tick={{ fill: "#888", fontSize: 11 }}
+                                            tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
                                             tickFormatter={(v: string) => {
                                                 const [y, m] = v.split("-")
                                                 return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m, 10) - 1]} ${y.slice(2)}`
                                             }}
                                         />
-                                        <YAxis tick={{ fill: "#888", fontSize: 11 }} />
+                                        <YAxis tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
                                         <Tooltip
                                             contentStyle={CHART_TOOLTIP_STYLE}
                                             labelStyle={{ color: "var(--color-text)" }}
@@ -451,7 +451,7 @@ export default function GnoloveContributorProfile() {
                                             type="monotone"
                                             dataKey="commits"
                                             name="Commits"
-                                            stroke="#4a9eff"
+                                            stroke="var(--color-accent-blue-bright)"
                                             fill="url(#gradCommits)"
                                             strokeWidth={2}
                                         />
@@ -459,7 +459,7 @@ export default function GnoloveContributorProfile() {
                                             type="monotone"
                                             dataKey="prs"
                                             name="PRs"
-                                            stroke="#22c55e"
+                                            stroke="var(--color-success)"
                                             fill="url(#gradPrs)"
                                             strokeWidth={2}
                                         />
@@ -467,7 +467,7 @@ export default function GnoloveContributorProfile() {
                                             type="monotone"
                                             dataKey="issues"
                                             name="Issues"
-                                            stroke="#ffc107"
+                                            stroke="var(--color-status-warning-alt)"
                                             fill="url(#gradIssues)"
                                             strokeWidth={2}
                                         />
@@ -488,11 +488,11 @@ export default function GnoloveContributorProfile() {
                                         layout="vertical"
                                         margin={{ left: 140, right: 20, top: 10, bottom: 10 }}
                                     >
-                                        <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} />
+                                        <XAxis type="number" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
                                         <YAxis
                                             type="category"
                                             dataKey="id"
-                                            tick={{ fill: "#f0f0f0", fontSize: 11 }}
+                                            tick={{ fill: "var(--color-surface-light)", fontSize: 11 }}
                                             width={130}
                                         />
                                         <Tooltip
@@ -502,7 +502,7 @@ export default function GnoloveContributorProfile() {
                                         <Bar
                                             dataKey="contributions"
                                             name="Contributions"
-                                            fill="#00d4aa"
+                                            fill="var(--color-brand)"
                                             radius={[0, 4, 4, 0]}
                                         />
                                     </BarChart>
