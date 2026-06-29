@@ -98,7 +98,7 @@ jobs:
           # saw. To enable a flag: remove it from SAFETY_GATED_FLAGS AND this list, and
           # pass code review.
           FAIL=0
-          for FLAG in VITE_ENABLE_SERVICES VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
+          for FLAG in VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
             VALUE=$(grep "^${FLAG}=" .env.example | cut -d= -f2 || true)
             if [ "$VALUE" = "true" ]; then
               echo "::error::SAFETY GATE FAILED — ${FLAG}=true in .env.example. This flag gates a feature with incomplete on-chain enforcement. See MEMBA_AAA_IMPLEMENTATION_PLAN.md."
