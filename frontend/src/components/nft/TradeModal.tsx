@@ -25,6 +25,7 @@ import { routeNftV3 } from "../../lib/marketplace/router"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
 import { friendlyError } from "../../lib/errorMessages"
+import type { AminoMsg } from "../../lib/grc20"
 import { PriceBreakdown } from "./PriceBreakdown"
 import "./TradeModal.css"
 
