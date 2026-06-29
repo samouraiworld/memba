@@ -8,7 +8,6 @@
 import { useState, useEffect } from "react"
 import { Heart } from "@phosphor-icons/react"
 import {
-    fetchAgentDetail,
     invalidateAgentCache,
     generateMcpConfig,
     getAgentStats,
@@ -18,7 +17,7 @@ import {
 } from "../../lib/agentRegistry"
 import { buildReviewAgentMsg } from "../../lib/agentTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
-import { MEMBA_DAO, AGENT_CREDITS_ENABLED } from "../../lib/config"
+import { MEMBA_DAO } from "../../lib/config"
 import type { LayoutContext } from "../../types/layout"
 import { CreditSection } from "./CreditSection"
 

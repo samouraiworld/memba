@@ -84,7 +84,7 @@ const GNO_AVAILABLE = hasGno()
 const describeGno = GNO_AVAILABLE ? describe : describe.skip
 
 if (!GNO_AVAILABLE) {
-    // eslint-disable-next-line no-console
+
     console.warn(
         "[templates.compile] SKIPPED — `gno` not on PATH. Authoritative gate runs deployer-side (make verify-client-templates).",
     )

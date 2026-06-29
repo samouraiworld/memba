@@ -27,7 +27,6 @@ import {
     type AgentListing,
     type AgentCategory,
 } from "../lib/agentRegistry"
-import { MEMBA_DAO } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
