@@ -271,12 +271,10 @@ func main() {
 	server := &http.Server{
 		Addr:         ":" + port,
 		Handler:      c.Handler(mux),
-		Protocols:    &http.Protocols{},
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	server.Protocols.SetUnencryptedHTTP2(true)
 
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
 	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The
