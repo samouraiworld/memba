@@ -20,6 +20,9 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
+      // Temporarily disable the new set-state-in-effect rule introduced in eslint-plugin-react-hooks@5.2.0
+      // There are 60+ occurrences in the codebase that need to be refactored eventually.
+      'react-hooks/set-state-in-effect': 'off',
       // Viewport/breakpoint detection must go through the shared useIsMobile()
       // hook (matchMedia, SSR-safe) — not ad-hoc window.innerWidth reads in
       // render, which caused mobile/desktop drift (audit M7).
