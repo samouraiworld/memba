@@ -4,11 +4,18 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
-## Unreleased — since v6.3.1 (2026-05-28 → present)
+## [v7.2.0] — 2026-06-29
 
-> Large multi-workstream wave merged to `main` after v6.3.1. No version tag cut yet — release/version number is a pending decision. Grouped by workstream (most recent first); PR numbers are the source of truth.
+> Large multi-workstream wave merged to `main` after v6.3.1. Grouped by workstream (most recent first); PR numbers are the source of truth.
 >
 > ⚠️ **Backlog note:** the wave from #510 → #585 (Home AAA, validators unification, mobile, §13 light theme, reviews realm, quests) is only partially captured here. A backfill pass is in progress.
+
+### Page Decomposition & Hygiene — Wave 3 (#650, #651, #652, 2026-06-29)
+- **Marketplace Page Decomposition:** `Marketplace.tsx` reduced from 816 LOC to 319 LOC by extracting `AgentDetailView`, `RegisterAgentForm`, and `CreditSection`.
+- **CSS Tokenization:** Replaced 270+ inline hex colors with CSS custom properties (`var(--color-...)`) across 61 files to support upcoming themes.
+- **NavManifest Completion:** Added 4 missing routes (`organizations`, `quest-admin`, `leaderboard`, `changelogs`) and 4 new icons to ensure 100% route coverage.
+- **Backend Deprecation Fix:** Migrated from deprecated `h2c.NewHandler` to standard library `http.Server` protocols (Go 1.25) to fix `SA1019` linter errors, while preserving HTTP/1.1 fallback for Fly.io health checks.
+- **Dependency Hygiene:** Merged 10 `dependabot` PRs across the stack (React, Cosmos SDK, ConnectRPC, SQLite).
 
 ### Security Hardening — Wave 1 (#644, 2026-06-28)
 - **Auth fail-closed by default.** `MEMBA_ALLOW_UNSIGNED_AUTH` default inverted from permissive→reject. Unset/missing env var now **rejects** unsigned auth (impersonation closed). Explicit `=1` required for dev mode only. fly.toml env var removed (default is now secure).
