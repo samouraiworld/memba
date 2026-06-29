@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { useNetworkPath, useNetworkKey } from "../../hooks/useNetworkNav"
 import { useAdena } from "../../hooks/useAdena"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { buildCreateContractMsg } from "../../lib/marketplace/builders"
+import type { AminoMsg } from "../../lib/grc20"
 
 // Mock services for MVP
 const MOCK_SERVICES = [
@@ -39,8 +39,6 @@ const MOCK_SERVICES = [
 ]
 
 export default function ServiceLane() {
-    const np = useNetworkPath()
-    const nk = useNetworkKey()
     const adena = useAdena()
     
     const [hiringService, setHiringService] = useState<typeof MOCK_SERVICES[0] | null>(null)
@@ -70,7 +68,7 @@ export default function ServiceLane() {
                 service.milestones
             )
 
-            await doContractBroadcast([msg as any], `Hire ${service.freelancer} for ${service.title}`)
+            await doContractBroadcast([msg as unknown as AminoMsg], `Hire ${service.freelancer} for ${service.title}`)
             alert(`Success! You have hired ${service.freelancer} for ${service.title}.`)
             setHiringService(null)
         } catch (err) {
