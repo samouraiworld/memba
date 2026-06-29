@@ -390,10 +390,10 @@ describe("CollectionPublic — Items tab: owned token with offer → Accept", ()
 
         // Token #2 is owned by ME and has a standing 3 GNOT offer from OFFER_BUYER.
         await waitFor(() => {
-            expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThan(0)
+            expect(screen.getByRole("button", { name: "Accept 3 GNOT" })).toBeInTheDocument()
         })
 
-        fireEvent.click(screen.getAllByRole("button", { name: /Accept/i })[0])
+        fireEvent.click(screen.getByRole("button", { name: "Accept 3 GNOT" }))
 
         await waitFor(() => {
             expect(screen.getByTestId("trade-modal")).toBeInTheDocument()

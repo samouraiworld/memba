@@ -33,7 +33,20 @@ export default function UnifiedMarketplace() {
                             : "Discover, buy, and sell verified digital collectibles and art."}
                     </p>
                     
-                    {/* Actions moved to profile/asset pages for cleaner discovery UX */}
+                    <div className="um-hero-stats">
+                        <div className="um-hero-stat-card">
+                            <span className="um-stat-value">24.5k</span>
+                            <span className="um-stat-label">24h Vol (GNOT)</span>
+                        </div>
+                        <div className="um-hero-stat-card">
+                            <span className="um-stat-value">1,402</span>
+                            <span className="um-stat-label">Active Listings</span>
+                        </div>
+                        <div className="um-hero-stat-card">
+                            <span className="um-stat-value">Top</span>
+                            <span className="um-stat-label">Samourai Crew</span>
+                        </div>
+                    </div>
                 </div>
             </header>
 
