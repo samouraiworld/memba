@@ -134,9 +134,7 @@ export default function NftLane() {
                                         <span style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>{col.name}</span>
                                         <VerifiedBadge verified={col.verified} compact />
                                     </div>
-                                    <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-                                        {col.minted} / {col.supply > 0 ? col.supply : "∞"}
-                                    </span>
+                                        {col.items} items
                                 </div>
                                 
                                 <div style={{ display: "flex", gap: "24px", paddingTop: "12px", borderTop: "1px solid var(--color-border)" }}>
@@ -168,7 +166,7 @@ export default function NftLane() {
                             {activity.map((item, i) => (
                                 <Link 
                                     key={i} 
-                                    to={np(`nft/token/${item.collectionID}/${item.tokenID}`)}
+                                    to={np(`nft/token/${item.collectionId}/${item.tokenId}`)}
                                     style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
                                         padding: "16px 20px", textDecoration: "none", color: "var(--color-text)",
@@ -180,11 +178,11 @@ export default function NftLane() {
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                                         <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, backgroundColor: "var(--color-bg-tertiary)" }}>
-                                            <NFTMedia uri={item.tokenURI} alt={`NFT #${item.tokenID}`} seed={`${item.collectionID}-${item.tokenID}`} />
+                                            <NFTMedia uri={""} alt={`NFT #${item.tokenId}`} seed={`${item.collectionId}-${item.tokenId}`} />
                                         </div>
                                         <div>
                                             <div style={{ fontSize: "14px", fontWeight: 500 }}>
-                                                {item.type === "SALE" ? "Sold" : "Offer Accepted"} · NFT #{item.tokenID}
+                                                {item.action === "SALE" ? "Sold" : "Offer Accepted"} · NFT #{item.tokenId}
                                             </div>
                                             <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>
                                                 {item.seller.slice(0,8)}... → {item.buyer.slice(0,8)}...
@@ -196,7 +194,7 @@ export default function NftLane() {
                                             {formatGnotCompact(item.priceUgnot)} GNOT
                                         </div>
                                         <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-                                            {relativeTime(item.timestamp)}
+                                            {relativeTime(item.time)}
                                         </div>
                                     </div>
                                 </Link>

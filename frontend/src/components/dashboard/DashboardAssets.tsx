@@ -106,7 +106,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                                     balance: bal.toString(),
                                     decimals: 0,
                                     isNft: true
-                                }
+                                } as TokenBalance
                             }
                             return null
                         } catch {
