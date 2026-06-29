@@ -91,8 +91,8 @@ vi.mock("../hooks/home/useMemberStanding", () => ({
     useMemberStanding: vi.fn(() => ({
         loading: false,
         totalXP: 0,
-        rank: { tier: 0, name: "Newcomer", xpRequired: 0, color: "#6b7280", cssClass: "rank-newcomer", perks: [] },
-        nextRank: { tier: 1, name: "Bronze Explorer", xpRequired: 50, color: "#cd7f32", cssClass: "rank-bronze", perks: [] },
+        rank: { tier: 0, name: "Newcomer", xpRequired: 0, color: "var(--color-text-disabled)", cssClass: "rank-newcomer", perks: [] },
+        nextRank: { tier: 1, name: "Bronze Explorer", xpRequired: 50, color: "var(--color-accent-bronze)", cssClass: "rank-bronze", perks: [] },
         xpToNext: 50,
         candidatureThreshold: 350,
         xpToCandidature: 350,

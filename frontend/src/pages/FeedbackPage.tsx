@@ -88,7 +88,7 @@ export default function FeedbackPage() {
                     onClick={() => completeQuest("submit-feedback")}
                     style={{
                         padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                        background: "#00d4aa", color: "#000", textDecoration: "none",
+                        background: "var(--color-brand)", color: "var(--color-text-contrast)", textDecoration: "none",
                         fontFamily: "JetBrains Mono, monospace",
                         transition: "opacity 0.15s",
                         whiteSpace: "nowrap",

@@ -28,8 +28,6 @@ import (
 	"github.com/samouraiworld/memba/backend/internal/indexer"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	_ "modernc.org/sqlite"
 )
 
@@ -272,11 +270,13 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + port,
-		Handler:      c.Handler(h2c.NewHandler(mux, &http2.Server{})),
+		Handler:      c.Handler(mux),
+		Protocols:    &http.Protocols{},
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
+	server.Protocols.SetUnencryptedHTTP2(true)
 
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
 	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The

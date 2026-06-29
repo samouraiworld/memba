@@ -17,19 +17,19 @@ import type { VoteRecord, TierInfo } from "../../lib/dao/shared"
 
 // ── Color palette ──────────────────────────────────────────
 const TIER_COLORS: Record<string, string> = {
-    T1: "#00d4aa",
-    T2: "#7b61ff",
-    T3: "#f5a623",
-    T4: "#3b82f6",
-    T5: "#ef4444",
-    T6: "#8b5cf6",
+    T1: "var(--color-brand)",
+    T2: "var(--color-accent-purple)",
+    T3: "var(--color-accent-gold)",
+    T4: "var(--color-info)",
+    T5: "var(--color-danger)",
+    T6: "var(--color-accent-purple-alt)",
 }
-const YES_COLOR = "#4caf50"
-const NO_COLOR = "#f44336"
-const ABSTAIN_COLOR = "#555"
+const YES_COLOR = "var(--color-success)"
+const NO_COLOR = "var(--color-status-error-alt)"
+const ABSTAIN_COLOR = "var(--color-text-muted)"
 
 function tierColor(tier: string, idx: number): string {
-    return TIER_COLORS[tier.toUpperCase()] || ["#00d4aa", "#7b61ff", "#f5a623", "#3b82f6", "#ef4444"][idx % 5]
+    return TIER_COLORS[tier.toUpperCase()] || ["var(--color-brand)", "var(--color-accent-purple)", "var(--color-accent-gold)", "var(--color-info)", "var(--color-danger)"][idx % 5]
 }
 
 // ── Shared SVG donut renderer ────────────────────────────
@@ -93,12 +93,12 @@ function DonutChart({ segments, size, centerLabel, centerSub }: {
             })}
             {/* Center label */}
             <text x={cx} y={centerSub ? cy - 3 : cy} textAnchor="middle" dominantBaseline="central"
-                fill="#f0f0f0" fontSize={size * 0.2} fontFamily="JetBrains Mono, monospace" fontWeight="700">
+                fill="var(--color-surface-light)" fontSize={size * 0.2} fontFamily="JetBrains Mono, monospace" fontWeight="700">
                 {centerLabel}
             </text>
             {centerSub && (
                 <text x={cx} y={cy + size * 0.13} textAnchor="middle" dominantBaseline="central"
-                    fill="#555" fontSize={size * 0.1} fontFamily="JetBrains Mono, monospace">
+                    fill="var(--color-text-muted)" fontSize={size * 0.1} fontFamily="JetBrains Mono, monospace">
                     {centerSub}
                 </text>
             )}
@@ -252,7 +252,7 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
                     <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)", fontWeight: 600 }}>
                         {totalVoted} of {totalMembers} voted
                     </span>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: quorumMet ? "#00d4aa" : "#f5a623", fontWeight: 700 }}>
+                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: quorumMet ? "var(--color-brand)" : "var(--color-accent-gold)", fontWeight: 700 }}>
                         {Math.round(participationPct)}%
                     </span>
                 </div>
@@ -261,8 +261,8 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
                     <div style={{
                         width: `${participationPct}%`, height: "100%",
                         background: quorumMet
-                            ? "linear-gradient(90deg, #00d4aa, #00d4aa88)"
-                            : "linear-gradient(90deg, #f5a623, #f5a62388)",
+                            ? "linear-gradient(90deg, var(--color-brand), var(--color-brand)88)"
+                            : "linear-gradient(90deg, var(--color-accent-gold), var(--color-accent-gold)88)",
                         borderRadius: 5, transition: "width 0.6s ease",
                     }} />
                     {/* Quorum threshold marker */}

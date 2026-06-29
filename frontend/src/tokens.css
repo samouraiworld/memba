@@ -96,6 +96,41 @@
     --transition-medium: 0.2s ease;
     --transition-slow: 0.3s ease;
 
+    /* ── Inline-hex migration tokens (v7.2) ─────────────── */
+    /* Map the 44 unique hex values found inline in TSX files to
+       semantic tokens. Usage: replace `color: "#00d4aa"` with
+       `color: "var(--color-brand)"` across pages/ and components/. */
+    --color-brand: #00d4aa;
+    --color-brand-muted: #00d4aa88;
+    --color-brand-faint: #00d4aa44;
+    --color-accent-gold: #f5a623;
+    --color-accent-gold-muted: #f5a62388;
+    --color-accent-gold-warm: #f7b731;
+    --color-accent-gold-bright: #ffbb33;
+    --color-accent-amber: #ff9800;
+    --color-accent-bronze: #cd7f32;
+    --color-accent-blue-bright: #4a9eff;
+    --color-accent-blue-link: #58a6ff;
+    --color-accent-blue-sky: #4dc9f6;
+    --color-accent-blue-info: #0088cc;
+    --color-accent-purple: #7b61ff;
+    --color-accent-purple-alt: #8b5cf6;
+    --color-accent-purple-deep: #7c3aed;
+    --color-accent-purple-soft: #a855f7;
+    --color-accent-teal: #2dd4bf;
+    --color-status-error-alt: #f44336;
+    --color-status-error-deep: #e74c3c;
+    --color-status-warning-alt: #ffc107;
+    --color-status-warning-muted: #eab308;
+    --color-text-ghost: #6e7781;
+    --color-surface-base: #1a1a1a;
+    --color-surface-panel: #1a1a2e;
+    --color-surface-deep: #141414;
+    --color-surface-abyss: #12121e;
+    --color-surface-void: #0d0d0d;
+    --color-surface-black: #0c0c0c;
+    --color-surface-overlay: #1e1e2e;
+
 }
 
 /* ── Light Theme Overrides ──────────────────────────────── */

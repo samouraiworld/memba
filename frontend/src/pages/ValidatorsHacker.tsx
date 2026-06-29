@@ -305,12 +305,12 @@ export default function ValidatorsHacker() {
             {/* ── Error state ───────────────────────────── */}
             {loadError && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.2)", borderRadius: 8, marginBottom: 12 }}>
-                    <span style={{ color: "#f44336", fontSize: 13, fontFamily: "JetBrains Mono, monospace", flex: 1 }}>
+                    <span style={{ color: "var(--color-status-error-alt)", fontSize: 13, fontFamily: "JetBrains Mono, monospace", flex: 1 }}>
                         {loadError}
                     </span>
                     <button
                         onClick={loadAll}
-                        style={{ color: "#00d4aa", background: "none", border: "1px solid #00d4aa", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
+                        style={{ color: "var(--color-brand)", background: "none", border: "1px solid var(--color-brand)", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontFamily: "JetBrains Mono, monospace" }}
                     >
                         Retry
                     </button>

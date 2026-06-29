@@ -56,7 +56,7 @@ export function WizardStepReview({
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {availableRoles.map((role) => {
                             const count = validMembers.filter((m) => m.roles.includes(role)).length
-                            const color = ROLE_COLORS[role] || "#888"
+                            const color = ROLE_COLORS[role] || "var(--color-text-secondary)"
                             return (
                                 <span key={role} style={{
                                     fontSize: 10, padding: "3px 10px", borderRadius: 4,
@@ -103,8 +103,8 @@ export function WizardStepReview({
                             {m.roles.map((r) => (
                                 <span key={r} style={{
                                     fontSize: 8, padding: "1px 5px", borderRadius: 3,
-                                    background: `${ROLE_COLORS[r] || "#888"}15`,
-                                    color: ROLE_COLORS[r] || "#888",
+                                    background: `${ROLE_COLORS[r] || "var(--color-text-secondary)"}15`,
+                                    color: ROLE_COLORS[r] || "var(--color-text-secondary)",
                                     fontFamily: "JetBrains Mono, monospace",
                                 }}>
                                     {r}

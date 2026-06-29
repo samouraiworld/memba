@@ -86,7 +86,7 @@ export function WizardStepMembers({
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 4 }}>
                         {availableRoles.map((role) => {
                             const active = m.roles.includes(role)
-                            const color = ROLE_COLORS[role] || "#888"
+                            const color = ROLE_COLORS[role] || "var(--color-text-secondary)"
                             return (
                                 <button
                                     key={role}
@@ -96,7 +96,7 @@ export function WizardStepMembers({
                                         fontFamily: "JetBrains Mono, monospace",
                                         background: active ? `${color}20` : "transparent",
                                         border: `1px solid ${active ? `${color}60` : "rgba(255,255,255,0.08)"}`,
-                                        color: active ? color : "#555",
+                                        color: active ? color : "var(--color-text-muted)",
                                         transition: "all 0.15s",
                                     }}
                                 >

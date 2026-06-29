@@ -127,8 +127,8 @@ export function ReportScheduleForm({ schedule, onSave }: Props) {
                     disabled={saving}
                     style={{
                         ...btnStyle,
-                        background: saving ? "rgba(0,212,170,0.08)" : "#00d4aa",
-                        color: saving ? "#00d4aa" : "#000",
+                        background: saving ? "rgba(0,212,170,0.08)" : "var(--color-brand)",
+                        color: saving ? "var(--color-brand)" : "var(--color-text-contrast)",
                     }}
                 >
                     {saving ? "Saving…" : "Save Schedule"}

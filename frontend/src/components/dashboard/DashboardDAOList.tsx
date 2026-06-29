@@ -117,8 +117,8 @@ export function DashboardDAOList({ savedDAOs }: Props) {
                                             transition: "transform 0.2s, color 0.15s",
                                             transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
                                         }}
-                                        onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
-                                        onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                                        onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}
+                                        onMouseLeave={e => e.currentTarget.style.color = "var(--color-text-muted)"}
                                     >
                                         ▼
                                     </button>

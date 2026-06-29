@@ -14,7 +14,7 @@ export function NotFound() {
             <div style={{
                 fontSize: 72, fontWeight: 800, letterSpacing: "-0.04em",
                 fontFamily: "JetBrains Mono, monospace",
-                background: "linear-gradient(135deg, #00d4aa 0%, #00d4aa44 100%)",
+                background: "linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand)44 100%)",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                 animation: "glitch 2s ease-in-out infinite",
             }}>

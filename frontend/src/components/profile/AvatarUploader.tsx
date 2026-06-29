@@ -101,8 +101,8 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                 fontFamily: "JetBrains Mono, monospace",
                                 background: mode === m ? "rgba(0,212,170,0.08)" : "transparent",
                                 border: "1px solid",
-                                borderColor: mode === m ? "rgba(0,212,170,0.2)" : "#222",
-                                color: mode === m ? "#00d4aa" : "#666",
+                                borderColor: mode === m ? "rgba(0,212,170,0.2)" : "var(--color-surface-raised)",
+                                color: mode === m ? "var(--color-brand)" : "var(--color-text-secondary)",
                                 cursor: "pointer", transition: "all 0.15s",
                             }}
                         >
@@ -122,7 +122,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         data-testid="avatar-url-input"
                         style={{
                             flex: 1, padding: "8px 12px", borderRadius: 6,
-                            border: "1px solid #1a1a1a", background: "#0d0d0d",
+                            border: "1px solid var(--color-surface-base)", background: "var(--color-surface-void)",
                             color: "var(--color-text)", fontSize: 11,
                             fontFamily: "JetBrains Mono, monospace", outline: "none",
                         }}
@@ -218,7 +218,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         alt="Current avatar"
                         style={{
                             width: 32, height: 32, borderRadius: "50%",
-                            objectFit: "cover", border: "1px solid #222",
+                            objectFit: "cover", border: "1px solid var(--color-surface-raised)",
                         }}
                         onError={e => e.currentTarget.style.display = "none"}
                     />

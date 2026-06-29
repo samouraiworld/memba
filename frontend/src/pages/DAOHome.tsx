@@ -179,7 +179,7 @@ export function DAOHome() {
         const activityPts = proposals.length >= 10 ? 30 : proposals.length >= 5 ? 20 : proposals.length >= 2 ? 10 : 5
         const total = participationPts + execPts + activityPts
         const grade = total >= 80 ? "A" : total >= 60 ? "B" : total >= 40 ? "C" : "D"
-        const color = grade === "A" ? "#00d4aa" : grade === "B" ? "#4dc9f6" : grade === "C" ? "#f7b731" : "#e74c3c"
+        const color = grade === "A" ? "var(--color-brand)" : grade === "B" ? "var(--color-accent-blue-sky)" : grade === "C" ? "var(--color-accent-gold-warm)" : "var(--color-status-error-deep)"
         return { grade, total, color, participationPts, execPts, activityPts }
     }, [proposals.length, proposalsWithVotes.length, nonVoterPercent, awaitingExecution.length, config])
 

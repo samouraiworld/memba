@@ -27,12 +27,12 @@ export function SocialLink({ href, icon, label }: { href: string; icon: React.Re
             style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "8px 14px", borderRadius: 8,
-                background: "rgba(255,255,255,0.03)", border: "1px solid #1a1a1a",
+                background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-surface-base)",
                 color: "var(--color-text-secondary)", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
                 textDecoration: "none", transition: "border-color 0.15s, color 0.15s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.color = "#f0f0f0" }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1a1a1a"; e.currentTarget.style.color = "#aaa" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-text-dim)"; e.currentTarget.style.color = "var(--color-surface-light)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-surface-base)"; e.currentTarget.style.color = "var(--color-text-subtle)" }}
         >
             <span style={{ fontSize: 14 }}>{icon}</span>
             {label}
@@ -42,7 +42,7 @@ export function SocialLink({ href, icon, label }: { href: string; icon: React.Re
 
 export function ContribStat({ label, value, icon, accent }: { label: string; value: string; icon: string; accent?: boolean }) {
     return (
-        <div style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid #1a1a1a" }}>
+        <div style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--color-surface-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <span style={{ fontSize: 14 }}>{icon}</span>
                 <span style={{ fontSize: 9, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -52,7 +52,7 @@ export function ContribStat({ label, value, icon, accent }: { label: string; val
             <div style={{
                 fontSize: 20, fontWeight: 700,
                 fontFamily: "JetBrains Mono, monospace",
-                color: accent ? "#00d4aa" : "#f0f0f0",
+                color: accent ? "var(--color-brand)" : "var(--color-surface-light)",
             }}>
                 {value}
             </div>
@@ -66,7 +66,7 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
 }) {
     const inputStyle: React.CSSProperties = {
         width: "100%", padding: "8px 10px", borderRadius: 6,
-        background: "rgba(255,255,255,0.03)", border: "1px solid #222",
+        background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-surface-raised)",
         color: "var(--color-text)", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
         outline: "none", resize: multiline ? "vertical" as const : "none" as const,
         transition: "border-color 0.15s",
@@ -85,8 +85,8 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
                     placeholder={placeholder}
                     rows={3}
                     style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#00d4aa")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#222")}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-brand)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-surface-raised)")}
                 />
             ) : (
                 <input
@@ -96,8 +96,8 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
                     onChange={(e) => onChange(e.target.value.slice(0, maxLen))}
                     placeholder={placeholder}
                     style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#00d4aa")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#222")}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-brand)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-surface-raised)")}
                 />
             )}
         </div>

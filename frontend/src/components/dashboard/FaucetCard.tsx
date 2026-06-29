@@ -47,7 +47,7 @@ export function FaucetCard({ address }: FaucetCardProps) {
         return (
             <div className="faucet-card" data-testid="faucet-card-claimed">
                 <div className="faucet-card-icon">
-                    <Drop size={24} weight="fill" color="#00d4aa" />
+                    <Drop size={24} weight="fill" color="var(--color-brand)" />
                 </div>
                 <div className="faucet-card-content">
                     <div className="faucet-card-claimed">
@@ -80,7 +80,7 @@ export function FaucetCard({ address }: FaucetCardProps) {
     return (
         <div className="faucet-card" data-testid="faucet-card">
             <div className="faucet-card-icon">
-                <Drop size={24} weight="duotone" color="#00d4aa" />
+                <Drop size={24} weight="duotone" color="var(--color-brand)" />
             </div>
             <div className="faucet-card-content">
                 <div className="faucet-card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -119,8 +119,8 @@ export function FaucetCard({ address }: FaucetCardProps) {
                         color: "var(--color-text-muted)", padding: 4, display: "flex",
                         transition: "color 0.15s",
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#f0f0f0")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#555")}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--color-surface-light)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}
                 >
                     <X size={16} />
                 </button>

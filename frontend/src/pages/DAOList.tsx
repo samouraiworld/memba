@@ -415,8 +415,8 @@ function DAOCard({
                     {dao.config.tierDistribution && dao.config.tierDistribution.length > 0 && (
                         <div className="k-dao-card__tiers">
                             {dao.config.tierDistribution.map((t) => {
-                                const colors: Record<string, string> = { T1: "#00d4aa", T2: "#2196f3", T3: "#f5a623" }
-                                const color = colors[t.tier] || "#888"
+                                const colors: Record<string, string> = { T1: "var(--color-brand)", T2: "var(--color-info)", T3: "var(--color-accent-gold)" }
+                                const color = colors[t.tier] || "var(--color-text-secondary)"
                                 return (
                                     <span key={t.tier} className="k-dao-card__tier" style={{ background: `${color}12`, color }}>
                                         <span className="k-dao-card__tier-dot" style={{ background: color }} />

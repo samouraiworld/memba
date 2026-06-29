@@ -89,7 +89,7 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
                 alignItems: "center",
                 gap: "12px",
                 fontSize: "0.875rem",
-                color: "var(--text-primary, #fff)",
+                color: "var(--text-primary, var(--color-text-primary))",
                 animation: "fadeIn 0.3s ease-out",
             }}
         >
@@ -109,7 +109,7 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
                             border: "1px solid rgba(255,152,0,0.5)",
                             borderRadius: "var(--radius-sm, 6px)",
                             padding: "6px 12px",
-                            color: "var(--text-primary, #fff)",
+                            color: "var(--text-primary, var(--color-text-primary))",
                             cursor: "pointer",
                             fontSize: "0.8125rem",
                             fontWeight: 600,
@@ -125,7 +125,7 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
                     style={{
                         background: "transparent",
                         border: "none",
-                        color: "var(--text-secondary, #888)",
+                        color: "var(--text-secondary, var(--color-text-secondary))",
                         cursor: "pointer",
                         fontSize: "1rem",
                         padding: "4px",

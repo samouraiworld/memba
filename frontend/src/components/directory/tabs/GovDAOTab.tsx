@@ -30,11 +30,11 @@ export function GovDAOTab({ navigate }: TabProps) {
     }, [])
 
     const statusColor = (s: string) => {
-        if (s === "open") return "#00d4aa"
-        if (s === "passed") return "#f59e0b"
-        if (s === "executed") return "#3b82f6"
-        if (s === "failed" || s === "rejected") return "#ef4444"
-        return "#666"
+        if (s === "open") return "var(--color-brand)"
+        if (s === "passed") return "var(--color-accent-gold)"
+        if (s === "executed") return "var(--color-info)"
+        if (s === "failed" || s === "rejected") return "var(--color-danger)"
+        return "var(--color-text-secondary)"
     }
 
     return (

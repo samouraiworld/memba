@@ -33,7 +33,7 @@ const btnStyle: React.CSSProperties = {
     padding: "8px 16px", borderRadius: 8, border: "none",
     cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
     fontSize: 12, fontWeight: 600,
-    background: "#0088cc", color: "#fff",
+    background: "var(--color-accent-blue-info)", color: "var(--color-text-primary)",
     textDecoration: "none",
     transition: "opacity 0.2s",
 }

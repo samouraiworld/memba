@@ -54,11 +54,11 @@ export function DAOMembershipsCard(props: Props) {
                             padding: "10px 14px", cursor: "pointer",
                             display: "flex", alignItems: "center", justifyContent: "space-between",
                             textAlign: "left", width: "100%",
-                            border: "1px solid #1a1a1a",
+                            border: "1px solid var(--color-surface-base)",
                             transition: "border-color 0.15s",
                         }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)"}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-surface-base)"}
                     >
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>

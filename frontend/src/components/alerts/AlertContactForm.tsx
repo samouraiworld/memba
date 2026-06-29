@@ -183,8 +183,8 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                         disabled={submitting}
                         style={{
                             ...btnStyle,
-                            background: submitting ? "rgba(0,212,170,0.08)" : "#00d4aa",
-                            color: submitting ? "#00d4aa" : "#000",
+                            background: submitting ? "rgba(0,212,170,0.08)" : "var(--color-brand)",
+                            color: submitting ? "var(--color-brand)" : "var(--color-text-contrast)",
                         }}
                     >
                         {submitting ? "…" : editing ? "Update" : "Add Contact"}

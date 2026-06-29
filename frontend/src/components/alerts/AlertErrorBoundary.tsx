@@ -47,7 +47,7 @@ export class AlertErrorBoundary extends Component<Props, State> {
                     fontFamily: "'JetBrains Mono', monospace", color: "var(--color-text)",
                 }}>
                     <div style={{
-                        background: "#141414", border: "1px solid #222", borderRadius: 12,
+                        background: "var(--color-surface-deep)", border: "1px solid var(--color-surface-raised)", borderRadius: 12,
                         padding: 32, textAlign: "center", maxWidth: 420,
                     }}>
                         <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
@@ -74,7 +74,7 @@ export class AlertErrorBoundary extends Component<Props, State> {
                             style={{
                                 display: "inline-flex", alignItems: "center",
                                 justifyContent: "center", height: 36, padding: "0 18px",
-                                borderRadius: 8, background: "#00d4aa", color: "#000",
+                                borderRadius: 8, background: "var(--color-brand)", color: "var(--color-text-contrast)",
                                 fontSize: 12, fontWeight: 600, border: "none",
                                 cursor: "pointer", boxShadow: "0 0 24px rgba(0,212,170,0.2)",
                             }}

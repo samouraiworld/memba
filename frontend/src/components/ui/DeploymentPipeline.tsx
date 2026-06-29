@@ -125,7 +125,7 @@ export function DeploymentPipeline({
                 id="deployment-pipeline"
                 className="deploy-modal k-card"
                 style={{
-                    borderColor: isComplete ? "rgba(0,212,170,0.2)" : isError ? "rgba(255,59,48,0.15)" : "#1a1a1a",
+                    borderColor: isComplete ? "rgba(0,212,170,0.2)" : isError ? "rgba(255,59,48,0.15)" : "var(--color-surface-base)",
                 }}
             >
                 {/* Header */}

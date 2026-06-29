@@ -552,7 +552,7 @@ function DashStatCard({ label, value, icon, sparkline, color }: {
             </div>
             <div className="gl-dash-card-value">{value.toLocaleString()}</div>
             {sparkline && sparkline.length > 2 && (
-                <Sparkline data={sparkline} color={color ?? "var(--gl-color-chart-series-primary, #00d4aa)"} />
+                <Sparkline data={sparkline} color={color ?? "var(--gl-color-chart-series-primary, var(--color-brand))"} />
             )}
         </div>
     )

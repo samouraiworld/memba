@@ -86,8 +86,8 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             padding: "5px 12px", borderRadius: 6, fontSize: 11,
                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                             background: isValid ? "rgba(0,212,170,0.1)" : "transparent",
-                            border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "#222"}`,
-                            color: isValid ? "#00d4aa" : "#555", cursor: isValid ? "pointer" : "default",
+                            border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "var(--color-surface-raised)"}`,
+                            color: isValid ? "var(--color-brand)" : "var(--color-text-muted)", cursor: isValid ? "pointer" : "default",
                             transition: "all 0.15s", opacity: regLoading ? 0.5 : 1,
                         }}
                     >
@@ -121,8 +121,8 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = "#00d4aa")}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-brand)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
                         >
                             Need test tokens? → faucet.gno.land
                         </a>

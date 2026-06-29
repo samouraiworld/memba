@@ -13,12 +13,12 @@ import DOMPurify from "dompurify"
 import { renderMarkdown } from "../../../lib/markdownLite"
 
 const REALM_CATEGORY_COLORS: Record<string, string> = {
-    standard: "#00d4aa",
-    defi: "#f59e0b",
-    social: "#8b5cf6",
-    utility: "#3b82f6",
-    game: "#ef4444",
-    unknown: "#666",
+    standard: "var(--color-brand)",
+    defi: "var(--color-accent-gold)",
+    social: "var(--color-accent-purple-alt)",
+    utility: "var(--color-info)",
+    game: "var(--color-danger)",
+    unknown: "var(--color-text-secondary)",
 }
 
 export function RealmsTab() {
@@ -100,9 +100,9 @@ export function RealmsTab() {
                         data-active={categoryFilter === cat}
                         style={{
                             borderColor: categoryFilter === cat
-                                ? (REALM_CATEGORY_COLORS[cat] || "#444")
+                                ? (REALM_CATEGORY_COLORS[cat] || "var(--color-text-dim)")
                                 : undefined,
-                            ["--ck"]: REALM_CATEGORY_COLORS[cat] || "#888",
+                            ["--ck"]: REALM_CATEGORY_COLORS[cat] || "var(--color-text-secondary)",
                         } as CSSProperties}
                     >
                         {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -128,8 +128,8 @@ export function RealmsTab() {
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                                     <div className="dir-token-avatar k-brand-text" style={{
-                                        background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                        ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                        background: `${REALM_CATEGORY_COLORS[r.category] || "var(--color-text-secondary)"}15`,
+                                        ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "var(--color-text-secondary)",
                                     } as CSSProperties}>
                                         🌐
                                     </div>
@@ -139,8 +139,8 @@ export function RealmsTab() {
                                             <span
                                                 className="dir-inline-badge k-brand-text"
                                                 style={{
-                                                    background: `${REALM_CATEGORY_COLORS[r.category] || "#666"}15`,
-                                                    ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "#666",
+                                                    background: `${REALM_CATEGORY_COLORS[r.category] || "var(--color-text-secondary)"}15`,
+                                                    ["--ck"]: REALM_CATEGORY_COLORS[r.category] || "var(--color-text-secondary)",
                                                 } as CSSProperties}
                                             >
                                                 {r.category}

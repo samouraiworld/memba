@@ -163,9 +163,9 @@ function AICouncilDetail({ report, onRefresh }: { report: ConsensusReport; onRef
                 </summary>
                 <div className="ai-council__models-grid">
                     {report.perspectives.map((p, i) => {
-                        const v = p.verdict === "approve" ? "#4caf50"
-                            : p.verdict === "caution" ? "#ff9800"
-                            : p.verdict === "reject" ? "#f44336" : "#444"
+                        const v = p.verdict === "approve" ? "var(--color-success)"
+                            : p.verdict === "caution" ? "var(--color-accent-amber)"
+                            : p.verdict === "reject" ? "var(--color-status-error-alt)" : "var(--color-text-dim)"
                         return (
                             <div key={i} className="ai-council__model">
                                 <div className="ai-council__model-header">

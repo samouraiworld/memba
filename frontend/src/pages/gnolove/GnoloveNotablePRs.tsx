@@ -25,11 +25,11 @@ import type { TNotablePR, TNotablePRLabel, TBoardMeta } from "../../lib/gnoloveS
 // ── Board taxonomy (defaults; per-board values come from the API) ─────
 const DEFAULT_AREA_ORDER = ["VM", "Blockchain", "Gnops", "Gno.land", "UX"]
 const AREA_COLOR: Record<string, string> = {
-    VM: "#00d4aa",
-    Blockchain: "#a855f7",
-    Gnops: "#ffc107",
-    "Gno.land": "#22c55e",
-    UX: "#4a9eff",
+    VM: "var(--color-brand)",
+    Blockchain: "var(--color-accent-purple-soft)",
+    Gnops: "var(--color-status-warning-alt)",
+    "Gno.land": "var(--color-success)",
+    UX: "var(--color-accent-blue-bright)",
 }
 const DEFAULT_STATUS_ORDER = ["Todo", "In progress", "Done"]
 const DEFAULT_BOARD_ID = "notable"
@@ -50,16 +50,16 @@ type ReviewState = { key: string; label: string; tone: string }
 function reviewState(pr: TNotablePR): ReviewState {
     if (pr.itemType === "issue") {
         return pr.state === "CLOSED"
-            ? { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, #ef4444)" }
-            : { key: "open", label: "Open", tone: "var(--gl-color-state-open, #22c55e)" }
+            ? { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, var(--color-danger))" }
+            : { key: "open", label: "Open", tone: "var(--gl-color-state-open, var(--color-success))" }
     }
-    if (pr.state === "MERGED") return { key: "merged", label: "Merged", tone: "var(--gl-color-state-merged, #a855f7)" }
-    if (pr.state === "CLOSED") return { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, #ef4444)" }
-    if (pr.isDraft) return { key: "draft", label: "Draft", tone: "#6e7781" }
+    if (pr.state === "MERGED") return { key: "merged", label: "Merged", tone: "var(--gl-color-state-merged, var(--color-accent-purple-soft))" }
+    if (pr.state === "CLOSED") return { key: "closed", label: "Closed", tone: "var(--gl-color-state-closed, var(--color-danger))" }
+    if (pr.isDraft) return { key: "draft", label: "Draft", tone: "var(--color-text-ghost)" }
     switch (pr.reviewDecision) {
-        case "APPROVED": return { key: "approved", label: "Approved", tone: "var(--gl-color-state-open, #22c55e)" }
-        case "CHANGES_REQUESTED": return { key: "changes", label: "Changes requested", tone: "var(--gl-color-state-waiting, #ffc107)" }
-        default: return { key: "review", label: "Review needed", tone: "#ef4444" }
+        case "APPROVED": return { key: "approved", label: "Approved", tone: "var(--gl-color-state-open, var(--color-success))" }
+        case "CHANGES_REQUESTED": return { key: "changes", label: "Changes requested", tone: "var(--gl-color-state-waiting, var(--color-status-warning-alt))" }
+        default: return { key: "review", label: "Review needed", tone: "var(--color-danger)" }
     }
 }
 
