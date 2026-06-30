@@ -482,6 +482,7 @@ function CollectionPublicContent() {
                     source="v3"
                     collectionID={id}
                     tokenId={modal.tokenId}
+                    uri={tokens.find(t => t.tokenId === modal.tokenId)?.uri}
                     priceUgnot={modal.priceUgnot}
                     seller={modal.seller}
                     buyerAddr={modal.buyerAddr}

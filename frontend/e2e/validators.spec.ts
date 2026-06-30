@@ -53,9 +53,9 @@ test.describe('Validators Page', () => {
         const statsGrid = page.locator('[data-testid="network-stats"]')
         await expect(statsGrid).toBeVisible({ timeout: 20_000 })
 
-        // Should have 4 stat cards
+        // Should have 5 stat cards
         const cards = statsGrid.locator('.val-stat-card')
-        await expect(cards).toHaveCount(4)
+        await expect(cards).toHaveCount(5)
 
         // Block height should be a number
         const blockHeight = cards.first().locator('.val-stat-value')

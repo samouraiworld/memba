@@ -240,6 +240,8 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // keys off this path; the trade surface ALSO requires VITE_ENABLE_NFT=true, so
         // prod stays dark (flag is force-false there) until the deploy-preview G1 verify.
         "gno.land/r/samcrew/memba_nft_market_v3_1",
+        // ── Phase 11 Token OTC ────────────────────────────────────────────────
+        "gno.land/r/samcrew/memba_token_otc_v1",
     ],
 }
 
@@ -541,6 +543,7 @@ export const MEMBA_DAO = {
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_reviews_v1",
+    tokenOtcPath: "gno.land/r/samcrew/memba_token_otc_v1",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 
@@ -597,6 +600,8 @@ export const isNftMarketV3Valid = () => isRealmValid(NFT_MARKETPLACE_V3_PATH)
 /** Phase 2 launchpad — backed by the canonical memba_collections registry. */
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
+export const isTokenOtcValid = () => isRealmValid(MEMBA_DAO.tokenOtcPath)
+export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPath)
 
 /**
  * NFT feature flag (VITE_ENABLE_NFT). The canonical reader for the whole NFT /
@@ -610,6 +615,8 @@ export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "
 /** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
 export const isServicesEnabled = (): boolean => import.meta.env.VITE_ENABLE_SERVICES === "true"
+export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS === "true"
+export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
 export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 

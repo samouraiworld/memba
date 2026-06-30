@@ -13,7 +13,7 @@
  * @module lib/marketplace/lanes
  */
 
-import { isNftEnabled, isNftMarketV3Valid, isServicesEnabled, isEscrowValid } from "../config"
+import { isNftEnabled, isNftMarketV3Valid, isServicesEnabled, isEscrowValid, isTokensEnabled, isTokenOtcValid, isAgentsEnabled, isAgentRegistryValid } from "../config"
 import type { AssetType } from "./types"
 
 export interface LaneDef {
@@ -43,6 +43,18 @@ export const LANES: readonly LaneDef[] = [
         label: "Services",
         icon: "briefcase",
         isLive: () => isServicesEnabled() && isEscrowValid(),
+    },
+    {
+        assetType: "token",
+        label: "Tokens",
+        icon: "coin",
+        isLive: () => isTokensEnabled() && isTokenOtcValid(),
+    },
+    {
+        assetType: "agent",
+        label: "Agents",
+        icon: "robot",
+        isLive: () => isAgentsEnabled() && isAgentRegistryValid(),
     },
 ]
 
