@@ -5,22 +5,22 @@
 
 ---
 
-## Current Status (2026-06-23)
+## Current Status (2026-06-30)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v6.3.1 (release tag still pending); ~50 PRs merged to `main` since (NFT launchpad/marketplace, GnoBuilders, Home rework, test13 go-live, AAA auth) — **version not yet cut** (see CHANGELOG "Unreleased") |
-| **Shipped Versions** | 50+ (v0.1.0 → v6.3.1) + unreleased post-6.3.1 wave |
-| **Test Suite** | 140 Vitest files / **2,399 tests** + Go backend suite (auth/db/indexer/points/service) + `FuzzMakeADR36SignDoc` + Gno realm tests + Playwright E2E (verified green locally 2026-06-23) |
+| **Latest Release** | v7.2.0 (cut 2026-06-29); includes NFT marketplace, GnoBuilders on-chain attestation, Wave 0/1 hygiene & security hardening. |
+| **Shipped Versions** | 51+ (v0.1.0 → v7.2.0) + ongoing feature branches |
+| **Test Suite** | 140 Vitest files / **2,399 tests** + Go backend suite (auth/db/indexer/points/service) + `FuzzMakeADR36SignDoc` + Gno realm tests + Playwright E2E |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **test13 is the prod default — cutover DONE 2026-06-23** (#450/#453; test12 retired from config); all `_v2` realms LIVE (DAO + commerce + feedback + NFT launchpad); gnoland1 (live, transfer-locked — betanet activation later) |
-| **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror), React 19 + Vite frontend (Netlify), SQLite, OpenRouter AI |
-| **Security** | Auth: tm2 sign-bytes verify shipped (#397–#399); **login sign-doc fixed (#456) and login enforcement LIVE — `MEMBA_ALLOW_UNSIGNED_AUTH=0`, `result=signed` verified (#460)**; multisig A3 enforce held pending live validation. ⚠️ **28 open Dependabot alerts (1 critical, 5 high, 14 moderate, 8 low)** — dependency refresh needed; 1 own advisory (MEMBA-2026-001) |
-| **On-Chain** | Full Memba `_v2` realm set live on test13 (memba_dao, candidature_v2, channels_v2, agent_registry, tokenfactory_v2, escrow_v2, gnobuilders_badges_v2, memba_feedback_v2, memba_nft_v2/_market_v2, memba_collections, memba_nft_market_v3); legacy realms on test12 |
+| **Networks** | **test13 is the prod default — cutover DONE**; all `_v2` and `v3_1` realms LIVE (DAO + commerce + feedback + NFT launchpad) |
+| **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
+| **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
+| **On-Chain** | Full Memba realm set live on test13 (`memba_dao`, `memba_quest_attestation_v1`, `memba_market_core_v2`, `memba_nft_market_v3_1`, etc.) |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
-| **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`) — badges deployed but not yet minted; quest server-side verification partial |
-| **Active program** | Post-6.3.1 feature wave shipped; current focus per `docs/planning/MEMBA_STATE_AUDIT_AND_PLAN_2026-06-23.md` |
-| **Next Priority** | (a) **test12 winddown DONE + login auth enforced** — next: validate A3 vs a real multisig sig → flip `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY`; merge NFT-RPC pin (#466) so the indexer catches up; (b) test13 commerce go-live (NFT #443 E2E → `VITE_ENABLE_NFT`, badge mint + `VITE_ENABLE_BADGES`, Services); (c) observability/metrics + dependency refresh (1 critical) + rotate OpenRouter key |
+| **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
+| **Active program** | Post-v7.2.0 feature wave (OTC enforcement, marketplace polish, litestream, HTTP/1.1 resilience) |
+| **Next Priority** | (a) Merge resilience branches (`fix/p0-backend-503`, `feat/litestream-backup`); (b) `feature/phase11-otc-enforcement`; (c) `feat/profile-marketplace-polish` |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
