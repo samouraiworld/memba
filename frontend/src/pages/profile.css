@@ -127,7 +127,64 @@
 }
 
 .profile-address-row {
-    margin-top: 6px;
+    margin-top: 24px;
+}
+
+/* ── Profile Tabs ───────────────────────────────────────────────────────── */
+.profile-tabs-nav {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    padding-bottom: 8px;
+    overflow-x: auto;
+}
+
+.profile-tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.profile-tab-btn:hover {
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
+}
+
+.profile-tab-btn.active {
+    color: var(--color-primary);
+    background: var(--color-bg-secondary);
+}
+
+.profile-identity-tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.profile-identity-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+@media (min-width: 900px) {
+    .profile-identity-grid {
+        grid-template-columns: minmax(300px, 1fr) minmax(300px, 1.5fr);
+    }
+}
+
+.profile-identity-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 }
 
 .profile-bio {

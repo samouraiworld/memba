@@ -70,211 +70,213 @@ export function generateBoardCode(config: BoardConfig): string {
     return `package ${pkgName}
 
 import (
-\t"chain/runtime/unsafe"
-\t"strconv"
-\t"strings"
+	"chain/runtime/unsafe"
+	"strconv"
+	"strings"
+
+	parent "${config.daoRealmPath}"
 )
 
 // ── Types ─────────────────────────────────────────────────
 
 type Thread struct {
-\tID        int
-\tChannel   string
-\tTitle     string
-\tBody      string
-\tAuthor    address
-\tReplies   []Reply
-\tCreatedAt int64 // block height
+	ID        int
+	Channel   string
+	Title     string
+	Body      string
+	Author    address
+	Replies   []Reply
+	CreatedAt int64 // block height
 }
 
 type Reply struct {
-\tID        int
-\tBody      string
-\tAuthor    address
-\tCreatedAt int64
+	ID        int
+	Body      string
+	Author    address
+	CreatedAt int64
 }
 
 type Channel struct {
-\tName    string
-\tThreads []Thread
+	Name    string
+	Threads []Thread
 }
 
 // ── State ─────────────────────────────────────────────────
 
 var (
-\tboardName        = ${JSON.stringify(config.name)}
-\tboardDescription = ${JSON.stringify(config.description)}
-\tdaoRealmPath     = ${JSON.stringify(config.daoRealmPath)}
-\tchannels         []Channel
-\tnextThreadID     = 0
-\tnextReplyID      = 0
-\tlastPostBlock    map[string]int64 // address → last post block height
-\tminPostInterval  = ${config.minPostInterval}
-\tadminAddr        address           // set to deployer in init()
+	boardName        = ${JSON.stringify(config.name)}
+	boardDescription = ${JSON.stringify(config.description)}
+	daoRealmPath     = ${JSON.stringify(config.daoRealmPath)}
+	channels         []Channel
+	nextThreadID     = 0
+	nextReplyID      = 0
+	lastPostBlock    map[string]int64 // address → last post block height
+	minPostInterval  = ${config.minPostInterval}
+	adminAddr        address           // set to deployer in init()
 )
 
 func init() {
-\tlastPostBlock = make(map[string]int64)
-\tadminAddr = unsafe.PreviousRealm().Address()
+	lastPostBlock = make(map[string]int64)
+	adminAddr = unsafe.PreviousRealm().Address()
 ${channelInit}
 }
 
 // ── Queries ───────────────────────────────────────────────
 
 func Render(path string) string {
-\tif path == "" {
-\t\treturn renderBoardHome()
-\t}
-\tparts := strings.Split(path, "/")
-\tif len(parts) == 1 {
-\t\treturn renderChannel(parts[0])
-\t}
-\tif len(parts) == 2 {
-\t\ttid, err := strconv.Atoi(parts[1])
-\t\tif err == nil {
-\t\t\treturn renderThread(parts[0], tid)
-\t\t}
-\t}
-\treturn "404 — not found"
+	if path == "" {
+		return renderBoardHome()
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) == 1 {
+		return renderChannel(parts[0])
+	}
+	if len(parts) == 2 {
+		tid, err := strconv.Atoi(parts[1])
+		if err == nil {
+			return renderThread(parts[0], tid)
+		}
+	}
+	return "404 — not found"
 }
 
 func renderBoardHome() string {
-\tout := "# " + boardName + "\\n\\n"
-\tout += boardDescription + "\\n\\n"
-\tout += "## Channels\\n\\n"
-\tfor _, ch := range channels {
-\t\tcount := len(ch.Threads)
-\t\tout += "- [#" + ch.Name + "](:" + ch.Name + ") (" + strconv.Itoa(count) + " threads)\\n"
-\t}
-\treturn out
+	out := "# " + boardName + "\\n\\n"
+	out += boardDescription + "\\n\\n"
+	out += "## Channels\\n\\n"
+	for _, ch := range channels {
+		count := len(ch.Threads)
+		out += "- [#" + ch.Name + "](:" + ch.Name + ") (" + strconv.Itoa(count) + " threads)\\n"
+	}
+	return out
 }
 
 func renderChannel(name string) string {
-\tfor _, ch := range channels {
-\t\tif ch.Name == name {
-\t\t\tout := "# #" + ch.Name + "\\n\\n"
-\t\t\tif len(ch.Threads) == 0 {
-\t\t\t\tout += "*No threads yet. Be the first to post!*\\n"
-\t\t\t\treturn out
-\t\t\t}
-\t\t\tfor i := len(ch.Threads) - 1; i >= 0; i-- {
-\t\t\t\tt := ch.Threads[i]
-\t\t\t\tout += "### [" + t.Title + "](:" + ch.Name + "/" + strconv.Itoa(t.ID) + ")\\n"
-\t\t\t\tout += "by " + string(t.Author)[:10] + "... | " + strconv.Itoa(len(t.Replies)) + " replies | block " + strconv.FormatInt(t.CreatedAt, 10) + "\\n\\n"
-\t\t\t}
-\t\t\treturn out
-\t\t}
-\t}
-\treturn "Channel not found: " + name
+	for _, ch := range channels {
+		if ch.Name == name {
+			out := "# #" + ch.Name + "\\n\\n"
+			if len(ch.Threads) == 0 {
+				out += "*No threads yet. Be the first to post!*\\n"
+				return out
+			}
+			for i := len(ch.Threads) - 1; i >= 0; i-- {
+				t := ch.Threads[i]
+				out += "### [" + t.Title + "](:" + ch.Name + "/" + strconv.Itoa(t.ID) + ")\\n"
+				out += "by " + string(t.Author)[:10] + "... | " + strconv.Itoa(len(t.Replies)) + " replies | block " + strconv.FormatInt(t.CreatedAt, 10) + "\\n\\n"
+			}
+			return out
+		}
+	}
+	return "Channel not found: " + name
 }
 
 func renderThread(channelName string, threadID int) string {
-\tfor _, ch := range channels {
-\t\tif ch.Name == channelName {
-\t\t\tfor _, t := range ch.Threads {
-\t\t\t\tif t.ID == threadID {
-\t\t\t\t\tout := "# " + t.Title + "\\n\\n"
-\t\t\t\t\tout += t.Body + "\\n\\n"
-\t\t\t\t\tout += "---\\n"
-\t\t\t\t\tout += "*Posted by " + string(t.Author) + " at block " + strconv.FormatInt(t.CreatedAt, 10) + "*\\n\\n"
-\t\t\t\t\tif len(t.Replies) > 0 {
-\t\t\t\t\t\tout += "## Replies (" + strconv.Itoa(len(t.Replies)) + ")\\n\\n"
-\t\t\t\t\t\tfor _, r := range t.Replies {
-\t\t\t\t\t\t\tout += "**" + string(r.Author)[:10] + "...** (block " + strconv.FormatInt(r.CreatedAt, 10) + ")\\n\\n"
-\t\t\t\t\t\t\tout += r.Body + "\\n\\n---\\n\\n"
-\t\t\t\t\t\t}
-\t\t\t\t\t}
-\t\t\t\t\treturn out
-\t\t\t\t}
-\t\t\t}
-\t\t\treturn "Thread not found"
-\t\t}
-\t}
-\treturn "Channel not found"
+	for _, ch := range channels {
+		if ch.Name == channelName {
+			for _, t := range ch.Threads {
+				if t.ID == threadID {
+					out := "# " + t.Title + "\\n\\n"
+					out += t.Body + "\\n\\n"
+					out += "---\\n"
+					out += "*Posted by " + string(t.Author) + " at block " + strconv.FormatInt(t.CreatedAt, 10) + "*\\n\\n"
+					if len(t.Replies) > 0 {
+						out += "## Replies (" + strconv.Itoa(len(t.Replies)) + ")\\n\\n"
+						for _, r := range t.Replies {
+							out += "**" + string(r.Author)[:10] + "...** (block " + strconv.FormatInt(r.CreatedAt, 10) + ")\\n\\n"
+							out += r.Body + "\\n\\n---\\n\\n"
+						}
+					}
+					return out
+				}
+			}
+			return "Thread not found"
+		}
+	}
+	return "Channel not found"
 }
 
 // ── Write Actions ─────────────────────────────────────────
 
 func CreateThread(cur realm, channel, title, body string) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertIsMember(caller)
-\tassertCanPost(caller)
-\tassertChannel(channel)
-\tif len(title) == 0 || len(title) > 128 {
-\t\tpanic("title must be 1-128 characters")
-\t}
-\tif len(body) == 0 || len(body) > 8192 {
-\t\tpanic("body must be 1-8192 characters")
-\t}
-\tid := nextThreadID
-\tnextThreadID++
-\tblockHeight := int64(0) // block height unavailable in this context
-\tfor i, ch := range channels {
-\t\tif ch.Name == channel {
-\t\t\tchannels[i].Threads = append(channels[i].Threads, Thread{
-\t\t\t\tID:        id,
-\t\t\t\tChannel:   channel,
-\t\t\t\tTitle:     title,
-\t\t\t\tBody:      body,
-\t\t\t\tAuthor:    caller,
-\t\t\t\tReplies:   []Reply{},
-\t\t\t\tCreatedAt: blockHeight,
-\t\t\t})
-\t\t\tlastPostBlock[string(caller)] = blockHeight
-\t\t\treturn id
-\t\t}
-\t}
-\tpanic("channel not found")
+	caller := unsafe.PreviousRealm().Address()
+	assertIsMember(caller)
+	assertCanPost(caller)
+	assertChannel(channel)
+	if len(title) == 0 || len(title) > 128 {
+		panic("title must be 1-128 characters")
+	}
+	if len(body) == 0 || len(body) > 8192 {
+		panic("body must be 1-8192 characters")
+	}
+	id := nextThreadID
+	nextThreadID++
+	blockHeight := int64(0) // block height unavailable in this context
+	for i, ch := range channels {
+		if ch.Name == channel {
+			channels[i].Threads = append(channels[i].Threads, Thread{
+				ID:        id,
+				Channel:   channel,
+				Title:     title,
+				Body:      body,
+				Author:    caller,
+				Replies:   []Reply{},
+				CreatedAt: blockHeight,
+			})
+			lastPostBlock[string(caller)] = blockHeight
+			return id
+		}
+	}
+	panic("channel not found")
 }
 
 func ReplyToThread(cur realm, channel string, threadID int, body string) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertIsMember(caller)
-\tassertCanPost(caller)
-\tassertChannel(channel)
-\tif len(body) == 0 || len(body) > 4096 {
-\t\tpanic("reply must be 1-4096 characters")
-\t}
-\tid := nextReplyID
-\tnextReplyID++
-\tblockHeight := int64(0)
-\tfor i, ch := range channels {
-\t\tif ch.Name == channel {
-\t\t\tfor j, t := range ch.Threads {
-\t\t\t\tif t.ID == threadID {
-\t\t\t\t\tchannels[i].Threads[j].Replies = append(channels[i].Threads[j].Replies, Reply{
-\t\t\t\t\t\tID:        id,
-\t\t\t\t\t\tBody:      body,
-\t\t\t\t\t\tAuthor:    caller,
-\t\t\t\t\t\tCreatedAt: blockHeight,
-\t\t\t\t\t})
-\t\t\t\t\tlastPostBlock[string(caller)] = blockHeight
-\t\t\t\t\treturn id
-\t\t\t\t}
-\t\t\t}
-\t\t\tpanic("thread not found in channel")
-\t\t}
-\t}
-\tpanic("channel not found")
+	caller := unsafe.PreviousRealm().Address()
+	assertIsMember(caller)
+	assertCanPost(caller)
+	assertChannel(channel)
+	if len(body) == 0 || len(body) > 4096 {
+		panic("reply must be 1-4096 characters")
+	}
+	id := nextReplyID
+	nextReplyID++
+	blockHeight := int64(0)
+	for i, ch := range channels {
+		if ch.Name == channel {
+			for j, t := range ch.Threads {
+				if t.ID == threadID {
+					channels[i].Threads[j].Replies = append(channels[i].Threads[j].Replies, Reply{
+						ID:        id,
+						Body:      body,
+						Author:    caller,
+						CreatedAt: blockHeight,
+					})
+					lastPostBlock[string(caller)] = blockHeight
+					return id
+				}
+			}
+			panic("thread not found in channel")
+		}
+	}
+	panic("channel not found")
 }
 
 // ── Admin Actions ─────────────────────────────────────────
 
 func CreateChannel(cur realm, name string) {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertIsAdmin(caller)
-\tif len(name) == 0 || len(name) > 30 {
-\t\tpanic("channel name must be 1-30 characters")
-\t}
-\tif len(channels) >= 20 {
-\t\tpanic("maximum 20 channels reached")
-\t}
-\tfor _, ch := range channels {
-\t\tif ch.Name == name {
-\t\t\tpanic("channel already exists: " + name)
-\t\t}
-\t}
-\tchannels = append(channels, Channel{Name: name, Threads: []Thread{}})
+	caller := unsafe.PreviousRealm().Address()
+	assertIsAdmin(caller)
+	if len(name) == 0 || len(name) > 30 {
+		panic("channel name must be 1-30 characters")
+	}
+	if len(channels) >= 20 {
+		panic("maximum 20 channels reached")
+	}
+	for _, ch := range channels {
+		if ch.Name == name {
+			panic("channel already exists: " + name)
+		}
+	}
+	channels = append(channels, Channel{Name: name, Threads: []Thread{}})
 }
 
 // ── Guards ────────────────────────────────────────────────
@@ -282,27 +284,24 @@ func CreateChannel(cur realm, name string) {
 // assertIsMember verifies the caller is a member of the parent DAO.
 // Cross-realm call to the DAO's IsMember() function.
 func assertIsMember(addr address) {
-\t// Query parent DAO realm for membership
-\t// The parent DAO realm exposes IsMember(addr) bool
-\t// For now, we check via std.PrevRealm() crossing pattern
-\tif addr == adminAddr {
-\t\treturn // admin is always a member
-\t}
-\t// TODO: When cross-realm imports are stable, import parent DAO and call IsMember()
-\t// For now, only the deployer (admin) and addresses that the admin grants can post.
-\t// This is a conservative default — open it up once DAO membership query is available.
+	if addr == adminAddr {
+		return // admin is always a member
+	}
+	if !parent.IsMember(addr) {
+		panic("caller is not a member of the parent DAO")
+	}
 }
 
 // assertIsAdmin verifies the caller is the board admin (deployer).
 func assertIsAdmin(addr address) {
-\tif addr != adminAddr {
-\t\tpanic("only board admin can perform this action")
-\t}
+	if addr != adminAddr {
+		panic("only board admin can perform this action")
+	}
 }
 
 func assertCanPost(addr address) {
-\t// Rate limiting placeholder — requires block height access.
-\t// Enable when cross-realm block height API is available.
+	// Rate limiting placeholder — requires block height access.
+	// Enable when cross-realm block height API is available.
 }
 
 func assertChannel(name string) {

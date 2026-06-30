@@ -1,0 +1,11 @@
+dbs:
+  - path: /data/memba.db
+    replicas:
+      - type: s3
+        bucket: $BUCKET_NAME
+        path: memba
+        endpoint: $AWS_ENDPOINT_URL_S3
+        access-key-id: $AWS_ACCESS_KEY_ID
+        secret-access-key: $AWS_SECRET_ACCESS_KEY
+        retention: 168h  # 7 days of WAL segments
+        snapshot-interval: 24h  # Full snapshot daily

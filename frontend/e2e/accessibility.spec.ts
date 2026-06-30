@@ -43,7 +43,7 @@ for (const route of ROUTES) {
             // pass (Wave 4.3). Remove these disableRules as fixes land.
             // See: 220+ inline hex colors need CSS custom property migration.
             .disableRules([
-                'color-contrast',       // 56× #00d4aa on dark bg, grey-on-grey text
+                'color-contrast',       // tokenized, but brand colors need design review for WCAG AA
                 'link-in-text-block',   // links in paragraphs not visually distinct
                 'nested-interactive',   // clickable elements nested in clickable parents
             ])
