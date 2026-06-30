@@ -26,6 +26,7 @@ import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { getLiveLanes, type LaneDef } from "../lib/marketplace/lanes"
 import type { AssetType } from "../lib/marketplace/types"
 import type { NFTActivityItem } from "../lib/nftApi"
+import { TokenLane } from "./TokenLane"
 import "./marketplace-v2.css"
 
 // ── Front door ───────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ function MarketplaceShell({ lanes }: { lanes: LaneDef[] }) {
  *  crash the shell). */
 function LaneContent({ assetType }: { assetType: AssetType }) {
     if (assetType === "nft") return <NftLane />
+    if (assetType === "token") return <TokenLane />
     return (
         <section className="mhub-collections">
             <p className="mhub-empty">This lane is coming in the next release.</p>
