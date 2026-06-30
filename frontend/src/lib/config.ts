@@ -601,6 +601,7 @@ export const isNftMarketV3Valid = () => isRealmValid(NFT_MARKETPLACE_V3_PATH)
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
 export const isTokenOtcValid = () => isRealmValid(MEMBA_DAO.tokenOtcPath)
+export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPath)
 
 /**
  * NFT feature flag (VITE_ENABLE_NFT). The canonical reader for the whole NFT /
@@ -615,6 +616,7 @@ export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
 export const isServicesEnabled = (): boolean => import.meta.env.VITE_ENABLE_SERVICES === "true"
 export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS === "true"
+export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
 export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 
