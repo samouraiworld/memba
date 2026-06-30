@@ -12,6 +12,9 @@ contracts/*_stub/
 
 # Environment
 .env
+*_job.log
+job.log
+frontend-coverage-*/
 .env.local
 .env.*.local
 
