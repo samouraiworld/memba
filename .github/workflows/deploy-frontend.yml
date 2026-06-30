@@ -143,7 +143,7 @@ jobs:
           SENTRY_TOKEN_SET: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'yes' || '' }}
 
       - name: Deploy
-        uses: nwtgck/actions-netlify@v3
+        uses: nwtgck/actions-netlify@v4
         with:
           publish-dir: frontend/dist
           production-deploy: true
