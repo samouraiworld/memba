@@ -14,7 +14,6 @@ export const SAFETY_GATED_FLAGS = [
     // VITE_ENABLE_NFT removed 2026-06-27 — the NFT marketplace went live: the v3.1
     // engine + fee config are deployed, registered, and verified on test13 (fee→DAO
     // treasury enforced on-chain). The flag now legitimately turns the lane on in prod.
-    "VITE_ENABLE_SERVICES",
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
 ] as const

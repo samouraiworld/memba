@@ -153,14 +153,6 @@ function SidebarExtensions({ connected, collapsed }: { connected: boolean; colla
                         badgeText={import.meta.env.VITE_ENABLE_MARKETPLACE === "true" ? "new" : "soon"}
                         badgeInactive={import.meta.env.VITE_ENABLE_MARKETPLACE !== "true"}
                         connected={connected} collapsed={collapsed} />
-                    <ManifestLink id="services"
-                        badgeText={import.meta.env.VITE_ENABLE_SERVICES === "true" ? "new" : "soon"}
-                        badgeInactive={import.meta.env.VITE_ENABLE_SERVICES !== "true"}
-                        connected={connected} collapsed={collapsed} />
-                    <ManifestLink id="nft"
-                        badgeText={import.meta.env.VITE_ENABLE_NFT === "true" ? "new" : "soon"}
-                        badgeInactive={import.meta.env.VITE_ENABLE_NFT !== "true"}
-                        connected={connected} collapsed={collapsed} />
                 </>
             )}
         </nav>
