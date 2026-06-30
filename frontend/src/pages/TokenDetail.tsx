@@ -183,6 +183,7 @@ function TokenDetailContent() {
                     source="v3"
                     collectionID={id}
                     tokenId={tid}
+                    uri={token.uri}
                     priceUgnot={modal.priceUgnot}
                     seller={modal.seller}
                     buyerAddr={modal.buyerAddr}

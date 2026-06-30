@@ -18,7 +18,7 @@
 }
 
 .nft-launchpad h1 span {
-    background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+    background: linear-gradient(135deg, var(--color-primary, #00d4aa), var(--color-primary, #00d4aa));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -60,10 +60,10 @@
 }
 
 .nft-step--active .nft-step__dot {
-    border-color: #8b5cf6;
-    background: rgba(139, 92, 246, 0.15);
-    color: #a78bfa;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+    border-color: var(--color-primary, #00d4aa);
+    background: rgba(0, 212, 170, 0.15);
+    color: var(--color-primary, #00d4aa);
+    box-shadow: 0 0 12px rgba(0, 212, 170, 0.2);
 }
 
 .nft-step--done .nft-step__dot {
@@ -81,7 +81,7 @@
     transition: color 0.3s;
 }
 
-.nft-step--active .nft-step__label { color: #a78bfa; }
+.nft-step--active .nft-step__label { color: var(--color-primary, #00d4aa); }
 .nft-step--done .nft-step__label { color: #4caf50; }
 
 /* Connector line between steps */
@@ -150,14 +150,14 @@
 }
 
 .nft-type-card:hover {
-    border-color: rgba(139, 92, 246, 0.2);
-    background: rgba(139, 92, 246, 0.03);
+    border-color: rgba(0, 212, 170, 0.2);
+    background: rgba(0, 212, 170, 0.03);
 }
 
 .nft-type-card--selected {
-    border-color: #8b5cf6 !important;
-    background: rgba(139, 92, 246, 0.06) !important;
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.1);
+    border-color: var(--color-primary, #00d4aa) !important;
+    background: rgba(0, 212, 170, 0.06) !important;
+    box-shadow: 0 0 16px rgba(0, 212, 170, 0.1);
 }
 
 .nft-type-card--disabled {
@@ -232,7 +232,7 @@
     width: 100%;
 }
 
-.nft-form-input:focus { border-color: rgba(139, 92, 246, 0.3); }
+.nft-form-input:focus { border-color: rgba(0, 212, 170, 0.3); }
 .nft-form-input::placeholder { color: var(--color-text-muted); }
 
 .nft-form-hint {
@@ -270,7 +270,7 @@
 }
 
 .nft-form-toggle--on .nft-form-toggle__track {
-    background: rgba(139, 92, 246, 0.3);
+    background: rgba(0, 212, 170, 0.3);
 }
 
 .nft-form-toggle__thumb {
@@ -286,7 +286,7 @@
 
 .nft-form-toggle--on .nft-form-toggle__thumb {
     left: 18px;
-    background: #8b5cf6;
+    background: var(--color-primary, #00d4aa);
 }
 
 .nft-form-toggle__label {
@@ -318,15 +318,15 @@
     justify-content: space-between;
     padding: 12px 16px;
     border-radius: 8px;
-    background: rgba(139, 92, 246, 0.04);
-    border: 1px solid rgba(139, 92, 246, 0.1);
+    background: rgba(0, 212, 170, 0.04);
+    border: 1px solid rgba(0, 212, 170, 0.1);
     font-size: 12px;
     font-family: "JetBrains Mono", monospace;
     margin-top: 12px;
 }
 
 .nft-cost-estimate__label { color: var(--color-text-secondary); }
-.nft-cost-estimate__value { color: #a78bfa; font-weight: 600; }
+.nft-cost-estimate__value { color: var(--color-primary, #00d4aa); font-weight: 600; }
 
 /* ── Navigation Buttons ───────────────────────── */
 
@@ -356,7 +356,7 @@
 .nft-nav-btn--back:hover { background: var(--color-surface-hover); }
 
 .nft-nav-btn--next {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    background: linear-gradient(135deg, var(--color-primary, #00d4aa), #00b894);
     color: #fff;
 }
 
@@ -705,7 +705,7 @@ p.form-hint {
 }
 
 .manage-advanced[open] {
-    border-color: rgba(139, 92, 246, 0.15);
+    border-color: rgba(0, 212, 170, 0.15);
 }
 
 .manage-advanced__summary {

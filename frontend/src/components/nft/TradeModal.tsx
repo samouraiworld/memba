@@ -26,6 +26,7 @@ import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
 import { friendlyError } from "../../lib/errorMessages"
 import type { AminoMsg } from "../../lib/grc20"
+import { NFTMedia } from "./NFTMedia"
 import { PriceBreakdown } from "./PriceBreakdown"
 import "./TradeModal.css"
 
@@ -48,6 +49,8 @@ export interface TradeModalProps {
     callerAddress: string
     /** Whether the NFT is currently listed for sale (used for auto-listing before accepting offers). */
     isListed?: boolean
+    /** Token image URI for the thumbnail. */
+    uri?: string
     onClose: () => void
     onSuccess: () => void
 }
@@ -69,6 +72,7 @@ export function TradeModal({
     royaltyBps,
     callerAddress,
     isListed,
+    uri,
     onClose,
     onSuccess,
 }: TradeModalProps) {
@@ -343,10 +347,15 @@ export function TradeModal({
                 <h3 className="trade-modal__title">{titles[action]}</h3>
 
                 <div className="trade-modal__info">
-                    <div><strong>Collection:</strong> {collectionID}</div>
-                    <div><strong>Token:</strong> {tokenId}</div>
-                    {action === "buy" && seller && <div><strong>Seller:</strong> {seller}</div>}
-                    {action === "accept" && buyerAddr && <div><strong>Buyer:</strong> {buyerAddr}</div>}
+                    <div className="trade-modal__info-art">
+                        <NFTMedia uri={uri ?? ""} alt={`#${tokenId}`} seed={`${collectionID}/${tokenId}`} />
+                    </div>
+                    <div className="trade-modal__info-text">
+                        <div><strong>Collection:</strong> {collectionID}</div>
+                        <div><strong>Token:</strong> #{tokenId}</div>
+                        {action === "buy" && seller && <div><strong>Seller:</strong> {seller}</div>}
+                        {action === "accept" && buyerAddr && <div><strong>Buyer:</strong> {buyerAddr}</div>}
+                    </div>
                 </div>
 
                 {successMsg && (
