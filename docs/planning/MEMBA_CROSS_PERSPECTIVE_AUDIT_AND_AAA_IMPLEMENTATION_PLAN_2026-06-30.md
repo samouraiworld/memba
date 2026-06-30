@@ -2,19 +2,22 @@
 
 > **Document type:** Deep technical audit + CTO-level remediation & delivery plan
 > **Date:** 2026-06-30
+> **Revision:** **Round 2** — extended with a deeper cross-perspective review (3 Gno.land-expert CTO lenses + UX/product/accessibility + performance/DX/test/observability). See §10 for the round-2 findings register and §5 for the revised waves.
 > **Scope:** Full repository (`frontend/`, `backend/`, `contracts/` + generated Gno realms, `api/`, `mcp-server*/`, `packages/`, infra/CI, docs) and its first-party dependencies.
-> **Method:** Four parallel domain audits (frontend, backend, Gno/codegen, infra/CI) + direct source verification of every HIGH/P0 finding.
+> **Method:**
+> - **Round 1** — four parallel domain audits (frontend, backend, Gno/codegen, infra/CI) + direct source verification of every HIGH/P0 finding.
+> - **Round 2** — five additional expert passes with distinct lenses: *Gno CTO-A* (on-chain realm design, upgradeability, gas/determinism, std API), *Gno CTO-B* (codegen-as-compiler, deploy/versioning/provenance), *Gno CTO-C* (frontend↔chain integration correctness), *UX/Product/A11y engineer*, *Performance/DX/Test/Observability engineer*. Every elevated P0/P1 was re-verified at source.
 > **Status of code:** Alpha, self-declared *experimental and unaudited* (see `DISCLAIMER.md`). This document is an internal engineering audit, **not** a substitute for a formal third-party security audit.
 
 ---
 
 ## 0. How to read this document
 
-This is structured in three layers so each reader can enter at the right altitude:
+This is structured so each reader can enter at the right altitude:
 
-1. **§1–§3 — The picture.** Executive summary, what Memba is in Gno terms, and the threat model. Read this if you have five minutes.
-2. **§4 — The findings register.** Every confirmed issue, severity-rated, with `file:line` evidence and the *why it matters*. This is the audit.
-3. **§5–§9 — The plan.** A waved, dependency-ordered implementation plan with concrete tasks, acceptance criteria, verification, and quality gates. This is the CTO deliverable.
+1. **§1 — The picture.** Executive summary; **§1.1** is the round-2 delta (read this first if you read the round-1 version already). **§2–§3** = Gno mental model + threat model.
+2. **§4 — Round-1 findings register**, and **§10 — Round-2 findings register** (new/deeper, five expert lenses). Every issue is severity-rated with `file:line` evidence. This is the audit.
+3. **§5–§9 — The plan** (waves W0–W6, dependency-ordered, with acceptance criteria and quality gates), **§11 — the target architecture**, and **§12 — the ready-to-proceed kickoff** (PR-sized units in execution order). This is the CTO deliverable.
 
 **On effort estimates:** per house style, this plan deliberately does **not** estimate calendar time. Difficulty is expressed in terms of *blast radius* (which subsystems change), *invasiveness* (how deep the edit goes), and *risk/dependencies* (what must land first, what can go wrong).
 
@@ -36,6 +39,28 @@ Memba is an unusually ambitious alpha: a single product that fuses a **multisig 
 None of these are exotic. All are fixable with surgical, well-scoped changes. The plan in §5 sequences them so that **fund-loss and auth defects land first, behind tests**, before any further feature expansion.
 
 **Top-line verdict (CTO lens):** *Do not widen the product surface until Wave 0 + Wave 1 close.* The codebase has the test infrastructure and discipline to absorb these fixes cleanly; the risk is not capability, it's prioritization. Freeze net-new feature realms, harden the money paths, flip the enforcement flags that are already wired, and make the CI security story match its badge.
+
+### 1.1 What Round 2 added (and changed)
+
+The second, deeper pass (five expert lenses, §10) did three things: it **found two more fund-loss/code-injection class defects**, it revealed the **systemic root causes** behind round 1's symptoms, and it surfaced an entire **product/quality dimension** that round 1 did not cover.
+
+**New P0/P1 defects (verified at source):**
+- **Escrow double-refund (P0, fund loss).** `ResolveDispute` refunds the client and sets the milestone to `MsPending` but **never clears `FundedAt`**; `CancelContract` then refunds the *same* milestone again → realm insolvency / double payout (`escrowTemplate.ts:391-403,440-451`).
+- **Agent-registry comment injection (P1, code injection).** Raw `config.name` is interpolated into a `//` comment in generated Gno (`agentTemplate.ts:56`), bypassing `escapeGnoString` — a newline closes the comment and injects executable Go (multiple `init()` are legal).
+- **Unwired numeric clamps (P1).** `clampInt`/`isValidPercentage` exist in the sanitizer but **no generator uses them**; `threshold`/`quorum`/power are interpolated raw (`daoTemplate.ts:238-239`). `threshold=0` ⇒ every proposal passes on the first YES; `NaN`/huge/negative ints produce broken or overflowing Gno.
+- **Board/channel membership is broken or desynced (P0-on-deploy).** Generated board calls `parent.IsMember()` which the generated DAO never exports (won't compile/links nothing); generated channels keep a *separate* local member tree seeded only with the deployer, so DAO members can't post until manually re-added. The CreateDAO wizard ships `_board` while the plugin modal ships `_channels` — **two incompatible companion models**.
+- **DAO Render pagination mismatch (P0-correctness).** Generated DAOs emit `page:N` with plain-text footers; the frontend parser looks for `?page=N` clickable links — so any user DAO with >20 proposals shows **only page 1**.
+- **Wallet chain-id guard bypass.** On Adena `changedNetwork`, the broadcast guard's `_walletChainId` is not re-synced (`useAdena.ts:391-397`) → after an in-wallet network switch the chain-mismatch block silently disables.
+
+**Systemic root causes (the "why"):**
+1. **`Render()` is an unversioned ABI.** The frontend scrapes attacker-influenceable markdown with regexes; a malicious DAO description can forge members/proposals/threshold the UI then trusts. The fix is a **versioned `qeval` JSON read path** (the GRC721 code already does this correctly — standardize on it).
+2. **Three Gno std API dialects coexist** (`std.*` legacy, `chain/runtime/unsafe` interrealm-v2, mixed caller identity), and **codegen ↔ deployed ↔ CI-stub** are three different sources of truth that no automated check reconciles.
+3. **No upgrade/migration/registry layer.** Immutable realms + hardcoded paths in three files + a `realm-versions.json` the app never reads ⇒ every redeploy strands state and needs hand edits.
+4. **Uncoordinated client polling.** 8+ independent timers (down to 2s) hammer public RPC with duplicated work and no shared cache, despite an unused `packages/gno-rpc` cache layer.
+
+**The product dimension:** Memba reads as *three apps stitched together* (multisig wallet · DAO ops · Gno ecosystem portal). For a new user the mental model is unclear; for a fund-moving user **safety is uneven** — DAO contract votes go through a confirmation gate, but **multisig propose/sign/broadcast do not**. Accessibility is explicitly incomplete (the a11y E2E suite disables color-contrast/nested-interactive rules). This is now a first-class workstream (Wave 5), not an afterthought.
+
+**Revised verdict:** the round-1 conclusion stands and hardens. The money paths have *more* holes than round 1 showed, and they cluster in **generated Gno + the TS that writes it**. But the same five-expert pass also produced a clear, opinionated **architecture direction** (§11) — versioned qeval API, one std dialect, a realm registry, a unified guarded broadcaster, a shared cached RPC client — that converts a sprawling alpha into a coherent platform. The plan below sequences both the bleeding-stops and that direction.
 
 ---
 
@@ -162,8 +187,9 @@ Severity scale: **P0** = fund loss / auth bypass / RCE-class · **P1** = high se
 | **W0.4 Verify completion hash** | BE-3 | In `CompleteTransaction`, query the chain (`/tx` or `abci_query`) to confirm the supplied `final_hash` corresponds to a committed tx for this multisig/sequence before persisting; reject otherwise. (Interim hardening if on-chain lookup is heavy: store hash as *claimed*, mark `verified=false`, and reconcile via the existing indexer.) | Fabricated hash → rejected (or stored unverified, never surfaced as confirmed); real hash → confirmed. |
 | **W0.5 Close quest XP farming** | BE-4 | Change the `default`/`off_chain` branch from auto-accept to require proof or on-chain verification; for genuinely off-chain quests, gate XP behind admin attestation (reuse the existing attestation voucher flow). | `CompleteQuest`/`SyncQuests` for an `off_chain` quest without proof → no XP granted; test covers it. |
 | **W0.6 Boot guard on unsigned auth** | BE (conditional P0) | If `FLY_APP_NAME` is set and `MEMBA_ALLOW_UNSIGNED_AUTH=1`, refuse to start. Add Fly-secrets inventory check to the deploy runbook. | Server panics/exits on misconfig in prod; documented in `SECRETS_ROTATION.md`. |
+| **W0.7 Escrow double-refund (R2)** | R2-CHN-A | `escrow_v2` is **live on test13** and moves real `ugnot`. (a) Audit the deployed `escrow_v2` source (`vm/qfile`) for the dispute-refund→cancel double-payout. (b) Patch the generator: on `ResolveDispute` refund, set `ms.Amount=0` / `ms.FundedAt=0` (or `MsRefunded` status) so `CancelContract` cannot re-refund; require exact `ugnot` on `FundMilestone` (no overpay donation). (c) If the live realm is vulnerable, redeploy `escrow_v3` + migrate allowlist. | `gno test` proves fund conservation: a milestone cannot be refunded twice; `Σ payouts ≤ Σ deposits`; overpay rejected. |
 
-**Wave 0 Definition of Done:** all six tasks merged with tests; a short signoff report (mirroring the existing `v7.1-phaseN-signoff.md` shape) recording the pre-flip `multisig_sig_verify` mismatch metric and the Fly-secrets assertion.
+**Wave 0 Definition of Done:** all seven tasks merged with tests; a short signoff report (mirroring the existing `v7.1-phaseN-signoff.md` shape) recording the pre-flip `multisig_sig_verify` mismatch metric, the Fly-secrets assertion, and the `escrow_v2` vulnerability determination.
 
 ### Wave 1 — Governance correctness & generator/deployed parity
 
@@ -176,9 +202,14 @@ Severity scale: **P0** = fund loss / auth bypass / RCE-class · **P1** = high se
 | **W1.3 Generator↔deployed parity harness** | Cross-cut #1, CHN-6/7/8 | Build a CI job that, for each realm, diffs the in-repo generator output / stub against the canonical `samcrew-deployer` source (vendored or submoduled at a pinned SHA) and fails on drift. Record the deployer commit SHA + gno toolchain commit in `realm-versions.json` (fill `pendingFields`). | CI red on any generator/deployed divergence; `realm-versions.json` reproducibly maps repo→on-chain. |
 | **W1.4 Board template fix** | CHN-7 | Export `IsMember()` from generated DAO (or change board to a supported cross-realm member check); make `templates.compile.test.ts` **non-skippable in CI** by ensuring `gno` is installed in the CI image. | Board+DAO pair compiles in CI (gate cannot silently skip). |
 | **W1.5 Offers engine — correct or delete** | CHN-1, CHN-3, CHN-10 | If floor offers stay on the roadmap: implement real settlement (`MarketTransfer` + `SplitProceeds` + fee + refund-on-failure, CEI-ordered), enforce `MaxOffers*`, add `SetPaused` admin, unify caller guards, and write `offers_test.gno` covering accept/cancel/expire/refund and the fee math. Otherwise delete the stub (W0.1 already neutralized it). | If kept: full `offers_test.gno` green incl. fund-conservation invariant (sum of refunds+payouts+fees == escrowed). |
-| **W1.6 agent_registry redeploy** | CHN-6 | Redeploy `agent_registry` from the hardened template to a new path; update `realm-versions.json`; deprecate the unhardened test12 instance in the allowlist. | Live `UseCredit` rejects non-creator/non-admin; allowlist points at the new path. |
+| **W1.6 agent_registry redeploy** | CHN-6 | Redeploy `agent_registry` from the hardened template to a new path; update `realm-versions.json`; deprecate the unhardened test12 instance in the allowlist. Add `WithdrawFees(agentId)` so per-use revenue isn't stranded; fix `buildDeployAgentRegistryMsg` to go through `buildDeployMsg` (it omits `gnomod.toml`). | Live `UseCredit` rejects non-creator/non-admin; creator can withdraw earnings; deploy envelope consistent. |
+| **W1.7 Wire codegen validation (R2)** | R2-GEN-A | Make every `*Template.ts` generator **fail-closed**: call `clampInt`/`isValidPercentage`/`isValidGnoAddress`/`sanitizeString` (and a new `isValidPackageName` rejecting Go keywords) at the top; **throw** instead of `console.warn`+drop on invalid input. Use `safeName` (never raw `config.name`) in comments — closes the agent comment-injection vector. Reject `threshold=0`/`NaN`/negative/overflow. | New security tests: injection via name/comment rejected; `threshold=0` rejected; empty-member-list deploy blocked; `fast-check` property test (already a dep, currently unused): ∀ valid input ⇒ generator output compiles; ∀ invalid ⇒ throws. |
+| **W1.8 Unify DAO companion realm (R2)** | R2-GEN-B | Pick **one** companion model (channel is the hardened, deployed path). Migrate CreateDAO extensions off `boardTemplate` to `channelTemplate`; either export `IsMember(addr) bool` from the generated DAO and have channels cross-call it, or seed initial channel members from wizard config and wire DAO `ExecuteProposal`→`channels.AddMember`. Deprecate `boardTemplate` for new deploys. | DAO+companion compiles as one module in CI (non-skippable); a DAO member can post without manual re-add; integration test covers add-member→can-post. |
+| **W1.9 Render pagination + structured reads (R2)** | R2-GEN-C, R2-CHN-B | Unify pagination on one scheme (`?page=N` with clickable links emitted by the generator) so user DAOs with >20 proposals paginate. Add versioned structured exports to the DAO template — `APIVersion() int`, `GetProposalsJSON(offset,limit)`, `GetMembersJSON()` — and have the frontend prefer them, treating `Render()` markdown as display-only. Embed `TemplateVersion` in generated output so parsers can branch by version. | E2E: a 25-proposal DAO shows page 2; parsers consume JSON via `qeval`; golden-output contract tests replace markdown-regex assertions for member/proposal data. |
+| **W1.10 One Gno std dialect + shared ACL (R2)** | R2-GNO-A | Migrate `offers.gno` (and the `escrow.gno` stub's `time.Now()`/`runtime` mix) to the interrealm-v2 prologue used by the templates; add a lint rule banning `std.GetBanker`/`std.GetOrigCaller` in realms. Extract a `gno.land/p/samcrew/memba_acl` pure package (IsUserCall, role checks, exact-coin helpers) instead of copy-paste; reconcile the DAO test that wrongly *rejects* `OriginCaller` for routed-tx authorization. | No legacy `std.*` caller/banker APIs in any realm; ACL helpers shared; lint rule enforced in `gno-test.yml`. |
+| **W1.11 Make the compile gate authoritative (R2)** | R2-GEN-D | Install `gno` in the main CI image; run `templates.compile.test.ts` with `describe.skip` **forbidden** (fail if skipped); replace the fake `extract-contracts.ts` stubs with fixtures emitted from the *real* generators; lint DAO+board as one workspace so cross-realm errors (W1.8) are caught. | CI fails on any generator that doesn't compile; CI fails if the gate self-skips; stubs == generated code. |
 
-**Wave 1 DoD:** every fund-handling Gno path has a Gno-level test asserting **fund conservation** and **access control**; parity harness green; signoff report.
+**Wave 1 DoD:** every fund-handling Gno path has a Gno-level test asserting **fund conservation** and **access control**; codegen is fail-closed and fuzz-tested; the compile gate is authoritative and non-skippable; parity harness green; signoff report.
 
 ### Wave 2 — Backend & frontend hardening
 
@@ -193,6 +224,10 @@ Severity scale: **P0** = fund loss / auth bypass / RCE-class · **P1** = high se
 | **W2.5 Auth token storage hardening** | FE-1, FE-2 | Move the auth token to an in-memory + short-lived pattern (or at minimum reduce TTL and add refresh); make the unsigned fallback a hard client-side block when a pubkey is available. | Token not readable from `localStorage` after change (or TTL ≤ short window); declined-sign blocks login; tests. |
 | **W2.6 Unify the render/sanitize pipeline** | FE-3, FE-4 | Single `renderSafeMarkdown()` helper that always escapes-then-renders-then-DOMPurifies; replace all 8 `dangerouslySetInnerHTML` sites; tighten CSP `img-src` to the specific origins actually needed (gateway + data:). | One pipeline; sanitize-regression suite extended to cover every call site; CSP test updated. |
 | **W2.7 Multisig UI unit tests** | FE-6 | Add Vitest coverage for `ProposeTransaction`, `TransactionView`, `MultisigView`, `Create/Import` (tx assembly, signature combine, threshold math, error states). Add Vitest coverage thresholds to `vite.config.ts`. | Money-path UI logic covered; CI enforces a frontend coverage floor. |
+| **W2.8 Unified, ABCI-error-aware RPC client (R2)** | R2-CHN-D | Collapse the duplicate ABCI stacks (`dao/shared.ts`, `grc20.ts` `atob`/no-failover, `directory.ts`, `plugins/board`) into one client — UTF-8 safe (`TextDecoder`), failover-enabled, and **distinguishing ABCI `ResponseBase.Error` from empty result** (port the backend `abciErrorPresent` logic). Adopt/extend `packages/gno-rpc` with its TTL cache. Return typed `{ ok, data, abciError?, transportError? }`. | One ABCI client; "realm not deployed" vs "empty" vs "RPC down" are distinguishable; non-ASCII Render no longer corrupts. |
+| **W2.9 One guarded broadcaster + chain-id resync (R2)** | R2-CHN-E | Route **all** writes (DAO deploy, board/plugin deploy, account activation, multisig broadcast) through `doContractBroadcast` (extend it for `/vm.m_addpkg` + `bank/MsgSend` with per-op gas). Fix `useAdena` `changedNetwork` to re-sync `_walletChainId` so the chain-mismatch guard can't silently disable after an in-wallet network switch. | Every broadcast path enforces RPC-trust + chain-id + confirmation; post-network-switch a wrong-chain sign is blocked; tests. |
+| **W2.10 Render trust model + identity matching (R2)** | R2-CHN-F | Prefer `qeval`/JSON exclusively when present and **fail-closed** (don't fall back to scraping the author-controlled description); scope regex parsers to known structural regions; label UI data provenance ("from chain JSON" vs "unverified display"). Replace 10-char address-prefix vote matching (`voteScanner.ts:114`, `DAOHome.tsx:149`) with full-bech32 / username-resolved matching. Default unknown proposal status to `"unknown"` (no vote button), not `"open"`. Add adversarial Render fixtures. | A malicious DAO description cannot forge members/proposals/votes the UI trusts; no false "already voted" from prefix collisions; adversarial fixtures in the suite. |
+| **W2.11 Account/sequence + network-scoped caches (R2)** | R2-CHN-G | `fetchAccountInfo` must fail loud on transport error (not silently return `{0,0}` which can corrupt multisig sign-docs); network-scope all chain-derived caches (usernames, voteScanner); resolve `getUserRegistryPath()` at call time, not module load; filter saved DAOs by active network in `voteScanner`; add an explicit gnoland1 allowlist (default-deny off test13). | RPC blip can't produce a wrong-sequence sign-doc; switching network can't surface stale-network data; tests. |
 
 ### Wave 3 — Supply chain, CI/SAST, MCP, docs truth
 
@@ -216,24 +251,68 @@ Severity scale: **P0** = fund loss / auth bypass / RCE-class · **P1** = high se
 - **HA story for SQLite/Fly** (single-machine today): document RTO/RPO, validate Litestream restore on a clean boot, consider a read replica for the indexer.
 - **Gno fuzz/property tests** for fee math and vote tallies; extend `FuzzMakeADR36SignDoc`-style fuzzing to the template sanitizer.
 
+### Wave 5 — Product coherence, UX & accessibility (R2)
+
+> Blast radius: navigation/IA, core flow screens, modal system, design-system consolidation. Invasiveness: moderate (touches many screens but mostly additive/safety). Risk: low. This is where Memba goes from "powerful but overwhelming" to "trustworthy and learnable." Driven by the UX/product/a11y lens (§10.4).
+
+| Task | Addresses | Change | Acceptance |
+|------|-----------|--------|------------|
+| **W5.1 Close the multisig safety gap** | R2-UX-A | Bring multisig **propose/sign/broadcast** up to the same rigor as DAO votes: a pre-submit review card (to, amount, fee, chain, multisig), a broadcast confirmation modal (reuse `TxConfirmation`), full (untruncated) recipient verification, and a prominent "signing on {network}" indicator at the CTA. | No fund-moving multisig action without an explicit, legible confirmation; e2e covers the review→confirm path. |
+| **W5.2 Unify error surfacing** | R2-UX-B, FE-3 | Route all user-visible chain errors in the core flows (`TransactionView`, `ProposeTransaction`, `CreateMultisig`, `ProposalView`, `ActivationModal`) through `friendlyError`/`mapError`; expand `errorMessages.ts` for sequence-mismatch / invalid-signature / wrong-chain without over-masking actionable VM errors; replace silent null-returns with typed degradation states ("couldn't load chain data" ≠ "no data"). | No raw ABCI log strings shown to users in core flows; important failures are actionable, not hidden. |
+| **W5.3 Information-architecture refactor** | R2-UX-C | Collapse the surface into ~4 top-level modes — **Wallet · Govern · Launch · Explore** — with progressive disclosure; move Gnolove (link out / subdomain), validators-hacker, and quests under Explore / post-onboarding. Remove the duplicate "Dashboard" nav id (home is the hub). Complete command-palette coverage (Gnolove, Alerts, Marketplace, Multisig hub). Fix Organizations being reachable only via search. | New users see a coherent core; power-user surfaces remain but are demoted; nav/manifest/cmd-palette are consistent. |
+| **W5.4 Progressive onboarding** | R2-UX-D | Replace the post-auth 6-feature tour with a **first-success checklist** (Install Adena → Connect → Activate → Join/create multisig → First proposal) reusing `ActionInbox` patterns; guide wallet activation before the blocking modal; offer a read-only "explore" escape. | A brand-new, wallet-less visitor has an obvious path to first value; activation is no longer a dead-end. |
+| **W5.5 Accessibility to real AA** | R2-A11Y | Adopt `AccessibleDialog`/`useFocusTrap` across CommandPalette, Onboarding, TxConfirmation, BottomSheet, Jitsi PiP; associate all form labels (`htmlFor`/`id`) in CreateMultisig/ProposeTransaction; give network `<select>`s accessible names; make sortable `<th>` and copyable-address controls real `<button>`s; fix brand color tokens and **re-enable the axe `color-contrast`/`nested-interactive` rules** currently disabled in `e2e/accessibility.spec.ts:45-49`. | The a11y E2E suite passes with the disabled rules turned back on; modals trap/restore focus. |
+| **W5.6 Polling UX + design-system consolidation** | R2-UX-E | Show "updated Ns ago" + manual refresh on tx/proposal views; standardize loading (skeleton vs spinner) per surface; migrate page-level inline styles toward Kodera tokens; make the validators card pattern a shared primitive for DAO/directory/marketplace tables on mobile. | Consistent feedback + visual language; mobile tables no longer overflow. |
+
+### Wave 6 — Performance, DX, observability (R2)
+
+> Blast radius: polling/caching architecture, monorepo tooling, metrics. Invasiveness: low–moderate. Risk: low. High leverage on RPC cost, reliability, and contributor velocity. Driven by the performance/DX lens (§10.5).
+
+| Task | Addresses | Change | Acceptance |
+|------|-----------|--------|------------|
+| **W6.1 Coordinate polling + shared cache** | R2-PERF-A | Migrate `useBalance`/`useNotifications`/`useUnvotedCount` to React Query with shared keys + `refetchInterval` + Page-Visibility pause; eliminate the duplicate `useNotifications` instance on `DAOList`; merge the overlapping `voteScanner` + notifications proposal fetches into one scan. Add visibility pause to `useBalance` and `NetworkStatusToast`. | Measured RPC request volume for an active session drops materially (target ≥50%); no duplicate proposal fetches. |
+| **W6.2 Route hot reads through the cached backend proxy** | R2-PERF-B | Use the existing `/api/render` and `/api/balance` proxies (add server-side in-memory TTL like the marketplace path) for hot DAO reads; cap `listCollectionTokens` concurrency (batched) or back it with an indexer API. | Hot paths are cached/rate-limit-protected and consistent; NFT collection load no longer fires one query per token unbounded. |
+| **W6.3 Observability completeness** | R2-OBS | Wire `ErrorBoundary.componentDidCatch` → Sentry; add `logChainError` to NFT trade/broadcast paths; add Prometheus histograms (`render_proxy_duration`, `rpc_failover_total`, `sqlite_busy_total`); forward Web Vitals to Sentry; add a health signal for the alerting subsystem. | Root crashes and money-path errors are observable; RPC/DB pressure is measurable; deploy-verify hook exists. |
+| **W6.4 DX & monorepo** | R2-DX | Add a single `make dev` (backend + frontend + proto watch via `concurrently`/compose); resolve the pnpm-vs-npm ambiguity and add `frontend` to the workspace or document the split; consolidate the three `.env.example` files; enforce the "no `any`" CONTRIBUTING rule incrementally (start by splitting `validators.ts` into typed modules). | A new contributor is productive from one command; `any` count trends down with a ratchet. |
+| **W6.5 Virtualize large lists + E2E determinism** | R2-PERF-C | Add windowing (`react-virtuoso`) to validators/directory/Gnolove-report lists >50 items; introduce an MSW/Playwright route-interception stub layer for ABCI so core E2E is deterministic, keeping one nightly live-RPC smoke job instead of 26 network-canary specs. | Large lists stay smooth; CI E2E is a deterministic regression gate, not a network canary. |
+
 ---
 
 ## 6. Sequencing & dependency graph
 
 ```
-W0 (fund-loss + auth integrity)  ──┐  [HARD GATE — must fully close]
+W3.1+W3.2 (pin CI + real SAST) ─── do FIRST: cheap, makes every later verification trustworthy
+        │
+        ▼
+W0 (fund-loss + auth integrity) ──┐  [HARD GATE — must fully close]
+   incl. W0.7 escrow double-refund │
                                    │
-W1 (governance + parity) ◄─────────┘  depends on W0.1 (offers decision)
-   │  W1.3 parity harness unblocks safe future realm deploys
+W1 (governance + codegen + parity)◄┘  depends on W0.1 (offers decision)
+   │  W1.7 fail-closed codegen · W1.8 companion unify · W1.9 Render/JSON
+   │  W1.11 authoritative compile gate unblocks safe future realm deploys
    ▼
-W2 (backend/frontend hardening)    can start in parallel with W1 (no shared files except config)
+W2 (backend/frontend hardening)    parallel with W1 (config-only overlap)
+   incl. W2.8 unified ABCI client · W2.9 guarded broadcaster · W2.10 Render trust
    │
-W3 (supply chain / SAST / docs)    independent; do early — cheapest risk reduction, unblocks trustworthy CI for W0–W2 verification
+W5 (product/UX/a11y)               starts after W2.9/W2.10 (safety primitives) land
+   │  W5.1 multisig safety gap is the highest-value UX+safety item
+   ▼
+W6 (perf/DX/observability)         parallel-safe; W6.1/W6.2 depend on W2.8 RPC client
+   │
+W3 (rest: MCP/docs/config)         independent; finish anytime
    │
 W4 (structural debt)               continuous, non-gating
 ```
 
-**Recommended actual order of execution:** **W3.1 + W3.2 first** (make CI trustworthy and reproducible — cheap, unblocks confident verification of everything else), then **W0** (stop bleeding), then **W1** + **W2** in parallel, then the rest of **W3**, then **W4** continuously.
+**Recommended actual order of execution:**
+1. **W3.1 + W3.2** — pin CI tooling + add real JS/TS SAST. Cheapest risk reduction; makes all later verification reproducible.
+2. **W0** (incl. W0.7 escrow) — stop fund-loss and auth-integrity bleeding. **Hard gate.**
+3. **W1 + W2 in parallel** — governance/codegen correctness and backend/frontend hardening. W1.11 (authoritative compile gate) and W1.3 (parity harness) must land before any new realm deploys.
+4. **W5** — product/UX/a11y, led by **W5.1 (multisig safety gap)** which is simultaneously the top UX and top remaining safety item once W2.9 exists.
+5. **W6** — performance/DX/observability (W6.1 polling coordination is a quick, high-leverage win once the W2.8 RPC client exists).
+6. **Remaining W3 + W4** — continuously.
+
+**Freeze rule (unchanged, reinforced):** no net-new fund-handling realm or marketplace engine ships until **W0 + W1 close** and the **parity harness + authoritative compile gate (W1.3, W1.11)** are green.
 
 ---
 
@@ -270,6 +349,137 @@ Directly read and confirmed at source (not just reported by sub-audits):
 
 Domain sub-audits (frontend, backend, Gno/codegen, infra) produced the remaining `file:line` evidence; spot-checks were consistent with their reports.
 
+**Round 2 — directly re-verified at source:** escrow double-refund (`escrowTemplate.ts:391-403,440-451` — `FundedAt` not cleared on dispute refund); agent comment-injection (`agentTemplate.ts:56` — raw `config.name` in `//` comment); unwired clamps / raw threshold (`daoTemplate.ts:238-239`). Convergent findings reported independently by ≥2 of the five round-2 experts (board `IsMember`, channel membership desync, Render pagination mismatch, std API dialect split, unwired codegen clamps) are treated as high-confidence.
+
 ---
 
-*Prepared as a cross-perspective audit (Security · Engineering · UX/Product · Governance) and reviewed through a CTO lens. The plan is intentionally dependency-ordered and effort-described in technical terms rather than calendar time, so it can be executed by autonomous agents or humans without re-baselining.*
+## 10. Round-2 findings register (new / deeper)
+
+Only items **not already in §4** (or that materially deepen a §4 item). Severity scale unchanged (P0–P3). IDs prefixed `R2-`.
+
+### 10.1 Gno on-chain design, upgradeability, gas, std API (Gno CTO-A)
+
+| ID | Sev | Finding | Evidence |
+|----|-----|---------|----------|
+| **R2-CHN-A** | **P0** | Escrow **double-refund**: dispute refund leaves `FundedAt`/`Amount` intact, so `CancelContract` refunds the same milestone again → realm insolvency / panic. (`escrow_v2` is live on test13.) | `escrowTemplate.ts:391-403,440-451` |
+| **R2-GNO-A** | **P1** | **Three Gno std dialects** coexist: `offers.gno` uses legacy `std.GetOrigCaller`/`std.GetBanker`/`std.GetOrigSend`; templates use interrealm-v2 `unsafe.*`/`chain/banker`; escrow stub uses `runtime.*` + non-deterministic `time.Now()`. Will break / behave differently across gnovm versions. Templates never apply an IsUserCall/`OriginCaller` guard for routed-tx authorization (and a DAO test wrongly *rejects* `OriginCaller`). | `offers.gno:51-117`; `escrow.gno:49-57`; `daoTemplate.test.ts:90-93` |
+| **R2-GAS-A** | **P1** | **Unbounded growth / O(n) Render**: channels store threads/replies in nested slices scanned linearly on every post and dumped wholesale in `Render` (no caps); DAO `Render("")` iterates **all** members unbounded (proposals got pagination, members didn't); agent reviews are an unbounded `[]*Review` per agent dumped in Render. Gas/DoS via spam. | `channelTemplate.ts:300-316`; `daoTemplate.ts:304-309`; `agentTemplate.ts:249-257` |
+| **R2-CHN-B** | **P1** | **`Render()` is an unversioned ABI.** Frontend regex-scrapes markdown; generated DAOs export no structured JSON read path (only `GetDAOConfig()` returning the name) while the frontend *prefers* `GetProposalsJSON`/`GetMembersJSON` that don't exist. GRC721 already does this right (qeval-authoritative) — standardize on it. | `daoTemplate.ts:749-751`; `proposals.ts:143`, `members.ts:64`; `grc721.ts` (good pattern) |
+| **R2-MIG-A** | **P1** | **No migration/registry layer.** Immutable paths are hardcoded across `config.ts` + env + `realm-versions.json` (which the app never imports). Redeploy strands old state/funds and needs hand edits in 3 places. No router/registry realm. | `realm-versions.json`; `config.ts:216-245` |
+| **R2-CHN-C** | **P2** | Escrow `FundMilestone` accepts **overpay** (`>=` not `==`), donating excess to the realm with no exit; agent `DepositCredits` similarly uncapped; agent `UseCredit` never pays the creator (revenue stranded). | `escrowTemplate.ts:270-273`; `agentTemplate.ts:301-341` |
+| **R2-GAS-B** | **P2** | `offers.gno` `MaxOffers*` declared but unenforced; `paused` has no setter; `escrow.gno` uses non-deterministic `time.Now()`. | `offers.gno:21-25,17`; `escrow.gno:56` |
+
+### 10.2 Codegen-as-compiler, deploy, provenance (Gno CTO-B)
+
+| ID | Sev | Finding | Evidence |
+|----|-----|---------|----------|
+| **R2-GEN-A** | **P1** | **Sanitizer clamps are dead code.** `clampInt`/`isValidPercentage` exist but no generator uses them; numbers/addresses interpolated raw. `threshold=0` ⇒ instant pass; `NaN` power documented-not-fixed; huge ints ⇒ overflow; negatives break rate limits. Agent **comment-injection** via raw `config.name`. Escrow addresses interpolated with zero validation. Generators `console.warn`+drop instead of throwing (silent zero-member DAO). | `sanitizer.ts:129-137`; `daoTemplate.ts:238-240`; `agentTemplate.ts:56`; `escrowTemplate.ts:169-175`; `daoTemplate.security.test.ts:186-193` |
+| **R2-GEN-B** | **P0** | **Two incompatible companion models + broken cross-realm membership.** CreateDAO wizard deploys `_board` (`boardTemplate`, calls non-existent `parent.IsMember()`); plugin modal deploys `_channels` (`channelTemplate`, separate local member tree seeded with deployer only). DAO members can't post; board may not compile. | `boardTemplate.ts:284-291`; `channelTemplate.ts:227-233,558-561`; `CreateDAO.tsx:252-259`; `DeployPluginModal.tsx:14-18` |
+| **R2-GEN-C** | **P0** | **Render pagination mismatch**: generator emits `page:N` + plain-text footer; parser expects `?page=N` clickable links ⇒ user DAOs with >20 proposals show only page 1. | `daoTemplate.ts:276-337`; `dao/proposals.ts:114-185` |
+| **R2-GEN-D** | **P1** | **Compile gate is not authoritative**: `templates.compile.test.ts` silently skips without `gno` on PATH; main CI doesn't install gno; `gno-test.yml` runs *fake* stubs (`extract-contracts.ts` explicitly does not import generators) and only on `main`. Template changes merge green while generated code fails on-chain. No `fast-check` fuzzing despite the dep being present. | `templates.compile.test.ts:83-90`; `scripts/extract-contracts.ts:23-26` |
+| **R2-PROV-A** | **P1** | **No provenance/version stamp.** Generated realms carry no `TemplateVersion`/source hash; the review step shows code but no `sha256` and no "download to verify"; `gnomod.toml` hardcodes `gno="0.9"`; `buildDeployAgentRegistryMsg` omits `gnomod.toml` entirely. User can't attest preview == broadcast. | `daoTemplate.ts:749-751`; `WizardStepReview.tsx:119-129`; `prologue.ts:61-62`; `agentTemplate.ts:598-615` |
+| **R2-DEPLOY-A** | **P1** | **Deploy UX/safety gaps**: no pre-deploy path-collision check (despite `isRealmDeployed` existing) — user can pay 10 GNOT for a squatted path; multi-package deploy is **non-atomic** (separate `DoContract`) and a board failure still shows "complete"; fixed 5× gas with no AddPackage simulation; review step doesn't disclose the 10 GNOT deposit(s). Auto-fill builds bech32 namespace paths that conflict with the `@username` requirement. | `CreateDAO.tsx:156-158,222,234-274`; `gnoweb.ts:166-180`; `gasConfig.ts:19-20` |
+| **R2-GEN-E** | **P2** | Dual `validateRealmPath` (strict in `sanitizer.ts`, loose in `daoSlug.ts` allowing uppercase); package/role names allow Go keywords; candidature generator stub misaligned with deployed API (`transferLockDays`/`airdropAmount` never emitted) yet still type-checked → false confidence. | `sanitizer.ts:103-112`; `daoSlug.ts:11`; `candidatureTemplate.ts:300-321` |
+
+### 10.3 Frontend↔chain integration correctness (Gno CTO-C)
+
+| ID | Sev | Finding | Evidence |
+|----|-----|---------|----------|
+| **R2-CHN-D** | **P1** | Frontend ABCI layer **ignores `ResponseBase.Error`** (backend handles it) → realm-not-found, qeval panic, import error, and legit-empty all collapse to `null`; most callers show empty/wrong UI. A **second, weaker ABCI stack** in `grc20.ts` uses `atob` (UTF-8 corruption) and no failover. | `rpcFallback.ts:110-115`; `render_proxy.go:164-170`; `grc20.ts:492-526` |
+| **R2-CHN-E** | **P1** | **Chain-id guard bypass on network switch**: `changedNetwork` handler doesn't re-sync `_walletChainId` → after an in-wallet switch, wrong-chain broadcasts are no longer blocked. Multiple write paths (DAO/board/plugin deploy, activation) bypass `doContractBroadcast` guards entirely. | `useAdena.ts:391-397`; `grc20.ts:156-161`; `CreateDAO.tsx:234,260`; `DeployPluginModal.tsx:57` |
+| **R2-CHN-F** | **P1** | **Render-spoofing trust**: when JSON exports are absent/fail, parsers regex the author-controlled description — a DAO can forge members/proposals/threshold/member-count the UI trusts; directory treats any `g1…` as a member. Vote/membership identity uses a **10-char address prefix** (collision → false "already voted"); unknown status defaults to `"open"` (shows vote button). | `dao/members.ts:14-17`; `dao/proposals.ts:42-50`; `dao/config.ts:35-40`; `directory.ts:459-461`; `voteScanner.ts:114-120`; `dao/shared.ts:221-223` |
+| **R2-CHN-G** | **P2** | `fetchAccountInfo` silently returns `{0,0}` on any failure → wrong account/sequence in multisig sign-docs; caches (usernames, voteScanner) not network-scoped; `getUserRegistryPath()` frozen at module load (relies on full-page reload on switch); gnoland1 has no allowlist (default-allow → 404/VM errors). | `account.ts:46-48`; `shared.ts:130`; `voteScanner.ts:86-99`; `config.ts:252-255` |
+
+### 10.4 UX / product / accessibility (Principal UX engineer)
+
+| ID | Sev | Finding | Recommendation |
+|----|-----|---------|----------------|
+| **R2-UX-A** | **P1** | **Safety asymmetry**: DAO contract votes go through `TxConfirmation`; multisig propose/sign/**broadcast** do not (raw ABCI errors, no review card, truncated recipient). This is the namesake feature moving real funds with the weakest safety UX. | W5.1 — review card + broadcast confirmation + full recipient + network indicator. |
+| **R2-UX-B** | **P2** | Two parallel error systems (`errorMap`/`ErrorToast` vs `friendlyError`); core fund flows pass raw `err.message`. Silent catches hide failures from users. | W5.2 — single error surface; expand mappings; typed degradation. |
+| **R2-UX-C** | **P2** | **Feature sprawl**: ~20 route domains read as 3 apps. "Dashboard" nav id is a ghost redirect; Organizations reachable only via search; cmd-palette coverage incomplete; mobile primary tabs bury Multisig. | W5.3 — 4-mode IA (Wallet/Govern/Launch/Explore), demote Gnolove/quests/hacker. |
+| **R2-UX-D** | **P2** | Onboarding fires only post-auth and sells 6 features instead of a first-success path; wallet activation is a blocking dead-end with raw errors. | W5.4 — progressive checklist; read-only escape. |
+| **R2-A11Y** | **P2** | The a11y E2E suite **disables** `color-contrast`/`link-in-text-block`/`nested-interactive`; CommandPalette/Onboarding/TxConfirmation/BottomSheet/Jitsi-PiP lack focus traps; unlabeled form inputs and network selects; sortable `<th>` and copyable addresses aren't buttons. Not full AA today. | W5.5 — adopt `AccessibleDialog`, label everything, re-enable axe rules. |
+| **R2-UX-E** | **P3** | Inconsistent loading (skeleton/spinner/shimmer), 66 page CSS files + widespread inline styles undercut the design system, no "updated Ns ago" on polled views, validators is the only cardified mobile table. | W5.6 — polling-UX contract + design-system consolidation. |
+
+### 10.5 Performance / DX / test-quality / observability (Principal eng)
+
+| ID | Sev | Finding | Evidence / recommendation |
+|----|-----|---------|---------------------------|
+| **R2-PERF-A** | **P1** | **Polling storm**: 8+ uncoordinated timers (down to 2s) on an active session, duplicated `useNotifications` on Layout *and* DAOList, overlapping `voteScanner`+notifications proposal fetches, no shared cache, `useBalance`/`NetworkStatusToast` don't even pause when hidden. | `Layout.tsx:50,255,274`; `DAOList.tsx:48-50`; `ValidatorsHacker.tsx:67-72`; W6.1. |
+| **R2-PERF-B** | **P2** | React Query persists **gnolove-only**; Memba core data bypasses RQ ⇒ no dedup. `packages/gno-rpc` has a TTL cache the app never imports. NFT collection load fires **one ABCI query per token** unbounded. `/api/render` only 5s CDN cache, no server memo. | `queryClient.ts:41-66`; `grc721.ts:325-337`; W6.2. |
+| **R2-TEST-A** | **P2** | ~2,400 tests are real but **uneven**: strong on parsers/security/auth; shallow on hook-constant tests (`useChannelPolling.test.ts` asserts a constant), generator `.toContain` churn, `voteScanner` scan/cache untested; **money-path UI** (multisig sign/broadcast, NFT errors) thin; E2E is **live-RPC-dependent** (a network canary, not a deterministic gate). `fast-check` present but unused. | `useChannelPolling.test.ts:11-23`; `voteScanner.test.ts:9`; `e2e/validators.spec.ts:32-38`; W2.7 + W6.5. |
+| **R2-OBS** | **P2** | Root `ErrorBoundary` only `console.error`s (no Sentry); `logChainError` wired at 4 sites (none on NFT trade); no RPC latency/error metrics, no traces frontend→backend→RPC, no health signal on the alerting subsystem. | `ErrorBoundary.tsx:47-48`; W6.3. |
+| **R2-DX** | **P3** | `pnpm-workspace` excludes `frontend`/`backend`; Makefile uses npm; no single `make dev`; 3 `.env.example` files; CONTRIBUTING "no `any`" violated (~150+ project-wide, 83 in `validators.ts`). | `pnpm-workspace.yaml:1-4`; `Makefile:27-28`; W6.4. |
+| **R2-ARCH** | **P2** | State fragmented across 4 layers (localStorage, sessionStorage, RQ-gnolove-only, module globals); hybrid RPC split is intentional but hot reads bypass the better backend proxies; `Layout.tsx` auth bridge (~200 LOC) belongs in a `useLayoutAuth()` hook. | Long-term: server-side DAO read model (SSE/long-poll) to replace polling; W4 + W6. |
+
+---
+
+## 11. Architecture direction (the opinionated target state)
+
+The five round-2 experts converged — independently — on the same five structural moves. Adopting these turns Memba from a sprawling alpha into a coherent platform and makes most of the §4/§10 findings *structurally impossible* rather than individually patched:
+
+1. **Versioned `qeval` JSON API first, `Render()` for humans second.** Every realm exposes `APIVersion()` + structured JSON reads (`GetProposalsJSON`, `GetMembersJSON`, …); the frontend consumes JSON via `qeval` and treats markdown as display-only. Kills the entire Render-spoofing + pagination-mismatch + parser-fragility class (R2-CHN-B, R2-CHN-F, R2-GEN-C). The GRC721 path already proves the pattern.
+2. **One Gno std dialect + a shared `p/samcrew/memba_acl` pure package.** Interrealm-v2 (`chain/runtime/unsafe`, `chain/banker`) everywhere; ban legacy `std.*` caller/banker via gno lint; centralize IsUserCall, role checks, exact-coin, fund-conservation helpers so they're written and tested once (R2-GNO-A, R2-CHN-C).
+3. **A realm registry + provenance ledger.** A governance-updatable `memba_registry` realm maps logical names → active paths; `realm-versions.json` becomes a *generated* single source of truth (with deployer SHA + toolchain commit) that CI diffs against `config.ts`/allowlist; generated realms stamp `TemplateVersion` + source hash. Kills the migration/drift/provenance class (R2-MIG-A, R2-PROV-A, and round-1's generator↔deployed drift).
+4. **A single guarded broadcaster + a single cached, error-aware RPC client.** All writes flow through one `doContractBroadcast` (RPC-trust + chain-id + confirmation + per-op gas); all reads flow through one ABCI client (failover, UTF-8-safe, `ResponseBase.Error`-aware, TTL cache from `packages/gno-rpc`). Kills the bypass/duplication/UTF-8/error-masking class (R2-CHN-D/E, R2-PERF-A/B).
+5. **A 4-mode product with progressive disclosure.** Wallet · Govern · Launch · Explore; safety parity across every fund-moving action; AA accessibility on the shells users touch constantly. Converts breadth from a liability into a navigable surface (R2-UX-*, R2-A11Y).
+
+```mermaid
+flowchart LR
+  subgraph fe [Frontend / MCP]
+    RPCClient[one cached, error-aware ABCI client]
+    Broadcaster[one guarded broadcaster]
+  end
+  subgraph reads [Reads]
+    QEVAL[qeval JSON · versioned API]
+    RENDER[qrender markdown · display only]
+  end
+  subgraph chain [Gno realms]
+    REG[(memba_registry)]
+    ACL[/p/samcrew/memba_acl/]
+    DAO[DAO r] --- ACL
+    CH[Channels r] --- ACL
+    ESC[Escrow r] --- ACL
+  end
+  RPCClient --> QEVAL --> DAO
+  RPCClient --> RENDER --> DAO
+  Broadcaster --> DAO
+  REG --> RPCClient
+  REG --> Broadcaster
+  DAO -->|IsMember| CH
+```
+
+---
+
+## 12. Execution kickoff — ready to proceed
+
+This section makes the plan *actionable now*. Each item below is a self-contained, PR-sized unit on its own `cursor/<name>-346c` branch, ordered exactly as recommended in §6. Acceptance criteria live in the wave tables.
+
+**Step 1 — Trustworthy CI (do first, unblocks verifying everything else)**
+- `KO-1` (W3.1): SHA-pin `setup-flyctl@master`; pin `govulncheck`/`golangci-lint`/`gno`/`gosec` versions consistently. *Docs/CI only — zero product risk.*
+- `KO-2` (W3.2): add CodeQL JS/TS; make the README "Security" badge truthful.
+
+**Step 2 — Stop the bleeding (HARD GATE)**
+- `KO-3` (W0.7 + W1.2 prep): patch escrow generator (clear `FundedAt` on dispute refund; require exact `ugnot`) **+ Gno fund-conservation test**; audit live `escrow_v2`.
+- `KO-4` (W0.2/W0.3/W0.4/W0.5/W0.6): backend integrity batch — enforce multisig sig verify (after log-metric check), lock `MultisigInfo`, verify completion hash, close quest XP farming, unsigned-auth boot guard. *Each with a rejection test.*
+- `KO-5` (W0.1): quarantine the offers stub (`panic("not implemented")` + CI allowlist assertion).
+
+**Step 3 — Correctness & hardening (parallel)**
+- `KO-6` (W1.7): make all generators fail-closed (clamps/validation/throw) + comment-injection fix + `fast-check` property tests.
+- `KO-7` (W1.11): install gno in CI; forbid compile-gate skip; replace fake stubs with real generator fixtures.
+- `KO-8` (W1.8 + W1.9): unify the DAO companion realm + Render pagination/JSON exports.
+- `KO-9` (W2.8 + W2.9): unified ABCI client + single guarded broadcaster + chain-id resync.
+- `KO-10` (W2.10): Render trust model + full-address identity matching.
+
+**Step 4 — Experience & quality**
+- `KO-11` (W5.1): close the multisig safety gap (highest-value UX+safety once KO-9 lands).
+- `KO-12` (W6.1): coordinate polling via React Query (quick, ≥50% RPC-load win).
+- `KO-13` (W5.2/W5.3/W5.5): error-surface unification, IA refactor, accessibility-to-AA — sequenced as capacity allows.
+
+**Proposed branching/PR hygiene for execution:** one PR per `KO-*`, each with its tests and a one-line CHANGELOG entry; security-touching PRs (KO-3/4/5/9/10) get a secondary reviewer per the existing Phase-1 CODEOWNERS rule; every realm-touching PR must show the parity harness + authoritative compile gate green before merge; no realm redeploy until W0+W1 close.
+
+**Status: ready to proceed.** Recommended first action on approval: execute `KO-1` and `KO-2` (CI trust), then open the `KO-3`/`KO-4` fund-and-auth batch behind tests. I can begin implementation immediately on request, starting at Step 1.
+
+---
+
+*Prepared as a two-round cross-perspective audit (Security · Engineering · UX/Product · Governance · Gno.land-expert CTO ×3) and reviewed through a CTO lens. The plan is intentionally dependency-ordered and effort-described in technical terms rather than calendar time, so it can be executed by autonomous agents or humans without re-baselining.*
