@@ -43,7 +43,7 @@ jobs:
         run: npm install -g @cyclonedx/cyclonedx-npm
       - name: Generate SBOM
         run: cd frontend && cyclonedx-npm --output-file ../sbom.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json
