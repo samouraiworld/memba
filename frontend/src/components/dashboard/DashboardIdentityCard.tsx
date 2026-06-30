@@ -54,7 +54,7 @@ export function DashboardIdentityCard({ address, username, avatarUrl, balance, o
                 onClick={() => navigate(`/profile/${address}`)}
                 style={{ fontSize: 11, flexShrink: 0 }}
             >
-                Edit Profile
+                My Profile
             </button>
         </div>
     )

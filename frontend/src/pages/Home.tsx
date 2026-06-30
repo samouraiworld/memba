@@ -24,6 +24,7 @@ import { ValueStrip } from "../components/home/ValueStrip"
 import { ShowcaseBoard } from "../components/home/ShowcaseBoard"
 import { BelowFold } from "../components/home/BelowFold"
 import { YourWorldsPanel } from "../components/home/panels/YourWorldsPanel"
+import { YourAssetsPanel } from "../components/home/panels/YourAssetsPanel"
 import "../components/home/home.css"
 
 export interface HomeProps {
@@ -71,6 +72,9 @@ export function Home({ mode }: HomeProps) {
             <div className="home-state-board" data-testid="home-board-member">
                 {/* Your worlds section — member-only saved-DAO panel */}
                 <YourWorldsPanel />
+
+                {/* Your assets section — member-only wallet summary */}
+                <YourAssetsPanel />
 
                 {/* Explore section — reuse ShowcaseBoard (same doors as visitor) */}
                 <ShowcaseBoard networkKey={activeNetworkKey} />

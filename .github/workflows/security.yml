@@ -14,7 +14,7 @@ jobs:
     name: Frontend — npm audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -32,7 +32,7 @@ jobs:
     name: Generate CycloneDX SBOM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -43,7 +43,7 @@ jobs:
         run: npm install -g @cyclonedx/cyclonedx-npm
       - name: Generate SBOM
         run: cd frontend && cyclonedx-npm --output-file ../sbom.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json
