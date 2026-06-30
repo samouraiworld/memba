@@ -6,6 +6,7 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 const NftLane = lazy(() => import("../components/marketplace/NftLane"))
 const ServiceLane = lazy(() => import("../components/marketplace/ServiceLane"))
 const AgentLane = lazy(() => import("../components/marketplace/AgentLane"))
+const TokenLane = lazy(() => import("./TokenLane").then(m => ({ default: m.TokenLane })))
 
 import "./unified-marketplace.css"
 
@@ -16,6 +17,7 @@ export default function UnifiedMarketplace() {
     // Active path logic to style the header dynamically if desired
     const isServices = pathname.includes("/services")
     const isAgents = pathname.includes("/agents")
+    const isTokens = pathname.includes("/tokens")
 
     return (
         <div className="um-container animate-fade-in">
@@ -23,13 +25,15 @@ export default function UnifiedMarketplace() {
             <header className={`um-hero ${isServices ? "um-hero-services" : isAgents ? "um-hero-agents" : "um-hero-nfts"}`}>
                 <div className="um-hero-content">
                     <h1 className="um-hero-title">
-                        {isServices ? "Freelance Services" : isAgents ? "AI Agents" : "Digital Assets"}
+                        {isServices ? "Freelance Services" : isAgents ? "AI Agents" : isTokens ? "Tokens" : "Digital Assets"}
                     </h1>
                     <p className="um-hero-subtitle">
                         {isServices 
                             ? "Hire world-class talent with on-chain milestone escrow." 
                             : isAgents 
                             ? "Deploy autonomous agents to power your decentralized applications." 
+                            : isTokens
+                            ? "Trade OTC tokens securely via the on-chain engine."
                             : "Discover, buy, and sell verified digital collectibles and art."}
                     </p>
                     
@@ -59,6 +63,9 @@ export default function UnifiedMarketplace() {
                     <NavLink role="tab" to="services" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
                         <span className="um-tab-icon">💼</span> Services
                     </NavLink>
+                    <NavLink role="tab" to="tokens" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
+                        <span className="um-tab-icon">🪙</span> Tokens
+                    </NavLink>
                     <NavLink role="tab" to="agents" className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}>
                         <span className="um-tab-icon">🤖</span> AI Agents
                     </NavLink>
@@ -86,6 +93,7 @@ export default function UnifiedMarketplace() {
                         <Route path="/" element={<Navigate to="nfts" replace />} />
                         <Route path="nfts" element={<NftLane />} />
                         <Route path="services" element={<ServiceLane />} />
+                        <Route path="tokens" element={<TokenLane />} />
                         <Route path="agents" element={<AgentLane />} />
                     </Routes>
                 </Suspense>
