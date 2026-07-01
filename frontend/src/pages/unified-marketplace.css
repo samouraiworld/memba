@@ -40,6 +40,17 @@
 .um-hero-agents {
     background-image: linear-gradient(45deg, var(--color-accent-amber), var(--color-accent-red));
 }
+.um-hero-tokens {
+    background-image: linear-gradient(45deg, var(--color-accent-teal), var(--color-accent-blue));
+}
+
+/* Empty state — no lane is live on the active network. */
+.um-empty {
+    padding: 64px 24px;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: 15px;
+}
 
 .um-hero-content {
     position: relative;

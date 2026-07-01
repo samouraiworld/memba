@@ -58,7 +58,7 @@ export default function UnifiedMarketplace() {
     return (
         <div className="um-container animate-fade-in">
             {/* ── Hero Header ─────────────────────────────────── */}
-            <header className={`um-hero ${isServices ? "um-hero-services" : isAgents ? "um-hero-agents" : "um-hero-nfts"}`}>
+            <header className={`um-hero ${isServices ? "um-hero-services" : isAgents ? "um-hero-agents" : isTokens ? "um-hero-tokens" : "um-hero-nfts"}`}>
                 <div className="um-hero-content">
                     <h1 className="um-hero-title">
                         {isServices ? "Freelance Services" : isAgents ? "AI Agents" : isTokens ? "Tokens" : "Digital Assets"}

@@ -102,4 +102,15 @@ describe("UnifiedMarketplace — route gating decision (W0.1)", () => {
         vi.mocked(config.isTokenOtcValid).mockReturnValue(true)
         expect(isLaneSlugLive("tokens")).toBe(true)
     })
+
+    // COVERAGE NOTE: The real <Routes> wiring (mounting the actual lazy lane at a gated
+    // URL and asserting the redirect) is intentionally NOT unit-tested. UnifiedMarketplace
+    // renders lanes via React.lazy, and mounting a lazy component + <Suspense> + <Navigate>
+    // redirect reliably HANGS under React 19 in jsdom (verified). This mirrors the codebase
+    // convention — App.routes.test.tsx tests routing against stub components, never the real
+    // lazy page. Here the gate is proven at two layers instead: the tab-visibility tests
+    // render the real component and assert gated tabs are absent, and the helper tests pin
+    // the routing decision (isLaneSlugLive / getDefaultLaneSlug) the component wires its
+    // routes + catch-all redirect to. Real-browser direct-URL gating is a recommended E2E
+    // follow-up (Playwright handles lazy correctly where jsdom cannot).
 })
