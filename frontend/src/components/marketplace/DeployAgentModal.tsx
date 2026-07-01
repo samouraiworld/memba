@@ -1,6 +1,4 @@
 import { useState, useMemo } from "react"
-import { useAdena } from "../../hooks/useAdena"
-import { friendlyError } from "../../lib/errorMessages"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { X } from "@phosphor-icons/react"
 import type { AgentListing } from "../../lib/agentRegistry"
@@ -12,10 +10,9 @@ export interface DeployAgentModalProps {
     onSuccess: () => void
 }
 
-export function DeployAgentModal({ agent, onClose, onSuccess }: DeployAgentModalProps) {
-    const adena = useAdena()
+export function DeployAgentModal({ agent, onClose }: DeployAgentModalProps) {
     const [callsStr, setCallsStr] = useState("100")
-    const [submitting, setSubmitting] = useState(false)
+    const [submitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const callsCount = parseInt(callsStr, 10) || 0
@@ -24,31 +21,12 @@ export function DeployAgentModal({ agent, onClose, onSuccess }: DeployAgentModal
         return callsCount * agent.pricePerCall * 1_000_000 // Convert GNOT to uGNOT
     }, [agent, callsCount])
 
-    const handleDeploy = async () => {
-        if (!adena.connected || !adena.address) {
-            setError("Please connect your wallet first.")
-            return
-        }
-
-        if (callsCount < 1) {
-            setError("Please specify at least 1 call.")
-            return
-        }
-
-        setError(null)
-        setSubmitting(true)
-
-        try {
-            // For MVP, we simulate the agent deployment / credit purchase transaction.
-            // In the future, this will call the memba_agents_registry contract to top up credits.
-            await new Promise(resolve => setTimeout(resolve, 1500))
-            onSuccess()
-        } catch (err: unknown) {
-            console.error("DeployAgent error:", err)
-            setError(friendlyError(err instanceof Error ? err.message : String(err)))
-        } finally {
-            setSubmitting(false)
-        }
+    const handleDeploy = () => {
+        // Fail closed (W0.2): the agent-credit purchase is NOT wired to the on-chain
+        // registry from this modal yet — the real, guarded credit path is CreditSection
+        // (RegisterAgentForm / doContractBroadcast). This modal must never fake success
+        // or broadcast a placeholder tx. Surface an honest "not available" state instead.
+        setError("Agent credit purchase is not available yet — use the agent’s credit panel once this lane is live.")
     }
 
     return (
