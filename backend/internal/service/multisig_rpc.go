@@ -164,15 +164,31 @@ func (s *MultisigService) MultisigInfo(
 	ctx context.Context,
 	req *connect.Request[membav1.MultisigInfoRequest],
 ) (*connect.Response[membav1.MultisigInfoResponse], error) {
-	if _, err := s.authenticate(req.Msg.GetAuthToken()); err != nil {
+	userAddress, err := s.authenticate(req.Msg.GetAuthToken())
+	if err != nil {
 		return nil, err
 	}
 
 	chainID := req.Msg.GetChainId()
 	addr := req.Msg.GetMultisigAddress()
 
+	// BE-1: only members may read a multisig's pubkey set + member list — mirror the
+	// joined-membership gate GetTransaction uses. Checked before the existence lookup
+	// so a non-member cannot probe which multisigs exist (returns PermissionDenied,
+	// not NotFound, regardless of whether the multisig exists).
+	var isMember bool
+	if err := s.db.QueryRowContext(ctx,
+		"SELECT EXISTS(SELECT 1 FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ? AND joined = TRUE)",
+		chainID, addr, userAddress,
+	).Scan(&isMember); err != nil {
+		return nil, internalError("MultisigInfo: membership check", err)
+	}
+	if !isMember {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
 	var ms membav1.Multisig
-	err := s.db.QueryRowContext(ctx,
+	err = s.db.QueryRowContext(ctx,
 		"SELECT chain_id, address, pubkey_json, threshold, members_count, created_at FROM multisigs WHERE chain_id = ? AND address = ?",
 		chainID, addr,
 	).Scan(&ms.ChainId, &ms.Address, &ms.PubkeyJson, &ms.Threshold, &ms.MembersCount, &ms.CreatedAt)
