@@ -20,7 +20,7 @@ export interface HireServiceModalProps {
     onSuccess: () => void
 }
 
-export function HireServiceModal({ service, onClose, onSuccess }: HireServiceModalProps) {
+export function HireServiceModal({ service, onClose }: HireServiceModalProps) {
     const [submitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 

@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react"
-import { useAdena } from "../../hooks/useAdena"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { X } from "@phosphor-icons/react"
 import type { AgentListing } from "../../lib/agentRegistry"
@@ -11,10 +10,9 @@ export interface DeployAgentModalProps {
     onSuccess: () => void
 }
 
-export function DeployAgentModal({ agent, onClose, onSuccess }: DeployAgentModalProps) {
-    const adena = useAdena()
+export function DeployAgentModal({ agent, onClose }: DeployAgentModalProps) {
     const [callsStr, setCallsStr] = useState("100")
-    const [submitting, setSubmitting] = useState(false)
+    const [submitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const callsCount = parseInt(callsStr, 10) || 0
