@@ -681,6 +681,14 @@ func assertMember(addr address) {
 \t}
 }
 
+// IsMember reports whether addr is a member of this DAO. Exported so a companion
+// realm (e.g. the DAO's board/channels realm) can gate posting on DAO membership
+// via a cross-realm read call — see boardTemplate's assertIsMember.
+func IsMember(addr address) bool {
+\t_, exists := members.Get(string(addr))
+\treturn exists
+}
+
 func assertAdmin(addr address) {
 \tval, exists := members.Get(string(addr))
 \tif !exists {
