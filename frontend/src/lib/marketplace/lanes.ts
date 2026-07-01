@@ -18,6 +18,8 @@ import type { AssetType } from "./types"
 
 export interface LaneDef {
     assetType: AssetType
+    /** URL slug for the lane's route + tab under the marketplace shell (e.g. "nfts"). */
+    slug: string
     /** Tab label (sentence case). */
     label: string
     /** Tabler-style icon name for the tab. */
@@ -34,24 +36,28 @@ export interface LaneDef {
 export const LANES: readonly LaneDef[] = [
     {
         assetType: "nft",
+        slug: "nfts",
         label: "NFTs",
         icon: "photo",
         isLive: () => isNftEnabled() && isNftMarketV3Valid(),
     },
     {
         assetType: "service",
+        slug: "services",
         label: "Services",
         icon: "briefcase",
         isLive: () => isServicesEnabled() && isEscrowValid(),
     },
     {
         assetType: "token",
+        slug: "tokens",
         label: "Tokens",
         icon: "coin",
         isLive: () => isTokensEnabled() && isTokenOtcValid(),
     },
     {
         assetType: "agent",
+        slug: "agents",
         label: "Agents",
         icon: "robot",
         isLive: () => isAgentsEnabled() && isAgentRegistryValid(),
@@ -66,5 +72,21 @@ export function getLiveLanes(): LaneDef[] {
 /** Is a given lane live? (e.g. to guard a deep-linked lane filter.) */
 export function isLaneLive(assetType: AssetType): boolean {
     const lane = LANES.find((l) => l.assetType === assetType)
+    return lane ? lane.isLive() : false
+}
+
+/** The slug of the first live lane — the marketplace's default landing lane. */
+export function getDefaultLaneSlug(): string | undefined {
+    return getLiveLanes()[0]?.slug
+}
+
+/**
+ * Is a lane URL slug routable right now? A slug is routable only when it maps to a
+ * live lane — the single check that keeps a gated lane (e.g. /tokens) unreachable by
+ * direct URL. UnifiedMarketplace only registers routes for live lanes, so any other
+ * slug falls through to a redirect to getDefaultLaneSlug().
+ */
+export function isLaneSlugLive(slug: string): boolean {
+    const lane = LANES.find((l) => l.slug === slug)
     return lane ? lane.isLive() : false
 }
