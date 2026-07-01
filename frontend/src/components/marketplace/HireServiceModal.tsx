@@ -1,14 +1,7 @@
 import { useState } from "react"
-import { useAdena } from "../../hooks/useAdena"
-import { buildCreateContractMsg } from "../../lib/marketplace/builders"
-import type { AminoMsg } from "../../lib/grc20"
-import { friendlyError } from "../../lib/errorMessages"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { X } from "@phosphor-icons/react"
 import "../nft/TradeModal.css" // Reuse existing modal styles
-
-// Currently using the escrow v1 realm for MVP
-const ESCROW_V1_REALM = "gno.land/r/samcrew/memba_escrow_v1"
 
 export interface Service {
     id: string
@@ -28,39 +21,16 @@ export interface HireServiceModalProps {
 }
 
 export function HireServiceModal({ service, onClose, onSuccess }: HireServiceModalProps) {
-    const adena = useAdena()
-    const [submitting, setSubmitting] = useState(false)
+    const [submitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const handleHire = async () => {
-        if (!adena.connected || !adena.address) {
-            setError("Please connect your wallet first.")
-            return
-        }
-
-        setError(null)
-        setSubmitting(true)
-
-        try {
-            const { doContractBroadcast } = await import("../../lib/grc20")
-            
-            const msg = buildCreateContractMsg(
-                adena.address,
-                ESCROW_V1_REALM,
-                service.freelancer,
-                service.title,
-                service.description,
-                service.milestones
-            )
-
-            await doContractBroadcast([msg as unknown as AminoMsg], `Hire ${service.freelancer} for ${service.title}`)
-            onSuccess()
-        } catch (err: unknown) {
-            console.error("HireService error:", err)
-            setError(friendlyError(err instanceof Error ? err.message : String(err)))
-        } finally {
-            setSubmitting(false)
-        }
+    const handleHire = () => {
+        // Fail closed (W0.2): the services escrow flow is not production-ready. The only
+        // in-repo escrow realm (`memba_escrow_v1`) is not deployable on test13, and the
+        // CreateContract builder attaches no coins while the realm requires exactly one
+        // ugnot — so a broadcast here would revert on-chain after the user signs (gas
+        // burned). Never broadcast a placeholder tx; surface an honest state instead.
+        setError("Service escrow is not available yet — the services lane is being finalized.")
     }
 
     return (
