@@ -36,35 +36,26 @@ var appVersion = "dev"
 
 var startTime = time.Now()
 
-// validateProductionConfig returns FATAL misconfigurations for a production deploy
-// (identified by FLY_APP_NAME being set) — the server must refuse to start on any of
-// these. Off Fly it returns nil so local dev keeps the permissive defaults. getenv is
-// injected for testability.
-func validateProductionConfig(getenv func(string) string) []string {
-	if getenv("FLY_APP_NAME") == "" {
-		return nil
-	}
-	var errs []string
-	switch getenv(auth.AllowUnsignedAuthEnv) {
-	case "1", "true", "TRUE":
-		errs = append(errs, auth.AllowUnsignedAuthEnv+" is impersonation-capable and must never be enabled in production")
-	}
-	if strings.TrimSpace(getenv("QUEST_ADMIN_ADDRESSES")) == "" {
-		errs = append(errs, "QUEST_ADMIN_ADDRESSES must be set in production (must not fall back to the baked-in default admin)")
-	}
-	return errs
-}
-
-// productionConfigWarnings returns non-fatal production hygiene warnings — logged at
-// startup but not boot-blocking (bricking prod over a P2 exposure would be worse than
-// the exposure). No-op off Fly.
+// productionConfigWarnings returns non-fatal production hygiene warnings, logged loudly
+// at startup but NEVER boot-blocking. Deliberately not fail-closed: some of these are
+// intentional, tracked postures (e.g. the A2 Phase-1 unsigned-auth setting that keeps
+// untransacted-wallet onboarding working), and bricking prod over a config value would
+// be worse than the value itself. No-op off Fly (FLY_APP_NAME unset) so local dev keeps
+// permissive defaults. getenv is injected for testability.
 func productionConfigWarnings(getenv func(string) string) []string {
 	if getenv("FLY_APP_NAME") == "" {
 		return nil
 	}
 	var warns []string
+	switch getenv(auth.AllowUnsignedAuthEnv) {
+	case "1", "true", "TRUE":
+		warns = append(warns, auth.AllowUnsignedAuthEnv+" is enabled — empty/invalid/address-only signatures are accepted (impersonation-capable; the A2 Phase-1 posture). Flip to enforce once the signed-login ratio ≈ 100% (OPS_RUNBOOK §2.1).")
+	}
+	if strings.TrimSpace(getenv("QUEST_ADMIN_ADDRESSES")) == "" {
+		warns = append(warns, "QUEST_ADMIN_ADDRESSES is unset — quest-claim review falls back to the baked-in default admin; set it explicitly in production.")
+	}
 	if strings.TrimSpace(getenv("METRICS_BEARER")) == "" {
-		warns = append(warns, "METRICS_BEARER is unset — /metrics is publicly scrapable; set it to gate Prometheus scrapes")
+		warns = append(warns, "METRICS_BEARER is unset — /metrics is publicly scrapable; set it to gate Prometheus scrapes.")
 	}
 	return warns
 }
@@ -122,14 +113,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// W0.6: refuse to start on an unsafe production config (unsigned auth enabled,
-	// public /metrics, or a baked-in quest admin). No-op off Fly (dev keeps defaults).
-	if errs := validateProductionConfig(os.Getenv); len(errs) > 0 {
-		for _, e := range errs {
-			slog.Error("refusing to start: unsafe production config", "detail", e)
-		}
-		os.Exit(1)
-	}
+	// W0.6: surface unsafe/hygiene production config (unsigned-auth enabled, baked-in
+	// quest admin, public /metrics) as loud startup warnings — never boot-blocking, so
+	// a deliberate posture (e.g. A2 Phase-1) can't take prod down. No-op off Fly.
 	for _, w := range productionConfigWarnings(os.Getenv) {
 		slog.Warn("production config warning", "detail", w)
 	}
