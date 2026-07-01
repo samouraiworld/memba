@@ -50,6 +50,14 @@ export default function UnifiedMarketplace() {
 
     const defaultSlug = getDefaultLaneSlug() ?? liveLanes[0].slug
 
+    // Absolute path to the default lane. The catch-all redirect below lives INSIDE the
+    // splat <Route path="*">, so a relative <Navigate to={defaultSlug}> would resolve
+    // against the growing matched splat (/marketplace/tokens → …/tokens/nfts → …/nfts/nfts)
+    // and loop forever. Anchoring to the marketplace mount root keeps a gated/unknown lane
+    // URL a single clean redirect to the live lane (W0.1).
+    const marketplaceBase = pathname.slice(0, pathname.indexOf("/marketplace") + "/marketplace".length)
+    const defaultLanePath = `${marketplaceBase}/${defaultSlug}`
+
     // Active path logic to style the header dynamically.
     const isServices = pathname.includes("/services")
     const isAgents = pathname.includes("/agents")
@@ -109,13 +117,13 @@ export default function UnifiedMarketplace() {
             <main className="um-main">
                 <Suspense fallback={<ConnectingLoader minHeight="40vh" />}>
                     <Routes>
-                        <Route path="/" element={<Navigate to={defaultSlug} replace />} />
+                        <Route path="/" element={<Navigate to={defaultLanePath} replace />} />
                         {liveLanes.map((lane) => {
                             const LaneComponent = LANE_COMPONENTS[lane.assetType]
                             return <Route key={lane.assetType} path={lane.slug} element={<LaneComponent />} />
                         })}
                         {/* Gate everything else — a gated/unknown lane URL redirects to a live lane. */}
-                        <Route path="*" element={<Navigate to={defaultSlug} replace />} />
+                        <Route path="*" element={<Navigate to={defaultLanePath} replace />} />
                     </Routes>
                 </Suspense>
             </main>
