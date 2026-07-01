@@ -36,6 +36,39 @@ var appVersion = "dev"
 
 var startTime = time.Now()
 
+// validateProductionConfig returns FATAL misconfigurations for a production deploy
+// (identified by FLY_APP_NAME being set) — the server must refuse to start on any of
+// these. Off Fly it returns nil so local dev keeps the permissive defaults. getenv is
+// injected for testability.
+func validateProductionConfig(getenv func(string) string) []string {
+	if getenv("FLY_APP_NAME") == "" {
+		return nil
+	}
+	var errs []string
+	switch getenv(auth.AllowUnsignedAuthEnv) {
+	case "1", "true", "TRUE":
+		errs = append(errs, auth.AllowUnsignedAuthEnv+" is impersonation-capable and must never be enabled in production")
+	}
+	if strings.TrimSpace(getenv("QUEST_ADMIN_ADDRESSES")) == "" {
+		errs = append(errs, "QUEST_ADMIN_ADDRESSES must be set in production (must not fall back to the baked-in default admin)")
+	}
+	return errs
+}
+
+// productionConfigWarnings returns non-fatal production hygiene warnings — logged at
+// startup but not boot-blocking (bricking prod over a P2 exposure would be worse than
+// the exposure). No-op off Fly.
+func productionConfigWarnings(getenv func(string) string) []string {
+	if getenv("FLY_APP_NAME") == "" {
+		return nil
+	}
+	var warns []string
+	if strings.TrimSpace(getenv("METRICS_BEARER")) == "" {
+		warns = append(warns, "METRICS_BEARER is unset — /metrics is publicly scrapable; set it to gate Prometheus scrapes")
+	}
+	return warns
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -87,6 +120,18 @@ func main() {
 	if os.Getenv("ED25519_SEED") == "" && os.Getenv("FLY_APP_NAME") != "" {
 		slog.Error("ED25519_SEED is required in production — auth tokens will not survive restarts")
 		os.Exit(1)
+	}
+
+	// W0.6: refuse to start on an unsafe production config (unsigned auth enabled,
+	// public /metrics, or a baked-in quest admin). No-op off Fly (dev keeps defaults).
+	if errs := validateProductionConfig(os.Getenv); len(errs) > 0 {
+		for _, e := range errs {
+			slog.Error("refusing to start: unsafe production config", "detail", e)
+		}
+		os.Exit(1)
+	}
+	for _, w := range productionConfigWarnings(os.Getenv) {
+		slog.Warn("production config warning", "detail", w)
 	}
 
 	// Create service
