@@ -29,8 +29,15 @@ const PERSPECTIVE_WEIGHTS: Record<Perspective, number> = {
 
 /**
  * Aggregate multiple perspective results into a consensus.
+ *
+ * `expectedPerspectives` is the number of perspectives that were requested;
+ * confidence is scaled down when fewer results came back (e.g. a model
+ * failed). Defaults to `results.length` — a complete result set.
  */
-export function buildConsensus(results: PerspectiveResult[]): ConsensusResult {
+export function buildConsensus(
+  results: PerspectiveResult[],
+  expectedPerspectives: number = results.length
+): ConsensusResult {
   if (results.length === 0) {
     return {
       overallVerdict: "abstain",
@@ -44,7 +51,7 @@ export function buildConsensus(results: PerspectiveResult[]): ConsensusResult {
   }
 
   const overallVerdict = computeWeightedVerdict(results);
-  const confidence = computeWeightedConfidence(results);
+  const confidence = computeWeightedConfidence(results, expectedPerspectives);
   const agreementLevel = computeAgreementLevel(results);
 
   // Deduplicate risks and recommendations across perspectives
@@ -93,7 +100,10 @@ function computeWeightedVerdict(results: PerspectiveResult[]): Verdict {
   return maxVerdict;
 }
 
-function computeWeightedConfidence(results: PerspectiveResult[]): number {
+function computeWeightedConfidence(
+  results: PerspectiveResult[],
+  expectedPerspectives: number
+): number {
   let totalWeight = 0;
   let weightedSum = 0;
 
@@ -103,8 +113,13 @@ function computeWeightedConfidence(results: PerspectiveResult[]): number {
     totalWeight += weight;
   }
 
-  // Scale by completeness (n/10 perspectives available for full consensus)
-  const completeness = Math.min(results.length / 10, 1);
+  // Scale by completeness: results delivered vs perspectives requested.
+  // Scaling against the full Perspective universe would permanently cap
+  // confidence for tiers that only run a subset of perspectives.
+  const completeness =
+    expectedPerspectives > 0
+      ? Math.min(results.length / expectedPerspectives, 1)
+      : 0;
   const raw = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
   return Math.round(raw * completeness * 100) / 100;
