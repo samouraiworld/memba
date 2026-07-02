@@ -121,6 +121,7 @@ export function generateChannelCode(config: ChannelConfig): string {
     requireRealmPath("daoRealmPath", config.daoRealmPath)
     requireRealmPath("channelRealmPath", config.channelRealmPath)
     requireInt("minPostInterval", config.minPostInterval, 0, 1_000_000)
+    requireInt("editWindowBlocks", config.editWindowBlocks, 0, 1_000_000_000)
     if (config.minTokenBalance > 0 || config.tokenSymbol !== "") {
         if (!SAFE_TOKEN_SYMBOL.test(config.tokenSymbol)) {
             throw new Error(`Invalid tokenSymbol: must match ${SAFE_TOKEN_SYMBOL}, got ${JSON.stringify(config.tokenSymbol)}`)

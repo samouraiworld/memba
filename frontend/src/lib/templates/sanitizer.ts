@@ -151,7 +151,10 @@ export function isValidPercentage(value: number): boolean {
  * strict check) so every numeric interpolation flows through one function.
  */
 export function requireInt(name: string, value: number, min: number, max: number): number {
-    if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+    // isSafeInteger is a hard ceiling independent of the caller's max: past
+    // ~1e21 String(n) renders scientific notation ("1e+21"), which is not a
+    // valid Go integer literal — defense in depth against a loose max.
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
         throw new Error(`Invalid ${name}: must be an integer in [${min}, ${max}], got ${String(value)}`)
     }
     return clampInt(value, min, max)

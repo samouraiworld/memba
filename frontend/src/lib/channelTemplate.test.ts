@@ -500,3 +500,13 @@ describe("generateChannelCode — fail-closed guards (W1.1)", () => {
         expect(generateChannelCode(base())).toContain("package mydao_channels")
     })
 })
+
+// W1.1 review follow-up: editWindowBlocks is interpolated into a block-height
+// comparison — a negative value keeps the edit window open forever.
+describe("generateChannelCode — editWindowBlocks guard (W1.1)", () => {
+    it("throws on negative / NaN / fractional editWindowBlocks", () => {
+        for (const editWindowBlocks of [-1, NaN, 2.5]) {
+            expect(() => generateChannelCode({ ...defaultChannelConfig("gno.land/r/test/mydao", "MyDAO"), editWindowBlocks })).toThrow(/editWindowBlocks/i)
+        }
+    })
+})

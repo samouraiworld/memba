@@ -23,7 +23,9 @@ export { validateRealmPath }
 export interface DAOStepData {
     name: string
     realmPath: string
-    members: { address: string; roles: string[] }[]
+    // power optional: some callers only step-validate address/roles; when
+    // present it is range-checked (W1.1) before the fail-closed codegen throw.
+    members: { address: string; roles: string[]; power?: number }[]
     threshold: number
     quorum: number
 }
@@ -49,6 +51,10 @@ export function daoStepError(step: number, d: DAOStepData): string | null {
         if (invalid.length > 0) return `${invalid.length} address(es) look invalid — must start with g1 and be 39+ characters`
         const hasAdmin = d.members.some((m) => m.address.startsWith(BECH32_PREFIX) && m.roles.includes("admin"))
         if (!hasAdmin) return "At least one member must have the admin role"
+        // W1.1: codegen throws on out-of-range power — catch it here first so
+        // an honest typo gets the gentle inline notice, not an exception.
+        const badPower = d.members.find((m) => m.power !== undefined && (!Number.isInteger(m.power) || m.power < 0 || m.power > 1_000_000_000))
+        if (badPower) return "Member voting power must be a whole number between 0 and 1,000,000,000"
     }
     if (step === 3) {
         // NaN (e.g. an emptied number input) fails BOTH range comparisons —

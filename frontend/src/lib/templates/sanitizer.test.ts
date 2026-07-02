@@ -484,3 +484,14 @@ describe("requireRealmPath (W1.1)", () => {
         expect(() => requireRealmPath("daoRealmPath", "gno.land/r/onlyns")).toThrow(/daoRealmPath/)
     })
 })
+
+describe("requireInt — safe-integer ceiling (W1.1 review follow-up)", () => {
+    it("rejects unsafe integers even when the caller's max would allow them", () => {
+        // String(1e21) === "1e+21" — not a valid Go int literal.
+        expect(() => requireInt("big", 1e21, 0, Number.MAX_VALUE)).toThrow(/big/)
+        expect(() => requireInt("big", Number.MAX_SAFE_INTEGER + 2, 0, Number.MAX_VALUE)).toThrow(/big/)
+    })
+    it("still accepts MAX_SAFE_INTEGER itself when in range", () => {
+        expect(requireInt("big", Number.MAX_SAFE_INTEGER, 0, Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER)
+    })
+})

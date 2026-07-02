@@ -441,3 +441,19 @@ describe('daoStepError — NaN guards (W1.1)', () => {
         expect(daoStepError(3, { ...base, threshold: 51, quorum: NaN })).toMatch(/quorum/i)
     })
 })
+
+// W1.1 review follow-up: an honest user can type a huge power into the wizard
+// (the HTML max is cosmetic) — the STEP validator must catch it gently before
+// the fail-closed codegen throw.
+describe('daoStepError — member power gate (W1.1)', () => {
+    const member = (power: number) => ({ address: 'g1' + 'a'.repeat(38), power, roles: ['admin'] })
+    it('rejects out-of-range / non-integer power at step 2', () => {
+        for (const power of [9_999_999_999, -1, 2.5, NaN]) {
+            const err = daoStepError(2, { name: 'x', realmPath: 'gno.land/r/t/x', members: [member(power)], threshold: 51, quorum: 0 })
+            expect(err).toMatch(/power/i)
+        }
+    })
+    it('accepts sane powers', () => {
+        expect(daoStepError(2, { name: 'x', realmPath: 'gno.land/r/t/x', members: [member(3)], threshold: 51, quorum: 0 })).toBeNull()
+    })
+})
