@@ -1,8 +1,10 @@
 package main
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -144,6 +146,76 @@ func TestParseSeedCursorSpec(t *testing.T) {
 		}
 		if got[0].Realm != "gno.land/r/a/b" || got[0].Height != 100 {
 			t.Errorf("entry 0: got %+v", got[0])
+		}
+	})
+}
+
+// W0.6: production boot guard. When FLY_APP_NAME is set the server must refuse to
+// start on an unsafe config — unsigned auth enabled (impersonation-capable), or a
+// missing METRICS_BEARER (/metrics would be public) / QUEST_ADMIN_ADDRESSES (would
+// fall back to a baked-in admin). Off Fly (dev) none of these are enforced.
+func TestValidateProductionConfig(t *testing.T) {
+	base := map[string]string{
+		"FLY_APP_NAME":              "memba-backend",
+		"QUEST_ADMIN_ADDRESSES":     "g1admin",
+		"METRICS_BEARER":            "s3cret",
+		"MEMBA_ALLOW_UNSIGNED_AUTH": "",
+	}
+	getenv := func(over map[string]string) func(string) string {
+		m := maps.Clone(base)
+		maps.Copy(m, over)
+		return func(k string) string { return m[k] }
+	}
+	has := func(errs []string, sub string) bool {
+		for _, e := range errs {
+			if strings.Contains(e, sub) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// W0.6 is warnings-only — NEVER boot-blocking (a deliberate posture like the A2
+	// Phase-1 unsigned-auth setting must not be able to brick prod).
+	t.Run("not production: no warnings even when unsafe", func(t *testing.T) {
+		warns := productionConfigWarnings(getenv(map[string]string{
+			"FLY_APP_NAME": "", "QUEST_ADMIN_ADDRESSES": "", "METRICS_BEARER": "", "MEMBA_ALLOW_UNSIGNED_AUTH": "1",
+		}))
+		if len(warns) != 0 {
+			t.Fatalf("non-prod should have no warnings, got %v", warns)
+		}
+	})
+	t.Run("production, safe config: no warnings", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(nil)); len(warns) != 0 {
+			t.Fatalf("safe prod config should have no warnings, got %v", warns)
+		}
+	})
+	t.Run("production + unsigned auth enabled: warned (not fatal)", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(map[string]string{"MEMBA_ALLOW_UNSIGNED_AUTH": "1"})); !has(warns, "MEMBA_ALLOW_UNSIGNED_AUTH") {
+			t.Fatalf("expected unsigned-auth warning, got %v", warns)
+		}
+	})
+	t.Run("production + whitespace quest admin: warned", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(map[string]string{"QUEST_ADMIN_ADDRESSES": " "})); !has(warns, "QUEST_ADMIN_ADDRESSES") {
+			t.Fatalf("expected quest-admin warning, got %v", warns)
+		}
+	})
+	t.Run("production + truly-unset quest admin: warned", func(t *testing.T) {
+		// Distinct from whitespace: the key is absent entirely (map returns "").
+		env := getenv(nil)
+		unset := func(k string) string {
+			if k == "QUEST_ADMIN_ADDRESSES" {
+				return ""
+			}
+			return env(k)
+		}
+		if warns := productionConfigWarnings(unset); !has(warns, "QUEST_ADMIN_ADDRESSES") {
+			t.Fatalf("expected quest-admin warning for truly-unset key, got %v", warns)
+		}
+	})
+	t.Run("production + missing metrics bearer: warned", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(map[string]string{"METRICS_BEARER": ""})); !has(warns, "METRICS_BEARER") {
+			t.Fatalf("expected metrics-bearer warning, got %v", warns)
 		}
 	})
 }
