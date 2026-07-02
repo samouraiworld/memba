@@ -841,7 +841,18 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 		return nil, internalError("SubmitQuestClaim", err)
 	}
 
-	return connect.NewResponse(&membav1.SubmitQuestClaimResponse{Status: "pending"}), nil
+	// Report the claim's REAL post-upsert status: a resubmit on an approved
+	// claim is a no-op, and answering "pending" would put a pending banner
+	// over an already-granted completion.
+	var status string
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT status FROM quest_claims WHERE address = ? AND quest_id = ?`,
+		userAddr, questID,
+	).Scan(&status); err != nil {
+		return nil, internalError("SubmitQuestClaim.status", err)
+	}
+
+	return connect.NewResponse(&membav1.SubmitQuestClaimResponse{Status: status}), nil
 }
 
 // ── Badge Minting Queue ─────────────────────────────────────
@@ -949,12 +960,23 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 		newStatus = "approved"
 	}
 
-	_, err = s.db.ExecContext(ctx,
-		`UPDATE quest_claims SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+	// The `status = 'pending'` guard (not the SELECT above) is the authoritative
+	// gate: two concurrent reviews can both pass the SELECT check, and without
+	// the guard the last write would win — an approve/reject pair could leave a
+	// granted completion behind a "rejected" claim. Exactly one review can
+	// affect the row; the loser sees 0 rows and returns FailedPrecondition.
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE quest_claims SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+		 WHERE id = ? AND status = 'pending'`,
 		newStatus, reviewerAddr, claimID,
 	)
 	if err != nil {
 		return nil, internalError("ReviewQuestClaim.update", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, internalError("ReviewQuestClaim.rowsAffected", err)
+	} else if n == 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
 	}
 
 	// If approved, complete the quest for the user
