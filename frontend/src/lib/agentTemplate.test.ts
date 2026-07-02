@@ -439,3 +439,19 @@ describe("generateMcpConfig", () => {
         }
     })
 })
+
+// ── W1.1: comment-injection fix — raw config.name must never reach the header comment ──
+describe("generateAgentRegistryCode — header comment injection (W1.1 / R2-GEN-A)", () => {
+    it("strips newlines from the name in the header comment (no comment breakout)", () => {
+        const code = generateAgentRegistryCode({
+            ...DEFAULT_CONFIG,
+            name: "Evil\npackage injected // not a comment anymore",
+        })
+        // Every line containing fragments of the name must still be a comment line.
+        const headerLines = code.split("\n").slice(1, 6)
+        for (const line of headerLines) {
+            if (line.trim() !== "") expect(line.trimStart().startsWith("//")).toBe(true)
+        }
+        expect(code).not.toMatch(/^package injected/m)
+    })
+})

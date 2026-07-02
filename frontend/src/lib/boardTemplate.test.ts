@@ -212,3 +212,20 @@ describe("buildCreateChannelMsg", () => {
         expect(msg.value.args).toEqual(["dev-chat"])
     })
 })
+
+// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
+describe("generateBoardCode — fail-closed guards (W1.1)", () => {
+    it("throws on an invalid parent daoRealmPath (import-statement injection defense)", () => {
+        const cfg = defaultBoardConfig('gno.land/r/x/y"\n\nimport "evil', "MyDAO")
+        expect(() => generateBoardCode(cfg)).toThrow(/daoRealmPath/i)
+    })
+    it("throws on an invalid boardRealmPath", () => {
+        const cfg = { ...defaultBoardConfig("gno.land/r/test/mydao", "MyDAO"), boardRealmPath: "evil" }
+        expect(() => generateBoardCode(cfg)).toThrow(/boardRealmPath/i)
+    })
+    it("throws on negative / NaN minPostInterval", () => {
+        for (const minPostInterval of [-1, NaN, 2.5]) {
+            expect(() => generateBoardCode({ ...defaultBoardConfig("gno.land/r/test/mydao", "MyDAO"), minPostInterval })).toThrow(/minPostInterval/i)
+        }
+    })
+})

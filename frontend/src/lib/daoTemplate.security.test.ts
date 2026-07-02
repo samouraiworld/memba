@@ -159,36 +159,38 @@ describe("realm path security", () => {
 })
 
 // ── Power value edge cases ───────────────────────────────────
+// W1.1: silent clamp/floor replaced by fail-closed throws — a wrong power in
+// an immutable realm is worse than a rejected wizard step.
 
 describe("power value hardening", () => {
-    it("clamps negative power to 0", () => {
-        const code = generateDAOCode(makeConfig({
+    it("throws on negative power (was silently clamped to 0)", () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: "g1" + "a".repeat(38), power: -999, roles: ["admin"] }],
-        }))
-        expect(code).toContain("Power: 0")
+        }))).toThrow(/power/i)
     })
 
-    it("floors fractional power", () => {
-        const code = generateDAOCode(makeConfig({
+    it("throws on fractional power (was silently floored)", () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: "g1" + "a".repeat(38), power: 3.99, roles: ["admin"] }],
-        }))
-        expect(code).toContain("Power: 3")
+        }))).toThrow(/power/i)
     })
 
-    it("handles MAX_SAFE_INTEGER", () => {
-        const code = generateDAOCode(makeConfig({
+    it("throws on MAX_SAFE_INTEGER power (exceeds the 1e9 bound)", () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: "g1" + "a".repeat(38), power: Number.MAX_SAFE_INTEGER, roles: ["admin"] }],
-        }))
-        // Should produce a valid (very large) number, not crash
-        expect(code).toContain("Power: 9007199254740991")
+        }))).toThrow(/power/i)
     })
 
-    it("NaN power produces NaN in output (known edge case)", () => {
-        // Math.max(0, Math.floor(NaN)) = NaN in JS
-        // The chain would reject this — but it's not an injection vector
-        const code = generateDAOCode(makeConfig({
+    it("throws on NaN power (was interpolated as literal NaN)", () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: "g1" + "a".repeat(38), power: NaN, roles: ["admin"] }],
+        }))).toThrow(/power/i)
+    })
+
+    it("boundary powers still generate", () => {
+        const code = generateDAOCode(makeConfig({
+            members: [{ address: "g1" + "a".repeat(38), power: 1_000_000_000, roles: ["admin"] }],
         }))
-        expect(code).toContain("Power: NaN")
+        expect(code).toContain("Power: 1000000000")
     })
 })
