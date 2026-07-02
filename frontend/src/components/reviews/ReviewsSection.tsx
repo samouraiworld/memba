@@ -57,6 +57,16 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
   // An optimistically-inserted review awaiting on-chain confirmation; load() keeps showing
   // it until the chain reflects it (read-after-write lag), then clears it.
   const optimisticRef = useRef<OnChainReview | null>(null)
+  // Unmount guard for the post-review reconcile loop: without it the loop keeps
+  // sleeping+fetching for up to ~6s after the user navigates away (and leaks
+  // fetches into whatever test runs next).
+  const aliveRef = useRef(true)
+  useEffect(() => {
+    aliveRef.current = true
+    return () => {
+      aliveRef.current = false
+    }
+  }, [])
 
   // Stable key so the effect/callbacks don't churn on array identity. The canonical subject
   // is first; aliases follow (deduped, self-excluded).
@@ -110,8 +120,9 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
   // Poll a few times after a post so the optimistic entry is swapped for the real one once
   // the chain reflects the write (bounded; load() clears optimisticRef when confirmed).
   const reconcileToChain = useCallback(async () => {
-    for (let i = 0; i < 4 && optimisticRef.current; i++) {
+    for (let i = 0; i < 4 && optimisticRef.current && aliveRef.current; i++) {
       await sleep(1500)
+      if (!aliveRef.current) return
       await load()
     }
   }, [load])

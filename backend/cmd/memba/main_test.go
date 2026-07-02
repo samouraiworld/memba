@@ -219,3 +219,27 @@ func TestValidateProductionConfig(t *testing.T) {
 		}
 	})
 }
+
+// Checkpoint ownership: the app self-checkpoints ONLY when Litestream does not
+// manage the database. Anything but the exact "1" must fall back to
+// self-checkpointing (the safe standalone default).
+func TestLitestreamManaged(t *testing.T) {
+	cases := map[string]bool{
+		"1":    true,
+		"":     false,
+		"0":    false,
+		"true": false,
+		" 1":   false,
+	}
+	for val, want := range cases {
+		got := litestreamManaged(func(k string) string {
+			if k == "LITESTREAM_MANAGED" {
+				return val
+			}
+			return ""
+		})
+		if got != want {
+			t.Errorf("litestreamManaged(%q) = %v, want %v", val, got, want)
+		}
+	}
+}

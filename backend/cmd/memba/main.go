@@ -60,6 +60,14 @@ func productionConfigWarnings(getenv func(string) string) []string {
 	return warns
 }
 
+// litestreamManaged reports whether Litestream owns WAL checkpointing for this
+// process (start.sh exports LITESTREAM_MANAGED=1 before `litestream replicate
+// -exec`). When true the app must never checkpoint. Only the exact value "1"
+// counts — fail toward self-checkpointing, which is the safe standalone default.
+func litestreamManaged(getenv func(string) string) bool {
+	return getenv("LITESTREAM_MANAGED") == "1"
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -72,6 +80,19 @@ func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "./memba.db"
+	}
+
+	// `memba integrity-check` — boot-time gate run by start.sh BEFORE Litestream
+	// starts replicating (the runtime image has no sqlite3 CLI; the driver is
+	// embedded here). Exit 0 = healthy, non-zero = corrupt/missing, at which
+	// point start.sh quarantines the file and restores from the replica.
+	if len(os.Args) > 1 && os.Args[1] == "integrity-check" {
+		if err := db.IntegrityCheck(dbPath); err != nil {
+			slog.Error("integrity check failed", "path", dbPath, "error", err)
+			os.Exit(1)
+		}
+		slog.Info("integrity check ok", "path", dbPath)
+		return
 	}
 
 	corsOrigins := os.Getenv("CORS_ORIGINS")
@@ -310,20 +331,31 @@ func main() {
 	// Periodic WAL checkpoint — bounds WAL growth during runtime so a crash
 	// doesn't leave a multi-hundred-MB WAL that slows restart recovery. The
 	// shutdown checkpoint (below) only fires on graceful stop.
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if _, err := database.Exec("PRAGMA wal_checkpoint(PASSIVE)"); err != nil {
-					slog.Warn("periodic WAL checkpoint failed", "error", err)
+	//
+	// SKIPPED under Litestream (LITESTREAM_MANAGED=1, set by start.sh):
+	// Litestream must be the sole checkpointer — it holds a long-lived read
+	// lock and checkpoints on its own schedule after shipping WAL frames. An
+	// app-forced checkpoint that wins during a Litestream lock lapse (restart,
+	// transient error) can restart the WAL before frames are replicated,
+	// leaving a gap in the replica until the next full snapshot.
+	if litestreamManaged(os.Getenv) {
+		slog.Info("WAL checkpointing delegated to Litestream (LITESTREAM_MANAGED=1)")
+	} else {
+		go func() {
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					if _, err := database.Exec("PRAGMA wal_checkpoint(PASSIVE)"); err != nil {
+						slog.Warn("periodic WAL checkpoint failed", "error", err)
+					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 
 	go func() {
 		slog.Info("server starting", "port", port)
@@ -336,11 +368,16 @@ func main() {
 	<-ctx.Done()
 	slog.Info("shutting down gracefully...")
 
-	// WAL checkpoint before shutdown — ensures all writes are flushed to main DB file.
-	if _, err := database.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		slog.Error("WAL checkpoint failed on shutdown", "error", err)
-	} else {
-		slog.Info("WAL checkpoint completed")
+	// WAL checkpoint before shutdown — ensures all writes are flushed to main DB
+	// file. Skipped under Litestream (same ownership rule as the periodic one:
+	// Litestream does a final sync after the subprocess exits, and a TRUNCATE
+	// here races its read lock).
+	if !litestreamManaged(os.Getenv) {
+		if _, err := database.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+			slog.Error("WAL checkpoint failed on shutdown", "error", err)
+		} else {
+			slog.Info("WAL checkpoint completed")
+		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
