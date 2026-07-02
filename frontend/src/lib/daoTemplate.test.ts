@@ -508,3 +508,34 @@ describe('generateDAOCode — governance hardening (W1.3)', () => {
         expect(code).toMatch(/ABSTAIN counts toward quorum/i)
     })
 })
+
+// ── W1.4: structured reads (JSON exports) + Render pagination ──
+describe('generateDAOCode — structured reads & pagination (W1.4)', () => {
+    it('exports APIVersion + GetProposalsJSON + GetMembersJSON', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toContain('func GetAPIVersion() string')
+        expect(code).toContain('func GetProposalsJSON() string')
+        expect(code).toContain('func GetMembersJSON() string')
+        // snake_case keys the frontend (dao/proposals.ts) already reads —
+        // emitted as escaped Go string literals (\"yes_votes\").
+        expect(code).toContain('\\"yes_votes\\"')
+        expect(code).toContain('\\"created_at_block\\"')
+    })
+
+    it('Render paginates on ?page=N (not the old page:N the frontend never sends)', () => {
+        const code = generateDAOCode(makeConfig())
+        const fn = code.slice(code.indexOf('func Render'), code.indexOf('func renderHome'))
+        expect(fn).toContain('"?page="')
+        expect(fn).not.toContain('"page:"')
+    })
+
+    it('pagination footer emits clickable [N](?page=N) links (detectMaxPage needs them)', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toMatch(/\]\(\?page=/)
+    })
+
+    it('JSON strings are escaped (user-controlled titles cannot break the JSON)', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toContain('func jsonEsc(')
+    })
+})

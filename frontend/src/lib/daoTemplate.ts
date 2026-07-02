@@ -303,17 +303,109 @@ func getProposal(id int) *Proposal {
 \treturn val.(*Proposal)
 }
 
+// ── Structured reads (W1.4) ───────────────────────────────
+// APIVersion lets a client detect JSON-export support before falling back to
+// scraping Render() markdown (the frontend prefers these getters). Bump when
+// the JSON shape changes.
+const APIVersion = "1.0"
+
+func GetAPIVersion() string { return APIVersion }
+
+// jsonEsc quotes s as a JSON string literal (RFC 8259). The realm has no
+// encoding/json, and proposal titles/descriptions are user input, so this must
+// escape every control character or a crafted title could break the JSON.
+func jsonEsc(s string) string {
+\tout := "\\""
+\tfor _, r := range s {
+\t\tswitch r {
+\t\tcase '"':
+\t\t\tout += "\\\\\\""
+\t\tcase '\\\\':
+\t\t\tout += "\\\\\\\\"
+\t\tcase '\\n':
+\t\t\tout += "\\\\n"
+\t\tcase '\\r':
+\t\t\tout += "\\\\r"
+\t\tcase '\\t':
+\t\t\tout += "\\\\t"
+\t\tdefault:
+\t\t\tif r < 0x20 {
+\t\t\t\tout += ufmt.Sprintf("\\\\u%04x", int(r))
+\t\t\t} else {
+\t\t\t\tout += string(r)
+\t\t\t}
+\t\t}
+\t}
+\treturn out + "\\""
+}
+
+// GetProposalsJSON returns every proposal as a JSON array (newest first), the
+// snake_case shape dao/proposals.ts already reads. Frontend prefers this over
+// Render() scraping; keep the keys in sync with that parser.
+func GetProposalsJSON() string {
+\tout := "["
+\tfirst := true
+\tproposals.ReverseIterate("", "", func(key string, value interface{}) bool {
+\t\tp := value.(*Proposal)
+\t\tif !first {
+\t\t\tout += ","
+\t\t}
+\t\tfirst = false
+\t\tout += "{\\"id\\":" + strconv.Itoa(p.ID)
+\t\tout += ",\\"title\\":" + jsonEsc(p.Title)
+\t\tout += ",\\"description\\":" + jsonEsc(p.Description)
+\t\tout += ",\\"category\\":" + jsonEsc(p.Category)
+\t\tout += ",\\"status\\":" + jsonEsc(p.Status)
+\t\tout += ",\\"author\\":" + jsonEsc(string(p.Author))
+\t\tout += ",\\"yes_votes\\":" + strconv.Itoa(p.YesVotes)
+\t\tout += ",\\"no_votes\\":" + strconv.Itoa(p.NoVotes)
+\t\tout += ",\\"abstain_votes\\":" + strconv.Itoa(p.Abstain)
+\t\tout += ",\\"total_power\\":" + strconv.Itoa(p.TotalPower)
+\t\tout += ",\\"created_at_block\\":" + strconv.FormatInt(p.CreatedAt, 10)
+\t\tout += "}"
+\t\treturn false
+\t})
+\treturn out + "]"
+}
+
+// GetMembersJSON returns every member as a JSON array.
+func GetMembersJSON() string {
+\tout := "["
+\tfirst := true
+\tmembers.Iterate("", "", func(key string, value interface{}) bool {
+\t\tm := value.(*Member)
+\t\tif !first {
+\t\t\tout += ","
+\t\t}
+\t\tfirst = false
+\t\tout += "{\\"address\\":" + jsonEsc(string(m.Address))
+\t\tout += ",\\"power\\":" + strconv.Itoa(m.Power)
+\t\tout += ",\\"roles\\":["
+\t\tfor i, r := range m.Roles {
+\t\t\tif i > 0 {
+\t\t\t\tout += ","
+\t\t\t}
+\t\t\tout += jsonEsc(r)
+\t\t}
+\t\tout += "]}"
+\t\treturn false
+\t})
+\treturn out + "]"
+}
+
 const renderPageSize = 20
 
 func Render(path string) string {
 \tif path == "" {
 \t\treturn renderHome(0)
 \t}
-\t// Pagination: "page:N"
-\tif strings.HasPrefix(path, "page:") {
-\t\tpage, err := strconv.Atoi(strings.TrimPrefix(path, "page:"))
-\t\tif err == nil && page >= 0 {
-\t\t\treturn renderHome(page)
+\t// Pagination: "?page=N", 1-indexed to match the frontend + the footer links
+\t// (dao/proposals.ts fetches ?page=2.. after Render("") is page 1). The old
+\t// "page:N" prefix was never sent by any client → pages 2+ 404'd silently.
+\tif strings.HasPrefix(path, "?page=") {
+\t\tpage, err := strconv.Atoi(strings.TrimPrefix(path, "?page="))
+\t\tif err == nil && page >= 1 {
+\t\t\treturn renderHome(page - 1)
 \t\t}
 \t}
 \t// Parse proposal ID from path
@@ -367,10 +459,16 @@ func renderHome(page int) string {
 \tif proposals.Size() == 0 {
 \t\tout += "No proposals yet.\\n"
 \t}
-\t// Pagination footer
+\t// Pagination footer — clickable [N](?page=N) links so a client (and
+\t// dao/proposals.ts detectMaxPage) can discover every page; plain "Page N/M"
+\t// text alone left the frontend capped at page 1.
 \ttotalPages := (proposals.Size() + renderPageSize - 1) / renderPageSize
 \tif totalPages > 1 {
-\t\tout += "\\n---\\nPage " + strconv.Itoa(page+1) + "/" + strconv.Itoa(totalPages) + "\\n"
+\t\tout += "\\n---\\nPage " + strconv.Itoa(page+1) + "/" + strconv.Itoa(totalPages) + "\\n\\n"
+\t\tfor i := 1; i <= totalPages; i++ {
+\t\t\tout += "[" + strconv.Itoa(i) + "](?page=" + strconv.Itoa(i) + ") "
+\t\t}
+\t\tout += "\\n"
 \t}
 \treturn out
 }
