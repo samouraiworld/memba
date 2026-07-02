@@ -10,6 +10,7 @@ import {
     buildDeployDAOMsg,
     validateRealmPath,
     isValidGnoAddress,
+    daoStepError,
     DAO_PRESETS,
     type DAOCreationConfig,
 } from './daoTemplate'
@@ -209,18 +210,18 @@ describe('code injection prevention', () => {
         expect(code2).not.toContain('INJECT')
     })
 
-    it('floors and clamps negative power values', () => {
-        const code = generateDAOCode(makeConfig({
+    // W1.1: silent clamp/floor of member power replaced by fail-closed throws —
+    // a wrong power in an immutable realm is worse than a rejected wizard step.
+    it('throws on negative power values (was silently clamped to 0)', () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: 'g1abcdefghij1234567890abcdefghijklmnopqr', power: -5, roles: ['admin'] }],
-        }))
-        expect(code).toContain('Power: 0')
+        }))).toThrow(/power/i)
     })
 
-    it('floors fractional power values', () => {
-        const code = generateDAOCode(makeConfig({
+    it('throws on fractional power values (was silently floored)', () => {
+        expect(() => generateDAOCode(makeConfig({
             members: [{ address: 'g1abcdefghij1234567890abcdefghijklmnopqr', power: 2.7, roles: ['admin'] }],
-        }))
-        expect(code).toContain('Power: 2')
+        }))).toThrow(/power/i)
     })
 })
 
@@ -397,5 +398,46 @@ describe('DAO_PRESETS', () => {
         for (const preset of DAO_PRESETS) {
             expect(preset.roles).toContain('admin')
         }
+    })
+})
+
+// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
+describe('generateDAOCode — fail-closed guards (W1.1)', () => {
+    it('throws on threshold 0 / negative / >100 / NaN / float', () => {
+        for (const threshold of [0, -1, 101, NaN, 50.5]) {
+            expect(() => generateDAOCode(makeConfig({ threshold }))).toThrow(/threshold/i)
+        }
+    })
+    it('throws on quorum out of range / NaN', () => {
+        for (const quorum of [-1, 101, NaN, 12.5]) {
+            expect(() => generateDAOCode(makeConfig({ quorum }))).toThrow(/quorum/i)
+        }
+    })
+    it('throws on negative votingPeriodBlocks (0/undefined keep the 151200 fallback)', () => {
+        expect(() => generateDAOCode(makeConfig({ votingPeriodBlocks: -5 } as Partial<DAOCreationConfig>))).toThrow(/votingPeriodBlocks/i)
+        expect(generateDAOCode(makeConfig({ votingPeriodBlocks: 0 } as Partial<DAOCreationConfig>))).toContain('int64(151200)')
+    })
+    it('throws on NaN / negative / overflow member power (was silently interpolated)', () => {
+        const member = { address: 'g1addr1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', roles: ['admin'] }
+        for (const power of [NaN, -1, 2_000_000_000, 1.5]) {
+            expect(() => generateDAOCode(makeConfig({ members: [{ ...member, power }] }))).toThrow(/power/i)
+        }
+    })
+    it('throws on an invalid realmPath (package-name injection defense)', () => {
+        expect(() => generateDAOCode(makeConfig({ realmPath: 'gno.land/r/x/evil"\n' }))).toThrow(/realmPath/i)
+    })
+    it('boundary values still generate', () => {
+        expect(generateDAOCode(makeConfig({ threshold: 1, quorum: 0 }))).toContain('threshold         = 1')
+        expect(generateDAOCode(makeConfig({ threshold: 100, quorum: 100 }))).toContain('threshold         = 100')
+    })
+})
+
+// W1.1: NaN from an emptied number input must be caught by the STEP validator
+// (friendly wizard error), not crash later at codegen.
+describe('daoStepError — NaN guards (W1.1)', () => {
+    it('rejects NaN threshold and quorum at step 3', () => {
+        const base = { name: 'x', realmPath: 'gno.land/r/t/x', members: [], threshold: NaN, quorum: 0 }
+        expect(daoStepError(3, base)).toMatch(/threshold/i)
+        expect(daoStepError(3, { ...base, threshold: 51, quorum: NaN })).toMatch(/quorum/i)
     })
 })

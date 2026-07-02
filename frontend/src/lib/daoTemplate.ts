@@ -13,7 +13,7 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidGnoAddress, isValidIdentifier, validateRealmPath } from "./templates/sanitizer"
+import { isValidGnoAddress, isValidIdentifier, validateRealmPath, requireInt, requireRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
 import { BECH32_PREFIX } from "./config"
 export { validateRealmPath }
@@ -51,8 +51,10 @@ export function daoStepError(step: number, d: DAOStepData): string | null {
         if (!hasAdmin) return "At least one member must have the admin role"
     }
     if (step === 3) {
-        if (d.threshold < 1 || d.threshold > 100) return "Threshold must be between 1 and 100"
-        if (d.quorum < 0 || d.quorum > 100) return "Quorum must be between 0 and 100"
+        // NaN (e.g. an emptied number input) fails BOTH range comparisons —
+        // check integer-ness explicitly or it sails through to codegen (W1.1).
+        if (!Number.isInteger(d.threshold) || d.threshold < 1 || d.threshold > 100) return "Threshold must be between 1 and 100"
+        if (!Number.isInteger(d.quorum) || d.quorum < 0 || d.quorum > 100) return "Quorum must be between 0 and 100"
     }
     return null
 }
@@ -156,6 +158,13 @@ export { isValidGnoAddress } from "./templates/sanitizer"
  * - Name/Description: JSON.stringify (auto-escapes) + control char strip
  */
 export function generateDAOCode(config: DAOCreationConfig): string {
+    // W1.1 fail-closed: generated realms are immutable on deploy — reject
+    // invalid input here rather than trusting bypassable wizard HTML attrs.
+    requireRealmPath("realmPath", config.realmPath)
+    requireInt("threshold", config.threshold, 1, 100)
+    requireInt("quorum", config.quorum, 0, 100)
+    requireInt("votingPeriodBlocks", config.votingPeriodBlocks ?? 0, 0, 1_000_000_000)
+
     const pkgName = config.realmPath.split("/").pop() || "mydao"
 
     // Validate and sanitize all member inputs
@@ -183,7 +192,7 @@ export function generateDAOCode(config: DAOCreationConfig): string {
         .map((m) => {
             const safeRoles = m.roles.filter(isValidIdentifier)
             const rolesStr = safeRoles.map((r) => `"${r}"`).join(", ")
-            return `\tmembers.Set("${m.address}", &Member{Address: address("${m.address}"), Power: ${Math.max(0, Math.floor(m.power))}, Roles: []string{${rolesStr}}})`
+            return `\tmembers.Set("${m.address}", &Member{Address: address("${m.address}"), Power: ${requireInt("member power", m.power, 0, 1_000_000_000)}, Roles: []string{${rolesStr}}})`
         })
         .join("\n")
 

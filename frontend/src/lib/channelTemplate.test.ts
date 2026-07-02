@@ -474,3 +474,29 @@ describe("buildFlagThreadMsg", () => {
         expect((msg.value as Record<string, unknown>).args).toEqual(["general", "7"])
     })
 })
+
+// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
+describe("generateChannelCode — fail-closed guards (W1.1)", () => {
+    const base = () => defaultChannelConfig("gno.land/r/test/mydao", "MyDAO")
+    it("throws on an invalid daoRealmPath / channelRealmPath (import injection defense)", () => {
+        expect(() => generateChannelCode({ ...base(), daoRealmPath: 'gno.land/r/x/y"\n' })).toThrow(/daoRealmPath/i)
+        expect(() => generateChannelCode({ ...base(), channelRealmPath: "evil" })).toThrow(/channelRealmPath/i)
+    })
+    it("throws on negative / NaN minPostInterval", () => {
+        for (const minPostInterval of [-1, NaN, 3.5]) {
+            expect(() => generateChannelCode({ ...base(), minPostInterval })).toThrow(/minPostInterval/i)
+        }
+    })
+    it("token gate active: throws on an unsafe tokenSymbol (was interpolated raw)", () => {
+        expect(() => generateChannelCode({ ...base(), minTokenBalance: 100, tokenSymbol: 'X"; panic("' })).toThrow(/tokenSymbol/i)
+        expect(() => generateChannelCode({ ...base(), minTokenBalance: 100, tokenSymbol: "lower" })).toThrow(/tokenSymbol/i)
+    })
+    it("token gate active: throws on NaN / negative minTokenBalance", () => {
+        for (const minTokenBalance of [NaN, -5, 1.5]) {
+            expect(() => generateChannelCode({ ...base(), minTokenBalance, tokenSymbol: "MEMBA" })).toThrow(/minTokenBalance/i)
+        }
+    })
+    it("token gate inactive: empty tokenSymbol stays valid", () => {
+        expect(generateChannelCode(base())).toContain("package mydao_channels")
+    })
+})

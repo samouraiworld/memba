@@ -17,6 +17,10 @@ import {
     extractPkgName,
     clampInt,
     isValidPercentage,
+    requireInt,
+    requirePercentage,
+    requireAddress,
+    requireRealmPath,
 } from "./sanitizer"
 
 // ── Address Validation ──────────────────────────────────────
@@ -411,5 +415,72 @@ describe("isValidIdentifier — adversarial inputs", () => {
 
     it("rejects CRLF injection", () => {
         expect(isValidIdentifier("admin\r\n")).toBe(false)
+    })
+})
+
+// ── W1.1: fail-closed throwing validators ────────────────────
+// Generated realms are immutable on deploy — invalid input must THROW at
+// codegen time, never be silently interpolated (R2-GEN-A).
+
+describe("requireInt (W1.1)", () => {
+    it("returns the value for in-range integers", () => {
+        expect(requireInt("threshold", 1, 1, 100)).toBe(1)
+        expect(requireInt("threshold", 100, 1, 100)).toBe(100)
+        expect(requireInt("blocks", 151200, 1, 1_000_000_000)).toBe(151200)
+    })
+    it("throws on below-min / above-max", () => {
+        expect(() => requireInt("threshold", 0, 1, 100)).toThrow(/threshold/)
+        expect(() => requireInt("threshold", 101, 1, 100)).toThrow(/threshold/)
+        expect(() => requireInt("blocks", -1, 0, 10)).toThrow(/blocks/)
+    })
+    it("throws on NaN / Infinity / non-integer", () => {
+        expect(() => requireInt("quorum", NaN, 0, 100)).toThrow(/quorum/)
+        expect(() => requireInt("quorum", Infinity, 0, 100)).toThrow(/quorum/)
+        expect(() => requireInt("quorum", 12.5, 0, 100)).toThrow(/quorum/)
+    })
+    it("throws on non-number types smuggled through any", () => {
+        expect(() => requireInt("fee", "10" as unknown as number, 0, 100)).toThrow(/fee/)
+        expect(() => requireInt("fee", null as unknown as number, 0, 100)).toThrow(/fee/)
+        expect(() => requireInt("fee", undefined as unknown as number, 0, 100)).toThrow(/fee/)
+    })
+})
+
+describe("requirePercentage (W1.1)", () => {
+    it("accepts 0-100 integers by default", () => {
+        expect(requirePercentage("quorum", 0)).toBe(0)
+        expect(requirePercentage("quorum", 100)).toBe(100)
+    })
+    it("honours tighter product bounds", () => {
+        expect(requirePercentage("platformFee", 5, 0, 5)).toBe(5)
+        expect(() => requirePercentage("platformFee", 6, 0, 5)).toThrow(/platformFee/)
+    })
+    it("throws on negative / >100 / NaN", () => {
+        expect(() => requirePercentage("quorum", -1)).toThrow(/quorum/)
+        expect(() => requirePercentage("quorum", 101)).toThrow(/quorum/)
+        expect(() => requirePercentage("quorum", NaN)).toThrow(/quorum/)
+    })
+})
+
+describe("requireAddress (W1.1)", () => {
+    const good = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+    it("returns a valid bech32 address", () => {
+        expect(requireAddress("admin", good)).toBe(good)
+    })
+    it("throws on malformed / injected addresses", () => {
+        expect(() => requireAddress("admin", "")).toThrow(/admin/)
+        expect(() => requireAddress("admin", "g1short")).toThrow(/admin/)
+        expect(() => requireAddress("admin", good + '"')).toThrow(/admin/)
+        expect(() => requireAddress("admin", 'g1" // injected')).toThrow(/admin/)
+    })
+})
+
+describe("requireRealmPath (W1.1)", () => {
+    it("returns a valid realm path", () => {
+        expect(requireRealmPath("realmPath", "gno.land/r/samcrew/memba_dao")).toBe("gno.land/r/samcrew/memba_dao")
+    })
+    it("throws on invalid paths (import-statement injection defense)", () => {
+        expect(() => requireRealmPath("daoRealmPath", "")).toThrow(/daoRealmPath/)
+        expect(() => requireRealmPath("daoRealmPath", 'gno.land/r/x/y"\n\nimport "evil')).toThrow(/daoRealmPath/)
+        expect(() => requireRealmPath("daoRealmPath", "gno.land/r/onlyns")).toThrow(/daoRealmPath/)
     })
 })
