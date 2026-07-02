@@ -221,6 +221,27 @@ func TestMultisigInfo_NotFound(t *testing.T) {
 	}
 }
 
+// BE-1: broken object-level authorization — a non-member must not be able to read
+// a multisig's pubkey set + member list.
+func TestMultisigInfo_NonMemberRejected(t *testing.T) {
+	h := setup(t)
+	h.seedMultisig(t, "test11", "g1multisig1", `{"threshold":2}`, 2, 2, []string{"g1alice", "g1bob"})
+	strangerToken := h.makeToken(t, "g1stranger")
+
+	ctx := context.Background()
+	_, err := h.svc.MultisigInfo(ctx, connect.NewRequest(&membav1.MultisigInfoRequest{
+		AuthToken:       strangerToken,
+		ChainId:         "test11",
+		MultisigAddress: "g1multisig1",
+	}))
+	if err == nil {
+		t.Fatal("expected a non-member to be rejected, got success")
+	}
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("expected CodePermissionDenied, got %v", connect.CodeOf(err))
+	}
+}
+
 func TestTransactionLifecycle(t *testing.T) {
 	h := setup(t)
 	creator := "g1alice"
