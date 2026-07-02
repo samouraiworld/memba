@@ -41,6 +41,14 @@ describe('generateDAOCode', () => {
         expect(code).toMatch(/^package mydao\n/)
     })
 
+    // W0.3: the companion board realm gates posting via a cross-realm `parent.IsMember(addr)`
+    // read call. The DAO MUST export IsMember or the board fails to link on deploy.
+    it('exports IsMember(addr) bool for the companion board/channels realm', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toContain('func IsMember(addr address) bool')
+        expect(code).toMatch(/func IsMember\(addr address\) bool \{[\s\S]*members\.Get\(string\(addr\)\)[\s\S]*return exists/)
+    })
+
     it('imports chain/runtime', () => {
         const code = generateDAOCode(makeConfig())
         expect(code).toContain('"chain/runtime"')
