@@ -104,18 +104,29 @@ describe("buildConsensus", () => {
   });
 
   it("scales confidence by completeness", () => {
-    // Only 1 of 3 perspectives
+    // Only 1 of 3 requested perspectives came back
     const partial = buildConsensus([
       makePerspective({ confidence: 0.9 }),
-    ]);
+    ], 3);
 
-    // All 3 perspectives
+    // All 3 requested perspectives came back
     const full = buildConsensus([
       makePerspective({ perspective: "technical", confidence: 0.9 }),
       makePerspective({ perspective: "financial", confidence: 0.9 }),
       makePerspective({ perspective: "legal", confidence: 0.9 }),
-    ]);
+    ], 3);
 
     expect(full.confidence).toBeGreaterThan(partial.confidence);
+    expect(partial.confidence).toBeCloseTo(0.3, 2);
+    expect(full.confidence).toBe(0.9);
+  });
+
+  it("does not penalize confidence when all requested perspectives returned", () => {
+    const consensus = buildConsensus([
+      makePerspective({ perspective: "technical", confidence: 0.8 }),
+      makePerspective({ perspective: "financial", confidence: 0.8 }),
+    ]);
+
+    expect(consensus.confidence).toBe(0.8);
   });
 });
