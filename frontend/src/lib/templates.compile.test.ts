@@ -29,7 +29,7 @@
  */
 import { describe, it, expect, beforeAll } from "vitest"
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -124,17 +124,75 @@ function writePkg(root: string, name: string, code: string, modulePath: string) 
     writeFileSync(join(dir, "gnomod.toml"), `module = "${modulePath}"\ngno = "0.9"\n`)
 }
 
-/** Run `gno lint ./...` over a gnowork.toml workspace; return all output lines. */
-function lintWorkspace(root: string): string[] {
-    writeFileSync(join(root, "gnowork.toml"), "")
-    let out = ""
+function gnoRoot(): string | null {
     try {
-        out = execFileSync("gno", ["lint", "./..."], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+        const out = execFileSync("gno", ["env", "GNOROOT"], { encoding: "utf8" }).trim()
+        return out !== "" ? out : null
+    } catch {
+        return null
+    }
+}
+
+/**
+ * HERMETICITY: `gno.land/p/*` packages are NOT stdlibs — an unresolved import
+ * makes `gno lint` fetch them from the LIVE chain (`vm/qfile` on rpc.gno.land),
+ * so a mainnet outage could flip this gate. Vendor the transitive gno.land/p/*
+ * closure from GNOROOT/examples into the workspace so the loader resolves
+ * everything locally. (gno.land/r/* imports must resolve in-workspace already —
+ * that's the cross-realm surface this gate exists to check.)
+ */
+function vendorGnolandDeps(root: string, sources: string[]): void {
+    const gr = gnoRoot()
+    if (!gr) throw new Error("cannot vendor gno.land/p deps: `gno env GNOROOT` returned nothing")
+    const scan = (src: string, into: Set<string>) => {
+        for (const m of src.matchAll(/"(gno\.land\/p\/[^"]+)"/g)) into.add(m[1])
+    }
+    const pending = new Set<string>()
+    sources.forEach((s) => scan(s, pending))
+    const vendored = new Set<string>()
+    while (pending.size > 0) {
+        const pkg: string = pending.values().next().value!
+        pending.delete(pkg)
+        if (vendored.has(pkg)) continue
+        vendored.add(pkg)
+        const srcDir = join(gr, "examples", pkg)
+        const dstDir = join(root, "vendored", pkg.replace(/\//g, "_"))
+        mkdirSync(dstDir, { recursive: true })
+        let wrote = 0
+        for (const f of readdirSync(srcDir)) {
+            if (!f.endsWith(".gno") || f.endsWith("_test.gno") || f.endsWith("_filetest.gno")) continue
+            const body = readFileSync(join(srcDir, f), "utf8")
+            writeFileSync(join(dstDir, f), body)
+            scan(body, pending)
+            wrote++
+        }
+        if (wrote === 0) throw new Error(`vendoring ${pkg}: no .gno sources found under ${srcDir}`)
+        writeFileSync(join(dstDir, "gnomod.toml"), `module = "${pkg}"\ngno = "0.9"\n`)
+    }
+}
+
+/** Run `gno lint ./...` over a gnowork.toml workspace. GNOHOME is pointed at an
+ *  empty per-workspace dir so a warm package modcache can't mask a missing
+ *  vendored dep (which would otherwise silently fetch from the live chain). */
+function lintWorkspace(root: string): { lines: string[]; exitOK: boolean } {
+    writeFileSync(join(root, "gnowork.toml"), "")
+    const gnohome = join(root, ".gnohome")
+    mkdirSync(gnohome, { recursive: true })
+    let out = ""
+    let exitOK = true
+    try {
+        out = execFileSync("gno", ["lint", "./..."], {
+            cwd: root,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+            env: { ...process.env, GNOHOME: gnohome },
+        })
     } catch (e) {
+        exitOK = false
         const err = e as { stdout?: string; stderr?: string }
         out = `${err.stdout ?? ""}${err.stderr ?? ""}`
     }
-    return out.split("\n").filter((l) => l.trim() !== "")
+    return { lines: out.split("\n").filter((l) => l.trim() !== ""), exitOK }
 }
 
 const GNO_AVAILABLE = hasGno()
@@ -168,21 +226,23 @@ describeGno("realm templates type-check against the gno stdlib (one workspace)",
         const probeRoot = join(workdir, "probe-ws")
         mkdirSync(probeRoot, { recursive: true })
         writePkg(probeRoot, "gate_probe", PROBE_CODE, `${NS}/gate_probe`)
-        const errors = lintWorkspace(probeRoot).filter((l) => ERROR_LINE.test(l))
-        if (errors.length > 0 && !REQUIRE_GNO) {
+        const { lines, exitOK } = lintWorkspace(probeRoot)
+        const errors = lines.filter((l) => ERROR_LINE.test(l))
+        const broken = errors.length > 0 || !exitOK
+        if (broken && !REQUIRE_GNO) {
             // Local, non-authoritative run with a stale/mismatched gno: skip LOUDLY.
             // In CI (REQUIRE_GNO=1) this is a hard failure below.
             console.warn(
                 `[templates.compile] SKIPPED — local gno cannot lint a known-good interrealm-v2 package ` +
-                    `(pre-v2 GNOROOT? stale binary?). The authoritative gate is CI.\n${errors.join("\n")}`,
+                    `(pre-v2 GNOROOT? stale binary?). The authoritative gate is CI.\n${lines.join("\n")}`,
             )
             return ctx.skip()
         }
         expect(
-            errors,
+            broken,
             `gno cannot lint a known-good interrealm-v2 package — the toolchain is incoherent ` +
-                `(pre-v2 GNOROOT? stale binary?). Fix the toolchain; template verdicts would be meaningless.\n${errors.join("\n")}`,
-        ).toEqual([])
+                `(pre-v2 GNOROOT? stale binary?). Fix the toolchain; template verdicts would be meaningless.\n${lines.join("\n")}`,
+        ).toBe(false)
         toolchainOK = true
     }, 120_000)
 
@@ -206,12 +266,18 @@ describeGno("realm templates type-check against the gno stdlib (one workspace)",
                 }
             }
 
-            // Fail on ANY error line that references one of our packages — by module
-            // path or file path. (The old filter only matched `<name>.gno` lines and
-            // silently dropped loader/stdlib failures.)
-            const lines = lintWorkspace(root)
-            const offending = lines.filter((l) => ERROR_LINE.test(l) && CASES.some((c) => l.includes(c.name)))
-            expect(offending, `gno lint reported errors in generated templates:\n${offending.join("\n")}`).toEqual([])
+            // Vendor the transitive gno.land/p/* closure locally — the gate must
+            // never depend on a live-chain fetch (hermeticity).
+            vendorGnolandDeps(root, CASES.map((c) => c.code))
+
+            // A clean workspace must have ZERO error lines AND a zero exit. A
+            // non-zero exit with no parseable error line (loader crash, fetch
+            // failure) must fail too — never silently pass. (The old filter only
+            // matched `<name>.gno` lines and dropped loader/stdlib failures.)
+            const { lines, exitOK } = lintWorkspace(root)
+            const errorLines = lines.filter((l) => ERROR_LINE.test(l))
+            expect(errorLines, `gno lint reported errors in the template workspace:\n${errorLines.join("\n")}`).toEqual([])
+            expect(exitOK, `gno lint failed without a parseable error line (loader/fetch crash?):\n${lines.join("\n")}`).toBe(true)
         },
         120_000,
     )
@@ -230,8 +296,9 @@ describeGno("realm templates type-check against the gno stdlib (one workspace)",
             // Unexport IsMember — the W0.3 regression class this workspace exists to catch.
             writePkg(root, "gate_dao", dao.code.replace(/func IsMember\(/g, "func isMemberHidden("), `${NS}/gate_dao`)
             writePkg(root, "gate_board", board.code, MODULE_PATHS.gate_board)
+            vendorGnolandDeps(root, [dao.code, board.code])
 
-            const lines = lintWorkspace(root)
+            const { lines } = lintWorkspace(root)
             const caught = lines.some((l) => ERROR_LINE.test(l) && l.includes("IsMember"))
             expect(
                 caught,
