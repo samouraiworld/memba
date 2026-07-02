@@ -5,11 +5,15 @@
  *   - a wizard-SEEDED roster member can post, and their seeded roles satisfy a
  *     role-gated channel (dev-only)
  *   - a DAO member NOT in the roster is admitted via the cross-realm
- *     parent.IsMember() fallback — with the default "member" role, so a
+ *     parent.IsMember() read — with the default "member" role, so a
  *     role-gated channel still refuses them
- *   - a complete non-member is rejected
+ *   - a complete non-member is rejected — including one holding a roster
+ *     grant (grants are inert without live DAO membership)
  *   - announcements channels accept the deployer AND a seeded admin-ROLE
  *     member, and refuse ordinary members
+ *   - REVOCATION IS LIVE (review finding #1): removing a member through the
+ *     parent DAO's governance kills their channel access — roster roles and
+ *     all — on the very next write attempt
  *
  * (The compile gate's negative control separately proves the cross-realm
  * dependency is real: unexporting the DAO's IsMember reddens this realm.)
@@ -29,22 +33,30 @@ import { generateChannelCode } from "./channelTemplate"
 const REQUIRE_GNO = process.env.REQUIRE_GNO === "1"
 
 const ALICE = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" // DAO member, NOT in roster
-const BOB = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // total non-member
-const CAROL = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // roster: dev,member
-const DAVE = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u" // roster: admin (role)
+const BOB = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // total non-member (but roster-granted!)
+const CAROL = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // DAO member + roster dev,member
+const DAVE = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u" // DAO member + roster admin (role)
 
 const DAO_PATH = "gno.land/r/samcrew/gate_dao_chn"
 
+// Alice's 70% alone clears the 60% threshold, so she can single-handedly pass
+// the governance removal the revocation test drives. minExecutionDelay 0
+// keeps ExecuteProposal immediate.
 const DAO_CODE = generateDAOCode({
     name: "Channels Gate DAO",
     description: "W1.5 membership fixture",
     realmPath: DAO_PATH,
-    members: [{ address: ALICE, power: 100, roles: ["admin", "member"] }],
+    members: [
+        { address: ALICE, power: 70, roles: ["admin", "member"] },
+        { address: CAROL, power: 20, roles: ["member"] },
+        { address: DAVE, power: 10, roles: ["member"] },
+    ],
     threshold: 60,
     roles: ["admin", "member"],
     quorum: 0,
-    proposalCategories: ["governance"],
+    proposalCategories: ["governance", "membership"],
     votingPeriodBlocks: 151200,
+    minExecutionDelayBlocks: 0,
 })
 
 // minPostInterval 0 keeps the rate limiter out of the way: every abort below
@@ -62,6 +74,9 @@ const CHANNELS_CODE = generateChannelCode({
     members: [
         { address: CAROL, roles: ["dev", "member"] },
         { address: DAVE, roles: ["admin"] },
+        // Bob is NOT a DAO member: this grant must be inert (live-membership
+        // gate) — the non-member test proves it can't admit him.
+        { address: BOB, roles: ["dev"] },
     ],
     minPostInterval: 0,
     minTokenBalance: 0,
@@ -73,7 +88,11 @@ const CHANNELS_CODE = generateChannelCode({
 /** White-box _test.gno (same package: can read adminAddr) proving each claim. */
 const MEMBERSHIP_TEST_GNO = `package gate_dao_chn_channels
 
-import "testing"
+import (
+\t"testing"
+
+\tparent "${DAO_PATH}"
+)
 
 var (
 \talice = testing.NewUserRealm(address("${ALICE}")) // DAO-only member
@@ -109,10 +128,16 @@ func TestParentFallbackAdmitsLaterDAOMembers(cur realm, t *testing.T) {
 \t})
 }
 
-func TestNonMemberRejected(cur realm, t *testing.T) {
+func TestNonMemberRejectedDespiteRosterGrant(cur realm, t *testing.T) {
+\t// Bob holds a "dev" roster grant but is NOT a DAO member: the live
+\t// parent.IsMember gate must refuse him everywhere — a grant alone can
+\t// never admit anyone.
 \ttesting.SetRealm(bob)
-\tmustAbort(t, "non-member posting", func() {
+\tmustAbort(t, "non-member posting to general", func() {
 \t\tPostThread(cross(cur), "general", "nope", "bob is nobody")
+\t})
+\tmustAbort(t, "non-member posting to dev-gated channel", func() {
+\t\tPostThread(cross(cur), "devs", "nope", "grant without membership is inert")
 \t})
 }
 
@@ -132,6 +157,34 @@ func TestAnnouncementsAdminOnly(cur realm, t *testing.T) {
 \t}
 \ttesting.SetRealm(testing.NewUserRealm(adminAddr))
 \tPostThread(cross(cur), "announcements", "also ship it", "from the deployer")
+}
+
+// REVOCATION IS LIVE (review finding #1): a governance removal from the
+// parent DAO must kill channel access on the very next write — roster roles
+// included. MUST run last: it permanently removes carol from the DAO.
+func TestDAORemovalRevokesChannelAccess(cur realm, t *testing.T) {
+\t// Carol can post right now (roster dev + live DAO member).
+\ttesting.SetRealm(carol)
+\tPostThread(cross(cur), "devs", "still here", "pre-removal sanity")
+
+\t// Alice (70% ≥ 60% threshold) governance-removes carol and executes.
+\ttesting.SetRealm(alice)
+\tid := parent.ProposeRemoveMember(cross(cur), carol.Address())
+\tparent.VoteOnProposal(cross(cur), id, "YES")
+\tparent.ExecuteProposal(cross(cur), id)
+\tif parent.IsMember(carol.Address()) {
+\t\tt.Fatal("fixture: DAO removal did not take effect")
+\t}
+
+\t// Her roster grant ("dev,member") is still in the tree — and must now be
+\t// inert: no posting anywhere, not even plain-member channels.
+\ttesting.SetRealm(carol)
+\tmustAbort(t, "removed member posting to general", func() {
+\t\tPostThread(cross(cur), "general", "nope", "carol was removed from the DAO")
+\t})
+\tmustAbort(t, "removed member posting to dev-gated channel", func() {
+\t\tPostThread(cross(cur), "devs", "nope", "roster roles die with membership")
+\t})
 }
 `
 
@@ -231,8 +284,9 @@ describeGno("generated channels realm proves W1.5 membership under `gno test`", 
         for (const name of [
             "TestSeededMemberPostsAndRoleGate",
             "TestParentFallbackAdmitsLaterDAOMembers",
-            "TestNonMemberRejected",
+            "TestNonMemberRejectedDespiteRosterGrant",
             "TestAnnouncementsAdminOnly",
+            "TestDAORemovalRevokesChannelAccess",
         ]) {
             expect(out, `expected an explicit PASS for ${name}`).toContain(`--- PASS: ${name}`)
         }

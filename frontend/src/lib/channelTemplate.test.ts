@@ -518,12 +518,31 @@ describe("generateChannelCode — W1.5 membership unification", () => {
     const VALID_ADDR = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
     const base = () => defaultChannelConfig("gno.land/r/test/mydao", "MyDAO")
 
-    it("imports the parent DAO realm and falls back to parent.IsMember", () => {
+    it("imports the parent DAO realm and checks membership LIVE on every write", () => {
         const code = generateChannelCode(base())
         expect(code).toContain('parent "gno.land/r/test/mydao"')
-        expect(code).toContain("parent.IsMember(addr)")
-        // The fallback admits with the default role, never role-less.
+        // Live gate FIRST: a governance removal revokes channel access
+        // instantly — the roster must never be consulted for a non-member.
+        const liveGate = code.indexOf("if !parent.IsMember(addr)")
+        const rosterRead = code.indexOf("members.Get(string(addr))")
+        expect(liveGate).toBeGreaterThan(-1)
+        expect(rosterRead).toBeGreaterThan(liveGate)
+        // DAO members without a roster grant get the default role, never role-less.
         expect(code).toContain('return "member"')
+    })
+
+    it("roster is a role GRANT, not a membership source (review finding #1)", () => {
+        const code = generateChannelCode({
+            ...base(),
+            members: [{ address: VALID_ADDR, roles: ["admin"] }],
+        })
+        // callerRoles must return "" (deny) before ever reading the roster
+        // when parent.IsMember is false — pin the deny path exists.
+        expect(code).toContain('return ""')
+        // SetMemberRoles replaces grants and documents the live-membership
+        // dependency; the old merge-implying AddMember name is gone.
+        expect(code).toContain("func SetMemberRoles(")
+        expect(code).not.toContain("func AddMember(")
     })
 
     it("seeds the roster from config.members with comma-joined roles", () => {
@@ -566,8 +585,8 @@ describe("generateChannelCode — W1.5 membership unification", () => {
     it("no members config → no seeding lines beyond the deployer", () => {
         const code = generateChannelCode(base())
         const seeds = code.match(/members\.Set\(/g) ?? []
-        // exactly one Set: the deployer-admin line (AddMember's Set is on the
-        // `members.Set(string(addr), role)` form and matches too — count both)
+        // exactly one Set: the deployer-admin line (SetMemberRoles' Set is on
+        // the `members.Set(string(addr), role)` form and matches too — count both)
         expect(seeds.length).toBe(2)
     })
 
@@ -579,7 +598,7 @@ describe("generateChannelCode — W1.5 membership unification", () => {
         expect(code).toContain('!hasRole(callerRoles(caller), "admin")')
     })
 
-    it("AddMember rejects an empty role (roster can't hold role-less members)", () => {
+    it("SetMemberRoles rejects an empty role (roster can't hold role-less members)", () => {
         const code = generateChannelCode(base())
         expect(code).toContain('panic("role must not be empty")')
     })

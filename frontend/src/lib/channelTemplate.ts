@@ -13,11 +13,13 @@
  * - Admin action: create channels (ACL baked at creation; no runtime SetChannelACL/Archive/Reorder)
  * - Public read access (anyone can query via Render)
  *
- * Membership (W1.5 unification): the DAO is the single source of truth. The
- * realm keeps a local roster (address → comma-separated roles) seeded from the
- * wizard's member config, and falls back to a cross-realm `parent.IsMember()`
- * read (default role "member") for members added to the DAO after deploy — so
- * the roster can't drift shut, and role-gated channels still work.
+ * Membership (W1.5 unification): the DAO is the single source of truth,
+ * checked LIVE on every write via a cross-realm `parent.IsMember()` read — a
+ * governance removal revokes channel access instantly. The local roster
+ * (address → comma-separated roles), seeded from the wizard's member config,
+ * only ELEVATES roles for current DAO members (role-gated channels); it can
+ * never admit a non-member or keep a removed member in. DAO members without
+ * a roster entry get the default "member" role. The deployer is always admin.
  *
  * Deployed via MsgAddPackage through Adena DoContract.
  * Channel realm naming: {daoname}_channels suffix convention.
@@ -158,10 +160,12 @@ export function generateChannelCode(config: ChannelConfig): string {
         safeChannels.push({ name: "general", type: "text", acl: { readRoles: [], writeRoles: [] } })
     }
 
-    // W1.5 roster seeding — addresses are fail-closed (throw, W1.1 style: they
-    // land inside string literals but a bad address is always a config bug);
-    // roles are filtered to safe identifiers and default to "member" so a
-    // valid member can never be seeded role-less.
+    // W1.5 roster seeding (role GRANTS, not membership — the grant is inert
+    // unless the address is a live parent-DAO member). Addresses are
+    // fail-closed (throw, W1.1 style: they land inside string literals but a
+    // bad address is always a config bug); roles are filtered to safe
+    // identifiers and default to "member" so a valid member can never be
+    // seeded role-less.
     const memberInit = (config.members ?? [])
         .map((m) => {
             requireAddress("channel member address", m.address)
@@ -291,8 +295,11 @@ ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).
 
 // ── Member Management (v3 ACL) ──────────────────────────────
 
-// AddMember registers a member with comma-separated roles. Admin only.
-func AddMember(_ realm, addr address, role string) {
+// SetMemberRoles grants comma-separated roles to a DAO member, REPLACING any
+// previous grant (a set, not a merge). The grant only has effect while the
+// address remains a member of the parent DAO — membership itself is checked
+// live in callerRoles. Admin only.
+func SetMemberRoles(_ realm, addr address, role string) {
 \tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
 \tif strings.TrimSpace(role) == "" {
@@ -612,18 +619,23 @@ func CreateChannel(cur realm, name, description, ctype string) {
 
 // ── Guards ────────────────────────────────────────────────
 
-// callerRoles resolves an address to its comma-separated roles: the local
-// roster wins (wizard-seeded or admin-managed); otherwise a cross-realm
-// parent.IsMember() read admits later-added DAO members with the default
-// "member" role. Empty string = not a member.
+// callerRoles resolves an address to its comma-separated roles. DAO
+// membership is checked LIVE (cross-realm parent.IsMember) on every call, so
+// a governance removal revokes channel access instantly — the local roster
+// (wizard-seeded or admin-granted) only ELEVATES roles for current DAO
+// members and can never keep a removed member in. Empty string = not a
+// member. The deployer is always admin.
 func callerRoles(addr address) string {
+\tif addr == adminAddr {
+\t\treturn "admin"
+\t}
+\tif !parent.IsMember(addr) {
+\t\treturn ""
+\t}
 \tif v, ok := members.Get(string(addr)); ok {
 \t\treturn v.(string)
 \t}
-\tif parent.IsMember(addr) {
-\t\treturn "member"
-\t}
-\treturn ""
+\treturn "member"
 }
 
 // hasRole reports whether want appears in a comma-separated role list.
@@ -669,7 +681,7 @@ func assertChannelWritable(channelName string, caller address) {
 \t\t\tif ch.ChanType == "readonly" {
 \t\t\t\tpanic("channel is read-only")
 \t\t\t}
-\t\t\tif ch.ChanType == "announcements" && caller != adminAddr && !hasRole(callerRoles(caller), "admin") {
+\t\t\tif ch.ChanType == "announcements" && !hasRole(callerRoles(caller), "admin") {
 \t\t\t\tpanic("only admin can post in announcement channels")
 \t\t\t}
 \t\t\t// Check write role ACL (v3: local roster, parent-DAO fallback)
