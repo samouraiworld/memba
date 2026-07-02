@@ -227,6 +227,40 @@ jobs:
       - name: Run E2E guardrails (desktop-intact + mobile shell)
         run: npm run test:e2e:guardrails
 
+  workspaces:
+    # The pnpm workspaces (packages/gno-rpc, mcp-server, mcp-server-dao-analyst)
+    # were never compiled or tested in CI — main stayed green for months while
+    # mcp-server-dao-analyst had a TS build break and a failing vitest test.
+    # NOT a required check: main's branch protection lists exact check names,
+    # so this job reports on PRs without blocking merges until it's added there.
+    name: pnpm workspaces (gno-rpc · MCP servers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm -r` runs in topological order: @samouraiworld/gno-rpc builds
+      # before the MCP servers that depend on it via workspace:*. Packages
+      # without a `test` script (mcp-server) are skipped by `pnpm -r run`.
+      - name: Build all workspaces
+        run: pnpm -r build
+
+      - name: Test all workspaces
+        run: pnpm -r test
+
   proto:
     name: Proto (Buf)
     runs-on: ubuntu-latest
