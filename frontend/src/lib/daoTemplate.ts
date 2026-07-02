@@ -86,6 +86,20 @@ export interface DAOCreationConfig {
     proposalCategories: string[]
     /** Voting period in blocks (0 = no expiration). ~2s/block on Gno. Default: 151200 (~3.5 days). */
     votingPeriodBlocks: number
+    /**
+     * W1.3 deliberation floor: minimum blocks between a proposal's creation and
+     * its execution (default 600 ≈ 20 min at 2s/block; 0 disables). A whale whose
+     * single YES vote makes a proposal mathematically final could otherwise
+     * propose-and-execute in the same block, before members even see it.
+     *
+     * Quorum & ABSTAIN semantics (documented per W1.3): all percentages use the
+     * FULL member power as denominator. `quorum` counts participation — YES, NO
+     * and ABSTAIN all count toward it. `threshold` is the YES share needed to
+     * pass; ABSTAIN power never counts toward YES/NO, and since each member votes
+     * once, abstained power can never become YES — a proposal is REJECTED as soon
+     * as passage becomes impossible.
+     */
+    minExecutionDelayBlocks?: number
 }
 
 // ── Presets ────────────────────────────────────────────────────
@@ -170,6 +184,7 @@ export function generateDAOCode(config: DAOCreationConfig): string {
     requireInt("threshold", config.threshold, 1, 100)
     requireInt("quorum", config.quorum, 0, 100)
     requireInt("votingPeriodBlocks", config.votingPeriodBlocks ?? 0, 0, 1_000_000_000)
+    const minExecutionDelay = requireInt("minExecutionDelayBlocks", config.minExecutionDelayBlocks ?? 600, 0, 1_000_000_000)
 
     const pkgName = config.realmPath.split("/").pop() || "mydao"
 
@@ -253,6 +268,7 @@ var (
 \tthreshold         = ${config.threshold} // percentage required to pass
 \tquorum            = ${config.quorum}  // minimum participation % (0 = disabled)
 \tvotingPeriod      = int64(${config.votingPeriodBlocks || 151200}) // blocks until proposal expires (0 = never)
+\tminExecutionDelay = int64(${minExecutionDelay}) // blocks between Propose and the earliest ExecuteProposal (0 = none)
 \tmembers           = avl.NewTree() // address → *Member (O(log n) lookup)
 \tproposals         = avl.NewTree() // zero-padded ID → *Proposal (ordered iteration)
 \tnextID            = 0
@@ -463,14 +479,29 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \t\tpanic("invalid vote: must be YES, NO, or ABSTAIN")
 \t}
 \tp.TotalPower += power
-\t// Check quorum + threshold
+\t// Finality (W1.3): a status flips ONLY when the outcome is irreversible.
+\t// Every percentage uses tpow — the FULL member power — as denominator:
+\t//   ACCEPT: YES ≥ threshold% of ALL power. Later votes cannot undo it
+\t//   (they can only raise other counters, never lower YesVotes/tpow).
+\t//   REJECT: passage has become impossible. Each member votes once, so
+\t//   power already cast as NO or ABSTAIN can never become YES; when YES
+\t//   plus ALL still-unvoted power stays below threshold%, no sequence of
+\t//   future votes can pass the proposal. (This replaces the old asymmetric
+\t//   NO > 100-threshold rule, which could reject while passage was still
+\t//   mathematically reachable — or deadlock at threshold=50.)
+\t// ABSTAIN counts toward quorum participation (TotalPower) but never
+\t// toward the YES/NO numerators. Membership changes mid-vote shift tpow;
+\t// the check re-runs on every vote with the current total.
 \ttpow := totalPower()
 \tif tpow > 0 {
 \t\tquorumMet := quorum == 0 || (p.TotalPower * 100 / tpow >= quorum)
 \t\tif quorumMet && p.YesVotes * 100 / tpow >= threshold {
 \t\t\tp.Status = "ACCEPTED"
 \t\t}
-\t\tif quorumMet && p.NoVotes * 100 / tpow > (100 - threshold) {
+\t\t// Impossibility needs no quorum gate: more participation cannot make
+\t\t// an unreachable threshold reachable.
+\t\tmaxPossibleYes := p.YesVotes + (tpow - p.TotalPower)
+\t\tif p.Status == "ACTIVE" && maxPossibleYes * 100 / tpow < threshold {
 \t\t\tp.Status = "REJECTED"
 \t\t}
 \t}
@@ -485,6 +516,12 @@ func ExecuteProposal(cur realm, id int) {
 \t}
 \tif p.Status != "ACCEPTED" {
 \t\tpanic("proposal must be ACCEPTED to execute")
+\t}
+\t// W1.3 deliberation floor: even a mathematically-final ACCEPTED proposal
+\t// cannot execute immediately — members get minExecutionDelay blocks to
+\t// see what passed (and contest or exit) before the action applies.
+\tif runtime.ChainHeight() < p.CreatedAt+minExecutionDelay {
+\t\tpanic("execution delay not elapsed: executable at block " + strconv.FormatInt(p.CreatedAt+minExecutionDelay, 10))
 \t}
 \t// Dispatch action
 \tswitch p.ActionType {
@@ -572,7 +609,15 @@ func executeAddMember(data string) {
 \tif err != nil {
 \t\tpanic("invalid power in action data")
 \t}
+\tif power < 0 {
+\t\tpanic("invalid power in action data: must be non-negative")
+\t}
 \troles := strings.Split(parts[2], ",")
+\t// W1.3 CHN-4: validate every role against allowedRoles — mirrors
+\t// executeAssignRole; unvalidated roles slipped in via proposal ActionData.
+\tfor _, r := range roles {
+\t\tassertRole(r)
+\t}
 \tif _, exists := members.Get(string(addr)); exists {
 \t\tpanic("address is already a member")
 \t}
