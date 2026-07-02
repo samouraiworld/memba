@@ -123,8 +123,9 @@ server.registerTool(
         tier: backend.tier,
       });
 
-      // 4. Build consensus from results
-      const consensus = buildConsensus(response.results);
+      // 4. Build consensus from results — scale confidence down if the
+      // backend returned fewer results than perspectives requested
+      const consensus = buildConsensus(response.results, perspectives.length);
 
       // 5. Format output
       const formatted = formatConsensusResult(
