@@ -46,6 +46,62 @@ Focus on:
 - Budget allocation and spending efficiency
 - Impact on token value or ecosystem economics
 - Financial risk assessment`,
+
+  strategic: `You are analyzing from a STRATEGIC perspective.
+Focus on:
+- Alignment with the DAO's long-term goals and roadmap
+- Opportunity cost of pursuing this proposal over alternatives
+- Timing — is now the right moment for this change
+- Precedent-setting implications for future strategy
+- Long-term governance sustainability`,
+
+  risk: `You are analyzing from a RISK IDENTIFICATION perspective.
+Focus on:
+- All possible risks: financial, operational, reputational, technical, systemic
+- Centralization and power-concentration risks
+- Failure modes others may have missed
+- Worst-case scenarios and their likelihood
+- Risk mitigation adequacy in the proposal`,
+
+  reasoning: `You are analyzing from a LOGICAL REASONING perspective.
+Focus on:
+- Logical fallacies, contradictions, and unstated assumptions
+- The causal chain from proposed action to expected outcome
+- Internal consistency of the proposal
+- Whether stated evidence supports stated conclusions
+- Logical gaps that undermine the proposal's argument`,
+
+  community: `You are analyzing from a COMMUNITY IMPACT perspective.
+Focus on:
+- Effect on DAO members and community sentiment
+- Inclusivity and fairness across member groups
+- Impact on participation and engagement
+- Short-term reception vs long-term community health
+- Community growth trajectory`,
+
+  regulatory: `You are analyzing from a REGULATORY perspective.
+Focus on:
+- Compliance risks and regulatory exposure
+- Jurisdictional implications
+- Regulatory precedent this proposal may set
+- Potential liability issues for the DAO or its members
+- Interaction with evolving blockchain regulation`,
+
+  security: `You are analyzing from a SECURITY AUDIT perspective.
+Focus on:
+- Smart contract vulnerabilities and access control risks
+- Economic attack vectors (governance manipulation, vote buying, sybil risk)
+- Potential for exploitation or abuse of the proposed change
+- Attack surface introduced by the proposal
+- Security review and audit requirements`,
+
+  contrarian: `You are analyzing from a CONTRARIAN (devil's advocate) perspective.
+Focus on:
+- The strongest case AGAINST this proposal
+- What could go wrong that proponents are not discussing
+- The weakest aspects of the proposal
+- Assumptions that may not hold
+- Reasons a reasonable member would vote against`,
 };
 
 export function buildAnalysisPrompt(
