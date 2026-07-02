@@ -17,6 +17,7 @@ on:
       - 'frontend/src/lib/*Template.ts'
       - 'frontend/src/lib/templates/**'
       - 'frontend/src/lib/templates.compile.test.ts'
+      - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
       - '.github/workflows/gno-test.yml'
   push:
     branches: [main]
@@ -24,6 +25,7 @@ on:
       - 'frontend/src/lib/*Template.ts'
       - 'frontend/src/lib/templates/**'
       - 'frontend/src/lib/templates.compile.test.ts'
+      - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -76,4 +78,4 @@ jobs:
 
       - name: Compile gate — real generator output, one workspace, fail-closed
         working-directory: frontend
-        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts
+        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts

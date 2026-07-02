@@ -457,3 +457,54 @@ describe('daoStepError — member power gate (W1.1)', () => {
         expect(daoStepError(2, { name: 'x', realmPath: 'gno.land/r/t/x', members: [member(3)], threshold: 51, quorum: 0 })).toBeNull()
     })
 })
+
+// ── W1.3: governance hardening — CHN-4 (executeAddMember role validation)
+// and CHN-5 (inline finality / asymmetric reject threshold) ──
+describe('generateDAOCode — governance hardening (W1.3)', () => {
+    it('ExecuteProposal enforces a deliberation delay (default 600 blocks)', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toContain('minExecutionDelay = int64(600)')
+        const fn = code.slice(code.indexOf('func ExecuteProposal'), code.indexOf('// ── Member Proposals'))
+        expect(fn).toContain('minExecutionDelay')
+    })
+
+    it('honours a custom minExecutionDelayBlocks and fails closed on invalid values', () => {
+        expect(generateDAOCode(makeConfig({ minExecutionDelayBlocks: 0 }))).toContain('minExecutionDelay = int64(0)')
+        expect(generateDAOCode(makeConfig({ minExecutionDelayBlocks: 43200 }))).toContain('minExecutionDelay = int64(43200)')
+        for (const minExecutionDelayBlocks of [-1, NaN, 1.5]) {
+            expect(() => generateDAOCode(makeConfig({ minExecutionDelayBlocks }))).toThrow(/minExecutionDelayBlocks/i)
+        }
+    })
+
+    it('rejects only when passage has become impossible — the asymmetric NO-threshold is gone', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toContain('maxPossibleYes')
+        // The old rule rejected on NO > (100 - threshold) even when enough
+        // unvoted power remained for the proposal to still pass.
+        expect(code).not.toContain('p.NoVotes * 100 / tpow > (100 - threshold)')
+        // A tentative ACCEPTED must never be overwritten by the reject branch.
+        expect(code).toMatch(/p\.Status == "ACTIVE"[^\n]*maxPossibleYes|maxPossibleYes[\s\S]{0,120}p\.Status == "ACTIVE"/)
+    })
+
+    it('executeAddMember validates every role and rejects negative power (CHN-4)', () => {
+        const code = generateDAOCode(makeConfig())
+        const fn = code.slice(code.indexOf('func executeAddMember'), code.indexOf('func executeRemoveMember'))
+        expect(fn).toContain('assertRole(')
+        expect(fn).toMatch(/power < 0/)
+        // Empty roles is allowed (a role-less power-holder): the assertRole loop
+        // must be guarded so assertRole("") can't brick an ACCEPTED proposal.
+        expect(fn).toMatch(/parts\[2\] != ""/)
+    })
+
+    it('ProposeAddMember fails fast on invalid roles / negative power (CHN-4)', () => {
+        const code = generateDAOCode(makeConfig())
+        const fn = code.slice(code.indexOf('func ProposeAddMember'), code.indexOf('func ProposeRemoveMember'))
+        expect(fn).toContain('assertRole(')
+        expect(fn).toMatch(/power < 0/)
+    })
+
+    it('documents the ABSTAIN/quorum semantics at the tally site', () => {
+        const code = generateDAOCode(makeConfig())
+        expect(code).toMatch(/ABSTAIN counts toward quorum/i)
+    })
+})
