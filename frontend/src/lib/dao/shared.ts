@@ -99,6 +99,31 @@ export async function queryEval(rpcUrl: string, pkgPath: string, expr: string, s
 }
 
 /**
+ * Decode a `vm/qeval` string return that carries a JSON payload —
+ * `("<go-quoted-json>" string)` — into the parsed value, or null on any failure
+ * (so callers can fall back to Render scraping).
+ *
+ * qeval re-quotes the returned Go string with strconv.Quote-style escaping,
+ * which — for our realm encoders that pre-escape control chars to `\uXXXX` —
+ * coincides exactly with JSON string escaping. So the correct decode is a
+ * DOUBLE JSON.parse: parse the quoted literal to undo the Go-quote, then parse
+ * the JSON payload. The old single-pass `.replace(/\\"/g,'"')` corrupted any
+ * field carrying a backslash or newline (a title like `Adopt "v2"` round-tripped
+ * by luck; `a\b` or a real newline did not — the escapes doubled).
+ */
+export function parseQevalJSON(raw: string): unknown {
+    const m = raw.match(/^\(\s*("[\s\S]*")\s+string\s*\)\s*$/)
+    if (!m) return null
+    try {
+        const payload = JSON.parse(m[1]) // undo the Go-quote → the raw JSON text
+        if (typeof payload !== "string") return null
+        return JSON.parse(payload) // parse the JSON payload
+    } catch {
+        return null
+    }
+}
+
+/**
  * Strip markdown escape backslashes from Render output text.
  * gno#5418 escapes special chars in titles: `\(`, `\)`, `\[`, `\]`, `\_`, `\*`, etc.
  * We strip these so titles display cleanly in the UI.

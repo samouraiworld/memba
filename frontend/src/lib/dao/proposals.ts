@@ -4,7 +4,7 @@
  * Supports: GovDAO v3 markdown format and basedao JSON endpoint.
  */
 
-import { queryRender, queryEval, normalizeStatus, unescapeMarkdown, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
+import { queryRender, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
 
 // ── Proposal Cache ────────────────────────────────────────────
@@ -139,36 +139,33 @@ export async function getDAOProposals(
         return cached.proposals
     }
 
-    // Try JSON endpoint first (basedao)
+    // Try the JSON endpoint first (basedao + W1.4 daoTemplate). parseQevalJSON
+    // does the correct double-decode of the qeval wire format — a single-pass
+    // unescape corrupted backslash/newline-bearing titles.
     const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`, strict)
     if (json) {
-        try {
-            const match = json.match(/\("(.+)"\s+string\)/s)
-            if (match) {
-                const parsed = JSON.parse(match[1].replace(/\\"/g, '"'))
-                if (Array.isArray(parsed)) {
-                    const result = parsed.map((p: Record<string, unknown>) => ({
-                        id: Number(p.id || p.ID || 0),
-                        title: String(p.title || p.Title || ""),
-                        description: String(p.description || p.Description || ""),
-                        category: String(p.category || p.Category || ""),
-                        status: normalizeStatus(String(p.status || p.Status || "open")),
-                        author: String(p.author || p.Author || p.proposer || p.Proposer || ""),
-                        authorProfile: "",
-                        tiers: (p.tiers || p.Tiers || []) as string[],
-                        yesPercent: Number(p.yes_percent || p.YesPercent || 0),
-                        noPercent: Number(p.no_percent || p.NoPercent || 0),
-                        yesVotes: Number(p.yes_votes || p.YesVotes || p.yesCount || 0),
-                        noVotes: Number(p.no_votes || p.NoVotes || p.noCount || 0),
-                        abstainVotes: Number(p.abstain_votes || p.AbstainVotes || p.abstainCount || 0),
-                        totalVoters: Number(p.total_voters || p.TotalVoters || 0),
-                        proposer: String(p.proposer || p.Proposer || ""),
-                    }))
-                    proposalCache.set(cacheKey, { proposals: result, ts: Date.now() })
-                    return result
-                }
-            }
-        } catch { /* fall through */ }
+        const parsed = parseQevalJSON(json)
+        if (Array.isArray(parsed)) {
+            const result = parsed.map((p: Record<string, unknown>) => ({
+                id: Number(p.id || p.ID || 0),
+                title: String(p.title || p.Title || ""),
+                description: String(p.description || p.Description || ""),
+                category: String(p.category || p.Category || ""),
+                status: normalizeStatus(String(p.status || p.Status || "open")),
+                author: String(p.author || p.Author || p.proposer || p.Proposer || ""),
+                authorProfile: "",
+                tiers: (p.tiers || p.Tiers || []) as string[],
+                yesPercent: Number(p.yes_percent || p.YesPercent || 0),
+                noPercent: Number(p.no_percent || p.NoPercent || 0),
+                yesVotes: Number(p.yes_votes || p.YesVotes || p.yesCount || 0),
+                noVotes: Number(p.no_votes || p.NoVotes || p.noCount || 0),
+                abstainVotes: Number(p.abstain_votes || p.AbstainVotes || p.abstainCount || 0),
+                totalVoters: Number(p.total_voters || p.TotalVoters || 0),
+                proposer: String(p.proposer || p.Proposer || ""),
+            }))
+            proposalCache.set(cacheKey, { proposals: result, ts: Date.now() })
+            return result
+        }
     }
 
     // GovDAO v3 / basedao: parse Render("") markdown — with pagination
