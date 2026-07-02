@@ -1,15 +1,38 @@
 #!/bin/sh
 set -e
 
-# Restore the database if it does not exist.
-# This assumes that if memba.db exists, it's either populated or a new db we want to keep.
-if [ -f "/data/memba.db" ]; then
-    echo "Database already exists, skipping restore"
+DB=/data/memba.db
+# The integrity-check subcommand reads DB_PATH; keep it pinned to the same file.
+export DB_PATH="$DB"
+
+if [ -f "$DB" ]; then
+    # Gate the existing file on PRAGMA integrity_check (via the app binary — the
+    # runtime image has no sqlite3 CLI). Previously a present-but-corrupt file
+    # was trusted as-is and Litestream replicated the corruption forward into
+    # the S3 replica, aging the last good snapshot out of the 168h retention.
+    if ./memba integrity-check; then
+        echo "Database passes integrity check"
+    else
+        TS=$(date -u +%Y%m%d_%H%M%S)
+        echo "CORRUPT database detected — quarantining to ${DB}.corrupt-${TS} and restoring from replica"
+        mv "$DB" "${DB}.corrupt-${TS}"
+        if [ -f "${DB}-wal" ]; then mv "${DB}-wal" "${DB}-wal.corrupt-${TS}"; fi
+        if [ -f "${DB}-shm" ]; then mv "${DB}-shm" "${DB}-shm.corrupt-${TS}"; fi
+        # Deliberately NO -if-replica-exists and NO || true here: with a corrupt
+        # local DB, silently booting a fresh empty database would present as
+        # total data loss. Fail loudly instead; recovery paths are the local
+        # VACUUM backups in /data/backups or fixing the replica (OPS_RUNBOOK).
+        litestream restore -v -config /etc/litestream.yml -o "$DB" "$DB"
+    fi
 else
     echo "No database found, attempting to restore from replica"
-    # We ignore errors here because the replica may not exist yet on the first run.
-    litestream restore -v -if-replica-exists -config /etc/litestream.yml -o /data/memba.db /data/memba.db || true
+    # First boot has no replica yet — that's fine, the app creates a fresh DB.
+    litestream restore -v -if-replica-exists -config /etc/litestream.yml -o "$DB" "$DB" || true
 fi
+
+# Litestream owns WAL checkpointing from here on; the app must not checkpoint
+# (see litestreamManaged in cmd/memba/main.go).
+export LITESTREAM_MANAGED=1
 
 # Run litestream with your app as the subprocess.
 exec litestream replicate -exec "./memba" -config /etc/litestream.yml
