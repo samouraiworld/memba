@@ -99,8 +99,30 @@ describe("ReviewsSection", () => {
     fireEvent.click(screen.getByRole("button", { name: /post review/i }))
 
     // Appears immediately even though the chain fetch doesn't include it yet, marked pending.
+    // findBy* for both: the pending badge lands in the same render as the text, but under a
+    // loaded CI runner the retry queues can interleave — never assert async UI synchronously.
     expect(await screen.findByText(/my fresh take/)).toBeInTheDocument()
-    expect(screen.getByTestId("review-pending")).toBeInTheDocument()
+    expect(await screen.findByTestId("review-pending")).toBeInTheDocument()
     expect(submitMsg).toHaveBeenCalled()
+  })
+
+  it("stops the post-review reconcile polling after unmount (no leaked fetches)", async () => {
+    adena = { address: "g1me", connected: true, connect }
+    fetchReviews.mockResolvedValue([review({ id: 1, author: "g1other", body: "existing" })])
+    const { unmount } = renderWithProviders(<ReviewsSection subject="g1s" />)
+    await screen.findByText(/existing/)
+
+    fireEvent.click(screen.getByRole("radio", { name: /5 stars/i }))
+    fireEvent.click(screen.getByRole("button", { name: /post review/i }))
+    await screen.findByTestId("review-pending")
+
+    // The reconcile loop polls the chain every 1.5s while the optimistic entry is
+    // unconfirmed. After unmount it must stop — a leaked loop keeps fetching against
+    // reset mocks in whatever test runs next (the CI flake), and in prod it keeps
+    // hitting the RPC after the user navigates away.
+    const callsAtUnmount = fetchReviews.mock.calls.length
+    unmount()
+    await new Promise((r) => setTimeout(r, 1700))
+    expect(fetchReviews.mock.calls.length).toBe(callsAtUnmount)
   })
 })
