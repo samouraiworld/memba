@@ -19,7 +19,11 @@
  * KNOWN REMAINING GAPS vs escrow_v2 (tracked, do not silently port):
  * Pause/Unpause, ClaimRefund/ClaimDisputeTimeout timeouts, PreDisputeStatus,
  * CreateContract input caps (MaxTitleLen/MaxMilestones/MinMilestoneAmount),
- * chain.Emit events, renderStats.
+ * chain.Emit events, renderStats, and the contract-level dispute FREEZE —
+ * escrow_v2's CompleteMilestone/ReleaseFunds abort while the contract is
+ * StatusDisputed; here they only gate on the individual milestone's status
+ * (no double-pay risk — each milestone is individually gated — but a
+ * behavioral divergence).
  *
  * @module lib/escrowTemplate
  */
