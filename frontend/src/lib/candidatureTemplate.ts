@@ -14,6 +14,7 @@
 
 import type { AminoMsg } from "./grc20"
 import { MEMBA_DAO, MEMBA_TOKEN } from "./config"
+import { requireInt } from "./templates/sanitizer"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -298,6 +299,10 @@ export function parseCandidatureDetail(raw: string): Candidature | null {
  * simplified version — the deployed realm uses avl trees and banker.
  */
 export function generateCandidatureCode(config: CandidatureConfig = defaultCandidatureConfig): string {
+    // W1.1 fail-closed: requiredApprovals is the only interpolated input —
+    // 0/NaN would let candidatures auto-pass in the generated realm.
+    requireInt("requiredApprovals", config.requiredApprovals, 1, 1000)
+
     return `package candidature
 
 import (

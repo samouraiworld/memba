@@ -30,11 +30,11 @@ import { toAdenaMessages } from "./grc20"
 
 const DEFAULT_CONFIG: EscrowConfig = {
     realmPath: "gno.land/r/test/escrow",
-    adminAddress: "g1adminaddr1234",
+    adminAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
     platformFeePercent: 2,
     cancellationFeePercent: 5,
     autoRefundBlocks: 864000,
-    feeRecipient: "g1feerecipient5678",
+    feeRecipient: "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq",
 }
 
 function getCode(): string {
@@ -369,5 +369,31 @@ describe("MsgCall builders", () => {
         expect(msg.value.package.path).toBe(escrowPath)
         expect(msg.value.package.files[0].name).toBe("escrow.gno")
         expect(msg.value.package.files[0].body).toBe(code)
+    })
+})
+
+// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
+describe("generateEscrowCode — fail-closed guards (W1.1)", () => {
+    it("throws on platform fee outside the documented 0-5% bound", () => {
+        for (const platformFeePercent of [-1, 6, 101, NaN, 2.5]) {
+            expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, platformFeePercent })).toThrow(/platformFee/i)
+        }
+    })
+    it("throws on cancellation fee outside the documented 0-10% bound", () => {
+        for (const cancellationFeePercent of [-1, 11, NaN]) {
+            expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, cancellationFeePercent })).toThrow(/cancellationFee/i)
+        }
+    })
+    it("throws on non-positive / NaN autoRefundBlocks", () => {
+        for (const autoRefundBlocks of [0, -1, NaN, 1.5]) {
+            expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, autoRefundBlocks })).toThrow(/autoRefundBlocks/i)
+        }
+    })
+    it("throws on invalid admin / feeRecipient addresses (was interpolated raw)", () => {
+        expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, adminAddress: 'g1" // inject' })).toThrow(/adminAddress/i)
+        expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, feeRecipient: "not-an-address" })).toThrow(/feeRecipient/i)
+    })
+    it("throws on an invalid realmPath", () => {
+        expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, realmPath: "evil" })).toThrow(/realmPath/i)
     })
 })

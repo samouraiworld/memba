@@ -373,7 +373,7 @@ func (s *MultisigService) loadQuestClaimStatuses(ctx context.Context, addr strin
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var statuses []*membav1.QuestClaimStatus
 	for rows.Next() {

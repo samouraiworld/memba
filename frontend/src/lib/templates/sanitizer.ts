@@ -136,3 +136,58 @@ export function clampInt(value: number, min: number, max: number): number {
 export function isValidPercentage(value: number): boolean {
     return Number.isFinite(value) && value >= 0 && value <= 100
 }
+
+// ── Fail-Closed Throwing Validators (W1.1 / R2-GEN-A) ───────
+//
+// Generated realms are immutable on deploy: an invalid value that reaches
+// interpolation ships forever (threshold=0 auto-passing proposals, NaN
+// breaking the source, fee>100% draining a contract). Generators MUST call
+// these at the top and let the throw surface in the wizard — never rely on
+// bypassable HTML min/max attributes.
+
+/**
+ * Require an integer in [min, max]; throws with the offending field name.
+ * The returned value is normalized through clampInt (a no-op after the
+ * strict check) so every numeric interpolation flows through one function.
+ */
+export function requireInt(name: string, value: number, min: number, max: number): number {
+    // isSafeInteger is a hard ceiling independent of the caller's max: past
+    // ~1e21 String(n) renders scientific notation ("1e+21"), which is not a
+    // valid Go integer literal — defense in depth against a loose max.
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
+        throw new Error(`Invalid ${name}: must be an integer in [${min}, ${max}], got ${String(value)}`)
+    }
+    return clampInt(value, min, max)
+}
+
+/**
+ * Require an integer percentage in [min, max] (defaults 0-100).
+ * Tighter product bounds (e.g. a 0-5% platform fee) are passed explicitly.
+ */
+export function requirePercentage(name: string, value: number, min = 0, max = 100): number {
+    if (!isValidPercentage(value)) {
+        throw new Error(`Invalid ${name}: must be a percentage in [0, 100], got ${String(value)}`)
+    }
+    return requireInt(name, value, min, max)
+}
+
+/** Require a strict-bech32 Gno address; throws with the offending field name. */
+export function requireAddress(name: string, addr: string): string {
+    if (!isValidGnoAddress(addr)) {
+        throw new Error(`Invalid ${name}: not a valid ${BECH32_PREFIX} bech32 address`)
+    }
+    return addr
+}
+
+/**
+ * Require a valid gno.land/r/... realm path; throws with the offending field
+ * name. Defends the import-statement / package-name interpolation sites —
+ * a crafted path could otherwise break out of `import parent "<path>"`.
+ */
+export function requireRealmPath(name: string, path: string): string {
+    const err = typeof path === "string" ? validateRealmPath(path) : "must be a string"
+    if (err) {
+        throw new Error(`Invalid ${name}: ${err}`)
+    }
+    return path
+}
