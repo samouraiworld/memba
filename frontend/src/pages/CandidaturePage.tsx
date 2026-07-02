@@ -42,6 +42,9 @@ export default function CandidaturePage() {
     const { adena, auth } = useOutletContext<LayoutContext>()
 
     const [eligible, setEligible] = useState(false)
+    // Backend verified XP (proof-backed quests only) when connected + reachable; the
+    // gate copy shows this instead of local totalXP so the number matches the rule.
+    const [verifiedXP, setVerifiedXP] = useState<number | null>(null)
     const [questState, setQuestState] = useState(() => loadQuestProgress())
     const [bio, setBio] = useState("")
     const [skills, setSkills] = useState("")
@@ -59,12 +62,18 @@ export default function CandidaturePage() {
         setQuestState(loadQuestProgress())
     }, [])
 
-    // Authoritative eligibility: when connected, gate on backend XP — localStorage is
-    // user-editable and must not unlock the application form on its own.
+    // Authoritative eligibility: when connected, gate on backend VERIFIED XP (BE-4:
+    // proof-backed quests only) — localStorage is user-editable and must not unlock
+    // the application form on its own.
     useEffect(() => {
         let cancelled = false
         resolveCandidatureEligibility(auth.address || adena.address)
-            .then(ok => { if (!cancelled) setEligible(ok) })
+            .then(res => {
+                if (!cancelled) {
+                    setEligible(res.eligible)
+                    setVerifiedXP(res.verifiedXP)
+                }
+            })
         return () => { cancelled = true }
     }, [auth.address, adena.address])
 
@@ -176,8 +185,10 @@ export default function CandidaturePage() {
                         <div>
                             <h3 className="candidature-gate__title">XP Required</h3>
                             <p className="candidature-gate__desc">
-                                You need {CANDIDATURE_XP_THRESHOLD} XP to apply. You currently have {questState.totalXP} XP.
-                                Complete more quests to unlock candidature.
+                                {verifiedXP !== null
+                                    ? `You need ${CANDIDATURE_XP_THRESHOLD} verified XP to apply. You have ${verifiedXP} verified XP — on-chain and reviewed quests count.`
+                                    : `You need ${CANDIDATURE_XP_THRESHOLD} XP to apply. You currently have ${questState.totalXP} XP.`}
+                                {" "}Complete more quests to unlock candidature.
                             </p>
                         </div>
                     </div>
@@ -188,7 +199,7 @@ export default function CandidaturePage() {
                         className="k-btn-secondary"
                         style={{ marginTop: 10, width: "100%", fontSize: 12, padding: "10px 16px" }}
                     >
-                        📋 Go to Quest Hub → ({questState.totalXP}/{CANDIDATURE_XP_THRESHOLD} XP)
+                        📋 Go to Quest Hub → ({verifiedXP ?? questState.totalXP}/{CANDIDATURE_XP_THRESHOLD} XP)
                     </button>
                 </div>
             )}

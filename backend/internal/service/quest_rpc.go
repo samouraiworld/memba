@@ -459,7 +459,31 @@ func (s *MultisigService) grantDerivedMetaQuests(ctx context.Context, addr strin
 }
 
 // loadUserQuestState reads all completions for a user and calculates XP server-side.
+// TotalXp sums every completion; VerifiedXp (BE-4) sums only proof-backed ones —
+// on_chain quests (re-verified server-side at grant time) and self_report quests
+// whose claim an admin approved. off_chain/social/legacy rows never count toward
+// VerifiedXp, which is what the 350-XP candidature gate reads.
 func (s *MultisigService) loadUserQuestState(ctx context.Context, address string) (*membav1.UserQuestState, error) {
+	approved := map[string]bool{}
+	claimRows, err := s.db.QueryContext(ctx,
+		`SELECT quest_id FROM quest_claims WHERE address = ? AND status = 'approved'`,
+		address,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = claimRows.Close() }()
+	for claimRows.Next() {
+		var id string
+		if err := claimRows.Scan(&id); err != nil {
+			return nil, err
+		}
+		approved[id] = true
+	}
+	if err := claimRows.Err(); err != nil {
+		return nil, err
+	}
+
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT quest_id, completed_at FROM quest_completions WHERE address = ? ORDER BY completed_at`,
 		address,
@@ -478,6 +502,14 @@ func (s *MultisigService) loadUserQuestState(ctx context.Context, address string
 		state.Completed = append(state.Completed, &qc)
 		if xp, ok := validQuests[qc.QuestId]; ok {
 			state.TotalXp += xp
+			switch questVerification[qc.QuestId] {
+			case "on_chain":
+				state.VerifiedXp += xp
+			case "self_report":
+				if approved[qc.QuestId] {
+					state.VerifiedXp += xp
+				}
+			}
 		}
 	}
 	return state, rows.Err()
@@ -754,8 +786,22 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 		proofText = proofText[:maxProofTextLen]
 	}
 
+	// Upsert keyed on UNIQUE(address, quest_id): a fresh claim inserts as
+	// pending; a REJECTED claim reopens as pending with the new proof (a wrong
+	// rejection must not be a permanent dead end — approved claims feed the
+	// candidature XP gate); pending/approved claims are left untouched, so
+	// resubmitting is an idempotent no-op. Spam is bounded by the
+	// QuestClaimEndpoint rate limit above.
 	_, err = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO quest_claims (address, quest_id, proof_url, proof_text) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO quest_claims (address, quest_id, proof_url, proof_text) VALUES (?, ?, ?, ?)
+		 ON CONFLICT(address, quest_id) DO UPDATE SET
+		   proof_url   = excluded.proof_url,
+		   proof_text  = excluded.proof_text,
+		   status      = 'pending',
+		   reviewed_by = NULL,
+		   reviewed_at = NULL,
+		   created_at  = CURRENT_TIMESTAMP
+		 WHERE quest_claims.status = 'rejected'`,
 		userAddr, questID, proofURL, proofText,
 	)
 	if err != nil {

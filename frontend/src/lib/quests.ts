@@ -35,6 +35,12 @@ export interface QuestProgress {
 export interface UserQuestState {
     completed: QuestProgress[]
     totalXP: number
+    /**
+     * Proof-backed XP only (on_chain quests + admin-approved self_report claims),
+     * computed server-side. Absent on localStorage-derived states — local
+     * completions carry no proof. The candidature gate reads this, not totalXP (BE-4).
+     */
+    verifiedXP?: number
 }
 
 // ── Quest Definitions ────────────────────────────────────────
@@ -376,6 +382,7 @@ export async function fetchUserQuests(address: string): Promise<UserQuestState |
                     completedAt: new Date(c.completedAt).getTime(),
                 })),
                 totalXP: resp.state.totalXp,
+                verifiedXP: resp.state.verifiedXp,
             }
         }
     } catch {
@@ -384,20 +391,33 @@ export async function fetchUserQuests(address: string): Promise<UserQuestState |
     return null
 }
 
+export interface CandidatureEligibility {
+    eligible: boolean
+    /** Backend verified XP when known (connected + backend reachable), else null. */
+    verifiedXP: number | null
+}
+
 /**
  * Resolve candidature eligibility. When a wallet is connected, gate on the
- * backend-authoritative XP — localStorage is user-editable and must not unlock the
- * application form on its own (closes the localStorage-XP bypass). Falls back to the
- * local check when disconnected, or when the backend is unreachable (degrade, not block).
+ * backend-authoritative VERIFIED XP (proof-backed quests only — BE-4: self-granted
+ * off_chain XP must not unlock candidature); localStorage is user-editable and must
+ * not unlock the application form on its own (closes the localStorage-XP bypass).
+ * Falls back to the local check when disconnected, or when the backend is
+ * unreachable (degrade, not block).
  */
 export async function resolveCandidatureEligibility(
     address: string | null | undefined,
     fetchQuests: (addr: string) => Promise<UserQuestState | null> = fetchUserQuests,
-): Promise<boolean> {
-    if (!address) return canApplyForMembership()
+): Promise<CandidatureEligibility> {
+    if (!address) return { eligible: canApplyForMembership(), verifiedXP: null }
     const state = await fetchQuests(address)
-    if (!state) return canApplyForMembership()
-    return isEligibleForCandidature(state.totalXP, isLegacyEligible())
+    if (!state) return { eligible: canApplyForMembership(), verifiedXP: null }
+    const verifiedXP = state.verifiedXP ?? 0
+    // Legacy grandfathering is deliberately NOT applied on the authoritative path:
+    // isLegacyEligible() is a client-settable localStorage flag, and honoring it here
+    // would lower the gate from 350 to 100 verified XP for anyone with devtools.
+    // It only softens the local fallback above (which is non-authoritative anyway).
+    return { eligible: isEligibleForCandidature(verifiedXP, false), verifiedXP }
 }
 
 // ── Page Visit Tracking ──────────────────────────────────────
