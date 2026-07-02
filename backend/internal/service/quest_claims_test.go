@@ -179,3 +179,117 @@ func TestSubmitQuestClaim_ResubmitAfterReject_NoXPUntilReapproval(t *testing.T) 
 		t.Fatal("expected XP granted after re-approval of reopened claim")
 	}
 }
+
+// ── GetUserQuests claim-status visibility ───────────────────
+//
+// The user must be able to SEE the state of their self-report claims (there is
+// no user-facing read otherwise — ListPendingClaims is admin-only). GetUserQuests
+// exposes status-only rows: quest_id + lifecycle, never the proof contents.
+
+func (h *testHarness) getUserQuests(t *testing.T, address string) *membav1.GetUserQuestsResponse {
+	t.Helper()
+	resp, err := h.svc.GetUserQuests(context.Background(), connect.NewRequest(&membav1.GetUserQuestsRequest{
+		Address: address,
+	}))
+	if err != nil {
+		t.Fatal("GetUserQuests:", err)
+	}
+	return resp.Msg
+}
+
+func findClaimStatus(resp *membav1.GetUserQuestsResponse, questID string) *membav1.QuestClaimStatus {
+	for _, cs := range resp.ClaimStatuses {
+		if cs.QuestId == questID {
+			return cs
+		}
+	}
+	return nil
+}
+
+func TestGetUserQuests_NoClaims_EmptyStatuses(t *testing.T) {
+	h := setup(t)
+
+	resp := h.getUserQuests(t, "g1alice")
+	if len(resp.ClaimStatuses) != 0 {
+		t.Fatalf("expected no claim statuses, got %d", len(resp.ClaimStatuses))
+	}
+}
+
+func TestGetUserQuests_PendingClaim_Visible(t *testing.T) {
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "secret proof text")
+
+	resp := h.getUserQuests(t, "g1alice")
+	cs := findClaimStatus(resp, "fix-upstream-bug")
+	if cs == nil {
+		t.Fatal("expected a claim status for fix-upstream-bug")
+	}
+	if cs.Status != "pending" {
+		t.Fatalf("expected pending, got %q", cs.Status)
+	}
+	if cs.CreatedAt == "" {
+		t.Fatal("expected created_at to be set")
+	}
+	if cs.ReviewedAt != "" {
+		t.Fatalf("expected empty reviewed_at while pending, got %q", cs.ReviewedAt)
+	}
+}
+
+func TestGetUserQuests_RejectedClaim_Visible(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	h.reviewClaim(t, admin, claim.id, false)
+
+	resp := h.getUserQuests(t, "g1alice")
+	cs := findClaimStatus(resp, "fix-upstream-bug")
+	if cs == nil {
+		t.Fatal("expected a claim status for fix-upstream-bug")
+	}
+	if cs.Status != "rejected" {
+		t.Fatalf("expected rejected, got %q", cs.Status)
+	}
+	if cs.ReviewedAt == "" {
+		t.Fatal("expected reviewed_at to be set after review")
+	}
+}
+
+func TestGetUserQuests_ApprovedClaim_Visible(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	h.reviewClaim(t, admin, claim.id, true)
+
+	resp := h.getUserQuests(t, "g1alice")
+	cs := findClaimStatus(resp, "fix-upstream-bug")
+	if cs == nil {
+		t.Fatal("expected a claim status for fix-upstream-bug")
+	}
+	if cs.Status != "approved" {
+		t.Fatalf("expected approved, got %q", cs.Status)
+	}
+}
+
+// Claims belong to their submitter: another address's GetUserQuests must not
+// include them, and the proof contents must never appear in the response.
+func TestGetUserQuests_ClaimStatuses_ScopedToAddress(t *testing.T) {
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+
+	resp := h.getUserQuests(t, "g1bob")
+	if len(resp.ClaimStatuses) != 0 {
+		t.Fatalf("expected no claim statuses for another address, got %d", len(resp.ClaimStatuses))
+	}
+}

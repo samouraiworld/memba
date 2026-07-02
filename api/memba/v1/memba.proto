@@ -326,6 +326,19 @@ message GetUserQuestsRequest {
 
 message GetUserQuestsResponse {
   UserQuestState state = 1;
+  // Self-report claim statuses for this address, so the user can see a
+  // pending/rejected claim (and resubmit after rejection). Status only — proof
+  // contents stay off this public, unauthenticated endpoint.
+  repeated QuestClaimStatus claim_statuses = 2;
+}
+
+// QuestClaimStatus is the public-safe view of a quest_claims row: the claim's
+// lifecycle state without the submitted proof.
+message QuestClaimStatus {
+  string quest_id = 1;
+  string status = 2; // "pending", "approved", "rejected"
+  string created_at = 3; // submission time (SQLite DATETIME string)
+  string reviewed_at = 4; // review time; empty while pending
 }
 
 // AttestationVoucher is a backend-signed voucher the user broadcasts to the
