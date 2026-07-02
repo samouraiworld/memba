@@ -20,6 +20,7 @@ on:
       - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
       - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
+      - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
       - '.github/workflows/gno-test.yml'
   push:
     branches: [main]
@@ -30,6 +31,7 @@ on:
       - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
       - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
+      - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -82,4 +84,4 @@ jobs:
 
       - name: Compile gate — real generator output, one workspace, fail-closed
         working-directory: frontend
-        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts src/lib/daoTemplate.reads.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts
+        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts src/lib/daoTemplate.reads.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts src/lib/escrowTemplate.refunds.gno.test.ts

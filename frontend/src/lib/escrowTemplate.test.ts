@@ -397,3 +397,36 @@ describe("generateEscrowCode — fail-closed guards (W1.1)", () => {
         expect(() => generateEscrowCode({ ...DEFAULT_CONFIG, realmPath: "evil" })).toThrow(/realmPath/i)
     })
 })
+
+// W1.6 parity invariants (R2-CHN-A): the refund state machine must match the
+// DEPLOYED escrow_v2 model. These markers are the Memba-side half of the
+// template↔on-chain parity check (the deployer-side check greps the same
+// markers in realms/escrow_v2 and in the EMIT_FIXTURES gate_escrow output).
+describe("generateEscrowCode — W1.6 refund parity with deployed escrow_v2", () => {
+    const code = generateEscrowCode(DEFAULT_CONFIG)
+
+    it("has the terminal MsRefunded status", () => {
+        expect(code).toContain('MsRefunded  MilestoneStatus = "refunded"')
+    })
+
+    it("ResolveDispute refund branch is TERMINAL (never back to MsPending)", () => {
+        const body = code.slice(code.indexOf("func ResolveDispute"), code.indexOf("func allMilestonesReleased"))
+        expect(body).toContain("ms.Status = MsRefunded")
+        expect(body).not.toContain("ms.Status = MsPending")
+    })
+
+    it("CancelContract pays only NEWLY-transitioned milestones (double-refund guard)", () => {
+        const body = code.slice(code.indexOf("func CancelContract"), code.indexOf("// ── Render"))
+        expect(body).toContain("newlyRefunded")
+        expect(body).toContain("newlyReleased")
+        // The exact buggy sweep: paying any MsPending milestone that was ever
+        // funded re-refunded dispute-refunded milestones.
+        expect(body).not.toMatch(/MsPending\s*&&\s*\w+\.FundedAt\s*>\s*0/)
+    })
+
+    it("cancel settles completed work to the freelancer (minus platform fee)", () => {
+        const body = code.slice(code.indexOf("func CancelContract"), code.indexOf("// ── Render"))
+        expect(body).toContain("Status == MsCompleted")
+        expect(body).toContain("PlatformFee")
+    })
+})
