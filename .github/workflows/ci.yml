@@ -55,8 +55,14 @@ jobs:
       - name: Vulnerability check
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && $(go env GOPATH)/bin/govulncheck ./...
 
+      # Must be the EXACT same invocation as deploy-backend.yml's Backend CI Gate
+      # Lint step. The unversioned module path installs golangci-lint v1, whose
+      # default exclusions suppress errcheck on Close() — so a PR passed here,
+      # then the v2 deploy gate failed post-merge and main was undeployable
+      # (#710). Pinned so a new v2.x release changing default linters/exclusions
+      # can't redden both gates with no code change.
       - name: Lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && $(go env GOPATH)/bin/golangci-lint run ./...
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 && golangci-lint run ./...
   frontend:
     name: Frontend (React · Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
