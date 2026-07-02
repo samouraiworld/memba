@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -277,6 +278,115 @@ func TestGetUserQuests_ApprovedClaim_Visible(t *testing.T) {
 	}
 	if cs.Status != "approved" {
 		t.Fatalf("expected approved, got %q", cs.Status)
+	}
+}
+
+// ── ReviewQuestClaim race safety ────────────────────────────
+//
+// The review flow used to be SELECT-check-then-unconditional-UPDATE: two
+// concurrent reviews could both pass the pending check and the last write
+// won — an approve/reject pair could leave granted XP behind a "rejected"
+// claim. The UPDATE is guarded (`WHERE status = 'pending'`) and checks
+// RowsAffected, so exactly one review can ever win a claim.
+
+func TestReviewQuestClaim_AlreadyReviewed_FailedPrecondition(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	h.reviewClaim(t, admin, claim.id, true)
+
+	_, err := h.svc.ReviewQuestClaim(context.Background(), connect.NewRequest(&membav1.ReviewQuestClaimRequest{
+		AuthToken: admin, ClaimId: claim.id, Approved: false,
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("expected FailedPrecondition on second review, got %v", err)
+	}
+
+	c := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	if c.status != "approved" {
+		t.Fatalf("approved claim must stay approved, got %q", c.status)
+	}
+}
+
+func TestReviewQuestClaim_ConcurrentApproveReject_ExactlyOneWins(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+	ctx := context.Background()
+
+	h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof")
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+
+	// Fire an approve and a reject concurrently from a shared start line. The
+	// interleaving isn't guaranteed to hit the race window on any single run,
+	// but the invariants below must hold on EVERY run.
+	start := make(chan struct{})
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	for i, approved := range []bool{true, false} {
+		wg.Go(func() {
+			<-start
+			_, errs[i] = h.svc.ReviewQuestClaim(ctx, connect.NewRequest(&membav1.ReviewQuestClaimRequest{
+				AuthToken: admin, ClaimId: claim.id, Approved: approved,
+			}))
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	// Exactly one review may win; the loser must see FailedPrecondition.
+	winners := 0
+	for _, err := range errs {
+		if err == nil {
+			winners++
+		} else if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("loser must fail with FailedPrecondition, got %v", err)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("expected exactly 1 winning review, got %d (errs=%v)", winners, errs)
+	}
+
+	// The final row must be consistent with the winner: a completion exists
+	// if and only if the surviving status is "approved".
+	c := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	var completions int
+	if err := h.db.QueryRow(
+		`SELECT COUNT(*) FROM quest_completions WHERE address = ? AND quest_id = ?`,
+		"g1alice", "fix-upstream-bug",
+	).Scan(&completions); err != nil {
+		t.Fatal("count completions:", err)
+	}
+	if c.status != "approved" && c.status != "rejected" {
+		t.Fatalf("expected approved or rejected, got %q", c.status)
+	}
+	if (c.status == "approved") != (completions == 1) {
+		t.Fatalf("inconsistent state: status=%q completions=%d", c.status, completions)
+	}
+}
+
+// The submit response must report the claim's REAL status: resubmitting on an
+// already-approved claim is a no-op and must not answer "pending" (the UI
+// would show a pending banner over an already-granted completion).
+func TestSubmitQuestClaim_Response_ReportsActualStatus(t *testing.T) {
+	t.Setenv("QUEST_ADMIN_ADDRESSES", "g1admin")
+	h := setup(t)
+	user := h.makeToken(t, "g1alice")
+	admin := h.makeToken(t, "g1admin")
+
+	if resp := h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/1", "proof"); resp.Status != "pending" {
+		t.Fatalf("fresh claim must report pending, got %q", resp.Status)
+	}
+	claim := h.getClaim(t, "g1alice", "fix-upstream-bug")
+	h.reviewClaim(t, admin, claim.id, true)
+
+	if resp := h.submitClaim(t, user, "fix-upstream-bug", "https://example.com/pr/2", "again"); resp.Status != "approved" {
+		t.Fatalf("no-op resubmit on approved claim must report approved, got %q", resp.Status)
 	}
 }
 
