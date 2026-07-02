@@ -1,26 +1,28 @@
-# Memba `contracts/` — template stubs for CI only
+# Memba `contracts/` — non-deployed realm sources only
 
-> ⚠️ **These `.gno` files are STUBS for template/local CI only. They are NEVER deployed.**
-> The canonical, deployed realm source is the **samcrew-deployer** repository. The deployed
-> on-chain state (paths, blocks, txHashes, ACL status) is tracked in
-> [`/realm-versions.json`](../realm-versions.json), which is **verified against the live chain**
-> (not from prose — see `docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md` §3.1 / G5).
+> ⚠️ **Nothing in this directory is deployed.** The canonical, deployed realm source is
+> the **samcrew-deployer** repository. The deployed on-chain state (paths, blocks,
+> txHashes, ACL status) is tracked in [`/realm-versions.json`](../realm-versions.json),
+> which is **verified against the live chain** (not from prose — see
+> `docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md` §3.1 / G5).
 
-These directories exist so the template/test tooling (`gno-test.yml`, `scripts/extract-contracts.ts`)
-has something to run against. Do **not** treat them as the source of what is live on-chain.
+## Template validation moved (W1.2)
 
-## Stub directories present here
+The hand-written `*_stub` realms and `scripts/extract-contracts.ts` are **gone**: they
+never exercised the real generators, so the "Gno Test & Lint" CI check was validating
+fakes. The authoritative gate is now `frontend/src/lib/templates.compile.test.ts`
+(run by `.github/workflows/gno-test.yml` with a pinned interrealm-v2 gno and
+`REQUIRE_GNO=1`): it lints **real generator output** for every template as **one gno
+workspace** (cross-realm imports resolved), with a toolchain probe and a negative
+control so it can never silently pass while checking nothing.
+
+## What remains here
 
 ```
 contracts/
-├── memba_dao_stub/          → stub for gno.land/r/samcrew/memba_dao
-├── memba_candidature_stub/  → stub for gno.land/r/samcrew/memba_dao_candidature_v2
-├── memba_channels_stub/     → stub for gno.land/r/samcrew/memba_dao_channels_v2
-└── escrow_stub/             → stub for gno.land/r/samcrew/escrow
+└── memba_nft_offers_v1/   → GATED offers stub (pre-interrealm-v2, not in the realm
+                             allowlist, not deployable as-is — kept for reference only)
 ```
-
-(Other deployed realms — `agent_registry`, `nft_market`, `gnobuilders_badges`, `tokenfactory` —
-have no stub here; their canonical source lives in samcrew-deployer.)
 
 ## Source of truth
 
@@ -30,12 +32,7 @@ The canonical, deployed realm code lives in the **samcrew-deployer** repo:
 samcrew-deployer/projects/memba/realms/
 ```
 
-All realms are deployed via 2-of-2 multisig using `samcrew-deployer`:
-
-```bash
-DEPLOY_KEY=samcrew-core-test1 MULTISIG_SIGNERS=zooma,adena-zxxma \
-  ./samcrew-deploy.sh test12 memba
-```
+All realms are deployed via 2-of-2 multisig using `samcrew-deployer`.
 
 ## Deployed state
 
