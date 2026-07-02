@@ -491,6 +491,16 @@ describe('generateDAOCode — governance hardening (W1.3)', () => {
         const fn = code.slice(code.indexOf('func executeAddMember'), code.indexOf('func executeRemoveMember'))
         expect(fn).toContain('assertRole(')
         expect(fn).toMatch(/power < 0/)
+        // Empty roles is allowed (a role-less power-holder): the assertRole loop
+        // must be guarded so assertRole("") can't brick an ACCEPTED proposal.
+        expect(fn).toMatch(/parts\[2\] != ""/)
+    })
+
+    it('ProposeAddMember fails fast on invalid roles / negative power (CHN-4)', () => {
+        const code = generateDAOCode(makeConfig())
+        const fn = code.slice(code.indexOf('func ProposeAddMember'), code.indexOf('func ProposeRemoveMember'))
+        expect(fn).toContain('assertRole(')
+        expect(fn).toMatch(/power < 0/)
     })
 
     it('documents the ABSTAIN/quorum semantics at the tally site', () => {

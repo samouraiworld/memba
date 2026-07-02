@@ -92,6 +92,11 @@ export interface DAOCreationConfig {
      * single YES vote makes a proposal mathematically final could otherwise
      * propose-and-execute in the same block, before members even see it.
      *
+     * Independent of votingPeriodBlocks by design — this is a timelock, and a
+     * timelock LONGER than the voting window is a legitimate pattern (Compound-
+     * style). Execution never checks ExpiresAt, so an ACCEPTED proposal stays
+     * executable once the delay elapses even if voting has since closed.
+     *
      * Quorum & ABSTAIN semantics (documented per W1.3): all percentages use the
      * FULL member power as denominator. `quorum` counts participation — YES, NO
      * and ABSTAIN all count toward it. `threshold` is the YES share needed to
@@ -570,6 +575,17 @@ func ProposeAddMember(cur realm, targetAddr address, power int, roles string) in
 \tif _, exists := members.Get(string(targetAddr)); exists {
 \t\tpanic("address is already a member")
 \t}
+\t// W1.3: fail fast on bad power/roles at propose time (mirrors ProposeAssignRole
+\t// + executeAddMember) so a member never wastes a vote on a proposal that can
+\t// only abort at execution. Empty roles is allowed (a plain power-holder).
+\tif power < 0 {
+\t\tpanic("power must be non-negative")
+\t}
+\tif roles != "" {
+\t\tfor _, r := range strings.Split(roles, ",") {
+\t\t\tassertRole(r)
+\t\t}
+\t}
 \ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
 \tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
 \tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
@@ -612,11 +628,17 @@ func executeAddMember(data string) {
 \tif power < 0 {
 \t\tpanic("invalid power in action data: must be non-negative")
 \t}
-\troles := strings.Split(parts[2], ",")
 \t// W1.3 CHN-4: validate every role against allowedRoles — mirrors
 \t// executeAssignRole; unvalidated roles slipped in via proposal ActionData.
-\tfor _, r := range roles {
-\t\tassertRole(r)
+\t// Empty roles is a valid shape (a plain power-holder with no permissions):
+\t// strings.Split("", ",") yields [""], so guard it or assertRole("") would
+\t// wrongly brick an ACCEPTED empty-roles proposal forever.
+\tvar roles []string
+\tif parts[2] != "" {
+\t\troles = strings.Split(parts[2], ",")
+\t\tfor _, r := range roles {
+\t\t\tassertRole(r)
+\t\t}
 \t}
 \tif _, exists := members.Get(string(addr)); exists {
 \t\tpanic("address is already a member")

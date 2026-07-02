@@ -67,6 +67,19 @@ func mustAbort(t *testing.T, what string, fn func()) {
 \t}
 }
 
+// mustPanicDirect is for a NON-crossing internal call (e.g. executeAddMember):
+// its panic is an ordinary same-realm panic that recover() catches; revive()
+// would re-raise it.
+func mustPanicDirect(t *testing.T, what string, fn func()) {
+\tt.Helper()
+\tdefer func() {
+\t\tif r := recover(); r == nil {
+\t\t\tt.Fatalf("expected panic (%s), got none", what)
+\t\t}
+\t}()
+\tfn()
+}
+
 // CHN-5: REJECT fires exactly when passage becomes impossible — not on the old
 // asymmetric NO-threshold, which would NOT have rejected this proposal
 // (NO=30% is not > 40%) even though it can never pass.
@@ -125,33 +138,51 @@ func TestExecutionDelayFloor(cur realm, t *testing.T) {
 \t}
 }
 
-// CHN-4: the real attack path — an add_member proposal whose ActionData smuggles
-// a role outside allowedRoles (or a negative power) must abort at execution.
-// Before W1.3, executeAddMember stored whatever the ActionData said.
-func TestExecuteAddMemberValidatesRoles(cur realm, t *testing.T) {
+// CHN-4 (fail fast): ProposeAddMember rejects an invalid role / negative power
+// at PROPOSE time, so a member never wastes a vote on an unexecutable proposal.
+func TestProposeAddMemberRejectsBadInput(cur realm, t *testing.T) {
 \ttarget := address("${"g1" + "z".repeat(38)}")
 \ttesting.SetRealm(alice)
-\tid := ProposeAddMember(cross(cur), target, 5, "hacker")
+\tmustAbort(t, "invalid role at propose", func() {
+\t\tProposeAddMember(cross(cur), target, 5, "hacker")
+\t})
+\tmustAbort(t, "negative power at propose", func() {
+\t\tProposeAddMember(cross(cur), target, -5, "member")
+\t})
+}
+
+// CHN-4 (defense in depth): executeAddMember is the authoritative guard — even
+// if a proposal's ActionData is malformed, execution validates it independently.
+func TestExecuteAddMemberValidatesActionData(t *testing.T) {
+\tbad := "${"g1" + "z".repeat(38)}"
+\tmustPanicDirect(t, "invalid role in ActionData", func() {
+\t\texecuteAddMember(bad + "|5|hacker")
+\t})
+\tmustPanicDirect(t, "negative power in ActionData", func() {
+\t\texecuteAddMember(bad + "|-5|member")
+\t})
+}
+
+// CHN-4 regression guard: empty roles is a VALID shape (a plain power-holder).
+// strings.Split("",",")==[""] would make assertRole("") brick an ACCEPTED
+// proposal forever — prove the full path succeeds and adds a role-less member.
+func TestAddMemberEmptyRolesSucceeds(cur realm, t *testing.T) {
+\ttarget := address("${"g1" + "w".repeat(38)}")
+\ttesting.SetRealm(alice)
+\tid := ProposeAddMember(cross(cur), target, 7, "")
 \tVoteOnProposal(cross(cur), id, "YES") // 50
 \ttesting.SetRealm(bob)
 \tVoteOnProposal(cross(cur), id, "YES") // 80 >= 60 → ACCEPTED
 \ttesting.SkipHeights(601)
-\tmustAbort(t, "invalid role in ActionData", func() {
-\t\tExecuteProposal(cross(cur), id)
-\t})
-}
+\tExecuteProposal(cross(cur), id)
 
-func TestExecuteAddMemberRejectsNegativePower(cur realm, t *testing.T) {
-\ttarget := address("${"g1" + "y".repeat(38)}")
-\ttesting.SetRealm(alice)
-\tid := ProposeAddMember(cross(cur), target, -5, "member")
-\tVoteOnProposal(cross(cur), id, "YES")
-\ttesting.SetRealm(bob)
-\tVoteOnProposal(cross(cur), id, "YES")
-\ttesting.SkipHeights(601)
-\tmustAbort(t, "negative power in ActionData", func() {
-\t\tExecuteProposal(cross(cur), id)
-\t})
+\tv, ok := members.Get(string(target))
+\tif !ok {
+\t\tt.Fatal("empty-roles member was not added")
+\t}
+\tif m := v.(*Member); len(m.Roles) != 0 || m.Power != 7 {
+\t\tt.Fatalf("want power 7 with no roles, got power %d roles %v", m.Power, m.Roles)
+\t}
 }
 `
 
@@ -252,8 +283,9 @@ describeGno("generated DAO governance proves out under `gno test` (W1.3)", () =>
                 "TestRejectOnImpossibility",
                 "TestAcceptOnlyWhenIrreversible",
                 "TestExecutionDelayFloor",
-                "TestExecuteAddMemberValidatesRoles",
-                "TestExecuteAddMemberRejectsNegativePower",
+                "TestProposeAddMemberRejectsBadInput",
+                "TestExecuteAddMemberValidatesActionData",
+                "TestAddMemberEmptyRolesSucceeds",
             ]) {
                 expect(out, `expected an explicit PASS for ${name}`).toContain(`--- PASS: ${name}`)
             }
