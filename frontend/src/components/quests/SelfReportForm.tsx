@@ -4,10 +4,16 @@
  * Self-report quests (e.g. "get a PR merged to gnolang/gno") can't be verified
  * on-chain, so the user submits a proof URL and/or description. An admin reviews
  * it on the quest-admin page; on approval the backend records the completion.
+ *
+ * The backend claim status is the source of truth: pending shows a waiting
+ * banner, approved shows a done banner, and REJECTED shows the rejection and
+ * re-opens the form so the user can resubmit better proof (the backend reopens
+ * a rejected claim as pending). localStorage (hasSubmittedClaim) is only an
+ * optimistic hint while the status loads or the backend is unreachable.
  */
 
-import { useState } from "react"
-import { hasSubmittedClaim, submitQuestClaim } from "../../lib/questClaims"
+import { useEffect, useState } from "react"
+import { fetchQuestClaimStatuses, hasSubmittedClaim, submitQuestClaim } from "../../lib/questClaims"
 import type { Token } from "../../gen/memba/v1/memba_pb"
 
 interface SelfReportFormProps {
@@ -16,14 +22,29 @@ interface SelfReportFormProps {
     authToken: Token | null
 }
 
+/** What the form knows about the user's claim for this quest. */
+type ClaimView = "none" | "pending" | "approved" | "rejected"
+
 export function SelfReportForm({ questId, address, authToken }: SelfReportFormProps) {
     const [proofUrl, setProofUrl] = useState("")
     const [proofText, setProofText] = useState("")
     const [submitting, setSubmitting] = useState(false)
-    const [submitted, setSubmitted] = useState(() => hasSubmittedClaim(address, questId))
     const [error, setError] = useState("")
+    // Optimistic hint until the backend answers: a locally-recorded submission
+    // renders as pending so the form doesn't flash open on reload.
+    const [view, setView] = useState<ClaimView>(() =>
+        hasSubmittedClaim(address, questId) ? "pending" : "none")
 
-    if (submitted) {
+    useEffect(() => {
+        let cancelled = false
+        fetchQuestClaimStatuses(address).then(statuses => {
+            if (cancelled || !statuses) return // unreachable — keep the local hint
+            setView(statuses.get(questId)?.status ?? "none")
+        })
+        return () => { cancelled = true }
+    }, [address, questId])
+
+    if (view === "pending") {
         return (
             <div className="k-questdetail-result k-questdetail-result--pending" role="status">
                 <span>Proof submitted — pending admin review.</span>
@@ -31,6 +52,15 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
         )
     }
 
+    if (view === "approved") {
+        return (
+            <div className="k-questdetail-result k-questdetail-result--verified" role="status">
+                <span>Proof approved — quest completed.</span>
+            </div>
+        )
+    }
+
+    const isResubmit = view === "rejected"
     const canSubmit = !!authToken && (proofUrl.trim() !== "" || proofText.trim() !== "")
 
     const handleSubmit = async () => {
@@ -39,7 +69,7 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
         setError("")
         try {
             await submitQuestClaim(authToken, address, questId, proofUrl.trim(), proofText.trim())
-            setSubmitted(true)
+            setView("pending")
         } catch {
             setError("Submission failed — please try again.")
         } finally {
@@ -49,6 +79,11 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
 
     return (
         <div className="k-questdetail-selfreport">
+            {isResubmit && (
+                <div className="k-questdetail-result k-questdetail-result--error" role="status">
+                    <span>Your previous proof was rejected. You can submit new proof below.</span>
+                </div>
+            )}
             <p className="k-questdetail-hint">
                 This quest is verified by proof. Add a link and/or a short description; an admin will review it.
             </p>
@@ -77,7 +112,7 @@ export function SelfReportForm({ questId, address, authToken }: SelfReportFormPr
                 onClick={handleSubmit}
                 disabled={submitting || !canSubmit}
             >
-                {submitting ? "Submitting…" : "Submit proof"}
+                {submitting ? "Submitting…" : isResubmit ? "Resubmit proof" : "Submit proof"}
             </button>
             {!authToken && <p className="k-questdetail-hint">Connect your wallet to submit.</p>}
             {error && (

@@ -350,7 +350,40 @@ func (s *MultisigService) GetUserQuests(ctx context.Context, req *connect.Reques
 		return nil, internalError("GetUserQuests", err)
 	}
 
-	return connect.NewResponse(&membav1.GetUserQuestsResponse{State: state}), nil
+	claimStatuses, err := s.loadQuestClaimStatuses(ctx, addr)
+	if err != nil {
+		return nil, internalError("GetUserQuests.claims", err)
+	}
+
+	return connect.NewResponse(&membav1.GetUserQuestsResponse{
+		State:         state,
+		ClaimStatuses: claimStatuses,
+	}), nil
+}
+
+// loadQuestClaimStatuses returns the self-report claim lifecycle rows for an
+// address. Status only — proof_url/proof_text are excluded because GetUserQuests
+// is a public, unauthenticated read.
+func (s *MultisigService) loadQuestClaimStatuses(ctx context.Context, addr string) ([]*membav1.QuestClaimStatus, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT quest_id, status, created_at, COALESCE(reviewed_at, '')
+		 FROM quest_claims WHERE address = ? ORDER BY created_at DESC`,
+		addr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var statuses []*membav1.QuestClaimStatus
+	for rows.Next() {
+		cs := &membav1.QuestClaimStatus{}
+		if err := rows.Scan(&cs.QuestId, &cs.Status, &cs.CreatedAt, &cs.ReviewedAt); err != nil {
+			return nil, err
+		}
+		statuses = append(statuses, cs)
+	}
+	return statuses, rows.Err()
 }
 
 // SyncQuests imports localStorage quest completions to backend.
