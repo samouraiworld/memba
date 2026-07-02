@@ -1,9 +1,13 @@
 /**
  * W1.4 structured-reads proof — runs the GENERATED DAO realm under the real gno
  * test machine and asserts:
- *   - GetProposalsJSON / GetMembersJSON emit VALID JSON that round-trips through
- *     JSON.parse (incl. a title with quotes/newlines — the escaping must hold)
- *   - the JSON keys match the snake_case shape dao/proposals.ts already reads
+ *   - GetProposalsJSON / GetMembersJSON emit well-formed JSON (the realm-side
+ *     ENCODER: jsonEsc escaping + array structure), parsed here from the RAW
+ *     realm output. NOTE: this does NOT exercise the qeval wire format or the
+ *     frontend decoder — that end-to-end path (Go-quote → parseQevalJSON) is
+ *     proven by dao/qevalJSON.test.ts, which is the regression guard for the
+ *     backslash/newline double-escape bug.
+ *   - the JSON keys match the snake_case shape dao/proposals.ts reads
  *   - Render("?page=2") returns the SECOND page (the old page:N never matched
  *     the frontend's ?page=N → pages 2+ silently 404'd)
  *   - the footer emits clickable [N](?page=N) links (detectMaxPage needs them)
@@ -63,6 +67,11 @@ func seed(cur realm) {
 }
 
 func TestJSONExportsAndPagination(cur realm, t *testing.T) {
+\t// Empty case first: the array encoder must yield "[]", never "" or "[,]".
+\tif got := GetProposalsJSON(); got != "[]" {
+\t\tt.Fatalf("empty GetProposalsJSON: want [], got %s", got)
+\t}
+
 \tseed(cur)
 
 \tif GetAPIVersion() != "1.0" {
@@ -198,8 +207,8 @@ describeGno("generated DAO structured reads prove out under `gno test` (W1.4)", 
         expect(res.status, `gno test failed:\n${out}`).toBe(0)
         expect(out, "expected an explicit PASS").toContain("--- PASS: TestJSONExportsAndPagination")
 
-        // The realm printed both blobs — JSON.parse them exactly as the frontend
-        // would after unwrapping the qeval string, proving the escaping holds.
+        // The realm printed both raw blobs — parse them to prove the ENCODER
+        // produces well-formed JSON. (The wire-format decode is dao/qevalJSON.test.ts.)
         const pJson = out.match(/PROPOSALS_JSON:(\[.*\])/)?.[1]
         const mJson = out.match(/MEMBERS_JSON:(\[.*\])/)?.[1]
         expect(pJson, "realm did not print PROPOSALS_JSON").toBeTruthy()
