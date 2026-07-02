@@ -413,7 +413,11 @@ export async function resolveCandidatureEligibility(
     const state = await fetchQuests(address)
     if (!state) return { eligible: canApplyForMembership(), verifiedXP: null }
     const verifiedXP = state.verifiedXP ?? 0
-    return { eligible: isEligibleForCandidature(verifiedXP, isLegacyEligible()), verifiedXP }
+    // Legacy grandfathering is deliberately NOT applied on the authoritative path:
+    // isLegacyEligible() is a client-settable localStorage flag, and honoring it here
+    // would lower the gate from 350 to 100 verified XP for anyone with devtools.
+    // It only softens the local fallback above (which is non-authoritative anyway).
+    return { eligible: isEligibleForCandidature(verifiedXP, false), verifiedXP }
 }
 
 // ── Page Visit Tracking ──────────────────────────────────────

@@ -98,6 +98,18 @@ func TestGetUserQuests_VerifiedXP(t *testing.T) {
 	if s := getState(t); s.TotalXp != 95 || s.VerifiedXp != 45 {
 		t.Fatalf("after unapproved self_report row: want total=95 verified=45, got total=%d verified=%d", s.TotalXp, s.VerifiedXp)
 	}
+
+	// Server-derived meta-quests (grantDerivedMetaQuests inserts rows directly,
+	// bypassing verifyQuestCompletable) are off_chain-classed: their XP must
+	// never count toward verified_xp.
+	if _, err := h.db.Exec(
+		`INSERT INTO quest_completions (address, quest_id, completed_at, proof) VALUES ('g1alice', 'earn-500-xp', '2026-01-01T00:00:00Z', '')`,
+	); err != nil {
+		t.Fatal("seed derived meta-quest row:", err)
+	}
+	if s := getState(t); s.TotalXp != 120 || s.VerifiedXp != 45 {
+		t.Fatalf("after derived meta-quest row: want total=120 verified=45, got total=%d verified=%d", s.TotalXp, s.VerifiedXp)
+	}
 }
 
 func TestCompleteQuest_Idempotent(t *testing.T) {

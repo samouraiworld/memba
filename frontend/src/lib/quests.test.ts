@@ -164,6 +164,15 @@ describe("resolveCandidatureEligibility (backend-authoritative, verified XP)", (
         expect(res.eligible).toBe(false)
         expect(res.verifiedXP).toBe(0)
     })
+    it("connected: a spoofed legacy-eligibility localStorage flag does NOT lower the gate to 100 verified XP", async () => {
+        // Attacker sets the (client-side) legacy grandfathering flag from devtools…
+        localStorage.setItem("memba_legacy_candidature", "true")
+        // …with 100 verified XP (enough for the legacy threshold, not the real one):
+        // the authoritative path must ignore the client flag and stay ineligible.
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 500, verifiedXP: 100 }))
+        expect(res.eligible).toBe(false)
+    })
+
     it("disconnected: falls back to the local check (0 XP → ineligible), no verified XP known", async () => {
         const res = await resolveCandidatureEligibility(undefined, async () => ({ completed: [], totalXP: 400, verifiedXP: 400 }))
         expect(res.eligible).toBe(false)
