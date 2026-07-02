@@ -139,6 +139,8 @@ fly machine start <machine-id> -a memba-backend
 
 Memba's SQLite is not the source of truth for user-visible state — DAOs, multisigs, tokens all live on-chain. The backend DB stores: profile preferences, multisig coordination metadata, quest progress, analyst cache, oauth scratch state. Worst-case loss is degraded UX, not lost user funds.
 
+**Automatic first line of defense (start.sh):** every boot runs `memba integrity-check` (`PRAGMA integrity_check`) against `/data/memba.db` before Litestream starts. A corrupt file is quarantined as `/data/memba.db.corrupt-<ts>` (plus its `-wal`/`-shm`) and the DB is restored from the Litestream S3 replica automatically. If that restore FAILS the machine exits loudly on purpose — a fresh empty DB would present as total data loss. Recovery order in that case: (1) local `VACUUM INTO` backups at `/data/backups/` (daily), (2) volume snapshot per §4.3, (3) clean start below. The quarantined file stays on the volume for forensics — delete it once resolved.
+
 If a snapshot restore isn't possible, drop the bad DB and the app starts clean on next deploy:
 
 ```bash
