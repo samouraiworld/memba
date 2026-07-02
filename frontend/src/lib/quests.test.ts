@@ -140,23 +140,48 @@ describe("isEligibleForCandidature (pure)", () => {
     })
 })
 
-describe("resolveCandidatureEligibility (backend-authoritative)", () => {
-    it("connected: gates on BACKEND XP, ignoring an inflated localStorage value (closes the bypass)", async () => {
+describe("resolveCandidatureEligibility (backend-authoritative, verified XP)", () => {
+    it("connected: gates on BACKEND verified XP, ignoring an inflated localStorage value (closes the bypass)", async () => {
         // Attacker inflates localStorage to fake 999 XP…
         localStorage.setItem("memba_quests_g1abc", JSON.stringify({ completed: [], totalXP: 999 }))
-        // …but the backend (authoritative) reports only 50 XP → must stay ineligible.
-        const eligible = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 50 }))
-        expect(eligible).toBe(false)
+        // …but the backend (authoritative) reports only 50 verified XP → must stay ineligible.
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 999, verifiedXP: 50 }))
+        expect(res.eligible).toBe(false)
+        expect(res.verifiedXP).toBe(50)
     })
-    it("connected: eligible when backend XP meets the threshold", async () => {
-        const eligible = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 400 }))
-        expect(eligible).toBe(true)
+    it("connected: total XP above the threshold but verified XP below → NOT eligible (BE-4: off_chain XP excluded)", async () => {
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 400, verifiedXP: 40 }))
+        expect(res.eligible).toBe(false)
+        expect(res.verifiedXP).toBe(40)
     })
-    it("disconnected: falls back to the local check (0 XP → ineligible)", async () => {
-        expect(await resolveCandidatureEligibility(undefined, async () => ({ completed: [], totalXP: 400 }))).toBe(false)
+    it("connected: eligible when backend VERIFIED XP meets the threshold", async () => {
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 400, verifiedXP: 350 }))
+        expect(res.eligible).toBe(true)
+        expect(res.verifiedXP).toBe(350)
+    })
+    it("connected: backend state without verifiedXP (older backend) counts as 0 verified", async () => {
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 400 }))
+        expect(res.eligible).toBe(false)
+        expect(res.verifiedXP).toBe(0)
+    })
+    it("connected: a spoofed legacy-eligibility localStorage flag does NOT lower the gate to 100 verified XP", async () => {
+        // Attacker sets the (client-side) legacy grandfathering flag from devtools…
+        localStorage.setItem("memba_legacy_candidature", "true")
+        // …with 100 verified XP (enough for the legacy threshold, not the real one):
+        // the authoritative path must ignore the client flag and stay ineligible.
+        const res = await resolveCandidatureEligibility("g1abc", async () => ({ completed: [], totalXP: 500, verifiedXP: 100 }))
+        expect(res.eligible).toBe(false)
+    })
+
+    it("disconnected: falls back to the local check (0 XP → ineligible), no verified XP known", async () => {
+        const res = await resolveCandidatureEligibility(undefined, async () => ({ completed: [], totalXP: 400, verifiedXP: 400 }))
+        expect(res.eligible).toBe(false)
+        expect(res.verifiedXP).toBeNull()
     })
     it("backend unreachable: degrades to the local check, does not crash", async () => {
-        expect(await resolveCandidatureEligibility("g1abc", async () => null)).toBe(false)
+        const res = await resolveCandidatureEligibility("g1abc", async () => null)
+        expect(res.eligible).toBe(false)
+        expect(res.verifiedXP).toBeNull()
     })
 })
 

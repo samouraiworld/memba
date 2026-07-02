@@ -190,6 +190,32 @@ describe("QuestProgress — Candidature CTA", () => {
         expect(screen.queryByTestId("candidature-unlock-ready")).not.toBeInTheDocument()
         expect(screen.queryByTestId("candidature-unlock-locked")).not.toBeInTheDocument()
     })
+
+    // BE-4: the eligibility accent must follow VERIFIED XP, not total XP —
+    // off_chain XP does not count toward the candidature gate (threshold 30 in mocks).
+    it("address mode: high total XP but low verified XP is NOT marked eligible", async () => {
+        vi.mocked(questsMock.fetchUserQuests).mockResolvedValue({
+            completed: [{ questId: "q1", completedAt: Date.now() }],
+            totalXP: 45,
+            verifiedXP: 10,
+        })
+
+        renderWithRouter(<QuestProgress address="g1other..." />)
+        const xp = await screen.findByText("45 XP")
+        expect(xp.className).not.toContain("quest-hub__xp--eligible")
+    })
+
+    it("address mode: verified XP at the threshold IS marked eligible", async () => {
+        vi.mocked(questsMock.fetchUserQuests).mockResolvedValue({
+            completed: [{ questId: "q1", completedAt: Date.now() }],
+            totalXP: 45,
+            verifiedXP: 30,
+        })
+
+        renderWithRouter(<QuestProgress address="g1verified..." />)
+        const xp = await screen.findByText("45 XP")
+        expect(xp.className).toContain("quest-hub__xp--eligible")
+    })
 })
 
 describe("QuestProgress — Compact Mode", () => {
