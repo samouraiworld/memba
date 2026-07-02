@@ -1,6 +1,13 @@
 /**
  * Board Template Generator — generates Gno realm code for a DAO discussion board.
  *
+ * @deprecated W1.5 companion-realm unification: the CreateDAO wizard now
+ * deploys the hardened channels realm (channelTemplate.ts) — do NOT wire this
+ * generator into any new deploy path. The generator and deploy builders stay
+ * only so already-deployed `_board` realms remain covered by the compile gate
+ * and readable/postable through the board plugin's v1 MsgCall builders below
+ * (buildCreateThreadMsg / buildReplyToThreadMsg), which are NOT deprecated.
+ *
  * Creates a self-contained board realm with:
  * - Channel management (#general auto-created)
  * - Thread creation (title + Markdown body)
@@ -36,7 +43,10 @@ export interface BoardConfig {
     minPostInterval: number
 }
 
-/** Default board configuration factory from a DAO realm path. */
+/**
+ * Default board configuration factory from a DAO realm path.
+ * @deprecated Use `defaultChannelConfig` from channelTemplate for new deploys.
+ */
 export function defaultBoardConfig(daoRealmPath: string, daoName: string): BoardConfig {
     return {
         daoRealmPath,
@@ -56,6 +66,7 @@ export const isValidChannel = isValidChannelName
 /**
  * Generate Gno realm source code for a DAO discussion board.
  * Returns a self-contained .gno file as a string.
+ * @deprecated Use `generateChannelCode` from channelTemplate for new deploys.
  */
 export function generateBoardCode(config: BoardConfig): string {
     // W1.1 fail-closed: daoRealmPath lands in an import statement — a crafted

@@ -1,26 +1,28 @@
 /**
  * WizardStepExtensions — Step 4 of CreateDAO wizard.
  *
- * Lets users toggle optional plugins (Board, GnoSwap, Leaderboard)
- * and configure their settings before deployment.
+ * Lets users toggle optional plugins (Channels, GnoSwap, Leaderboard)
+ * and configure their settings before deployment. W1.5: the discussion
+ * extension deploys the hardened channels realm (channelTemplate) — the
+ * legacy board realm is deprecated for new deploys.
  */
 
 import { useState } from "react"
 import { FormField, inputStyle, type Step } from "./wizardShared"
-import { isValidChannel } from "../../lib/boardTemplate"
+import { isValidChannelName } from "../../lib/channelTemplate"
 
 interface Props {
-    enableBoard: boolean
-    boardChannels: string[]
-    onEnableBoardChange: (v: boolean) => void
-    onBoardChannelsChange: (v: string[]) => void
+    enableChannels: boolean
+    channelNames: string[]
+    onEnableChannelsChange: (v: boolean) => void
+    onChannelNamesChange: (v: string[]) => void
     onGoToStep: (s: Step) => void
     onNext: () => void
 }
 
 export function WizardStepExtensions({
-    enableBoard, boardChannels,
-    onEnableBoardChange, onBoardChannelsChange,
+    enableChannels, channelNames,
+    onEnableChannelsChange, onChannelNamesChange,
     onGoToStep, onNext,
 }: Props) {
     const [newChannel, setNewChannel] = useState("")
@@ -29,26 +31,26 @@ export function WizardStepExtensions({
     const addChannel = () => {
         const name = newChannel.trim().toLowerCase()
         if (!name) return
-        if (!isValidChannel(name)) {
+        if (!isValidChannelName(name)) {
             setChannelError("Must start with a letter, only a-z, 0-9, _, -")
             return
         }
-        if (boardChannels.includes(name)) {
+        if (channelNames.includes(name)) {
             setChannelError("Channel already exists")
             return
         }
-        if (boardChannels.length >= 5) {
+        if (channelNames.length >= 5) {
             setChannelError("Maximum 5 initial channels")
             return
         }
-        onBoardChannelsChange([...boardChannels, name])
+        onChannelNamesChange([...channelNames, name])
         setNewChannel("")
         setChannelError(null)
     }
 
     const removeChannel = (ch: string) => {
         if (ch === "general") return // can't remove default
-        onBoardChannelsChange(boardChannels.filter(c => c !== ch))
+        onChannelNamesChange(channelNames.filter(c => c !== ch))
     }
 
     return (
@@ -62,48 +64,48 @@ export function WizardStepExtensions({
                 </p>
             </div>
 
-            {/* Board Extension */}
+            {/* Channels Extension */}
             <div
                 className="k-card"
                 style={{
                     padding: 20,
-                    border: enableBoard ? "1px solid rgba(0,212,170,0.3)" : "1px solid rgba(255,255,255,0.06)",
-                    background: enableBoard ? "rgba(0,212,170,0.03)" : "rgba(255,255,255,0.02)",
+                    border: enableChannels ? "1px solid rgba(0,212,170,0.3)" : "1px solid rgba(255,255,255,0.06)",
+                    background: enableChannels ? "rgba(0,212,170,0.03)" : "rgba(255,255,255,0.02)",
                     transition: "all 0.2s",
                 }}
             >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enableBoard ? 16 : 0 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enableChannels ? 16 : 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 22 }}>💬</span>
                         <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Discussion Board</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Discussion Channels</div>
                             <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
-                                Channels, threads, and replies for DAO members
+                                Role-gated channels with threads and replies for DAO members
                             </div>
                         </div>
                     </div>
                     <button
-                        onClick={() => onEnableBoardChange(!enableBoard)}
+                        onClick={() => onEnableChannelsChange(!enableChannels)}
                         style={{
                             width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                            background: enableBoard ? "var(--color-brand)" : "rgba(255,255,255,0.1)",
+                            background: enableChannels ? "var(--color-brand)" : "rgba(255,255,255,0.1)",
                             position: "relative", transition: "background 0.2s",
                         }}
                     >
                         <div style={{
                             width: 18, height: 18, borderRadius: "50%", background: "var(--color-text-primary)",
                             position: "absolute", top: 3,
-                            left: enableBoard ? 23 : 3, transition: "left 0.2s",
+                            left: enableChannels ? 23 : 3, transition: "left 0.2s",
                         }} />
                     </button>
                 </div>
 
-                {/* Channel config (shown when board enabled) */}
-                {enableBoard && (
+                {/* Channel config (shown when channels enabled) */}
+                {enableChannels && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         <FormField label="Initial Channels" hint="Auto-created channels. #general is always included.">
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                                {boardChannels.map(ch => (
+                                {channelNames.map(ch => (
                                     <span
                                         key={ch}
                                         style={{

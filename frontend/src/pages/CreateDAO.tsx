@@ -11,7 +11,8 @@ import { WizardStepReview } from "../components/dao/WizardStepReview"
 import { WizardStepExtensions } from "../components/dao/WizardStepExtensions"
 import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, daoStepError, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
-import { generateBoardCode, buildDeployBoardMsg, defaultBoardConfig } from "../lib/boardTemplate"
+import { generateChannelCode, defaultChannelConfig } from "../lib/channelTemplate"
+import { buildDeployMsg } from "../lib/templates/prologue"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
 import { getGasConfig } from "../lib/gasConfig"
@@ -30,8 +31,11 @@ interface DraftData {
     members: MemberInput[]
     threshold: number
     quorum: number
-    enableBoard: boolean
-    boardChannels: string[]
+    enableChannels?: boolean
+    channelNames?: string[]
+    /** Legacy draft fields (pre-W1.5 board naming) — read-only fallback. */
+    enableBoard?: boolean
+    boardChannels?: string[]
     availableRoles: string[]; proposalCategories: string[]
     selectedPreset: string | null; step: Step
     savedAt: number
@@ -80,8 +84,8 @@ export function CreateDAO() {
     const [availableRoles, setAvailableRoles] = useState<string[]>(["admin", "member"])
     const [proposalCategories, setProposalCategories] = useState<string[]>(["governance"])
     const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
-    const [enableBoard, setEnableBoard] = useState(false)
-    const [boardChannels, setBoardChannels] = useState<string[]>(["general"])
+    const [enableChannels, setEnableChannels] = useState(false)
+    const [channelNames, setChannelNames] = useState<string[]>(["general"])
     const [deploying, setDeploying] = useState(false)
     const [deployStep, setDeployStep] = useState<DeployStep>("idle")
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
@@ -112,8 +116,10 @@ export function CreateDAO() {
         setQuorum(draft.quorum)
         setAvailableRoles(draft.availableRoles)
         setProposalCategories(draft.proposalCategories)
-        if (draft.enableBoard !== undefined) setEnableBoard(draft.enableBoard)
-        if (draft.boardChannels) setBoardChannels(draft.boardChannels)
+        const draftEnable = draft.enableChannels ?? draft.enableBoard
+        if (draftEnable !== undefined) setEnableChannels(draftEnable)
+        const draftNames = draft.channelNames ?? draft.boardChannels
+        if (draftNames) setChannelNames(draftNames)
         setSelectedPreset(draft.selectedPreset)
         setStep(draft.step)
         setShowDraftBanner(false)
@@ -133,12 +139,12 @@ export function CreateDAO() {
                 saveDraft({
                     name, description, realmPath, members,
                     threshold, quorum, availableRoles, proposalCategories,
-                    selectedPreset, step, enableBoard, boardChannels,
+                    selectedPreset, step, enableChannels, channelNames,
                 })
             }
         }, 500)
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableBoard, boardChannels])
+    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableChannels, channelNames])
 
     // ── Preset ────────────────────────────────────────────
 
@@ -257,26 +263,33 @@ export function CreateDAO() {
 
             addSavedDAO(realmPath, name)
 
-            // ── Deploy Board companion realm if enabled ──
-            if (enableBoard) {
+            // ── Deploy Channels companion realm if enabled (W1.5: hardened
+            // channels path — boardTemplate is deprecated for new deploys) ──
+            if (enableChannels) {
                 setDeployStep("preparing")
                 try {
-                    const boardConfig = defaultBoardConfig(realmPath, name)
-                    boardConfig.channels = boardChannels
-                    const boardCode = generateBoardCode(boardConfig)
-                    const boardMsg = buildDeployBoardMsg(adena.address, boardConfig.boardRealmPath, boardCode, "10000000ugnot")
-                    const boardRes = await adenaWallet.DoContract({
-                        messages: [{ type: "/vm.m_addpkg", value: boardMsg.value }],
+                    const channelConfig = defaultChannelConfig(realmPath, name)
+                    channelConfig.channels = channelNames.map((n) => ({
+                        name: n, type: "text", acl: { readRoles: [], writeRoles: [] },
+                    }))
+                    // Seed the roster from the wizard's member step so role-gated
+                    // channels work from block one; later DAO members are admitted
+                    // via the realm's parent.IsMember() fallback.
+                    channelConfig.members = config.members.map((m) => ({ address: m.address, roles: m.roles }))
+                    const channelCode = generateChannelCode(channelConfig)
+                    const channelMsg = buildDeployMsg(adena.address, channelConfig.channelRealmPath, channelCode, "10000000ugnot")
+                    const channelRes = await adenaWallet.DoContract({
+                        messages: [{ type: "/vm.m_addpkg", value: channelMsg.value }],
                         gasFee: gas.fee,
                         gasWanted: gas.deployWanted,
-                        memo: `Deploy Board for ${name}`,
+                        memo: `Deploy Channels for ${name}`,
                     })
-                    if (boardRes.status === "failure") {
-                        console.warn("[Memba] Board deploy failed:", boardRes.message)
-                        // Non-fatal: DAO is deployed, board can be deployed later
+                    if (channelRes.status === "failure") {
+                        console.warn("[Memba] Channels deploy failed:", channelRes.message)
+                        // Non-fatal: DAO is deployed, channels can be deployed later
                     }
-                } catch (boardErr) {
-                    console.warn("[Memba] Board deploy error:", boardErr)
+                } catch (channelErr) {
+                    console.warn("[Memba] Channels deploy error:", channelErr)
                     // Non-fatal: DAO was deployed successfully
                 }
             }
@@ -406,8 +419,8 @@ export function CreateDAO() {
             {/* Step 4: Extensions */}
             {step === 4 && (
                 <WizardStepExtensions
-                    enableBoard={enableBoard} boardChannels={boardChannels}
-                    onEnableBoardChange={setEnableBoard} onBoardChannelsChange={setBoardChannels}
+                    enableChannels={enableChannels} channelNames={channelNames}
+                    onEnableChannelsChange={setEnableChannels} onChannelNamesChange={setChannelNames}
                     onGoToStep={goToStep} onNext={nextStep}
                 />
             )}

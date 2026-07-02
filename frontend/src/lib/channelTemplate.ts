@@ -13,15 +13,24 @@
  * - Admin action: create channels (ACL baked at creation; no runtime SetChannelACL/Archive/Reorder)
  * - Public read access (anyone can query via Render)
  *
+ * Membership (W1.5 unification): the DAO is the single source of truth,
+ * checked LIVE on every write via a cross-realm `parent.IsMember()` read — a
+ * governance removal revokes channel access instantly. The local roster
+ * (address → comma-separated roles), seeded from the wizard's member config,
+ * only ELEVATES roles for current DAO members (role-gated channels); it can
+ * never admit a non-member or keep a removed member in. DAO members without
+ * a roster entry get the default "member" role. The deployer is always admin.
+ *
  * Deployed via MsgAddPackage through Adena DoContract.
  * Channel realm naming: {daoname}_channels suffix convention.
- * Backward compat: old _board realms still supported via boardTemplate.ts.
+ * Backward compat: old _board realms still render/post via boardTemplate's v1
+ * MsgCall builders; new deploys are channels-only (boardTemplate deprecated).
  *
  * @module channelTemplate
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidChannelName, isValidIdentifier, requireInt, requireRealmPath } from "./templates/sanitizer"
+import { isValidChannelName, isValidIdentifier, requireAddress, requireInt, requireRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
 export { isValidChannelName } from "./templates/sanitizer"
 
@@ -37,6 +46,14 @@ export interface ChannelACL {
 
 /** Channel type controls built-in behavior. */
 export type ChannelType = "text" | "announcements" | "readonly" | "voice" | "video"
+
+/** A member to seed into the channel realm's roster at deploy time. */
+export interface ChannelMember {
+    /** Bech32 gno address. */
+    address: string
+    /** DAO roles (e.g. ["dev", "member"]) — stored comma-joined in the roster. */
+    roles: string[]
+}
 
 /** Configuration for a single channel within the realm. */
 export interface ChannelDef {
@@ -60,6 +77,12 @@ export interface ChannelConfig {
     description: string
     /** Channel definitions with types and ACL. */
     channels: ChannelDef[]
+    /**
+     * Members to seed into the roster at deploy (from the wizard's member
+     * step). Members added to the DAO later are still admitted via the
+     * cross-realm `parent.IsMember()` fallback with the default "member" role.
+     */
+    members?: ChannelMember[]
     /** Minimum blocks between posts per user (rate limit). */
     minPostInterval: number
     /** Minimum $MEMBA token balance to post (0 = no gate). */
@@ -92,6 +115,7 @@ export function defaultChannelConfig(daoRealmPath: string, daoName: string): Cha
         channels: [
             { name: "general", type: "text", acl: { readRoles: [], writeRoles: [] } },
         ],
+        members: [],
         minPostInterval: 5,
         minTokenBalance: 0,
         tokenFactoryPath: "gno.land/r/samcrew/tokenfactory_v2",
@@ -135,6 +159,21 @@ export function generateChannelCode(config: ChannelConfig): string {
     if (safeChannels.length === 0) {
         safeChannels.push({ name: "general", type: "text", acl: { readRoles: [], writeRoles: [] } })
     }
+
+    // W1.5 roster seeding (role GRANTS, not membership — the grant is inert
+    // unless the address is a live parent-DAO member). Addresses are
+    // fail-closed (throw, W1.1 style: they land inside string literals but a
+    // bad address is always a config bug); roles are filtered to safe
+    // identifiers and default to "member" so a valid member can never be
+    // seeded role-less.
+    const memberInit = (config.members ?? [])
+        .map((m) => {
+            requireAddress("channel member address", m.address)
+            const safeRoles = m.roles.filter(isValidIdentifier)
+            const rolesStr = (safeRoles.length > 0 ? safeRoles : ["member"]).join(",")
+            return `\tmembers.Set("${m.address}", "${rolesStr}")`
+        })
+        .join("\n")
 
     // Generate channel init block
     const channelInit = safeChannels
@@ -187,6 +226,8 @@ import (
 \t"strings"
 
 \t"gno.land/p/nt/avl/v0"${tokenGateImport}
+
+\tparent "${config.daoRealmPath}"
 )
 
 // ── Types ─────────────────────────────────────────────────
@@ -246,7 +287,7 @@ func init() {
 \tmembers = avl.NewTree()
 \tflaggedBy = make(map[string]bool)
 \tadminAddr = unsafe.PreviousRealm().Address()
-\tmembers.Set(string(adminAddr), "admin") // deployer is first member
+${memberInit ? `\t// W1.5: roster seeded from the wizard's member config\n${memberInit}\n` : ""}\tmembers.Set(string(adminAddr), "admin") // deployer is admin — last write wins
 ${channelInit}
 \t// Set initial channel order
 ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).join("\n")}
@@ -254,10 +295,16 @@ ${safeChannels.map(ch => `\tchannelOrder = append(channelOrder, "${ch.name}")`).
 
 // ── Member Management (v3 ACL) ──────────────────────────────
 
-// AddMember registers a DAO member. Admin only.
-func AddMember(_ realm, addr address, role string) {
+// SetMemberRoles grants comma-separated roles to a DAO member, REPLACING any
+// previous grant (a set, not a merge). The grant only has effect while the
+// address remains a member of the parent DAO — membership itself is checked
+// live in callerRoles. Admin only.
+func SetMemberRoles(_ realm, addr address, role string) {
 \tcaller := unsafe.PreviousRealm().Address()
 \tassertIsAdmin(caller)
+\tif strings.TrimSpace(role) == "" {
+\t\tpanic("role must not be empty")
+\t}
 \tmembers.Set(string(addr), role)
 }
 
@@ -572,8 +619,37 @@ func CreateChannel(cur realm, name, description, ctype string) {
 
 // ── Guards ────────────────────────────────────────────────
 
+// callerRoles resolves an address to its comma-separated roles. DAO
+// membership is checked LIVE (cross-realm parent.IsMember) on every call, so
+// a governance removal revokes channel access instantly — the local roster
+// (wizard-seeded or admin-granted) only ELEVATES roles for current DAO
+// members and can never keep a removed member in. Empty string = not a
+// member. The deployer is always admin.
+func callerRoles(addr address) string {
+\tif addr == adminAddr {
+\t\treturn "admin"
+\t}
+\tif !parent.IsMember(addr) {
+\t\treturn ""
+\t}
+\tif v, ok := members.Get(string(addr)); ok {
+\t\treturn v.(string)
+\t}
+\treturn "member"
+}
+
+// hasRole reports whether want appears in a comma-separated role list.
+func hasRole(roles, want string) bool {
+\tfor _, r := range strings.Split(roles, ",") {
+\t\tif strings.TrimSpace(r) == want {
+\t\t\treturn true
+\t\t}
+\t}
+\treturn false
+}
+
 func assertIsMember(addr address) {
-\tif _, exists := members.Get(string(addr)); !exists {
+\tif callerRoles(addr) == "" {
 \t\tpanic("unauthorized: DAO membership required to post")
 \t}
 }
@@ -605,30 +681,30 @@ func assertChannelWritable(channelName string, caller address) {
 \t\t\tif ch.ChanType == "readonly" {
 \t\t\t\tpanic("channel is read-only")
 \t\t\t}
-\t\t\tif ch.ChanType == "announcements" && caller != adminAddr {
+\t\t\tif ch.ChanType == "announcements" && !hasRole(callerRoles(caller), "admin") {
 \t\t\t\tpanic("only admin can post in announcement channels")
 \t\t\t}
-\t\t\t// Check write role ACL (v3: uses local members tree)
+\t\t\t// Check write role ACL (v3: local roster, parent-DAO fallback)
 \t\t\tif ch.WriteRoles != "" {
-\t\t\t\troleVal, exists := members.Get(string(caller))
-\t\t\t\tif !exists {
+\t\t\t\troles := callerRoles(caller)
+\t\t\t\tif roles == "" {
 \t\t\t\t\tpanic("unauthorized: membership required")
 \t\t\t\t}
-\t\t\t\tcallerRole := roleVal.(string)
 \t\t\t\t// Admin always passes
-\t\t\t\tif callerRole == "admin" {
+\t\t\t\tif hasRole(roles, "admin") {
 \t\t\t\t\treturn
 \t\t\t\t}
-\t\t\t\t// Check if caller's role is in the write roles list
+\t\t\t\t// Any of the caller's roles must appear in the write list
 \t\t\t\tallowed := false
 \t\t\t\tfor _, wr := range strings.Split(ch.WriteRoles, ",") {
-\t\t\t\t\tif strings.TrimSpace(wr) == callerRole {
+\t\t\t\t\twr = strings.TrimSpace(wr)
+\t\t\t\t\tif wr != "" && hasRole(roles, wr) {
 \t\t\t\t\t\tallowed = true
 \t\t\t\t\t\tbreak
 \t\t\t\t\t}
 \t\t\t\t}
 \t\t\t\tif !allowed {
-\t\t\t\t\tpanic("unauthorized: your role (" + callerRole + ") cannot write to this channel")
+\t\t\t\t\tpanic("unauthorized: your roles (" + roles + ") cannot write to this channel")
 \t\t\t\t}
 \t\t\t}
 \t\t\treturn
