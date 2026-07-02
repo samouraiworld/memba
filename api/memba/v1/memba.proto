@@ -301,6 +301,11 @@ message QuestCompletion {
 message UserQuestState {
   repeated QuestCompletion completed = 1;
   uint32 total_xp = 2;
+  // verified_xp counts only proof-backed completions: on_chain quests
+  // (server re-verified at grant time) and self_report quests with an
+  // admin-approved claim. off_chain/social/legacy XP is excluded — the
+  // candidature gate (350 XP) reads this, not total_xp (BE-4).
+  uint32 verified_xp = 3;
 }
 
 message CompleteQuestRequest {
