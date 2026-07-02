@@ -9,6 +9,18 @@
  * - Cancellation fees (configurable %)
  * - Appeal mechanism
  *
+ * W1.6 PARITY (R2-CHN-A): the refund state machine mirrors the DEPLOYED
+ * `gno.land/r/samcrew/escrow_v2` (samcrew-deployer realms/escrow_v2):
+ * refunds are TERMINAL (`MsRefunded`), and CancelContract pays only
+ * milestones it newly transitions (newlyRefunded/newlyReleased) — never a
+ * milestone already settled by ResolveDispute/ReleaseFunds (the old
+ * `MsPending && FundedAt > 0` sweep double-refunded). Proven by
+ * escrowTemplate.refunds.gno.test.ts under the real gno test machine.
+ * KNOWN REMAINING GAPS vs escrow_v2 (tracked, do not silently port):
+ * Pause/Unpause, ClaimRefund/ClaimDisputeTimeout timeouts, PreDisputeStatus,
+ * CreateContract input caps (MaxTitleLen/MaxMilestones/MinMilestoneAmount),
+ * chain.Emit events, renderStats.
+ *
  * @module lib/escrowTemplate
  */
 
@@ -204,6 +216,7 @@ const (
 	MsCompleted MilestoneStatus = "completed"
 	MsReleased  MilestoneStatus = "released"
 	MsDisputed  MilestoneStatus = "disputed"
+	MsRefunded  MilestoneStatus = "refunded" // terminal — money went back to the client
 )
 
 type Contract struct {
@@ -338,15 +351,7 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 	// Always: (1) update milestone status, (2) persist to storage, (3) THEN send coins.
 	ms.Status = MsReleased
 
-	// Check if all milestones released
-	allReleased := true
-	for _, m := range c.Milestones {
-		if m.Status != MsReleased {
-			allReleased = false
-			break
-		}
-	}
-	if allReleased {
+	if allMilestonesReleased(c) {
 		c.Status = StatusCompleted
 	}
 	contracts.Set(contractId, c)
@@ -402,12 +407,25 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 
 	// STATE-BEFORE-SEND INVARIANT: Update state before external coin transfers.
 	// See ReleaseFunds for detailed explanation of this reentrancy guard pattern.
+	// W1.6 parity with deployed escrow_v2: a refunded milestone is TERMINAL
+	// (MsRefunded) — the old MsPending reset left it re-payable by
+	// CancelContract (double refund).
 	if refundClient {
-		ms.Status = MsPending
+		ms.Status = MsRefunded
 	} else {
 		ms.Status = MsReleased
 	}
+	// Reset contract status if no other milestones are disputed
 	c.Status = StatusActive
+	for _, m := range c.Milestones {
+		if m.Status == MsDisputed {
+			c.Status = StatusDisputed
+			break
+		}
+	}
+	if allMilestonesReleased(c) {
+		c.Status = StatusCompleted
+	}
 	contracts.Set(contractId, c)
 
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
@@ -425,6 +443,15 @@ func ResolveDispute(cur realm, contractId string, milestoneIdx int, refundClient
 	}
 }
 
+func allMilestonesReleased(c *Contract) bool {
+	for _, m := range c.Milestones {
+		if m.Status != MsReleased {
+			return false
+		}
+	}
+	return true
+}
+
 // CancelContract cancels with cancellation fee.
 func CancelContract(cur realm, contractId string) {
 	caller := unsafe.PreviousRealm().Address()
@@ -437,30 +464,52 @@ func CancelContract(cur realm, contractId string) {
 		panic("contract not active")
 	}
 
-	// STATE-BEFORE-SEND INVARIANT: Update all milestone states before any transfers.
-	// Cancel and persist first, then refund — prevents reentrancy during coin sends.
-	for i, ms := range c.Milestones {
-		if ms.Status == MsFunded {
-			c.Milestones[i].Status = MsPending
-		}
-	}
+	// STATE-BEFORE-SEND INVARIANT: Update all state before transfers.
+	// W1.6 parity with deployed escrow_v2: track which milestones are NEWLY
+	// transitioned and pay ONLY those — the old "MsPending && FundedAt > 0"
+	// sweep re-refunded milestones already refunded via ResolveDispute
+	// (double refund / realm insolvency).
 	c.Status = StatusCancelled
+	var newlyRefunded []int
+	var newlyReleased []int
+	for i := range c.Milestones {
+		if c.Milestones[i].Status == MsFunded {
+			c.Milestones[i].Status = MsRefunded
+			newlyRefunded = append(newlyRefunded, i)
+		} else if c.Milestones[i].Status == MsCompleted {
+			c.Milestones[i].Status = MsReleased
+			newlyReleased = append(newlyReleased, i)
+		}
+		// Already-terminal milestones (MsRefunded from ResolveDispute,
+		// MsReleased from ReleaseFunds) are NOT added to the payment lists —
+		// their funds were already distributed in the original operation.
+	}
 	contracts.Set(contractId, c)
 
 	bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	realmAddr := unsafe.CurrentRealm().Address()
 
-	// Refund funded milestones minus cancellation fee
-	for _, ms := range c.Milestones {
-		if ms.Status == MsPending && ms.FundedAt > 0 {
-			fee := (ms.Amount * int64(CancellationFee)) / 100
-			refund := ms.Amount - fee
-			if refund > 0 {
-				bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", refund)})
-			}
-			if fee > 0 {
-				bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", fee)})
-			}
+	for _, i := range newlyRefunded {
+		ms := c.Milestones[i]
+		// Refund funded milestones minus cancellation fee
+		fee := (ms.Amount * int64(CancellationFee)) / 100
+		refund := ms.Amount - fee
+		if refund > 0 {
+			bnk.SendCoins(realmAddr, c.Client, chain.Coins{chain.NewCoin("ugnot", refund)})
+		}
+		// Cancellation fee goes to freelancer as compensation for lost opportunity
+		if fee > 0 {
+			bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", fee)})
+		}
+	}
+	for _, i := range newlyReleased {
+		ms := c.Milestones[i]
+		// Pay freelancer for completed work (full amount minus platform fee)
+		platformAmount := (ms.Amount * int64(PlatformFee)) / 100
+		freelancerAmount := ms.Amount - platformAmount
+		bnk.SendCoins(realmAddr, c.Freelancer, chain.Coins{chain.NewCoin("ugnot", freelancerAmount)})
+		if platformAmount > 0 {
+			bnk.SendCoins(realmAddr, address(FeeRecipient), chain.Coins{chain.NewCoin("ugnot", platformAmount)})
 		}
 	}
 }
