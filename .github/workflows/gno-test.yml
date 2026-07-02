@@ -1,60 +1,79 @@
 name: Gno Contracts
 
+# W1.2 — the AUTHORITATIVE client-template compile gate.
+#
+# History: this job used to run `gno test`/`gno lint` over HAND-WRITTEN stubs
+# emitted by scripts/extract-contracts.ts (never the real generators) with an
+# unpinned `gno@latest` — green while validating nothing. It now runs the real
+# compile gate (frontend/src/lib/templates.compile.test.ts): every template
+# generator's REAL output, linted as ONE gno workspace (cross-realm imports
+# resolved), with a toolchain probe + negative control, and REQUIRE_GNO=1 so
+# a missing/incoherent toolchain is a FAILURE, never a silent skip.
+
 on:
   pull_request:
     branches: [main]
     paths:
-      - 'contracts/**'
-      - 'scripts/extract-contracts.ts'
       - 'frontend/src/lib/*Template.ts'
+      - 'frontend/src/lib/templates/**'
+      - 'frontend/src/lib/templates.compile.test.ts'
       - '.github/workflows/gno-test.yml'
   push:
     branches: [main]
     paths:
-      - 'contracts/**'
-      - 'scripts/extract-contracts.ts'
       - 'frontend/src/lib/*Template.ts'
+      - 'frontend/src/lib/templates/**'
+      - 'frontend/src/lib/templates.compile.test.ts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  # Pinned gno toolchain (master SHA). Releases through v1.1.0 predate the
+  # interrealm-v2 stdlib layout (`chain/runtime/unsafe`) and CANNOT type-check
+  # the templates — the pin must be a commit that has it. The go-installed
+  # binary resolves GNOROOT to its own module cache, which ships the full
+  # stdlibs + examples, so no GNOROOT env or repo checkout is needed.
+  # Verified locally against this exact SHA (probe + 6 templates + negative
+  # control). Bump deliberately; the toolchain probe fails the job if the
+  # pinned gno can't lint interrealm-v2 code.
+  GNO_PIN: 7b2888c3b43ad78f5dd78c1f6f99766610e84733
+
 jobs:
   gno-test:
     name: Gno Test & Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
           go-version: 'stable'
+          cache: false
+
+      - name: Cache gno toolchain build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: gno-toolchain-${{ runner.os }}-${{ env.GNO_PIN }}
 
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install gno toolchain
-        run: go install github.com/gnolang/gno/gnovm/cmd/gno@latest
+      - name: Install gno toolchain (pinned)
+        run: go install "github.com/gnolang/gno/gnovm/cmd/gno@${GNO_PIN}"
 
-      - name: Generate contract stubs
-        run: npx tsx scripts/extract-contracts.ts
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
 
-      - name: Run gno test on each contract
-        run: |
-          for dir in contracts/*/; do
-            if [ -f "$dir/gnomod.toml" ]; then
-              echo "=== Testing $dir ==="
-              (cd "$dir" && gno test .) || exit 1
-            fi
-          done
-
-      - name: Run gno lint on each contract
-        run: |
-          for dir in contracts/*/; do
-            if [ -f "$dir/gnomod.toml" ]; then
-              echo "=== Linting $dir ==="
-              (cd "$dir" && gno lint .) || exit 1
-            fi
-          done
+      - name: Compile gate — real generator output, one workspace, fail-closed
+        working-directory: frontend
+        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts
