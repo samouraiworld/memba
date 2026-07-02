@@ -13,6 +13,7 @@
  */
 
 import { buildDeployMsg } from "./templates/prologue"
+import { requireInt, requirePercentage, requireAddress, requireRealmPath } from "./templates/sanitizer"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -143,6 +144,19 @@ export function searchListings(query: string, category?: ServiceCategory): Servi
 // ── Escrow Code Generation ───────────────────────────────────
 
 export function generateEscrowCode(config: EscrowConfig): string {
+    // W1.1 fail-closed: fees/addresses go into an immutable money realm —
+    // reject invalid input at codegen time (bounds are the documented
+    // EscrowConfig contract: platform 0-5%, cancellation 0-10%).
+    requireRealmPath("realmPath", config.realmPath)
+    requireAddress("adminAddress", config.adminAddress)
+    requireAddress("feeRecipient", config.feeRecipient)
+    requirePercentage("platformFeePercent", config.platformFeePercent, 0, 5)
+    requirePercentage("cancellationFeePercent", config.cancellationFeePercent, 0, 10)
+    requireInt("autoRefundBlocks", config.autoRefundBlocks, 1, 1_000_000_000)
+    if (config.autoResolveBlocks !== undefined) {
+        requireInt("autoResolveBlocks", config.autoResolveBlocks, 1, 1_000_000_000)
+    }
+
     const pkgName = config.realmPath.split("/").pop() || "escrow"
 
     return `package ${pkgName}

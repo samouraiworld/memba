@@ -21,7 +21,7 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidChannelName, isValidIdentifier } from "./templates/sanitizer"
+import { isValidChannelName, isValidIdentifier, requireInt, requireRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
 export { isValidChannelName } from "./templates/sanitizer"
 
@@ -111,7 +111,24 @@ export function defaultChannelConfig(daoRealmPath: string, daoName: string): Cha
  * Security: all user inputs are sanitized before interpolation.
  * Note: `\\n` in template strings produces `\n` in Go source (correct behavior).
  */
+// Token-gate symbols land inside a Gno string literal + panic message —
+// restrict to uppercase GRC20-style tickers so they can't break out.
+const SAFE_TOKEN_SYMBOL = /^[A-Z][A-Z0-9]{1,9}$/
+
 export function generateChannelCode(config: ChannelConfig): string {
+    // W1.1 fail-closed: daoRealmPath lands in an import statement — a crafted
+    // path could break out of `import parent "<path>"` (injection).
+    requireRealmPath("daoRealmPath", config.daoRealmPath)
+    requireRealmPath("channelRealmPath", config.channelRealmPath)
+    requireInt("minPostInterval", config.minPostInterval, 0, 1_000_000)
+    requireInt("editWindowBlocks", config.editWindowBlocks, 0, 1_000_000_000)
+    if (config.minTokenBalance > 0 || config.tokenSymbol !== "") {
+        if (!SAFE_TOKEN_SYMBOL.test(config.tokenSymbol)) {
+            throw new Error(`Invalid tokenSymbol: must match ${SAFE_TOKEN_SYMBOL}, got ${JSON.stringify(config.tokenSymbol)}`)
+        }
+        requireInt("minTokenBalance", config.minTokenBalance, 1, 1_000_000_000_000_000)
+    }
+
     const pkgName = config.channelRealmPath.split("/").pop() || "channels"
 
     const safeChannels = config.channels.filter(ch => isValidChannelName(ch.name))

@@ -181,7 +181,15 @@ export function CreateDAO() {
                 members: members.filter((m) => m.address.startsWith(BECH32_PREFIX)),
                 votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
             }
-            setGeneratedCode(generateDAOCode(config))
+            // W1.1: codegen is fail-closed and throws on invalid input. Steps
+            // should have caught everything, but never crash the wizard —
+            // surface the message through the same inline notice.
+            try {
+                setGeneratedCode(generateDAOCode(config))
+            } catch (err) {
+                setValidationError(err instanceof Error ? err.message : String(err))
+                return
+            }
         }
         setStep(s)
     }

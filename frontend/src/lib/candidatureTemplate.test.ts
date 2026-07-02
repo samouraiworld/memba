@@ -326,3 +326,15 @@ describe("generateCandidatureCode", () => {
         expect(code).toContain(String(MAX_SKILLS_LENGTH))
     })
 })
+
+// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
+describe("generateCandidatureCode — fail-closed guards (W1.1)", () => {
+    it("throws on non-positive / NaN requiredApprovals", () => {
+        for (const requiredApprovals of [0, -1, NaN, 1.5]) {
+            expect(() => generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals })).toThrow(/requiredApprovals/i)
+        }
+    })
+    it("boundary requiredApprovals still generates", () => {
+        expect(generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals: 1 })).toContain("requiredApprovals int = 1")
+    })
+})

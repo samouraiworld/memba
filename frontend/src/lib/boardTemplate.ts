@@ -16,7 +16,7 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { isValidChannelName } from "./templates/sanitizer"
+import { isValidChannelName, requireInt, requireRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -58,6 +58,12 @@ export const isValidChannel = isValidChannelName
  * Returns a self-contained .gno file as a string.
  */
 export function generateBoardCode(config: BoardConfig): string {
+    // W1.1 fail-closed: daoRealmPath lands in an import statement — a crafted
+    // path could break out of `import parent "<path>"` (injection).
+    requireRealmPath("daoRealmPath", config.daoRealmPath)
+    requireRealmPath("boardRealmPath", config.boardRealmPath)
+    requireInt("minPostInterval", config.minPostInterval, 0, 1_000_000)
+
     const pkgName = config.boardRealmPath.split("/").pop() || "board"
 
     const safeChannels = config.channels.filter(isValidChannel)
