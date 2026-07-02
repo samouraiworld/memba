@@ -40,7 +40,7 @@
 | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Netlify + backend | Clerk auth (alerts) | Must be the *same* environment (test/live). |
 | `OPENROUTER_API_KEY` | Fly | AI analyst | Rate-limited; not on the critical path. |
 | `LIGHTHOUSE_API_KEY` | Fly | IPFS gateway | |
-| `MEMBA_ALLOW_UNSIGNED_AUTH` | Fly (backend) | auth — A2 enforcement | Empty-signature login policy. Unset / `1` = **accept-but-log** (Phase 1, lockout-safe); `0` = **enforce** (reject empty sigs). Watch the `auth_login` metric; flip to `0` only once the signed-login ratio ≈ 100%. Flip procedure: §2.1. |
+| `MEMBA_ALLOW_UNSIGNED_AUTH` | Fly (backend) | auth — A2 enforcement | Empty-signature login policy (`backend/internal/auth/crypto.go allowUnsignedAuth()`). **Unset / `0` / `false` = enforce** (reject empty sigs — the fail-closed default since the 2026-06-28 Wave-1 hardening); `1` / `true` = **accept-but-log** (dev / Phase-1 opt-in only, impersonation-capable). Live prod is **unset → enforcing** (verified 2026-07-02: not in `fly.toml [env]`, not a Fly secret). Lockout rollback: §2.1. |
 | `VITE_ENABLE_TREASURY_SPEND` | Netlify (frontend) | funds — A1.a kill-switch | `false` (default) hides Propose-Spend, blocks `/treasury/propose`, and shows a fund-safety banner. Keep `false` until the on-chain banker (A1.c) lands. CI (`ci.yml` safety gate) blocks `true`. Flip procedure: §2.1. |
 | `VITE_ENABLE_NFT`, `VITE_ENABLE_AGENT_CREDITS` | Netlify (frontend) | funds — A9 / A5.ui kill-switches | `false` (default). NFT custody + agent-credit deposits are fund-trapping until their realms are completed/redeployed. Same CI safety gate blocks `true`. |
 
@@ -48,11 +48,10 @@
 
 ### 2.1 Security-flag flip procedures
 
-**`MEMBA_ALLOW_UNSIGNED_AUTH` → `0` (A2.phase2 — enforce signed auth).**
-1. Pre-req: the frontend signed-challenge flow ships (Layout stops sending `signature: ""`) **and** the `auth_login` metric shows `result=signed` ≈ 100% over ≥ 7 days (24 h token TTL means stragglers re-auth within a day).
-2. `flyctl secrets set MEMBA_ALLOW_UNSIGNED_AUTH=0 -a memba-backend` (rolling restart).
-3. Verify: a fresh login with a real signature still succeeds; the `auth_login` metric shows `empty_rejected` climbing only for stale/abusive clients.
-4. Rollback: `flyctl secrets unset MEMBA_ALLOW_UNSIGNED_AUTH` (reverts to accept-but-log) if legitimate users are locked out.
+**`MEMBA_ALLOW_UNSIGNED_AUTH` (A2 empty-signature policy).** Enforcement is already live: the code fail-closes when the var is unset (Wave-1 hardening, 2026-06-28) and prod does not set it. There is no "flip to enforce" step anymore — only an emergency re-open:
+1. **Lockout rollback (emergency only):** if legitimate users cannot log in because of the empty-signature rejection, `flyctl secrets set MEMBA_ALLOW_UNSIGNED_AUTH=1 -a memba-backend` (rolling restart) to temporarily accept-but-log. ⚠️ `flyctl secrets unset` does **not** re-open — unset means enforce.
+2. While re-opened, the backend logs a loud impersonation-capable warning at startup and per-login `auth_login result=empty_allowed` lines; watch the signed-login ratio and remove the secret (`flyctl secrets unset MEMBA_ALLOW_UNSIGNED_AUTH -a memba-backend`) to restore enforcement as soon as the frontend issue is fixed.
+3. Verify after any change: a fresh login with a real signature succeeds; `auth_login` shows `empty_rejected` climbing only for stale/abusive clients (enforcing) or `empty_allowed` (re-opened).
 
 **`VITE_ENABLE_TREASURY_SPEND` → `true`.** Do **not** flip until A1.c implements the on-chain banker treasury — until then a passing spend proposal cannot execute and funds sent to the DAO are irrecoverable. When ready: remove the flag from the `ci.yml` safety-gate list in the same PR, set it in Netlify, redeploy.
 
