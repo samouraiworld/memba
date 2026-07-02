@@ -62,7 +62,15 @@ const CASES: { name: string; code: string }[] = [
     },
     { name: "gate_board", code: generateBoardCode(defaultBoardConfig(`${NS}/gate_dao`, "Gate DAO")) },
     { name: "gate_candidature", code: generateCandidatureCode() },
-    { name: "gate_channels", code: generateChannelCode(defaultChannelConfig(`${NS}/gate_dao`, "Gate DAO")) },
+    {
+        name: "gate_channels",
+        // W1.5 shape: roster seeding + the parent.IsMember cross-realm fallback
+        // must both survive the type-check, so the gate config seeds a member.
+        code: generateChannelCode({
+            ...defaultChannelConfig(`${NS}/gate_dao`, "Gate DAO"),
+            members: [{ address: ADDR, roles: ["admin", "member"] }],
+        }),
+    },
     {
         name: "gate_agent",
         code: generateAgentRegistryCode({
@@ -283,7 +291,7 @@ describeGno("realm templates type-check against the gno stdlib (one workspace)",
     )
 
     it(
-        "NEGATIVE CONTROL: a DAO that stops exporting IsMember must fail the board lint",
+        "NEGATIVE CONTROL: a DAO that stops exporting IsMember must fail the board AND channels lint",
         (ctx) => {
             if (!toolchainOK) {
                 if (REQUIRE_GNO) throw new Error("toolchain probe failed — gate cannot pass")
@@ -293,17 +301,28 @@ describeGno("realm templates type-check against the gno stdlib (one workspace)",
             mkdirSync(root, { recursive: true })
             const dao = CASES.find((c) => c.name === "gate_dao")!
             const board = CASES.find((c) => c.name === "gate_board")!
+            const channels = CASES.find((c) => c.name === "gate_channels")!
             // Unexport IsMember — the W0.3 regression class this workspace exists to catch.
+            // W1.5: the channels realm now carries the same cross-realm dependency,
+            // so BOTH companion templates must go red, independently.
             writePkg(root, "gate_dao", dao.code.replace(/func IsMember\(/g, "func isMemberHidden("), `${NS}/gate_dao`)
             writePkg(root, "gate_board", board.code, MODULE_PATHS.gate_board)
-            vendorGnolandDeps(root, [dao.code, board.code])
+            writePkg(root, "gate_channels", channels.code, MODULE_PATHS.gate_channels)
+            vendorGnolandDeps(root, [dao.code, board.code, channels.code])
 
             const { lines } = lintWorkspace(root)
-            const caught = lines.some((l) => ERROR_LINE.test(l) && l.includes("IsMember"))
+            const isMemberErrors = lines.filter((l) => ERROR_LINE.test(l) && l.includes("IsMember"))
+            const caughtBoard = isMemberErrors.some((l) => l.includes("gate_board"))
+            const caughtChannels = isMemberErrors.some((l) => l.includes("gate_channels"))
             expect(
-                caught,
-                `the workspace lint did NOT flag the missing cross-realm IsMember export — ` +
+                caughtBoard,
+                `the workspace lint did NOT flag the board's missing cross-realm IsMember export — ` +
                     `the gate's error detection has rotted:\n${lines.join("\n")}`,
+            ).toBe(true)
+            expect(
+                caughtChannels,
+                `the workspace lint did NOT flag the channels realm's missing cross-realm IsMember export — ` +
+                    `the W1.5 parent.IsMember fallback is not actually wired into the generated code:\n${lines.join("\n")}`,
             ).toBe(true)
         },
         120_000,

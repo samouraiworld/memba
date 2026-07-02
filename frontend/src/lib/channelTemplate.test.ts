@@ -510,3 +510,77 @@ describe("generateChannelCode — editWindowBlocks guard (W1.1)", () => {
         }
     })
 })
+
+// W1.5 companion-realm unification: the DAO is the single membership source of
+// truth — the realm seeds a roster from the wizard config AND falls back to a
+// cross-realm parent.IsMember() read for members added to the DAO later.
+describe("generateChannelCode — W1.5 membership unification", () => {
+    const VALID_ADDR = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+    const base = () => defaultChannelConfig("gno.land/r/test/mydao", "MyDAO")
+
+    it("imports the parent DAO realm and falls back to parent.IsMember", () => {
+        const code = generateChannelCode(base())
+        expect(code).toContain('parent "gno.land/r/test/mydao"')
+        expect(code).toContain("parent.IsMember(addr)")
+        // The fallback admits with the default role, never role-less.
+        expect(code).toContain('return "member"')
+    })
+
+    it("seeds the roster from config.members with comma-joined roles", () => {
+        const code = generateChannelCode({
+            ...base(),
+            members: [{ address: VALID_ADDR, roles: ["dev", "member"] }],
+        })
+        expect(code).toContain(`members.Set("${VALID_ADDR}", "dev,member")`)
+    })
+
+    it("seeds BEFORE the deployer admin write so the deployer is always admin", () => {
+        const code = generateChannelCode({
+            ...base(),
+            members: [{ address: VALID_ADDR, roles: ["member"] }],
+        })
+        const seedIdx = code.indexOf(`members.Set("${VALID_ADDR}"`)
+        const adminIdx = code.indexOf('members.Set(string(adminAddr), "admin")')
+        expect(seedIdx).toBeGreaterThan(-1)
+        expect(adminIdx).toBeGreaterThan(seedIdx)
+    })
+
+    it("throws (fail-closed) on an invalid seeded address", () => {
+        for (const address of ["not-an-address", 'g1"; panic("', ""]) {
+            expect(() => generateChannelCode({
+                ...base(),
+                members: [{ address, roles: ["member"] }],
+            })).toThrow(/address/i)
+        }
+    })
+
+    it("filters unsafe roles and defaults a role-less member to \"member\"", () => {
+        const code = generateChannelCode({
+            ...base(),
+            members: [{ address: VALID_ADDR, roles: ['ev"il', "UPPER"] }],
+        })
+        expect(code).toContain(`members.Set("${VALID_ADDR}", "member")`)
+        expect(code).not.toContain("ev\"il")
+    })
+
+    it("no members config → no seeding lines beyond the deployer", () => {
+        const code = generateChannelCode(base())
+        const seeds = code.match(/members\.Set\(/g) ?? []
+        // exactly one Set: the deployer-admin line (AddMember's Set is on the
+        // `members.Set(string(addr), role)` form and matches too — count both)
+        expect(seeds.length).toBe(2)
+    })
+
+    it("write-ACL check understands multi-role members (hasRole intersection)", () => {
+        const code = generateChannelCode(base())
+        expect(code).toContain("func hasRole(roles, want string) bool")
+        expect(code).toContain('hasRole(roles, "admin")')
+        // announcements: a seeded admin-ROLE member may post, not only the deployer
+        expect(code).toContain('!hasRole(callerRoles(caller), "admin")')
+    })
+
+    it("AddMember rejects an empty role (roster can't hold role-less members)", () => {
+        const code = generateChannelCode(base())
+        expect(code).toContain('panic("role must not be empty")')
+    })
+})
