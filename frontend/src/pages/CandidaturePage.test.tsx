@@ -29,7 +29,7 @@ vi.mock("../hooks/useNetworkNav", () => ({
 vi.mock("../lib/quests", () => ({
     canApplyForMembership: vi.fn(() => false),
     // Eligibility is now resolved asynchronously from backend-authoritative XP.
-    resolveCandidatureEligibility: vi.fn(() => Promise.resolve(false)),
+    resolveCandidatureEligibility: vi.fn(() => Promise.resolve({ eligible: false, verifiedXP: null })),
     loadQuestProgress: vi.fn(() => ({ completed: [], totalXP: 0 })),
     CANDIDATURE_XP_THRESHOLD: 100,
     trackPageVisit: vi.fn(),
@@ -109,7 +109,7 @@ const grc20Mock = await import("../lib/grc20")
 // Renders the page with the candidature form unlocked. Eligibility is resolved
 // asynchronously from backend XP, so the form appears after a tick — await it.
 async function renderWithForm() {
-    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(true)
+    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue({ eligible: true, verifiedXP: 400 })
     render(<CandidaturePage />)
     await screen.findByLabelText("Bio")
 }
@@ -119,7 +119,7 @@ async function renderWithForm() {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(questsMock.canApplyForMembership).mockReturnValue(false)
-    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(false)
+    vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 0 })
     vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 0 })
     vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])
     vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
@@ -139,6 +139,17 @@ describe("CandidaturePage — XP Gate", () => {
         expect(screen.getByText(/You need 100 XP to apply/)).toBeInTheDocument()
         expect(screen.getByText(/You currently have 30 XP/)).toBeInTheDocument()
         expect(screen.getByTestId("quest-progress-mock")).toBeInTheDocument()
+    })
+
+    // BE-4: when the backend is reachable the gate copy shows VERIFIED XP —
+    // the number the gate actually enforces — not the local total.
+    it("connected: shows backend verified XP in the gate copy", async () => {
+        vi.mocked(questsMock.loadQuestProgress).mockReturnValue({ completed: [], totalXP: 999 })
+        vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue({ eligible: false, verifiedXP: 40 })
+        render(<CandidaturePage />)
+
+        expect(await screen.findByText(/You need 100 verified XP to apply/)).toBeInTheDocument()
+        expect(screen.getByText(/You have 40 verified XP/)).toBeInTheDocument()
     })
 
     it("Go to Quest Hub button navigates to /quests (not /profile)", () => {
@@ -349,7 +360,7 @@ describe("CandidaturePage — Existing Candidature", () => {
 
 describe("CandidaturePage — Deposit Display", () => {
     it("shows required deposit amount", async () => {
-        vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue(true)
+        vi.mocked(questsMock.resolveCandidatureEligibility).mockResolvedValue({ eligible: true, verifiedXP: 400 })
         vi.mocked(candidatureMock.getRequiredDeposit).mockReturnValue(10_000_000n)
         vi.mocked(daoShared.queryRender).mockResolvedValue("render output")
         vi.mocked(candidatureMock.parseCandidatureList).mockReturnValue([])

@@ -2219,9 +2219,14 @@ func (x *QuestCompletion) GetCompletedAt() string {
 }
 
 type UserQuestState struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Completed     []*QuestCompletion     `protobuf:"bytes,1,rep,name=completed,proto3" json:"completed,omitempty"`
-	TotalXp       uint32                 `protobuf:"varint,2,opt,name=total_xp,json=totalXp,proto3" json:"total_xp,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Completed []*QuestCompletion     `protobuf:"bytes,1,rep,name=completed,proto3" json:"completed,omitempty"`
+	TotalXp   uint32                 `protobuf:"varint,2,opt,name=total_xp,json=totalXp,proto3" json:"total_xp,omitempty"`
+	// verified_xp counts only proof-backed completions: on_chain quests
+	// (server re-verified at grant time) and self_report quests with an
+	// admin-approved claim. off_chain/social/legacy XP is excluded — the
+	// candidature gate (350 XP) reads this, not total_xp (BE-4).
+	VerifiedXp    uint32 `protobuf:"varint,3,opt,name=verified_xp,json=verifiedXp,proto3" json:"verified_xp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2266,6 +2271,13 @@ func (x *UserQuestState) GetCompleted() []*QuestCompletion {
 func (x *UserQuestState) GetTotalXp() uint32 {
 	if x != nil {
 		return x.TotalXp
+	}
+	return 0
+}
+
+func (x *UserQuestState) GetVerifiedXp() uint32 {
+	if x != nil {
+		return x.VerifiedXp
 	}
 	return 0
 }
@@ -6396,10 +6408,12 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\aprofile\x18\x01 \x01(\v2\x11.memba.v1.ProfileR\aprofile\"O\n" +
 	"\x0fQuestCompletion\x12\x19\n" +
 	"\bquest_id\x18\x01 \x01(\tR\aquestId\x12!\n" +
-	"\fcompleted_at\x18\x02 \x01(\tR\vcompletedAt\"d\n" +
+	"\fcompleted_at\x18\x02 \x01(\tR\vcompletedAt\"\x85\x01\n" +
 	"\x0eUserQuestState\x127\n" +
 	"\tcompleted\x18\x01 \x03(\v2\x19.memba.v1.QuestCompletionR\tcompleted\x12\x19\n" +
-	"\btotal_xp\x18\x02 \x01(\rR\atotalXp\"w\n" +
+	"\btotal_xp\x18\x02 \x01(\rR\atotalXp\x12\x1f\n" +
+	"\vverified_xp\x18\x03 \x01(\rR\n" +
+	"verifiedXp\"w\n" +
 	"\x14CompleteQuestRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x19\n" +
