@@ -29,11 +29,24 @@ export default defineConfig({
         { name: 'iphone',   use: { ...devices['iPhone 13'] },  testMatch: /\.mobile\.spec\.ts$/ },
         { name: 'pixel',    use: { ...devices['Pixel 5'] },    testMatch: /\.mobile\.spec\.ts$/ },
     ],
-    webServer: {
-        command: 'npm run dev',
-        url: 'http://localhost:5173',
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-    },
+    webServer: [
+        {
+            command: 'npm run dev',
+            url: 'http://localhost:5173',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
+        // Second dev server with PINNED feature flags: `vite --mode e2e` loads the
+        // committed root .env.e2e, whose values override the (gitignored, per-machine)
+        // .env. Only marketplace-gating.spec.ts targets it (test.use baseURL :5174) —
+        // its live-vs-gated lane expectations must hold regardless of what
+        // VITE_ENABLE_* happens to be in the local .env or absent in CI.
+        {
+            command: 'npm run dev:e2e',
+            url: 'http://localhost:5174',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
+    ],
 })
 
