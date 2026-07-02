@@ -754,8 +754,22 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 		proofText = proofText[:maxProofTextLen]
 	}
 
+	// Upsert keyed on UNIQUE(address, quest_id): a fresh claim inserts as
+	// pending; a REJECTED claim reopens as pending with the new proof (a wrong
+	// rejection must not be a permanent dead end — approved claims feed the
+	// candidature XP gate); pending/approved claims are left untouched, so
+	// resubmitting is an idempotent no-op. Spam is bounded by the
+	// QuestClaimEndpoint rate limit above.
 	_, err = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO quest_claims (address, quest_id, proof_url, proof_text) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO quest_claims (address, quest_id, proof_url, proof_text) VALUES (?, ?, ?, ?)
+		 ON CONFLICT(address, quest_id) DO UPDATE SET
+		   proof_url   = excluded.proof_url,
+		   proof_text  = excluded.proof_text,
+		   status      = 'pending',
+		   reviewed_by = NULL,
+		   reviewed_at = NULL,
+		   created_at  = CURRENT_TIMESTAMP
+		 WHERE quest_claims.status = 'rejected'`,
 		userAddr, questID, proofURL, proofText,
 	)
 	if err != nil {
