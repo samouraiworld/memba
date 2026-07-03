@@ -1170,6 +1170,24 @@ a.dir-card {
     font-family: "JetBrains Mono", monospace;
 }
 
+.drawer-empty__retry {
+    display: block;
+    margin: 10px auto 0;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.drawer-empty__retry:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-text-muted);
+}
+
 /* ── Drawer Skeleton Loading ──────────────────── */
 
 .drawer-skeleton {

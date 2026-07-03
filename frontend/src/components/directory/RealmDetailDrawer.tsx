@@ -17,7 +17,7 @@ import { GNO_RPC_URL } from "../../lib/config"
 import { queryRender } from "../../lib/dao/shared"
 import { getGnowebUrl } from "../../lib/gnoweb"
 import { useNetwork } from "../../hooks/useNetwork"
-import { fetchRealmSource } from "../../lib/gnowebSource"
+import { fetchRealmSourceSmart } from "../../lib/gnowebSource"
 import type { RealmSource } from "../../lib/gnowebSource"
 import { renderMarkdown } from "../../lib/markdownLite"
 import { SourceCodeView } from "./SourceCodeView"
@@ -44,6 +44,8 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     const [source, setSource] = useState<RealmSource | null>(null)
     const [sourceLoading, setSourceLoading] = useState(true)
     const [sourceActiveFile, setSourceActiveFile] = useState<string>("")
+    // Bumping re-runs the source fetch (retry button on the unavailable state).
+    const [sourceRetryNonce, setSourceRetryNonce] = useState(0)
     const [visible, setVisible] = useState(false)
     const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -79,18 +81,19 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
             .finally(() => setRenderLoading(false))
     }, [path, isPackage])
 
-    // Fetch source code
+    // Fetch source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
     useEffect(() => {
         // Convert "gno.land/r/samcrew/dao" to "/r/samcrew/dao"
         const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
-        fetchRealmSource(resolvedGnowebUrl, realmPath)
+        setSourceLoading(true)
+        fetchRealmSourceSmart(resolvedGnowebUrl, realmPath)
             .then(src => {
                 setSource(src)
                 if (src?.files[0]) setSourceActiveFile(src.files[0].name)
             })
             .catch(() => setSource(null))
             .finally(() => setSourceLoading(false))
-    }, [path, resolvedGnowebUrl])
+    }, [path, resolvedGnowebUrl, sourceRetryNonce])
 
     // Derive short name from path
     const shortName = path.split("/").pop() || path
@@ -187,7 +190,14 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                 />
                             ) : (
                                 <div className="drawer-empty">
-                                    Source code not available. The gnoweb endpoint may be unreachable.
+                                    Source unavailable — the chain RPC and gnoweb could not be reached.
+                                    <button
+                                        type="button"
+                                        className="drawer-empty__retry"
+                                        onClick={() => setSourceRetryNonce(n => n + 1)}
+                                    >
+                                        Retry
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -229,6 +239,13 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                             ) : (
                                 <div className="drawer-empty">
                                     Source metadata not available.
+                                    <button
+                                        type="button"
+                                        className="drawer-empty__retry"
+                                        onClick={() => setSourceRetryNonce(n => n + 1)}
+                                    >
+                                        Retry
+                                    </button>
                                 </div>
                             )}
 

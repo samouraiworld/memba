@@ -27,11 +27,13 @@ import { encodeSlug } from "../lib/daoSlug"
 import { isValidRealmPath } from "../lib/gnowebSource"
 import "./directory.css"
 
+// W5.2: Packages leads — it is by far the most-filled tab on test13 today
+// (DAO count is still small). Revisit the order once DAOs catch up.
 const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
-    { key: "daos", label: "🏛️ DAOs" },
-    { key: "tokens", label: "🪙 Tokens" },
     { key: "packages", label: "📦 Packages" },
+    { key: "daos", label: "🏛️ DAOs" },
     { key: "realms", label: "🌐 Realms" },
+    { key: "tokens", label: "🪙 Tokens" },
     { key: "users", label: "👤 Users" },
     { key: "govdao", label: "🏛️ GovDAO" },
     { key: "leaderboard", label: "🏆 Leaderboard" },

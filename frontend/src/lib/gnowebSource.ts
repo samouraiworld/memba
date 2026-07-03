@@ -1,16 +1,25 @@
 /**
- * gnowebSource — Fetch and parse realm/package source code from gnoweb.
+ * gnowebSource — Fetch realm/package source code.
  *
- * Parses gnoweb $source and $help HTML pages to extract:
- * - .gno source files with content
- * - Exported function signatures
- * - Import paths (dependencies)
+ * PRIMARY path (W5.2): ABCI `vm/qfile` queries against the chain RPC — the
+ * RPC serves `access-control-allow-origin: *`, while gnoweb serves NO CORS
+ * headers at all, so browser fetches of gnoweb HTML fail regardless of which
+ * gnoweb host is configured (the real cause of "Source code not available").
+ * qfile returns the authoritative on-chain file listing and raw file bodies —
+ * no HTML parsing, no host coupling. Goes through resilientAbciQuery, so it
+ * inherits RPC failover.
  *
- * Defensive parsing: gracefully falls back if gnoweb format changes.
- * SSRF guard: validates realm paths before constructing URLs.
+ * FALLBACK path: the original gnoweb $source/$help HTML scrape — kept for
+ * non-browser contexts (no CORS enforcement) and any chain whose RPC blocks
+ * qfile.
+ *
+ * Defensive parsing: gracefully falls back if formats change.
+ * SSRF guard: validates realm paths before constructing URLs/queries.
  *
  * @module lib/gnowebSource
  */
+
+import { resilientAbciQuery } from "./rpcFallback"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -108,6 +117,102 @@ export async function fetchRealmSource(
     } catch {
         return null
     }
+}
+
+// ── RPC Source Fetching (vm/qfile — primary path) ──────────
+
+/** Cap on files fetched per realm (render-DoS discipline for our own client). */
+const MAX_SOURCE_FILES = 24
+
+/** File names/extensions worth showing in the source viewer. */
+function isViewableFile(name: string): boolean {
+    return name.endsWith(".gno") || name.endsWith(".md")
+        || name === "gno.mod" || name === "gnomod.toml"
+        || name.endsWith(".toml")
+}
+
+/**
+ * Fetch realm/package source via ABCI `vm/qfile` (authoritative, CORS-safe).
+ *
+ * `vm/qfile` on a package path returns the newline-separated file listing;
+ * on `pkgpath/file` it returns the raw file body. Per-file failures are
+ * tolerated (fail per-file, not per-realm).
+ *
+ * No internal cache — {@link fetchRealmSourceSmart} owns caching.
+ */
+export async function fetchRealmSourceViaRpc(realmPath: string): Promise<RealmSource | null> {
+    if (!isValidRealmPath(realmPath)) return null
+    const pkgPath = `gno.land${realmPath}`
+
+    try {
+        const listing = await resilientAbciQuery("vm/qfile", pkgPath)
+        if (!listing) return null
+
+        // qfile lists alphabetically (manifests before code); order for reading:
+        // main .gno sources, then tests, then manifests/docs. files[0] becomes
+        // the drawer's initially active file.
+        const fileRank = (n: string): number =>
+            n.endsWith("_test.gno") || n.endsWith("_filetest.gno") ? 1
+                : n.endsWith(".gno") ? 0
+                    : 2
+        const names = listing
+            .split("\n")
+            .map(s => s.trim())
+            .filter(n => n.length > 0 && isViewableFile(n))
+            .slice(0, MAX_SOURCE_FILES)
+            .sort((a, b) => fileRank(a) - fileRank(b) || a.localeCompare(b))
+        if (names.length === 0) return null
+
+        const bodies = await Promise.all(
+            names.map(n => resilientAbciQuery("vm/qfile", `${pkgPath}/${n}`).catch(() => null)),
+        )
+
+        const files: SourceFile[] = []
+        const imports = new Set<string>()
+        let gnoModContent: string | undefined
+        names.forEach((name, i) => {
+            const content = bodies[i]
+            if (content == null) return
+            files.push({ name, content, lines: content.split("\n").length })
+            if (name === "gno.mod" || name === "gnomod.toml") gnoModContent = content
+            if (name.endsWith(".gno")) extractImports(content, imports)
+        })
+        if (files.length === 0) return null
+
+        const functions: FunctionSignature[] = []
+        for (const f of files) {
+            if (f.name.endsWith(".gno") && !f.name.endsWith("_test.gno") && !f.name.endsWith("_filetest.gno")) {
+                extractFunctions(f.content, functions)
+            }
+        }
+
+        return { files, functions, imports: Array.from(imports).sort(), gnoModContent }
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Fetch realm/package source: session cache → RPC (`vm/qfile`) → gnoweb HTML
+ * scrape. This is the entry point UI components should use.
+ */
+export async function fetchRealmSourceSmart(
+    gnowebBaseUrl: string,
+    realmPath: string,
+): Promise<RealmSource | null> {
+    if (!isValidRealmPath(realmPath)) return null
+
+    const cacheKey = `source_${realmPath}`
+    const cached = getCached<RealmSource>(cacheKey)
+    if (cached) return cached
+
+    const viaRpc = await fetchRealmSourceViaRpc(realmPath)
+    if (viaRpc) {
+        setCache(cacheKey, viaRpc)
+        return viaRpc
+    }
+    // fetchRealmSource caches under the same key on success.
+    return fetchRealmSource(gnowebBaseUrl, realmPath)
 }
 
 // ── HTML Parsing: $source ───────────────────────────────────
