@@ -159,6 +159,21 @@ describe("useAnalystReport", () => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
 
+    it("fresh MOUNT with a pre-existing sessionStorage cache: shows it, never fetches", async () => {
+        // Pins the useState initializer path (not the key-change render guard):
+        // the very first render must rehydrate and mark the key as fetched.
+        const cached = makeReport("cached before mount")
+        sessionStorage.setItem(cacheKeyFor(1), JSON.stringify(cached))
+
+        const { result } = renderDao(1)
+        expect(result.current.report).toEqual(cached)
+        expect(result.current.loading).toBe(false)
+
+        await flush()
+        await flush()
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
     it("trigger() forces a refetch with ?force=1", async () => {
         const reportA = makeReport("report A")
         const reportA2 = makeReport("report A refreshed")
