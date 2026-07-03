@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-03 · Lane B · W6.3 SEO (PR2: sitemap+robots) · START→STOP (single session) · frontend: lib/sitemap.ts (new), public/robots.txt (new), vite.config.ts (sitemap emit plugin — safeFlags wiring untouched) · feat/w63-sitemap-robots
+
 2026-07-03 · Lane A · W6.3 SEO (PR1: route meta) · START→STOP (single session) · frontend: lib/routeMeta.ts (new), components/layout/RouteMetaSync.tsx (new), Layout.tsx (mount) · feat/w63-seo-route-meta
 
 2026-07-03 · Lane A · W6.2 4-mode IA (PR1: nav shell) · START→STOP (single session) · frontend: navManifest.ts (mode groups), Sidebar.tsx (manifest-driven sections), index.css · feat/w62-ia-nav-modes
