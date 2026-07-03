@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### SEO — W6.3 PR2: sitemap.xml + robots.txt (2026-07-03)
+- **`sitemap.xml` generated at build** (vite plugin over a pure builder in `lib/sitemap.ts`): every public static route, network-prefixed and lastmod-stamped. Static-only by design — build-time chain fetches for entity pages would couple Netlify builds to live-chain availability (decision documented in-module; revisit with the PR3 prerender decision). Plus a static `public/robots.txt` pointing at the sitemap.
+
 ### SEO — W6.3 PR1: per-route meta (2026-07-03)
 - **Per-route SEO meta on every navigation:** a central `RouteMetaSync` (mounted in Layout) now writes meta description, `og:title`/`og:description`, `og:url`, `twitter:title`, and the canonical link from an ordered route-meta map (`lib/routeMeta.ts`) covering all key sections. Deliberately never touches `document.title` — pages own their titles, and React effect ordering would otherwise clobber dynamic ones (proposal names, validator monikers).
 
