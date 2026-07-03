@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/Node-22-green.svg)](https://nodejs.org)
 [![Go](https://img.shields.io/badge/Go-≥1.25-00ADD8.svg)](https://go.dev)
-[![Tests](https://img.shields.io/badge/Tests-3200%2B%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-3%2C000%2B%20CI--enforced-brightgreen.svg)](https://github.com/samouraiworld/memba/actions/workflows/ci.yml)
 
 > ⚠️ **Alpha Software** — Memba is experimental, unaudited, and under active development. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -185,10 +185,13 @@
 - 🚀 CI/CD: GitHub Actions (Node 22) + Netlify + Fly.io
 
 ### Testing
-- 🧪 **1,628 unit tests** (Vitest, 73 files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, integration tests
-- 🧪 **149 backend tests** (Go, 4 packages) — auth crypto, rate limiting, profiles, teams, quests, marketplace, analyst, service listings
-- 🧪 **E2E tests** (Playwright, Chromium, 18 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove, candidature, teams
-- 🧪 **Gno realm tests** (6 test files) — agent registry, escrow, candidature, channels, DAO stubs
+
+**3,000+ automated tests (CI-enforced)** — the CI pipeline is the source of truth for exact counts; every PR must pass it.
+
+- 🧪 **Frontend unit tests** (Vitest, 243 test files) — ABCI parsers, code generators, template sanitizer, gnoweb namespace/source explorer, profile logic, balance formatting, RPC domain validation, write guard, plugins, notifications, validators, directory, channels, DAO metadata, gas config, error messages, gnomonitoring, validator health engine, gnolove filters, chain health, NFT marketplace parsers, GRC1155 templates, block time estimation, markdown renderer, quest system, money-path UI, integration tests
+- 🧪 **Backend tests** (Go, 64 test files) — auth crypto, rate limiting, profiles, teams, quests, marketplace, analyst, service listings, tx verification, indexer
+- 🧪 **E2E tests** (Playwright, Chromium, 27 spec files) — navigation, smoke, plugins, DAO, profile, token, multisig, settings, create-dao, treasury, validators, directory, extensions, cmd-k, channels, gnolove, candidature, teams, marketplace gating
+- 🧪 **Gno realm/template gate** — generated realm templates are compile-gated against a pinned interrealm-v2 `gno` toolchain (`templates.compile.test.ts`, `REQUIRE_GNO=1`); realm `*_test.gno` suites live in the canonical **samcrew-deployer** repo
 
 ## Architecture
 

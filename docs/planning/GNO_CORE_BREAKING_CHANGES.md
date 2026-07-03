@@ -1,15 +1,29 @@
 # Gno Core PRs — Breaking Change Impact Assessment
 
-> **Date:** 2026-03-30 · **Memba:** v2.21.0 · **Status:** All tracked PRs still open — monitor and act when merged
+> **Date:** 2026-07-03 (re-baselined; originally 2026-03-30) · **Memba:** v7.2.x · **Status:** re-baselined per the verified audit plan §5 ([MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md](MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md))
 >
 > **2026-06-24 update:** the NFT-relevant upstream PRs (#5747 / #5792 / #5745) and a chain-feature matrix (test13 / master / gnoland1.1) are tracked in [GNO_CORE_COMPAT.md § 2026-06-24](../GNO_CORE_COMPAT.md#2026-06-24--nft-relevant-upstream-prs--chain-feature-matrix). Mainnet is gated on gnoland1 upgrading to ≥ #5669 (interrealm-v2 Phase 3).
 >
+> **2026-07-03 re-baseline:** added the event-attribute rows (#5857 / #5858) and marked the interrealm-v2 stdlib migration ✅ COMPLETED. The original 2026-03-30 boards2/govdao matrix is retained below for tracking.
+>
 > Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
+
+## Interrealm-v2 stdlib migration — ✅ COMPLETED
+
+The interrealm-v2 stdlib move (`chain`/`runtime`/`unsafe` symbols, `NewBanker(+cur)`,
+`cross(cur)`) has **landed and Memba is migrated**: all deployed Memba realms on test13
+run interrealm-v2 (`_v2` / `v3_1` set), `samcrew-deployer` is coherent with them, and
+generated client templates are compile-gated in CI against a pinned interrealm-v2 gno
+toolchain (`7b2888c3b`, `.github/workflows/gno-test.yml`, `REQUIRE_GNO=1`). No further
+action for deployed realms. Residual (tracked in the audit plan, not here): the
+deprecated v1 realms still on the old API are quarantined, not redeployed.
 
 ## Priority Matrix
 
 | Prio | PR | Risk | Effort | When to act |
 |------|-----|------|--------|-------------|
+| 🔴 P0 | [#5858](https://github.com/gnolang/gno/pull/5858) `chain.emit` hard-caps attr values → panic | MED (state-breaking, forward-looking) | 1-2h | Before any mainnet / post-#5858-network redeploy |
+| 🟡 P1 | [#5857](https://github.com/gnolang/gno/pull/5857) `MaxEventAttrLen` 1024→4096 | LOW (config; pairs with #5858) | 0 | Monitor |
 | 🔴 P0 | [#5037](https://github.com/gnolang/gno/pull/5037) boards2 safe functions + `hub` sub-realm | HIGH | 2-4h | When merged |
 | 🔴 P0 | [#5222](https://github.com/gnolang/gno/pull/5222) govdao T1 multisig rewiring | MED-HIGH | 0-4h | When merged |
 | 🟡 P1 | [#5139](https://github.com/gnolang/gno/pull/5139) boards2 members via GovDAO proposals | MED | 0-1h | When deployed |
@@ -30,6 +44,23 @@
 | **Betanet config** | `lib/config.ts` | New chain IDs, RPC URLs, trusted domains |
 
 ## P0 Details
+
+### #5857 / #5858 — event attribute caps (merged Jun 25, 2026)
+
+- **#5857** raises `MaxEventAttrLen` from 1024 to 4096 (config change; pairs with #5858).
+- **#5858** makes `chain.emit` **panic** on over-cap attribute *values* instead of
+  silently truncating them — **state-breaking** for any realm that can emit an
+  unbounded, user-controlled string.
+- **Memba exposure — narrow, forward-looking.** Deployed realms emit via the migrated
+  `chain.Emit`. The only realistically user-controlled, unbounded emitted value is
+  `agent_registry` `AgentRegistered` → `"name"` (endpoint/version/pricing are length- or
+  enum-capped). `collections.SetCollectionMeta` emits an arbitrary `"value"` but is
+  `assertPlatformAdmin`-gated. Reviews/candidature/token-OTC/feedback emit only bounded
+  IDs/addresses.
+- **Risk materializes on the next network running post-#5858 gno (mainnet / next
+  testnet), not on current test13.**
+- **Action:** cap emitted string lengths at the realm boundary before any mainnet
+  redeploy (see audit plan §5).
 
 ### #5037 — boards2 safe functions
 - Adds `gno.land/r/gnoland/boards2/v1/hub` sub-realm with read-only functions
