@@ -91,7 +91,7 @@ or constant — all consumers automatically pick up the change.
 - [ ] ACL-based channel permissions work
 - [ ] @mention parsing still works
 - [ ] `detectChannelRealm()` finds the correct realm
-- [ ] All 959+ tests pass
+- [ ] Full test suite passes (3,000+ repo-wide; CI is the source of truth)
 
 ---
 
@@ -146,7 +146,7 @@ or constant — all consumers automatically pick up the change.
 - [ ] Proposal execution works
 - [ ] Tier distribution displays correctly
 - [ ] Member list loads with correct voting power
-- [ ] All 959+ tests pass
+- [ ] Full test suite passes (3,000+ repo-wide; CI is the source of truth)
 
 ---
 
