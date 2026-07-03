@@ -3,12 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Cache dependencies
-COPY package.json package-lock.json ./
+# Cache dependencies (build context is the REPO ROOT — see ci.yml: the vite
+# build imports the repo-root CHANGELOG.md via ?raw for /changelogs)
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 # Build with env vars baked in (overridable at compose level)
-COPY . .
+COPY frontend/ .
+COPY CHANGELOG.md /CHANGELOG.md
 ARG VITE_API_URL=""
 ARG VITE_GNO_CHAIN_ID="test12"
 ARG VITE_GNO_RPC_URL="https://rpc.testnet12.samourai.live:443"
