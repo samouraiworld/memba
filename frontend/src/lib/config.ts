@@ -632,6 +632,7 @@ export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPa
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
 /** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
+export const isMarketplaceEnabled = (): boolean => import.meta.env.VITE_ENABLE_MARKETPLACE === "true"
 export const isServicesEnabled = (): boolean => import.meta.env.VITE_ENABLE_SERVICES === "true"
 export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS === "true"
 export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
