@@ -46,6 +46,29 @@ test.describe('GovDAO Page', () => {
         await expect(backBtn).toContainText('DAOs')
     })
 
+    test('no blockchain-error toast on load (GetProposalsJSON strict-probe regression)', async ({ page }) => {
+        // GovDAO v3 does not export the W1.4 JSON getters; the strict proposals
+        // read must fall back to Render parsing silently instead of surfacing
+        // "Blockchain query failed" (the bug: strict probe threw before the
+        // fallback ran, on every GovDAO visit).
+        await page.goto('/dao/gno.land~r~gov~dao')
+        await expect(page.locator('body')).toContainText('Members', { timeout: 20_000 })
+        // Give the (previously failing) proposals read time to surface its toast
+        await page.waitForTimeout(1_500)
+        await expect(page.locator('body')).not.toContainText('Blockchain query failed')
+    })
+
+    test('mobile: stat chips get the full row (no mid-word wrap next to the donut)', async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 812 })
+        await page.goto('/dao/gno.land~r~gov~dao')
+        const grid = page.locator('.k-stat-grid--compact')
+        await expect(grid).toBeVisible({ timeout: 20_000 })
+        // Starved-flex-sliver regression: the grid must take (nearly) the full
+        // card row, not the ~70px leftover beside the power donut.
+        const width = (await grid.boundingBox())?.width ?? 0
+        expect(width).toBeGreaterThan(250)
+    })
+
     test('power distribution section visible', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
         // GovDAO has tier distribution — may not render on fresh chains until members resolve

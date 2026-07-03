@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### DAO — GovDAO page fixes, owner-reported on mobile (2026-07-04)
+- **GovDAO proposals load again (no more "Blockchain query failed"):** the proposals reader probed the W1.4 `GetProposalsJSON()` export in strict mode, and GovDAO v3 (which never exported it) answers that with a VM panic — the strict probe threw before the GovDAO Render-markdown fallback could run, on every visit. The probe is now always non-strict (missing JSON API is a designed-for condition); real transport/realm failures still surface via the strict fallback read.
+- **Quest-complete toast no longer squeezes the whole app:** the toast renders from the global layout but its styles lived in the lazy quest-pages stylesheet — completing a quest anywhere else (e.g. "Governance Viewer" fires on the GovDAO page for fresh profiles) rendered it UNSTYLED as a flex item inside the app shell, crushing the page into a ~106px strip for the toast's 4-second lifetime. The styles now ship with the component in the main bundle.
+- **Mobile: DAO stat chips readable again:** the compact stat grid was starved to a ~70px sliver beside the power donut, wrapping every label mid-word ("Membe rs"). It now takes the full card row below the donut on phones, using the app-wide mobile stat layout.
+
 ### Navigation — W6.2 4-mode IA, PR1 (2026-07-03)
 - **Sidebar reorganized into four labeled modes — Wallet / Govern / Launch / Explore** — and is now fully manifest-driven (adding a `navManifest.ts` entry places it; no more hand-curated link list). Marketplace/Services/NFT surface in Launch with live/soon pills, replacing the buried "Upcoming" collapsible. Zero URL changes; account links unchanged.
 

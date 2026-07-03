@@ -4,6 +4,10 @@
  */
 
 import { useState, useEffect } from "react"
+// Styles ship WITH the component: the toast renders from the global Layout on
+// any route, so its CSS must be in the main bundle (it used to live in the
+// lazy questhub.css chunk — unstyled toast = app-squeezing flex item).
+import "./QuestToast.css"
 
 interface QuestToastProps {
     questTitle: string

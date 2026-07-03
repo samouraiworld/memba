@@ -139,10 +139,17 @@ export async function getDAOProposals(
         return cached.proposals
     }
 
-    // Try the JSON endpoint first (basedao + W1.4 daoTemplate). parseQevalJSON
-    // does the correct double-decode of the qeval wire format — a single-pass
-    // unescape corrupted backslash/newline-bearing titles.
-    const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`, strict)
+    // Try the JSON endpoint first (basedao + W1.4 daoTemplate). The probe is
+    // deliberately NON-strict even for strict callers: realms that never
+    // exported GetProposalsJSON (GovDAO v3, pre-W1.4 deploys) answer it with a
+    // VM panic ("name GetProposalsJSON not declared"), and the W2.2 error-aware
+    // layer THROWS on that under strict — which broke every GovDAO page before
+    // the Render fallback below could run. Strictness (real transport/realm
+    // failures must surface, not render as blank) is enforced by the fallback
+    // read instead. parseQevalJSON does the correct double-decode of the qeval
+    // wire format — a single-pass unescape corrupted backslash/newline-bearing
+    // titles.
+    const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`, false)
     if (json) {
         const parsed = parseQevalJSON(json)
         if (Array.isArray(parsed)) {
