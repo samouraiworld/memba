@@ -4,6 +4,11 @@ All notable changes to Memba are documented here.
 
 Full changelogs are split by version range for easier navigation:
 
+## [Unreleased]
+
+### Planning — Program "Compound" (2026-07-03)
+- **Long-term roadmap:** added `docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md` — the successor program to the v7.2.x AAA remediation plan (Waves 5–9: stabilization, discoverability/SEO/blog, marketplace & social feed, fund-safety de-gating, platform-bet spikes). `ROADMAP.md` now points to it; `docs/planning/SESSION_SYNC.md` added for parallel-session coordination.
+
 ## [v7.2.0] — 2026-06-29
 
 > Large multi-workstream wave merged to `main` after v6.3.1. Grouped by workstream (most recent first); PR numbers are the source of truth.
