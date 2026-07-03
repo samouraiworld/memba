@@ -2,9 +2,26 @@
 
 All notable changes to Memba are documented here.
 
+<!--
+PARSE CONTRACT (W6.1): the /changelogs page is generated from this file at
+build time (frontend/src/lib/changelog.ts — parser unit tests run against
+THIS file, so breaking the format fails CI). New entries use:
+
+  ## [vX.Y.Z] — YYYY-MM-DD
+  <!- categories: memba, network, gno-core ->   (optional HTML comment, default memba)
+  ### Workstream title (#PRs, date)             (section titles become the page digest)
+  - detail bullets
+
+Keep `## ` for release blocks only; historical heading variants below are
+grandfathered (the parser tolerates them — don't add new ones).
+-->
+
 Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
+
+### Changelogs — W6.1 automation (2026-07-03)
+- **/changelogs is now generated from this file:** build-time parser (`frontend/src/lib/changelog.ts`) with a documented parse contract at the top of `CHANGELOG.md`; parser unit tests run against the real file, so format drift fails CI instead of emptying the page. The page was frozen at v3.2.0 (April) — it now shows everything through the current release plus the Unreleased digest. Curated pre-v6 entries preserved in `changelogLegacy.ts`.
 
 ### Docs — W5.6 upstream breaking-changes sweep (2026-07-03)
 - `GNO_CORE_BREAKING_CHANGES.md`: added the Jun 16 → Jul 3 upstream sweep (master `dfe49509f`) — zero breaking changes for deployed test13 realms; three forward-looking rules pinned for new realm code (NewBanker `IsCurrent()` caller-drain rule, `realm.Sub()` not-on-test13 status, AddPackage production-file strictness), all commit SHAs fact-checked against the gno repo.
