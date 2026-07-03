@@ -558,6 +558,38 @@ describe("useAdena — W5.1 visibility-driven reconnect retry", () => {
         expect(adena.GetAccount.mock.calls.length).toBe(callsAfterFirstRetry)
     })
 
+    it("releases the throttle after 15s (retry fires again once the window passes)", async () => {
+        localStorage.setItem("memba_adena_connected", "true")
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue({ status: "failure" }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+
+        const nowSpy = vi.spyOn(Date, "now")
+        try {
+            const t0 = Date.now()
+            nowSpy.mockReturnValue(t0)
+            fireVisibility() // first retry — allowed
+            await act(async () => { await Promise.resolve() })
+            const afterFirst = adena.GetAccount.mock.calls.length
+
+            nowSpy.mockReturnValue(t0 + 5_000) // inside the window — suppressed
+            fireVisibility()
+            await act(async () => { await Promise.resolve() })
+            expect(adena.GetAccount.mock.calls.length).toBe(afterFirst)
+
+            nowSpy.mockReturnValue(t0 + 15_001) // window passed — fires again
+            fireVisibility()
+            await act(async () => { await Promise.resolve() })
+            expect(adena.GetAccount.mock.calls.length).toBeGreaterThan(afterFirst)
+        } finally {
+            nowSpy.mockRestore()
+        }
+    })
+
     it("does not retry when the user never had a session", async () => {
         const adena = makeAdena()
         setAdena(adena)
