@@ -45,6 +45,9 @@ if (SENTRY_DSN) {
         for (const ex of event.exception.values) {
           if (ex.value) {
             ex.value = ex.value.replace(/g1[a-z0-9]{38}/gi, "[REDACTED_ADDRESS]")
+            // W6.5 review note: captureException events surface via
+            // exception.values, not message — scrub JWTs here too.
+            ex.value = ex.value.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[REDACTED_JWT]")
           }
         }
       }
