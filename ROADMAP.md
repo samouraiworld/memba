@@ -3,6 +3,8 @@
 > Versioned roadmap for Memba, the standalone Gno multisig & DAO wallet.
 > Each version includes scope, acceptance criteria, engineering gates, and cross-perspective review checkpoints.
 
+> **Active long-term program (2026-07-03 →):** [Program "Compound" — Waves 5+](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md), the successor to the v7.2.x AAA remediation plan (Waves 0–4 delivered, PR #732). All forward planning lives there; the sections below are the historical version-by-version record.
+
 ---
 
 ## Current Status (2026-06-30)
@@ -19,8 +21,8 @@
 | **On-Chain** | Full Memba realm set live on test13 (`memba_dao`, `memba_quest_attestation_v1`, `memba_market_core_v2`, `memba_nft_market_v3_1`, etc.) |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
-| **Active program** | Post-v7.2.0 feature wave (OTC enforcement, marketplace polish, litestream, HTTP/1.1 resilience) |
-| **Next Priority** | (a) Merge resilience branches (`fix/p0-backend-503`, `feat/litestream-backup`); (b) `feature/phase11-otc-enforcement`; (c) `feat/profile-marketplace-polish` |
+| **Active program** | [Program "Compound" (Waves 5+)](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
+| **Next Priority** | Wave 5 — Stabilize & Unblock: Adena stability, Directory source fixes, validator review stars, Playwright parallelism, NFT v3.1 registration reconcile |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
