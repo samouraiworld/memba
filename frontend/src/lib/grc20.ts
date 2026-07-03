@@ -9,6 +9,7 @@
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig } from "./gasConfig"
+import * as Sentry from "@sentry/react"
 
 // ── Platform Fee ──────────────────────────────────────────────
 
@@ -247,7 +248,14 @@ export async function doContractBroadcast(
         }
     }
 
-    throw lastError || new Error("Transaction failed after retries")
+    // W6.5 money-path visibility: reaching here means every retry was
+    // exhausted on an INFRASTRUCTURE failure (user rejections and domain
+    // errors — insufficient funds, not a member, … — threw earlier and are
+    // deliberately not reported). Addresses/JWTs are scrubbed by the global
+    // beforeSend; no-op when Sentry.init didn't run.
+    const terminal = lastError || new Error("Transaction failed after retries")
+    Sentry.captureException(terminal, { tags: { memba_path: "tx-broadcast" } })
+    throw terminal
 }
 
 // ── ABCI Queries ──────────────────────────────────────────────
