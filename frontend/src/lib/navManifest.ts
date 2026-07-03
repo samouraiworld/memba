@@ -105,7 +105,7 @@ const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
 // sidebar destination is reachable on mobile (they aren't primary tabs); the
 // per-audience primary tabs are filtered out at render time so nothing is shown
 // twice (see mobileMoreNav).
-const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'extensions', 'alerts']
+const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'blog', 'changelogs', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
