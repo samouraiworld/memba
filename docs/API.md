@@ -73,7 +73,7 @@ auth `Token` · **Admin** = requires auth **and** the caller to be in `QUEST_ADM
 | RPC | Auth | Description |
 |-----|------|-------------|
 | `GetNFTCollection` | No | Cached collection stats (supply, floor, volume, sales, listings, royalty). Floor/listings may be 0 when the marketplace home route is unreachable |
-| `GetNFTActivity` | No | Recent sales for a collection, newest first, from the event-sourced `nft_sales` table (default 20, max 100) |
+| `GetNFTActivity` | No | Recent sales for a collection, newest first, from the event-sourced `nft_sales` table (default 50, max 500) |
 | `GetNFTPortfolio` | No | All cached tokens owned by an address, across collections |
 | `ListNFTTokens` | No | Cached tokens for a collection, optionally listed-only |
 
