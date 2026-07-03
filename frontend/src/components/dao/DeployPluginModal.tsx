@@ -6,7 +6,7 @@
  */
 import { useState } from "react"
 import { generateChannelCode, buildDeployChannelMsg, defaultChannelConfig, isValidChannelName } from "../../lib/channelTemplate"
-import { getGasConfig } from "../../lib/gasConfig"
+import { doContractBroadcast } from "../../lib/grc20"
 import { inputStyle } from "../dao/wizardShared"
 
 interface Props {
@@ -44,26 +44,18 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
         setDeploying(true)
         setError(null)
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const adenaWallet = (window as any).adena
-            if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
-
             const config = defaultChannelConfig(daoRealmPath, daoName)
             config.channels = channels.map(name => ({ name, type: "text" as const, acl: { readRoles: [], writeRoles: [] } }))
             const code = generateChannelCode(config)
             const msg = buildDeployChannelMsg(callerAddress, config.channelRealmPath, code, "10000000ugnot")
-            const gas = getGasConfig()
 
-            const res = await adenaWallet.DoContract({
-                messages: [{ type: "/vm.m_addpkg", value: msg.value }],
-                gasFee: gas.fee,
-                gasWanted: gas.deployWanted,
-                memo: `Deploy Board for ${daoName}`,
-            })
-
-            if (res.status === "failure") {
-                throw new Error(res.message || "Board deployment failed")
-            }
+            // W2.1: guarded broadcaster — RPC-trust, wrong-chain and A6
+            // confirmation now cover plugin deploys too. Throws on failure.
+            await doContractBroadcast(
+                [{ type: "/vm.m_addpkg", value: msg.value }],
+                `Deploy Channels for ${daoName}`,
+                { gas: "deploy" },
+            )
 
             onDeployed()
         } catch (err) {

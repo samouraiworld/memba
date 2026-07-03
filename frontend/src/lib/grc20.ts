@@ -45,29 +45,35 @@ export interface AminoMsg {
 // ── Adena DoContract Helpers ──────────────────────────────────
 
 /**
- * Convert Amino MsgCall array to Adena's /vm.m_call format.
+ * Convert Amino messages to the shape Adena's DoContract expects.
  *
- * ⚠️ Only handles vm/MsgCall messages. MsgAddPackage (/vm.m_addpkg)
- * must be converted separately (see channelTemplate.buildDeployChannelMsg).
+ * - vm/MsgCall is converted to /vm.m_call.
+ * - /vm.m_addpkg (realm deploys built by templates/prologue) and bank/MsgSend
+ *   (wallet activation self-send) are already wire-shaped — passed through so
+ *   deploys and sends can ride the SAME guarded broadcaster (W2.1).
+ * - Anything else throws: an unknown type must never reach the wallet.
  *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
  *       so all DAO calls must use MsgCall with crossing() functions.
  */
 export function toAdenaMessages(msgs: AminoMsg[]) {
     return msgs.map((m) => {
-        if (m.type !== "vm/MsgCall") {
-            throw new Error(`toAdenaMessages only supports vm/MsgCall, got: ${m.type}`)
+        if (m.type === "vm/MsgCall") {
+            return {
+                type: "/vm.m_call",
+                value: {
+                    caller: m.value.caller as string,
+                    send: (m.value.send as string) || "",
+                    pkg_path: m.value.pkg_path as string,
+                    func: m.value.func as string,
+                    args: m.value.args as string[],
+                },
+            }
         }
-        return {
-            type: "/vm.m_call",
-            value: {
-                caller: m.value.caller as string,
-                send: (m.value.send as string) || "",
-                pkg_path: m.value.pkg_path as string,
-                func: m.value.func as string,
-                args: m.value.args as string[],
-            },
+        if (m.type === "/vm.m_addpkg" || m.type === "bank/MsgSend") {
+            return m
         }
+        throw new Error(`toAdenaMessages: unsupported message type: ${m.type}`)
     })
 }
 
@@ -92,6 +98,51 @@ export function setWalletRpcContext(url: string | null, trusted: boolean, chainI
 /** Read current wallet RPC context (for UI components). */
 export function getWalletRpcContext(): { url: string | null; trusted: boolean } {
     return { url: _walletRpcUrl, trusted: _walletRpcTrusted }
+}
+
+/**
+ * Sentinel chainId meaning "the wallet just switched networks and the new
+ * chain could not be verified" (GetAccount failed right after changedNetwork).
+ * It can never match a real chain, so the wrong-chain guard FAILS CLOSED until
+ * the next successful account read or reconnect — the alternative (null)
+ * silently disables the guard, which is exactly the R2-CHN-E bug.
+ */
+export const UNVERIFIED_CHAIN_ID = "__unverified__"
+
+/**
+ * Run the RPC-trust + wrong-chain guards without broadcasting; throws a
+ * user-facing error when signing/broadcasting must be blocked. Split out of
+ * doContractBroadcast so flows with their own transport (multisig
+ * BroadcastMultisigTransaction) can apply the SAME safety checks (W2.1).
+ */
+export function assertWalletBroadcastSafe(): void {
+    // SECURITY: Block transactions through untrusted or unverifiable RPC
+    if (!_walletRpcTrusted) {
+        const detail = _walletRpcUrl
+            ? `Your wallet is using an untrusted RPC: ${_walletRpcUrl}`
+            : "Unable to verify your wallet's RPC URL"
+        throw new Error(
+            `🛡️ Transaction blocked — ${detail}. ` +
+            `Open Adena → Settings → Networks → switch to a trusted *.gno.land RPC.`
+        )
+    }
+
+    // SECURITY (defense-in-depth): never sign for the wrong chain. The wallet's
+    // active chainId must match Memba's active network, or the user could
+    // broadcast a Memba-built tx onto a different chain (e.g. during the
+    // test12↔test13 window). chainId is the on-wire value (e.g. "test-13").
+    if (_walletChainId && _walletChainId !== GNO_CHAIN_ID) {
+        if (_walletChainId === UNVERIFIED_CHAIN_ID) {
+            throw new Error(
+                `🛡️ Transaction blocked — your wallet's network changed and the new chain could not be verified. ` +
+                `Reconnect your wallet (or switch Adena back to "${GNO_CHAIN_ID}") before signing.`
+            )
+        }
+        throw new Error(
+            `🛡️ Transaction blocked — your wallet is on chain "${_walletChainId}" but Memba is on "${GNO_CHAIN_ID}". ` +
+            `Switch your wallet's network in Adena to match before signing.`
+        )
+    }
 }
 // ── A6: Transaction Confirmation Gate ─────────────────────────
 
@@ -130,6 +181,7 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
+    opts?: { gas?: "call" | "deploy" },
 ): Promise<{ hash: string }> {
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
@@ -138,27 +190,9 @@ export async function doContractBroadcast(
             throw new Error("Transaction cancelled by user")
         }
     }
-    // SECURITY: Block transactions through untrusted or unverifiable RPC
-    if (!_walletRpcTrusted) {
-        const detail = _walletRpcUrl
-            ? `Your wallet is using an untrusted RPC: ${_walletRpcUrl}`
-            : "Unable to verify your wallet's RPC URL"
-        throw new Error(
-            `🛡️ Transaction blocked — ${detail}. ` +
-            `Open Adena → Settings → Networks → switch to a trusted *.gno.land RPC.`
-        )
-    }
 
-    // SECURITY (defense-in-depth): never sign for the wrong chain. The wallet's
-    // active chainId must match Memba's active network, or the user could
-    // broadcast a Memba-built tx onto a different chain (e.g. during the
-    // test12↔test13 window). chainId is the on-wire value (e.g. "test-13").
-    if (_walletChainId && _walletChainId !== GNO_CHAIN_ID) {
-        throw new Error(
-            `🛡️ Transaction blocked — your wallet is on chain "${_walletChainId}" but Memba is on "${GNO_CHAIN_ID}". ` +
-            `Switch your wallet's network in Adena to match before signing.`
-        )
-    }
+    // SECURITY: RPC-trust + wrong-chain guards (shared with multisig broadcast)
+    assertWalletBroadcastSafe()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adena = (window as any).adena
@@ -167,7 +201,12 @@ export async function doContractBroadcast(
     }
 
     const gas = getGasConfig()
-    const maxRetries = 2
+    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget — and must
+    // NEVER auto-retry: a lost response after a landed deploy would re-prompt
+    // the wallet sign UI just to fail with "package already exists".
+    const isDeploy = opts?.gas === "deploy"
+    const gasWanted = isDeploy ? gas.deployWanted : gas.wanted
+    const maxRetries = isDeploy ? 0 : 2
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -175,7 +214,7 @@ export async function doContractBroadcast(
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),
                 gasFee: gas.fee,
-                gasWanted: gas.wanted,
+                gasWanted,
                 memo,
             })
 
@@ -186,7 +225,7 @@ export async function doContractBroadcast(
                     throw new Error(errMsg)
                 }
                 // Don't retry deterministic chain errors
-                if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(errMsg)) {
+                if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(errMsg)) {
                     throw new Error(errMsg)
                 }
                 lastError = new Error(errMsg)
@@ -198,7 +237,7 @@ export async function doContractBroadcast(
             // Don't retry user cancellations
             if (/user (rejected|denied)|cancelled/i.test(msg)) throw err
             // Don't retry deterministic errors
-            if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(msg)) throw err
+            if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(msg)) throw err
             lastError = err instanceof Error ? err : new Error(msg)
         }
 

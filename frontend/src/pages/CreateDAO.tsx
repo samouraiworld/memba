@@ -15,7 +15,7 @@ import { generateChannelCode, defaultChannelConfig } from "../lib/channelTemplat
 import { buildDeployMsg } from "../lib/templates/prologue"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { BECH32_PREFIX } from "../lib/config"
-import { getGasConfig } from "../lib/gasConfig"
+import { doContractBroadcast } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
 import "./createdao.css"
 
@@ -235,31 +235,19 @@ export function CreateDAO() {
             const code = generateDAOCode(config)
             const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const adenaWallet = (window as any).adena
-            if (!adenaWallet?.DoContract) throw new Error("Adena wallet not available")
-
-            const gas = getGasConfig()
-
             setDeployStep("signing")
 
             // TODO: Re-add 2 GNOT dev fee — test11 transfers now allowed (2026-04-09),
             // but needs on-chain testing before enabling. Add send amount to DoContract.
-            const res = await adenaWallet.DoContract({
-                messages: [{
-                    type: "/vm.m_addpkg",
-                    value: msg.value,
-                }],
-                gasFee: gas.fee,
-                gasWanted: gas.deployWanted,
-                memo: `Deploy DAO: ${name}`,
-            })
+            // W2.1: guarded broadcaster — RPC-trust, wrong-chain and A6
+            // confirmation now cover realm deploys too. Throws on failure.
+            const res = await doContractBroadcast(
+                [{ type: "/vm.m_addpkg", value: msg.value }],
+                `Deploy DAO: ${name}`,
+                { gas: "deploy" },
+            )
 
             setDeployStep("broadcasting")
-
-            if (res.status === "failure") {
-                throw new Error(res.message || res.data?.message || "Deployment failed")
-            }
 
             addSavedDAO(realmPath, name)
 
@@ -278,16 +266,11 @@ export function CreateDAO() {
                     channelConfig.members = config.members.map((m) => ({ address: m.address, roles: m.roles }))
                     const channelCode = generateChannelCode(channelConfig)
                     const channelMsg = buildDeployMsg(adena.address, channelConfig.channelRealmPath, channelCode, "10000000ugnot")
-                    const channelRes = await adenaWallet.DoContract({
-                        messages: [{ type: "/vm.m_addpkg", value: channelMsg.value }],
-                        gasFee: gas.fee,
-                        gasWanted: gas.deployWanted,
-                        memo: `Deploy Channels for ${name}`,
-                    })
-                    if (channelRes.status === "failure") {
-                        console.warn("[Memba] Channels deploy failed:", channelRes.message)
-                        // Non-fatal: DAO is deployed, channels can be deployed later
-                    }
+                    await doContractBroadcast(
+                        [{ type: "/vm.m_addpkg", value: channelMsg.value }],
+                        `Deploy Channels for ${name}`,
+                        { gas: "deploy" },
+                    )
                 } catch (channelErr) {
                     console.warn("[Memba] Channels deploy error:", channelErr)
                     // Non-fatal: DAO was deployed successfully
@@ -301,7 +284,7 @@ export function CreateDAO() {
                 entityPath: `/dao/${slug}`,
                 entityLabel: "DAO",
                 entityName: name,
-                txHash: res.data?.hash,
+                txHash: res.hash,
             })
             setDeployStep("complete")
         } catch (err) {

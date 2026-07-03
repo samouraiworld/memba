@@ -5,7 +5,7 @@
  * token info parsing, sanitization, Adena message conversion,
  * and v2.1a Memba-specific helpers.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
     calculateFee,
     feeDisclosure,
@@ -26,6 +26,8 @@ import {
     doContractBroadcast,
     setWalletRpcContext,
     setTxConfirmationCallback,
+    assertWalletBroadcastSafe,
+    UNVERIFIED_CHAIN_ID,
 } from './grc20'
 
 // ── Fee Calculation (v2.1a: 2.5%) ───────────────────────────────
@@ -280,9 +282,18 @@ describe('toAdenaMessages', () => {
         expect(adena[0].value.send).toBe('')
     })
 
-    it('throws on non-MsgCall messages (R2-M1 fix)', () => {
+    it('passes /vm.m_addpkg and bank/MsgSend through unchanged (W2.1)', () => {
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
-        expect(() => toAdenaMessages([addPkgMsg])).toThrow('only supports vm/MsgCall')
+        const sendMsg = {
+            type: 'bank/MsgSend',
+            value: { from_address: 'g1x', to_address: 'g1x', amount: [{ denom: 'ugnot', amount: '1' }] },
+        }
+        expect(toAdenaMessages([addPkgMsg, sendMsg])).toEqual([addPkgMsg, sendMsg])
+    })
+
+    it('throws on unknown message types (R2-M1 fix)', () => {
+        const bogus = { type: 'vm/MsgRun', value: {} }
+        expect(() => toAdenaMessages([bogus])).toThrow('unsupported message type')
     })
 })
 
@@ -302,6 +313,91 @@ describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
         setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
+    })
+})
+
+// ── W2.1: shared guard + deploy gas ───────────────────────────
+
+describe('assertWalletBroadcastSafe — shared guard for non-DoContract transports', () => {
+    it('throws on an untrusted RPC', () => {
+        setWalletRpcContext('https://rpc.evil.example:443', false, 'test-13')
+        expect(() => assertWalletBroadcastSafe()).toThrow(/untrusted RPC/)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('throws on a wrong-chain wallet', () => {
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'gnoland1')
+        expect(() => assertWalletBroadcastSafe()).toThrow(/wallet is on chain "gnoland1"/)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('fails CLOSED on the unverified-chain sentinel with reconnect guidance', () => {
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, UNVERIFIED_CHAIN_ID)
+        expect(() => assertWalletBroadcastSafe()).toThrow(/could not be verified/)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('passes on a trusted RPC with a matching chain', () => {
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        expect(() => assertWalletBroadcastSafe()).not.toThrow()
+        setWalletRpcContext(null, false, null)
+    })
+})
+
+describe('doContractBroadcast — deploys never auto-retry (review finding #1)', () => {
+    it('surfaces the first deploy failure immediately: one DoContract call, no re-sign loop', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: doContract }
+        const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy' })).rejects.toThrow(/network timeout/)
+        expect(doContract).toHaveBeenCalledTimes(1)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).adena
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('never retries "package already exists" even on the call budget', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: doContract }
+        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
+        await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
+        expect(doContract).toHaveBeenCalledTimes(1)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).adena
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
+    })
+})
+
+describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
+    it('uses the elevated deploy budget for { gas: "deploy" } and the normal one otherwise', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        const calls: Array<{ gasWanted: number }> = []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = {
+            DoContract: (arg: { gasWanted: number }) => {
+                calls.push(arg)
+                return Promise.resolve({ status: 'success', data: { hash: 'h' } })
+            },
+        }
+        const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        await doContractBroadcast([addPkgMsg], 'deploy memo', { gas: 'deploy' })
+        await doContractBroadcast([addPkgMsg], 'call memo')
+        expect(calls).toHaveLength(2)
+        // deployWanted is strictly larger than the normal budget (5x default).
+        expect(calls[0].gasWanted).toBeGreaterThan(calls[1].gasWanted)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).adena
         setTxConfirmationCallback(null)
         setWalletRpcContext(null, false, null)
     })
