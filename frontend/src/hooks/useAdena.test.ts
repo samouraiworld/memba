@@ -69,6 +69,8 @@ function clearAdena() {
 // no-op without window.plausible; setWalletRpcContext / isTrustedRpcDomain run
 // for real — RPC-trust is part of the hook's observable security output.
 import { useAdena } from "./useAdena"
+import { doContractBroadcast, setWalletRpcContext } from "../lib/grc20"
+import { GNO_CHAIN_ID } from "../lib/config"
 
 beforeEach(() => {
     sessionStorage.clear() // setup.ts only clears localStorage; the hook uses sessionStorage
@@ -356,5 +358,74 @@ describe("useAdena — changedNetwork subscription", () => {
 
         renderHook(() => useAdena()) // never connect
         expect(adena.On).not.toHaveBeenCalled()
+    })
+
+    // R2-CHN-E (W2.1): the OLD handler called setWalletRpcContext with 2 args,
+    // resetting grc20's _walletChainId to null and silently DISABLING the
+    // wrong-chain broadcast guard right after a network switch. These tests run
+    // the REAL grc20 module (only window.adena is mocked) and assert the guard
+    // end-to-end: post-switch wrong-chain sign is blocked.
+    it("blocks signing after a network switch to another chain (guard resyncs)", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID })),
+            On: vi.fn((event: string, cb: () => void | Promise<void>) => {
+                if (event === "changedNetwork") changedHandler = cb
+                return true
+            }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect()
+        })
+
+        // Pre-switch: trusted RPC + matching chain → both guards pass, so the
+        // broadcast only fails at the (absent) DoContract — proving the chain
+        // guard is NOT what's blocking.
+        await expect(doContractBroadcast([], "pre-switch")).rejects.toThrow(/Adena wallet not available/)
+
+        // Switch to a TRUSTED RPC on the WRONG chain: the trust guard passes,
+        // so only a correctly-resynced chainId can block the sign.
+        adena.GetNetwork.mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+        adena.GetAccount.mockResolvedValue(okAccount({ chainId: "othernet" }))
+        await act(async () => {
+            await changedHandler!()
+        })
+
+        await expect(doContractBroadcast([], "post-switch")).rejects.toThrow(/othernet/)
+
+        setWalletRpcContext(null, false, null) // don't leak module state
+    })
+
+    it("fails CLOSED when the account read fails right after a switch", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID })),
+            On: vi.fn((event: string, cb: () => void | Promise<void>) => {
+                if (event === "changedNetwork") changedHandler = cb
+                return true
+            }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect()
+        })
+
+        // The switch lands on a trusted RPC but the account read dies: the
+        // new chain is UNKNOWN, so signing must stay blocked (sentinel), not
+        // silently re-enabled (the old null-reset bug).
+        adena.GetNetwork.mockResolvedValue({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+        adena.GetAccount.mockRejectedValue(new Error("wallet locked"))
+        await act(async () => {
+            await changedHandler!()
+        })
+
+        await expect(doContractBroadcast([], "post-switch")).rejects.toThrow(/could not be verified/)
+
+        setWalletRpcContext(null, false, null) // don't leak module state
     })
 })

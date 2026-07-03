@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ShieldCheck, ArrowRight, Wallet, Spinner } from "@phosphor-icons/react"
-import { getGasConfig } from "../../lib/gasConfig"
+import { doContractBroadcast } from "../../lib/grc20"
 import "./ActivationModal.css"
 
 interface ActivationModalProps {
@@ -18,30 +18,19 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess }: Act
         setActivating(true)
         setError(null)
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const adena = (window as any).adena
-            if (!adena?.DoContract) throw new Error("Adena not found")
-
-            const gas = getGasConfig()
-            const msg = {
-                type: "bank/MsgSend",
-                value: {
-                    from_address: address,
-                    to_address: address,
-                    amount: [{ denom: "ugnot", amount: "1" }],
-                },
-            }
-
-            const res = await adena.DoContract({
-                messages: [msg],
-                gasFee: gas.fee,
-                gasWanted: gas.wanted,
-                memo: "Memba Network Activation",
-            })
-
-            if (res.status === "failure") {
-                throw new Error(res.message || res.data?.message || "Transaction failed")
-            }
+            // W2.1: ride the guarded broadcaster — RPC-trust, wrong-chain and
+            // A6 confirmation apply to the activation self-send like any write.
+            await doContractBroadcast(
+                [{
+                    type: "bank/MsgSend",
+                    value: {
+                        from_address: address,
+                        to_address: address,
+                        amount: [{ denom: "ugnot", amount: "1" }],
+                    },
+                }],
+                "Memba Network Activation",
+            )
 
             onSuccess()
         } catch (err: unknown) {

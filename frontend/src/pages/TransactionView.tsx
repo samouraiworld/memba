@@ -12,6 +12,7 @@ import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL, GNO_BECH32_HRP } from "../lib/config"
+import { assertWalletBroadcastSafe } from "../lib/grc20"
 import { pubkeyToAddress } from "../lib/dao/realmAddress"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
@@ -505,10 +506,23 @@ async function buildBroadcastTx(tx: Transaction): Promise<string> {
 /**
  * Attempt to broadcast via Adena's BroadcastMultisigTransaction.
  * Returns the TX hash on success, or null if Adena doesn't support it.
+ *
+ * W2.1: the wallet path applies the same RPC-trust + wrong-chain guards as
+ * doContractBroadcast (assertWalletBroadcastSafe). A guard failure returns
+ * null → the caller falls back to Memba's OWN configured RPC, which targets
+ * the correct chain by construction (the tx was signed for it), so the
+ * fallback is chain-safe while the wallet's network state is not.
  */
 async function tryAdenaBroadcast(tx: Transaction): Promise<string | null> {
     const adena = (window as unknown as Record<string, unknown>).adena as Record<string, unknown> | undefined
     if (!adena || typeof adena.BroadcastMultisigTransaction !== "function") {
+        return null
+    }
+
+    try {
+        assertWalletBroadcastSafe()
+    } catch (guardErr) {
+        console.warn("[Memba] Adena broadcast blocked by wallet guard, using app RPC fallback:", guardErr)
         return null
     }
 
