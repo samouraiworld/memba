@@ -96,21 +96,39 @@ export function useAnalystReport(
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const abortRef = useRef<AbortController | null>(null)
-    // Track if we've already attempted a fetch to avoid re-triggering on prop changes
-    const fetchedRef = useRef(!!report) // true if we rehydrated from cache
+    // Track WHICH cacheKey a fetch was already attempted for (avoids re-triggering
+    // on prop changes). Key-scoped instead of a boolean so it never needs resetting
+    // when the context changes — a new cacheKey simply doesn't match (W4: refs must
+    // not be written during render, so a resettable boolean is not an option).
+    const fetchedKeyRef = useRef<string | null>(report ? cacheKey : null)
+
+    // Reset state when context changes (realm, proposal, or network) — the React
+    // docs "adjust state during render" pattern (prev-key guard) instead of an
+    // effect, so the old context's report is never rendered for the new key and
+    // no setState runs synchronously inside an effect.
+    const [prevCacheKey, setPrevCacheKey] = useState(cacheKey)
+    if (prevCacheKey !== cacheKey) {
+        setPrevCacheKey(cacheKey)
+        // Rehydrate from sessionStorage for the new context (or clear)
+        setReport(getSessionCache(cacheKey))
+        setError(null)
+        setLoading(false)
+    }
 
     const fetchReport = useCallback(async (force = false) => {
         // Must have valid realm, proposal ID, and non-empty proposal data
         if (!realmPath || proposalId === undefined || !proposalData || proposalData.trim() === "") return
 
-        // Don't re-fetch unless forced (refresh button)
-        if (fetchedRef.current && !force) return
+        // Don't re-fetch unless forced (refresh button): skip when a fetch was
+        // already attempted for this key, or a session-cached report exists
+        // (rehydrated at init or on key change — previously fetchedRef=true).
+        if (!force && (fetchedKeyRef.current === cacheKey || getSessionCache(cacheKey) !== null)) return
         // SEC: /api/analyst/consensus now requires auth (prevents unauthenticated
         // LLM cost-drain). Skip silently when not signed in; don't mark fetched so
         // it can run once the user authenticates and re-navigates.
         const authToken = (() => { try { return localStorage.getItem("memba_auth_token") || "" } catch { return "" } })()
         if (!authToken) return
-        fetchedRef.current = true
+        fetchedKeyRef.current = cacheKey
 
         // Cancel any in-flight request
         abortRef.current?.abort()
@@ -160,27 +178,22 @@ export function useAnalystReport(
         }
     }, [realmPath, proposalId, proposalData, daoContext, analysisType, networkKey, cacheKey])
 
-    // Reset state when context changes (realm, proposal, or network)
-    useEffect(() => {
-        fetchedRef.current = false
-        // Try to rehydrate from sessionStorage for the new context
-        const cached = getSessionCache(cacheKey)
-        if (cached) {
-            setReport(cached)
-            fetchedRef.current = true
-        } else {
-            setReport(null)
-        }
-        setError(null)
-        setLoading(false)
-    }, [cacheKey])
-
     // Auto-fetch for DAO-level analysis (server-cached 6h, shared across users)
+    // W4 (set-state-in-effect): the fetch kickoff is deferred one microtask so
+    // fetchReport's setLoading/setError never run synchronously in the effect
+    // body. Runs before paint — no visible difference; the cancelled guard
+    // preserves the original "no fetch after cleanup" behavior.
     useEffect(() => {
         if (analysisType !== "dao") return
         if (!proposalData || proposalData.trim() === "") return
-        fetchReport()
-        return () => { abortRef.current?.abort() }
+        let cancelled = false
+        queueMicrotask(() => {
+            if (!cancelled) fetchReport()
+        })
+        return () => {
+            cancelled = true
+            abortRef.current?.abort()
+        }
     }, [analysisType, fetchReport]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Cleanup on unmount
@@ -189,7 +202,7 @@ export function useAnalystReport(
     }, [])
 
     const trigger = useCallback(() => {
-        fetchedRef.current = false
+        fetchedKeyRef.current = null
         fetchReport(true)
     }, [fetchReport])
 
