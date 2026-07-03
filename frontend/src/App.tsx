@@ -100,6 +100,8 @@ const CandidaturePage = lazy(() => import("./pages/CandidaturePage"))
 
 // ── Changelogs page (lazy — v2.14) ──
 const Changelogs = lazy(() => import("./pages/Changelogs"))
+const BlogList = lazy(() => import("./pages/Blog").then(m => ({ default: m.BlogList })))
+const BlogArticlePage = lazy(() => import("./pages/Blog").then(m => ({ default: m.BlogArticlePage })))
 
 /** Route-level loading fallback — unified Memba logo loader (v2.10). */
 function PageLoader() {
@@ -296,6 +298,8 @@ function App() {
 
           {/* Changelogs (v2.14) */}
           <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
+          <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogList /></Suspense>} />
+          <Route path="blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogArticlePage /></Suspense>} />
 
           {/* GitHub OAuth callback (lazy) */}
           <Route path="github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />

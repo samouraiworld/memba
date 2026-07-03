@@ -20,9 +20,15 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+<<<<<<< HEAD
 ### Observability — W6.5 PR1: Sentry gaps closed (2026-07-04)
 - **Root ErrorBoundary now reports to Sentry** — app-wide render crashes were invisible (only the alerts/gnolove boundaries captured). Stale-chunk crashes are tagged (`memba_stale_chunk`) so benign auto-reloads stay filterable while persistent chunk loops finally surface.
 - **Money-path visibility:** a transaction broadcast that exhausts every retry on an infrastructure failure is captured (`memba_path: tx-broadcast`); user rejections and domain errors stay unreported by design. Addresses/JWTs scrubbed by the existing global beforeSend.
+=======
+### Blog — W6.4: /blog + RSS + first article (2026-07-04)
+- **New `/blog` section:** markdown articles in `content/blog/` (front-matter contract in `lib/blogParser.ts`, drift-tripwire test on the real files), list + article pages rendered through the XSS-safe markdownLite + DOMPurify house pattern, Explore-mode nav entry, route meta + sitemap pairing, and a build-time RSS feed (`/blog.rss`).
+- First article drafted: "Inside Memba — what's live on gno.land test13 today" (owner-approved before merge per the content rule).
+>>>>>>> 67c86e6 (W6.4: /blog — markdown articles, RSS feed, first article draft)
 
 ### SEO — W6.3 PR3: structured data + prerender decision (2026-07-04)
 - **JSON-LD structured data:** site-level Organization + WebApplication graph static in `index.html` (crawler-readable pre-JS); per-route BreadcrumbList injected by `RouteMetaSync`. JSON-LD script blocks are inert — CSP unaffected.

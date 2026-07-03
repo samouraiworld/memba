@@ -17,7 +17,7 @@ import {
     LinkSimpleHorizontal, Bell, Briefcase, Heart, GameController,
     PuzzlePiece, Robot, Handshake, ImageSquare,
     User, Gear, Bank, Megaphone,
-    UsersThree, Trophy, ClockCounterClockwise, ShieldStar,
+    UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -76,6 +76,7 @@ export const NAV: NavEntry[] = [
     { id: 'candidature', to: '/candidature', label: 'Candidature', Icon: Bank, group: 'account', showOn: 'both', requiresAuth: true },
     { id: 'feedback', to: '/feedback', label: 'Feedback', Icon: Megaphone, group: 'account', showOn: 'both' },
     { id: 'changelogs', to: '/changelogs', label: 'Changelogs', Icon: ClockCounterClockwise, group: 'account', showOn: 'both' },
+    { id: 'blog', to: '/blog', label: 'Blog', Icon: Newspaper, group: 'explore', showOn: 'both' },
     { id: 'quest-admin', to: '/quest-admin', label: 'Quest Admin', Icon: ShieldStar, group: 'account', showOn: 'desktop', requiresAuth: true },
 ]
 

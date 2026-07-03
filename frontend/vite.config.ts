@@ -5,7 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
-import { buildSitemapXml } from './src/lib/sitemap'
+import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
+import { readdirSync } from 'node:fs'
+import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -37,6 +39,15 @@ function sitemapPlugin(): PluginOption {
       const lastmod = new Date().toISOString().slice(0, 10)
       mkdirSync('dist', { recursive: true })
       writeFileSync('dist/sitemap.xml', buildSitemapXml(undefined, undefined, undefined, lastmod))
+      // W6.4: RSS feed from content/blog (same pure-module pattern as the sitemap).
+      const blogDir = 'content/blog'
+      const files: Record<string, string> = {}
+      try {
+        for (const f of readdirSync(blogDir)) {
+          if (f.endsWith('.md')) files[f] = readFileSync(`${blogDir}/${f}`, 'utf-8')
+        }
+      } catch { /* no blog dir → empty feed */ }
+      writeFileSync('dist/blog.rss', buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, parseBlogArticles(files)))
     },
   }
 }
