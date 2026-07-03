@@ -125,6 +125,47 @@ func memberPubKeyForAddress(multisigPubkeyJSON, signerAddress string) (cryptotyp
 	return nil, fmt.Errorf("address %s is not a member of this multisig", signerAddress)
 }
 
+// Sweep-result buckets for ClassifyStoredSignature. They separate "the bytes
+// don't verify" (the flip-blocking signal) from "the stored row predates the
+// canonical shape and can never be reconstructed" (expected for legacy rows).
+const (
+	SigVerifyOK          = "ok"           // signature verifies over the reconstructed bytes
+	SigVerifyMismatch    = "mismatch"     // reconstruction succeeded but the signature does not verify
+	SigVerifyLegacyShape = "legacy_shape" // stored msgs/fee cannot be reconstructed (pre-canonical row)
+	SigVerifyError       = "error"        // row-level problem: bad base64, unparsable multisig pubkey, non-member signer
+)
+
+// ClassifyStoredSignature re-verifies one stored signature row and buckets the
+// outcome for the A3 flip-gate readout (SweepMultisigSigVerify and the live
+// SignTransaction signal). The returned error carries the failure detail for
+// logging; it is nil only for SigVerifyOK.
+func ClassifyStoredSignature(multisigPubkeyJSON, signerAddress, sigBase64 string, txf StoredTxFields) (string, error) {
+	in, err := signDocInputFromStored(txf)
+	if err != nil {
+		return SigVerifyLegacyShape, err
+	}
+	signBytes, err := CanonicalSignBytes(in)
+	if err != nil {
+		return SigVerifyLegacyShape, fmt.Errorf("reconstruct sign bytes: %w", err)
+	}
+
+	sig, err := base64.StdEncoding.DecodeString(sigBase64)
+	if err != nil {
+		return SigVerifyError, fmt.Errorf("signature is not valid base64: %w", err)
+	}
+
+	memberPub, err := memberPubKeyForAddress(multisigPubkeyJSON, signerAddress)
+	if err != nil {
+		return SigVerifyError, err
+	}
+
+	if !memberPub.VerifySignature(signBytes, sig) {
+		return SigVerifyMismatch, fmt.Errorf("signature does not verify for member %s; "+
+			"check the account number, sequence, and chain were not modified after signing", signerAddress)
+	}
+	return SigVerifyOK, nil
+}
+
 // VerifyMultisigMemberSignature checks that sigBase64 was produced by signerAddress
 // (a member of the multisig described by multisigPubkeyJSON) over the canonical
 // sign-bytes reconstructed from txf. Returns a descriptive error on any failure.
@@ -132,28 +173,6 @@ func memberPubKeyForAddress(multisigPubkeyJSON, signerAddress string) (cryptotyp
 // This is the A3 server-side guard: it rejects garbage/wrong-key/wrong-sequence
 // pastes at submission instead of surfacing a false "Signed" that dies at broadcast.
 func VerifyMultisigMemberSignature(multisigPubkeyJSON, signerAddress, sigBase64 string, txf StoredTxFields) error {
-	in, err := signDocInputFromStored(txf)
-	if err != nil {
-		return err
-	}
-	signBytes, err := CanonicalSignBytes(in)
-	if err != nil {
-		return fmt.Errorf("reconstruct sign bytes: %w", err)
-	}
-
-	sig, err := base64.StdEncoding.DecodeString(sigBase64)
-	if err != nil {
-		return fmt.Errorf("signature is not valid base64: %w", err)
-	}
-
-	memberPub, err := memberPubKeyForAddress(multisigPubkeyJSON, signerAddress)
-	if err != nil {
-		return err
-	}
-
-	if !memberPub.VerifySignature(signBytes, sig) {
-		return fmt.Errorf("signature does not verify for member %s; "+
-			"check the account number, sequence, and chain were not modified after signing", signerAddress)
-	}
-	return nil
+	_, err := ClassifyStoredSignature(multisigPubkeyJSON, signerAddress, sigBase64, txf)
+	return err
 }
