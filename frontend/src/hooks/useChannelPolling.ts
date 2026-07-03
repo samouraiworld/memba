@@ -65,9 +65,27 @@ export function useChannelPolling({
     const [threads, setThreads] = useState<BoardThread[]>([])
     const [threadDetail, setThreadDetail] = useState<BoardThreadDetail | null>(null)
     const [hasNewContent, setHasNewContent] = useState(false)
-    const [loading, setLoading] = useState(true)
+    // C1: loading starts false when polling is disabled (home view) — previously
+    // reset to false by the context-change effect; now derived at init.
+    const [loading, setLoading] = useState(enabled)
     const [error, setError] = useState<string | null>(null)
     const [connectionLost, setConnectionLost] = useState(false)
+
+    // Reset visible state when the polling context changes — the React docs
+    // "adjust state during render" pattern (prev-key guard) instead of setState
+    // inside the effect below, so the old channel/thread's content is never
+    // rendered for the new context (W4: react-hooks/set-state-in-effect).
+    const contextKey = JSON.stringify([boardPath, channel, threadId, enabled])
+    const [prevContextKey, setPrevContextKey] = useState(contextKey)
+    if (prevContextKey !== contextKey) {
+        setPrevContextKey(contextKey)
+        setHasNewContent(false)
+        setConnectionLost(false)
+        setThreads([])
+        setThreadDetail(null)
+        setError(null)
+        setLoading(enabled)
+    }
 
     // Refs for polling control
     const isVisible = useRef(true)
@@ -154,22 +172,26 @@ export function useChannelPolling({
     }, [boardPath])
 
     // ── Initial fetch on channel/thread change ────────────────
+    // State resets moved to the during-render block above; only ref resets
+    // (legal in effects) and the fetch kickoff remain here.
     useEffect(() => {
         isInitialLoad.current = true
         prevCounts.current = { threads: 0, replies: 0 }
         consecutiveFailures.current = 0
-        setHasNewContent(false)
-        setConnectionLost(false)
-        setThreads([])
-        setThreadDetail(null)
         // C1 fix: skip initial fetch when not enabled (home view)
-        if (!enabled) {
-            setLoading(false)
-            return
-        }
-        fetchData(true).then(() => {
-            isInitialLoad.current = false
+        if (!enabled) return
+        // W4 (set-state-in-effect): defer the fetch kickoff one microtask so
+        // fetchData's setLoading/setError never run synchronously in the effect
+        // body. Runs before paint — no visible difference; the cancelled guard
+        // preserves the original "no fetch after cleanup" behavior.
+        let cancelled = false
+        queueMicrotask(() => {
+            if (cancelled) return
+            fetchData(true).then(() => {
+                isInitialLoad.current = false
+            })
         })
+        return () => { cancelled = true }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [boardPath, channel, threadId, enabled])
 

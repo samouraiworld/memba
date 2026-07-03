@@ -64,8 +64,24 @@ async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number
  * @param address - Wallet address (null = disconnected, empty state)
  */
 export function useNotifications(daoPaths: string[], address: string | null) {
-    const [notifications, setNotifications] = useState<Notification[]>([])
-    const [unreadCount, setUnreadCount] = useState(0)
+    // Initial sync from localStorage happens lazily at init (was a synchronous
+    // syncState() call in the polling effect — W4: react-hooks/set-state-in-effect).
+    const [notifications, setNotifications] = useState<Notification[]>(
+        () => (address ? getNotifications(address) : []),
+    )
+    const [unreadCount, setUnreadCount] = useState(
+        () => (address ? getUnreadCount(address) : 0),
+    )
+
+    // Re-sync when the wallet address changes — the React docs "adjust state
+    // during render" pattern (prev-key guard) instead of setState in an effect,
+    // so the old address's notifications are never rendered for the new one.
+    const [prevAddress, setPrevAddress] = useState(address)
+    if (prevAddress !== address) {
+        setPrevAddress(address)
+        setNotifications(address ? getNotifications(address) : [])
+        setUnreadCount(address ? getUnreadCount(address) : 0)
+    }
     const lastKnownCounts = useRef<Map<string, number>>(new Map())
     // v2.13: Track proposal statuses for change detection
     const lastKnownStatuses = useRef<Map<string, string>>(new Map())
@@ -202,10 +218,12 @@ export function useNotifications(daoPaths: string[], address: string | null) {
         return () => document.removeEventListener("visibilitychange", handleVisibility)
     }, [])
 
-    // Initial sync + polling interval
+    // Initial poll + polling interval. The initial localStorage sync moved to
+    // the lazy state init / during-render adjust above (W4: no sync setState in
+    // effects); pollForChanges only sets state after its awaits, so calling it
+    // here is not a synchronous state write.
     // I4 fix: visibility check in interval callback itself
     useEffect(() => {
-        syncState()
         pollForChanges()
         const interval = setInterval(() => {
             if (!isVisible.current) return // I4: skip entirely when hidden
