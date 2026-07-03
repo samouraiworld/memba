@@ -20,6 +20,16 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### SEO — W6.3 PR3: structured data + prerender decision (2026-07-04)
+- **JSON-LD structured data:** site-level Organization + WebApplication graph static in `index.html` (crawler-readable pre-JS); per-route BreadcrumbList injected by `RouteMetaSync`. JSON-LD script blocks are inert — CSP unaffected.
+- **Prerender decision recorded (`docs/features/SEO.md`): not adopted** — Googlebot's JS rendering plus the now-complete meta/sitemap/JSON-LD surface covers the testnet-stage audience; re-evaluation triggers documented. W6.3 complete.
+
+### SEO — W6.3 PR2: sitemap.xml + robots.txt (2026-07-03)
+- **`sitemap.xml` generated at build** (vite plugin over a pure builder in `lib/sitemap.ts`): every public static route, network-prefixed and lastmod-stamped. Static-only by design — build-time chain fetches for entity pages would couple Netlify builds to live-chain availability (decision documented in-module; revisit with the PR3 prerender decision). Plus a static `public/robots.txt` pointing at the sitemap.
+
+### SEO — W6.3 PR1: per-route meta (2026-07-03)
+- **Per-route SEO meta on every navigation:** a central `RouteMetaSync` (mounted in Layout) now writes meta description, `og:title`/`og:description`, `og:url`, `twitter:title`, and the canonical link from an ordered route-meta map (`lib/routeMeta.ts`) covering all key sections. Deliberately never touches `document.title` — pages own their titles, and React effect ordering would otherwise clobber dynamic ones (proposal names, validator monikers).
+
 ### DAO — GovDAO page fixes, owner-reported on mobile (2026-07-04)
 - **GovDAO proposals load again (no more "Blockchain query failed"):** the proposals reader probed the W1.4 `GetProposalsJSON()` export in strict mode, and GovDAO v3 (which never exported it) answers that with a VM panic — the strict probe threw before the GovDAO Render-markdown fallback could run, on every visit. The probe is now always non-strict (missing JSON API is a designed-for condition); real transport/realm failures still surface via the strict fallback read.
 - **Quest-complete toast no longer squeezes the whole app:** the toast renders from the global layout but its styles lived in the lazy quest-pages stylesheet — completing a quest anywhere else (e.g. "Governance Viewer" fires on the GovDAO page for fresh profiles) rendered it UNSTYLED as a flex item inside the app shell, crushing the page into a ~106px strip for the toast's 4-second lifetime. The styles now ship with the component in the main bundle.

@@ -3,8 +3,9 @@ import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
+import { buildSitemapXml } from './src/lib/sitemap'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -21,6 +22,21 @@ function safeFlagsPlugin(): PluginOption {
       if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {
         assertSafeFlags({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
       }
+    },
+  }
+}
+
+// W6.3 PR2: emit dist/sitemap.xml at build (static public routes; see
+// src/lib/sitemap.ts for the deliberate static-only scope decision).
+// robots.txt is a static file in public/ and needs no plugin.
+function sitemapPlugin(): PluginOption {
+  return {
+    name: 'memba-sitemap',
+    apply: 'build',
+    closeBundle() {
+      const lastmod = new Date().toISOString().slice(0, 10)
+      mkdirSync('dist', { recursive: true })
+      writeFileSync('dist/sitemap.xml', buildSitemapXml(undefined, undefined, undefined, lastmod))
     },
   }
 }
@@ -50,6 +66,7 @@ export default defineConfig({
   plugins: [
     react(),
     safeFlagsPlugin(),
+    sitemapPlugin(),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev
     // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
     // Colors track the real app canvas (--color-k-bg dark = #000000), not a
