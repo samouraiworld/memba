@@ -595,6 +595,18 @@ a:hover {
     flex-direction: column;
   }
 
+  /* The compact stat grid sits beside the power donut + tier legend in a flex
+     row; on a phone the donut/legend starve it to a ~70px sliver whose chips
+     wrap mid-word ("Membe rs"). Give it the full row instead — it wraps below
+     the donut. Column count is deliberately NOT set here: the app-wide mobile
+     .k-stat-grid rules at the end of this file (1fr !important ≤428px etc.)
+     own that, and full-width single-column chips are the established phone
+     pattern. */
+  .k-stat-grid--compact {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
   .dao-channels-sidebar {
     width: 100%;
     border-left: none;

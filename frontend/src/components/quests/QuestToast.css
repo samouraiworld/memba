@@ -1,0 +1,76 @@
+/**
+ * QuestToast styles — MUST live with the component, not in a page stylesheet.
+ *
+ * QuestToast renders from the global Layout (a quest can complete on ANY
+ * route), but these rules used to live in pages/questhub.css, which only loads
+ * with the lazy QuestHub/QuestDetail/QuestAdmin chunks. On every other page a
+ * completing quest rendered the toast UNSTYLED — a static block inside the
+ * .k-app-layout flex row — squeezing the entire app into a ~106px strip for
+ * the toast's 4s lifetime (the owner-reported GovDAO mobile bug: the
+ * "Governance Viewer" quest fires right on that page for fresh profiles).
+ * Importing this file from QuestToast.tsx puts the rules in the main bundle.
+ */
+
+.k-quest-toast {
+    position: fixed;
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    right: max(24px, env(safe-area-inset-right, 24px));
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-k-panel);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    z-index: 1000;
+    max-width: 360px;
+}
+
+/* On mobile the bottom tab bar owns the bottom strip, so lift the toast above
+   it (bar height + home-indicator inset) instead of letting it sit behind. */
+@media (max-width: 768px) {
+    .k-quest-toast {
+        bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+        left: 12px;
+        right: 12px;
+        max-width: none;
+    }
+}
+
+.k-quest-toast--visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.k-quest-toast-icon {
+    font-size: 1.5rem;
+}
+
+.k-quest-toast-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.813rem;
+}
+
+.k-quest-toast-body strong {
+    color: var(--color-k-accent-text);
+}
+
+.k-quest-toast-xp {
+    font-weight: 600;
+    color: var(--color-k-accent-text);
+}
+
+.k-quest-toast-rankup {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-k-warning-text);
+    padding: 2px var(--space-2);
+    background: rgba(255, 165, 2, 0.1);
+    border-radius: var(--radius-md);
+}
