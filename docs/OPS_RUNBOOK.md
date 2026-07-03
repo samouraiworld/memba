@@ -205,10 +205,14 @@ fly ssh console -a memba-backend
 litestream generations -config /etc/litestream.yml /data/memba.db
 litestream snapshots  -config /etc/litestream.yml /data/memba.db
 
-# 2. Restore to a scratch path and sanity-check it (NEVER straight over prod):
+# 2. Restore to a scratch path and sanity-check it (NEVER straight over prod).
+#    NOTE: the runtime image has NO sqlite3 CLI (that's why the integrity gate
+#    lives in the app binary) — row-level inspection must happen off-box.
 litestream restore -config /etc/litestream.yml -o /tmp/restored.db /data/memba.db
-/app/memba integrity-check   # DB_PATH=/tmp/restored.db
-sqlite3 /tmp/restored.db "SELECT COUNT(*) FROM transactions; SELECT COUNT(*) FROM multisigs;"
+DB_PATH=/tmp/restored.db /app/memba integrity-check
+# Optional row-level check (off-box): restore to your laptop with the same
+# litestream command + S3 creds, then: sqlite3 restored.db \
+#   "SELECT COUNT(*) FROM transactions; SELECT COUNT(*) FROM multisigs;"
 
 # 3. Swap it in (machine restart re-runs the boot integrity gate):
 mv /tmp/restored.db /data/memba.db && rm -f /data/memba.db-wal /data/memba.db-shm

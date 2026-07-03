@@ -20,8 +20,10 @@ if [ -f "$DB" ]; then
         if [ -f "${DB}-shm" ]; then mv "${DB}-shm" "${DB}-shm.corrupt-${TS}"; fi
         # Deliberately NO -if-replica-exists and NO || true here: with a corrupt
         # local DB, silently booting a fresh empty database would present as
-        # total data loss. Fail loudly instead; recovery paths are the local
-        # VACUUM backups in /data/backups or fixing the replica (OPS_RUNBOOK).
+        # total data loss. Fail loudly instead; recovery = manual Litestream
+        # restore per OPS_RUNBOOK §4.7, or a volume snapshot per §4.3. (The old
+        # /data/backups VACUUM copies are RETIRED — W2.3; any leftovers on the
+        # volume are stale.)
         litestream restore -v -config /etc/litestream.yml -o "$DB" "$DB"
     fi
 else
