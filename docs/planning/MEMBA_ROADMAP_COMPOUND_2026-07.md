@@ -398,3 +398,19 @@ Lane C OFF-LIMITS while active (external: #734 / per-sig-verified):
 ---
 
 *Wave retros are appended below this line as gates pass.*
+
+## Wave 5 retro — session-side complete 2026-07-03 (gate pending owner items)
+
+**Shipped (all four-gate merged):** W5.1 #740 (Adena: localStorage session flag + locked-wallet visibility retry + walletDebug ring buffer — root cause was the per-tab sessionStorage flag, not missing listeners) · W5.2 #738 (Directory source via `vm/qfile` — root cause was gnoweb's absent CORS headers, unfixable by host config; Packages-first default) · W5.3 #739 (validator review stars + hover comments; in-flight dedup + error-path tests added on review) · W5.4 verified (#736 root-caused the flake to NetworkSync's first-visit reload; 4 consecutive green main runs at workers:2) · W5.5 closed read-only (v3.1 registration verified on-chain; stale deployer branch deleted; O-6 was an artifact) · W5.6 #741 (upstream sweep, SHAs fact-checked — exploration dates were PR dates, corrected).
+
+**Slipped:** nothing. **Found by gates:** prod-bundle dynamic-env trap (twice, independently), react-refresh export rule, the "In progress" mislabel class.
+
+**Gate remainder (owner):** U-1 restore drill · U-2 prod secrets · U-3 metric-gated enforcement flip. The gate formally closes when these land; nothing in W6+ session work depends on them except where marked.
+
+## Wave 6 progress — as of 2026-07-04
+
+- **W6.1 PR1+PR2 ✅ #742** (changelog automation, parse contract, real-file tripwire). **PR3 blocked on U-9.**
+- **W6.2 PR1 ✅ #743** (4-mode manifest-driven nav; live marketplace un-buried). **PR2–5 (URL-mode churn): recommended SKIP — owner decision pending.**
+- **W6.3 ✅ COMPLETE** — #744 per-route meta · #745 sitemap/robots · #746 JSON-LD + prerender decision (NOT adopted; triggers in `docs/features/SEO.md`).
+- **W6.4 → PR #748** (blog infra + article 1) — **owner-gated on article voice**; articles 2–3 follow the same rule. **W6.5:** PR1 = verify/extend (Sentry SDK already wired); PR2 blocked on U-2.
+

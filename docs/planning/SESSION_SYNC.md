@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane B · docs: W5 retro + W6 status · START→STOP (single session) · docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md (retro append), ROADMAP.md (status row) · docs/w5-retro-status
+
 2026-07-04 · Lane A · GovDAO bugfix (owner-reported, mobile) · START→STOP (single session) · frontend: lib/dao/proposals.ts (+strictProbe test), components/quests/QuestToast.{tsx,css} (styles out of lazy questhub.css), index.css (compact stat grid mobile row), pages/questhub.css, e2e/dao.spec.ts · CHANGELOG.md (single-writer: registered) · fix/govdao-strict-probe-and-mobile-stats
 
 2026-07-04 · Lane B · W6.3 SEO (PR3: JSON-LD + prerender decision) · START→STOP (single session) · frontend: index.html (static JSON-LD), RouteMetaSync.tsx (breadcrumbs); docs/features/SEO.md (new) · feat/w63-jsonld-prerender
