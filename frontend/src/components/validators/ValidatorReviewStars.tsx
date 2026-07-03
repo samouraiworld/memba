@@ -18,11 +18,18 @@ import type { SubjectSummary, OnChainReview } from "../../lib/reviews"
 
 const summaryCache = new Map<string, SubjectSummary>()
 const reviewsCache = new Map<string, OnChainReview[]>()
+// In-flight promise dedup: StrictMode's mount→unmount→remount runs the effect
+// twice BEFORE the first fetch resolves — without this, every row fired 2×
+// RPC calls in dev (the resolved-value cache alone can't catch racing mounts).
+const summaryInFlight = new Map<string, Promise<SubjectSummary>>()
+const reviewsInFlight = new Map<string, Promise<OnChainReview[]>>()
 
 /** Test hook: reset module state between tests. */
 export function __resetValidatorReviewCaches(): void {
     summaryCache.clear()
     reviewsCache.clear()
+    summaryInFlight.clear()
+    reviewsInFlight.clear()
 }
 
 // ── Tiny concurrency limiter ─────────────────────────────────
@@ -49,8 +56,13 @@ function withLimit<T>(fn: () => Promise<T>): Promise<T> {
 export async function getValidatorReviewSummary(addr: string): Promise<SubjectSummary> {
     const cached = summaryCache.get(addr)
     if (cached) return cached
-    const s = await withLimit(() => fetchSummary(addr))
-    summaryCache.set(addr, s)
+    let p = summaryInFlight.get(addr)
+    if (!p) {
+        p = withLimit(() => fetchSummary(addr)).finally(() => summaryInFlight.delete(addr))
+        summaryInFlight.set(addr, p)
+    }
+    const s = await p
+    summaryCache.set(addr, s) // success only — errors are never cached
     return s
 }
 
@@ -58,8 +70,13 @@ export async function getValidatorReviewSummary(addr: string): Promise<SubjectSu
 export async function getValidatorTopReviews(addr: string, limit = 3): Promise<OnChainReview[]> {
     const cached = reviewsCache.get(addr)
     if (cached) return cached.slice(0, limit)
-    const list = await withLimit(() => fetchReviews(addr, 0, limit))
-    reviewsCache.set(addr, list)
+    let p = reviewsInFlight.get(addr)
+    if (!p) {
+        p = withLimit(() => fetchReviews(addr, 0, limit)).finally(() => reviewsInFlight.delete(addr))
+        reviewsInFlight.set(addr, p)
+    }
+    const list = await p
+    reviewsCache.set(addr, list) // success only — errors are never cached
     return list.slice(0, limit)
 }
 

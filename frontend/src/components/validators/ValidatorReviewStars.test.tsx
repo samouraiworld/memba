@@ -79,6 +79,51 @@ describe("ValidatorReviewStars", () => {
     })
 })
 
+describe("StrictMode / racing mounts", () => {
+    it("dedupes concurrent fetches for the same address (in-flight promise share)", async () => {
+        let resolveFetch!: (v: unknown) => void
+        mocks.fetchSummary.mockImplementation(() => new Promise(res => { resolveFetch = res }))
+
+        // Two racing requests before the first resolves — StrictMode's shape.
+        const a = getValidatorReviewSummary("g1race")
+        const b = getValidatorReviewSummary("g1race")
+        await act(async () => { await Promise.resolve() })
+        expect(mocks.fetchSummary).toHaveBeenCalledTimes(1)
+
+        resolveFetch({ count: 2, average: 4, sum: 8 })
+        expect(await a).toEqual(await b)
+    })
+})
+
+describe("error paths (never cached)", () => {
+    it("falls back to the no-reviews state on rejection and retries on next mount", async () => {
+        mocks.fetchSummary.mockRejectedValueOnce(new Error("rpc down"))
+        const first = render(<ValidatorReviewStars addr="g1err" />)
+        await waitFor(() => expect(screen.getByTitle("No reviews yet")).toBeTruthy())
+        first.unmount()
+
+        // The failure must NOT be cached — a later mount retries and succeeds.
+        mocks.fetchSummary.mockResolvedValueOnce({ count: 1, average: 5, sum: 5 })
+        render(<ValidatorReviewStars addr="g1err" />)
+        const el = await screen.findByTestId("validator-stars")
+        expect(el.textContent).toContain("(1)")
+        expect(mocks.fetchSummary).toHaveBeenCalledTimes(2)
+    })
+
+    it("preview renders nothing on rejection without poisoning the cache", async () => {
+        mocks.fetchReviews.mockRejectedValueOnce(new Error("rpc down"))
+        const first = render(<ValidatorReviewPreview addr="g1err2" />)
+        await waitFor(() => expect(mocks.fetchReviews).toHaveBeenCalledTimes(1))
+        expect(first.container.innerHTML).toBe("")
+        first.unmount()
+
+        mocks.fetchReviews.mockResolvedValueOnce([review({ id: 9, body: "back online" })])
+        render(<ValidatorReviewPreview addr="g1err2" />)
+        await waitFor(() => expect(screen.getByText("back online")).toBeTruthy())
+        expect(mocks.fetchReviews).toHaveBeenCalledTimes(2)
+    })
+})
+
 describe("concurrency limiter", () => {
     it("never runs more than 4 summary fetches at once", async () => {
         let inFlight = 0
