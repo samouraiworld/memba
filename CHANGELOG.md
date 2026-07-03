@@ -6,6 +6,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Directory — W5.2 fixes (2026-07-03)
+- **Source view fixed at the root:** realm/package source now loads via ABCI `vm/qfile` on the chain RPC (CORS-safe, authoritative, RPC-failover-aware) instead of scraping gnoweb HTML — gnoweb serves no CORS headers, which was the actual cause of "Source code not available" / "Source metadata not available". Gnoweb scrape kept as fallback; retry button added to the drawer's unavailable states.
+- **Packages tab first:** `/directory` now lands on Packages (most-filled tab on test13); explicit `?tab=daos` deep links unchanged.
+
 ### Planning — Program "Compound" (2026-07-03)
 - **Long-term roadmap:** added `docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md` — the successor program to the v7.2.x AAA remediation plan (Waves 5–9: stabilization, discoverability/SEO/blog, marketplace & social feed, fund-safety de-gating, platform-bet spikes). `ROADMAP.md` now points to it; `docs/planning/SESSION_SYNC.md` added for parallel-session coordination.
 

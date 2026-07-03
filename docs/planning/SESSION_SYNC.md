@@ -10,4 +10,6 @@ Rules:
 
 ---
 
+2026-07-03 · Lane A · W5.2 directory fixes · START→STOP (single session) · frontend: gnowebSource.ts (+RPC qfile path), RealmDetailDrawer.tsx, Directory.tsx, directoryUrl.ts, directory.css, e2e/directory.spec.ts · fix/w52-directory-packages-gnoweb
+
 2026-07-03 · Lane B · program setup · STOP · created roadmap doc + this file · docs/roadmap-compound

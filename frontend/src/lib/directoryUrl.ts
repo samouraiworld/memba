@@ -12,12 +12,16 @@
 export type DirectoryTab =
     | "daos" | "tokens" | "packages" | "realms" | "users" | "govdao" | "leaderboard"
 
-/** Canonical tab order — also the source of truth for URL validation + keyboard nav. */
+/** Canonical tab order — also the source of truth for URL validation + keyboard nav.
+ *  W5.2: Packages first (most-filled tab on test13 today). */
 export const DIRECTORY_TAB_KEYS: readonly DirectoryTab[] = [
-    "daos", "tokens", "packages", "realms", "users", "govdao", "leaderboard",
+    "packages", "daos", "realms", "tokens", "users", "govdao", "leaderboard",
 ]
 
-export const DEFAULT_DIRECTORY_TAB: DirectoryTab = "daos"
+/** W5.2: landing on /directory opens Packages. Old shared URLs that meant
+ *  "DAOs" carried no ?tab= param (it was the omitted default) — they now open
+ *  Packages by design; explicit ?tab=daos links are unaffected. */
+export const DEFAULT_DIRECTORY_TAB: DirectoryTab = "packages"
 
 export interface DirectoryUrlState {
     tab: DirectoryTab

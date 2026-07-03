@@ -31,27 +31,35 @@ test.describe('Directory Page', () => {
         await expect(page.locator('.dir-header p')).toContainText('Discover DAOs, tokens, packages, realms, and users')
     })
 
-    test('all tabs are visible', async ({ page }) => {
+    test('all tabs are visible (W5.2 order: Packages first)', async ({ page }) => {
         const tabs = page.locator('.dir-tab')
         await expect(tabs).toHaveCount(7)
-        await expect(tabs.nth(0)).toContainText('DAOs')
-        await expect(tabs.nth(1)).toContainText('Tokens')
-        await expect(tabs.nth(2)).toContainText('Packages')
-        await expect(tabs.nth(3)).toContainText('Realms')
+        await expect(tabs.nth(0)).toContainText('Packages')
+        await expect(tabs.nth(1)).toContainText('DAOs')
+        await expect(tabs.nth(2)).toContainText('Realms')
+        await expect(tabs.nth(3)).toContainText('Tokens')
         await expect(tabs.nth(4)).toContainText('Users')
         await expect(tabs.nth(5)).toContainText('GovDAO')
         await expect(tabs.nth(6)).toContainText('Leaderboard')
     })
 
-    test('DAOs tab is active by default', async ({ page }) => {
-        const daoTab = page.locator('.dir-tab').first()
-        await expect(daoTab).toHaveAttribute('data-active', 'true')
+    test('Packages tab is active by default (W5.2)', async ({ page }) => {
+        const firstTab = page.locator('.dir-tab').first()
+        await expect(firstTab).toContainText('Packages')
+        await expect(firstTab).toHaveAttribute('data-active', 'true')
+    })
+
+    test('?tab=daos deep link still opens DAOs', async ({ page }) => {
+        await page.goto('/directory?tab=daos')
+        const daosTab = page.locator('.dir-tab', { hasText: 'DAOs' })
+        await expect(daosTab).toHaveAttribute('data-active', 'true')
     })
 })
 
 test.describe('Directory — DAOs Tab', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/directory')
+        // W5.2: DAOs is no longer the landing tab — deep-link to it.
+        await page.goto('/directory?tab=daos')
     })
 
     test('featured DAOs carousel renders', async ({ page }) => {
@@ -158,7 +166,8 @@ test.describe('Directory — Mobile', () => {
 // M4 fix: E2E assertions for v2.2b badge features
 test.describe('Directory — v2.2b Badges', () => {
     test('DAO cards display category badges', async ({ page }) => {
-        await page.goto('/directory')
+        // W5.2: DAO cards live behind the daos deep link now.
+        await page.goto('/directory?tab=daos')
         // Wait for seed DAO cards to render
         await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
 
@@ -175,12 +184,44 @@ test.describe('Directory — v2.2b Badges', () => {
     })
 
     test('category badge uses shared inline-badge base class', async ({ page }) => {
-        await page.goto('/directory')
+        await page.goto('/directory?tab=daos')
         await page.locator('[data-testid="dao-category"]').first().waitFor({ state: 'visible', timeout: 10_000 })
 
         const badge = page.locator('[data-testid="dao-category"]').first()
         const classes = await badge.getAttribute('class')
         expect(classes).toContain('dir-inline-badge')
         expect(classes).toContain('dir-category-badge')
+    })
+})
+
+// W5.2: realm source view — the drawer must render Source + Info from the
+// chain RPC (vm/qfile). Regression coverage for the CORS-caused
+// "Source code not available" / "Source metadata not available" failures
+// (gnoweb serves no CORS headers; the RPC path does).
+test.describe('Directory — Realm Source View (W5.2)', () => {
+    test('drawer shows source files and metadata for a known realm', async ({ page }) => {
+        await page.goto('/directory?tab=realms')
+
+        // Narrow to a seed realm known-good on test13 (memba_dao only appears
+        // when saved in localStorage; tokenfactory_v2 is in SEED_REALMS).
+        const search = page.locator('[data-testid="realm-search"]')
+        await search.fill('tokenfactory')
+        const card = page.locator('[data-testid="realm-card"]').first()
+        await card.waitFor({ state: 'visible', timeout: 10_000 })
+
+        // Expand the card, open the detail drawer
+        await card.locator('.dir-card__header').click()
+        await page.locator('.dir-render-preview__link--primary', { hasText: 'View Details' })
+            .click({ timeout: 15_000 })
+
+        // Source tab: real file tabs + code, not the unavailable state
+        await page.locator('.drawer-tab', { hasText: 'Source' }).click()
+        await expect(page.locator('.source-view')).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator('.source-tab').first()).toContainText('.gno')
+        await expect(page.locator('.drawer-empty')).toHaveCount(0)
+
+        // Info tab: file tree + functions render (metadata available)
+        await page.locator('.drawer-tab', { hasText: 'Info' }).click()
+        await expect(page.getByText('Source metadata not available.')).toHaveCount(0)
     })
 })
