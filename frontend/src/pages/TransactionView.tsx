@@ -11,7 +11,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { GNO_RPC_URL, GNO_BECH32_HRP } from "../lib/config"
+import { GNO_RPC_URL, GNO_BECH32_HRP, GNO_CHAIN_ID } from "../lib/config"
 import { assertWalletBroadcastSafe } from "../lib/grc20"
 import { pubkeyToAddress } from "../lib/dao/realmAddress"
 import { completeQuest } from "../lib/quests"
@@ -43,6 +43,10 @@ export function TransactionView() {
     const [manualSig, setManualSig] = useState("")
     const [showManualSig, setShowManualSig] = useState(false)
     const [linkCopied, setLinkCopied] = useState(false)
+    // W2.4 (multisig confirmation rigor): sign/broadcast are two-step — the
+    // button opens a review card (full recipients, fee, network match,
+    // irreversibility warning); only its Confirm runs the action.
+    const [pendingAction, setPendingAction] = useState<"sign" | "broadcast" | null>(null)
 
     const fetchTx = useCallback(async () => {
         if (!token || !id) return
@@ -66,6 +70,81 @@ export function TransactionView() {
     }, [token, id])
 
     useEffect(() => { fetchTx() }, [fetchTx])
+
+    const handleSign = async () => {
+        if (!token || !tx || actionLoading) return
+        setActionLoading(true)
+        setError(null)
+        try {
+            const signDoc = JSON.stringify(buildSignDoc(tx))
+            const signDocBytes = new TextEncoder().encode(signDoc)
+
+            const signature = await adena.signArbitrary(signDoc)
+            if (!signature) {
+                setError("Signature rejected")
+                setActionLoading(false)
+                return
+            }
+
+            await api.signTransaction({
+                authToken: token,
+                transactionId: tx.id,
+                signature,
+                bodyBytes: signDocBytes,
+            })
+
+            await fetchTx()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to sign")
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    const handleBroadcast = async () => {
+        if (!token || !tx || actionLoading) return
+        setActionLoading(true)
+        setError(null)
+        try {
+            // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
+            let hash = await tryAdenaBroadcast(tx)
+
+            // Fallback: broadcast via RPC POST (Amino JSON)
+            if (!hash) {
+                const broadcastTx = await buildBroadcastTx(tx)
+                const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        method: "broadcast_tx_commit",
+                        params: { tx: `0x${broadcastTx}` },
+                        id: 1,
+                    }),
+                })
+                const json = await res.json()
+
+                hash = json?.result?.hash
+                if (!hash) {
+                    const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — try using gnokey CLI: gnokey broadcast <tx-file> --remote <rpc-url> (see docs.gno.land for details)"
+                    setError(errMsg)
+                    return
+                }
+            }
+
+            await api.completeTransaction({
+                authToken: token,
+                transactionId: tx.id,
+                finalHash: hash,
+            })
+
+            await fetchTx()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Broadcast failed")
+        } finally {
+            setActionLoading(false)
+        }
+    }
 
     const formatDate = (dateStr: string) => {
         try {
@@ -212,35 +291,7 @@ export function TransactionView() {
                     <button
                         className="k-btn-primary"
                         disabled={actionLoading || tx.signatures.some(s => s.userAddress === adena.address)}
-                        onClick={async () => {
-                            if (!token || !tx || actionLoading) return
-                            setActionLoading(true)
-                            setError(null)
-                            try {
-                                const signDoc = JSON.stringify(buildSignDoc(tx))
-                                const signDocBytes = new TextEncoder().encode(signDoc)
-
-                                const signature = await adena.signArbitrary(signDoc)
-                                if (!signature) {
-                                    setError("Signature rejected")
-                                    setActionLoading(false)
-                                    return
-                                }
-
-                                await api.signTransaction({
-                                    authToken: token,
-                                    transactionId: tx.id,
-                                    signature,
-                                    bodyBytes: signDocBytes,
-                                })
-
-                                await fetchTx()
-                            } catch (err) {
-                                setError(err instanceof Error ? err.message : "Failed to sign")
-                            } finally {
-                                setActionLoading(false)
-                            }
-                        }}
+                        onClick={() => setPendingAction("sign")}
                         style={{ opacity: actionLoading ? 0.5 : 1 }}
                     >
                         {actionLoading ? "Signing..." : tx.signatures.some(s => s.userAddress === adena.address) ? "Already Signed" : "Sign Transaction"}
@@ -250,50 +301,7 @@ export function TransactionView() {
                             className="k-btn-primary"
                             style={{ background: "var(--color-k-accent-hover)", opacity: actionLoading ? 0.5 : 1 }}
                             disabled={actionLoading}
-                            onClick={async () => {
-                                if (!token || !tx || actionLoading) return
-                                setActionLoading(true)
-                                setError(null)
-                                try {
-                                    // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
-                                    let hash = await tryAdenaBroadcast(tx)
-
-                                    // Fallback: broadcast via RPC POST (Amino JSON)
-                                    if (!hash) {
-                                        const broadcastTx = await buildBroadcastTx(tx)
-                                        const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                                jsonrpc: "2.0",
-                                                method: "broadcast_tx_commit",
-                                                params: { tx: `0x${broadcastTx}` },
-                                                id: 1,
-                                            }),
-                                        })
-                                        const json = await res.json()
-
-                                        hash = json?.result?.hash
-                                        if (!hash) {
-                                            const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — try using gnokey CLI: gnokey broadcast <tx-file> --remote <rpc-url> (see docs.gno.land for details)"
-                                            setError(errMsg)
-                                            return
-                                        }
-                                    }
-
-                                    await api.completeTransaction({
-                                        authToken: token,
-                                        transactionId: tx.id,
-                                        finalHash: hash,
-                                    })
-
-                                    await fetchTx()
-                                } catch (err) {
-                                    setError(err instanceof Error ? err.message : "Broadcast failed")
-                                } finally {
-                                    setActionLoading(false)
-                                }
-                            }}
+                            onClick={() => setPendingAction("broadcast")}
                         >
                             {actionLoading ? "Broadcasting..." : "Broadcast to Chain"}
                         </button>
@@ -319,6 +327,63 @@ export function TransactionView() {
                     >
                         {showManualSig ? "Hide" : "Paste gnokey Sig"}
                     </button>
+                </div>
+            )}
+
+            {/* ── W2.4: Review card — confirm before sign/broadcast ── */}
+            {pendingAction && !tx.finalHash && (
+                <div className="k-card k-txview__confirm-card" role="alertdialog" aria-label="Review transaction" style={{
+                    border: "1px solid var(--color-k-amber-border)",
+                    display: "flex", flexDirection: "column", gap: 12, padding: 18,
+                }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>
+                        Review before you {pendingAction === "sign" ? "sign" : "broadcast"}
+                    </h3>
+                    {parseMsgs(tx.msgsJson, { full: true }).map((msg, i) => (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>{msg.label}</span>
+                            {msg.fields.map((field, j) => (
+                                <div key={j} style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                                    <span className="k-label" style={{ minWidth: 90 }}>{field.key}</span>
+                                    <span style={{ fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>{field.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                    <div style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                        <span className="k-label" style={{ minWidth: 90 }}>Fee</span>
+                        <span>{fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, fontSize: 12, alignItems: "center" }}>
+                        <span className="k-label" style={{ minWidth: 90 }}>Network</span>
+                        {tx.chainId === GNO_CHAIN_ID ? (
+                            <span style={{ color: "var(--color-success, #2fbf71)" }}>✓ {tx.chainId} — matches this app's network</span>
+                        ) : (
+                            <span style={{ color: "var(--color-danger)" }}>
+                                ⚠ {tx.chainId} — DIFFERENT from this app's network ({GNO_CHAIN_ID})
+                            </span>
+                        )}
+                    </div>
+                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>
+                        {pendingAction === "sign"
+                            ? "Your signature authorizes this exact transaction. Verify the full recipient address character by character."
+                            : "Broadcasting is an on-chain action that costs gas and cannot be undone."}
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <button className="k-btn-secondary" onClick={() => setPendingAction(null)}>Cancel</button>
+                        <button
+                            className="k-btn-primary"
+                            disabled={actionLoading}
+                            onClick={() => {
+                                const action = pendingAction
+                                setPendingAction(null)
+                                if (action === "sign") void handleSign()
+                                else void handleBroadcast()
+                            }}
+                        >
+                            Confirm {pendingAction === "sign" ? "& Sign" : "& Broadcast"}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -370,7 +435,25 @@ export function TransactionView() {
             {/* ── Final Hash ──────────────────────────────────── */}
             {tx.finalHash && (
                 <div className="k-card k-txview__hash-card">
-                    <p className="k-label k-txview__hash-label">Transaction Hash</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <p className="k-label k-txview__hash-label" style={{ margin: 0 }}>Transaction Hash</p>
+                        {/* W2.4: surface the backend's chain reconcile (W2.3) —
+                            verified means the hash was FOUND on-chain at
+                            completion; unconfirmed means it's a client claim. */}
+                        {tx.verified ? (
+                            <span style={{
+                                fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                                background: "rgba(47,191,113,0.12)", color: "var(--color-success, #2fbf71)",
+                                fontFamily: "JetBrains Mono, monospace",
+                            }}>✓ VERIFIED ON-CHAIN</span>
+                        ) : (
+                            <span style={{
+                                fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                                background: "var(--color-k-amber-subtle, rgba(255,193,7,0.12))", color: "var(--color-k-warning, #ffc107)",
+                                fontFamily: "JetBrains Mono, monospace",
+                            }} title="The backend could not confirm this hash on-chain at completion time — it is a client-reported value.">⏳ UNCONFIRMED</span>
+                        )}
+                    </div>
                     <p className="k-txview__hash-value">
                         {tx.finalHash}
                     </p>
