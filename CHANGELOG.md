@@ -6,6 +6,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validators — W5.3 review stars (2026-07-03)
+- **Review stars in the validator table** (behind `VITE_ENABLE_REVIEWS`): per-row ★ average + count from the on-chain reviews realm, fetched lazily with a 4-wide concurrency limiter and page-lifetime cache (no N-parallel qeval bursts against the public RPC); row hover card now shows the 3 most recent review comments (tombstones filtered).
+
 ### Directory — W5.2 fixes (2026-07-03)
 - **Source view fixed at the root:** realm/package source now loads via ABCI `vm/qfile` on the chain RPC (CORS-safe, authoritative, RPC-failover-aware) instead of scraping gnoweb HTML — gnoweb serves no CORS headers, which was the actual cause of "Source code not available" / "Source metadata not available". Gnoweb scrape kept as fallback; retry button added to the drawer's unavailable states.
 - **Packages tab first:** `/directory` now lands on Packages (most-filled tab on test13); explicit `?tab=daos` deep links unchanged.

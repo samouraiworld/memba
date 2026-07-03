@@ -23,7 +23,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsEnabled } from "../lib/config"
 import {
     getValidators,
     getNetworkStats,
@@ -43,6 +43,7 @@ import {
 import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { ValoperPanel } from "../components/validators/ValoperPanel"
 import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
+import { ValidatorReviewStars, ValidatorReviewPreview } from "../components/validators/ValidatorReviewStars"
 import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
@@ -103,6 +104,7 @@ function ValidatorRowPreview({ v }: { v: ValidatorInfo }) {
                 {v.participationRate != null && <div><dt>Participation</dt><dd>{v.participationRate}%</dd></div>}
                 <div><dt>Rank</dt><dd>#{v.rank}</dd></div>
             </dl>
+            {isReviewsEnabled() && v.gnoAddr && <ValidatorReviewPreview addr={v.gnoAddr} />}
             <div className="vhc-foot">Open profile →</div>
         </div>
     )
@@ -526,6 +528,9 @@ export default function Validators() {
                             </th>
                             <th className="val-th val-th-center">Active Since</th>
                             <th className="val-th val-th-center">Profile</th>
+                            {isReviewsEnabled() && (
+                                <th className="val-th val-th-center">Reviews</th>
+                            )}
                             {hasMonitoring && (
                                 <>
                                     <th className="val-th val-th-right" onClick={() => handleSort("participationRate")}>
@@ -613,6 +618,11 @@ export default function Validators() {
                                         </a>
                                     ) : "—"}
                                 </td>
+                                {isReviewsEnabled() && (
+                                    <td className="val-td val-td-center">
+                                        <ValidatorReviewStars addr={v.gnoAddr || ""} />
+                                    </td>
+                                )}
                                 {hasMonitoring && (
                                     <>
                                         <td className="val-td val-td-right val-mono">
