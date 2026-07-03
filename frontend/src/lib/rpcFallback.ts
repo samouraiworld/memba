@@ -111,6 +111,18 @@ export type AbciQueryResult =
     | { kind: "abci-error"; error: AbciQueryError }
 
 /**
+ * Whether ResponseBase.Error carries a REAL error. gno.land encodes "no error"
+ * as JSON null but has also been observed with "" — and a present error may be
+ * a string ("not found") OR an object ({"@type":"/std.InvalidAddressError"}).
+ * Mirrors the backend's abciErrorPresent (render_proxy.go).
+ */
+export function abciErrorPresent(e: unknown): boolean {
+    if (e == null) return false
+    if (typeof e === "string") return e.trim() !== ""
+    return true
+}
+
+/**
  * ABCI query with automatic RPC failover, returning a DISCRIMINATED result
  * (W2.2, R2-CHN-D): a set `ResponseBase.Error` (realm missing, bad path, VM
  * panic) is reported as `abci-error`, an absent `Data` as `empty`, and a
@@ -137,7 +149,7 @@ export async function resilientAbciQueryDetailed(
     }))
     const json = await res.json()
     const base = json?.result?.response?.ResponseBase
-    if (base?.Error != null) {
+    if (abciErrorPresent(base?.Error)) {
         const log = typeof base?.Log === "string" ? base.Log : ""
         return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }
     }

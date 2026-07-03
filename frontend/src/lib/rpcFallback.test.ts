@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { resilientAbciQuery, resilientAbciQueryDetailed, AbciQueryError } from "./rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed, AbciQueryError, abciErrorPresent } from "./rpcFallback"
 
 afterEach(() => {
     vi.restoreAllMocks()
@@ -99,5 +99,21 @@ describe("resilientAbciQuery — ABCI-level errors reach strict callers (W2.2)",
             }),
         }))
         await expect(resilientAbciQuery("vm/qrender", "gno.land/r/missing:", false)).resolves.toBeNull()
+    })
+})
+
+// Review follow-up: gno encodes "no error" as null but "" has been observed;
+// a present error may be a string or an object. Mirror the backend's
+// abciErrorPresent semantics so "" is never misclassified as an ABCI error.
+describe("abciErrorPresent", () => {
+    it("treats null / undefined / empty-ish strings as absent", () => {
+        expect(abciErrorPresent(null)).toBe(false)
+        expect(abciErrorPresent(undefined)).toBe(false)
+        expect(abciErrorPresent("")).toBe(false)
+        expect(abciErrorPresent("   ")).toBe(false)
+    })
+    it("treats non-empty strings and objects as present", () => {
+        expect(abciErrorPresent("not found")).toBe(true)
+        expect(abciErrorPresent({ "@type": "/std.InvalidAddressError" })).toBe(true)
     })
 })

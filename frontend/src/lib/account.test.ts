@@ -32,8 +32,22 @@ describe("fetchAccountInfo — fail-loud (W2.2)", () => {
         await expect(fetchAccountInfo(ADDR)).resolves.toEqual({ accountNumber: 42, sequence: 7 })
     })
 
-    it("returns {0,0} ONLY for a never-transacted account (chain answered, no record)", async () => {
+    it("returns {0,0} for a never-transacted account (clean-empty encoding)", async () => {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(abciResponse({ Value: null })))
+        await expect(fetchAccountInfo(ADDR)).resolves.toEqual({ accountNumber: 0, sequence: 0 })
+    })
+
+    it("returns {0,0} for the LIVE chain's no-record encoding: ABCI error object, no Value", async () => {
+        // The real test13 answer for an unfunded address (see backend
+        // render_proxy.go + its live tests): Error={"@type":".../std.UnknownAddressError"},
+        // Value absent. This is account state, NOT a failure — review finding #1
+        // (throwing here bricked first-tx multisig proposes and quest verification
+        // for exactly the never-transacted audience).
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(abciResponse({
+            Error: { "@type": "/std.UnknownAddressError" },
+            Log: "unknown request",
+            Value: null,
+        })))
         await expect(fetchAccountInfo(ADDR)).resolves.toEqual({ accountNumber: 0, sequence: 0 })
     })
 
@@ -42,10 +56,12 @@ describe("fetchAccountInfo — fail-loud (W2.2)", () => {
         await expect(fetchAccountInfo(ADDR)).rejects.toThrow(/Could not read on-chain account state/)
     })
 
-    it("THROWS an AbciQueryError when ResponseBase.Error is set", async () => {
+    it("THROWS an AbciQueryError only for the anomaly: error AND a Value together", async () => {
+        const account = { BaseAccount: { account_number: "1", sequence: "1" } }
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(abciResponse({
-            Error: { "@type": "/std.UnknownAddressError" },
-            Log: "unknown request",
+            Error: { "@type": "/std.InternalError" },
+            Log: "storage fault",
+            Value: btoa(JSON.stringify(account)),
         })))
         await expect(fetchAccountInfo(ADDR)).rejects.toThrow(AbciQueryError)
     })

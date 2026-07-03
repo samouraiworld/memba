@@ -4,7 +4,7 @@
  * Uses JSON-RPC POST to prevent ABCI query injection via address.
  */
 
-import { resilientFetch, AbciQueryError } from "./rpcFallback"
+import { resilientFetch, AbciQueryError, abciErrorPresent } from "./rpcFallback"
 
 /**
  * Fetch account number and sequence from the Gno chain.
@@ -53,16 +53,20 @@ export async function fetchAccountInfo(
         )
     }
     const base = json?.result?.response?.ResponseBase
-    if (base?.Error != null) {
+    const rawValue = base?.Value
+    // The chain answers "no on-chain record for this address" (never-transacted)
+    // either as a clean empty OR as an ABCI error object like
+    // {"@type":"/std.UnknownAddressError"} with no Value — the live chain does
+    // the latter (see backend render_proxy.go + its live tests). Both are the
+    // one truthful-zeros case, NOT a failure. An error WITH a Value is an
+    // anomaly worth raising.
+    if (abciErrorPresent(base?.Error) && rawValue) {
         throw new AbciQueryError(
             `auth/accounts/${address}`,
-            base.Error,
+            base?.Error,
             typeof base?.Log === "string" ? base.Log : "",
         )
     }
-    const rawValue = base?.Value
-    // The chain answered with no account record: a never-transacted address.
-    // Zeros are the real on-chain state here, not an error fallback.
     if (!rawValue) return { accountNumber: 0, sequence: 0 }
     const decoded = atob(rawValue)
     const parsed = JSON.parse(decoded)
