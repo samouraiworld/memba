@@ -5507,7 +5507,7 @@ func (x *GetNFTCollectionResponse) GetRoyaltyBps() uint64 {
 type GetNFTActivityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CollectionId  string                 `protobuf:"bytes,1,opt,name=collection_id,json=collectionId,proto3" json:"collection_id,omitempty"` // no auth required — public read
-	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`                                  // default 20, max 100
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`                                  // default 50, max 500 — event tables hold full history
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
