@@ -4,6 +4,7 @@ import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
 import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
 import { trackEvent } from "../lib/analytics";
 import { buildLoginChallengeDoc, adenaPubKeyToJSON } from "../lib/loginChallenge";
+import { logWalletEvent, installWalletLogDump } from "../lib/walletDebug";
 
 // Adena injects `window.adena` when the extension is installed.
 // API methods: AddEstablish, GetAccount, DoContract, Sign, SignTx,
@@ -40,7 +41,13 @@ interface AdenaState {
     rpcTrusted: boolean;
 }
 
-// Session persistence key — cleared when browser is closed (not tab).
+// W5.1: connection persistence moved sessionStorage → localStorage. The
+// sessionStorage flag was PER-TAB: every new tab and every browser restart
+// dropped the flag, so no silent reconnect was even attempted — the single
+// biggest source of "Memba keeps disconnecting" reports. localStorage is no
+// weaker a posture than the status quo (the auth token already lives there,
+// FE-1), and the flag only authorizes a SILENT GetAccount() — Adena still
+// gates it on the user's prior whitelist approval.
 const SESSION_KEY = "memba_adena_connected";
 // W2.2: the cached RPC url+trust verdict is chain-derived — a trust flag
 // cached while the app targeted test12 must not be served as current after
@@ -53,13 +60,25 @@ function getAdena(): any {
 }
 
 function wasConnected(): boolean {
-    try { return sessionStorage.getItem(SESSION_KEY) === "true"; } catch { return false; }
+    try {
+        if (localStorage.getItem(SESSION_KEY) === "true") return true;
+        // Migration: honor a legacy per-tab flag once, then promote it.
+        if (sessionStorage.getItem(SESSION_KEY) === "true") {
+            localStorage.setItem(SESSION_KEY, "true");
+            return true;
+        }
+        return false;
+    } catch { return false; }
 }
 function saveConnected() {
-    try { sessionStorage.setItem(SESSION_KEY, "true"); } catch { /* no-op */ }
+    try { localStorage.setItem(SESSION_KEY, "true"); } catch { /* no-op */ }
 }
 function clearConnected() {
-    try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_RPC_KEY); } catch { /* no-op */ }
+    try {
+        localStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_KEY); // legacy flag
+        sessionStorage.removeItem(SESSION_RPC_KEY);
+    } catch { /* no-op */ }
 }
 
 /** Cache GetNetwork result for faster reconnect. */
@@ -88,6 +107,9 @@ export function useAdena() {
         rpcTrusted: false, // strict: untrusted until GetNetwork verifies
     });
     const autoReconnectAttempted = useRef(false);
+    // Live view of state for event handlers registered once (visibility retry).
+    const stateRef = useRef(state);
+    stateRef.current = state;
 
     // Extensions inject globals after page load — poll to detect.
     // Adena can take up to 5-10s depending on browser load.
@@ -147,6 +169,7 @@ export function useAdena() {
                 // In silent mode, don't show the Adena popup — just give up.
                 // The user can browse freely and connect manually when needed.
                 if (opts?.silent) {
+                    logWalletEvent("silent-check-failed", "wallet locked or not whitelisted");
                     setState((s) => ({ ...s, loading: false, reconnecting: false }));
                     return false;
                 }
@@ -179,6 +202,7 @@ export function useAdena() {
 
             saveConnected();
             trackEvent("Wallet Connected");
+            logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
 
             // SECURITY: Read wallet's active RPC URL via GetNetwork()
             let rpcUrl = "";
@@ -214,6 +238,7 @@ export function useAdena() {
             });
             return true;
         } catch (err) {
+            logWalletEvent("connect-error", err instanceof Error ? err.message : "unknown");
             console.error("[Memba] Connect error:", err);
             setState((s) => ({
                 ...s,
@@ -234,9 +259,37 @@ export function useAdena() {
             return;
         }
         autoReconnectAttempted.current = true;
-        connect({ silent: true }).finally(() => {
+        installWalletLogDump();
+        logWalletEvent("silent-reconnect", "mount");
+        connect({ silent: true }).then((ok) => {
+            logWalletEvent("silent-reconnect-result", ok ? "connected" : "gave-up");
+        }).finally(() => {
             setState((s) => ({ ...s, reconnecting: false }));
         });
+    }, [installed, connect]);
+
+    // W5.1: the mount-time silent reconnect is one-shot — if it ran while the
+    // wallet was LOCKED (typical right after a browser restart), the tab stayed
+    // disconnected forever even after the user unlocked Adena. Retry the silent
+    // reconnect when the tab becomes visible again, throttled to one attempt
+    // per 15s, only while we still expect to be connected.
+    const lastVisibilityRetry = useRef(0);
+    useEffect(() => {
+        if (!installed) return;
+        const onVisible = () => {
+            if (document.hidden) return;
+            if (stateRef.current.connected || stateRef.current.loading) return;
+            if (!wasConnected()) return;
+            const now = Date.now();
+            if (now - lastVisibilityRetry.current < 15_000) return;
+            lastVisibilityRetry.current = now;
+            logWalletEvent("silent-reconnect", "tab-visible retry");
+            connect({ silent: true }).then((ok) => {
+                logWalletEvent("silent-reconnect-result", ok ? "connected" : "gave-up");
+            });
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return () => document.removeEventListener("visibilitychange", onVisible);
     }, [installed, connect]);
 
     /** Sign a multisig transaction via Adena's SignMultisigTransaction().
@@ -370,6 +423,7 @@ export function useAdena() {
     );
 
     const disconnect = useCallback(() => {
+        logWalletEvent("disconnect", "user");
         clearConnected();
         setWalletRpcContext(null, false);
         setState({
@@ -392,6 +446,7 @@ export function useAdena() {
         if (!adena?.On || typeof adena.GetNetwork !== "function") return;
 
         const registered = adena.On("changedNetwork", async () => {
+            logWalletEvent("changedNetwork");
             // Fail CLOSED for the whole re-validation window: from the instant
             // the wallet switches until the async reads below resolve, the old
             // trust/chain values are stale — a broadcast racing this handler
