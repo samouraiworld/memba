@@ -464,3 +464,141 @@ describe("useAdena — changedNetwork subscription", () => {
         setWalletRpcContext(null, false, null) // don't leak module state
     })
 })
+
+// ── W5.1: persistence upgrade + visibility-retry ─────────────
+
+describe("useAdena — W5.1 session persistence (localStorage)", () => {
+    it("persists the connection flag in localStorage (survives new tabs/restarts)", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+
+        expect(localStorage.getItem("memba_adena_connected")).toBe("true")
+    })
+
+    it("auto-reconnects from a localStorage flag alone (the new-tab case)", async () => {
+        localStorage.setItem("memba_adena_connected", "true")
+        // sessionStorage deliberately empty — the old per-tab flag is gone in a new tab.
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.connected).toBe(true))
+        expect(adena.AddEstablish).not.toHaveBeenCalled() // silent path only
+    })
+
+    it("migrates a legacy sessionStorage flag to localStorage", async () => {
+        sessionStorage.setItem("memba_adena_connected", "true")
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.connected).toBe(true))
+        expect(localStorage.getItem("memba_adena_connected")).toBe("true")
+    })
+
+    it("disconnect clears both storages so no later mount silently reconnects", async () => {
+        sessionStorage.setItem("memba_adena_connected", "true")
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.connected).toBe(true))
+        act(() => { result.current.disconnect() })
+
+        expect(localStorage.getItem("memba_adena_connected")).toBeNull()
+        expect(sessionStorage.getItem("memba_adena_connected")).toBeNull()
+    })
+})
+
+describe("useAdena — W5.1 visibility-driven reconnect retry", () => {
+    function fireVisibility() {
+        act(() => { document.dispatchEvent(new Event("visibilitychange")) })
+    }
+
+    it("retries the silent reconnect on tab-visible after a locked-wallet mount", async () => {
+        localStorage.setItem("memba_adena_connected", "true")
+        // Wallet locked at mount: silent GetAccount fails.
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue({ status: "failure" }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        expect(result.current.connected).toBe(false)
+
+        // User unlocks Adena, then returns to the tab.
+        adena.GetAccount.mockResolvedValue(okAccount())
+        fireVisibility()
+        await waitFor(() => expect(result.current.connected).toBe(true))
+        expect(adena.AddEstablish).not.toHaveBeenCalled() // still no popup
+    })
+
+    it("throttles visibility retries (no reconnect storm on rapid tab switches)", async () => {
+        localStorage.setItem("memba_adena_connected", "true")
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue({ status: "failure" }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        const callsAfterMount = adena.GetAccount.mock.calls.length
+
+        fireVisibility() // first retry — allowed
+        await act(async () => { await Promise.resolve() })
+        const callsAfterFirstRetry = adena.GetAccount.mock.calls.length
+        expect(callsAfterFirstRetry).toBeGreaterThan(callsAfterMount)
+
+        fireVisibility() // within the 15s throttle window — suppressed
+        fireVisibility()
+        await act(async () => { await Promise.resolve() })
+        expect(adena.GetAccount.mock.calls.length).toBe(callsAfterFirstRetry)
+    })
+
+    it("releases the throttle after 15s (retry fires again once the window passes)", async () => {
+        localStorage.setItem("memba_adena_connected", "true")
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue({ status: "failure" }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+
+        const nowSpy = vi.spyOn(Date, "now")
+        try {
+            const t0 = Date.now()
+            nowSpy.mockReturnValue(t0)
+            fireVisibility() // first retry — allowed
+            await act(async () => { await Promise.resolve() })
+            const afterFirst = adena.GetAccount.mock.calls.length
+
+            nowSpy.mockReturnValue(t0 + 5_000) // inside the window — suppressed
+            fireVisibility()
+            await act(async () => { await Promise.resolve() })
+            expect(adena.GetAccount.mock.calls.length).toBe(afterFirst)
+
+            nowSpy.mockReturnValue(t0 + 15_001) // window passed — fires again
+            fireVisibility()
+            await act(async () => { await Promise.resolve() })
+            expect(adena.GetAccount.mock.calls.length).toBeGreaterThan(afterFirst)
+        } finally {
+            nowSpy.mockRestore()
+        }
+    })
+
+    it("does not retry when the user never had a session", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+
+        fireVisibility()
+        await act(async () => { await Promise.resolve() })
+        expect(adena.GetAccount).not.toHaveBeenCalled()
+    })
+})

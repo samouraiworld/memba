@@ -6,6 +6,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Wallet — W5.1 Adena session stability (2026-07-03)
+- **"Memba keeps disconnecting" root cause fixed:** the connection flag lived in per-tab `sessionStorage`, so every new tab and every browser restart skipped silent reconnect entirely. The flag now persists in `localStorage` (no weaker than the status quo — the auth token already lives there; silent reconnect is still gated by Adena's own whitelist), with one-time migration of the legacy flag.
+- **Locked-wallet recovery:** the mount-time silent reconnect was one-shot — if it ran while Adena was locked, the tab stayed disconnected even after unlock. A visibility-driven retry (throttled to one attempt per 15 s) now recovers when the user returns to the tab.
+- **Field diagnosis:** opt-in wallet session-event ring buffer (`localStorage.memba_wallet_debug = "1"`, dump via `window.__membaWalletLog()`) for pinpointing any residual disconnect reports — event names only, no addresses or signatures.
+
 ### Validators — W5.3 review stars (2026-07-03)
 - **Review stars in the validator table** (behind `VITE_ENABLE_REVIEWS`): per-row ★ average + count from the on-chain reviews realm, fetched lazily with a 4-wide concurrency limiter and page-lifetime cache (no N-parallel qeval bursts against the public RPC); row hover card now shows the 3 most recent review comments (tombstones filtered).
 
