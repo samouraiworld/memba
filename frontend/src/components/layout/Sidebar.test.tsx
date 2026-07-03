@@ -73,3 +73,35 @@ describe('Sidebar nav (characterization — must survive the manifest refactor)'
         expect(linkHref('Home')).toBeNull()
     })
 })
+
+describe('W6.2 — 4-mode IA sections', () => {
+    test('renders the four mode sections in order with labels', () => {
+        renderSidebar({ connected: true, address: NON_ZOOMA })
+        const modes = [...document.querySelectorAll('[data-testid^="nav-mode-"]')]
+            .map(el => el.getAttribute('data-testid'))
+        expect(modes).toEqual(['nav-mode-wallet', 'nav-mode-govern', 'nav-mode-launch', 'nav-mode-explore'])
+        for (const label of ['Wallet', 'Govern', 'Launch', 'Explore']) {
+            expect(screen.getByText(label)).toBeTruthy()
+        }
+    })
+
+    test('mode membership: DAOs under Govern, Marketplace under Launch, Directory under Explore', () => {
+        renderSidebar({ connected: true, address: NON_ZOOMA })
+        const within = (mode: string, label: string) =>
+            !!document.querySelector(`[data-testid="nav-mode-${mode}"]`)?.textContent?.includes(label)
+        expect(within('govern', 'DAOs')).toBe(true)
+        expect(within('wallet', 'Tokens')).toBe(true)
+        expect(within('launch', 'Marketplace')).toBe(true)
+        expect(within('launch', 'Extensions')).toBe(true)
+        expect(within('explore', 'Directory')).toBe(true)
+        expect(within('explore', 'Leaderboard')).toBe(true)
+    })
+
+    test('flag-gated Launch entries carry a pill (soon when the flag is off)', () => {
+        renderSidebar({ connected: false })
+        // Test env has no VITE_ENABLE_* set → NFT/Services render as "soon".
+        const launch = document.querySelector('[data-testid="nav-mode-launch"]')!
+        expect(launch.textContent).toContain('NFT')
+        expect(launch.textContent).toContain('soon')
+    })
+})

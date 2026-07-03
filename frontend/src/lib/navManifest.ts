@@ -20,7 +20,17 @@ import {
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar,
 } from '@phosphor-icons/react'
 
-export type NavGroup = 'primary' | 'manage' | 'account'
+/** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
+ *  destination lives in exactly one mode; 'account' is the bottom-pinned tail. */
+export type NavGroup = 'wallet' | 'govern' | 'launch' | 'explore' | 'account'
+
+/** Ordered mode sections the sidebar renders (account is rendered separately). */
+export const MODE_SECTIONS: { key: NavGroup; label: string }[] = [
+    { key: 'wallet', label: 'Wallet' },
+    { key: 'govern', label: 'Govern' },
+    { key: 'launch', label: 'Launch' },
+    { key: 'explore', label: 'Explore' },
+]
 export type NavShowOn = 'both' | 'mobile' | 'desktop'
 export type NavSurface = 'desktop' | 'mobile'
 
@@ -40,25 +50,25 @@ export interface NavEntry {
 }
 
 export const NAV: NavEntry[] = [
-    // ── Primary ─────────────────────────────────────────────────────
-    { id: 'home', to: '/', label: 'Home', Icon: House, group: 'primary', showOn: 'both' },
-    { id: 'dashboard', to: '/dashboard', label: 'Dashboard', Icon: ChartBar, group: 'primary', showOn: 'both', requiresAuth: true },
-    { id: 'dao', to: '/dao', label: 'DAOs', Icon: Buildings, group: 'primary', showOn: 'both' },
-    { id: 'tokens', to: '/tokens', label: 'Tokens', Icon: Coins, group: 'primary', showOn: 'both' },
-    { id: 'directory', to: '/directory', label: 'Directory', Icon: FolderOpen, group: 'primary', showOn: 'both' },
-    { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'primary', showOn: 'both' },
-    { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'primary', showOn: 'both' },
-    { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'primary', showOn: 'both' },
-    { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'primary', showOn: 'both' },
-    { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'primary', showOn: 'both' },
+    // ── Modes (Wallet / Govern / Launch / Explore) — W6.2 IA ────────
+    { id: 'home', to: '/', label: 'Home', Icon: House, group: 'explore', showOn: 'both' },
+    { id: 'dashboard', to: '/dashboard', label: 'Dashboard', Icon: ChartBar, group: 'wallet', showOn: 'both', requiresAuth: true },
+    { id: 'dao', to: '/dao', label: 'DAOs', Icon: Buildings, group: 'govern', showOn: 'both' },
+    { id: 'tokens', to: '/tokens', label: 'Tokens', Icon: Coins, group: 'wallet', showOn: 'both' },
+    { id: 'directory', to: '/directory', label: 'Directory', Icon: FolderOpen, group: 'explore', showOn: 'both' },
+    { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'govern', showOn: 'both' },
+    { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
+    { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },
+    { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both' },
+    { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'explore', showOn: 'both' },
 
-    // ── Manage / extend ─────────────────────────────────────────────
-    { id: 'multisig', to: '/multisig', label: 'Multisig', Icon: Briefcase, group: 'manage', showOn: 'both', requiresAuth: true },
-    { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'manage', showOn: 'both' },
-    { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'manage', showOn: 'both', requiresAuth: true },
-    { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
-    { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
-    { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'manage', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
+    // ── (former manage group — now mode-assigned above/below) ───────
+    { id: 'multisig', to: '/multisig', label: 'Multisig', Icon: Briefcase, group: 'wallet', showOn: 'both', requiresAuth: true },
+    { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'launch', showOn: 'both' },
+    { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'govern', showOn: 'both', requiresAuth: true },
+    { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
+    { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
+    { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
 
     // ── Account ─────────────────────────────────────────────────────
     { id: 'profile', to: '/profile', label: 'Profile', Icon: User, group: 'account', showOn: 'both', requiresAuth: true },

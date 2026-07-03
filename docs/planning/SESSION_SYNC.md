@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-03 · Lane A · W6.2 4-mode IA (PR1: nav shell) · START→STOP (single session) · frontend: navManifest.ts (mode groups), Sidebar.tsx (manifest-driven sections), index.css · feat/w62-ia-nav-modes
+
 2026-07-03 · Lane B · W6.1 changelog automation (PR1+PR2) · START→STOP (single session) · CHANGELOG.md (parse contract), frontend: lib/changelog.ts (new), lib/changelogLegacy.ts (new), pages/Changelogs.tsx · feat/w61-changelog-automation
 
 2026-07-03 · Lane B · W5.6 breaking-changes sweep · START→STOP (single session) · docs only: GNO_CORE_BREAKING_CHANGES.md, roadmap O-7 correction · docs/w56-breaking-changes-sweep

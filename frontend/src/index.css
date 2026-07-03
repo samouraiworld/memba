@@ -2002,3 +2002,21 @@ body {
     scroll-behavior: auto !important;
   }
 }
+/* ── W6.2: 4-mode IA section labels ─────────────── */
+
+.k-sidebar-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+}
+
+.k-sidebar-mode-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    padding: 6px 12px 4px;
+    user-select: none;
+}
