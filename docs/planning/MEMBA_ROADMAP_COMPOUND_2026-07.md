@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-03 · **Status:** PROPOSED (awaiting owner sign-off) · **Supersedes:** `MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md` §6.4+ forward-looking sections (Waves 0–4 of that plan are DELIVERED as of PR #732; this document is the successor program and owns Waves 5+).
 
-**Baseline at time of writing (updated 2026-07-03 evening):** Memba `main` = `077e050` (#736 merged — NetworkSync first-visit reload fixed, e2e `workers: 2` restored; #734 A3 parity merged before it). samcrew-deployer `main` = `31f7597` (W3.4, #55). Upstream gno = `dfe49509f` — no breaking changes for test13 realms since go-live. 12 realms live-verified on test13 (2026-06-28). 0 open Dependabot alerts. Open PR: **#737** (react-hooks ratchet 56→52 → O-9 already in motion). Lane C's per-signature-verified work remains active in its worktree.
+**Baseline at time of writing (updated 2026-07-03 evening):** Memba `main` = `6311ac2` — the day closed with #734 (A3 golden parity: flip now metric-gated), #736 (NetworkSync first-visit reload fixed, e2e `workers: 2` restored → O-5 closed), and #737 (react-hooks ratchet 56→52 → O-9 in motion) all merged. samcrew-deployer `main` = `31f7597` (W3.4, #55). Upstream gno = `dfe49509f` — no breaking changes for test13 realms since go-live. 12 realms live-verified on test13 (2026-06-28). 0 open Dependabot alerts. Lane C's per-signature-verified work remains active in its worktree.
 
 **Review provenance.** This plan was hardened by five independent expert review passes before submission — security/fund-safety, Gno/realm engineering, frontend/UX/product, infra/CI/ops, and product strategy — each verified against the live codebases (not just this document). Their material findings are folded in throughout and the two discovered code-level issues are tracked as O-13/O-14 in §1.2.
 
@@ -48,7 +48,7 @@
 | O-6 | NFT v3.1 RegisterMarket state ambiguity: Memba `safeFlags.ts` (2026-06-27) says engine "deployed, registered, and verified on test13"; deployer branch `feat/nft-register-market-v3` is still unmerged | MED (truth) | W5.5 — **reconcile**, don't assume: qeval the registration on-chain; if registered, merge/close the deployer branch and log in `realm-versions.json`; if not, run the ceremony (owner co-signs). |
 | O-7 | `docs/planning/GNO_CORE_BREAKING_CHANGES.md` stale (2026-03-30 era) | MED | W5.6 refresh (NewBanker `IsCurrent()` requirement, `realm.Sub`, AddPackage strictness, event-attr changes). |
 | O-8 | Quest verifiers ~40% stubbed; badges never minted (`gnobuilders_badges_v2` TotalSupply=0) | MED | W8.3. |
-| O-9 | react-hooks ratchet: 56 `set-state-in-effect` warnings → 0 → flip rule to `error` | LOW | Ratchet lane (continuous). **Already moving: PR #737 (56→52, src/hooks) opened 2026-07-03.** |
+| O-9 | react-hooks ratchet: 56 `set-state-in-effect` warnings → 0 → flip rule to `error` | LOW | Ratchet lane (continuous). **In motion: #737 MERGED 2026-07-03 (56→52, src/hooks, +440 lines of pinning tests).** |
 | O-10 | W4 remainder: god-file decomposition + `any` reduction; Sentry + RPC/DB metrics; 4-mode IA; a11y AA (re-enable axe) | MED | IA + Sentry/metrics = W6; god-files/`any`/a11y = Ratchet lane. |
 | O-11 | Legacy realm deploy-block cleanup fully done (deployer #55) | — | CLOSED (verified). |
 | O-12 | `VITE_ENABLE_NFT` missing from `.env.example` | — | CLOSED (present at `.env.example:36`; removed from SAFETY_GATED_FLAGS 2026-06-27 with rationale comment). |
