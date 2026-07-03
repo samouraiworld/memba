@@ -32,6 +32,7 @@ import { ActivationModal } from "../ui/ActivationModal"
 import { networkHasRealms, GNO_FAUCET_URL } from "../../lib/config"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
+import { RouteMetaSync } from "./RouteMetaSync"
 
 
 // Encode Uint8Array to base64 string (protojson format for bytes fields)
@@ -332,6 +333,9 @@ export function Layout() {
                     onSuccess={() => window.location.reload()}
                 />
             )}
+
+            {/* W6.3: per-route SEO meta (description/OG/canonical; never title) */}
+            <RouteMetaSync />
 
             {/* ── Main ─────────────────────────────────────── */}
             <main id="main-content" className="k-main">

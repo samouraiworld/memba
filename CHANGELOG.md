@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### SEO — W6.3 PR1: per-route meta (2026-07-03)
+- **Per-route SEO meta on every navigation:** a central `RouteMetaSync` (mounted in Layout) now writes meta description, `og:title`/`og:description`, `og:url`, `twitter:title`, and the canonical link from an ordered route-meta map (`lib/routeMeta.ts`) covering all key sections. Deliberately never touches `document.title` — pages own their titles, and React effect ordering would otherwise clobber dynamic ones (proposal names, validator monikers).
+
 ### Navigation — W6.2 4-mode IA, PR1 (2026-07-03)
 - **Sidebar reorganized into four labeled modes — Wallet / Govern / Launch / Explore** — and is now fully manifest-driven (adding a `navManifest.ts` entry places it; no more hand-curated link list). Marketplace/Services/NFT surface in Launch with live/soon pills, replacing the buried "Upcoming" collapsible. Zero URL changes; account links unchanged.
 
