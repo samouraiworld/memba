@@ -34,6 +34,34 @@ function upsertCanonical(href: string): void {
     node.setAttribute("href", href)
 }
 
+const BREADCRUMB_SCRIPT_ID = "memba-breadcrumbs"
+
+/** W6.3 PR3: per-route BreadcrumbList (Home → Section). JSON-LD script tags
+ *  are inert (never executed — CSP script-src doesn't apply), crawlers read
+ *  them after JS render. Site-level Organization/WebApplication JSON-LD is
+ *  static in index.html. */
+function upsertBreadcrumbs(origin: string, networkKey: string, pathname: string, sectionTitle: string): void {
+    let node = document.getElementById(BREADCRUMB_SCRIPT_ID) as HTMLScriptElement | null
+    if (!node) {
+        node = document.createElement("script")
+        node.type = "application/ld+json"
+        node.id = BREADCRUMB_SCRIPT_ID
+        document.head.appendChild(node)
+    }
+    const home = `${origin}/${networkKey}/`
+    const items = [
+        { "@type": "ListItem", position: 1, name: "Memba", item: home },
+        ...(pathname !== `/${networkKey}` && pathname !== `/${networkKey}/`
+            ? [{ "@type": "ListItem", position: 2, name: sectionTitle.replace(/ — Memba$/, ""), item: `${origin}${pathname}` }]
+            : []),
+    ]
+    node.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: items,
+    })
+}
+
 export function RouteMetaSync() {
     const location = useLocation()
     const networkKey = useNetworkKey()
@@ -48,6 +76,7 @@ export function RouteMetaSync() {
         upsertMeta('meta[property="og:url"]', { property: "og:url" }, url)
         upsertMeta('meta[name="twitter:title"]', { name: "twitter:title" }, meta.title)
         upsertCanonical(url)
+        upsertBreadcrumbs(window.location.origin, networkKey, location.pathname, meta.title)
     }, [location.pathname, networkKey])
 
     return null

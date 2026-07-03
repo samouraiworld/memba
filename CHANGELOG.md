@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### SEO — W6.3 PR3: structured data + prerender decision (2026-07-04)
+- **JSON-LD structured data:** site-level Organization + WebApplication graph static in `index.html` (crawler-readable pre-JS); per-route BreadcrumbList injected by `RouteMetaSync`. JSON-LD script blocks are inert — CSP unaffected.
+- **Prerender decision recorded (`docs/features/SEO.md`): not adopted** — Googlebot's JS rendering plus the now-complete meta/sitemap/JSON-LD surface covers the testnet-stage audience; re-evaluation triggers documented. W6.3 complete.
+
 ### SEO — W6.3 PR2: sitemap.xml + robots.txt (2026-07-03)
 - **`sitemap.xml` generated at build** (vite plugin over a pure builder in `lib/sitemap.ts`): every public static route, network-prefixed and lastmod-stamped. Static-only by design — build-time chain fetches for entity pages would couple Netlify builds to live-chain availability (decision documented in-module; revisit with the PR3 prerender decision). Plus a static `public/robots.txt` pointing at the sitemap.
 

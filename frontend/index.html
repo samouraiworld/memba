@@ -51,6 +51,36 @@
     content="Memba is a standalone Gno-native multisig wallet and DAO governance application." />
   <meta name="twitter:image" content="/og-image.png" />
 
+  <!-- W6.3 PR3: structured data (JSON-LD is inert — CSP script-src does not
+       execute it; crawlers read it from the static HTML, no JS render needed).
+       Per-route BreadcrumbList is injected at runtime by RouteMetaSync. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://memba.samourai.app/#org",
+        "name": "Samourai Coop",
+        "url": "https://samourai.world",
+        "logo": "https://memba.samourai.app/memba-icon.png",
+        "sameAs": ["https://github.com/samouraiworld", "https://x.com/samouraicoop"]
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://memba.samourai.app/#app",
+        "name": "Memba",
+        "url": "https://memba.samourai.app",
+        "description": "Memba is a standalone Gno-native multisig wallet and DAO governance application.",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "publisher": { "@id": "https://memba.samourai.app/#org" }
+      }
+    ]
+  }
+  </script>
+
   <!-- Favicons -->
   <link rel="icon" type="image/png" sizes="32x32" href="/memba-icon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
