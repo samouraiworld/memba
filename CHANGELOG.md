@@ -6,6 +6,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Docs — W5.6 upstream breaking-changes sweep (2026-07-03)
+- `GNO_CORE_BREAKING_CHANGES.md`: added the Jun 16 → Jul 3 upstream sweep (master `dfe49509f`) — zero breaking changes for deployed test13 realms; three forward-looking rules pinned for new realm code (NewBanker `IsCurrent()` caller-drain rule, `realm.Sub()` not-on-test13 status, AddPackage production-file strictness), all commit SHAs fact-checked against the gno repo.
+
 ### Wallet — W5.1 Adena session stability (2026-07-03)
 - **"Memba keeps disconnecting" root cause fixed:** the connection flag lived in per-tab `sessionStorage`, so every new tab and every browser restart skipped silent reconnect entirely. The flag now persists in `localStorage` (no weaker than the status quo — the auth token already lives there; silent reconnect is still gated by Adena's own whitelist), with one-time migration of the legacy flag.
 - **Locked-wallet recovery:** the mount-time silent reconnect was one-shot — if it ran while Adena was locked, the tab stayed disconnected even after unlock. A visibility-driven retry (throttled to one attempt per 15 s) now recovers when the user returns to the tab.
