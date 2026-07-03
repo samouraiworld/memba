@@ -11,6 +11,9 @@
  *   - CancelContract pays a NEWLY-cancelled funded milestone once (client
  *     refund minus cancellation fee, fee to the freelancer), and pays a
  *     completed-but-unreleased milestone to the freelancer minus platform fee
+ *   - dispute FREEZE: while the contract is StatusDisputed,
+ *     CompleteMilestone/ReleaseFunds abort (even for other, non-disputed
+ *     milestones) and move no coins; ResolveDispute lifts the freeze
  *
  * Requires `gno` on PATH (REQUIRE_GNO=1 in CI forbids the skip). Hermetic:
  * gno.land/p/* deps vendored from GNOROOT/examples, GNOHOME isolated.
@@ -170,6 +173,74 @@ func TestCancelPaysNewTransitionsOnly(cur realm, t *testing.T) {
 \t\tCancelContract(cross(cur), id)
 \t})
 }
+
+// Dispute FREEZE parity: while any milestone is disputed the CONTRACT is
+// StatusDisputed, and CompleteMilestone/ReleaseFunds must abort — even for
+// OTHER, non-disputed milestones — until ResolveDispute returns it to Active.
+// Deployed escrow_v2 has this contract-level freeze; the template must too.
+func TestDisputeFreezesContractActions(cur realm, t *testing.T) {
+\ttesting.IssueCoins(realmAddr, chain.Coins{chain.NewCoin("ugnot", 100_000_000)})
+
+\ttesting.SetRealm(client)
+\tid := CreateContract(cross(cur), freelancer.Address(), "shop", "escrow fixture", "spec:1000000,impl:2000000,ship:3000000")
+
+\tfund(cur, id, 0, 1_000_000)
+\tfund(cur, id, 1, 2_000_000)
+\tfund(cur, id, 2, 3_000_000)
+
+\t// Milestone 2 delivered before the dispute (releasable once Active again).
+\ttesting.SetRealm(freelancer)
+\tCompleteMilestone(cross(cur), id, 2)
+
+\t// Dispute milestone 0 → the whole CONTRACT flips to StatusDisputed.
+\ttesting.SetRealm(client)
+\tRaiseDispute(cross(cur), id, 0)
+\tif getContract(id).Status != StatusDisputed {
+\t\tt.Fatalf("want disputed contract, got %s", getContract(id).Status)
+\t}
+
+\tfreelancerBefore := balanceOf(freelancer.Address())
+
+\t// FROZEN: freelancer cannot complete the untouched funded milestone 1.
+\ttesting.SetRealm(freelancer)
+\tmustAbort(t, "CompleteMilestone during dispute", func() {
+\t\tCompleteMilestone(cross(cur), id, 1)
+\t})
+\tif getContract(id).Milestones[1].Status != MsFunded {
+\t\tt.Fatalf("frozen complete must not touch milestone 1, got %s", getContract(id).Milestones[1].Status)
+\t}
+
+\t// FROZEN: client cannot release the already-completed milestone 2.
+\ttesting.SetRealm(client)
+\tmustAbort(t, "ReleaseFunds during dispute", func() {
+\t\tReleaseFunds(cross(cur), id, 2)
+\t})
+\tif d := balanceOf(freelancer.Address()) - freelancerBefore; d != 0 {
+\t\tt.Fatalf("frozen release must move NO coins, freelancer got %d", d)
+\t}
+\tif getContract(id).Milestones[2].Status != MsCompleted {
+\t\tt.Fatalf("frozen release must not touch milestone 2, got %s", getContract(id).Milestones[2].Status)
+\t}
+
+\t// ResolveDispute returns the contract to Active — the freeze lifts.
+\ttesting.SetRealm(admin)
+\tResolveDispute(cross(cur), id, 0, true)
+\tif getContract(id).Status != StatusActive {
+\t\tt.Fatalf("want active contract after resolve, got %s", getContract(id).Status)
+\t}
+
+\ttesting.SetRealm(freelancer)
+\tCompleteMilestone(cross(cur), id, 1)
+\tif getContract(id).Milestones[1].Status != MsCompleted {
+\t\tt.Fatalf("complete after resolve must succeed, got %s", getContract(id).Milestones[1].Status)
+\t}
+
+\ttesting.SetRealm(client)
+\tReleaseFunds(cross(cur), id, 2)
+\tif d := balanceOf(freelancer.Address()) - freelancerBefore; d != 2_940_000 {
+\t\tt.Fatalf("release after resolve: want freelancer +2940000 (3000000 minus 2%% fee), got %d", d)
+\t}
+}
 `
 
 function hasGno(): boolean {
@@ -262,6 +333,7 @@ describeGno("generated escrow realm proves W1.6 refund parity under `gno test`",
         for (const name of [
             "TestDisputeRefundThenCancelPaysOnce",
             "TestCancelPaysNewTransitionsOnly",
+            "TestDisputeFreezesContractActions",
         ]) {
             expect(out, `expected an explicit PASS for ${name}`).toContain(`--- PASS: ${name}`)
         }
