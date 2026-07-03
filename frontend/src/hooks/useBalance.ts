@@ -107,7 +107,12 @@ export function useBalance(address: string | null, refreshInterval = 30000) {
     useEffect(() => {
         fetchBalance();
         if (address && refreshInterval > 0) {
-            intervalRef.current = setInterval(fetchBalance, refreshInterval);
+            // W4: skip the RPC round-trip while the tab is hidden — several
+            // components mount this hook, so an unguarded 30s interval
+            // multiplies into a real background drain.
+            intervalRef.current = setInterval(() => {
+                if (!document.hidden) fetchBalance();
+            }, refreshInterval);
         }
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);

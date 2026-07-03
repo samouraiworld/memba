@@ -45,6 +45,11 @@ export const queryClient = new QueryClient({
                 "status" in error &&
                 (error as { status: number }).status >= 500,
             refetchOnWindowFocus: false,
+            // W4: never poll a hidden tab. This is React Query's default, but
+            // pinning it here makes the posture explicit and stops a future
+            // per-query refetchIntervalInBackground:true from slipping in as
+            // an unreviewed background-drain regression.
+            refetchIntervalInBackground: false,
             gcTime: CACHE_MAX_AGE,
         },
     },
