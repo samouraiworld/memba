@@ -2588,7 +2588,7 @@ export type GetNFTActivityRequest = Message<"memba.v1.GetNFTActivityRequest"> & 
   collectionId: string;
 
   /**
-   * default 20, max 100
+   * default 50, max 500 — event tables hold full history
    *
    * @generated from field: uint32 limit = 2;
    */
