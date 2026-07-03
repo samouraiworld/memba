@@ -44,7 +44,7 @@
 | O-2 | Per-signature verified flag (proto + migration 018 + UI) | HIGH | Externally owned (Lane C, branch `fix/per-signature-verified-flag`). Reference only. |
 | O-3 | **Litestream restore drill never executed** — OPS_RUNBOOK §4.7 RPO/RTO placeholders | HIGH (ops) | Owner action (Appendix A). Prerequisite for Wave 8. |
 | O-4 | `METRICS_BEARER` / `QUEST_ADMIN_ADDRESSES` unset in prod | HIGH (ops) | Owner action (Appendix A). Prerequisite for W6.5 metrics work. |
-| O-5 | Playwright `workers: 1` in CI (~5 min/run tax) | MED | W5.4 — flake-fix first, then restore parallelism. |
+| O-5 | Playwright `workers: 1` in CI (~5 min/run tax) | MED | W5.4 — flake-fix first, then restore parallelism. **Update 2026-07-03 15:14Z: PR #736 (parallel session) identifies the root cause (first-visit reload in NetworkSync) and restores `workers: 2`. If it merges green, W5.4 collapses to verification (3 consecutive green runs) and Lane B starts at W5.5.** |
 | O-6 | NFT v3.1 RegisterMarket state ambiguity: Memba `safeFlags.ts` (2026-06-27) says engine "deployed, registered, and verified on test13"; deployer branch `feat/nft-register-market-v3` is still unmerged | MED (truth) | W5.5 — **reconcile**, don't assume: qeval the registration on-chain; if registered, merge/close the deployer branch and log in `realm-versions.json`; if not, run the ceremony (owner co-signs). |
 | O-7 | `docs/planning/GNO_CORE_BREAKING_CHANGES.md` stale (2026-03-30 era) | MED | W5.6 refresh (NewBanker `IsCurrent()` requirement, `realm.Sub`, AddPackage strictness, event-attr changes). |
 | O-8 | Quest verifiers ~40% stubbed; badges never minted (`gnobuilders_badges_v2` TotalSupply=0) | MED | W8.3. |
@@ -133,6 +133,7 @@ Impact = contribution to Memba's positioning (multisig/DAO first; testnet demo q
 - PR1: measure the **post-#599 residual flake** (3× local full-suite runs at workers=2; capture which specs regress and why — RPC rate-limiting vs state bleed).
 - PR2: fix the residual causes (mock/live split, per-spec RPC budget, or dedicated serial project) and re-enable `workers: 2`; record wall-time delta.
 - **DoD:** 3 consecutive green CI runs at workers>1 with first-attempt pass-rate within 5pp of the workers=1 baseline. **Docs:** E2E_TEST.md. This is the **first Lane B item** — every later wave inherits the CI-velocity win.
+- **Status note (2026-07-03):** PR #736 (parallel session) claims the root cause (first-visit reload race in NetworkSync) and restores `workers: 2`. If merged green before W5 starts, this item reduces to the DoD verification only.
 
 **W5.5 NFT v3.1 registration reconcile** *(Lane B)*
 - Query on-chain (qeval `memba_collections` market registration). If registered: update `realm-versions.json`, close/merge deployer branch `feat/nft-register-market-v3`, log in DEPLOYMENT_RUNBOOK. If not: prepare ceremony dry-run; **owner executes**.
