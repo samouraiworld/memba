@@ -139,7 +139,9 @@ fly machine start <machine-id> -a memba-backend
 
 Memba's SQLite is not the source of truth for user-visible state — DAOs, multisigs, tokens all live on-chain. The backend DB stores: profile preferences, multisig coordination metadata, quest progress, analyst cache, oauth scratch state. Worst-case loss is degraded UX, not lost user funds.
 
-**Automatic first line of defense (start.sh):** every boot runs `memba integrity-check` (`PRAGMA integrity_check`) against `/data/memba.db` before Litestream starts. A corrupt file is quarantined as `/data/memba.db.corrupt-<ts>` (plus its `-wal`/`-shm`) and the DB is restored from the Litestream S3 replica automatically. If that restore FAILS the machine exits loudly on purpose — a fresh empty DB would present as total data loss. Recovery order in that case: (1) local `VACUUM INTO` backups at `/data/backups/` (daily), (2) volume snapshot per §4.3, (3) clean start below. The quarantined file stays on the volume for forensics — delete it once resolved.
+**Automatic first line of defense (start.sh):** every boot runs `memba integrity-check` (`PRAGMA integrity_check`) against `/data/memba.db` before Litestream starts. A corrupt file is quarantined as `/data/memba.db.corrupt-<ts>` (plus its `-wal`/`-shm`) and the DB is restored from the Litestream S3 replica automatically. If that restore FAILS the machine exits loudly on purpose — a fresh empty DB would present as total data loss. Recovery order in that case: (1) manual Litestream restore per §4.7, (2) volume snapshot per §4.3, (3) clean start below. The quarantined file stays on the volume for forensics — delete it once resolved.
+
+> **W2.3 note:** the old same-volume `VACUUM INTO` backups (`/data/backups/`, daily) are RETIRED — they couldn't survive the failure mode that actually happened (volume loss) and raced Litestream for I/O. Any `/data/backups/` files still on the volume are pre-retirement leftovers; the S3 replica is the single backup mechanism. Machines deployed before the retirement may still carry them — usable in a pinch, but never fresher than their file date.
 
 If a snapshot restore isn't possible, drop the bad DB and the app starts clean on next deploy:
 
@@ -180,6 +182,50 @@ Users will be logged out (their auth tokens are in localStorage, but the server'
 3. **Repoint** the frontend realm path atomically in the same release.
 4. **Verify** the new path with the live ACL/state probes (§7); record the deploy in `realm-versions.json` (G5 format: full txHash + deployer commit SHA).
 5. **Rollback** = repoint config back to the old path.
+
+### 4.7 Litestream restore drill (RPO/RTO) — W2.3
+
+**What protects what.** Litestream streams WAL segments to the S3 replica continuously (default sync interval 1s) and takes a full snapshot every 24h, retaining 168h (7 days). This is the ONLY backup mechanism (§4.4 note): it survives volume loss (§reference: the 2026-06 volume-on-unreachable-host incident), machine loss, and region loss — anything short of losing the S3 bucket itself.
+
+**Expected RPO/RTO (fill in measured values at the first drill):**
+
+| Scenario | RPO (data loss) | RTO (time to serving) |
+|---|---|---|
+| Corrupt DB, machine alive (automatic, §4.4) | ≤ ~1s of WAL (last un-shipped frames) | one boot cycle (~30–60s) — MEASURE |
+| Volume lost, new machine | ≤ ~1s of WAL | volume create + deploy + restore (~5–10 min) — MEASURE |
+| S3 replica lost | everything since… nothing else exists | n/a — this is the disaster to avoid; consider bucket versioning/replication |
+
+**Manual restore procedure (staging drill = same steps against a scratch app):**
+
+```bash
+# 0. Secrets needed (Fly secrets on memba-backend): AWS_ACCESS_KEY_ID,
+#    AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3, BUCKET_NAME.
+# 1. Inspect what the replica has (generations, snapshot + WAL ages → your RPO):
+fly ssh console -a memba-backend
+litestream generations -config /etc/litestream.yml /data/memba.db
+litestream snapshots  -config /etc/litestream.yml /data/memba.db
+
+# 2. Restore to a scratch path and sanity-check it (NEVER straight over prod):
+litestream restore -config /etc/litestream.yml -o /tmp/restored.db /data/memba.db
+/app/memba integrity-check   # DB_PATH=/tmp/restored.db
+sqlite3 /tmp/restored.db "SELECT COUNT(*) FROM transactions; SELECT COUNT(*) FROM multisigs;"
+
+# 3. Swap it in (machine restart re-runs the boot integrity gate):
+mv /tmp/restored.db /data/memba.db && rm -f /data/memba.db-wal /data/memba.db-shm
+exit
+fly machine restart <machine-id> -a memba-backend
+fly logs -a memba-backend | grep "integrity check"   # expect "Database passes integrity check"
+```
+
+**Drill checklist (run once per quarter, ~20 min, staging or a scratch Fly app):**
+1. Record the timestamps: drill start, restore complete, app healthy (`/health` 200).
+2. `litestream snapshots` age at drill time → measured RPO headroom.
+3. Restore + boot per the steps above → measured RTO.
+4. Write both numbers into this table (replace the MEASURE placeholders).
+5. Verify one known row survived (e.g. a recent transaction's final_hash).
+
+> **The live drill itself is an ops exercise** — it needs Fly + S3 access and a
+> human watching; it is deliberately NOT automated. First drill: owner zxxma.
 
 ---
 
