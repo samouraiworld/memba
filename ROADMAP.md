@@ -11,7 +11,7 @@
 |--------|-------|
 | **Latest Release** | v7.2.0 (cut 2026-06-29); includes NFT marketplace, GnoBuilders on-chain attestation, Wave 0/1 hygiene & security hardening. |
 | **Shipped Versions** | 51+ (v0.1.0 → v7.2.0) + ongoing feature branches |
-| **Test Suite** | 140 Vitest files / **2,399 tests** + Go backend suite (auth/db/indexer/points/service) + `FuzzMakeADR36SignDoc` + Gno realm tests + Playwright E2E |
+| **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
 | **Networks** | **test13 is the prod default — cutover DONE**; all `_v2` and `v3_1` realms LIVE (DAO + commerce + feedback + NFT launchpad) |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |

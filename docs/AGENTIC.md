@@ -42,9 +42,13 @@ curl -s 'https://backend.gnolove.world/stats?time_filter=all'
 curl -s 'https://monitoring.gnolove.world/validators'
 ```
 
-## MCP Server
+## MCP Servers
 
-The Memba MCP server (`mcp-server/`) exposes 9 tools for agents:
+Memba ships two MCP servers, both pnpm workspace packages at the repo root.
+
+### Memba MCP Server (`mcp-server/`)
+
+The Memba MCP server exposes 9 tools for agents:
 
 | Tool | Description |
 |------|-------------|
@@ -71,6 +75,47 @@ The Memba MCP server (`mcp-server/`) exposes 9 tools for agents:
 ```
 
 See `mcp-server/README.md` for full configuration details.
+
+### DAO Governance Analyst MCP Server (`mcp-server-dao-analyst/`)
+
+`@samouraiworld/dao-analyst-mcp` is a multi-model AI governance analyst for Gno DAOs:
+it analyzes proposals from legal, technical, and financial perspectives using free-tier
+LLM consensus (models routed through the Memba backend / OpenRouter). It is registered
+on-chain as an agent in `gno.land/r/samcrew/agent_registry` (`register-agent.sh`).
+
+It exposes 6 tools:
+
+| Tool | Description |
+|------|-------------|
+| `dao_analyze_proposal` | Multi-perspective proposal analysis with consensus verdict |
+| `dao_audit_treasury` | Treasury health assessment |
+| `dao_governance_health` | Governance health score and recommendations |
+| `dao_compare_proposals` | Side-by-side proposal comparison (free: 2, PRO: 5) |
+| `dao_risk_assessment` | Focused risk analysis — what could go wrong |
+| `dao_set_network` | Switch Gno network mid-conversation |
+
+Launch (Claude Desktop / Cursor / VS Code MCP config):
+
+```json
+{
+  "mcpServers": {
+    "dao-analyst": {
+      "command": "npx",
+      "args": ["-y", "@samouraiworld/dao-analyst-mcp@latest"],
+      "env": {
+        "GNO_RPC_URL": "https://rpc.test13.testnets.gno.land:443",
+        "MEMBA_BACKEND_URL": "https://memba-backend.fly.dev"
+      }
+    }
+  }
+}
+```
+
+Free tier covers 2 perspectives (technical, financial) at 10 req/min; PRO (on-chain
+credits via `DepositCredits("dao-analyst")` on the agent registry realm) adds the legal
+perspective, multi-model consensus, and 5-way comparison. See
+`mcp-server-dao-analyst/README.md` for env vars (`DAO_ANALYST_TOKEN`,
+`DAO_ANALYST_USER_ADDRESS`) and tier details.
 
 ## CI/CD Integration
 
