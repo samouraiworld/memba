@@ -5,7 +5,7 @@
  * token info parsing, sanitization, Adena message conversion,
  * and v2.1a Memba-specific helpers.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
     calculateFee,
     feeDisclosure,
@@ -342,6 +342,38 @@ describe('assertWalletBroadcastSafe — shared guard for non-DoContract transpor
     it('passes on a trusted RPC with a matching chain', () => {
         setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
         expect(() => assertWalletBroadcastSafe()).not.toThrow()
+        setWalletRpcContext(null, false, null)
+    })
+})
+
+describe('doContractBroadcast — deploys never auto-retry (review finding #1)', () => {
+    it('surfaces the first deploy failure immediately: one DoContract call, no re-sign loop', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: doContract }
+        const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy' })).rejects.toThrow(/network timeout/)
+        expect(doContract).toHaveBeenCalledTimes(1)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).adena
+        setTxConfirmationCallback(null)
+        setWalletRpcContext(null, false, null)
+    })
+
+    it('never retries "package already exists" even on the call budget', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'test-13')
+        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: doContract }
+        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
+        await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
+        expect(doContract).toHaveBeenCalledTimes(1)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (window as any).adena
+        setTxConfirmationCallback(null)
         setWalletRpcContext(null, false, null)
     })
 })

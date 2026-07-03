@@ -428,4 +428,39 @@ describe("useAdena — changedNetwork subscription", () => {
 
         setWalletRpcContext(null, false, null) // don't leak module state
     })
+
+    it("fails CLOSED synchronously for the whole re-validation window (review finding #2)", async () => {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            GetAccount: vi.fn().mockResolvedValue(okAccount({ chainId: GNO_CHAIN_ID })),
+            On: vi.fn((event: string, cb: () => void | Promise<void>) => {
+                if (event === "changedNetwork") changedHandler = cb
+                return true
+            }),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect()
+        })
+
+        // Fire the switch but do NOT await the handler: a broadcast racing the
+        // GetNetwork/GetAccount round-trip must already be blocked — the old
+        // code left the stale pre-switch values live for that window.
+        let pending!: Promise<void>
+        act(() => {
+            pending = Promise.resolve(changedHandler!())
+        })
+        await expect(doContractBroadcast([], "mid-switch")).rejects.toThrow(/Transaction blocked/)
+
+        // After the handler resolves (same trusted RPC + same chain), signing
+        // works again — the fail-closed window is temporary, not a brick.
+        await act(async () => {
+            await pending
+        })
+        await expect(doContractBroadcast([], "post-resync")).rejects.toThrow(/Adena wallet not available/)
+
+        setWalletRpcContext(null, false, null) // don't leak module state
+    })
 })

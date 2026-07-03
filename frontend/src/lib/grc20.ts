@@ -201,9 +201,12 @@ export async function doContractBroadcast(
     }
 
     const gas = getGasConfig()
-    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget.
-    const gasWanted = opts?.gas === "deploy" ? gas.deployWanted : gas.wanted
-    const maxRetries = 2
+    // Realm deploys (/vm.m_addpkg) need the elevated deploy budget — and must
+    // NEVER auto-retry: a lost response after a landed deploy would re-prompt
+    // the wallet sign UI just to fail with "package already exists".
+    const isDeploy = opts?.gas === "deploy"
+    const gasWanted = isDeploy ? gas.deployWanted : gas.wanted
+    const maxRetries = isDeploy ? 0 : 2
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -222,7 +225,7 @@ export async function doContractBroadcast(
                     throw new Error(errMsg)
                 }
                 // Don't retry deterministic chain errors
-                if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(errMsg)) {
+                if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(errMsg)) {
                     throw new Error(errMsg)
                 }
                 lastError = new Error(errMsg)
@@ -234,7 +237,7 @@ export async function doContractBroadcast(
             // Don't retry user cancellations
             if (/user (rejected|denied)|cancelled/i.test(msg)) throw err
             // Don't retry deterministic errors
-            if (/insufficient funds|unauthorized|not a member|already voted|out of gas/i.test(msg)) throw err
+            if (/insufficient funds|unauthorized|not a member|already voted|out of gas|package already exists/i.test(msg)) throw err
             lastError = err instanceof Error ? err : new Error(msg)
         }
 

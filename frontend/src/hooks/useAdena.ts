@@ -389,6 +389,11 @@ export function useAdena() {
         if (!adena?.On || typeof adena.GetNetwork !== "function") return;
 
         const registered = adena.On("changedNetwork", async () => {
+            // Fail CLOSED for the whole re-validation window: from the instant
+            // the wallet switches until the async reads below resolve, the old
+            // trust/chain values are stale — a broadcast racing this handler
+            // must be blocked, not waved through on pre-switch state.
+            setWalletRpcContext(null, false, UNVERIFIED_CHAIN_ID);
             try {
                 const netRes = await adena.GetNetwork();
                 const url = netRes?.data?.rpcUrl || "";
