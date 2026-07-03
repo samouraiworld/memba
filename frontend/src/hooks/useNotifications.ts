@@ -72,9 +72,13 @@ export function useNotifications(daoPaths: string[], address: string | null) {
     // v2.13: Throttle status polling — full proposal fetch every 3rd cycle (90s)
     const pollCycleRef = useRef(0)
     const isVisible = useRef(true)
-    // C2 fix: store daoPaths in ref to avoid callback/effect instability
+    // C2 fix: store daoPaths in ref to avoid callback/effect instability.
+    // W4 (react-hooks/refs): the ref write happens in an effect, not during
+    // render — same stability, compiler-legal.
     const daoPathsRef = useRef(daoPaths)
-    daoPathsRef.current = daoPaths
+    useEffect(() => {
+        daoPathsRef.current = daoPaths
+    }, [daoPaths])
 
     // Sync state from localStorage
     const syncState = useCallback(() => {

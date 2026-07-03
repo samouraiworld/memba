@@ -20,13 +20,17 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // Temporarily disable the new compiler-based rules introduced in eslint-plugin-react-hooks@5.2.0
-      // There are 70+ occurrences in the codebase that need to be refactored eventually.
-      'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/immutability': 'off',
-      'react-hooks/preserve-manual-memoization': 'off',
-      'react-hooks/purity': 'off',
-      'react-hooks/refs': 'off',
+      // W4 (NEW-FE-7): the compiler-based react-hooks rules are RE-ENABLED —
+      // disabled they masked the effect/state bug class that produced the
+      // chain-id desync. immutability/preserve-manual-memoization/purity/refs
+      // are clean (violations fixed) and enforced. set-state-in-effect still
+      // has ~56 legacy occurrences: it stays a WARNING ratchet — visible in
+      // every lint run and PR annotation; burn down before flipping to error.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'error',
+      'react-hooks/preserve-manual-memoization': 'error',
+      'react-hooks/purity': 'error',
+      'react-hooks/refs': 'error',
       // Viewport/breakpoint detection must go through the shared useIsMobile()
       // hook (matchMedia, SSR-safe) — not ad-hoc window.innerWidth reads in
       // render, which caused mobile/desktop drift (audit M7).

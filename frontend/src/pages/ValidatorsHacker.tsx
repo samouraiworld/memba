@@ -95,10 +95,14 @@ export default function ValidatorsHacker() {
     const [loadError, setLoadError] = useState<string | null>(null)
     const [monitoringLoading, setMonitoringLoading] = useState(true)
     const [monitoringReachable, setMonitoringReachable] = useState<boolean | null>(null)
-    const [sessionStart] = useState(Date.now())
+    // Lazy initializer — Date.now() during render is impure (react-hooks/purity)
+    const [sessionStart] = useState(() => Date.now())
 
-    // Compute session age string for NodeStatePanel (stable across re-renders via state)
-    const sessionAgeMs = (lastUpdated ?? Date.now()) - sessionStart
+    // Compute session age string for NodeStatePanel. W4 (react-hooks/purity):
+    // derived purely from state — before the first poll lands (lastUpdated
+    // null) the age is simply 0; the old Date.now() fallback made render
+    // impure for a value that was about to be replaced anyway.
+    const sessionAgeMs = (lastUpdated ?? sessionStart) - sessionStart
     const sessionAgeStr = (() => {
         const s = Math.floor(sessionAgeMs / 1000)
         const m = Math.floor(s / 60) % 60

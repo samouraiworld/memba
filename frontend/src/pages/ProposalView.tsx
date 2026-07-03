@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useProposalDate } from "../hooks/useProposalDate"
@@ -87,7 +87,11 @@ export function ProposalView() {
             if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
             return
         }
-        pollRef.current = setInterval(() => loadProposal(true), 30_000)
+        // W4: pause the refresh while the tab is hidden (silent poll = two
+        // chain reads per tick; the visible tick catches up within 30s).
+        pollRef.current = setInterval(() => {
+            if (!document.hidden) loadProposal(true)
+        }, 30_000)
         return () => { if (pollRef.current) clearInterval(pollRef.current) }
     }, [proposal?.status, loadProposal])
 
@@ -129,8 +133,12 @@ export function ProposalView() {
             .catch(() => { })
     }, [adena.address])
 
-    // Derive hasVoted + userVote from vote records
-    const { hasVoted, userVote } = useMemo(() => {
+    // Derive hasVoted + userVote from vote records. Plain derivation, no
+    // useMemo: the React Compiler could not preserve the manual memoization
+    // (react-hooks/preserve-manual-memoization) and both values are consumed
+    // as scalars — recomputing over the small per-proposal voter lists is
+    // cheaper than fighting the compiler for object identity nobody uses.
+    const { hasVoted, userVote } = (() => {
         if (!voteRecords.length || !adena.address) return { hasVoted: false, userVote: "" }
         const addr = adena.address.toLowerCase()
         const uname = myUsername?.toLowerCase() || ""
@@ -156,7 +164,7 @@ export function ProposalView() {
             }
         }
         return { hasVoted: false, userVote: "" }
-    }, [voteRecords, adena.address, myUsername])
+    })()
 
     // v6 UX-04: Confirmation dialog before irreversible on-chain vote
     const [pendingVote, setPendingVote] = useState<"YES" | "NO" | "ABSTAIN" | null>(null)

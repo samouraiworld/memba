@@ -58,6 +58,14 @@ export function WhatsNewToast() {
         return () => clearTimeout(timer)
     }, [])
 
+    const handleDismiss = useCallback(() => {
+        setExiting(true)
+        setTimeout(() => {
+            dismiss()
+            setVisible(false)
+        }, 200)
+    }, [])
+
     // Escape key dismisses
     useEffect(() => {
         if (!visible) return
@@ -66,16 +74,7 @@ export function WhatsNewToast() {
         }
         window.addEventListener("keydown", handler)
         return () => window.removeEventListener("keydown", handler)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible])
-
-    const handleDismiss = useCallback(() => {
-        setExiting(true)
-        setTimeout(() => {
-            dismiss()
-            setVisible(false)
-        }, 200)
-    }, [])
+    }, [visible, handleDismiss])
 
     if (!visible) return null
 

@@ -31,6 +31,9 @@ export function NetworkStatusToast() {
         let cancelled = false
 
         const poll = async () => {
+            // W4: no health checks for a tab nobody is looking at — the next
+            // visible tick refreshes within POLL_INTERVAL anyway.
+            if (document.hidden) return
             const result = await checkNetworkHealth(GNO_RPC_URL)
             if (cancelled) return
             setHealth(result.health)
