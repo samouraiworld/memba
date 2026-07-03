@@ -14,16 +14,16 @@
  * refunds are TERMINAL (`MsRefunded`), and CancelContract pays only
  * milestones it newly transitions (newlyRefunded/newlyReleased) — never a
  * milestone already settled by ResolveDispute/ReleaseFunds (the old
- * `MsPending && FundedAt > 0` sweep double-refunded). Proven by
- * escrowTemplate.refunds.gno.test.ts under the real gno test machine.
+ * `MsPending && FundedAt > 0` sweep double-refunded), and the contract-level
+ * dispute FREEZE is ported: CompleteMilestone/ReleaseFunds abort while the
+ * contract is StatusDisputed, until ResolveDispute returns it to Active.
+ * Both proven by escrowTemplate.refunds.gno.test.ts under the real gno test
+ * machine, and grep-pinned in BOTH sources by samcrew-deployer's
+ * samcrew-escrow-parity.sh.
  * KNOWN REMAINING GAPS vs escrow_v2 (tracked, do not silently port):
  * Pause/Unpause, ClaimRefund/ClaimDisputeTimeout timeouts, PreDisputeStatus,
  * CreateContract input caps (MaxTitleLen/MaxMilestones/MinMilestoneAmount),
- * chain.Emit events, renderStats, and the contract-level dispute FREEZE —
- * escrow_v2's CompleteMilestone/ReleaseFunds abort while the contract is
- * StatusDisputed; here they only gate on the individual milestone's status
- * (no double-pay risk — each milestone is individually gated — but a
- * behavioral divergence).
+ * chain.Emit events, and renderStats.
  *
  * @module lib/escrowTemplate
  */
@@ -319,6 +319,12 @@ func CompleteMilestone(cur realm, contractId string, milestoneIdx int) {
 	if c.Freelancer != caller {
 		panic("only freelancer can mark complete")
 	}
+	// Only allow completion when contract is Active. Disputed contracts are
+	// frozen until ResolveDispute returns the contract to Active (parity with
+	// deployed escrow_v2's contract-level dispute freeze).
+	if c.Status != StatusActive {
+		panic("contract is " + string(c.Status) + " — cannot complete milestones during dispute")
+	}
 	ms := &c.Milestones[milestoneIdx]
 	if ms.Status != MsFunded {
 		panic("milestone not funded")
@@ -336,6 +342,12 @@ func ReleaseFunds(cur realm, contractId string, milestoneIdx int) {
 
 	if c.Client != caller && string(caller) != AdminAddress {
 		panic("only client or admin can release")
+	}
+	// Only allow release when contract is Active. Disputed contracts are
+	// frozen until ResolveDispute returns the contract to Active (parity with
+	// deployed escrow_v2's contract-level dispute freeze).
+	if c.Status != StatusActive {
+		panic("contract is " + string(c.Status) + " — cannot release funds during dispute")
 	}
 	if milestoneIdx < 0 || milestoneIdx >= len(c.Milestones) {
 		panic("invalid milestone index")
