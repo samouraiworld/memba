@@ -7,12 +7,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, act } from "@testing-library/react"
-import {
-    ValidatorReviewStars,
-    ValidatorReviewPreview,
-    getValidatorReviewSummary,
-    __resetValidatorReviewCaches,
-} from "./ValidatorReviewStars"
+import { ValidatorReviewStars, ValidatorReviewPreview } from "./ValidatorReviewStars"
+import { getValidatorReviewSummary, __resetValidatorReviewCaches } from "./validatorReviewsData"
 import type { OnChainReview } from "../../lib/reviews"
 
 const mocks = vi.hoisted(() => ({
