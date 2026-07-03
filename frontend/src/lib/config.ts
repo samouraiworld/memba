@@ -180,6 +180,13 @@ function getActiveNetworkKey(): string {
 
 const _activeNetwork = getActiveNetworkKey()
 
+/** The network key ALL module-load config in this file was computed with
+ *  (GNO_CHAIN_ID, GNO_RPC_URL, …). NetworkSync compares the /:network URL param
+ *  against THIS — not raw localStorage — so a reload only happens when the
+ *  loaded config actually differs (a first visit landing on the default network
+ *  persists the key silently instead of double-loading the whole app). */
+export const ACTIVE_NETWORK_KEY = _activeNetwork
+
 /**
  * Returns the user registry realm path for the active network.
  * On test13/betanet this is `gno.land/r/sys/users` (upstream migration).
