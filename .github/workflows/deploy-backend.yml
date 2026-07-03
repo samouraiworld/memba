@@ -56,7 +56,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # W3.1 (INF-1): SHA-pinned — @master on the DEPLOY path meant any
+      # upstream push could alter the release pipeline unreviewed. Tag: v1.4.
+      - uses: superfly/flyctl-actions/setup-flyctl@dfdfedc86b296f5e5384f755a18bf400409a15d0
 
       - name: Compute release tag
         id: tag

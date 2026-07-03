@@ -1,5 +1,12 @@
 name: "Security"
 
+# W3.2 (INF-2): this workflow (and the README "Security" badge pointing at it)
+# used to run ONLY gosec — no CodeQL despite the filename. It now runs real
+# CodeQL for JS/TS + Go alongside the pinned gosec scan, so the badge is
+# truthful. W3.1 (INF-1): gosec is version-pinned — @latest let a future
+# default-ruleset change redden CI with no code change (same class as the
+# golangci v1/v2 deploy-gate split, #710/#713).
+
 on:
   push:
     branches: [main]
@@ -25,8 +32,35 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+      - name: Install gosec (pinned — bump deliberately)
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 
       - name: Run gosec
         run: gosec -exclude-generated -severity high -confidence medium -fmt=text ./...
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, go]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
