@@ -53,13 +53,17 @@ export function Changelogs() {
         ? entries
         : entries.filter(e => e.tags.includes(filter))
 
-    // Group by date; undated (unreleased) entries group under "" and render
-    // first with an "In progress" separator.
+    // Group by date. Undated entries: the truly-unreleased block groups under
+    // "In progress"; shipped-but-undated historical blocks group under their
+    // own version label — never "In progress" (review finding).
+    const groupKey = (e: ChangelogEntry) =>
+        e.date || (e.unreleased ? "" : e.version || e.title)
     const grouped = new Map<string, ChangelogEntry[]>()
     for (const entry of filtered) {
-        const existing = grouped.get(entry.date) || []
+        const key = groupKey(entry)
+        const existing = grouped.get(key) || []
         existing.push(entry)
-        grouped.set(entry.date, existing)
+        grouped.set(key, existing)
     }
 
     return (
@@ -111,9 +115,9 @@ export function Changelogs() {
                         paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.04)",
                         marginBottom: 12, textTransform: "uppercase",
                     }}>
-                        {date
+                        {/^\d{4}-\d{2}-\d{2}$/.test(date)
                             ? new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-                            : "In progress"}
+                            : date === "" ? "In progress" : date}
                     </div>
 
                     {entries.map((entry, i) => (

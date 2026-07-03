@@ -53,11 +53,14 @@ describe("parseChangelogMarkdown — historical variants (tolerance)", () => {
         expect(e.title).toContain("cleanup")
     })
 
-    it("handles 'Unreleased — vX (title)' headings", () => {
+    it("'Unreleased — vX (title)' headings are SHIPPED interim titles, not in-progress", () => {
+        // Review finding: these historical headings describe merged work —
+        // they carry a version, so unreleased must be FALSE (never grouped
+        // under "In progress" on the page).
         const md = `## Unreleased — v6.2.2 (Gnolove audit fixes)\n### A\n`
         const [e] = parseChangelogMarkdown(md)
         expect(e.version).toBe("v6.2.2")
-        expect(e.unreleased).toBe(true)
+        expect(e.unreleased).toBe(false)
         expect(e.title).toContain("Gnolove audit fixes")
     })
 
@@ -101,6 +104,20 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
             expect(e.items.length).toBeGreaterThan(0)
             expect(e.date === "" || /^\d{4}-\d{2}-\d{2}$/.test(e.date)).toBe(true)
             for (const t of e.tags) expect(["memba", "network", "gno-core"]).toContain(t)
+        }
+    })
+
+    it("exactly one truly-unreleased block exists (the canonical [Unreleased])", () => {
+        // Tripwire for the review finding: shipped-but-undated historical
+        // blocks (## Unreleased — v6.2.x, ## v6.2.3 (…)) must NOT be flagged
+        // unreleased — only the version-less [Unreleased] block is.
+        const entries = parseChangelogMarkdown(real)
+        const unreleased = entries.filter(e => e.unreleased)
+        expect(unreleased).toHaveLength(1)
+        expect(unreleased[0].version).toBeUndefined()
+        // And every undated non-unreleased entry carries a version to group under.
+        for (const e of entries) {
+            if (e.date === "" && !e.unreleased) expect(e.version).toBeTruthy()
         }
     })
 

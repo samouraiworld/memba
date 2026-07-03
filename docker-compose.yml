@@ -27,8 +27,10 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # W6.1: repo-root context — the vite build imports the repo-root
+      # CHANGELOG.md (?raw); keep in sync with ci.yml's docker job.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: http://backend:8080
         VITE_GNO_CHAIN_ID: ${GNO_CHAIN_ID:-test12}

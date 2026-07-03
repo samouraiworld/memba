@@ -19,9 +19,13 @@ describe("Changelogs page (real CHANGELOG.md)", () => {
         expect(screen.getByText("v3.2.0")).toBeTruthy()
     })
 
-    it("shows the Unreleased block under an 'In progress' separator", () => {
+    it("shows ONLY the [Unreleased] block under 'In progress' (shipped interim titles excluded)", () => {
         render(<Changelogs />)
-        expect(screen.getAllByText("In progress").length).toBeGreaterThanOrEqual(1)
+        // One separator + at most the entry-title fallback — historical
+        // "Unreleased — v6.2.x" blocks must group under their version instead.
+        expect(screen.getAllByText("In progress").length).toBeLessThanOrEqual(2)
+        // A shipped interim-title block renders under its version label.
+        expect(screen.getAllByText("v6.2.2").length).toBeGreaterThanOrEqual(1)
     })
 
     it("tag filtering narrows entries", () => {

@@ -73,7 +73,11 @@ export function parseChangelogMarkdown(md: string): ParsedChangelogEntry[] {
 
         const version = heading.match(/v\d+\.\d+(?:\.\d+)?[a-z0-9.-]*/i)?.[0]
         const date = heading.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? ""
-        const unreleased = /unreleased/i.test(heading)
+        // TRULY unreleased = the canonical [Unreleased] block only. Historical
+        // "## Unreleased — v6.2.x (…)" headings describe SHIPPED work merged
+        // under an interim title — they carry a version and must never render
+        // under "In progress" (review finding on this PR).
+        const unreleased = /unreleased/i.test(heading) && !version
         if (!version && !unreleased) continue // not a release block (e.g. prose)
 
         // Optional category marker anywhere in the block.
