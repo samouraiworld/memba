@@ -1,4 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from "react"
+import * as Sentry from "@sentry/react"
 
 interface Props {
     children: ReactNode
@@ -47,8 +48,22 @@ export class ErrorBoundary extends Component<Props, State> {
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("[ErrorBoundary]", error, errorInfo.componentStack)
 
+        // W6.5: the ROOT boundary never reported — app-wide render crashes
+        // were invisible in Sentry (only the alerts/gnolove boundaries
+        // captured). Captured BEFORE the stale-chunk early-return and tagged,
+        // so auto-reload events are filterable noise but persistent
+        // stale-chunk LOOPS are finally visible (componentDidMount clears the
+        // reload guard on every successful boot, so a chunk that keeps dying
+        // reloads once per boot — invisible without this). No-op when
+        // Sentry.init didn't run (DSN unset).
+        const stale = isStaleChunkError(error)
+        Sentry.captureException(error, {
+            tags: { memba_boundary: "root", memba_stale_chunk: stale ? "yes" : "no" },
+            contexts: { react: { componentStack: errorInfo.componentStack } },
+        })
+
         // Stale chunk auto-recovery: reload once, guard with sessionStorage
-        if (isStaleChunkError(error)) {
+        if (stale) {
             const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY)
             if (!alreadyReloaded) {
                 console.warn("[ErrorBoundary] Stale chunk detected — auto-reloading")

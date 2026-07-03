@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane B · W6.5 PR1 Sentry verify/extend · START→STOP (single session) · frontend: ErrorBoundary.tsx (root capture, stale-chunk tag), lib/grc20.ts (tx-broadcast terminal capture — broadcast infra only, NOT sig paths), main.tsx (JWT scrub in exception path) · feat/w65-sentry-verify
+
 2026-07-04 · Lane B · docs: W5 retro + W6 status · START→STOP (single session) · docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md (retro append), ROADMAP.md (status row) · docs/w5-retro-status
 
 2026-07-04 · Lane A · GovDAO bugfix (owner-reported, mobile) · START→STOP (single session) · frontend: lib/dao/proposals.ts (+strictProbe test), components/quests/QuestToast.{tsx,css} (styles out of lazy questhub.css), index.css (compact stat grid mobile row), pages/questhub.css, e2e/dao.spec.ts · CHANGELOG.md (single-writer: registered) · fix/govdao-strict-probe-and-mobile-stats
