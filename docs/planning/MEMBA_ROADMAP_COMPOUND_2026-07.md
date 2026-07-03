@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-03 · **Status:** PROPOSED (awaiting owner sign-off) · **Supersedes:** `MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md` §6.4+ forward-looking sections (Waves 0–4 of that plan are DELIVERED as of PR #732; this document is the successor program and owns Waves 5+).
 
-**Baseline at time of writing:** Memba `main` = `95c2a75` (#733). samcrew-deployer `main` = `31f7597` (W3.4, #55). Upstream gno = `dfe49509f` — no breaking changes for test13 realms since go-live. 12 realms live-verified on test13 (2026-06-28). 0 open Dependabot alerts. Open PR: **#734** (A3 golden sign-byte parity + enforce-flip readout — externally owned, see Lane C).
+**Baseline at time of writing (updated 2026-07-03 evening):** Memba `main` = `10a8a96` (#734 merged). samcrew-deployer `main` = `31f7597` (W3.4, #55). Upstream gno = `dfe49509f` — no breaking changes for test13 realms since go-live. 12 realms live-verified on test13 (2026-06-28). 0 open Dependabot alerts. Open PRs: **#736** (e2e first-visit reload root-cause fix + workers:2 → collapses W5.4 if green) and **#737** (react-hooks ratchet 56→52 → O-9 already in motion). Lane C's per-signature-verified work remains active in its worktree.
 
 **Review provenance.** This plan was hardened by five independent expert review passes before submission — security/fund-safety, Gno/realm engineering, frontend/UX/product, infra/CI/ops, and product strategy — each verified against the live codebases (not just this document). Their material findings are folded in throughout and the two discovered code-level issues are tracked as O-13/O-14 in §1.2.
 
@@ -40,7 +40,7 @@
 
 | # | Item | Severity | Disposition |
 |---|---|---|---|
-| O-1 | **A3/BE-2 multisig enforcement flip** (`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1`) — needs golden sign-byte parity + real-Adena signature test (`MULTISIG_ENFORCE_RUNBOOK.md`) | CRITICAL | **Externally owned (Lane C — PR #734 in flight).** This program never touches auth/sig paths. Flip going live is the **hard entry gate for Wave 8**. |
+| O-1 | **A3/BE-2 multisig enforcement flip** (`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1`) | CRITICAL | **Code-side RESOLVED 2026-07-03 — #734 merged** (`10a8a96`: golden sign-byte parity for the frontend's stored multisig shapes + boot-sweep mismatch counter, readout documented in OPS_RUNBOOK §2.1). Remaining step is **owner-only and metric-gated**: flip when the boot sweep reads `mismatch=0` on recent rows (rollback = unset the var; unset IS log-only). The flip going live is the **hard entry gate for Wave 8** (Appendix A U-3). This program still never touches auth/sig paths. |
 | O-2 | Per-signature verified flag (proto + migration 018 + UI) | HIGH | Externally owned (Lane C, branch `fix/per-signature-verified-flag`). Reference only. |
 | O-3 | **Litestream restore drill never executed** — OPS_RUNBOOK §4.7 RPO/RTO placeholders | HIGH (ops) | Owner action (Appendix A). Prerequisite for Wave 8. |
 | O-4 | `METRICS_BEARER` / `QUEST_ADMIN_ADDRESSES` unset in prod | HIGH (ops) | Owner action (Appendix A). Prerequisite for W6.5 metrics work. |
@@ -48,7 +48,7 @@
 | O-6 | NFT v3.1 RegisterMarket state ambiguity: Memba `safeFlags.ts` (2026-06-27) says engine "deployed, registered, and verified on test13"; deployer branch `feat/nft-register-market-v3` is still unmerged | MED (truth) | W5.5 — **reconcile**, don't assume: qeval the registration on-chain; if registered, merge/close the deployer branch and log in `realm-versions.json`; if not, run the ceremony (owner co-signs). |
 | O-7 | `docs/planning/GNO_CORE_BREAKING_CHANGES.md` stale (2026-03-30 era) | MED | W5.6 refresh (NewBanker `IsCurrent()` requirement, `realm.Sub`, AddPackage strictness, event-attr changes). |
 | O-8 | Quest verifiers ~40% stubbed; badges never minted (`gnobuilders_badges_v2` TotalSupply=0) | MED | W8.3. |
-| O-9 | react-hooks ratchet: 56 `set-state-in-effect` warnings → 0 → flip rule to `error` | LOW | Ratchet lane (continuous). |
+| O-9 | react-hooks ratchet: 56 `set-state-in-effect` warnings → 0 → flip rule to `error` | LOW | Ratchet lane (continuous). **Already moving: PR #737 (56→52, src/hooks) opened 2026-07-03.** |
 | O-10 | W4 remainder: god-file decomposition + `any` reduction; Sentry + RPC/DB metrics; 4-mode IA; a11y AA (re-enable axe) | MED | IA + Sentry/metrics = W6; god-files/`any`/a11y = Ratchet lane. |
 | O-11 | Legacy realm deploy-block cleanup fully done (deployer #55) | — | CLOSED (verified). |
 | O-12 | `VITE_ENABLE_NFT` missing from `.env.example` | — | CLOSED (present at `.env.example:36`; removed from SAFETY_GATED_FLAGS 2026-06-27 with rationale comment). |
@@ -200,7 +200,7 @@ Ordering rule: **W6.2 IA merges before W6.3 SEO meta; W6.3 before the W6.4 annou
 
 ### Wave 8 — Money-path & Fund Safety (hard-gated, ~2 weeks)
 
-**HARD ENTRY GATE:** A3 enforcement flip live in prod (Lane C's #734 → real-Adena test → flip per `MULTISIG_ENFORCE_RUNBOOK.md`) **and** first restore drill logged (U-1). If the gate isn't met, Wave 9 spikes run early instead — money-path work is never started "optimistically."
+**HARD ENTRY GATE:** A3 enforcement flip live in prod (#734 merged — flip is now the metric-gated owner action U-3: boot sweep `mismatch=0` → set the var per `MULTISIG_ENFORCE_RUNBOOK.md`) **and** first restore drill logged (U-1). If the gate isn't met, Wave 9 spikes run early instead — money-path work is never started "optimistically."
 
 **W8.1 Fund-safety program** *(Lane B)*
 - PR0 (decision doc): **DAO v1→v2 migration pattern** — the live `memba_dao` v1 has no banker; a v2 template alone strands v1 DAOs. Recommended: Option A — deploy `memba_dao_v2` as a new realm path; v1 instances become read-only governance archives with a documented one-time membership handoff ceremony (owner co-signs); `realm-versions.json` marks v1 "feature-frozen, superseded for fund-aware DAOs". Alternative (Option B): add a governance-voted `MigrateTreasury` proposal type to v1. Owner picks in PR0 review.
@@ -322,7 +322,7 @@ Backend caveat: extend the render-proxy allowlist to `qfile`/`qfuncs` — a smal
 
 ### 5.2 Parallel-session coordination
 - Sync file: `docs/planning/SESSION_SYNC.md`. Append on session start ("Lane B, W5, taking playwright flake — touching e2e config + CI yaml") and on stop. Read it before the first edit, and re-read before touching any **single-writer file**: `api/` + generated code, `.env.example`, `CHANGELOG.md`, shared hooks, CI yaml.
-- **Lane C is externally owned — explicit off-limits list** (while #734 / per-sig-verified work is in flight): `backend/internal/auth/**` (all) · signature RPC handlers in `backend/internal/service/tx_rpc.go` (non-sig handlers are fair game) · signature/verified fields in `api/memba/v1/memba.proto` + regenerated code · the signing-call paths in `useAdena.ts` (`SignMultisigTransaction`) — the connection/account-change logic in the same file belongs to Lane A (W5.1); register the split in SESSION_SYNC before either side edits. If a roadmap PR would collide, it waits.
+- **Lane C is externally owned — explicit off-limits list** (#734 merged 2026-07-03; the per-signature-verified work is still active, so the list stands until Lane C declares done in SESSION_SYNC): `backend/internal/auth/**` (all) · signature RPC handlers in `backend/internal/service/tx_rpc.go` (non-sig handlers are fair game) · signature/verified fields in `api/memba/v1/memba.proto` + regenerated code · the signing-call paths in `useAdena.ts` (`SignMultisigTransaction`) — the connection/account-change logic in the same file belongs to Lane A (W5.1); register the split in SESSION_SYNC before either side edits. If a roadmap PR would collide, it waits.
 - Rebase over merge for lane branches; single-writer conflicts resolved by whichever session registered first.
 - Frequent activity checks: `git fetch && git log --all --since="12 hours ago" --oneline` + `gh pr list` at session start and before opening any PR.
 
@@ -355,7 +355,7 @@ Backend caveat: extend the render-proxy allowlist to `qfile`/`qfuncs` — a smal
 |---|---|---|---|
 | U-1 | Run the first Litestream restore drill (OPS_RUNBOOK §4.7) and fill the RPO/RTO MEASURE placeholders | Untested backups = no backups; **Wave 8 hard-gate input** | **W5, first days** |
 | U-2 | `flyctl secrets set METRICS_BEARER=…` and `QUEST_ADMIN_ADDRESSES=…` in prod | `/metrics` publicly scrapable while unset; hard-blocks W6.5 PR2 | W5 |
-| U-3 | Real-Adena signature test on test13 (with Lane C), then enforcement flip per `MULTISIG_ENFORCE_RUNBOOK.md` | **Wave 8 hard-gate input** | as soon as #734 lands |
+| U-3 | Enforcement flip (`MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1`) — **#734 is merged, so this is now purely metric-gated**: watch the boot-sweep readout (OPS_RUNBOOK §2.1) and flip once it reads `mismatch=0` on recent rows; rollback = unset | **Wave 8 hard-gate input** | **NOW unblocked — first days of W5** |
 | U-4 | Co-execute W5.5 registration reconcile outcome (ceremony if needed) | On-chain truth | W5 |
 | U-5 | Approve the 3 blog articles before merge — **article 1 before W7.1 closes** | Voice-sensitive; closes the discovery loop for the W7 launches | W6→W7 |
 | U-6 | Go/no-go decisions on the four W9 spikes | Strategy calls | W9 |
