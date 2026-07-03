@@ -119,14 +119,6 @@ func main() {
 
 	slog.Info("database initialized", "path", dbPath)
 
-	// Parse backup interval from env (default: 24h)
-	backupInterval := 24 * time.Hour
-	if bi := os.Getenv("BACKUP_INTERVAL"); bi != "" {
-		if d, err := time.ParseDuration(bi); err == nil {
-			backupInterval = d
-		}
-	}
-
 	// v6 SEC-13: Fail loudly if ED25519_SEED is not set in production.
 	// Without a persistent seed, server restarts invalidate all auth tokens.
 	if os.Getenv("ED25519_SEED") == "" && os.Getenv("FLY_APP_NAME") != "" {
@@ -186,8 +178,13 @@ func main() {
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
-	// Start SQLite backup scheduler with app context for clean shutdown.
-	db.StartBackupSchedule(ctx, database, dbPath, logger, backupInterval)
+	// W2.3 (NEW-INF-2): the same-volume `VACUUM INTO` backup scheduler is
+	// RETIRED. It could not survive the one failure mode that actually
+	// happened (volume loss — see OPS_RUNBOOK §4) and raced Litestream for
+	// I/O. Litestream's off-volume S3 replica (WAL streaming + 24h snapshots,
+	// 168h retention) is the single backup mechanism; boot-time
+	// integrity-check + quarantine/restore (#719) covers corruption.
+	// Restore procedure + RPO/RTO: docs/OPS_RUNBOOK.md §4.7.
 
 	// Start the NFT marketplace state-polling indexer (test13 realms).
 	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env

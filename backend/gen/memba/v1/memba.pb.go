@@ -1152,8 +1152,11 @@ type Transaction struct {
 	Signatures         []*Signature           `protobuf:"bytes,14,rep,name=signatures,proto3" json:"signatures,omitempty"`
 	MultisigPubkeyJson string                 `protobuf:"bytes,15,opt,name=multisig_pubkey_json,json=multisigPubkeyJson,proto3" json:"multisig_pubkey_json,omitempty"`
 	Type               string                 `protobuf:"bytes,16,opt,name=type,proto3" json:"type,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// verified: the backend confirmed final_hash exists on-chain at completion
+	// time (best-effort). false = client-claimed, unconfirmed (W2.3 / BE-3).
+	Verified      bool `protobuf:"varint,17,opt,name=verified,proto3" json:"verified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Transaction) Reset() {
@@ -1296,6 +1299,13 @@ func (x *Transaction) GetType() string {
 		return x.Type
 	}
 	return ""
+}
+
+func (x *Transaction) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
 }
 
 type CreateTransactionRequest struct {
@@ -6397,7 +6407,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\n" +
 	"body_bytes\x18\x03 \x01(\fR\tbodyBytes\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\x97\x04\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\xb3\x04\n" +
 	"\vTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
 	"\n" +
@@ -6419,7 +6429,8 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"signatures\x18\x0e \x03(\v2\x13.memba.v1.SignatureR\n" +
 	"signatures\x120\n" +
 	"\x14multisig_pubkey_json\x18\x0f \x01(\tR\x12multisigPubkeyJson\x12\x12\n" +
-	"\x04type\x18\x10 \x01(\tR\x04type\"\xb3\x02\n" +
+	"\x04type\x18\x10 \x01(\tR\x04type\x12\x1a\n" +
+	"\bverified\x18\x11 \x01(\bR\bverified\"\xb3\x02\n" +
 	"\x18CreateTransactionRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12)\n" +

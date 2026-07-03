@@ -203,6 +203,9 @@ message Transaction {
   repeated Signature signatures = 14;
   string multisig_pubkey_json = 15;
   string type = 16;
+  // verified: the backend confirmed final_hash exists on-chain at completion
+  // time (best-effort). false = client-claimed, unconfirmed (W2.3 / BE-3).
+  bool verified = 17;
 }
 
 message CreateTransactionRequest {

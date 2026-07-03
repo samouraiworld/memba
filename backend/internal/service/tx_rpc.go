@@ -98,7 +98,7 @@ func (s *MultisigService) GetTransaction(
 	err = s.db.QueryRowContext(ctx, `
 		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
 		       t.account_number, t.sequence, t.memo, t.creator_address,
-		       COALESCE(t.final_hash, ''), t.type, t.created_at,
+		       COALESCE(t.final_hash, ''), t.verified, t.type, t.created_at,
 		       m.threshold, m.members_count, m.pubkey_json
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
@@ -107,7 +107,7 @@ func (s *MultisigService) GetTransaction(
 	`, userAddress, txID).Scan(
 		&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
 		&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
-		&tx.FinalHash, &tx.Type, &tx.CreatedAt,
+		&tx.FinalHash, &tx.Verified, &tx.Type, &tx.CreatedAt,
 		&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
 	)
 	if err == sql.ErrNoRows {
@@ -169,7 +169,7 @@ func (s *MultisigService) Transactions(
 	query := `
 		SELECT t.id, t.chain_id, t.multisig_address, t.msgs_json, t.fee_json,
 		       t.account_number, t.sequence, t.memo, t.creator_address,
-		       COALESCE(t.final_hash, ''), t.type, t.created_at,
+		       COALESCE(t.final_hash, ''), t.verified, t.type, t.created_at,
 		       m.threshold, m.members_count, m.pubkey_json
 		FROM transactions t
 		JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
@@ -223,7 +223,7 @@ func (s *MultisigService) Transactions(
 		if err := rows.Scan(
 			&tx.Id, &tx.ChainId, &tx.MultisigAddress, &tx.MsgsJson, &tx.FeeJson,
 			&tx.AccountNumber, &tx.Sequence, &tx.Memo, &tx.CreatorAddress,
-			&tx.FinalHash, &tx.Type, &tx.CreatedAt,
+			&tx.FinalHash, &tx.Verified, &tx.Type, &tx.CreatedAt,
 			&tx.Threshold, &tx.MembersCount, &tx.MultisigPubkeyJson,
 		); err != nil {
 			continue
@@ -417,11 +417,26 @@ func (s *MultisigService) CompleteTransaction(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
 	}
 
-	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ? WHERE id = ?", finalHash, txID)
+	// W2.3 (BE-3): best-effort chain reconcile of the CLIENT-supplied hash.
+	// A confirmed /tx lookup marks the row verified; any availability or
+	// shape problem leaves verified=false — it must never block completion.
+	verified := false
+	if ok, verr := txExistsOnChain(ctx, questRPCURL(), finalHash); verr == nil {
+		verified = ok
+		if !ok {
+			slog.Warn("CompleteTransaction: final_hash not found on-chain (stored unverified)",
+				"tx_id", txID, "hash", finalHash)
+		}
+	} else {
+		slog.Warn("CompleteTransaction: chain reconcile unavailable (stored unverified)",
+			"tx_id", txID, "hash", finalHash, "error", verr)
+	}
+
+	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = ? WHERE id = ?", finalHash, verified, txID)
 	if err != nil {
 		return nil, internalError("CompleteTransaction: update hash", err)
 	}
 
-	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "user", userAddress)
+	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "verified", verified, "user", userAddress)
 	return connect.NewResponse(&membav1.CompleteTransactionResponse{}), nil
 }
