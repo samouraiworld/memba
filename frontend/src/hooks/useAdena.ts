@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { isTrustedRpcDomain } from "../lib/config";
+import { isTrustedRpcDomain, networkScopedKey } from "../lib/config";
 import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
 import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
 import { trackEvent } from "../lib/analytics";
@@ -42,7 +42,10 @@ interface AdenaState {
 
 // Session persistence key — cleared when browser is closed (not tab).
 const SESSION_KEY = "memba_adena_connected";
-const SESSION_RPC_KEY = "memba_adena_rpc";
+// W2.2: the cached RPC url+trust verdict is chain-derived — a trust flag
+// cached while the app targeted test12 must not be served as current after
+// a switch to test13 (it would skip re-validation on reconnect).
+const SESSION_RPC_KEY = networkScopedKey("memba_adena_rpc");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getAdena(): any {

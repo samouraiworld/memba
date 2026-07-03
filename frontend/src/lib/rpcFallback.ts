@@ -84,8 +84,79 @@ export async function resilientFetch(
 }
 
 /**
+ * ABCI-level query error (W2.2): the RPC transport worked but the VM/handler
+ * rejected the query — realm not deployed, invalid path, panic during render.
+ * Distinct from a transport failure (all endpoints down), which surfaces as a
+ * plain Error from resilientFetch. `instanceof AbciQueryError` is the
+ * discriminator.
+ */
+export class AbciQueryError extends Error {
+    readonly path: string
+    readonly abciError: unknown
+    readonly log: string
+
+    constructor(path: string, abciError: unknown, log = "") {
+        super(`ABCI query failed for ${path}: ${log || JSON.stringify(abciError)}`)
+        this.name = "AbciQueryError"
+        this.path = path
+        this.abciError = abciError
+        this.log = log
+    }
+}
+
+/** Discriminated ABCI query outcome — "not deployed" ≠ "empty" ≠ "RPC down". */
+export type AbciQueryResult =
+    | { kind: "ok"; text: string }
+    | { kind: "empty" }
+    | { kind: "abci-error"; error: AbciQueryError }
+
+/**
+ * ABCI query with automatic RPC failover, returning a DISCRIMINATED result
+ * (W2.2, R2-CHN-D): a set `ResponseBase.Error` (realm missing, bad path, VM
+ * panic) is reported as `abci-error`, an absent `Data` as `empty`, and a
+ * transport failure (all endpoints down) THROWS — the three cases were
+ * previously conflated into one falsy return.
+ */
+export async function resilientAbciQueryDetailed(
+    path: string,
+    data: string,
+): Promise<AbciQueryResult> {
+    const b64Data = btoa(data)
+    const res = await resilientFetch((rpcUrl) => ({
+        url: rpcUrl,
+        init: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: "memba-dao",
+                method: "abci_query",
+                params: { path, data: b64Data },
+            }),
+        },
+    }))
+    const json = await res.json()
+    const base = json?.result?.response?.ResponseBase
+    if (base?.Error != null) {
+        const log = typeof base?.Log === "string" ? base.Log : ""
+        return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }
+    }
+    const value = base?.Data
+    if (!value) return { kind: "empty" } // realm rendered nothing — legitimate
+    const binaryStr = atob(value)
+    const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
+    return { kind: "ok", text: new TextDecoder().decode(bytes) }
+}
+
+/**
  * ABCI query with automatic RPC failover.
  * Drop-in replacement for the direct fetch in shared.ts abciQuery.
+ *
+ * Back-compat wrapper over {@link resilientAbciQueryDetailed}: non-strict
+ * callers still get `null` for both "empty" and any failure; strict callers
+ * (the DAO read path) now get an {@link AbciQueryError} for VM-level errors
+ * (previously silently `null` — a non-deployed realm looked like a blank
+ * render) in addition to the transport throw they already had (FE-2).
  */
 export async function resilientAbciQuery(
     path: string,
@@ -93,29 +164,14 @@ export async function resilientAbciQuery(
     strict = false,
 ): Promise<string | null> {
     try {
-        const b64Data = btoa(data)
-        const res = await resilientFetch((rpcUrl) => ({
-            url: rpcUrl,
-            init: {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: "memba-dao",
-                    method: "abci_query",
-                    params: { path, data: b64Data },
-                }),
-            },
-        }))
-        const json = await res.json()
-        const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return null // realm rendered nothing — a legitimate empty, not a failure
-        const binaryStr = atob(value)
-        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
-        return new TextDecoder().decode(bytes)
+        const result = await resilientAbciQueryDetailed(path, data)
+        if (result.kind === "ok") return result.text
+        if (result.kind === "abci-error") {
+            if (strict) throw result.error
+            return null
+        }
+        return null // legitimate empty
     } catch (err) {
-        // strict callers (the DAO read path) need to distinguish "all endpoints down"
-        // from "empty" so they can show an error + retry instead of a blank card (FE-2).
         if (strict) throw err instanceof Error ? err : new Error(String(err))
         return null
     }

@@ -11,6 +11,8 @@
  * requires a funded treasury wallet (backend concern).
  */
 
+import { networkScopedKey } from "./config"
+
 // ── Types ─────────────────────────────────────────────────────
 
 export interface FaucetClaim {
@@ -60,8 +62,15 @@ const LEGACY_STORAGE_KEY = "memba_faucet_claims"
 
 // ── Storage ───────────────────────────────────────────────────
 
-/** Per-address storage key. */
+/** Per-address, per-NETWORK storage key (W2.2: faucet claims are chain state —
+ *  a claim on test12 must not suppress a legitimate test13 claim, and vice
+ *  versa). */
 function storageKey(address: string): string {
+    return networkScopedKey(STORAGE_PREFIX + address.toLowerCase())
+}
+
+/** Pre-W2.2 unscoped per-address key (read-migration only). */
+function legacyStorageKey(address: string): string {
     return STORAGE_PREFIX + address.toLowerCase()
 }
 
@@ -101,8 +110,16 @@ export function recordFaucetClaim(address: string): FaucetClaim {
 export function getLastClaim(address: string): FaucetClaim | null {
     try {
         const raw = localStorage.getItem(storageKey(address))
-        if (!raw) return null
-        return JSON.parse(raw) as FaucetClaim
+        if (raw) return JSON.parse(raw) as FaucetClaim
+        // One-time migration: pre-W2.2 claims were written unscoped on the
+        // then-active network — adopt into the current network's key.
+        const legacy = localStorage.getItem(legacyStorageKey(address))
+        if (legacy) {
+            localStorage.setItem(storageKey(address), legacy)
+            localStorage.removeItem(legacyStorageKey(address))
+            return JSON.parse(legacy) as FaucetClaim
+        }
+        return null
     } catch {
         return null
     }

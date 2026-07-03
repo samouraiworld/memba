@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { resilientAbciQuery } from "./rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed, AbciQueryError } from "./rpcFallback"
 
 afterEach(() => {
     vi.restoreAllMocks()
@@ -33,5 +33,71 @@ describe("resilientAbciQuery strict mode", () => {
             json: async () => ({ result: { response: { ResponseBase: {} } } }),
         }))
         await expect(resilientAbciQuery("vm/qrender", "gno.land/r/x:", true)).resolves.toBeNull()
+    })
+})
+
+// W2.2 (R2-CHN-D): ResponseBase.Error was ignored at every ABCI site — a
+// non-deployed realm, a bad path and a VM panic all looked like an empty
+// render. The detailed variant discriminates, and strict callers now get the
+// ABCI error instead of a silent null.
+describe("resilientAbciQueryDetailed — discriminated outcomes", () => {
+    it("returns kind=ok with decoded text on the happy path", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ result: { response: { ResponseBase: { Data: btoa("# hello") } } } }),
+        }))
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).resolves.toEqual({ kind: "ok", text: "# hello" })
+    })
+
+    it("returns kind=empty when the realm rendered nothing", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ result: { response: { ResponseBase: {} } } }),
+        }))
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).resolves.toEqual({ kind: "empty" })
+    })
+
+    it("returns kind=abci-error (path + log preserved) when ResponseBase.Error is set", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                result: { response: { ResponseBase: { Error: { "@type": "/vm.InvalidPkgPathError" }, Log: "invalid package path", Data: null } } },
+            }),
+        }))
+        const res = await resilientAbciQueryDetailed("vm/qrender", "gno.land/r/missing:")
+        expect(res.kind).toBe("abci-error")
+        if (res.kind === "abci-error") {
+            expect(res.error).toBeInstanceOf(AbciQueryError)
+            expect(res.error.path).toBe("vm/qrender")
+            expect(res.error.log).toBe("invalid package path")
+            expect(res.error.message).toMatch(/invalid package path/)
+        }
+    })
+
+    it("throws on transport failure (all endpoints down) — never a silent kind", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")))
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).rejects.toThrow()
+    })
+})
+
+describe("resilientAbciQuery — ABCI-level errors reach strict callers (W2.2)", () => {
+    it("strict=true: throws AbciQueryError when ResponseBase.Error is set (was silent null)", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                result: { response: { ResponseBase: { Error: { "@type": "/vm.InvalidPkgPathError" }, Log: "invalid package path" } } },
+            }),
+        }))
+        await expect(resilientAbciQuery("vm/qrender", "gno.land/r/missing:", true)).rejects.toThrow(AbciQueryError)
+    })
+
+    it("strict=false: keeps the old null for ABCI-level errors (back-compat)", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                result: { response: { ResponseBase: { Error: { "@type": "/vm.InvalidPkgPathError" }, Log: "x" } } },
+            }),
+        }))
+        await expect(resilientAbciQuery("vm/qrender", "gno.land/r/missing:", false)).resolves.toBeNull()
     })
 })

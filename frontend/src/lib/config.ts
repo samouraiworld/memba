@@ -268,6 +268,17 @@ export function isRealmValid(realmPath: string): boolean {
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
 
 /**
+ * Network-scope a storage key for CHAIN-DERIVED state (W2.2). Anything cached
+ * from chain reads (faucet claims, resolved usernames, wallet-RPC trust) must
+ * not survive a test12↔test13 switch under the same key — stale cross-network
+ * data would be served as current. Chain-agnostic UI state (page-visit
+ * counters, UX dismissals) should NOT use this.
+ */
+export function networkScopedKey(base: string): string {
+    return `${base}::${GNO_CHAIN_ID}`
+}
+
+/**
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */

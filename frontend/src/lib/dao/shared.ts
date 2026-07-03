@@ -8,7 +8,7 @@
  */
 
 import type { AminoMsg } from "../grc20"
-import { getUserRegistryPath } from "../config"
+import { getUserRegistryPath, networkScopedKey } from "../config"
 import { resilientAbciQuery } from "../rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -151,8 +151,11 @@ async function abciQuery(_rpcUrl: string, path: string, data: string, strict = f
 /** User registry realm path on gno.land. */
 const USER_REGISTRY = getUserRegistryPath()
 
-/** Username cache key in localStorage. */
-const USERNAME_CACHE_KEY = "memba_usernames"
+/** Username cache key in localStorage (W2.2: network-scoped — usernames are
+ *  resolved from the ACTIVE chain's r/sys/users; a test12 resolution must not
+ *  be served while the app targets test13). Legacy unscoped entries just age
+ *  out — the cache has a 1h TTL, no migration needed. */
+const USERNAME_CACHE_KEY = networkScopedKey("memba_usernames")
 
 /** Cache TTL: 1 hour (in ms). */
 const USERNAME_CACHE_TTL = 60 * 60 * 1000
