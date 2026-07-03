@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 // ─── Transaction RPCs ─────────────────────────────────────────────
@@ -336,14 +337,17 @@ func (s *MultisigService) SignTransaction(
 	// still accepted; set MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1 to reject failures.
 	if verr := auth.VerifyMultisigMemberSignature(multisigPubkeyJSON, userAddress, sig, txf); verr != nil {
 		if auth.EnforceMultisigSigVerify() {
+			metrics.MultisigSigVerifyTotal.WithLabelValues("rejected").Inc()
 			slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "rejected",
 				"tx_id", txID, "signer", userAddress, "err", verr.Error())
 			return nil, connect.NewError(connect.CodeInvalidArgument, verr)
 		}
+		metrics.MultisigSigVerifyTotal.WithLabelValues("mismatch").Inc()
 		slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "mismatch",
 			"tx_id", txID, "signer", userAddress, "err", verr.Error(),
 			"hint", "accepted in log-only mode; set "+auth.EnforceMultisigSigVerifyEnv+"=1 to enforce")
 	} else {
+		metrics.MultisigSigVerifyTotal.WithLabelValues("ok").Inc()
 		slog.Info("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "ok",
 			"tx_id", txID, "signer", userAddress)
 	}

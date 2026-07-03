@@ -1,0 +1,25 @@
+{
+  "description": "A3 frontend parity: bank.MsgSend with the frontend's stored fee shape (100000 gas / 10000ugnot), test-13",
+  "gnokey_version": "develop",
+  "chain_id": "test-13",
+  "account_number": 57,
+  "account_sequence": 4,
+  "unsigned_tx": {
+    "msg": [
+      {
+        "@type": "/bank.MsgSend",
+        "from_address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+        "to_address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+        "amount": "1500000ugnot"
+      }
+    ],
+    "fee": {
+      "gas_wanted": "100000",
+      "gas_fee": "10000ugnot"
+    },
+    "signatures": null,
+    "memo": ""
+  },
+  "pub_key_b64": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y",
+  "signature_b64": "0bta/v4nhKs77FSXr7Wn7tuMdZ1tSaBbQtc4EYeSrtsyR+RqcmW7MwB3XGyRt8dpC7EeHdnon1IN0I4tdKN1vw=="
+}
