@@ -22,7 +22,7 @@
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | [Program "Compound" (Waves 5+)](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | Wave 5 — Stabilize & Unblock: Adena stability, Directory source fixes, validator review stars, Playwright parallelism, NFT v3.1 registration reconcile |
+| **Next Priority** | Wave 5 session-side ✅ (gate: owner U-1/U-2/U-3) · Wave 6: W6.1 ✅ W6.2-PR1 ✅ W6.3 ✅, W6.4 blog owner-gated (#748) · next build: Wave 7 (feed realm, marketplace polish, activity bot) |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
