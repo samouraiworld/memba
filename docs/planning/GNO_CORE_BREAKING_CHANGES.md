@@ -6,6 +6,8 @@
 >
 > **2026-07-03 re-baseline:** added the event-attribute rows (#5857 / #5858) and marked the interrealm-v2 stdlib migration ✅ COMPLETED. The original 2026-03-30 boards2/govdao matrix is retained below for tracking.
 >
+> **2026-07-03 (W5.6) upstream sweep:** post-test13-go-live window (Jun 16 → Jul 3, master `dfe49509f`) reviewed commit-by-commit — see [Upstream sweep](#upstream-sweep-jun-16--jul-3-2026) below. **No breaking changes for realms already deployed on test13**; three forward-looking rules for NEW realm code.
+>
 > Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
 
 ## Interrealm-v2 stdlib migration — ✅ COMPLETED
@@ -17,6 +19,19 @@ generated client templates are compile-gated in CI against a pinned interrealm-v
 toolchain (`7b2888c3b`, `.github/workflows/gno-test.yml`, `REQUIRE_GNO=1`). No further
 action for deployed realms. Residual (tracked in the audit plan, not here): the
 deprecated v1 realms still on the old API are quarantined, not redeployed.
+
+## Upstream sweep (Jun 16 → Jul 3, 2026)
+
+Window: test13 go-live → master `dfe49509f`, reviewed commit-by-commit during Program
+Compound planning (five-lens review, 2026-07-03). Verdict: **zero breaking changes for
+the deployed test13 realm set.** Three items bind FUTURE code:
+
+| Upstream | Change | Memba rule / impact |
+|----------|--------|---------------------|
+| `7cb5a01e9` (Jul 2) | **`NewBanker(RealmSend/RealmIssue)` now requires a realm with `IsCurrent()==true`** — constructing one from `cur.Previous()` panics (closes a caller-drain hole: a crossing function could otherwise build a banker and send the *caller's* coins) | **Standing rule for every future banker-using realm** (DAO-v2 treasury W8.1, app-store fee path, wugnot fallback, AMM): construct bankers with `cur`, never `cur.Previous()`. In-house precedent: `memba_token_otc_v1` (`otc.gno:194`). Deployed realms already comply. |
+| `cf93ef5f7` + `4b5c7be93` (Jul 1–2) | **`realm.Sub(subpath)`** sub-realm identity tokens (tight subpath grammar, total cap) | **Not on test13** (chain genesis predates the merge; arrives at the next network upgrade). Design lever only — per-pair / per-listing derived addresses in the roadmap's Part 4 annexes; never a dependency. |
+| `52ba34b78` (Jul 1) | **`AddPackage` rejects packages with no production `.gno` files** | Binds deploys to post-upgrade networks: every template/deps dir must ship ≥1 non-test `.gno`. samcrew-deployer templates comply today; the pinned-gno compile gate is the tripwire. |
+| `9a6c4ef5a` · `084554b8b` · `349755959` | mempackage prod/test blob split · `PreprocessGasPerByte` default fix · `go/types` GoVersion pin | Transparent to realm code — no action. |
 
 ## Priority Matrix
 
