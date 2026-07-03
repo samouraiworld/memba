@@ -6,6 +6,17 @@ export interface ParsedMsg {
     fields: { key: string; value: string; accent?: boolean }[]
 }
 
+/** Display options for parseMsgs. */
+export interface ParseMsgsOpts {
+    /**
+     * W2.4 (multisig confirmation rigor): render addresses in FULL. The
+     * review-before-sign card must show the complete recipient — a truncated
+     * `g1abc…xxyyzzxx` hides exactly the middle bytes an address-poisoning
+     * attack forges.
+     */
+    full?: boolean
+}
+
 export interface ParsedFee {
     gas: string
     amount: string
@@ -16,17 +27,19 @@ export interface ParsedFee {
  * Supports: bank/MsgSend, vm/MsgCall, vm/MsgAddPackage.
  * Unknown types fall back to raw JSON display.
  */
-export function parseMsgs(msgsJson: string): ParsedMsg[] {
+export function parseMsgs(msgsJson: string, opts?: ParseMsgsOpts): ParsedMsg[] {
     try {
         const msgs = JSON.parse(msgsJson)
         if (!Array.isArray(msgs)) return [fallback(msgsJson)]
-        return msgs.map(parseSingleMsg)
+        return msgs.map((m) => parseSingleMsg(m, opts?.full ? identity : truncate))
     } catch {
         return [fallback(msgsJson)]
     }
 }
 
-function parseSingleMsg(msg: Record<string, unknown>): ParsedMsg {
+const identity = (addr: string): string => addr
+
+function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) => string): ParsedMsg {
     const type = (msg.type as string) || (msg["@type"] as string) || "unknown"
     const value = (msg.value as Record<string, unknown>) || msg
 
