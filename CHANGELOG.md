@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Navigation — W6.2 4-mode IA, PR1 (2026-07-03)
+- **Sidebar reorganized into four labeled modes — Wallet / Govern / Launch / Explore** — and is now fully manifest-driven (adding a `navManifest.ts` entry places it; no more hand-curated link list). Marketplace/Services/NFT surface in Launch with live/soon pills, replacing the buried "Upcoming" collapsible. Zero URL changes; account links unchanged.
+
 ### Changelogs — W6.1 automation (2026-07-03)
 - **/changelogs is now generated from this file:** build-time parser (`frontend/src/lib/changelog.ts`) with a documented parse contract at the top of `CHANGELOG.md`; parser unit tests run against the real file, so format drift fails CI instead of emptying the page. The page was frozen at v3.2.0 (April) — it now shows everything through the current release plus the Unreleased digest. Curated pre-v6 entries preserved in `changelogLegacy.ts`.
 

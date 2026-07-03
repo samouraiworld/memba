@@ -4,7 +4,19 @@ import { Gear } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
-import { NAV } from "../../lib/navManifest"
+import { NAV, MODE_SECTIONS, navForGroup } from "../../lib/navManifest"
+import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled } from "../../lib/config"
+
+// Flag state must come from LITERAL import.meta.env accesses (config.ts
+// readers) — Vite only statically replaces literals; the dynamic
+// `import.meta.env[name]` fallback object carries NO VITE_ keys in production
+// builds, which would have badged a LIVE marketplace as "soon" (caught in
+// this PR's own bundle inspection).
+const FLAG_ON: Record<string, () => boolean> = {
+    VITE_ENABLE_MARKETPLACE: isMarketplaceEnabled,
+    VITE_ENABLE_SERVICES: isServicesEnabled,
+    VITE_ENABLE_NFT: isNftEnabled,
+}
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -118,47 +130,6 @@ function CmdKHint() {
     )
 }
 
-// ── Sidebar Extensions (collapsible) ──────────────────────────────────
-
-const SIDEBAR_EXT_KEY = "memba_sidebar_ext"
-
-function SidebarExtensions({ connected, collapsed }: { connected: boolean; collapsed: boolean }) {
-    const [expanded, setExpanded] = useState(() => {
-        try { return localStorage.getItem(SIDEBAR_EXT_KEY) === "1" } catch { return false }
-    })
-
-    const toggle = () => {
-        const next = !expanded
-        setExpanded(next)
-        try { localStorage.setItem(SIDEBAR_EXT_KEY, next ? "1" : "0") } catch { /* */ }
-    }
-
-    return (
-        <nav className="k-sidebar-section" aria-label="Extensions">
-            <ManifestLink id="extensions" connected={connected} collapsed={collapsed} />
-            {!collapsed && (
-                <button
-                    className="k-sidebar-expand-btn"
-                    onClick={toggle}
-                    aria-expanded={expanded}
-                    title={expanded ? "Hide upcoming features" : "Show upcoming features"}
-                >
-                    <span className="k-sidebar-expand-caret" data-open={expanded}>▸</span>
-                    <span>Upcoming</span>
-                </button>
-            )}
-            {expanded && (
-                <>
-                    <ManifestLink id="marketplace"
-                        badgeText={import.meta.env.VITE_ENABLE_MARKETPLACE === "true" ? "new" : "soon"}
-                        badgeInactive={import.meta.env.VITE_ENABLE_MARKETPLACE !== "true"}
-                        connected={connected} collapsed={collapsed} />
-                </>
-            )}
-        </nav>
-    )
-}
-
 // ── Sidebar Component ──────────────────────────────────────────────────
 interface SidebarProps {
     connected: boolean
@@ -194,26 +165,44 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 </button>
             </div>
 
-            {/* ── Section 1: Navigation ─────────────────────────── */}
+            {/* ── W6.2 4-mode IA: Wallet / Govern / Launch / Explore ──────
+                Sections are MANIFEST-DRIVEN (navForGroup) — adding an entry to
+                navManifest.ts places it; the sidebar no longer hand-curates.
+                Per-entry chrome that can't live in the manifest stays in the
+                maps below (badges, flag pills, admin gating). */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
                 {!connected && <ManifestLink id="home" connected={connected} collapsed={collapsed} />}
-                <ManifestLink id="dashboard" auth connected={connected} collapsed={collapsed} />
-                <ManifestLink id="dao" badge={unvotedCount + notifUnreadCount} connected={connected} collapsed={collapsed} />
-                <ManifestLink id="tokens" connected={connected} collapsed={collapsed} />
-                <ManifestLink id="directory" connected={connected} collapsed={collapsed} />
-                <ManifestLink id="validators" connected={connected} collapsed={collapsed} />
-                <ManifestLink id="alerts" connected={connected} collapsed={collapsed} />
-                <ManifestLink id="multisig" auth connected={connected} collapsed={collapsed} />
-                <ManifestLink id="gnolove" connected={connected} collapsed={collapsed} />
-                <ManifestLink id="quests" connected={connected} collapsed={collapsed} />
+                {MODE_SECTIONS.map(({ key, label }) => {
+                    const entries = navForGroup(key).filter(e => e.id !== "home")
+                    const visible = entries.filter(e => !e.requiresAuth || connected)
+                    if (visible.length === 0) return null
+                    return (
+                        <div key={key} className="k-sidebar-mode" data-testid={`nav-mode-${key}`}>
+                            {!collapsed && <div className="k-sidebar-mode-label">{label}</div>}
+                            {entries.map(e => {
+                                // Flag-gated entries: live flag → "new" pill; off → "soon" pill (inactive).
+                                const flagOn = e.flag ? (FLAG_ON[e.flag]?.() ?? false) : true
+                                return (
+                                    <ManifestLink
+                                        key={e.id}
+                                        id={e.id}
+                                        auth={e.requiresAuth}
+                                        badge={e.id === "dao" ? unvotedCount + notifUnreadCount : undefined}
+                                        badgeText={e.flag ? (flagOn ? "new" : "soon") : undefined}
+                                        badgeInactive={e.flag ? !flagOn : undefined}
+                                        connected={connected}
+                                        collapsed={collapsed}
+                                    />
+                                )
+                            })}
+                        </div>
+                    )
+                })}
                 {address === ZOOMA_ADDRESS && (
                     <SidebarLink to="/quest-admin" icon={<Gear size={18} />} label="Quest Admin" connected={connected} collapsed={collapsed} />
                 )}
                 {!collapsed && <CmdKHint />}
             </nav>
-
-            {/* ── Section 2: Extensions (collapsible "coming soon" items) ── */}
-            <SidebarExtensions connected={connected} collapsed={collapsed} />
 
             {/* ── Section 3: User (bottom-pinned) ──────────────── */}
             <div className="k-sidebar-user">
