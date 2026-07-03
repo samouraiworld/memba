@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane B · W6.3 SEO (PR3: JSON-LD + prerender decision) · START→STOP (single session) · frontend: index.html (static JSON-LD), RouteMetaSync.tsx (breadcrumbs); docs/features/SEO.md (new) · feat/w63-jsonld-prerender
+
 2026-07-03 · Lane B · W6.3 SEO (PR2: sitemap+robots) · START→STOP (single session) · frontend: lib/sitemap.ts (new), public/robots.txt (new), vite.config.ts (sitemap emit plugin — safeFlags wiring untouched) · feat/w63-sitemap-robots
 
 2026-07-03 · Lane A · W6.3 SEO (PR1: route meta) · START→STOP (single session) · frontend: lib/routeMeta.ts (new), components/layout/RouteMetaSync.tsx (new), Layout.tsx (mount) · feat/w63-seo-route-meta
