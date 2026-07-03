@@ -37,6 +37,7 @@ export const SITEMAP_PATHS: readonly string[] = [
     "/leaderboard",
     "/gnolove",
     "/changelogs",
+    "/extensions",
     "/feedback",
 ]
 
