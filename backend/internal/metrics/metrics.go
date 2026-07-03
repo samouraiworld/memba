@@ -22,6 +22,35 @@ var AuthLoginTotal = promauto.NewCounterVec(
 	[]string{"result"},
 )
 
+// MultisigSigVerifyTotal counts live A3 multisig member-signature verifications
+// at SignTransaction, by result. result ∈ {ok, mismatch, rejected} — mismatch is
+// a failed verification ACCEPTED in log-only mode; rejected only occurs with
+// MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1. ok/(ok+mismatch) is the flip-gate signal:
+// enforce only when it reads ~100%. Incremented in internal/service.SignTransaction
+// alongside the multisig_sig_verify slog signal.
+var MultisigSigVerifyTotal = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "memba_multisig_sig_verify_total",
+		Help: "Live A3 multisig signature verifications by result; ok/(ok+mismatch) gates the enforce flip.",
+	},
+	[]string{"result"},
+)
+
+// MultisigSigVerifySweep reports the boot-time retro-verification of EVERY stored
+// multisig member signature against sign-bytes reconstructed from the stored tx
+// fields (internal/service.SweepMultisigSigVerify). result ∈ {ok, mismatch,
+// legacy_shape, error}: legacy_shape rows predate the canonical stored shape and
+// can never verify (expected for old rows); mismatch on RECENT rows is the signal
+// that blocks the MEMBA_ENFORCE_MULTISIG_SIG_VERIFY flip. Gauges (not counters):
+// each boot re-sweeps and SETS the current totals.
+var MultisigSigVerifySweep = promauto.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "memba_multisig_sig_verify_sweep",
+		Help: "Boot-time retro-verification of all stored multisig signatures, by result (ok/mismatch/legacy_shape/error).",
+	},
+	[]string{"result"},
+)
+
 // IndexerLastBlock / IndexerChainHead are the frozen-indexer signal: when
 // LastBlock stops advancing while ChainHead climbs, the NFT tailer is stalled
 // (this previously went unnoticed for ~150k blocks). Set in internal/indexer.

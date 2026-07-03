@@ -11,11 +11,16 @@
 # canonical format. Re-run this and review the testdata diff on every bump.
 # See docs/planning/MEMBA_AAA_A2A3_SIGNBYTES_DESIGN.md.
 #
-# Usage:  ./scripts/gen-signbytes-vectors.sh
-# Requires: gnokey on PATH (pinned to the TARGET chain toolchain — currently test12).
+# Usage:  ./scripts/gen-signbytes-vectors.sh [name-regex]
+#   With a name-regex argument, only vectors whose name matches are (re)generated —
+#   use this to ADD vectors without churning the existing goldens (whose exact
+#   bytes call_args_escapes.golden pins).
+# Requires: gnokey on PATH (pinned to the TARGET chain toolchain).
 #
 # The key is the well-known gno integration test1 mnemonic (NOT a real account).
 set -euo pipefail
+
+FILTER="${1:-}"
 
 OUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/internal/auth/testdata/signbytes"
 VDIR="$(mktemp -d /tmp/memba-signvectors.XXXXXX)"
@@ -30,18 +35,26 @@ printf '%s\n%s\n%s\n' "$MNEMONIC" "$PW" "$PW" \
 echo "gnokey: $GNOKEY_VERSION   keybase: $VDIR   out: $OUT_DIR"
 
 # emit_vector <name> <account_number> <sequence> <description> -- <maketx-args...>
+# Per-vector chain id: set VECTOR_CHAINID in the call environment (defaults to $CHAINID).
 emit_vector() {
   local name="$1" acct="$2" seq="$3" desc="$4"; shift 4
   [ "$1" = "--" ] && shift
+  if [ -n "$FILTER" ] && ! [[ "$name" =~ $FILTER ]]; then
+    echo "  skip $name (filter: $FILTER)"
+    return
+  fi
+  local cid="${VECTOR_CHAINID:-$CHAINID}"
   local unsigned="$VDIR/$name.unsigned.json" signed="$VDIR/$name.signed.json"
-  gnokey "$@" --home "$VDIR" test1 > "$unsigned" 2>"$VDIR/$name.err" \
+  # --broadcast=false: newer gnokey defaults maketx to sign+simulate+broadcast;
+  # we only want the unsigned amino-JSON doc on stdout (the old default).
+  gnokey "$@" --broadcast=false --home "$VDIR" test1 > "$unsigned" 2>"$VDIR/$name.err" \
     || { echo "FAILED building $name:"; cat "$VDIR/$name.err"; exit 1; }
   printf '%s\n' "$PW" | gnokey sign \
-    --tx-path "$unsigned" --chainid "$CHAINID" \
+    --tx-path "$unsigned" --chainid "$cid" \
     --account-number "$acct" --account-sequence "$seq" \
     --insecure-password-stdin --output-document "$signed" \
     --home "$VDIR" test1 >/dev/null 2>&1
-  ACCT="$acct" SEQ="$seq" CID="$CHAINID" DESC="$desc" VER="$GNOKEY_VERSION" \
+  ACCT="$acct" SEQ="$seq" CID="$cid" DESC="$desc" VER="$GNOKEY_VERSION" \
   UNSIGNED="$unsigned" SIGNED="$signed" python3 - "$OUT_DIR/$name.json" <<'PY'
 import json, os, sys
 out = sys.argv[1]
@@ -96,5 +109,23 @@ emit_vector addpkg_basic 1 1 \
   "vm.m_addpkg: package deploy (nested MemPackage/files)" -- \
   maketx addpkg --pkgpath gno.land/r/demo/hello --pkgdir "$PKGDIR" \
   --gas-fee 1000000ugnot --gas-wanted 2000000
+
+# --- A3 frontend-parity vectors (test-13, on-wire chain id with the HYPHEN) -----
+# These mirror EXACTLY what the frontend stores for a multisig proposal
+# (lib/multisigTx.ts buildCanonicalProposePayload): fee gas_wanted 100000 (send) /
+# 2000000 (call) with gas_fee 10000ugnot, empty memo, realistic account/sequence.
+# A real gnokey signature over these docs proves the backend reconstruction is
+# byte-equal to the chain toolchain for the frontend's exact stored shapes.
+# (Residual, documented risk: Adena's own serializer — covered by the A2 login
+# prod proof for /vm.m_call args:null and by the retro sweep metric on real rows.)
+VECTOR_CHAINID="test-13" emit_vector frontend_send_parity 57 4 \
+  "A3 frontend parity: bank.MsgSend with the frontend's stored fee shape (100000 gas / 10000ugnot), test-13" -- \
+  maketx send --to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 --send 1500000ugnot \
+  --gas-fee 10000ugnot --gas-wanted 100000
+
+VECTOR_CHAINID="test-13" emit_vector frontend_call_parity 57 5 \
+  "A3 frontend parity: vm.m_call with args, the frontend's stored call fee shape (2000000 gas / 10000ugnot), test-13" -- \
+  maketx call --pkgpath gno.land/r/samcrew/memba_dao --func Vote --args 1 --args yes \
+  --gas-fee 10000ugnot --gas-wanted 2000000
 
 echo "Done. $(ls -1 "$OUT_DIR"/*.json | wc -l | tr -d ' ') vectors in $OUT_DIR"

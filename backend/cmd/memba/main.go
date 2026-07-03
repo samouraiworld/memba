@@ -147,6 +147,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// A3 flip-gate readout: retro-verify every stored multisig signature against
+	// the reconstructed canonical sign-bytes and publish the totals on
+	// memba_multisig_sig_verify_sweep. Read-only + log-only, async so a large
+	// table can never delay boot. See OPS_RUNBOOK "Flipping
+	// MEMBA_ENFORCE_MULTISIG_SIG_VERIFY".
+	go service.SweepMultisigSigVerify(ctx, database)
+
 	// Initialize per-endpoint rate limiter with app context for clean shutdown.
 	limiter = ratelimit.New(ctx, ratelimit.DefaultConfigs())
 
