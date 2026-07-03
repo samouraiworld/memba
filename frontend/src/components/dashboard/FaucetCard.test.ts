@@ -16,6 +16,7 @@ import {
     FAUCET_COOLDOWN_MS,
     buildFaucetMsgSend,
 } from "../../lib/faucet"
+import { networkScopedKey } from "../../lib/config"
 
 describe("FaucetCard — eligibility integration", () => {
     beforeEach(() => {
@@ -79,8 +80,8 @@ describe("FaucetCard — eligibility integration", () => {
         const addr = "g1expired"
         recordFaucetClaim(addr)
 
-        // Manually set claimedAt to 8 days ago
-        const key = `memba_faucet_${addr}`
+        // Manually set claimedAt to 8 days ago (claims are network-scoped, W2.2)
+        const key = networkScopedKey(`memba_faucet_${addr}`)
         const claim = JSON.parse(localStorage.getItem(key)!)
         claim.claimedAt = Date.now() - FAUCET_COOLDOWN_MS - 1000
         localStorage.setItem(key, JSON.stringify(claim))
