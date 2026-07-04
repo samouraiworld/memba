@@ -66,6 +66,13 @@ service MultisigService {
 
   // Home — aggregated dashboard snapshot (public read, server-cached)
   rpc GetHomeSnapshot(GetHomeSnapshotRequest) returns (GetHomeSnapshotResponse);
+
+  // Social feed — cached timelines from the memba_feed_v1 indexer (public
+  // reads, no auth). The realm is the source of truth; these serve the
+  // indexed projection for low-latency, optimistic-UI reads.
+  rpc GetFeedTimeline(GetFeedTimelineRequest) returns (GetFeedTimelineResponse);
+  rpc GetUserFeed(GetUserFeedRequest) returns (GetUserFeedResponse);
+  rpc GetFeedThread(GetFeedThreadRequest) returns (GetFeedThreadResponse);
 }
 
 // --- Auth Messages ---
@@ -752,4 +759,58 @@ message GetHomeSnapshotRequest {
 
 message GetHomeSnapshotResponse {
   HomeSnapshot snapshot = 1;
+}
+
+// --- Social Feed Messages ---
+
+// FeedPost is one post's indexed projection (from the memba_feed_v1 realm).
+// Hidden/deleted posts are omitted from timeline reads; a thread read may
+// include a deleted PARENT as a tombstone so replies keep their context.
+message FeedPost {
+  reserved 5; // repost_of — added in P1 with the PostReposted handler
+  reserved "repost_of";
+  uint64 id = 1; // realm post id (monotonic)
+  string author = 2; // g1... address
+  string body = 3; // empty when deleted
+  uint64 reply_to = 4; // 0 = top-level
+  int64 block_h = 6; // block height the post was created at
+  int64 edited_at = 7; // block height of last edit, 0 = never
+  uint32 flag_count = 8;
+  bool hidden = 9;
+  bool deleted = 10;
+  uint32 reply_count = 11; // live replies indexed under this post
+}
+
+message GetFeedTimelineRequest {
+  uint64 cursor = 1; // return posts strictly older than this id; 0 = newest
+  uint32 limit = 2; // default 20, max 100
+}
+
+message GetFeedTimelineResponse {
+  repeated FeedPost posts = 1;
+  uint64 next_cursor = 2; // pass as cursor for the next page; 0 = end
+  int64 indexer_last_block = 3; // feed indexer cursor (staleness signal)
+}
+
+message GetUserFeedRequest {
+  string author = 1; // g1... address
+  uint64 cursor = 2;
+  uint32 limit = 3;
+}
+
+message GetUserFeedResponse {
+  repeated FeedPost posts = 1;
+  uint64 next_cursor = 2;
+}
+
+message GetFeedThreadRequest {
+  uint64 post_id = 1; // the root/parent post
+  uint64 cursor = 2; // replies strictly after this id; 0 = from the start
+  uint32 limit = 3;
+}
+
+message GetFeedThreadResponse {
+  FeedPost root = 1; // the parent (may be a deleted tombstone)
+  repeated FeedPost replies = 2; // oldest-first (conversation order)
+  uint64 next_cursor = 3;
 }

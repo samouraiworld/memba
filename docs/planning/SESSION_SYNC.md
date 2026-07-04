@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane B · W7.2 feed slice 1 · backend P0 DONE → branch feat/w72-feed-backend (proto: 3 NEW Feed RPCs + messages, NOT sig/verified fields; buf regen; migration 018_feed.sql; feed_tailer/feed_dispatch in internal/indexer; feed_rpc.go; main.go wiring behind FEED_WATCHED_REALMS) · deployer memba_feed_v1 realm MERGED (#56). NEXT = frontend /feed behind VITE_ENABLE_FEED (.env.example, navManifest, routeMeta, sitemap) → branch feat/w72-feed-ui
+
 2026-07-04 · Lane B · W6.1 PR3 changelog CI gate · START→STOP (single session) · .github/workflows/changelog.yml (new; check name "Changelog entry" — owner U-9 adds it to required checks) · ci/changelog-check
 
 2026-07-04 · Lane A · W6 closure: articles 2–3 + W6.2 skip decision · START→STOP (single session) · frontend/content/blog/ (2 new articles), roadmap doc (W6.2 SKIPPED, gate status) · feat/blog-articles-2-3 · merged under owner's delegated trust (owner may request edits anytime)

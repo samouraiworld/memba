@@ -242,6 +242,21 @@ func main() {
 		Logger:           logger,
 	})
 
+	// Start the social-feed indexer (W7.2): a separate goroutine + cursor +
+	// raw ledger, decoupled from the NFT money-path tailer. Projects
+	// memba_feed_v1 events into feed_posts for low-latency timeline reads.
+	// Falls back to the NFT RPC URL when FEED_RPC_URL is unset (same chain).
+	if feedRealms := envOr("FEED_WATCHED_REALMS", ""); feedRealms != "" {
+		indexer.StartFeedTailer(ctx, database, indexer.FeedTailerConfig{
+			RPCURL:        envOr("FEED_RPC_URL", nftRPCURL),
+			WatchedRealms: splitOrigins(feedRealms),
+			StartBlock:    int64Or("FEED_START_BLOCK", 260000),
+			Confirmations: int64Or("FEED_CONFIRMATIONS", 5),
+			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
+			Logger:        logger,
+		})
+	}
+
 	// Initialize OAuth state store with app context for clean shutdown.
 	oauthStore := service.NewOAuthStateStore(ctx)
 
