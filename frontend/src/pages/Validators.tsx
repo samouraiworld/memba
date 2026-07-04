@@ -44,6 +44,7 @@ import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { ValoperPanel } from "../components/validators/ValoperPanel"
 import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
 import { ValidatorReviewStars, ValidatorReviewPreview } from "../components/validators/ValidatorReviewStars"
+import { buildSigningToOperator, resolveReviewSubjects } from "../components/validators/validatorReviewsData"
 import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
@@ -88,7 +89,8 @@ function CopyButton({ text }: { text: string }) {
 }
 
 /** Compact preview shown in the row hovercard. */
-function ValidatorRowPreview({ v }: { v: ValidatorInfo }) {
+function ValidatorRowPreview({ v, signingToOperator }: { v: ValidatorInfo; signingToOperator: Map<string, string> }) {
+    const { subject, aliases } = resolveReviewSubjects(v.gnoAddr, signingToOperator)
     return (
         <div className="vhc-card">
             <div className="vhc-head">
@@ -104,7 +106,7 @@ function ValidatorRowPreview({ v }: { v: ValidatorInfo }) {
                 {v.participationRate != null && <div><dt>Participation</dt><dd>{v.participationRate}%</dd></div>}
                 <div><dt>Rank</dt><dd>#{v.rank}</dd></div>
             </dl>
-            {isReviewsEnabled() && v.gnoAddr && <ValidatorReviewPreview addr={v.gnoAddr} />}
+            {isReviewsEnabled() && subject && <ValidatorReviewPreview subject={subject} aliases={aliases} />}
             <div className="vhc-foot">Open profile →</div>
         </div>
     )
@@ -149,6 +151,10 @@ export default function Validators() {
     // Active validators already appear in the Validators tab; the Candidates tab
     // focuses on registered operators not yet in the consensus set.
     const candidateValopers = useMemo(() => valopers.filter(v => v.status === "candidate"), [valopers])
+    // Signing (consensus) address → operator address, so each row's review stars
+    // query the same canonical subject the profile posts to (fixes reviews only
+    // showing for validators whose operator address equals their signing address).
+    const signingToOperator = useMemo(() => buildSigningToOperator(valopers), [valopers])
     const isVisible = useRef(true)
     const abortRef = useRef<AbortController | null>(null)
 
@@ -554,7 +560,7 @@ export default function Validators() {
                     </thead>
                     <tbody>
                         {paginated.map(v => (
-                            <ValidatorHoverCard key={v.address} content={<ValidatorRowPreview v={v} />}>
+                            <ValidatorHoverCard key={v.address} content={<ValidatorRowPreview v={v} signingToOperator={signingToOperator} />}>
                             <tr
                                 className="val-row"
                                 data-testid={`validator-row-${v.rank}`}
@@ -618,11 +624,14 @@ export default function Validators() {
                                         </a>
                                     ) : "—"}
                                 </td>
-                                {isReviewsEnabled() && (
-                                    <td className="val-td val-td-center">
-                                        <ValidatorReviewStars addr={v.gnoAddr || ""} />
-                                    </td>
-                                )}
+                                {isReviewsEnabled() && (() => {
+                                    const { subject, aliases } = resolveReviewSubjects(v.gnoAddr, signingToOperator)
+                                    return (
+                                        <td className="val-td val-td-center">
+                                            <ValidatorReviewStars subject={subject} aliases={aliases} />
+                                        </td>
+                                    )
+                                })()}
                                 {hasMonitoring && (
                                     <>
                                         <td className="val-td val-td-right val-mono">

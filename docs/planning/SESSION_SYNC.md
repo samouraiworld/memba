@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane A · UX polish (owner-requested): nav placement + marketplace/blog redesign + validator reviews fix · START→STOP (single session) · frontend: lib/navManifest.ts, components/layout/Sidebar.tsx (+test), pages/UnifiedMarketplace.tsx + unified-marketplace.css, pages/Blog.tsx + blog.css, pages/Validators.tsx, components/validators/{ValidatorReviewStars.tsx,validatorReviewsData.ts} (+test) · CHANGELOG.md (single-writer: registered) · no auth/sig paths; no api/**; no shared tx hooks · branch feat/ux-polish-jul4
+
 2026-07-04 · Lane B · W7.3 activity bot · START→STOP (single session) · backend: cmd/activitybot/{main,scenario,state,runner}.go + tests + scenario.example.json (new), docs/ACTIVITYBOT_RUNBOOK.md (new) · CHANGELOG.md (single-writer: registered) · testnet-only tool, not wired into any service; emits gnokey commands (no in-process key) · branch feat/w73-activity-bot
 
 2026-07-04 · Lane A · W7.1 PR1 marketplace My Listings · START→STOP (single session) · frontend: lib/myListings.ts + myListings.test.ts (new), components/marketplace/MyListingsView.tsx (new), pages/UnifiedMarketplace.tsx (tab + route), pages/unified-marketplace.css (append), e2e/marketplace-my-listings.spec.ts (new) · CHANGELOG.md (single-writer: registered) · existing marketplace flags only; no new realm/flag · branch feat/w71-my-listings

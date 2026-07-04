@@ -9,7 +9,7 @@
 import { useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import DOMPurify from "dompurify"
-import { Newspaper } from "@phosphor-icons/react"
+import { Rss, ArrowLeft } from "@phosphor-icons/react"
 import { BLOG_ARTICLES, getArticle } from "../lib/blog"
 import { renderMarkdown } from "../lib/markdownLite"
 import { useNetworkKey } from "../hooks/useNetworkNav"
@@ -21,34 +21,78 @@ function formatDate(date: string): string {
     })
 }
 
+/** Rough reading time from the raw markdown body (~200 wpm). */
+function readingTime(body: string): string {
+    const words = body.trim().split(/\s+/).filter(Boolean).length
+    return `${Math.max(1, Math.round(words / 200))} min read`
+}
+
 export function BlogList() {
     const nk = useNetworkKey()
     useEffect(() => { document.title = "Blog — Memba" }, [])
 
+    const [featured, ...rest] = BLOG_ARTICLES
+
     return (
         <div id="blog-page" className="blog-shell">
-            <div className="blog-header">
-                <Newspaper size={22} color="var(--color-brand)" />
-                <h2>Blog</h2>
-            </div>
-            <p className="blog-sub">Memba and gno.land ecosystem updates.</p>
+            {/* ── Masthead ─────────────────────────────────────── */}
+            <header className="blog-masthead">
+                <div className="blog-masthead__kicker">Memba · gno.land</div>
+                <h1 className="blog-masthead__title">Blog</h1>
+                <p className="blog-masthead__sub">
+                    Field notes on Memba and the gno.land ecosystem — releases, security, and what we're building.
+                </p>
+                <a className="blog-masthead__rss" href="/blog.rss" aria-label="RSS feed">
+                    <Rss size={13} weight="bold" aria-hidden="true" /> RSS
+                </a>
+            </header>
 
             {BLOG_ARTICLES.length === 0 && (
                 <p className="blog-empty">No articles yet.</p>
             )}
 
-            {BLOG_ARTICLES.map(a => (
-                <Link key={a.slug} to={`/${nk}/blog/${a.slug}`} className="blog-card" data-testid="blog-card">
-                    <div className="blog-card__date">{formatDate(a.date)}</div>
-                    <div className="blog-card__title">{a.title}</div>
-                    <div className="blog-card__desc">{a.description}</div>
-                    {a.tags.length > 0 && (
-                        <div className="blog-card__tags">
-                            {a.tags.map(t => <span key={t} className="blog-tag">{t}</span>)}
-                        </div>
-                    )}
+            {/* ── Featured (latest) ────────────────────────────── */}
+            {featured && (
+                <Link to={`/${nk}/blog/${featured.slug}`} className="blog-featured" data-testid="blog-card">
+                    <div className="blog-featured__meta">
+                        <span className="blog-featured__latest">Latest</span>
+                        <span>{formatDate(featured.date)}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{readingTime(featured.body)}</span>
+                    </div>
+                    <h2 className="blog-featured__title">{featured.title}</h2>
+                    <p className="blog-featured__desc">{featured.description}</p>
+                    <div className="blog-featured__foot">
+                        {featured.tags.length > 0 && (
+                            <div className="blog-card__tags">
+                                {featured.tags.map(t => <span key={t} className="blog-tag">{t}</span>)}
+                            </div>
+                        )}
+                        <span className="blog-featured__more">Read <span aria-hidden="true">→</span></span>
+                    </div>
                 </Link>
-            ))}
+            )}
+
+            {/* ── Index (the rest) ─────────────────────────────── */}
+            {rest.length > 0 && (
+                <div className="blog-index">
+                    <div className="blog-index__label">More posts</div>
+                    {rest.map(a => (
+                        <Link key={a.slug} to={`/${nk}/blog/${a.slug}`} className="blog-row" data-testid="blog-card">
+                            <div className="blog-row__date">{formatDate(a.date)}</div>
+                            <div className="blog-row__main">
+                                <div className="blog-row__title">{a.title}</div>
+                                <div className="blog-row__desc">{a.description}</div>
+                                {a.tags.length > 0 && (
+                                    <div className="blog-card__tags">
+                                        {a.tags.map(t => <span key={t} className="blog-tag">{t}</span>)}
+                                    </div>
+                                )}
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
@@ -72,11 +116,16 @@ export function BlogArticlePage() {
     }
 
     return (
-        <div id="blog-page" className="blog-shell">
-            <Link to={`/${nk}/blog`} className="blog-back">← All articles</Link>
+        <article id="blog-page" className="blog-shell blog-article">
+            <Link to={`/${nk}/blog`} className="blog-back">
+                <ArrowLeft size={13} aria-hidden="true" /> All articles
+            </Link>
+            <div className="blog-article__kicker">Memba · gno.land</div>
             <h1 className="blog-title">{article.title}</h1>
             <div className="blog-meta">
                 <span>{formatDate(article.date)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{readingTime(article.body)}</span>
                 {article.tags.map(t => <span key={t} className="blog-tag">{t}</span>)}
             </div>
             <div
@@ -84,6 +133,6 @@ export function BlogArticlePage() {
                 data-testid="blog-body"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(article.body)) }}
             />
-        </div>
+        </article>
     )
 }

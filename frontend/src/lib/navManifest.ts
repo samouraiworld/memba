@@ -53,6 +53,10 @@ export interface NavEntry {
 export const NAV: NavEntry[] = [
     // ── Modes (Wallet / Govern / Launch / Explore) — W6.2 IA ────────
     { id: 'home', to: '/', label: 'Home', Icon: House, group: 'explore', showOn: 'both' },
+    // Feed is a top-of-nav companion to Home (rendered directly under it in the
+    // sidebar, above the mode sections — see Sidebar). Group stays 'explore' for
+    // the mobile overflow list; the desktop sidebar pulls it to the top block.
+    { id: 'feed', to: '/feed', label: 'Feed', Icon: ChatCircle, group: 'explore', showOn: 'both', flag: 'VITE_ENABLE_FEED' },
     { id: 'dashboard', to: '/dashboard', label: 'Dashboard', Icon: ChartBar, group: 'wallet', showOn: 'both', requiresAuth: true },
     { id: 'dao', to: '/dao', label: 'DAOs', Icon: Buildings, group: 'govern', showOn: 'both' },
     { id: 'tokens', to: '/tokens', label: 'Tokens', Icon: Coins, group: 'wallet', showOn: 'both' },
@@ -61,12 +65,13 @@ export const NAV: NavEntry[] = [
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },
     { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both' },
-    { id: 'feed', to: '/feed', label: 'Feed', Icon: ChatCircle, group: 'explore', showOn: 'both', flag: 'VITE_ENABLE_FEED' },
-    { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'explore', showOn: 'both' },
 
     // ── (former manage group — now mode-assigned above/below) ───────
     { id: 'multisig', to: '/multisig', label: 'Multisig', Icon: Briefcase, group: 'wallet', showOn: 'both', requiresAuth: true },
-    { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'launch', showOn: 'both' },
+    // Leaderboard + Extensions live with the account/utility tail (near Feedback
+    // in the bottom-pinned sidebar block), not in a discovery mode section.
+    { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'account', showOn: 'both' },
+    { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'account', showOn: 'both' },
     { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'govern', showOn: 'both', requiresAuth: true },
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
     { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },

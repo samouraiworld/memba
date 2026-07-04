@@ -160,9 +160,24 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 Per-entry chrome that can't live in the manifest stays in the
                 maps below (badges, flag pills, admin gating). */}
             <nav className="k-sidebar-section" aria-label="Primary navigation">
+                {/* Top block: Home (visitor only) + Feed — the two consumption
+                    anchors, above the mode sections. Feed sits directly under Home. */}
                 {!connected && <ManifestLink id="home" connected={connected} collapsed={collapsed} />}
+                {(() => {
+                    const feed = navById("feed")
+                    const flagOn = navFlagOn(feed.flag)
+                    return (
+                        <ManifestLink
+                            id="feed"
+                            badgeText={flagOn ? "new" : "soon"}
+                            badgeInactive={!flagOn}
+                            connected={connected}
+                            collapsed={collapsed}
+                        />
+                    )
+                })()}
                 {MODE_SECTIONS.map(({ key, label }) => {
-                    const entries = navForGroup(key).filter(e => e.id !== "home")
+                    const entries = navForGroup(key).filter(e => e.id !== "home" && e.id !== "feed")
                     const visible = entries.filter(e => !e.requiresAuth || connected)
                     if (visible.length === 0) return null
                     return (
@@ -215,6 +230,9 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                             badge={canApplyForMembership() ? 1 : undefined}
                         />
                     )}
+                    {/* Utility tail — public tools clustered next to Feedback. */}
+                    <ManifestLink id="leaderboard" connected={connected} collapsed={collapsed} />
+                    <ManifestLink id="extensions" connected={connected} collapsed={collapsed} />
                     <ManifestLink id="feedback" connected={connected} collapsed={collapsed} />
                 </div>
             </div>
