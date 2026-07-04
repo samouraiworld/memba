@@ -89,6 +89,12 @@ describe("parseChangelogMarkdown — historical variants (tolerance)", () => {
 describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
     const real = readFileSync(resolve(__dirname, "../../../CHANGELOG.md"), "utf8")
 
+    it("contains no unresolved merge-conflict markers (rebase-collision tripwire)", () => {
+        // The digest parser only reads ##/### headings, so committed conflict
+        // markers stayed invisible to CI once — this makes them a hard failure.
+        expect(real).not.toMatch(/^(<{7}|={7}|>{7})/m)
+    })
+
     it("parses a healthy number of release entries", () => {
         const entries = parseChangelogMarkdown(real)
         expect(entries.length).toBeGreaterThanOrEqual(8)
