@@ -54,3 +54,6 @@ coverage/
 
 # Development screenshots (moved from workspace root)
 docs/screenshots/
+
+# activitybot compiled binary (built via `go build ./cmd/activitybot`)
+/backend/activitybot
