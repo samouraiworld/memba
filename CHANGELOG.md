@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Blog — articles 2–3 + Wave 6 closure (2026-07-04)
+- Published *Gno core pulse* (builder's digest of the verified upstream window: interrealm-v2 in production, NewBanker hardening, realm.Sub status, AddPackage strictness, event-attr caps) and *Why Memba* (the thesis: readable governance, fees to the DAO treasury, safety as code, honest progressive decentralization).
+- W6.2 URL-mode restructuring formally **skipped** (decision recorded in the roadmap); Wave 6 gate passed except the U-2/U-9 owner carry-overs.
+
 <<<<<<< HEAD
 ### Observability — W6.5 PR1: Sentry gaps closed (2026-07-04)
 - **Root ErrorBoundary now reports to Sentry** — app-wide render crashes were invisible (only the alerts/gnolove boundaries captured). Stale-chunk crashes are tagged (`memba_stale_chunk`) so benign auto-reloads stay filterable while persistent chunk loops finally surface.
