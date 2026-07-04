@@ -1,0 +1,8 @@
+{
+  "feedRealm": "gno.land/r/samcrew/memba_feed_v1",
+  "actions": [
+    { "type": "feed_post", "body": "gm — building on gno.land with Memba." },
+    { "type": "feed_post", "body": "New validators table is live. Check the Directory." },
+    { "type": "transfer", "to": "g1EXAMPLE_RECIPIENT_ADDRESS_REPLACE_ME", "ugnot": 100000 }
+  ]
+}
