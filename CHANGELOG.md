@@ -21,6 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Hardening — Wave 7 deep-review guards (2026-07-04)
+- **My Listings cancel** now routes the NFT delist through `routeNftV3()` instead of calling the delist builder directly — so it passes the same `isRealmValid(NFT_MARKETPLACE_V3_PATH)` allowlist guard every other v3 write-call-site uses (the broadcast layer doesn't check engine paths, so that guard is the invariant). No behavior change on the happy path; defense-in-depth consistency.
 - A four-angle deep review of the merged Wave 7 work (feed 5-layer realm→indexer→sqlite→RPC→UI contract, codebase-wide broadcast-builder/flag audit, adversarial security, docs/consistency) came back clean on correctness. Follow-ups: **added `feed.test.ts`** pinning the Amino wire contract (`vm/MsgCall` + no coins) for all five feed builders — the newest builders had zero coverage, the exact gap that let the token OTC lane's wrong message type ship; added the same round-trip assertions to the badge mint builders. Made the activity bot's success-path state-save failure loud (matching the error path). Documented the two ready-but-unwired feed builders (`buildEditPostMsg`/`buildDeletePostMsg`) as intentional next-increment landing pads. (The one real code finding — a feed-realm orphan-index leak reachable via `UnhidePost` — is fixed in the deployer realm before it deploys.)
 
 ### Tooling — W7.3: testnet activity bot (2026-07-04)
