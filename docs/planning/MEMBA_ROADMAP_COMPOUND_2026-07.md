@@ -410,7 +410,7 @@ Lane C OFF-LIMITS while active (external: #734 / per-sig-verified):
 ## Wave 6 progress — as of 2026-07-04
 
 - **W6.1 PR1+PR2 ✅ #742** (changelog automation, parse contract, real-file tripwire). **PR3 blocked on U-9.**
-- **W6.2 PR1 ✅ #743** (4-mode manifest-driven nav; live marketplace un-buried). **PR2–5 (URL-mode churn): recommended SKIP — owner decision pending.**
+- **W6.2 ✅ CLOSED at PR1 #743** (4-mode manifest-driven nav; live marketplace un-buried). **PR2–5 (URL-mode restructuring): SKIPPED — decision 2026-07-04** under the owner's delegated trust: the nav sections deliver the positioning; URL churn would spend redirect complexity and SEO continuity for near-zero gain. Reopen only if a future IA change forces URL moves anyway.
 - **W6.3 ✅ COMPLETE** — #744 per-route meta · #745 sitemap/robots · #746 JSON-LD + prerender decision (NOT adopted; triggers in `docs/features/SEO.md`).
-- **W6.4 → PR #748** (blog infra + article 1) — **owner-gated on article voice**; articles 2–3 follow the same rule. **W6.5:** PR1 = verify/extend (Sentry SDK already wired); PR2 blocked on U-2.
+- **W6.4 ✅** — #748 merged under the owner's delegated trust (article 1); articles 2–3 in this closure PR. **W6.5 PR1 ✅ #750** (root-boundary + tx-broadcast Sentry capture); PR2 blocked on U-2. **W6.1 PR3 blocked on U-9.** With those two owner unlocks pending as carry-overs, **the Wave 6 gate is otherwise PASSED (2026-07-04).**
 
