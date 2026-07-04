@@ -20,6 +20,19 @@ func feedLimit(req uint32) uint32 {
 	return req
 }
 
+// u32 clamps a non-negative small count (flag/reply counts) to uint32 for the
+// proto. These are non-negative and bounded on-chain (flag threshold, live
+// reply cap), so the clamp is defensive; the guard makes it explicit for gosec.
+func u32(v int64) uint32 {
+	if v < 0 {
+		return 0
+	}
+	if v > int64(^uint32(0)) {
+		return ^uint32(0)
+	}
+	return uint32(v)
+}
+
 // scanFeedPosts reads FeedPost rows from a query producing the canonical column
 // order. Never returns nil (empty slice on no rows) so the JSON is a stable [].
 func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
@@ -42,10 +55,10 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 			RepostOf:   u64(repostOf.Int64),
 			BlockH:     blockH.Int64,
 			EditedAt:   editedAt.Int64,
-			FlagCount:  uint32(u64(flagCount.Int64)),
+			FlagCount:  u32(flagCount.Int64),
 			Hidden:     hidden.Bool,
 			Deleted:    deleted.Bool,
-			ReplyCount: uint32(u64(replyCount.Int64)),
+			ReplyCount: u32(replyCount.Int64),
 		})
 	}
 	return posts, rows.Err()
@@ -181,9 +194,9 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	}
 
 	// Ascending order → next cursor is the last (largest) id when the window
-	// filled; 0 signals the end.
+	// filled; 0 signals the end. Compare in int space (limit ≤ 100).
 	var next uint64
-	if uint32(len(replies)) == limit && len(replies) > 0 {
+	if len(replies) > 0 && len(replies) == int(limit) {
 		next = replies[len(replies)-1].Id
 	}
 
@@ -195,9 +208,10 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 }
 
 // nextCursor returns the paging cursor for a descending window: the last
-// (smallest) id when the window filled, else 0 (end reached).
+// (smallest) id when the window filled, else 0 (end reached). Compares in int
+// space (limit ≤ 100 by feedLimit).
 func nextCursor(posts []*membav1.FeedPost, limit uint32) uint64 {
-	if uint32(len(posts)) < limit || len(posts) == 0 {
+	if len(posts) == 0 || len(posts) < int(limit) {
 		return 0
 	}
 	return posts[len(posts)-1].Id
