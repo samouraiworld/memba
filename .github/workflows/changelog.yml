@@ -35,11 +35,13 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          # JSON array, matched with jq — label names may legally contain
+          # commas, so a joined string would misparse (review finding).
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
 
-          if printf '%s' "$LABELS" | tr ',' '\n' | grep -qx 'no-changelog'; then
+          if printf '%s' "$LABELS_JSON" | jq -e 'any(. == "no-changelog")' > /dev/null; then
             echo "::notice::'no-changelog' label present — gate skipped."
             exit 0
           fi
