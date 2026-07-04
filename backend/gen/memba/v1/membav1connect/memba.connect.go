@@ -146,6 +146,15 @@ const (
 	// MultisigServiceGetHomeSnapshotProcedure is the fully-qualified name of the MultisigService's
 	// GetHomeSnapshot RPC.
 	MultisigServiceGetHomeSnapshotProcedure = "/memba.v1.MultisigService/GetHomeSnapshot"
+	// MultisigServiceGetFeedTimelineProcedure is the fully-qualified name of the MultisigService's
+	// GetFeedTimeline RPC.
+	MultisigServiceGetFeedTimelineProcedure = "/memba.v1.MultisigService/GetFeedTimeline"
+	// MultisigServiceGetUserFeedProcedure is the fully-qualified name of the MultisigService's
+	// GetUserFeed RPC.
+	MultisigServiceGetUserFeedProcedure = "/memba.v1.MultisigService/GetUserFeed"
+	// MultisigServiceGetFeedThreadProcedure is the fully-qualified name of the MultisigService's
+	// GetFeedThread RPC.
+	MultisigServiceGetFeedThreadProcedure = "/memba.v1.MultisigService/GetFeedThread"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -201,6 +210,12 @@ type MultisigServiceClient interface {
 	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
 	// Home — aggregated dashboard snapshot (public read, server-cached)
 	GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error)
+	// Social feed — cached timelines from the memba_feed_v1 indexer (public
+	// reads, no auth). The realm is the source of truth; these serve the
+	// indexed projection for low-latency, optimistic-UI reads.
+	GetFeedTimeline(context.Context, *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error)
+	GetUserFeed(context.Context, *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error)
+	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -442,6 +457,24 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetHomeSnapshot")),
 			connect.WithClientOptions(opts...),
 		),
+		getFeedTimeline: connect.NewClient[v1.GetFeedTimelineRequest, v1.GetFeedTimelineResponse](
+			httpClient,
+			baseURL+MultisigServiceGetFeedTimelineProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetFeedTimeline")),
+			connect.WithClientOptions(opts...),
+		),
+		getUserFeed: connect.NewClient[v1.GetUserFeedRequest, v1.GetUserFeedResponse](
+			httpClient,
+			baseURL+MultisigServiceGetUserFeedProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetUserFeed")),
+			connect.WithClientOptions(opts...),
+		),
+		getFeedThread: connect.NewClient[v1.GetFeedThreadRequest, v1.GetFeedThreadResponse](
+			httpClient,
+			baseURL+MultisigServiceGetFeedThreadProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetFeedThread")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -485,6 +518,9 @@ type multisigServiceClient struct {
 	getNFTPortfolio        *connect.Client[v1.GetNFTPortfolioRequest, v1.GetNFTPortfolioResponse]
 	listNFTTokens          *connect.Client[v1.ListNFTTokensRequest, v1.ListNFTTokensResponse]
 	getHomeSnapshot        *connect.Client[v1.GetHomeSnapshotRequest, v1.GetHomeSnapshotResponse]
+	getFeedTimeline        *connect.Client[v1.GetFeedTimelineRequest, v1.GetFeedTimelineResponse]
+	getUserFeed            *connect.Client[v1.GetUserFeedRequest, v1.GetUserFeedResponse]
+	getFeedThread          *connect.Client[v1.GetFeedThreadRequest, v1.GetFeedThreadResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -677,6 +713,21 @@ func (c *multisigServiceClient) GetHomeSnapshot(ctx context.Context, req *connec
 	return c.getHomeSnapshot.CallUnary(ctx, req)
 }
 
+// GetFeedTimeline calls memba.v1.MultisigService.GetFeedTimeline.
+func (c *multisigServiceClient) GetFeedTimeline(ctx context.Context, req *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error) {
+	return c.getFeedTimeline.CallUnary(ctx, req)
+}
+
+// GetUserFeed calls memba.v1.MultisigService.GetUserFeed.
+func (c *multisigServiceClient) GetUserFeed(ctx context.Context, req *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error) {
+	return c.getUserFeed.CallUnary(ctx, req)
+}
+
+// GetFeedThread calls memba.v1.MultisigService.GetFeedThread.
+func (c *multisigServiceClient) GetFeedThread(ctx context.Context, req *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error) {
+	return c.getFeedThread.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -730,6 +781,12 @@ type MultisigServiceHandler interface {
 	ListNFTTokens(context.Context, *connect.Request[v1.ListNFTTokensRequest]) (*connect.Response[v1.ListNFTTokensResponse], error)
 	// Home — aggregated dashboard snapshot (public read, server-cached)
 	GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error)
+	// Social feed — cached timelines from the memba_feed_v1 indexer (public
+	// reads, no auth). The realm is the source of truth; these serve the
+	// indexed projection for low-latency, optimistic-UI reads.
+	GetFeedTimeline(context.Context, *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error)
+	GetUserFeed(context.Context, *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error)
+	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -967,6 +1024,24 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetHomeSnapshot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetFeedTimelineHandler := connect.NewUnaryHandler(
+		MultisigServiceGetFeedTimelineProcedure,
+		svc.GetFeedTimeline,
+		connect.WithSchema(multisigServiceMethods.ByName("GetFeedTimeline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetUserFeedHandler := connect.NewUnaryHandler(
+		MultisigServiceGetUserFeedProcedure,
+		svc.GetUserFeed,
+		connect.WithSchema(multisigServiceMethods.ByName("GetUserFeed")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetFeedThreadHandler := connect.NewUnaryHandler(
+		MultisigServiceGetFeedThreadProcedure,
+		svc.GetFeedThread,
+		connect.WithSchema(multisigServiceMethods.ByName("GetFeedThread")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -1045,6 +1120,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceListNFTTokensHandler.ServeHTTP(w, r)
 		case MultisigServiceGetHomeSnapshotProcedure:
 			multisigServiceGetHomeSnapshotHandler.ServeHTTP(w, r)
+		case MultisigServiceGetFeedTimelineProcedure:
+			multisigServiceGetFeedTimelineHandler.ServeHTTP(w, r)
+		case MultisigServiceGetUserFeedProcedure:
+			multisigServiceGetUserFeedHandler.ServeHTTP(w, r)
+		case MultisigServiceGetFeedThreadProcedure:
+			multisigServiceGetFeedThreadHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1204,4 +1285,16 @@ func (UnimplementedMultisigServiceHandler) ListNFTTokens(context.Context, *conne
 
 func (UnimplementedMultisigServiceHandler) GetHomeSnapshot(context.Context, *connect.Request[v1.GetHomeSnapshotRequest]) (*connect.Response[v1.GetHomeSnapshotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetHomeSnapshot is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetFeedTimeline(context.Context, *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedTimeline is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetUserFeed(context.Context, *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetUserFeed is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedThread is not implemented"))
 }

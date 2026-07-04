@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — W7.2 P0: indexer + timeline API (2026-07-04)
+- **Feed indexer** — a new, fully decoupled event-tailing indexer for the `memba_feed_v1` realm (its own goroutine, cursor `feed_indexer_state`, and raw ledger `feed_raw_events`, separate from the NFT money-path tailer so neither can stall or corrupt the other). Projects `PostCreated`/`Edited`/`Deleted`/`Flagged`/`AutoHidden`/`ModAction` events into `feed_posts`; idempotent writes, single-block reorg-safe rollback. Off by default — starts only when `FEED_WATCHED_REALMS` is set (safe while the realm is pre-deploy).
+- **Timeline RPCs (public, no auth):** `GetFeedTimeline` (home timeline, cursor-paginated newest-first, visibility-filtered), `GetUserFeed` (one author), `GetFeedThread` (a post + its live replies, oldest-first, with a deleted-parent tombstone root). These serve the low-latency indexed projection for optimistic UI; the realm stays the source of truth.
+
 ### Blog — articles 2–3 + Wave 6 closure (2026-07-04)
 - Published *Gno core pulse* (builder's digest of the verified upstream window: interrealm-v2 in production, NewBanker hardening, realm.Sub status, AddPackage strictness, event-attr caps) and *Why Memba* (the thesis: readable governance, fees to the DAO treasury, safety as code, honest progressive decentralization).
 - W6.2 URL-mode restructuring formally **skipped** (decision recorded in the roadmap); Wave 6 gate passed except the U-2/U-9 owner carry-overs.
