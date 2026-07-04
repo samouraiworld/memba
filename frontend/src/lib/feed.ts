@@ -25,12 +25,13 @@ export function buildCreatePostMsg(caller: string, body: string, replyTo = 0): A
     return buildFeedMsgCall("CreatePost", [body, String(replyTo)], caller)
 }
 
-/** EditPost(id, newBody). */
+/** EditPost(id, newBody). Not yet wired to UI — the P1 feed has no edit
+ *  affordance; kept as the ready builder for the next feed increment (tested). */
 export function buildEditPostMsg(caller: string, id: bigint, newBody: string): AminoMsg {
     return buildFeedMsgCall("EditPost", [id.toString(), newBody], caller)
 }
 
-/** DeletePost(id) — author tombstone. */
+/** DeletePost(id) — author tombstone. Not yet wired to UI (see buildEditPostMsg). */
 export function buildDeletePostMsg(caller: string, id: bigint): AminoMsg {
     return buildFeedMsgCall("DeletePost", [id.toString()], caller)
 }

@@ -114,7 +114,10 @@ func main() {
 	}
 
 	if err := saveState(*statePath, runner.state); err != nil {
-		fatal("save state: %v", err)
+		// Any transfers this run already went out; failing to persist the
+		// advanced day counter loosens the cap for the next run — same hazard as
+		// the error path, so it's a loud failure, not a silent one.
+		fatal("save state failed — day cap may be undercounted next run: %v", err)
 	}
 	fmt.Fprintf(os.Stderr, "activitybot: done — %d action(s) %s\n", sent, verbFor(*broadcast))
 }

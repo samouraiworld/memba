@@ -5,8 +5,32 @@ import {
     hasBadgeForQuest,
     getMintableBadges,
     getMintableRankBadges,
+    buildMintQuestBadgeMsg,
+    buildMintRankBadgeMsg,
     type BadgeInfo,
 } from "./badges"
+import { toAdenaMessages } from "./grc20"
+
+// Pin the Amino wire type for the on-chain mint builders — toAdenaMessages
+// hard-throws on anything but "vm/MsgCall", so a wrong type would silently break
+// the badge-mint broadcast (the class of regression that bit the token OTC lane).
+describe("badge mint builders — Amino wire contract", () => {
+    it("buildMintQuestBadgeMsg is a vm/MsgCall that survives toAdenaMessages", () => {
+        const msg = buildMintQuestBadgeMsg("g1admin", "g1user", "quest-1", "ipfs://x")
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value).toMatchObject({ caller: "g1admin", send: "", func: "MintQuestBadge" })
+        expect(msg.value.args).toEqual(["g1user", "quest-1", "ipfs://x"])
+        expect(() => toAdenaMessages([msg])).not.toThrow()
+    })
+
+    it("buildMintRankBadgeMsg is a vm/MsgCall with a stringified tier", () => {
+        const msg = buildMintRankBadgeMsg("g1admin", "g1user", 3)
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value.func).toBe("MintRankBadge")
+        expect(msg.value.args).toEqual(["g1user", "3", ""])
+        expect(() => toAdenaMessages([msg])).not.toThrow()
+    })
+})
 
 describe("badge constants", () => {
     it("badge realm path is correct", () => {
