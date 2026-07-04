@@ -34,6 +34,7 @@ export const SITEMAP_PATHS: readonly string[] = [
     "/validators/hacker",
     "/marketplace",
     "/quests",
+    "/feed",
     "/leaderboard",
     "/gnolove",
     "/changelogs",

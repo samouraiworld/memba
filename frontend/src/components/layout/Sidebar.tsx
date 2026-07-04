@@ -5,7 +5,7 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
 import { NAV, MODE_SECTIONS, navForGroup } from "../../lib/navManifest"
-import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled } from "../../lib/config"
+import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled } from "../../lib/config"
 
 // Flag state must come from LITERAL import.meta.env accesses (config.ts
 // readers) — Vite only statically replaces literals; the dynamic
@@ -16,6 +16,7 @@ const FLAG_ON: Record<string, () => boolean> = {
     VITE_ENABLE_MARKETPLACE: isMarketplaceEnabled,
     VITE_ENABLE_SERVICES: isServicesEnabled,
     VITE_ENABLE_NFT: isNftEnabled,
+    VITE_ENABLE_FEED: isFeedEnabled,
 }
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────

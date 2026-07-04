@@ -8,6 +8,7 @@ import { NetworkSync } from "./components/layout/NetworkSync"
 import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
+import { FeedGate } from "./components/ui/FeedGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
@@ -63,6 +64,8 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 
 // ── Feedback page (lazy — v2.10) ──
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
+// ── Social feed (W7.2, behind VITE_ENABLE_FEED via FeedGate) ──
+const FeedPage = lazy(() => import("./pages/FeedPage"))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -295,6 +298,8 @@ function App() {
 
           {/* Feedback (v2.10) */}
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
+          {/* Social feed — FeedGate makes the flag-off state authoritative at the router. */}
+          <Route path="feed" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedPage /></Suspense></FeedGate>} />
 
           {/* Changelogs (v2.14) */}
           <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />

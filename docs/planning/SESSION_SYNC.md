@@ -10,7 +10,9 @@ Rules:
 
 ---
 
-2026-07-04 · Lane B · W7.2 feed slice 1 · backend P0 DONE → branch feat/w72-feed-backend (proto: 3 NEW Feed RPCs + messages, NOT sig/verified fields; buf regen; migration 018_feed.sql; feed_tailer/feed_dispatch in internal/indexer; feed_rpc.go; main.go wiring behind FEED_WATCHED_REALMS) · deployer memba_feed_v1 realm MERGED (#56). NEXT = frontend /feed behind VITE_ENABLE_FEED (.env.example, navManifest, routeMeta, sitemap) → branch feat/w72-feed-ui
+2026-07-04 · Lane A · W7.2 feed P1 /feed UI · START→STOP (single session) · frontend: pages/FeedPage.tsx + feed.css (new), components/ui/FeedGate.tsx (new), lib/feed.ts + feedApi.ts + feedConstants.ts (new), lib/config.ts (isFeedEnabled + feedPath), components/layout/Sidebar.tsx (FLAG_ON += VITE_ENABLE_FEED), lib/navManifest.ts (feed entry + MORE_NAV_IDS), lib/routeMeta.ts + lib/sitemap.ts (paired), App.tsx route, .env.example ×2 + .env.e2e, e2e/feed-gating.spec.ts (new) · CHANGELOG.md (single-writer: registered) · behind VITE_ENABLE_FEED (off by default; realm not yet deployed) · branch feat/w72-feed-ui
+
+2026-07-04 · Lane B · W7.2 feed slice 1 · backend P0 DONE + MERGED #753 (proto: 3 NEW Feed RPCs + messages, NOT sig/verified fields; buf regen; migration 018_feed.sql; feed_tailer/feed_dispatch in internal/indexer; feed_rpc.go; main.go wiring behind FEED_WATCHED_REALMS) · deployer memba_feed_v1 realm MERGED (#56).
 
 2026-07-04 · Lane B · W6.1 PR3 changelog CI gate · START→STOP (single session) · .github/workflows/changelog.yml (new; check name "Changelog entry" — owner U-9 adds it to required checks) · ci/changelog-check
 

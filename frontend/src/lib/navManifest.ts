@@ -18,6 +18,7 @@ import {
     PuzzlePiece, Robot, Handshake, ImageSquare,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
+    ChatCircle,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -60,6 +61,7 @@ export const NAV: NavEntry[] = [
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },
     { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both' },
+    { id: 'feed', to: '/feed', label: 'Feed', Icon: ChatCircle, group: 'explore', showOn: 'both', flag: 'VITE_ENABLE_FEED' },
     { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'explore', showOn: 'both' },
 
     // ── (former manage group — now mode-assigned above/below) ───────
@@ -105,7 +107,7 @@ const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
 // sidebar destination is reachable on mobile (they aren't primary tabs); the
 // per-audience primary tabs are filtered out at render time so nothing is shown
 // twice (see mobileMoreNav).
-const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'blog', 'changelogs', 'extensions', 'alerts']
+const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
