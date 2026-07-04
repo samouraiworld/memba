@@ -3,7 +3,7 @@ import type { AminoMsg } from "./grc20"
 
 export function buildListTokensMsg(caller: string, symbol: string, amount: number, unitPrice: number): AminoMsg {
     return {
-        type: "vm/msg/call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -16,7 +16,7 @@ export function buildListTokensMsg(caller: string, symbol: string, amount: numbe
 
 export function buildCancelListingMsg(caller: string, listingId: string): AminoMsg {
     return {
-        type: "vm/msg/call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: "",
@@ -29,7 +29,7 @@ export function buildCancelListingMsg(caller: string, listingId: string): AminoM
 
 export function buildFillListingMsg(caller: string, listingId: string, qty: number, expectedUnitPrice: number, costUgnot: number): AminoMsg {
     return {
-        type: "vm/msg/call",
+        type: "vm/MsgCall",
         value: {
             caller,
             send: `${costUgnot}ugnot`, // Exact payment must be sent
