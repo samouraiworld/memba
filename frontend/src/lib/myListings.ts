@@ -9,10 +9,9 @@
  */
 import { fetchListingsPage } from "./marketplace/v3Reads"
 import { fetchOtcListings } from "./tokenOtcApi"
-import { buildDelistMsg } from "./nftMarketplace"
+import { routeNftV3 } from "./marketplace/router"
 import { buildCancelListingMsg } from "./tokenOtc"
 import { doContractBroadcast } from "./grc20"
-import { NFT_MARKETPLACE_V3_PATH } from "./nftConfig"
 import { isNftEnabled, isNftMarketV3Valid, isTokensEnabled, isTokenOtcValid } from "./config"
 
 export type MyListing =
@@ -115,9 +114,14 @@ export function anyListingLaneLive(): boolean {
  * ordinary Adena flow (not multisig).
  */
 export async function cancelListing(listing: MyListing, caller: string): Promise<string> {
+    // NFT delist routes through routeNftV3 (not buildDelistMsg directly) so it
+    // goes through the same isRealmValid(NFT_MARKETPLACE_V3_PATH) allowlist guard
+    // every other v3 write-call-site uses — the broadcast layer doesn't check
+    // engine paths, so that guard is the invariant. Token cancel has no engine
+    // router; buildCancelListingMsg targets the single OTC realm.
     const msg =
         listing.kind === "nft"
-            ? buildDelistMsg(caller, NFT_MARKETPLACE_V3_PATH, listing.collectionID, listing.tokenId)
+            ? routeNftV3({ action: "delist", caller, collectionID: listing.collectionID, tokenId: listing.tokenId })[0]
             : buildCancelListingMsg(caller, listing.id)
     const memo =
         listing.kind === "nft"
