@@ -71,7 +71,14 @@ export default function FeedPage() {
                 address={address}
                 onConnect={connect}
                 onPosted={(post) => {
-                    setOptimistic(prev => [post, ...prev])
+                    // Self-dedupe: don't stack a second pending row with the same
+                    // author+body (the reconcile match can't tell them apart, and
+                    // the realm's post cooldown would reject a rapid duplicate).
+                    setOptimistic(prev =>
+                        prev.some(o => o.author === post.author && o.body === post.body)
+                            ? prev
+                            : [post, ...prev],
+                    )
                     // Reconcile: refetch a few times while the indexer catches up,
                     // and prune confirmed optimistic rows in the timer callback
                     // (not an effect) so the array can't grow across a session.
@@ -145,9 +152,16 @@ function Composer({
             } as UiPost)
             setBody("")
         } catch (e) {
-            // A user rejection in the wallet is not an error worth shouting about.
             const msg = e instanceof Error ? e.message : String(e)
-            if (!/reject|cancel|denied/i.test(msg)) setError("Could not post. Please try again.")
+            if (/reject|cancel|denied/i.test(msg)) {
+                // A user rejection in the wallet is not an error worth shouting about.
+            } else if (/too fast|characters|deleted|hidden|paused/i.test(msg)) {
+                // Surface the realm's actionable panic (e.g. "posting too fast:
+                // wait N blocks") instead of a generic retry prompt.
+                setError(msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not post.")
+            } else {
+                setError("Could not post. Please try again.")
+            }
         } finally {
             setSubmitting(false)
         }
