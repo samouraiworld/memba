@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — W7.1 PR1: My Listings management (2026-07-04)
+- **New "My Listings" surface** in the unified marketplace: the connected wallet's own active listings across the live lanes (NFT v3.1 + Token OTC), each with a one-click **cancel/delist**. A connected-only tab plus a `/marketplace/my-listings` route (which prompts to connect on a shared/bookmarked URL). Aggregates the existing per-lane readers filtered by seller (paginated, resilient to one lane's RPC failing via `allSettled`); cancel reuses the existing `DelistNFT` / `CancelListing` builders over the ordinary Adena broadcast (no multisig, no new realm, no new flag). Optimistic removal + reconcile refetch; graceful connect/empty/loading/error states. Closes the "no way to manage your own listings" gap.
+
 ### Social feed — W7.2 P1: /feed UI (2026-07-04)
 - **New `/feed` page** behind the ordinary `VITE_ENABLE_FEED` flag (no funds): a global on-chain timeline reading the indexed backend projection, with a wallet-gated composer (optimistic insert + reconcile against the indexer) and a per-post flag action — all broadcasting to the `memba_feed_v1` realm via the ordinary Adena flow (no multisig paths touched). Graceful empty/loading/error states; post bodies render as escaped plain text (zero XSS).
 - Wired through the 4-mode nav (Explore), route meta + sitemap (paired), and both `.env.example` files; reachable in the mobile "More" sheet. Fixed a latent flag-badge gap — the sidebar's literal-reader `FLAG_ON` map was missing the feed flag, which would have badged an enabled feed as "soon" (the documented prod-bundle-env trap). Off by default until the realm is deployed (owner-executed).

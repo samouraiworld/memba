@@ -2,6 +2,7 @@ import { Suspense, lazy, type ComponentType } from "react"
 import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
+import { useAdena } from "../hooks/useAdena"
 import type { AssetType } from "../lib/marketplace/types"
 
 // Lazy-load the lane components so the shell stays light
@@ -9,6 +10,16 @@ const NftLane = lazy(() => import("../components/marketplace/NftLane"))
 const ServiceLane = lazy(() => import("../components/marketplace/ServiceLane"))
 const AgentLane = lazy(() => import("../components/marketplace/AgentLane"))
 const TokenLane = lazy(() => import("./TokenLane").then(m => ({ default: m.TokenLane })))
+const MyListingsView = lazy(() => import("../components/marketplace/MyListingsView"))
+
+// The "My Listings" management surface is a fixed sub-route (not a lane): it
+// aggregates the connected wallet's own listings across the live lanes.
+const MY_LISTINGS_SLUG = "my-listings"
+
+// The lanes whose listings My Listings can manage (read + cancel). Derived from
+// the live-lane set so the shell doesn't pull the heavy listing readers into
+// its own import graph.
+const MANAGED_LANES: readonly AssetType[] = ["nft", "token"]
 
 import "./unified-marketplace.css"
 
@@ -32,9 +43,16 @@ const LANE_TAB_ICONS: Record<AssetType, string> = {
 export default function UnifiedMarketplace() {
     const { pathname } = useLocation()
     const [searchParams, setSearchParams] = useSearchParams()
+    const { connected } = useAdena()
 
     // Single source of truth: only lanes that are live on this network render.
     const liveLanes = getLiveLanes()
+
+    // Show the "My Listings" tab only to a connected wallet with a live lane to
+    // manage. The route itself stays mounted (it renders a connect prompt when
+    // disconnected) so a shared/bookmarked URL still works.
+    const canManageListings = liveLanes.some(l => MANAGED_LANES.includes(l.assetType))
+    const showMyListings = connected && canManageListings
 
     // No live lane on this network → nothing to trade; don't render a shell full of
     // dead tabs (and never leave a route reachable that a gated lane would answer).
@@ -96,6 +114,16 @@ export default function UnifiedMarketplace() {
                             <span className="um-tab-icon">{LANE_TAB_ICONS[lane.assetType]}</span> {lane.label}
                         </NavLink>
                     ))}
+                    {showMyListings && (
+                        <NavLink
+                            role="tab"
+                            to={MY_LISTINGS_SLUG}
+                            className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
+                            data-testid="my-listings-tab"
+                        >
+                            <span className="um-tab-icon">🏷️</span> My Listings
+                        </NavLink>
+                    )}
                 </nav>
                 <div className="um-search">
                     <input
@@ -122,6 +150,11 @@ export default function UnifiedMarketplace() {
                             const LaneComponent = LANE_COMPONENTS[lane.assetType]
                             return <Route key={lane.assetType} path={lane.slug} element={<LaneComponent />} />
                         })}
+                        {/* My Listings management — mounts whenever a lane it manages is live
+                            (the view itself prompts to connect when disconnected). */}
+                        {canManageListings && (
+                            <Route path={MY_LISTINGS_SLUG} element={<MyListingsView />} />
+                        )}
                         {/* Gate everything else — a gated/unknown lane URL redirects to a live lane. */}
                         <Route path="*" element={<Navigate to={defaultLanePath} replace />} />
                     </Routes>

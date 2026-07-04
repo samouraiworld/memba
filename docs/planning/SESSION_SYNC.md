@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane A · W7.1 PR1 marketplace My Listings · START→STOP (single session) · frontend: lib/myListings.ts + myListings.test.ts (new), components/marketplace/MyListingsView.tsx (new), pages/UnifiedMarketplace.tsx (tab + route), pages/unified-marketplace.css (append), e2e/marketplace-my-listings.spec.ts (new) · CHANGELOG.md (single-writer: registered) · existing marketplace flags only; no new realm/flag · branch feat/w71-my-listings
+
 2026-07-04 · Lane A · W7.2 feed P1 /feed UI · START→STOP (single session) · frontend: pages/FeedPage.tsx + feed.css (new), components/ui/FeedGate.tsx (new), lib/feed.ts + feedApi.ts + feedConstants.ts (new), lib/config.ts (isFeedEnabled + feedPath), components/layout/Sidebar.tsx (FLAG_ON += VITE_ENABLE_FEED), lib/navManifest.ts (feed entry + MORE_NAV_IDS), lib/routeMeta.ts + lib/sitemap.ts (paired), App.tsx route, .env.example ×2 + .env.e2e, e2e/feed-gating.spec.ts (new) · CHANGELOG.md (single-writer: registered) · behind VITE_ENABLE_FEED (off by default; realm not yet deployed) · branch feat/w72-feed-ui
 
 2026-07-04 · Lane B · W7.2 feed slice 1 · backend P0 DONE + MERGED #753 (proto: 3 NEW Feed RPCs + messages, NOT sig/verified fields; buf regen; migration 018_feed.sql; feed_tailer/feed_dispatch in internal/indexer; feed_rpc.go; main.go wiring behind FEED_WATCHED_REALMS) · deployer memba_feed_v1 realm MERGED (#56).

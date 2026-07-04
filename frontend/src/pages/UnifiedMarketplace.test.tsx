@@ -27,6 +27,13 @@ vi.mock("../lib/config", () => ({
     isAgentRegistryValid: vi.fn(() => false),
 }))
 
+// The shell reads wallet-connection state (for the connected-only "My Listings"
+// tab); stub it disconnected so these lane-visibility tests stay deterministic
+// and don't drag the wallet/config import chain into the mock.
+vi.mock("../hooks/useAdena", () => ({
+    useAdena: () => ({ connected: false, address: undefined, connect: vi.fn() }),
+}))
+
 // ── Stub the lazy lane components (no heavy chain deps). ──────────────────────
 vi.mock("../components/marketplace/NftLane", () => ({ default: () => <div data-testid="nft-lane" /> }))
 vi.mock("../components/marketplace/ServiceLane", () => ({ default: () => <div data-testid="service-lane" /> }))
