@@ -40,6 +40,32 @@ const LANE_TAB_ICONS: Record<AssetType, string> = {
     agent: "🤖",
 }
 
+// Per-lane hero copy + trust chips. The marketplace is one shell; each lane gets
+// its own terminal-header title, subtitle, and a short row of true on-chain
+// guarantees (no fabricated metrics). laneKey mirrors the hero accent class.
+const HERO_META: Record<string, { title: string; subtitle: string; chips: string[] }> = {
+    nfts: {
+        title: "Digital Assets",
+        subtitle: "Discover, buy, and sell verified collectibles and art — provenance and creator royalties enforced on-chain.",
+        chips: ["Creator royalties enforced", "On-chain provenance", "Self-custody"],
+    },
+    services: {
+        title: "Freelance Services",
+        subtitle: "Hire talent with milestone escrow settled on-chain — funds release only when work is accepted.",
+        chips: ["Milestone escrow", "On-chain dispute freeze", "Fees fund the DAO"],
+    },
+    agents: {
+        title: "AI Agents",
+        subtitle: "Deploy autonomous agents to power your decentralized applications, registered on-chain.",
+        chips: ["Autonomous", "On-chain registry"],
+    },
+    tokens: {
+        title: "Tokens",
+        subtitle: "Trade tokens peer-to-peer through the on-chain OTC engine — atomic settlement, no custody.",
+        chips: ["Atomic OTC settlement", "No custody", "Fees fund the DAO"],
+    },
+}
+
 export default function UnifiedMarketplace() {
     const { pathname } = useLocation()
     const [searchParams, setSearchParams] = useSearchParams()
@@ -76,28 +102,30 @@ export default function UnifiedMarketplace() {
     const marketplaceBase = pathname.slice(0, pathname.indexOf("/marketplace") + "/marketplace".length)
     const defaultLanePath = `${marketplaceBase}/${defaultSlug}`
 
-    // Active path logic to style the header dynamically.
-    const isServices = pathname.includes("/services")
-    const isAgents = pathname.includes("/agents")
-    const isTokens = pathname.includes("/tokens")
+    // Active lane drives the hero copy + accent (one shell, per-lane header).
+    const laneKey = pathname.includes("/services") ? "services"
+        : pathname.includes("/agents") ? "agents"
+        : pathname.includes("/tokens") ? "tokens"
+        : "nfts"
+    const hero = HERO_META[laneKey]
 
     return (
         <div className="um-container animate-fade-in">
-            {/* ── Hero Header ─────────────────────────────────── */}
-            <header className={`um-hero ${isServices ? "um-hero-services" : isAgents ? "um-hero-agents" : isTokens ? "um-hero-tokens" : "um-hero-nfts"}`}>
+            {/* ── Hero: on-chain market terminal header ───────────── */}
+            <header className={`um-hero um-hero--${laneKey}`}>
+                <div className="um-hero__bg" aria-hidden="true" />
                 <div className="um-hero-content">
-                    <h1 className="um-hero-title">
-                        {isServices ? "Freelance Services" : isAgents ? "AI Agents" : isTokens ? "Tokens" : "Digital Assets"}
-                    </h1>
-                    <p className="um-hero-subtitle">
-                        {isServices
-                            ? "Hire world-class talent with on-chain milestone escrow."
-                            : isAgents
-                            ? "Deploy autonomous agents to power your decentralized applications."
-                            : isTokens
-                            ? "Trade OTC tokens securely via the on-chain engine."
-                            : "Discover, buy, and sell verified digital collectibles and art."}
-                    </p>
+                    <div className="um-hero__eyebrow">
+                        <span className="um-hero__pulse" aria-hidden="true" />
+                        Live on gno.land
+                    </div>
+                    <h1 className="um-hero-title">{hero.title}</h1>
+                    <p className="um-hero-subtitle">{hero.subtitle}</p>
+                    <ul className="um-hero__chips">
+                        {hero.chips.map((c) => (
+                            <li key={c} className="um-hero__chip">{c}</li>
+                        ))}
+                    </ul>
                 </div>
             </header>
 

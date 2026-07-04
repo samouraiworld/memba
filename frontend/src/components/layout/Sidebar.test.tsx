@@ -92,9 +92,10 @@ describe('W6.2 — 4-mode IA sections', () => {
         expect(within('govern', 'DAOs')).toBe(true)
         expect(within('wallet', 'Tokens')).toBe(true)
         expect(within('launch', 'Marketplace')).toBe(true)
-        expect(within('launch', 'Extensions')).toBe(true)
         expect(within('explore', 'Directory')).toBe(true)
-        expect(within('explore', 'Leaderboard')).toBe(true)
+        // Leaderboard + Extensions moved to the utility tail (no longer in a mode section).
+        expect(within('launch', 'Extensions')).toBe(false)
+        expect(within('explore', 'Leaderboard')).toBe(false)
     })
 
     test('flag-gated Launch entries carry a pill (soon when the flag is off)', () => {
@@ -103,5 +104,32 @@ describe('W6.2 — 4-mode IA sections', () => {
         const launch = document.querySelector('[data-testid="nav-mode-launch"]')!
         expect(launch.textContent).toContain('NFT')
         expect(launch.textContent).toContain('soon')
+    })
+
+    test('Feed renders at the top (under Home) with a pill, not inside a mode section', () => {
+        renderSidebar({ connected: false })
+        // Feed link is present and reachable (its accessible name carries the pill).
+        const nav = screen.getByRole('navigation', { name: 'Main' })
+        const feedLink = within(nav).getAllByRole('link').find(a => a.getAttribute('href') === '/test13/feed')
+        expect(feedLink).toBeTruthy()
+        // The pill renders alongside it (flag off in tests → "soon").
+        expect(feedLink?.textContent).toContain('soon')
+        // …but Feed is NOT inside the Explore mode section anymore.
+        const explore = document.querySelector('[data-testid="nav-mode-explore"]')
+        expect(explore?.textContent?.includes('Feed')).toBeFalsy()
+    })
+
+    test('Leaderboard + Extensions live in the utility tail next to Feedback', () => {
+        renderSidebar({ connected: false })
+        // All three are reachable public links…
+        expect(linkHref('Leaderboard')).toBe('/test13/leaderboard')
+        expect(linkHref('Extensions')).toBe('/test13/extensions')
+        expect(linkHref('Feedback')).toBe('/test13/feedback')
+        // …and none of them sit in a discovery mode section.
+        const inAnyMode = (label: string) =>
+            [...document.querySelectorAll('[data-testid^="nav-mode-"]')]
+                .some(el => el.textContent?.includes(label))
+        expect(inAnyMode('Leaderboard')).toBe(false)
+        expect(inAnyMode('Extensions')).toBe(false)
     })
 })

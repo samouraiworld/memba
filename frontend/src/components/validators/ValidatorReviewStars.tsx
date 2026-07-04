@@ -1,14 +1,15 @@
 /**
- * ValidatorReviewStars — W5.3: per-row review stars for the validators table.
+ * ValidatorReviewStars — per-row review stars for the validators table.
  *
- * Lazy: each rendered row fetches its subject summary once, through a small
+ * Lazy: each rendered row fetches its subject reviews once, through a small
  * concurrency limiter (a 50-row page must not fire 50 parallel qevals at the
- * public RPC — the same courtesy the e2e suite extends to it), with a
- * module-level cache so pagination/sort churn never refetches.
+ * public RPC), with a module-level cache so pagination/sort churn never
+ * refetches.
  *
- * Subject = the row's bech32 signing address (`gnoAddr`). Profile-level alias
- * merging (operator vs signing address) stays a ValidatorProfile concern —
- * the table shows the realm's aggregate for the address it displays.
+ * Subject = the validator's canonical review identity (its operator address once
+ * a valoper is registered), with the signing address merged as an alias. The
+ * page resolves these via resolveReviewSubjects and passes them in, so the ★
+ * count matches the profile page exactly. See validatorReviewsData for why.
  */
 import { useEffect, useState } from "react"
 import {
@@ -22,22 +23,25 @@ import type { SubjectSummary, OnChainReview } from "../../lib/reviews"
 // ── Components ───────────────────────────────────────────────
 
 /** ★★★☆☆-style compact rating, or a muted dash when unreviewed. */
-export function ValidatorReviewStars({ addr }: { addr: string }) {
-    const [summary, setSummary] = useState<SubjectSummary | null>(peekSummary(addr))
+export function ValidatorReviewStars({ subject, aliases }: { subject: string; aliases?: string[] }) {
+    const [summary, setSummary] = useState<SubjectSummary | null>(peekSummary(subject))
+    // aliases is a fresh array each render — depend on a stable joined key.
+    const aliasKey = (aliases ?? []).join(",")
 
     useEffect(() => {
-        if (!addr || peekSummary(addr) !== null) {
-            setSummary(addr ? peekSummary(addr) : null)
+        if (!subject || peekSummary(subject) !== null) {
+            setSummary(subject ? peekSummary(subject) : null)
             return
         }
         let cancelled = false
-        getValidatorReviewSummary(addr)
+        getValidatorReviewSummary(subject, aliases ?? [])
             .then(s => { if (!cancelled) setSummary(s) })
             .catch(() => { if (!cancelled) setSummary({ count: 0, average: 0, sum: 0 }) })
         return () => { cancelled = true }
-    }, [addr])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subject, aliasKey])
 
-    if (!addr || summary === null) {
+    if (!subject || summary === null) {
         return <span className="val-stars val-stars--pending" aria-hidden="true">·</span>
     }
     if (summary.count === 0) {
@@ -62,20 +66,22 @@ export function ValidatorReviewStars({ addr }: { addr: string }) {
 }
 
 /** Recent review lines for the row hover card (mounts on hover ⇒ lazy). */
-export function ValidatorReviewPreview({ addr }: { addr: string }) {
-    const [reviews, setReviews] = useState<OnChainReview[] | null>(peekReviews(addr)?.slice(0, 3) ?? null)
+export function ValidatorReviewPreview({ subject, aliases }: { subject: string; aliases?: string[] }) {
+    const [reviews, setReviews] = useState<OnChainReview[] | null>(peekReviews(subject)?.slice(0, 3) ?? null)
+    const aliasKey = (aliases ?? []).join(",")
 
     useEffect(() => {
-        if (!addr || peekReviews(addr) !== null) return
+        if (!subject || peekReviews(subject) !== null) return
         let cancelled = false
-        getValidatorTopReviews(addr)
+        getValidatorTopReviews(subject, aliases ?? [])
             .then(r => { if (!cancelled) setReviews(r) })
             .catch(() => { if (!cancelled) setReviews([]) })
         return () => { cancelled = true }
-    }, [addr])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subject, aliasKey])
 
     const visible = (reviews ?? []).filter(r => !r.deleted).slice(0, 3)
-    if (!addr || visible.length === 0) return null
+    if (!subject || visible.length === 0) return null
 
     return (
         <div className="vhc-reviews">
