@@ -1,0 +1,62 @@
+# Changelog gate — W6.1 PR3 (Program Compound).
+#
+# /changelogs is generated from CHANGELOG.md (see the parse contract at the
+# top of that file), so a user-visible PR that skips the changelog silently
+# hides its work from the product page. This check fails any PR that touches
+# frontend/ or backend/ without also touching CHANGELOG.md, unless the PR
+# carries the `no-changelog` label (refactors, test-only changes, revert
+# noise — reviewer's judgment).
+#
+# OWNER ACTION (U-9): add the check "Changelog entry" to the branch-protection
+# required checks — exact-name matching, same as the pnpm-workspaces job.
+#
+# Runs on labeled/unlabeled too, so applying the label re-evaluates without a
+# new push.
+
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog-entry:
+    name: Changelog entry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require a CHANGELOG.md entry for frontend/backend changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+
+          if printf '%s' "$LABELS" | tr ',' '\n' | grep -qx 'no-changelog'; then
+            echo "::notice::'no-changelog' label present — gate skipped."
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA")
+          echo "Changed files:"; echo "$CHANGED"
+
+          if ! printf '%s\n' "$CHANGED" | grep -qE '^(frontend|backend)/'; then
+            echo "::notice::No frontend/ or backend/ changes — gate not applicable."
+            exit 0
+          fi
+
+          if printf '%s\n' "$CHANGED" | grep -qx 'CHANGELOG.md'; then
+            echo "::notice::CHANGELOG.md updated — gate satisfied."
+            exit 0
+          fi
+
+          echo "::error::This PR changes frontend/ or backend/ but not CHANGELOG.md."
+          echo "::error::Add an entry under '## [Unreleased]' (see the parse contract atop CHANGELOG.md), or apply the 'no-changelog' label if this change is genuinely not user-visible."
+          exit 1
