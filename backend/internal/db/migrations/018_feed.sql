@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS feed_posts (
     author              TEXT NOT NULL,
     body                TEXT NOT NULL DEFAULT '',
     reply_to            INTEGER NOT NULL DEFAULT 0, -- 0 = top-level
-    repost_of           INTEGER NOT NULL DEFAULT 0, -- 0 = original (P1)
+    -- reposts land in P1 (realm PostReposted event + dispatcher) — the column
+    -- and the proto field are deliberately absent until then, not shipped as an
+    -- always-0 API field.
     block_h             INTEGER NOT NULL DEFAULT 0, -- creation block height
     edited_at           INTEGER NOT NULL DEFAULT 0,
     flag_count          INTEGER NOT NULL DEFAULT 0,
@@ -46,9 +48,10 @@ CREATE TABLE IF NOT EXISTS feed_posts (
     updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Home timeline: newest visible top-level+reply posts, id-descending.
+-- Home timeline: newest visible TOP-LEVEL posts (reply_to = 0), id-descending.
+-- Replies are read per-thread, not inline in the home timeline.
 CREATE INDEX IF NOT EXISTS idx_feed_posts_visible
-    ON feed_posts (hidden, deleted, post_id DESC);
+    ON feed_posts (reply_to, hidden, deleted, post_id DESC);
 
 -- User timeline: one author's newest posts.
 CREATE INDEX IF NOT EXISTS idx_feed_posts_author

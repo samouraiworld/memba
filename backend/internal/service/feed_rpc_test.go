@@ -57,6 +57,26 @@ func TestGetFeedTimeline_NewestFirstAndVisibility(t *testing.T) {
 	}
 }
 
+func TestGetFeedTimeline_ExcludesReplies(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	seedFeedPost(t, h, 1, "g1a", "top-level", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "a reply", 1, false, false) // reply_to = 1
+
+	resp, err := h.svc.GetFeedTimeline(ctx, connect.NewRequest(&membav1.GetFeedTimelineRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Msg.Posts) != 1 || resp.Msg.Posts[0].Id != 1 {
+		t.Fatalf("home timeline must show only top-level posts, got %+v", resp.Msg.Posts)
+	}
+	// The top-level post reports its one live reply.
+	if resp.Msg.Posts[0].ReplyCount != 1 {
+		t.Fatalf("reply_count = %d, want 1", resp.Msg.Posts[0].ReplyCount)
+	}
+}
+
 func TestGetFeedTimeline_CursorPagination(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()

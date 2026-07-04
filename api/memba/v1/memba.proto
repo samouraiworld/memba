@@ -767,11 +767,12 @@ message GetHomeSnapshotResponse {
 // Hidden/deleted posts are omitted from timeline reads; a thread read may
 // include a deleted PARENT as a tombstone so replies keep their context.
 message FeedPost {
+  reserved 5; // repost_of — added in P1 with the PostReposted handler
+  reserved "repost_of";
   uint64 id = 1; // realm post id (monotonic)
   string author = 2; // g1... address
   string body = 3; // empty when deleted
   uint64 reply_to = 4; // 0 = top-level
-  uint64 repost_of = 5; // 0 = original (P1)
   int64 block_h = 6; // block height the post was created at
   int64 edited_at = 7; // block height of last edit, 0 = never
   uint32 flag_count = 8;

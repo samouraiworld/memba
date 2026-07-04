@@ -113,6 +113,12 @@ func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched
 				return
 			}
 			cursor--
+			// Floor the rewind: a persistently-mismatching hash (e.g. an RPC LB
+			// returning an unstable hash for a height) must not walk the cursor
+			// arbitrarily far back and trigger an ever-growing re-scan.
+			if floor := cfg.StartBlock - 1; cursor < floor {
+				cursor = floor
+			}
 		}
 	}
 

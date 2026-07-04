@@ -6330,7 +6330,6 @@ type FeedPost struct {
 	Author        string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`                      // g1... address
 	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`                          // empty when deleted
 	ReplyTo       uint64                 `protobuf:"varint,4,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`    // 0 = top-level
-	RepostOf      uint64                 `protobuf:"varint,5,opt,name=repost_of,json=repostOf,proto3" json:"repost_of,omitempty"` // 0 = original (P1)
 	BlockH        int64                  `protobuf:"varint,6,opt,name=block_h,json=blockH,proto3" json:"block_h,omitempty"`       // block height the post was created at
 	EditedAt      int64                  `protobuf:"varint,7,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"` // block height of last edit, 0 = never
 	FlagCount     uint32                 `protobuf:"varint,8,opt,name=flag_count,json=flagCount,proto3" json:"flag_count,omitempty"`
@@ -6395,13 +6394,6 @@ func (x *FeedPost) GetBody() string {
 func (x *FeedPost) GetReplyTo() uint64 {
 	if x != nil {
 		return x.ReplyTo
-	}
-	return 0
-}
-
-func (x *FeedPost) GetRepostOf() uint64 {
-	if x != nil {
-		return x.RepostOf
 	}
 	return 0
 }
@@ -7282,13 +7274,12 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x16GetHomeSnapshotRequest\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\"M\n" +
 	"\x17GetHomeSnapshotResponse\x122\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\xa6\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\x9a\x02\n" +
 	"\bFeedPost\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x16\n" +
 	"\x06author\x18\x02 \x01(\tR\x06author\x12\x12\n" +
 	"\x04body\x18\x03 \x01(\tR\x04body\x12\x19\n" +
-	"\breply_to\x18\x04 \x01(\x04R\areplyTo\x12\x1b\n" +
-	"\trepost_of\x18\x05 \x01(\x04R\brepostOf\x12\x17\n" +
+	"\breply_to\x18\x04 \x01(\x04R\areplyTo\x12\x17\n" +
 	"\ablock_h\x18\x06 \x01(\x03R\x06blockH\x12\x1b\n" +
 	"\tedited_at\x18\a \x01(\x03R\beditedAt\x12\x1d\n" +
 	"\n" +
@@ -7297,7 +7288,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\adeleted\x18\n" +
 	" \x01(\bR\adeleted\x12\x1f\n" +
 	"\vreply_count\x18\v \x01(\rR\n" +
-	"replyCount\"F\n" +
+	"replyCountJ\x04\b\x05\x10\x06R\trepost_of\"F\n" +
 	"\x16GetFeedTimelineRequest\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\x04R\x06cursor\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\"\x92\x01\n" +

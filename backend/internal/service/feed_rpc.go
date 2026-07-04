@@ -39,11 +39,11 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	posts := []*membav1.FeedPost{}
 	for rows.Next() {
 		var (
-			id, replyTo, repostOf, blockH, editedAt, flagCount, replyCount sql.NullInt64
-			author, body                                                   sql.NullString
-			hidden, deleted                                                sql.NullBool
+			id, replyTo, blockH, editedAt, flagCount, replyCount sql.NullInt64
+			author, body                                         sql.NullString
+			hidden, deleted                                      sql.NullBool
 		)
-		if err := rows.Scan(&id, &author, &body, &replyTo, &repostOf, &blockH,
+		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH,
 			&editedAt, &flagCount, &hidden, &deleted, &replyCount); err != nil {
 			return nil, err
 		}
@@ -52,7 +52,6 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 			Author:     author.String,
 			Body:       body.String,
 			ReplyTo:    u64(replyTo.Int64),
-			RepostOf:   u64(repostOf.Int64),
 			BlockH:     blockH.Int64,
 			EditedAt:   editedAt.Int64,
 			FlagCount:  u32(flagCount.Int64),
@@ -67,22 +66,24 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 // feedPostSelect is the shared column list. reply_count is computed as the
 // number of live (not deleted, not hidden) replies indexed under each post.
 const feedPostSelect = `
-	SELECT p.post_id, p.author, p.body, p.reply_to, p.repost_of, p.block_h,
+	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h,
 	       p.edited_at, p.flag_count, p.hidden, p.deleted,
 	       (SELECT COUNT(*) FROM feed_posts c
 	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count
 	FROM feed_posts p`
 
-// GetFeedTimeline returns the newest visible posts, id-descending, strictly
-// older than cursor (0 = from the newest). Public read — no auth. Serves the
-// indexed projection of memba_feed_v1; the realm remains the source of truth.
+// GetFeedTimeline returns the newest visible TOP-LEVEL posts (reply_to = 0),
+// id-descending, strictly older than cursor (0 = from the newest). Public read
+// — no auth. Replies are seen in a post's thread (GetFeedThread), not inline in
+// the home timeline. Serves the indexed projection of memba_feed_v1; the realm
+// remains the source of truth.
 func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Request[membav1.GetFeedTimelineRequest]) (*connect.Response[membav1.GetFeedTimelineResponse], error) {
 	limit := feedLimit(req.Msg.Limit)
 	cursor := req.Msg.Cursor
 
 	// cursor == 0 → newest window; else strictly older than the cursor id.
 	q := feedPostSelect + `
-		WHERE p.hidden = 0 AND p.deleted = 0`
+		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0`
 	args := []any{}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
