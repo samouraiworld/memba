@@ -44,6 +44,7 @@ export const ROUTE_META: RouteMetaEntry[] = [
     { pattern: /^\/gnolove(\/|$)/, title: "Gnolove — Memba", description: "Gno ecosystem analytics: contributions, teams, and community activity across gno.land." },
     { pattern: /^\/changelogs(\/|$)/, title: "Changelogs — Memba", description: "Every Memba release and gno.land ecosystem update, generated straight from the changelog." },
     { pattern: /^\/extensions(\/|$)/, title: "Extensions — Memba", description: "Extend Memba with ecosystem integrations and upcoming features for gno.land DAOs and wallets." },
+    { pattern: /^\/blog(\/|$)/, title: "Blog — Memba", description: "Memba and gno.land ecosystem updates from the Samourai Coop — releases, governance, and builder notes." },
     { pattern: /^\/multisig(\/|$)/, title: "Multisig — Memba", description: "Gno-native multisig wallets: propose, sign, and broadcast transactions with your co-signers." },
     { pattern: /^\/profile(\/|$)/, title: "Profile — Memba", description: "On-chain profile: activity, reviews, XP, and holdings on gno.land." },
 ]

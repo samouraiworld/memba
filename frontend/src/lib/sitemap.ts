@@ -38,6 +38,7 @@ export const SITEMAP_PATHS: readonly string[] = [
     "/gnolove",
     "/changelogs",
     "/extensions",
+    "/blog",
     "/feedback",
 ]
 

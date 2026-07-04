@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane A · W6.4 blog (infra + article 1 draft) · START→STOP (single session) · frontend: content/blog/ (new), lib/blogParser.ts + lib/blog.ts (new), pages/Blog.tsx (new), App.tsx routes, navManifest, routeMeta, sitemap, vite.config (RSS emit) · feat/w64-blog · MERGE = OWNER-GATED (article content)
+
 2026-07-04 · Lane B · W6.5 PR1 Sentry verify/extend · START→STOP (single session) · frontend: ErrorBoundary.tsx (root capture, stale-chunk tag), lib/grc20.ts (tx-broadcast terminal capture — broadcast infra only, NOT sig paths), main.tsx (JWT scrub in exception path) · feat/w65-sentry-verify
 
 2026-07-04 · Lane B · docs: W5 retro + W6 status · START→STOP (single session) · docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md (retro append), ROADMAP.md (status row) · docs/w5-retro-status
