@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-04 · Lane B · W6.1 PR3 changelog CI gate · START→STOP (single session) · .github/workflows/changelog.yml (new; check name "Changelog entry" — owner U-9 adds it to required checks) · ci/changelog-check
+
 2026-07-04 · Lane A · W6 closure: articles 2–3 + W6.2 skip decision · START→STOP (single session) · frontend/content/blog/ (2 new articles), roadmap doc (W6.2 SKIPPED, gate status) · feat/blog-articles-2-3 · merged under owner's delegated trust (owner may request edits anytime)
 
 2026-07-04 · Lane A · W6.4 blog (infra + article 1 draft) · START→STOP (single session) · frontend: content/blog/ (new), lib/blogParser.ts + lib/blog.ts (new), pages/Blog.tsx (new), App.tsx routes, navManifest, routeMeta, sitemap, vite.config (RSS emit) · feat/w64-blog · MERGE = OWNER-GATED (article content)
