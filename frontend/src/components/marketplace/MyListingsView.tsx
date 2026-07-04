@@ -7,7 +7,7 @@
  * @module components/marketplace/MyListingsView
  */
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useAdena } from "../../hooks/useAdena"
 import { EmptyState } from "../ui/EmptyState"
@@ -31,6 +31,26 @@ export default function MyListingsView() {
     const [cancelled, setCancelled] = useState<Set<string>>(new Set())
     const [busyKey, setBusyKey] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // The optimistic-hide set + error are per-wallet — a listing key is not
+    // address-scoped, so carrying them across an account switch would wrongly
+    // hide a different wallet's listing. Reset them during render when the
+    // address changes (React's "adjust state on prop change" pattern — no
+    // cascading effect).
+    const [prevAddress, setPrevAddress] = useState(address)
+    if (address !== prevAddress) {
+        setPrevAddress(address)
+        setCancelled(new Set())
+        setError(null)
+    }
+
+    // Don't leave a reconcile refetch scheduled after unmount.
+    useEffect(() => {
+        return () => {
+            if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
+        }
+    }, [])
 
     const onCancel = useCallback(
         async (listing: MyListing) => {
@@ -40,8 +60,22 @@ export default function MyListingsView() {
             try {
                 await cancelListing(listing, address)
                 setCancelled(prev => new Set(prev).add(listing.key))
-                // Reconcile against the chain once the indexer/reader catches up.
-                setTimeout(() => void query.refetch(), 2_500)
+                // Reconcile against the chain once the reader catches up. If the
+                // fresh data still shows the listing (e.g. the tx reverted), trust
+                // the chain and un-hide it rather than masking it forever.
+                if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
+                reconcileTimer.current = setTimeout(() => {
+                    void query.refetch().then(res => {
+                        const stillListed = (res.data ?? []).some(l => l.key === listing.key)
+                        if (stillListed) {
+                            setCancelled(prev => {
+                                const next = new Set(prev)
+                                next.delete(listing.key)
+                                return next
+                            })
+                        }
+                    })
+                }, 2_500)
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e)
                 if (!/reject|cancel|denied/i.test(msg)) {

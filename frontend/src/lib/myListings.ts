@@ -40,6 +40,7 @@ const NFT_MAX_PAGES = 20
 
 async function fetchMyNftListings(address: string): Promise<MyListing[]> {
     const mine: MyListing[] = []
+    let reachedCap = true
     for (let page = 0; page < NFT_MAX_PAGES; page++) {
         const rows = await fetchListingsPage(page * NFT_PAGE, NFT_PAGE)
         for (const l of rows) {
@@ -53,7 +54,19 @@ async function fetchMyNftListings(address: string): Promise<MyListing[]> {
                 })
             }
         }
-        if (rows.length < NFT_PAGE) break // last page
+        if (rows.length < NFT_PAGE) {
+            reachedCap = false // reached the last page before the cap
+            break
+        }
+    }
+    if (reachedCap) {
+        // We stopped at the page cap with a still-full last page — there may be
+        // listings beyond NFT_MAX_PAGES*NFT_PAGE we didn't scan. Surface it so a
+        // "missing listing" report is diagnosable rather than silent.
+        console.warn(
+            `[myListings] NFT listing scan hit the ${NFT_MAX_PAGES * NFT_PAGE}-row cap; ` +
+                `a seller's listings beyond that are not shown.`,
+        )
     }
     return mine
 }
