@@ -1,0 +1,212 @@
+/* Social feed (W7.2 P1). Uses the shared design tokens; light/dark safe. */
+
+.feed-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--space-4, 16px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+}
+
+.feed-header {
+    margin-bottom: var(--space-2, 8px);
+}
+
+.feed-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.feed-subtitle {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+    margin: 4px 0 0;
+}
+
+/* ── Composer ─────────────────────────────────────────────── */
+
+.feed-composer {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-surface);
+    padding: var(--space-3, 12px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+}
+
+.feed-composer--cta {
+    align-items: center;
+    text-align: center;
+    color: var(--color-text-secondary);
+    gap: var(--space-2, 8px);
+}
+
+.feed-composer__input {
+    width: 100%;
+    resize: vertical;
+    min-height: 68px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface-hover, transparent);
+    color: var(--color-text);
+    padding: 10px 12px;
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.feed-composer__input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.feed-composer__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+}
+
+.feed-composer__count {
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-composer__count.over {
+    color: var(--color-k-danger-text, #d33);
+    font-weight: 600;
+}
+
+.feed-composer__error {
+    color: var(--color-k-danger-text, #d33);
+    font-size: var(--text-sm, 0.875rem);
+    margin: 0;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+
+.feed-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.feed-btn--primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+}
+
+.feed-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── List + posts ─────────────────────────────────────────── */
+
+.feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+}
+
+.feed-post {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-surface);
+    padding: var(--space-3, 12px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+}
+
+.feed-post--pending {
+    opacity: 0.7;
+}
+
+.feed-post--skeleton {
+    height: 96px;
+    background: linear-gradient(
+        90deg,
+        var(--color-surface) 0%,
+        var(--color-surface-hover, rgba(128, 128, 128, 0.08)) 50%,
+        var(--color-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: feed-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes feed-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.feed-post__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+}
+
+.feed-post__meta {
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.feed-post__body {
+    color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.feed-post__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+}
+
+.feed-post__stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-post__flag {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font: inherit;
+    padding: 2px 4px;
+}
+
+.feed-post__flag:hover:not(:disabled) {
+    color: var(--color-k-danger-text, #d33);
+}
+
+.feed-post__flag:disabled {
+    cursor: default;
+    opacity: 0.7;
+}

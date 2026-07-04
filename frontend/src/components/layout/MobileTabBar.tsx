@@ -7,6 +7,7 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { VISIBLE_NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
+import { navFlagOn } from "../../lib/navFlags"
 import type { LayoutContext } from "../../types/layout"
 import { DotsThree, PuzzlePiece, SunDim, Moon, MagnifyingGlass } from "@phosphor-icons/react"
 
@@ -73,10 +74,15 @@ export function MobileTabBar({ connected, address, auth, network }: MobileTabBar
         if (entry.id === "profile" && !address) return null
         const to = entry.id === "profile" ? `${entry.to}/${address}` : entry.to
         const Icon = entry.Icon
+        // A flagged-but-off entry stays discoverable (like the desktop sidebar)
+        // but is badged "soon" so mobile matches desktop; tapping it lands on
+        // the route's Coming-Soon gate.
+        const soon = entry.flag ? !navFlagOn(entry.flag) : false
         return (
             <Link key={entry.id} to={np(to)} className="k-sidebar-link" onClick={() => setSheetOpen(false)}>
                 <span className="k-sidebar-icon"><Icon size={18} /></span>
                 <span className="k-sidebar-label">{entry.label}</span>
+                {soon && <span className="k-sidebar-badge inactive">soon</span>}
             </Link>
         )
     }

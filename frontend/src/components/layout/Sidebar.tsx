@@ -5,18 +5,7 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
 import { NAV, MODE_SECTIONS, navForGroup } from "../../lib/navManifest"
-import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled } from "../../lib/config"
-
-// Flag state must come from LITERAL import.meta.env accesses (config.ts
-// readers) — Vite only statically replaces literals; the dynamic
-// `import.meta.env[name]` fallback object carries NO VITE_ keys in production
-// builds, which would have badged a LIVE marketplace as "soon" (caught in
-// this PR's own bundle inspection).
-const FLAG_ON: Record<string, () => boolean> = {
-    VITE_ENABLE_MARKETPLACE: isMarketplaceEnabled,
-    VITE_ENABLE_SERVICES: isServicesEnabled,
-    VITE_ENABLE_NFT: isNftEnabled,
-}
+import { navFlagOn } from "../../lib/navFlags"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
 interface SidebarLinkProps {
@@ -181,7 +170,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                             {!collapsed && <div className="k-sidebar-mode-label">{label}</div>}
                             {entries.map(e => {
                                 // Flag-gated entries: live flag → "new" pill; off → "soon" pill (inactive).
-                                const flagOn = e.flag ? (FLAG_ON[e.flag]?.() ?? false) : true
+                                const flagOn = navFlagOn(e.flag)
                                 return (
                                     <ManifestLink
                                         key={e.id}
