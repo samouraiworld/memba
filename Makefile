@@ -1,4 +1,4 @@
-.PHONY: help proto-gen backend-run backend-build backend-test blockparty-vectors-check frontend-dev frontend-build frontend-lint lint test docker-build clean
+.PHONY: help proto-gen backend-run backend-build backend-test blockparty-vectors-check blockparty-corpus frontend-dev frontend-build frontend-lint lint test docker-build clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ blockparty-vectors-check: ## Verify backend testdata vectors match frontend cano
 	@diff -q frontend/src/game/engine/vectors/prng_vectors.json backend/internal/blockparty/engine/testdata/prng_vectors.json
 	@diff -q frontend/src/game/engine/vectors/game_vectors.json backend/internal/blockparty/engine/testdata/game_vectors.json
 	@echo "block party vectors: backend testdata matches frontend canonical"
+
+blockparty-corpus: ## Regenerate the frozen TS-generated differential corpus (500 games)
+	cd frontend && node --experimental-strip-types scripts/gen-blockparty-corpus.mjs
 
 # Frontend
 frontend-dev: ## Run frontend dev server
