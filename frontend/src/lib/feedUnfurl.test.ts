@@ -39,4 +39,21 @@ describe("parseUnfurls", () => {
     it("does not misfire on words containing r/ mid-token", () => {
         expect(parseUnfurls("interior/design is nice")).toEqual([])
     })
+
+    it("detects a Memba app token link as a live token ref", () => {
+        const u = parseUnfurls("holding https://app.memba.world/test13/tokens/MEMBA")
+        expect(u).toEqual([
+            { kind: "token", symbol: "MEMBA", href: "https://app.memba.world/test13/tokens/MEMBA" },
+        ])
+    })
+
+    it("only treats a network-scoped /tokens/ path as a token (not arbitrary sites)", () => {
+        const u = parseUnfurls("see https://example.com/foo/tokens/BAR")
+        expect(u).toEqual([{ kind: "link", url: "https://example.com/foo/tokens/BAR", host: "example.com" }])
+    })
+
+    it("ignores a token path with a non-network first segment", () => {
+        const u = parseUnfurls("https://app.memba.world/en/tokens/NEWS")
+        expect(u).toEqual([{ kind: "link", url: "https://app.memba.world/en/tokens/NEWS", host: "app.memba.world" }])
+    })
 })

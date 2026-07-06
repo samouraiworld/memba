@@ -10,19 +10,39 @@
  * @module lib/feedUnfurl
  */
 
+import { NETWORKS } from "./config"
+
 export type UnfurlRef =
     | { kind: "realm"; path: string; href: string }
+    | { kind: "token"; symbol: string; href: string }
     | { kind: "link"; url: string; host: string }
 
 const MAX_UNFURLS = 3
 
 const realm = (path: string): UnfurlRef => ({ kind: "realm", path, href: "https://gno.land/" + path })
 
+/**
+ * A Memba in-app token link — `/<network>/tokens/<SYMBOL>` — resolves to a live
+ * token card. The leading segment must be a real network key (so arbitrary
+ * `/x/tokens/y` paths on other sites stay plain links) and the symbol matches
+ * the GRC20 uppercase-alphanumeric shape. Returns the symbol, or null.
+ */
+function tokenSymbolFromPath(pathname: string): string | null {
+    const seg = pathname.split("/").filter(Boolean)
+    if (seg.length === 3 && seg[1] === "tokens" && NETWORKS[seg[0]] && /^[A-Z0-9]+$/.test(seg[2])) {
+        return seg[2]
+    }
+    return null
+}
+
 export function parseUnfurls(body: string): UnfurlRef[] {
     const out: UnfurlRef[] = []
     const seen = new Set<string>()
     const push = (r: UnfurlRef) => {
-        const key = r.kind === "realm" ? "realm:" + r.path : "link:" + r.url
+        const key =
+            r.kind === "realm" ? "realm:" + r.path
+            : r.kind === "token" ? "token:" + r.symbol
+            : "link:" + r.url
         if (seen.has(key)) return
         seen.add(key)
         if (out.length < MAX_UNFURLS) out.push(r)
@@ -36,8 +56,11 @@ export function parseUnfurls(body: string): UnfurlRef[] {
         const url = m[0].replace(/[.,;!?]+$/, "")
         try {
             const u = new URL(url)
+            const tokenSymbol = tokenSymbolFromPath(u.pathname)
             if (u.hostname === "gno.land" && /^\/(r|p)\//.test(u.pathname)) {
                 push(realm(u.pathname.replace(/^\//, "").replace(/\/$/, "")))
+            } else if (tokenSymbol) {
+                push({ kind: "token", symbol: tokenSymbol, href: url })
             } else {
                 push({ kind: "link", url, host: u.hostname })
             }
