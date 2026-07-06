@@ -1,4 +1,4 @@
-.PHONY: help proto-gen backend-run backend-build backend-test frontend-dev frontend-build frontend-lint lint test docker-build clean
+.PHONY: help proto-gen backend-run backend-build backend-test blockparty-vectors-check frontend-dev frontend-build frontend-lint lint test docker-build clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -22,6 +22,11 @@ backend-test: ## Run backend tests
 
 backend-lint: ## Lint backend code
 	cd backend && golangci-lint run ./...
+
+blockparty-vectors-check: ## Verify backend testdata vectors match frontend canonical
+	@diff -q frontend/src/game/engine/vectors/prng_vectors.json backend/internal/blockparty/engine/testdata/prng_vectors.json
+	@diff -q frontend/src/game/engine/vectors/game_vectors.json backend/internal/blockparty/engine/testdata/game_vectors.json
+	@echo "block party vectors: backend testdata matches frontend canonical"
 
 # Frontend
 frontend-dev: ## Run frontend dev server
