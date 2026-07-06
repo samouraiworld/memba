@@ -1,0 +1,49 @@
+.k-bp-board {
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  width: min(92vw, 420px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;                 /* keeps the board off the iOS edge-back zone */
+  padding: var(--space-2);
+  background: var(--color-k-panel);
+  border: 1px solid var(--color-k-edge);
+  border-radius: var(--radius-lg);
+  outline: none;
+}
+.k-bp-board:focus-visible { box-shadow: 0 0 0 2px var(--color-k-accent); }
+.k-bp-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  min-height: 44px;
+}
+.k-bp-cell--empty { background: var(--color-k-elevated); }
+.k-bp-tile {
+  color: #04120f; font-weight: 700;
+  background: var(--color-k-accent);
+  box-shadow: 0 0 12px var(--color-k-accent-tint);
+}
+/* brightness ramp: higher exponents get progressively lighter for colorblind safety */
+.k-bp-tile[data-exp="1"] { filter: brightness(0.72); } /* 2 */
+.k-bp-tile[data-exp="2"] { filter: brightness(0.80); }
+.k-bp-tile[data-exp="3"] { filter: brightness(0.88); }
+.k-bp-tile[data-exp="4"] { filter: brightness(0.96); }
+.k-bp-tile[data-exp="5"] { filter: brightness(1.04); }
+.k-bp-tile[data-exp="6"] { filter: brightness(1.12); }
+.k-bp-tile[data-exp="7"] { filter: brightness(1.20); }
+.k-bp-tile-val { font-size: clamp(0.9rem, 4vw, 1.4rem); }
+.k-bp-tile-label { font-size: 0.55rem; opacity: 0.85; margin-top: 2px; text-align: center; }
+.k-bp-scorebar { display: flex; gap: var(--space-6); justify-content: center; margin: var(--space-4) 0; font-family: var(--font-mono); }
+.k-bp-eyebrow { display: block; font-size: 0.6rem; color: var(--color-k-muted); letter-spacing: 0.08em; }
+.k-bp-score { color: var(--color-k-accent); font-size: 1.4rem; }
+.k-bp-modifier { color: var(--color-k-govdao); border: 1px solid var(--color-k-govdao-border); border-radius: var(--radius-full); padding: 2px var(--space-3); font-size: 0.7rem; }
+@media (prefers-reduced-motion: reduce) {
+  .k-bp-tile { box-shadow: none; }
+  .k-bp-board * { animation: none !important; transition: none !important; }
+}
