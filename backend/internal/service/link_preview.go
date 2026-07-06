@@ -238,13 +238,14 @@ func allowedImageType(ct string) bool {
 func (s *MultisigService) fetchLinkPreview(ctx context.Context, validatedURL string) (linkMeta, error) {
 	ctx, cancel := context.WithTimeout(ctx, linkPreviewTimeout)
 	defer cancel()
+	// #nosec G704 -- validatedURL passed validateLinkPreviewURL (scheme/port allowlist + private-IP reject); the fetch is pinned to safeTransport (dial-time rebind-safe IP guard) + validateRedirect.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, validatedURL, nil)
 	if err != nil {
 		return linkMeta{}, err
 	}
 	req.Header.Set("User-Agent", linkPreviewUA)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
-	resp, err := linkPreviewClient.Do(req)
+	resp, err := linkPreviewClient.Do(req) // #nosec G704 -- SSRF-guarded: validated URL + safeTransport dial-time IP guard + validateRedirect
 	if err != nil {
 		return linkMeta{}, err
 	}
@@ -329,8 +330,8 @@ func (s *MultisigService) GetLinkPreview(ctx context.Context, req *connect.Reque
 		Description:  meta.Description,
 		SiteName:     meta.SiteName,
 		CanonicalUrl: canonical,
-		ImageWidth:   int32(meta.ImageWidth),
-		ImageHeight:  int32(meta.ImageHeight),
+		ImageWidth:   int32(meta.ImageWidth),  // #nosec G115 -- clamped to [0,100000] in atoiClamp
+		ImageHeight:  int32(meta.ImageHeight), // #nosec G115 -- clamped to [0,100000] in atoiClamp
 	}
 	if meta.ImageURL != "" {
 		if imgURL, e := validateLinkPreviewURL(absoluteURL(canonical, meta.ImageURL)); e == nil {
@@ -362,13 +363,14 @@ func (s *MultisigService) HandleLinkImage() http.Handler {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), linkPreviewTimeout)
 		defer cancel()
+		// #nosec G704 -- imgURL re-validated by validateLinkPreviewURL above (and vetted at sign time); the fetch is pinned to safeTransport (dial-time rebind-safe IP guard) + validateRedirect.
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, imgURL, nil)
 		if err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 		req.Header.Set("User-Agent", linkPreviewUA)
-		resp, err := linkPreviewClient.Do(req)
+		resp, err := linkPreviewClient.Do(req) // #nosec G704 -- SSRF-guarded: re-validated URL + safeTransport dial-time IP guard + validateRedirect
 		if err != nil {
 			http.Error(w, "fetch failed", http.StatusBadGateway)
 			return
