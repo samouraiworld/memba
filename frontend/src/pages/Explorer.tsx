@@ -18,7 +18,7 @@ import { getGnowebUrl } from "../lib/gnoweb"
 import { useNetwork } from "../hooks/useNetwork"
 import { fetchRealmSourceSmart, type RealmSource } from "../lib/gnowebSource"
 import { renderMarkdown } from "../lib/markdownLite"
-import { fetchRealmFuncs, formatSignature, type GnoFunc } from "../lib/gnoFuncs"
+import { fetchRealmFuncs, formatSignature, resolveFnList, type GnoFunc } from "../lib/gnoFuncs"
 import { SourceCodeView } from "../components/directory/SourceCodeView"
 import "./explorer.css"
 
@@ -136,13 +136,12 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
             .catch(() => setFuncs([]))
     }, [relPath])
 
-    // Authoritative qfuncs signatures; fall back to the source parser's list.
-    const fnList: GnoFunc[] = useMemo(() => {
-        if (funcs && funcs.length > 0) return funcs
-        return (source?.functions ?? [])
-            .filter((f) => f.isExported)
-            .map((f) => ({ name: f.name, params: [], results: [] }))
-    }, [funcs, source])
+    // Authoritative qfuncs signatures; fall back to the source parser's exported
+    // names (resolveFnList owns the precedence — unit-tested in gnoFuncs.test).
+    const fnList: GnoFunc[] = useMemo(
+        () => resolveFnList(funcs, (source?.functions ?? []).filter((f) => f.isExported).map((f) => f.name)),
+        [funcs, source],
+    )
 
     return (
         <section className="realmview">
@@ -186,7 +185,20 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                     sourceLoading ? (
                         <p className="realmview__muted">Loading source…</p>
                     ) : source && source.files.length > 0 ? (
-                        <SourceCodeView files={source.files} activeFile={activeFile} />
+                        <>
+                            <div className="realmview__sourcehint">
+                                <span>Read-only view. Copy a file and experiment in the sandbox:</span>
+                                <a
+                                    className="realmview__playground"
+                                    href="https://play.gno.land"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Open Playground ↗
+                                </a>
+                            </div>
+                            <SourceCodeView files={source.files} activeFile={activeFile} />
+                        </>
                     ) : (
                         <p className="realmview__muted">Source unavailable — the chain RPC and gnoweb could not be reached.</p>
                     )

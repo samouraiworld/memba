@@ -21,6 +21,7 @@ import { fetchRealmSourceSmart } from "../../lib/gnowebSource"
 import type { RealmSource } from "../../lib/gnowebSource"
 import { renderMarkdown } from "../../lib/markdownLite"
 import { SourceCodeView } from "./SourceCodeView"
+import { ExplorerLink } from "./ExplorerLink"
 import { FileTree } from "./FileTree"
 import { FunctionList } from "./FunctionList"
 
@@ -249,8 +250,14 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                 </div>
                             )}
 
-                            {/* External links */}
+                            {/* Realm links: in-app Explorer (self-gated) + external gnoweb */}
                             <div className="drawer-links">
+                                <ExplorerLink
+                                    realmPath={path}
+                                    networkKey={networkKey}
+                                    className="drawer-links__item"
+                                    label="🔎 Open in Explorer"
+                                />
                                 <a
                                     href={gnowebLink}
                                     target="_blank"

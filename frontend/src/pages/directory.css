@@ -1250,6 +1250,9 @@ a.dir-card {
 }
 
 .drawer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
     padding-top: 12px;
     border-top: 1px solid var(--color-border);
 }
