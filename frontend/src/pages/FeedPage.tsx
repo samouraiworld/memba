@@ -22,6 +22,7 @@ import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
 import { FeedNotifications } from "../components/feed/FeedNotifications"
+import { FeedTrending } from "../components/feed/FeedTrending"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
 import { countNewer } from "../lib/feedPaging"
@@ -115,6 +116,8 @@ export default function FeedPage() {
             )}
 
             <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} />
+
+            <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)} />
 
             {newCount > 0 && (
                 <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">

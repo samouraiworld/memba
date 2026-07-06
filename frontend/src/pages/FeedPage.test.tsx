@@ -13,7 +13,7 @@ vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
 vi.mock("../lib/feedApi", () => ({
     fetchFeedTimeline: vi.fn(),
-    fetchFeedStats: vi.fn(async () => ({ livePosts: 0n, totalReplies: 0n, totalAuthors: 0n })),
+    fetchFeedStats: vi.fn(async () => ({ livePosts: 0n, totalReplies: 0n, totalAuthors: 0n, mostReplied: [] })),
 }))
 
 const { fetchFeedTimeline } = await import("../lib/feedApi")

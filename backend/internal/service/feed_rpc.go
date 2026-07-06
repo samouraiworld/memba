@@ -286,10 +286,25 @@ func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request
 		Scan(&totalAuthors); err != nil {
 		return nil, internalError("GetFeedStats/authors", err)
 	}
+	// Most-replied visible top-level posts (trending). reply_count is the same
+	// live-reply subquery the timeline uses; order by it descending.
+	rows, err := s.db.QueryContext(ctx, feedPostSelect+`
+		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0
+		ORDER BY reply_count DESC, p.post_id DESC LIMIT 5`)
+	if err != nil {
+		return nil, internalError("GetFeedStats/mostReplied", err)
+	}
+	defer func() { _ = rows.Close() }()
+	mostReplied, err := scanFeedPosts(rows)
+	if err != nil {
+		return nil, internalError("GetFeedStats/mostReplied-scan", err)
+	}
+
 	return connect.NewResponse(&membav1.GetFeedStatsResponse{
 		LivePosts:    u64(livePosts),
 		TotalReplies: u64(totalReplies),
 		TotalAuthors: u64(totalAuthors),
+		MostReplied:  mostReplied,
 	}), nil
 }
 
