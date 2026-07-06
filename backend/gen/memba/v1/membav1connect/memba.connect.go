@@ -158,6 +158,9 @@ const (
 	// MultisigServiceGetReplyNotificationsProcedure is the fully-qualified name of the
 	// MultisigService's GetReplyNotifications RPC.
 	MultisigServiceGetReplyNotificationsProcedure = "/memba.v1.MultisigService/GetReplyNotifications"
+	// MultisigServiceGetFeedStatsProcedure is the fully-qualified name of the MultisigService's
+	// GetFeedStats RPC.
+	MultisigServiceGetFeedStatsProcedure = "/memba.v1.MultisigService/GetFeedStats"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -221,6 +224,8 @@ type MultisigServiceClient interface {
 	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
 	// Replies to the caller's own posts — the "someone replied to you" surface.
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
+	// Feed-wide live stats for the header/rail (post + author counts).
+	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -486,6 +491,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetReplyNotifications")),
 			connect.WithClientOptions(opts...),
 		),
+		getFeedStats: connect.NewClient[v1.GetFeedStatsRequest, v1.GetFeedStatsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetFeedStatsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -533,6 +544,7 @@ type multisigServiceClient struct {
 	getUserFeed            *connect.Client[v1.GetUserFeedRequest, v1.GetUserFeedResponse]
 	getFeedThread          *connect.Client[v1.GetFeedThreadRequest, v1.GetFeedThreadResponse]
 	getReplyNotifications  *connect.Client[v1.GetReplyNotificationsRequest, v1.GetReplyNotificationsResponse]
+	getFeedStats           *connect.Client[v1.GetFeedStatsRequest, v1.GetFeedStatsResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -745,6 +757,11 @@ func (c *multisigServiceClient) GetReplyNotifications(ctx context.Context, req *
 	return c.getReplyNotifications.CallUnary(ctx, req)
 }
 
+// GetFeedStats calls memba.v1.MultisigService.GetFeedStats.
+func (c *multisigServiceClient) GetFeedStats(ctx context.Context, req *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
+	return c.getFeedStats.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -806,6 +823,8 @@ type MultisigServiceHandler interface {
 	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
 	// Replies to the caller's own posts — the "someone replied to you" surface.
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
+	// Feed-wide live stats for the header/rail (post + author counts).
+	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1067,6 +1086,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetReplyNotifications")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetFeedStatsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetFeedStatsProcedure,
+		svc.GetFeedStats,
+		connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -1153,6 +1178,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetFeedThreadHandler.ServeHTTP(w, r)
 		case MultisigServiceGetReplyNotificationsProcedure:
 			multisigServiceGetReplyNotificationsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetFeedStatsProcedure:
+			multisigServiceGetFeedStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1328,4 +1355,8 @@ func (UnimplementedMultisigServiceHandler) GetFeedThread(context.Context, *conne
 
 func (UnimplementedMultisigServiceHandler) GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetReplyNotifications is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedStats is not implemented"))
 }

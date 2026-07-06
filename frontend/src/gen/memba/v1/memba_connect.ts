@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetAttestationVouchersRequest, GetAttestationVouchersResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetFeedThreadRequest, GetFeedThreadResponse, GetFeedTimelineRequest, GetFeedTimelineResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetProfileRequest, GetProfileResponse, GetReplyNotificationsRequest, GetReplyNotificationsResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserFeedRequest, GetUserFeedResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetAttestationVouchersRequest, GetAttestationVouchersResponse, GetChallengeRequest, GetChallengeResponse, GetFavoritesRequest, GetFavoritesResponse, GetFeedStatsRequest, GetFeedStatsResponse, GetFeedThreadRequest, GetFeedThreadResponse, GetFeedTimelineRequest, GetFeedTimelineResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetProfileRequest, GetProfileResponse, GetReplyNotificationsRequest, GetReplyNotificationsResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserFeedRequest, GetUserFeedResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -420,6 +420,17 @@ export const MultisigService = {
       name: "GetReplyNotifications",
       I: GetReplyNotificationsRequest,
       O: GetReplyNotificationsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Feed-wide live stats for the header/rail (post + author counts).
+     *
+     * @generated from rpc memba.v1.MultisigService.GetFeedStats
+     */
+    getFeedStats: {
+      name: "GetFeedStats",
+      I: GetFeedStatsRequest,
+      O: GetFeedStatsResponse,
       kind: MethodKind.Unary,
     },
   }
