@@ -42,7 +42,7 @@ export default function BlockPartyGame() {
   const [mode, setMode] = useState<GameMode>("ranked");
   const [hinted, setHinted] = useState(true); // default true (hidden) until effect confirms first-session
   const [showHint, setShowHint] = useState(false);
-  const practiceSeedRef = useRef<number | null>(null);
+  const [practiceSeed, setPracticeSeed] = useState<number>(() => randomSeed());
   const [authError, setAuthError] = useState<string | null>(null);
   const authBusyRef = useRef(false);
 
@@ -70,13 +70,8 @@ export default function BlockPartyGame() {
     }
   }, [hinted]);
 
-  // Practice mode uses a client-random seed, generated once per practice session.
-  if (mode === "practice" && practiceSeedRef.current === null) {
-    practiceSeedRef.current = randomSeed();
-  }
-
   const ranked = mode === "ranked";
-  const seed = ranked ? (challenge?.seed ?? 0) : practiceSeedRef.current ?? 0;
+  const seed = ranked ? (challenge?.seed ?? 0) : practiceSeed;
   const modifier: Modifier = ranked ? ((challenge?.modifier as Modifier) ?? "standard") : "standard";
   const moveBudget = ranked ? (challenge?.moveBudget ?? 0) : Infinity;
   const canPlayRanked = ranked && !!challenge?.ready;
@@ -93,8 +88,9 @@ export default function BlockPartyGame() {
     if (prevMode.current !== mode) {
       prevMode.current = mode;
       if (mode === "practice") {
-        practiceSeedRef.current = randomSeed();
-        restart(practiceSeedRef.current);
+        const s = randomSeed();
+        setPracticeSeed(s);
+        restart(s);
       } else if (challenge?.ready) {
         restart(challenge.seed);
       }
@@ -248,7 +244,14 @@ export default function BlockPartyGame() {
           <h2 className="k-bp-over-score">{score.toLocaleString()}</h2>
           <p className="k-bp-over-note">Local best: {getLocalBest("practice").toLocaleString()}</p>
           <ShareCard date={date} board={board} streak={getLocalStreak().current} modifier={modifier} />
-          <button className="k-bp-btn" onClick={() => restart(randomSeed())}>
+          <button
+            className="k-bp-btn"
+            onClick={() => {
+              const s = randomSeed();
+              setPracticeSeed(s);
+              restart(s);
+            }}
+          >
             Play again
           </button>
         </div>
