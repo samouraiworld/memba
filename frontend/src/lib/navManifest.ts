@@ -18,7 +18,7 @@ import {
     PuzzlePiece, Robot, Handshake, ImageSquare,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
-    ChatCircle,
+    ChatCircle, MagnifyingGlass,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -61,6 +61,7 @@ export const NAV: NavEntry[] = [
     { id: 'dao', to: '/dao', label: 'DAOs', Icon: Buildings, group: 'govern', showOn: 'both' },
     { id: 'tokens', to: '/tokens', label: 'Tokens', Icon: Coins, group: 'wallet', showOn: 'both' },
     { id: 'directory', to: '/directory', label: 'Directory', Icon: FolderOpen, group: 'explore', showOn: 'both' },
+    { id: 'explorer', to: '/explorer', label: 'Explorer', Icon: MagnifyingGlass, group: 'explore', showOn: 'both', flag: 'VITE_ENABLE_EXPLORER' },
     { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'govern', showOn: 'both' },
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },

@@ -9,6 +9,7 @@ import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
+import { ExplorerGate } from "./components/ui/ExplorerGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
@@ -68,6 +69,7 @@ const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 const FeedPage = lazy(() => import("./pages/FeedPage"))
 const FeedThread = lazy(() => import("./pages/FeedThread"))
 const FeedProfile = lazy(() => import("./pages/FeedProfile"))
+const Explorer = lazy(() => import("./pages/Explorer").then(m => ({ default: m.Explorer })))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -232,6 +234,7 @@ function App() {
 
           {/* Directory */}
           <Route path="directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
+          <Route path="explorer/*" element={<ExplorerGate><Suspense fallback={<PageLoader />}><Explorer /></Suspense></ExplorerGate>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
           <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />

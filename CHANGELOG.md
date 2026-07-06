@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Explorer — read any realm in-app (W9 P0, 2026-07-06)
+- **New `/explorer/*` realm viewer** behind `VITE_ENABLE_EXPLORER` (ordinary flag, off by default): deep-linkable `/explorer/r/<path>` shows any realm's live **Render** (`vm/qrender`), authoritative on-chain **Source** (`vm/qfile`, reusing the Directory's viewer), and exported **Functions** (`vm/qfuncs` signatures). Read-only by construction — three query paths only, no `vm/qeval`/execution surface (SEC-01) — needs no wallet and moves no funds. Verified live on test13 across multiple realms. Deferred to a later increment: the qeval read-console (reopens the SEC-01 surface) and an in-app code editor.
+
 ### Social feed — Wave 2: on-chain object unfurls (2026-07-06)
 - **The differentiator.** Paste a **gno.land realm/package reference** (`r/ns/name`, `p/ns/name`, or a full `gno.land/r/...` URL) into a post and it renders as an **on-chain card** below the body — an accent-spined "on-chain" chip with the realm name + namespace, linking to gno.land — something no web2 feed can do. Other URLs render as compact link cards (host + open-in-new-tab). Deterministic parse (`lib/feedUnfurl`, capped per post as light anti-spam, no external fetch); the cards sit above the card's open-thread overlay so they're independently clickable. Typed live-data cards (token supply, validator uptime, proposal votes) slot into the same parse → card path as a follow-up. Behind `VITE_ENABLE_FEED`.
 

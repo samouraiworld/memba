@@ -642,6 +642,9 @@ export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
 /** Social feed (W7.2). Ordinary flag — no funds. Literal reader (dynamic
  * import.meta.env[key] is undefined in prod bundles). */
 export const isFeedEnabled = (): boolean => import.meta.env.VITE_ENABLE_FEED === "true"
+/** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
+ * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
+export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"
 
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {
