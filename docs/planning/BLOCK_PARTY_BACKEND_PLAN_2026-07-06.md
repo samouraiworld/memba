@@ -1,5 +1,13 @@
 # Block Party — Sub-plan 2: Go Verifier + Backend RPCs — Implementation Plan
 
+> **STATUS (2026-07-06): IMPLEMENTED & REVIEWED.** All 16 tasks (A1–A7, B1–B9) built via subagent-driven development, each spec+quality reviewed, final opus security review passed ("with fixes" — no Critical). Whole feature suite green; `go build ./...` + `golangci-lint` clean. Ships dark behind `BLOCKPARTY_ENABLED`.
+>
+> ## Known v1 gaps — PRE-ENABLE / PRE-PHASE-3 CHECKLIST (from the final security review)
+> The submit path is score-trust-safe (score = server replay, auth-before-replay, no-op/length CPU guards, honest immutable seed). Before flipping `BLOCKPARTY_ENABLED` and especially before Phase-3 XP attaches value to the leaderboard, address:
+> 1. **Per-address submit rate limiter (do before enable).** `SubmitScore` relies only on the shared IP limiter; a valid-token caller can trigger a (microsecond) replay per rejected attempt. Add `s.rateLimitUser(addr, ratelimit.BlockPartySubmitEndpoint)` right after `authenticate`, mirroring the quest pattern (new endpoint const + per-user config in `internal/ratelimit`, wired in `main.go`; nil-limiter in tests keeps them green).
+> 2. **Per-submission signature (FIX-BEFORE-VALUE / Phase-3 blocker).** v1 reuses the existing session `Token`, not a single-use nonce signing over `hash(date‖moveLog)` as design §7.2 intended. Acceptable while the score is replay-authoritative and no reward is attached (a replayed token can at worst submit *a legal game* as the holder, capped one-per-day). MUST be added before XP/badges gate on rank. **Honesty rule:** advertise "verifiably un-rigged daily board"; never "trustless/cheat-proof leaderboard" in v1.
+> 3. **Fast-follow (defense-in-depth / polish):** wrap `BumpStreak` read-modify-write in a `sql.Tx` (latent TOCTOU, currently unreachable under single-writer SQLite + one-per-day guard); add a shared `validateDate` returning `CodeInvalidArgument` for malformed dates on read handlers; `board_hash_final` + `verification_status` are honest inert placeholders (do not lean on them for anti-cheat claims yet); `par` is a seed heuristic until a rolling median exists.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the server side of Block Party: a byte-identical **Go port** of the TS engine (validated against the shared golden vectors + a frozen differential corpus), the **daily-seed derivation** from a Gno block, the **SQLite data model**, and the four **ConnectRPC endpoints** (`GetDailyChallenge`, `SubmitScore`, `GetDailyLeaderboard`, `GetStreak`) with server-side replay verification.
