@@ -646,6 +646,9 @@ export const isGameEnabled = (): boolean => import.meta.env.VITE_ENABLE_GAME ===
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"
+/** App Store (W9). SAFETY-GATED — the realm's RegisterApp fee path is not yet
+ * verified on-chain (see SAFETY_GATED_FLAGS). Literal reader (prod-bundle safe). */
+export const isAppStoreEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE === "true"
 
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {

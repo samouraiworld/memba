@@ -18,7 +18,7 @@ import {
     PuzzlePiece, Robot, Handshake, ImageSquare,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
-    ChatCircle, MagnifyingGlass,
+    ChatCircle, MagnifyingGlass, Storefront,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -77,6 +77,7 @@ export const NAV: NavEntry[] = [
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
     { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
     { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
+    { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_APPSTORE' },
 
     // ── Account ─────────────────────────────────────────────────────
     { id: 'profile', to: '/profile', label: 'Profile', Icon: User, group: 'account', showOn: 'both', requiresAuth: true },
