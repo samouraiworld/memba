@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: reaction bar (frontend) (2026-07-06)
+- Posts gain a **reaction bar** — the live per-emoji counts (from `GetPostReactions`), with the wallet's own reactions highlighted, and a **one-per-emoji toggle** via a single on-chain `AddReaction`/`RemoveReaction` tx (a disconnected tap connects first). An **add-picker** exposes the realm's fixed 9-emoji set. Adds the `buildAddReactionMsg`/`buildRemoveReactionMsg` builders (ordinary Adena `vm/MsgCall`, no multisig path). **Off by default** behind `VITE_ENABLE_REACTIONS` — the flag is checked before any data hook, so a disabled build runs no query — and dark until the reaction-enabled `memba_feed_v1` realm is deployed to test13. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: reactions backend (indexer + counts RPC) (2026-07-06)
 - Backend plumbing for on-chain reactions: the feed indexer now projects the realm's `ReactionAdded` / `ReactionRemoved` events into a rebuildable `feed_reactions` table (one row per post/emoji/wallet, idempotent), and a new public `GetPostReactions` RPC returns per-emoji **counts** (count-descending) plus, for a given viewer, **which emojis that wallet reacted with** — batched over a page of posts. Counts are always derived (never stored), so the projection can't drift from the event stream. TDD (dispatch idempotency/toggle/malformed-skip + RPC counts/viewer-flag). **Dark until the reaction-enabled `memba_feed_v1` realm is deployed to test13 (samcrew-deployer #61) and the frontend reaction bar lands; behind `VITE_ENABLE_FEED`.**
 
