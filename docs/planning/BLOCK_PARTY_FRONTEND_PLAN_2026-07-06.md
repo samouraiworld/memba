@@ -423,50 +423,55 @@ Expected: FAIL — cannot find `./useGame`.
 
 ```ts
 // frontend/src/game/hooks/useGame.ts
+// NOTE: game state AND move log live in ONE state object so `play` is a single
+// PURE setState updater (no nested setter) — StrictMode-safe (the app is wrapped
+// in <StrictMode>, which double-invokes updaters; a nested setMoveLog would
+// double-append the move and corrupt the log).
 import { useCallback, useRef, useState } from "react";
 import { initGame, step, type GameState, type Modifier, type Move } from "../engine";
 
 export type GameMode = "ranked" | "practice";
+type Internal = { game: GameState; log: string };
 
 export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode; moveBudget: number }) {
   const { modifier, mode, moveBudget } = opts;
-  const [state, setState] = useState<GameState>(() => initGame(opts.seed, modifier));
-  const [moveLog, setMoveLog] = useState("");
+  const [internal, setInternal] = useState<Internal>(() => ({ game: initGame(opts.seed, modifier), log: "" }));
   const seedRef = useRef(opts.seed);
 
-  const movesUsed = state.moves;
-  const budgetReached = mode === "ranked" && movesUsed >= moveBudget;
-
   const play = useCallback((m: Move) => {
-    setState((prev) => {
-      if (prev.over) return prev;
-      if (mode === "ranked" && prev.moves >= moveBudget) return prev;
-      const next = step(prev, m);
-      if (next === prev) return prev; // no-op: not counted, not logged
-      setMoveLog((log) => log + m);
-      return next;
+    setInternal((prev) => {
+      if (prev.game.over) return prev;
+      if (mode === "ranked" && prev.game.moves >= moveBudget) return prev;
+      const next = step(prev.game, m);
+      if (next === prev.game) return prev; // no-op: unchanged, not counted, not logged
+      return { game: next, log: prev.log + m };
     });
   }, [mode, moveBudget]);
 
   const restart = useCallback((seed?: number) => {
     const s = seed ?? seedRef.current;
     seedRef.current = s;
-    setState(initGame(s, modifier));
-    setMoveLog("");
+    setInternal({ game: initGame(s, modifier), log: "" });
   }, [modifier]);
 
+  const game = internal.game;
+  const movesUsed = game.moves;
+  const budgetReached = mode === "ranked" && movesUsed >= moveBudget;
+
   return {
-    board: state.board,
-    score: state.score,
+    board: game.board,
+    score: game.score,
     movesUsed,
     movesLeft: mode === "ranked" ? Math.max(0, moveBudget - movesUsed) : Infinity,
-    over: state.over || budgetReached,
-    moveLog,
+    over: game.over || budgetReached,
+    moveLog: internal.log,
     play,
     restart,
   };
 }
 ```
+
+Also add a StrictMode regression test (import `StrictMode` from `react`) asserting a single `play` of a board-changing move appends exactly one char (`before + 1`, never two) when `renderHook` is wrapped in `{ wrapper: StrictMode }`.
 
 - [ ] **Step 4: Run to verify it passes**
 
