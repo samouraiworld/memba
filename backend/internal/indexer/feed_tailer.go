@@ -141,11 +141,22 @@ func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched
 			log.Warn("feed tailer: block_results fetch failed", "height", h, "error", err)
 			return
 		}
+		// Deterministic per-post timestamp: the block header time, denormalized
+		// at ingest (survives rebuild-from-raw, unlike the ingest wall-clock).
+		// Fetched only when the block carries a watched event.
+		blockTime := int64(0)
+		if hasWatched(events, watched) {
+			blockTime, err = src.BlockTime(ctx, h)
+			if err != nil {
+				log.Warn("feed tailer: block time fetch failed", "height", h, "error", err)
+				return
+			}
+		}
 		for _, ev := range events {
 			if _, ok := watched[ev.PkgPath]; !ok {
 				continue
 			}
-			if err := dispatchFeedEvent(ctx, db, ev, hash); err != nil {
+			if err := dispatchFeedEvent(ctx, db, ev, hash, blockTime); err != nil {
 				log.Warn("feed tailer: dispatch failed — will retry block",
 					"height", h, "type", ev.Type, "error", err)
 				return
@@ -156,6 +167,17 @@ func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched
 			return
 		}
 	}
+}
+
+// hasWatched reports whether any event in the block belongs to a watched realm
+// — the guard that keeps block-time fetches to blocks that actually matter.
+func hasWatched(events []GnoEvent, watched map[string]struct{}) bool {
+	for _, ev := range events {
+		if _, ok := watched[ev.PkgPath]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // loadFeedCursor returns the minimum last_processed_block across the watched

@@ -51,3 +51,18 @@ export async function fetchFeedThread(postId: bigint, cursor = 0n, limit = 50): 
         return { root: null, replies: [], nextCursor: 0n }
     }
 }
+
+/** Replies to the caller's own posts (newest-first) + how many are unread
+ *  relative to sinceId. latestId advances the last-seen cursor. */
+export async function fetchReplyNotifications(
+    author: string,
+    sinceId = 0n,
+    limit = 20,
+): Promise<{ replies: FeedPost[]; unreadCount: number; latestId: bigint }> {
+    try {
+        const res = await api.getReplyNotifications({ author, sinceId, limit })
+        return { replies: res.replies ?? [], unreadCount: res.unreadCount ?? 0, latestId: res.latestId ?? 0n }
+    } catch {
+        return { replies: [], unreadCount: 0, latestId: 0n }
+    }
+}

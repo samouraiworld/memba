@@ -33,7 +33,11 @@ const EXAMPLES = [
 /** Normalize any user input / URL splat to a `gno.land/...` pkg path (or ""). */
 function toRealmPath(raw: string): string {
     let p = (raw || "").trim().replace(/^https?:\/\/[^/]+/, "")
-    p = p.replace(/^gno\.land/, "").replace(/^\/+/, "").replace(/\/+$/, "")
+    p = p.replace(/^gno\.land/, "").replace(/^\/+/, "")
+    // Drop any gnoweb render-path / help / query suffix (`:render`, `$help`,
+    // `?a=b`) so a pasted realm URL resolves to the bare pkgpath the qrender/
+    // qfile/qfuncs queries need (qfile/qfuncs 404 on a path with a `:` suffix).
+    p = p.replace(/[:$?].*$/, "").replace(/\/+$/, "")
     return p ? `gno.land/${p}` : ""
 }
 

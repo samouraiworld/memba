@@ -39,11 +39,11 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	posts := []*membav1.FeedPost{}
 	for rows.Next() {
 		var (
-			id, replyTo, blockH, editedAt, flagCount, replyCount sql.NullInt64
-			author, body                                         sql.NullString
-			hidden, deleted                                      sql.NullBool
+			id, replyTo, blockH, blockTs, editedAt, flagCount, replyCount sql.NullInt64
+			author, body                                                 sql.NullString
+			hidden, deleted                                              sql.NullBool
 		)
-		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH,
+		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH, &blockTs,
 			&editedAt, &flagCount, &hidden, &deleted, &replyCount); err != nil {
 			return nil, err
 		}
@@ -53,6 +53,7 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 			Body:       body.String,
 			ReplyTo:    u64(replyTo.Int64),
 			BlockH:     blockH.Int64,
+			BlockTs:    blockTs.Int64,
 			EditedAt:   editedAt.Int64,
 			FlagCount:  u32(flagCount.Int64),
 			Hidden:     hidden.Bool,
@@ -66,7 +67,7 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 // feedPostSelect is the shared column list. reply_count is computed as the
 // number of live (not deleted, not hidden) replies indexed under each post.
 const feedPostSelect = `
-	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h,
+	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
 	       p.edited_at, p.flag_count, p.hidden, p.deleted,
 	       (SELECT COUNT(*) FROM feed_posts c
 	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count
@@ -205,6 +206,64 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 		Root:       rootPosts[0],
 		Replies:    replies,
 		NextCursor: next,
+	}), nil
+}
+
+// GetReplyNotifications returns live replies to the caller's OWN posts, by
+// OTHER people, newest-first — the "someone replied to you" surface. unread is
+// the count with id > since_id (the client's last-seen), latest_id advances the
+// cursor. Public read — no auth (the address is not a secret; the client asks
+// only for its own).
+func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connect.Request[membav1.GetReplyNotificationsRequest]) (*connect.Response[membav1.GetReplyNotificationsResponse], error) {
+	author := req.Msg.Author
+	if author == "" || len(author) > 100 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+	limit := feedLimit(req.Msg.Limit)
+
+	// A reply r notifies `author` when its parent p was authored by `author`,
+	// r is by someone else, and r is live. reply_count is kept for card parity.
+	const joinWhere = `
+		FROM feed_posts r
+		JOIN feed_posts p ON p.post_id = r.reply_to
+		WHERE p.author = ? AND r.author != ? AND r.hidden = 0 AND r.deleted = 0`
+
+	q := `
+		SELECT r.post_id, r.author, r.body, r.reply_to, r.block_h, r.block_ts,
+		       r.edited_at, r.flag_count, r.hidden, r.deleted,
+		       (SELECT COUNT(*) FROM feed_posts c
+		          WHERE c.reply_to = r.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count` +
+		joinWhere + ` ORDER BY r.post_id DESC LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, q, author, author, limit)
+	if err != nil {
+		return nil, internalError("GetReplyNotifications", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	replies, err := scanFeedPosts(rows)
+	if err != nil {
+		return nil, internalError("GetReplyNotifications/scan", err)
+	}
+
+	// unread = notifications strictly newer than the client's last-seen id.
+	var unread int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*)`+joinWhere+` AND r.post_id > ?`,
+		author, author, req.Msg.SinceId,
+	).Scan(&unread); err != nil {
+		return nil, internalError("GetReplyNotifications/unread", err)
+	}
+
+	var latest uint64
+	if len(replies) > 0 {
+		latest = replies[0].Id // newest-first, so [0] is the max id
+	}
+
+	return connect.NewResponse(&membav1.GetReplyNotificationsResponse{
+		Replies:     replies,
+		UnreadCount: u32(unread),
+		LatestId:    latest,
 	}), nil
 }
 
