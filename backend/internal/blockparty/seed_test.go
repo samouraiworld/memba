@@ -28,7 +28,11 @@ func TestDeriveModifier_InSet(t *testing.T) {
 
 func TestDerivePar_PositiveDeterministic(t *testing.T) {
 	s := DeriveSeed("ABC", "2026-07-06")
-	if DerivePar(s) <= 0 || DerivePar(s) != DerivePar(s) {
-		t.Fatal("par must be positive and deterministic")
+	p := DerivePar(s)
+	if p <= 0 {
+		t.Fatal("par must be positive")
+	}
+	if DerivePar(s) != p {
+		t.Fatal("par must be deterministic")
 	}
 }
