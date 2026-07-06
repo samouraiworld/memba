@@ -136,11 +136,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Coverage instrumentation runs only on the Node 22 leg (the one that
+      # uploads it). Node 20 runs the same suite for version-compat WITHOUT the
+      # ~coverage overhead + duplicate artifact — the results are identical, so
+      # instrumenting both legs was wasted compute.
+      - name: Unit tests (version-compat)
+        if: matrix.node-version == '20'
+        run: npm test
+
       - name: Unit tests with coverage
+        if: matrix.node-version == '22'
         run: npm test -- --coverage
 
       - name: Upload frontend coverage
-        if: always()
+        if: always() && matrix.node-version == '22'
         uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-node${{ matrix.node-version }}
@@ -189,7 +198,10 @@ jobs:
             frontend/playwright-report/
           retention-days: 7
 
+      # Dependency audit is Node-version-independent — run once (Node 22), not
+      # on both matrix legs.
       - name: Security audit
+        if: matrix.node-version == '22'
         run: npm audit --audit-level=high --omit=dev
 
       - name: Lighthouse CI
