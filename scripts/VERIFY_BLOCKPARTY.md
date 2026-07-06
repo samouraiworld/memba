@@ -97,14 +97,19 @@ If the backend's derivation ever changes, this script (and its `--selftest`
 vector) must be updated in the same change, or the "verifiable" claim becomes
 false.
 
-## Known backend/live-node discrepancy (flagged, not fixed here)
+## Live-node wire-format handling (fixed)
 
-The backend's `httpBlockFetcher.BlockAt` (`backend/internal/service/blockparty_chain.go`)
-reads the block hash from `result.block_id.hash` in the `/block?height=N`
-response. Querying the real public test13 RPC directly shows the block hash
-is actually nested under `result.block_meta.block_id.hash` — the top-level
-`block_id` key is not present on that node's response shape. This script
-checks both locations so it works against the live node today, but the
-backend path itself has not been verified against a live node (it currently
-has only mocked-fetcher unit tests) and may need the same fallback/fix
-applied before `GetDailyChallenge` can serve a real challenge in production.
+The real public test13 RPC nests the block hash under
+`result.block_meta.block_id.hash` in the `/block?height=N` response — the
+top-level `result.block_id` key is not present on that node's response shape.
+This script reads `block_meta.block_id.hash` (with a top-level fallback), and
+the backend's `httpBlockFetcher.BlockAt`
+(`backend/internal/service/blockparty_chain.go`) now does the same **and
+fails loud if no block hash is present** rather than silently deriving the
+seed from an empty hash. This parse is guarded by
+`backend/internal/service/blockparty_chain_test.go`
+(`TestHttpBlockFetcher_ParsesRealWireFormat`, `TestHttpBlockFetcher_EmptyHashFailsLoud`),
+which exercise the real wire shape end-to-end — the gap that previously let
+this ship unnoticed was that every earlier test mocked the fetcher. So the
+backend and this script now derive the same seed from the same live-node
+field.
