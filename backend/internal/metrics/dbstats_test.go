@@ -29,7 +29,7 @@ func TestRegisterDBStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	reg := prometheus.NewPedanticRegistry()
 	metrics.RegisterDBStats(reg, database)
@@ -56,7 +56,7 @@ func TestRegisterDBStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("grab conn: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if v := metricValue(t, reg, "memba_db_connections_in_use"); v < 1 {
 		t.Fatalf("expected in_use >= 1 while holding a connection, got %v", v)
