@@ -67,12 +67,17 @@ export async function fetchReplyNotifications(
     }
 }
 
-/** Feed-wide live counters for the header (posts / replies / authors). */
-export async function fetchFeedStats(): Promise<{ livePosts: bigint; totalReplies: bigint; totalAuthors: bigint }> {
+/** Feed-wide live counters + most-replied (trending) posts for the header/rail. */
+export async function fetchFeedStats(): Promise<{ livePosts: bigint; totalReplies: bigint; totalAuthors: bigint; mostReplied: FeedPost[] }> {
     try {
         const res = await api.getFeedStats({})
-        return { livePosts: res.livePosts ?? 0n, totalReplies: res.totalReplies ?? 0n, totalAuthors: res.totalAuthors ?? 0n }
+        return {
+            livePosts: res.livePosts ?? 0n,
+            totalReplies: res.totalReplies ?? 0n,
+            totalAuthors: res.totalAuthors ?? 0n,
+            mostReplied: res.mostReplied ?? [],
+        }
     } catch {
-        return { livePosts: 0n, totalReplies: 0n, totalAuthors: 0n }
+        return { livePosts: 0n, totalReplies: 0n, totalAuthors: 0n, mostReplied: [] }
     }
 }
