@@ -3,7 +3,7 @@
  * Covers all supported elements + XSS safety.
  */
 import { describe, it, expect } from "vitest"
-import { renderMarkdown } from "./markdownLite"
+import { renderMarkdown, renderPostBody } from "./markdownLite"
 
 describe("markdownLite", () => {
     // ── Headings ──────────────────────────────────────────
@@ -126,5 +126,48 @@ describe("markdownLite", () => {
     it("allows gno.land/ relative links", () => {
         const html = renderMarkdown("[dao](gno.land/r/gov/dao)")
         expect(html).toContain('href="gno.land/r/gov/dao"')
+    })
+})
+
+describe("renderPostBody (inline-only, untrusted feed posts)", () => {
+    it("renders bold, italic, and inline code", () => {
+        expect(renderPostBody("**b** *i* `c`")).toBe(
+            '<strong>b</strong> <em>i</em> <code class="md-inline-code">c</code>',
+        )
+    })
+
+    it("renders a safe markdown link (new tab, noopener)", () => {
+        const h = renderPostBody("see [x](https://example.com)")
+        expect(h).toContain('href="https://example.com"')
+        expect(h).toContain('target="_blank"')
+        expect(h).toContain('rel="noopener noreferrer"')
+    })
+
+    it("blocks a javascript: link (protocol whitelist)", () => {
+        const h = renderPostBody("[x](javascript:alert(1))")
+        expect(h).toContain('href="#"')
+        expect(h).not.toContain("javascript:")
+    })
+
+    it("escapes raw HTML (no XSS)", () => {
+        const h = renderPostBody('<img src=x onerror="alert(1)"> <script>alert(2)</script>')
+        expect(h).not.toMatch(/<img|<script/)
+        expect(h).toContain("&lt;img")
+        expect(h).toContain("&lt;script&gt;")
+    })
+
+    it("does NOT render block markdown (headings/lists stay literal)", () => {
+        expect(renderPostBody("# not a heading")).toBe("# not a heading")
+        expect(renderPostBody("- not a list")).toBe("- not a list")
+    })
+
+    it("does NOT auto-link addresses in a post (v1)", () => {
+        const h = renderPostBody("gm g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+        expect(h).not.toContain("/profile/")
+        expect(h).not.toContain("<a")
+    })
+
+    it("returns empty for an empty body", () => {
+        expect(renderPostBody("")).toBe("")
     })
 })
