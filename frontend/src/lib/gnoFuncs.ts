@@ -31,13 +31,14 @@ export interface GnoFunc {
  * builtin/primitive types (`.uverse.address` → `address`, `.uverse.realm` →
  * `realm`), including nested forms (`[].uverse.int` → `[]int`,
  * `map[.uverse.string].uverse.address` → `map[string]address`). The match is
- * anchored on the literal `.uverse.` qualifier, so it removes only the qualifier
- * and never mangles a legitimate type name.
+ * boundary-anchored (start-of-string or a non-identifier char before the
+ * qualifier), so it strips only the VM qualifier and leaves a name that merely
+ * contains `.uverse.` mid-identifier intact.
  */
 export function simplifyType(raw: string): string {
     const t = (raw || "").trim()
     if (t.startsWith("interface {") && t.includes(".seal func()")) return "realm"
-    return t.replace(/\.uverse\./g, "")
+    return t.replace(/(^|[^\w.])\.uverse\./g, "$1")
 }
 
 /**

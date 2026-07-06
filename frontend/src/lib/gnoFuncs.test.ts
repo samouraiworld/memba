@@ -36,6 +36,9 @@ describe("simplifyType", () => {
         expect(simplifyType("*.uverse.address")).toBe("*address")
         expect(simplifyType("map[.uverse.string].uverse.address")).toBe("map[string]address")
     })
+    it("leaves a `.uverse.` that is mid-identifier (not the VM qualifier) intact", () => {
+        expect(simplifyType("pkg.uverse.Thing")).toBe("pkg.uverse.Thing")
+    })
 })
 
 describe("parseQfuncs", () => {
