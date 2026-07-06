@@ -20,6 +20,9 @@ export function initGame(seed: number, modifier: Modifier): GameState {
 
 export function step(state: GameState, move: Move): GameState {
   const next = applyMove(state, move);
+  // Depends on applyMove's contract: it returns the IDENTICAL state object on a
+  // no-op move. If move.ts is ever changed to always return a fresh object,
+  // update this no-op detection (e.g. compare rngCallCount) — see move.test.ts.
   if (next === state) return state; // no-op passthrough
   return { ...next, over: isGameOver(next.board) };
 }

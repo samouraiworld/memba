@@ -36,6 +36,6 @@ export function applyMove(state: GameState, move: Move): GameState {
     rng: spawned.rng,
     rngCallCount: spawned.rngCallCount,
     moves: state.moves + 1,
-    over: false, // set by initGame/replay via isGameOver in Task 6 wiring
+    over: false, // provisional — callers (step/replay) MUST recompute via isGameOver
   };
 }

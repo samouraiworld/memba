@@ -13,7 +13,12 @@ export function spawnTile(
   rngCallCount: number,
   modifier: Modifier
 ): { board: Board; rng: RngState; rngCallCount: number } {
+  // Full-board guard: no empty cell -> spawn nothing, consume no RNG.
+  // A Go/Gno port MUST mirror this early-return (Go would otherwise panic on % 0).
   const empties = emptyCells(board);
+  if (empties.length === 0) {
+    return { board: board.slice(), rng, rngCallCount };
+  }
   // position draw
   let r = rngNext(rng);
   const pos = empties[r.value % empties.length];

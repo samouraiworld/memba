@@ -35,4 +35,12 @@ describe("spawnTile", () => {
     const placed = r.board.filter((v) => v !== 0);
     expect([4, 8]).toContain(placed[0]);
   });
+
+  it("is a no-op on a full board and consumes no RNG (mirror-able in Go)", () => {
+    const full = new Array(16).fill(2);
+    const r = spawnTile(full, 12345, 7, "standard");
+    expect(r.board).toEqual(full);
+    expect(r.rng).toBe(12345);
+    expect(r.rngCallCount).toBe(7);
+  });
 });
