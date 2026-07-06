@@ -210,3 +210,72 @@
     cursor: default;
     opacity: 0.7;
 }
+
+/* ── Thread + profile views (W7.2 P1.5) ─────────────────────── */
+.feed-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    border: none;
+    background: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    padding: 4px 0;
+}
+.feed-back:hover { color: var(--color-text); }
+
+.feed-post__author {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    color: var(--color-primary);
+    cursor: pointer;
+}
+.feed-post__author:disabled { color: var(--color-text-muted); cursor: default; }
+.feed-post__author:hover:not(:disabled) { text-decoration: underline; }
+
+/* Body-as-thread-link: reset button chrome, keep the post's text styling. */
+.feed-post__body--link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+}
+.feed-post__body--link:hover { color: var(--color-text); }
+
+.feed-post__stat--btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    color: var(--color-text-secondary);
+    font: inherit;
+}
+.feed-post__stat--btn:disabled { cursor: default; }
+.feed-post__stat--btn:hover:not(:disabled) { color: var(--color-primary); }
+
+.feed-thread__reply { margin: 4px 0 8px; }
+.feed-thread__replies { display: flex; flex-direction: column; gap: 8px; }
+.feed-thread__empty,
+.feed-profile__head { color: var(--color-text-secondary); }
+.feed-thread__empty { font-size: var(--text-sm, 0.875rem); padding: 4px 2px; margin: 0; }
+
+.feed-profile__head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 4px;
+}
