@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-05 · Lane A · feed P1.5 thread/profile views · START→STOP (single session) · frontend: components/feed/{PostCard,FeedComposer}.tsx (new, extracted), lib/feedTypes.ts + feedTypes.test.ts (new), pages/FeedPage.tsx (refactor to shared components + nav), pages/FeedThread.tsx + FeedProfile.tsx (new), App.tsx routes (feed/post/:id, feed/user/:address), pages/feed.css, e2e/feed-gating.spec.ts (sub-route gating) · CHANGELOG.md (single-writer: registered) · reads live GetFeedThread/GetUserFeed RPCs — no realm/backend change; behind VITE_ENABLE_FEED · branch feat/w72-feed-thread-view
+
 2026-07-04 · Lane A · UX polish (owner-requested): nav placement + marketplace/blog redesign + validator reviews fix · START→STOP (single session) · frontend: lib/navManifest.ts, components/layout/Sidebar.tsx (+test), pages/UnifiedMarketplace.tsx + unified-marketplace.css, pages/Blog.tsx + blog.css, pages/Validators.tsx, components/validators/{ValidatorReviewStars.tsx,validatorReviewsData.ts} (+test) · CHANGELOG.md (single-writer: registered) · no auth/sig paths; no api/**; no shared tx hooks · branch feat/ux-polish-jul4
 
 2026-07-04 · Lane B · W7.3 activity bot · START→STOP (single session) · backend: cmd/activitybot/{main,scenario,state,runner}.go + tests + scenario.example.json (new), docs/ACTIVITYBOT_RUNBOOK.md (new) · CHANGELOG.md (single-writer: registered) · testnet-only tool, not wired into any service; emits gnokey commands (no in-process key) · branch feat/w73-activity-bot

@@ -40,6 +40,17 @@ test.describe('Feed gating (VITE_ENABLE_FEED=false)', () => {
         await expect(page.getByTestId('feed-composer-input')).toHaveCount(0)
     })
 
+    test('the thread + profile sub-routes are gated too (no leak past FeedGate)', async ({ page }) => {
+        const network = await resolveNetwork(page)
+
+        for (const path of ['feed/post/1', 'feed/user/g1abcdefghijklmnop']) {
+            await page.goto(`/${network}/${path}`, { waitUntil: 'domcontentloaded' })
+            await expect(page.getByTestId('coming-soon-gate')).toBeVisible({ timeout: 10_000 })
+            await expect(page.getByTestId('feed-thread')).toHaveCount(0)
+            await expect(page.getByTestId('feed-profile')).toHaveCount(0)
+        }
+    })
+
     test('the Feed nav entry is present but badged "soon" when gated', async ({ page }) => {
         const network = await resolveNetwork(page)
         await page.goto(`/${network}/`, { waitUntil: 'domcontentloaded' })

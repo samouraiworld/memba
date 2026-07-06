@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — thread view + profile timeline + replies (2026-07-05)
+- The feed is now **threaded**: clicking a post opens **`/feed/post/:id`** (the post + its replies, oldest-first) with an inline **reply composer**; clicking an author opens **`/feed/user/:address`** (their posts, newest-first). Both read the already-live `GetFeedThread` / `GetUserFeed` RPCs — no realm redeploy or backend change. Replies broadcast to `memba_feed_v1` via the ordinary Adena flow with the same optimistic-insert + reconcile as the home timeline. `PostCard` + `FeedComposer` were extracted to shared components (`components/feed/`) so all three views render identically; malformed post-id / address links show a graceful "Invalid" state; the sub-routes sit behind the same `VITE_ENABLE_FEED` gate (e2e-verified). Still behind the flag — no new flag, no funds.
+
 ### UX — nav placement, marketplace & blog redesign, validator reviews fix (2026-07-04)
 - **Sidebar nav**: Feed now sits directly under Home at the top of the nav; Leaderboard and Extensions moved to the utility tail next to Feedback (manifest-driven — `navManifest.ts` / `Sidebar.tsx`).
 - **Marketplace / Services / NFT hero**: replaced the generic glossy gradient banner with an on-brand terminal header — a mono "live on gno.land" eyebrow with a pulse, a sharp per-lane title, and a row of true on-chain trust chips (per-lane accent glow; theme-aware; no fabricated metrics).
