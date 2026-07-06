@@ -16,14 +16,14 @@ import (
 //
 // The raw ledger row is written first (immutable source of truth), then the
 // projection — a projection failure is recoverable by rebuild-from-raw.
-func dispatchFeedEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string) error {
+func dispatchFeedEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash string, blockTime int64) error {
 	if err := recordFeedRawEvent(ctx, db, ev, blockHash); err != nil {
 		return err
 	}
 
 	switch ev.Type {
 	case "PostCreated":
-		return applyFeedPostCreated(ctx, db, ev)
+		return applyFeedPostCreated(ctx, db, ev, blockTime)
 	case "PostEdited":
 		return applyFeedPostEdited(ctx, db, ev)
 	case "PostDeleted":
@@ -65,7 +65,7 @@ func postID(ev GnoEvent) (int64, bool) {
 	return atoiStrict(ev.Attr("postId"))
 }
 
-func applyFeedPostCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+func applyFeedPostCreated(ctx context.Context, db *sql.DB, ev GnoEvent, blockTime int64) error {
 	id, ok := postID(ev)
 	author := ev.Attr("author")
 	if !ok || author == "" {
@@ -77,9 +77,9 @@ func applyFeedPostCreated(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	replyTo := atoiSafe(ev.Attr("replyTo"))
 	_, err := db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO feed_posts
-			(post_id, author, body, reply_to, block_h, created_event_block, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		id, author, ev.Attr("body"), replyTo, ev.Block, ev.Block,
+			(post_id, author, body, reply_to, block_h, block_ts, created_event_block, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		id, author, ev.Attr("body"), replyTo, ev.Block, blockTime, ev.Block,
 	)
 	return err
 }

@@ -16,7 +16,7 @@ func feedEv(typ string, block int64, tx, idx int, attrs map[string]string) GnoEv
 // mustDispatch dispatches a feed event and fails the test on a DB error.
 func mustDispatch(t *testing.T, db *sql.DB, e GnoEvent) {
 	t.Helper()
-	if err := dispatchFeedEvent(context.Background(), db, e, "h"); err != nil {
+	if err := dispatchFeedEvent(context.Background(), db, e, "h", 0); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -27,9 +27,14 @@ func TestFeedDispatch_PostCreated(t *testing.T) {
 
 	err := dispatchFeedEvent(ctx, db, feedEv("PostCreated", 300, 0, 0, map[string]string{
 		"postId": "1", "author": "g1alice", "replyTo": "0", "body": "hello feed",
-	}), "hashA")
+	}), "hashA", 1700000000)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// block_ts is the deterministic block header time passed by the tailer.
+	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_posts WHERE post_id=1 AND block_ts=1700000000`); n != 1 {
+		t.Fatal("block_ts should be persisted from the block header time")
 	}
 
 	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_posts WHERE post_id=1 AND author='g1alice' AND body='hello feed' AND deleted=0 AND hidden=0`); n != 1 {
@@ -51,7 +56,7 @@ func TestFeedDispatch_Idempotent(t *testing.T) {
 	e := feedEv("PostCreated", 300, 0, 0, map[string]string{"postId": "1", "author": "g1a", "body": "x"})
 
 	for range 3 {
-		if err := dispatchFeedEvent(ctx, db, e, "h"); err != nil {
+		if err := dispatchFeedEvent(ctx, db, e, "h", 0); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -127,17 +132,17 @@ func TestFeedDispatch_MalformedSkipped(t *testing.T) {
 	ctx := context.Background()
 
 	// Missing postId / author → skipped, no row, but still no error.
-	if err := dispatchFeedEvent(ctx, db, feedEv("PostCreated", 300, 0, 0, map[string]string{"author": "g1a"}), "h"); err != nil {
+	if err := dispatchFeedEvent(ctx, db, feedEv("PostCreated", 300, 0, 0, map[string]string{"author": "g1a"}), "h", 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := dispatchFeedEvent(ctx, db, feedEv("PostCreated", 300, 0, 1, map[string]string{"postId": "5"}), "h"); err != nil {
+	if err := dispatchFeedEvent(ctx, db, feedEv("PostCreated", 300, 0, 1, map[string]string{"postId": "5"}), "h", 0); err != nil {
 		t.Fatal(err)
 	}
 	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_posts`); n != 0 {
 		t.Fatalf("malformed events must not project (got %d)", n)
 	}
 	// Unknown event type is ignored (raw-logged, no projection, no error).
-	if err := dispatchFeedEvent(ctx, db, feedEv("RealmPaused", 300, 0, 2, map[string]string{"by": "g1owner"}), "h"); err != nil {
+	if err := dispatchFeedEvent(ctx, db, feedEv("RealmPaused", 300, 0, 2, map[string]string{"by": "g1owner"}), "h", 0); err != nil {
 		t.Fatal(err)
 	}
 }

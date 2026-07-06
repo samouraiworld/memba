@@ -25,6 +25,7 @@ export function makeOptimisticPost(author: string, body: string, replyTo: bigint
         body,
         replyTo,
         blockH: 0n,
+        blockTs: 0n,
         editedAt: 0n,
         flagCount: 0,
         hidden: false,

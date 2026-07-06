@@ -17,6 +17,8 @@ import { useAdena } from "../hooks/useAdena"
 import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
+import { FeedNotifications } from "../components/feed/FeedNotifications"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchFeedTimeline } from "../lib/feedApi"
 import { sameContent, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
@@ -72,6 +74,10 @@ export default function FeedPage() {
                 <p className="feed-subtitle">A global, on-chain timeline for the Memba community.</p>
             </header>
 
+            {connected && address && (
+                <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
+            )}
+
             <FeedComposer
                 connected={connected}
                 address={address}
@@ -85,6 +91,7 @@ export default function FeedPage() {
                 connected={connected}
                 selfAddress={address}
                 onRefetch={() => void query.refetch()}
+                onConnect={connect}
                 onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
                 onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
             />
@@ -98,6 +105,7 @@ function FeedList({
     connected,
     selfAddress,
     onRefetch,
+    onConnect,
     onOpenThread,
     onOpenProfile,
 }: {
@@ -106,9 +114,11 @@ function FeedList({
     connected: boolean
     selfAddress: string | undefined
     onRefetch: () => void
+    onConnect: () => void | Promise<boolean>
     onOpenThread: (id: bigint) => void
     onOpenProfile: (address: string) => void
 }) {
+    const names = useActorUsernames(posts.map(p => p.author))
     if (loading && posts.length === 0) {
         return (
             <div className="feed-list" aria-busy="true">
@@ -138,8 +148,10 @@ function FeedList({
                     connected={connected}
                     selfAddress={selfAddress}
                     onRefetch={onRefetch}
+                    onConnect={onConnect}
                     onOpenThread={onOpenThread}
                     onOpenProfile={onOpenProfile}
+                    displayName={names.get(post.author)}
                 />
             ))}
         </div>

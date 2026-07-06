@@ -13,10 +13,15 @@ type fakeBlockSource struct {
 	latest int64
 	hashes map[int64]string
 	events map[int64][]GnoEvent
+	times  map[int64]int64 // optional block header times (unix s); nil → 0
 }
 
 func (f *fakeBlockSource) LatestHeight(_ context.Context) (int64, error) {
 	return f.latest, nil
+}
+
+func (f *fakeBlockSource) BlockTime(_ context.Context, height int64) (int64, error) {
+	return f.times[height], nil
 }
 
 func (f *fakeBlockSource) BlockHash(_ context.Context, height int64) (string, error) {
