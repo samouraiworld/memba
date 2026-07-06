@@ -82,6 +82,9 @@ service MultisigService {
   // read, no auth; rate-limited; returns ok=false (never an error) so the UI can
   // fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
   rpc GetLinkPreview(GetLinkPreviewRequest) returns (GetLinkPreviewResponse);
+  // Reaction counts for a set of posts (+ which emojis the viewer reacted with).
+  // Public read, no auth; aggregated from the feed_reactions projection.
+  rpc GetPostReactions(GetPostReactionsRequest) returns (GetPostReactionsResponse);
 }
 
 // --- Auth Messages ---
@@ -863,4 +866,24 @@ message GetLinkPreviewResponse {
   string image_token = 6; // opaque signed token for GET /api/link-image; "" if none
   int32 image_width = 7; // og:image:width if present (aspect ratio; 0 = unknown)
   int32 image_height = 8; // og:image:height if present (0 = unknown)
+}
+
+message GetPostReactionsRequest {
+  repeated uint64 post_ids = 1;
+  string viewer = 2; // optional; marks which emojis this wallet reacted with
+}
+
+message EmojiCount {
+  string emoji = 1;
+  uint64 count = 2;
+  bool viewer_reacted = 3; // true when the request's viewer reacted with this emoji
+}
+
+message PostReactions {
+  uint64 post_id = 1;
+  repeated EmojiCount reactions = 2; // count-descending
+}
+
+message GetPostReactionsResponse {
+  repeated PostReactions posts = 1;
 }
