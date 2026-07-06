@@ -77,6 +77,11 @@ service MultisigService {
   rpc GetReplyNotifications(GetReplyNotificationsRequest) returns (GetReplyNotificationsResponse);
   // Feed-wide live stats for the header/rail (post + author counts).
   rpc GetFeedStats(GetFeedStatsRequest) returns (GetFeedStatsResponse);
+  // Server-side rich preview for an external URL — OG/Twitter-card metadata via
+  // an SSRF-guarded fetch, with the image proxied through a signed token. Public
+  // read, no auth; rate-limited; returns ok=false (never an error) so the UI can
+  // fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
+  rpc GetLinkPreview(GetLinkPreviewRequest) returns (GetLinkPreviewResponse);
 }
 
 // --- Auth Messages ---
@@ -843,4 +848,19 @@ message GetFeedStatsResponse {
   uint64 total_authors = 3; // distinct authors of visible posts
   // Most-replied visible top-level posts, reply-count-descending (trending).
   repeated FeedPost most_replied = 4;
+}
+
+message GetLinkPreviewRequest {
+  string url = 1;
+}
+
+message GetLinkPreviewResponse {
+  bool ok = 1; // false → render the plain link card (unknown / blocked / disabled)
+  string title = 2;
+  string description = 3;
+  string site_name = 4;
+  string canonical_url = 5; // resolved/canonical URL (post-redirect)
+  string image_token = 6; // opaque signed token for GET /api/link-image; "" if none
+  int32 image_width = 7; // og:image:width if present (aspect ratio; 0 = unknown)
+  int32 image_height = 8; // og:image:height if present (0 = unknown)
 }

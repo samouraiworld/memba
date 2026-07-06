@@ -8,6 +8,7 @@
  * @module lib/feedApi
  */
 import { api } from "./api"
+import { API_BASE_URL } from "./config"
 import type { FeedPost } from "../gen/memba/v1/memba_pb"
 
 export type { FeedPost } from "../gen/memba/v1/memba_pb"
@@ -80,4 +81,43 @@ export async function fetchFeedStats(): Promise<{ livePosts: bigint; totalReplie
     } catch {
         return { livePosts: 0n, totalReplies: 0n, totalAuthors: 0n, mostReplied: [] }
     }
+}
+
+export interface LinkPreview {
+    title: string
+    description: string
+    siteName: string
+    canonicalUrl: string
+    imageToken: string
+    imageWidth: number
+    imageHeight: number
+}
+
+/**
+ * Server-side rich preview for an external URL (OG metadata via an SSRF-guarded
+ * fetch, image proxied through a signed token). Returns null on any failure or
+ * when the backend has the feature disabled — the caller then renders the plain
+ * link card. Never throws.
+ */
+export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {
+    try {
+        const res = await api.getLinkPreview({ url })
+        if (!res.ok) return null
+        return {
+            title: res.title ?? "",
+            description: res.description ?? "",
+            siteName: res.siteName ?? "",
+            canonicalUrl: res.canonicalUrl ?? url,
+            imageToken: res.imageToken ?? "",
+            imageWidth: res.imageWidth ?? 0,
+            imageHeight: res.imageHeight ?? 0,
+        }
+    } catch {
+        return null
+    }
+}
+
+/** Backend image-proxy URL for a signed preview-image token (never a third-party host). */
+export function linkImageUrl(token: string): string {
+    return `${API_BASE_URL}/api/link-image?t=${encodeURIComponent(token)}`
 }

@@ -331,6 +331,10 @@ func main() {
 	// SSRF-hardened: only ipfs:// and https:// public hosts are permitted.
 	mux.Handle("/api/nft/image", rateLimitMiddleware("nft", service.HandleNFTImage()))
 	mux.Handle("/api/nft/metadata", rateLimitMiddleware("nft", service.HandleNFTMetadata()))
+	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
+	// (signed token). SSRF-hardened via the shared safeTransport; gated by
+	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
+	mux.Handle("/api/link-image", rateLimitMiddleware("link_preview", svc.HandleLinkImage()))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
