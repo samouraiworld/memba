@@ -44,12 +44,19 @@ and registered in `projects/memba/deploy.sh`.
 cd ~/Desktop/Code/Gno/samcrew-deployer
 
 # 1. Dry-run through the REAL driver — must show ONLY memba_feed_v1 as "DRY",
-#    everything else "SKIP" (Total: 1 Dry, 7 Skip):
+#    everything else "SKIP" (Total: 1 Dry, 7 Skip). No signing, no MULTISIG_SIGNERS:
 REALM=memba_feed_v1 make deploy-dry NETWORK=test13 PROJECT=memba DEPLOY_KEY=samcrew-core-test1
 
-# 2. Real deploy (samcrew-core-test1 multisig signs; deploy_with_retry handles it):
-REALM=memba_feed_v1 make deploy NETWORK=test13 PROJECT=memba DEPLOY_KEY=samcrew-core-test1
+# 2. Real deploy — samcrew-core-test1 is a MULTISIG, so you MUST pass the signer
+#    key names (else "cannot sign with key or addr samcrew-core-test1"). It prompts
+#    once per signer password, then signs 2-of-2 + broadcasts:
+DEPLOY_KEY=samcrew-core-test1 MULTISIG_SIGNERS=zooma,adena-zxxma REALM=memba_feed_v1 \
+  make deploy NETWORK=test13 PROJECT=memba
 ```
+
+> `MULTISIG_SIGNERS` = the two member key names in your local gnokey keyring
+> (`zooma,adena-zxxma` per the deployer README). Confirm with `gnokey list` if unsure.
+> The multisig key itself signs nothing directly — it's a reference key (empty password).
 
 **Verify (on-chain):** the realm renders and the stats read empty:
 ```sh
