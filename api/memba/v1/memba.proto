@@ -841,4 +841,6 @@ message GetFeedStatsResponse {
   uint64 live_posts = 1; // visible top-level posts
   uint64 total_replies = 2; // visible replies
   uint64 total_authors = 3; // distinct authors of visible posts
+  // Most-replied visible top-level posts, reply-count-descending (trending).
+  repeated FeedPost most_replied = 4;
 }

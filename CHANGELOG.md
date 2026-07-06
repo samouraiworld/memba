@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: "most replied" trending list (2026-07-06)
+- The home feed now surfaces a compact **"Most replied"** list — the top-replied visible posts (reply-count-descending, hidden/deleted excluded), each opening its thread. Extends `GetFeedStats` with a `most_replied` field (same indexed reply-count the timeline uses); renders nothing until at least one post has replies, so a fresh feed stays clean. A discovery/trending surface on the live-stats data path. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: live feed stats (2026-07-06)
 - The feed header now shows **live counters** — total posts, replies, and distinct authors — from a new public `GetFeedStats` RPC (three indexed `feed_posts` counts, hidden/deleted excluded; no auth). A first, self-contained step toward the panel's "fill the desktop with live data" right rail (most-replied / who-to-follow land next on the same data path). Behind `VITE_ENABLE_FEED`.
 
