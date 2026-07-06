@@ -98,14 +98,15 @@ type Streak struct {
 	Longest          int
 	FreezesRemaining int
 	LastPlayed       string
+	WeekAnchor       string
 }
 
 func GetStreak(db *sql.DB, address string) (Streak, error) {
 	var s Streak
-	var last sql.NullString
+	var last, weekAnchor sql.NullString
 	err := db.QueryRow(
-		`SELECT current, longest, freezes_remaining, last_played_date FROM blockparty_streaks WHERE address=?`, address,
-	).Scan(&s.Current, &s.Longest, &s.FreezesRemaining, &last)
+		`SELECT current, longest, freezes_remaining, last_played_date, week_anchor FROM blockparty_streaks WHERE address=?`, address,
+	).Scan(&s.Current, &s.Longest, &s.FreezesRemaining, &last, &weekAnchor)
 	if err == sql.ErrNoRows {
 		return Streak{FreezesRemaining: 1}, nil
 	}
@@ -113,6 +114,7 @@ func GetStreak(db *sql.DB, address string) (Streak, error) {
 		return Streak{}, err
 	}
 	s.LastPlayed = last.String
+	s.WeekAnchor = weekAnchor.String
 	return s, nil
 }
 
@@ -136,9 +138,7 @@ func BumpStreak(db *sql.DB, address, date string) (Streak, error) {
 	wy, ww := today.ISOWeek()
 	weekKey := isoWeekKey(wy, ww)
 	freezes := s.FreezesRemaining
-	prevWeekKey := ""
-	_ = db.QueryRow(`SELECT week_anchor FROM blockparty_streaks WHERE address=?`, address).Scan(&prevWeekKey)
-	if prevWeekKey != weekKey {
+	if s.WeekAnchor != weekKey {
 		freezes = 1
 	}
 
