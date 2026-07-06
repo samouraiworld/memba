@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — W8.2: serving-blocklist (operator takedown lever) (2026-07-06)
+- The first half of the feed's **growth-safety gate**. The feed is open-write and post bodies are **permanent on-chain** (`PostCreated` event + `feed_raw_events`) — `DeletePost` only tombstones the projection — so illegal / must-not-serve content needs an **out-of-band operator suppression**. A new `feed_blocklist` table is **authoritative and independent of the indexer** (survives rebuild-from-raw; on-chain `UnhidePost`/`ModAction` can't reverse it, unlike `hidden`), and **every read path** — timeline, user feed, thread (root + replies), reply counts, and the stats/most-replied aggregates — excludes any blocklisted post. Managed via a bearer-gated, **fail-closed** `POST /api/feed/moderation` (disabled with 404 unless `FEED_MODERATION_BEARER` is set; block/unblock a post id, audited). Backend-only, no realm/deploy needed. The realm **moderator role** (fast on-chain moderation without owner-multisig-per-post) is the deploy-gated second half.
+
 ### Block Party — daily chain-seeded 2048 game (2026-07-06)
 - New daily puzzle behind `VITE_ENABLE_GAME` / `BLOCKPARTY_ENABLED` (both off by default): one shared board a day seeded from an unpredictable Gno block (public verify script under `scripts/`), instant no-wallet play, and a wallet-optional **server-verified** leaderboard + streaks. The client submits only its move log; the server replays it for the authoritative score. Ships dark.
 

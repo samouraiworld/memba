@@ -341,6 +341,9 @@ func main() {
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by
 	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
 	mux.Handle("/api/link-image", rateLimitMiddleware("link_preview", svc.HandleLinkImage()))
+	// Feed serving-blocklist (W8.2): operator lever to suppress a post from every
+	// read path. Bearer-gated + fail-closed (404 unless FEED_MODERATION_BEARER set).
+	mux.Handle("/api/feed/moderation", rateLimitMiddleware("feed_moderation", service.HandleFeedModeration(database)))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
