@@ -109,6 +109,10 @@ export function FeedComposer({
                 </button>
             </div>
             {error && <p className="feed-composer__error">{error}</p>}
+            <p className="feed-composer__note">
+                Posts are public and permanent on-chain. Deleting removes a post
+                from Memba, but the original text stays recorded on gno.land.
+            </p>
         </div>
     )
 }

@@ -87,6 +87,14 @@
     margin: 0;
 }
 
+/* Permanence disclosure — the honest-contract line under the composer. */
+.feed-composer__note {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs, 0.75rem);
+    line-height: 1.4;
+}
+
 /* ── Buttons ──────────────────────────────────────────────── */
 
 .feed-btn {
