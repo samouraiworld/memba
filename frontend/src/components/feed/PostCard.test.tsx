@@ -78,6 +78,14 @@ describe("PostCard flag that responds", () => {
         expect(screen.getByText("Flag")).toBeInTheDocument()
     })
 
+    it("shows the flag to a disconnected visitor and connects on click (no broadcast)", async () => {
+        const onConnect = vi.fn()
+        render(<PostCard post={basePost({})} connected={false} selfAddress={undefined} onRefetch={noop} onConnect={onConnect} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        await waitFor(() => expect(onConnect).toHaveBeenCalled())
+        expect(mockSubmit).not.toHaveBeenCalled()
+    })
+
     it("stays silent on a wallet rejection (no error banner)", async () => {
         mockSubmit.mockRejectedValueOnce(new Error("user denied the request"))
         render(<PostCard post={basePost({})} {...connectedOther} />)

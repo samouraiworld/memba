@@ -42,6 +42,7 @@ export function PostCard({
     onRefetch,
     onOpenThread,
     onOpenProfile,
+    onConnect,
     displayName,
     clickable = true,
 }: {
@@ -53,6 +54,8 @@ export function PostCard({
     onOpenThread?: (id: bigint) => void
     /** Open an author's profile timeline. */
     onOpenProfile?: (address: string) => void
+    /** Opens the wallet — a disconnected visitor can see the flag, and clicking it connects. */
+    onConnect?: () => void | Promise<boolean>
     /** Resolved @handle for the author, when available (else the short address). */
     displayName?: string
     clickable?: boolean
@@ -65,7 +68,11 @@ export function PostCard({
     const canOpen = clickable && !post.optimistic && !!onOpenThread
 
     const flag = useCallback(async () => {
-        if (!connected || !selfAddress || post.optimistic || flagging || flagged) return
+        if (post.optimistic || flagging || flagged) return
+        if (!connected || !selfAddress) {
+            void onConnect?.() // connect on the action; user confirms the flag once connected
+            return
+        }
         setFlagging(true)
         setFlagError(null)
         // Optimistic: reflect the flag immediately; revert on failure.
@@ -82,7 +89,7 @@ export function PostCard({
         } finally {
             setFlagging(false)
         }
-    }, [connected, selfAddress, post.id, post.optimistic, flagging, flagged, onRefetch])
+    }, [connected, selfAddress, post.id, post.optimistic, flagging, flagged, onRefetch, onConnect])
 
     const openThread = () => canOpen && onOpenThread!(post.id)
     const name = displayName || shortAddr(post.author)
@@ -137,7 +144,7 @@ export function PostCard({
                 >
                     <ChatCircle size={15} /> {post.replyCount}
                 </button>
-                {connected && !isOwn && !post.optimistic && (
+                {!isOwn && !post.optimistic && (
                     <button
                         type="button"
                         className="feed-post__flag"

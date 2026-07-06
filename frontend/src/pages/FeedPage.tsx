@@ -91,6 +91,7 @@ export default function FeedPage() {
                 connected={connected}
                 selfAddress={address}
                 onRefetch={() => void query.refetch()}
+                onConnect={connect}
                 onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
                 onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
             />
@@ -104,6 +105,7 @@ function FeedList({
     connected,
     selfAddress,
     onRefetch,
+    onConnect,
     onOpenThread,
     onOpenProfile,
 }: {
@@ -112,6 +114,7 @@ function FeedList({
     connected: boolean
     selfAddress: string | undefined
     onRefetch: () => void
+    onConnect: () => void | Promise<boolean>
     onOpenThread: (id: bigint) => void
     onOpenProfile: (address: string) => void
 }) {
@@ -145,6 +148,7 @@ function FeedList({
                     connected={connected}
                     selfAddress={selfAddress}
                     onRefetch={onRefetch}
+                    onConnect={onConnect}
                     onOpenThread={onOpenThread}
                     onOpenProfile={onOpenProfile}
                     displayName={names.get(post.author)}

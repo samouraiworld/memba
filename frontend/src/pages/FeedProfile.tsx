@@ -28,7 +28,7 @@ const ADDR_RE = /^g1[0-9a-z]{6,}$/
 
 export default function FeedProfile() {
     const { address: profileAddr } = useParams<{ address: string }>()
-    const { address: selfAddress, connected } = useAdena()
+    const { address: selfAddress, connected, connect } = useAdena()
     const nav = useNetworkNav()
 
     const valid = !!profileAddr && ADDR_RE.test(profileAddr)
@@ -87,6 +87,7 @@ export default function FeedProfile() {
                             connected={connected}
                             selfAddress={selfAddress}
                             onRefetch={() => void query.refetch()}
+                            onConnect={connect}
                             onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
                             onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
                             displayName={names.get(post.author)}

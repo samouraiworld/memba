@@ -127,6 +127,7 @@ export default function FeedThread() {
                         connected={connected}
                         selfAddress={address}
                         onRefetch={() => void query.refetch()}
+                        onConnect={connect}
                         onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
                         displayName={names.get((root as UiPost).author)}
                         clickable={false}
@@ -155,6 +156,7 @@ export default function FeedThread() {
                                     connected={connected}
                                     selfAddress={address}
                                     onRefetch={() => void query.refetch()}
+                                    onConnect={connect}
                                     onOpenThread={(tid) => nav(`/feed/post/${tid.toString()}`)}
                                     onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
                                     displayName={names.get(r.author)}
