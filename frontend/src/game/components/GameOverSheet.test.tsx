@@ -7,7 +7,7 @@ vi.mock("../../lib/gameApi", () => ({ gameApi: { submitScore: vi.fn() } }));
 
 const baseProps = {
   date: "2026-07-06", score: 1200, par: 1500, moveLog: "URDL", board: new Array(16).fill(0),
-  modifier: "standard", onShare: vi.fn(),
+  modifier: "standard",
 };
 
 describe("GameOverSheet", () => {
@@ -30,5 +30,26 @@ describe("GameOverSheet", () => {
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
     expect(submit).toHaveBeenCalledWith(token, baseProps.date, baseProps.moveLog); // token, date, moveLog — no score arg
     await screen.findByText(/88%/);
+  });
+
+  it("Share button actually shares: falls back to clipboard with the real result text", async () => {
+    const originalShare = (navigator as unknown as { share?: unknown }).share;
+    // Ensure navigator.share is undefined so the clipboard fallback path is taken.
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+
+    render(<GameOverSheet {...baseProps}
+      wallet={{ installed: false, connect: vi.fn() }}
+      auth={{ isAuthenticated: false }} />);
+
+    screen.getByRole("button", { name: /share/i }).click();
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const shared = writeText.mock.calls[0][0] as string;
+    expect(shared).toMatch(/beat me/i);
+    expect(shared).toMatch(/Block Party/i);
+
+    Object.defineProperty(navigator, "share", { value: originalShare, configurable: true });
   });
 });

@@ -58,6 +58,13 @@
   margin: var(--space-3) 0;
 }
 
+.k-bp-error {
+  color: var(--color-k-danger);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: var(--space-2) 0 0;
+}
+
 .k-bp-hint {
   position: absolute;
   inset: 0;

@@ -43,6 +43,8 @@ export default function BlockPartyGame() {
   const [hinted, setHinted] = useState(true); // default true (hidden) until effect confirms first-session
   const [showHint, setShowHint] = useState(false);
   const practiceSeedRef = useRef<number | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const authBusyRef = useRef(false);
 
   // First-session ghost-swipe hint: read localStorage only in an effect.
   useEffect(() => {
@@ -111,12 +113,16 @@ export default function BlockPartyGame() {
 
   // ── Auth bridge: same challenge-response pattern as components/layout/Layout.tsx ──
   const authenticate = useCallback(async () => {
-    if (!adena.connected) {
-      const ok = await adena.connect();
-      if (!ok) return;
-    }
-    if (auth.isAuthenticated) return;
+    if (authBusyRef.current) return;
+    authBusyRef.current = true;
+    setAuthError(null);
     try {
+      if (!adena.connected) {
+        const ok = await adena.connect();
+        if (!ok) return;
+      }
+      if (auth.isAuthenticated) return;
+
       const challengeRes = await auth.getChallenge(adena.pubkeyJSON || undefined, network.chainId);
       if (!challengeRes) throw new Error("Failed to get challenge");
 
@@ -146,6 +152,9 @@ export default function BlockPartyGame() {
       await auth.getToken(infoJson, signature);
     } catch (err) {
       console.error("[Memba] Block Party login failed:", err);
+      setAuthError(err instanceof Error ? err.message : "Sign-in failed");
+    } finally {
+      authBusyRef.current = false;
     }
   }, [adena, auth, network.chainId]);
 
@@ -166,10 +175,6 @@ export default function BlockPartyGame() {
     () => ({ installed: adena.installed, connect: adena.connect }),
     [adena.installed, adena.connect]
   );
-
-  const handleShare = useCallback(() => {
-    /* ShareCard renders its own share button; kept for GameOverSheet's onShare prop */
-  }, []);
 
   return (
     <div className="k-bp-page">
@@ -223,17 +228,19 @@ export default function BlockPartyGame() {
       </div>
 
       {over && ranked && (
-        <GameOverSheet
-          date={date}
-          score={score}
-          par={par}
-          moveLog={moveLog}
-          board={board}
-          modifier={modifier}
-          wallet={walletForSheet}
-          auth={authForSheet}
-          onShare={handleShare}
-        />
+        <>
+          <GameOverSheet
+            date={date}
+            score={score}
+            par={par}
+            moveLog={moveLog}
+            board={board}
+            modifier={modifier}
+            wallet={walletForSheet}
+            auth={authForSheet}
+          />
+          {authError && <p className="k-bp-error">{authError}</p>}
+        </>
       )}
 
       {over && !ranked && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { rankFromPercentile } from "../lib/tiers";
 import { getLocalBest, setLocalBest, bumpLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
+import { ShareCard } from "./ShareCard";
 import type { Token } from "../../gen/memba/v1/memba_pb";
 import "./gameover.css";
 
@@ -10,9 +11,9 @@ type AuthLike = { isAuthenticated: boolean; token?: Token; address?: string; aut
 
 export function GameOverSheet(props: {
   date: string; score: number; par: number; moveLog: string; board: number[]; modifier: string;
-  wallet: WalletLike; auth: AuthLike; onShare: () => void;
+  wallet: WalletLike; auth: AuthLike;
 }) {
-  const { date, score, par, moveLog, wallet, auth, onShare } = props;
+  const { date, score, par, moveLog, wallet, auth } = props;
   const [result, setResult] = useState<{ percentile: number; streak: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -62,7 +63,13 @@ export function GameOverSheet(props: {
         </p>
       )}
 
-      <button className="k-bp-btn" onClick={onShare}>Share</button>
+      <ShareCard
+        date={date}
+        board={props.board}
+        modifier={props.modifier}
+        streak={result?.streak ?? 0}
+        percentile={result?.percentile}
+      />
     </div>
   );
 }
