@@ -98,3 +98,33 @@ var IndexerLag = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "memba_indexer_lag_blocks",
 	Help: "Number of blocks the indexer is behind the chain tip; alert when > 30.",
 })
+
+// RPCDuration is the server-side handler latency of every Connect RPC, labeled by
+// procedure (the full /pkg.Service/Method path — bounded cardinality) and result
+// code ("ok", the connect.Code string such as "invalid_argument" /
+// "unauthenticated" / "internal", or "panic" for a handler that panicked).
+// Observed by UnaryTimingInterceptor, wired via connect.WithInterceptors in
+// cmd/memba. Because the handler encloses the DB calls, this also bounds
+// server-side DB time end-to-end; DB pool contention is covered separately by the
+// RegisterDBStats collectors (W6.5). Buckets extend the default set down to
+// sub-millisecond so the fast path (local SQLite reads land well under 5ms) keeps
+// real p50/p90 resolution, not just the slow tail.
+var RPCDuration = promauto.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "memba_rpc_duration_seconds",
+		Help:    "Connect RPC handler latency in seconds, by procedure and result code.",
+		Buckets: append([]float64{0.0005, 0.001, 0.0025}, prometheus.DefBuckets...),
+	},
+	[]string{"procedure", "code"},
+)
+
+// RPCInFlight is the number of Connect RPCs currently being handled. A histogram
+// only records latency AFTER a call returns, so a handler wedged on the
+// single-writer SQLite lock produces no RPCDuration sample while it is stuck — the
+// saturation is invisible until requests finally drain. This gauge shows the
+// pileup in real time and pairs with memba_db_connections_in_use. Inc/Dec'd in
+// UnaryTimingInterceptor (the Dec is deferred, so it also fires on panic).
+var RPCInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "memba_rpc_in_flight",
+	Help: "Connect RPCs currently being handled (real-time saturation signal).",
+})

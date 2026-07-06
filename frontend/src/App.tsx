@@ -66,6 +66,8 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 // ── Social feed (W7.2, behind VITE_ENABLE_FEED via FeedGate) ──
 const FeedPage = lazy(() => import("./pages/FeedPage"))
+const FeedThread = lazy(() => import("./pages/FeedThread"))
+const FeedProfile = lazy(() => import("./pages/FeedProfile"))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -300,6 +302,8 @@ function App() {
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
           {/* Social feed — FeedGate makes the flag-off state authoritative at the router. */}
           <Route path="feed" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedPage /></Suspense></FeedGate>} />
+          <Route path="feed/post/:id" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedThread /></Suspense></FeedGate>} />
+          <Route path="feed/user/:address" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedProfile /></Suspense></FeedGate>} />
 
           {/* Changelogs (v2.14) */}
           <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
