@@ -63,6 +63,8 @@ node scripts/verify-blockparty-seed.mjs --selftest
 
 Requires Node 18+ (uses built-in `fetch`); no npm dependencies.
 
+**Note on RPC hosts:** The backend derives the seed from its own public test13 RPC (default `https://rpc.testnet13.samourai.live:443`), while this script defaults to `https://rpc.test13.testnets.gno.land`. Both are public test13 nodes and should agree — that cross-node agreement is precisely the verification point. You can pass `--rpc` to check against another public node and confirm they derive the same seed.
+
 ### Reading the output
 
 The script prints:

@@ -14,4 +14,10 @@ describe("localStore", () => {
     bumpLocalStreak("2026-07-10"); // gap
     expect(getLocalStreak().current).toBe(1);
   });
+  it("is idempotent for the same date (no double-count)", () => {
+    bumpLocalStreak("2026-07-06");
+    const s = bumpLocalStreak("2026-07-06");
+    expect(s.current).toBe(1);
+    expect(getLocalStreak().current).toBe(1);
+  });
 });

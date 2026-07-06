@@ -81,13 +81,14 @@ async function latestHeight(rpcUrl) {
 
 /**
  * Block hash + header time at a given height, via /block?height=N ->
- * result.block_id.hash / result.block.header.time (RFC3339).
+ * result.block_meta.block_id.hash / result.block.header.time (RFC3339).
  *
- * NOTE: the backend's httpBlockFetcher (blockparty_chain.go) reads
- * result.block_id.hash, but the live test13 node actually nests it under
- * result.block_meta.block_id.hash (top-level block_id is absent). We check
- * both here so this script works against the real node; see
- * scripts/VERIFY_BLOCKPARTY.md for the flagged backend discrepancy.
+ * NOTE: the backend's httpBlockFetcher.BlockAt (blockparty_chain.go) was fixed
+ * to read result.block_meta.block_id.hash (matching this script) and fail loud
+ * if the hash is empty, guarded by tests exercising the real wire format. This
+ * script reads block_meta.block_id.hash (with a fallback to top-level for
+ * compatibility) — both the backend and this script now derive the same seed
+ * from the same live-node field.
  */
 async function blockAt(rpcUrl, height) {
   const body = await rpcGet(rpcUrl, `/block?height=${height}`);
