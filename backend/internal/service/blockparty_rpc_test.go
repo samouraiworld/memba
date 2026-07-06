@@ -58,6 +58,9 @@ func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected second-submit rejection")
 	}
+	if connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("second submit: got code %v, want AlreadyExists", connect.CodeOf(err))
+	}
 }
 
 func TestSubmitScore_RejectsWrongDate(t *testing.T) {
@@ -81,6 +84,41 @@ func TestSubmitScore_DisabledFlag(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("expected unimplemented when flag off")
+	}
+}
+
+func TestGetDailyLeaderboard(t *testing.T) {
+	h := setup(t)
+	d := todayUTC()
+	if _, err := blockparty.InsertScore(h.db, d, "g1a", 300, "UU", "b1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := blockparty.InsertScore(h.db, d, "g1b", 900, "RR", "b2"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := blockparty.InsertScore(h.db, d, "g1c", 600, "DD", "b3"); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.svc.GetDailyLeaderboard(context.Background(),
+		connect.NewRequest(&membav1.GetDailyLeaderboardRequest{Date: d, Limit: 10}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := resp.Msg.Entries
+	if len(e) != 3 || e[0].Address != "g1b" || e[0].Rank != 1 || e[2].Address != "g1a" {
+		t.Fatalf("bad leaderboard: %+v", e)
+	}
+}
+
+func TestGetStreak_Default(t *testing.T) {
+	h := setup(t)
+	resp, err := h.svc.GetStreak(context.Background(),
+		connect.NewRequest(&membav1.GetStreakRequest{Address: "g1nobody"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.Streak.Current != 0 {
+		t.Fatalf("current=%d want 0", resp.Msg.Streak.Current)
 	}
 }
 

@@ -172,10 +172,40 @@ func (s *MultisigService) SubmitScore(
 	}), nil
 }
 
-func (s *MultisigService) GetDailyLeaderboard(ctx context.Context, req *connect.Request[membav1.GetDailyLeaderboardRequest]) (*connect.Response[membav1.GetDailyLeaderboardResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetDailyLeaderboard is not implemented"))
+func (s *MultisigService) GetDailyLeaderboard(
+	ctx context.Context,
+	req *connect.Request[membav1.GetDailyLeaderboardRequest],
+) (*connect.Response[membav1.GetDailyLeaderboardResponse], error) {
+	date := req.Msg.Date
+	if date == "" {
+		date = todayUTC()
+	}
+	limit := int(req.Msg.Limit)
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := blockparty.TopScores(s.db, date, limit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*membav1.LeaderboardScore, len(rows))
+	for i, r := range rows {
+		out[i] = &membav1.LeaderboardScore{Address: r.Address, Score: r.Score, Rank: int32(i + 1)}
+	}
+	return connect.NewResponse(&membav1.GetDailyLeaderboardResponse{Entries: out}), nil
 }
 
-func (s *MultisigService) GetStreak(ctx context.Context, req *connect.Request[membav1.GetStreakRequest]) (*connect.Response[membav1.GetStreakResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetStreak is not implemented"))
+func (s *MultisigService) GetStreak(
+	ctx context.Context,
+	req *connect.Request[membav1.GetStreakRequest],
+) (*connect.Response[membav1.GetStreakResponse], error) {
+	st, err := blockparty.GetStreak(s.db, req.Msg.Address)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&membav1.GetStreakResponse{
+		Streak: &membav1.BlockPartyStreak{
+			Current: int32(st.Current), Longest: int32(st.Longest), FreezesRemaining: int32(st.FreezesRemaining),
+		},
+	}), nil
 }
