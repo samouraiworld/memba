@@ -8,8 +8,11 @@
  *
  * @module components/feed/PostUnfurls
  */
-import { Cube, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { Cube, Coins, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
+import { getTokenInfo, formatSupply } from "../../lib/grc20"
+import { GNO_RPC_URL } from "../../lib/config"
 
 /** Last path segment — the realm/package name. */
 function realmName(path: string): string {
@@ -23,31 +26,80 @@ function realmNamespace(path: string): string {
     return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : path
 }
 
+/**
+ * A LIVE token card — resolves the pasted Memba token link to on-chain data
+ * (supply + holder count) via the same GRC20 factory Render the token page uses.
+ * Shows a skeleton while loading and degrades to a plain `$SYMBOL` card (never a
+ * crash, never fabricated numbers) if the read fails or the token is unknown.
+ */
+function TokenUnfurlCard({ symbol, href }: { symbol: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-token", symbol],
+        queryFn: () => getTokenInfo(GNO_RPC_URL, symbol),
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const supply = data ? formatSupply(data.totalSupply, data.decimals) : null
+    const facts = data
+        ? [
+            `$${data.symbol}`,
+            supply ? `${supply} supply` : null,
+            data.knownAccounts != null ? `${data.knownAccounts} holders` : null,
+          ].filter(Boolean).join(" · ")
+        : `$${symbol}`
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--token"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-token"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <Coins size={13} weight="fill" /> token
+            </span>
+            <span className="feed-unfurl__title">{data?.name || `$${symbol}`}</span>
+            <span className="feed-unfurl__sub">
+                {isLoading ? "Loading…" : facts} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
 export function PostUnfurls({ body }: { body: string }) {
     const refs = parseUnfurls(body)
     if (refs.length === 0) return null
 
     return (
         <div className="feed-unfurls" data-testid="feed-unfurls">
-            {refs.map((r, i) =>
-                r.kind === "realm" ? (
-                    <a
-                        key={`realm-${i}`}
-                        className="feed-unfurl feed-unfurl--realm"
-                        href={r.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid="feed-unfurl-realm"
-                    >
-                        <span className="feed-unfurl__badge">
-                            <Cube size={13} weight="fill" /> on-chain
-                        </span>
-                        <span className="feed-unfurl__title">{realmName(r.path)}</span>
-                        <span className="feed-unfurl__sub">
-                            {realmNamespace(r.path)} <ArrowUpRight size={12} />
-                        </span>
-                    </a>
-                ) : (
+            {refs.map((r, i) => {
+                if (r.kind === "realm") {
+                    return (
+                        <a
+                            key={`realm-${i}`}
+                            className="feed-unfurl feed-unfurl--realm"
+                            href={r.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="feed-unfurl-realm"
+                        >
+                            <span className="feed-unfurl__badge">
+                                <Cube size={13} weight="fill" /> on-chain
+                            </span>
+                            <span className="feed-unfurl__title">{realmName(r.path)}</span>
+                            <span className="feed-unfurl__sub">
+                                {realmNamespace(r.path)} <ArrowUpRight size={12} />
+                            </span>
+                        </a>
+                    )
+                }
+                if (r.kind === "token") {
+                    return <TokenUnfurlCard key={`token-${i}`} symbol={r.symbol} href={r.href} />
+                }
+                return (
                     <a
                         key={`link-${i}`}
                         className="feed-unfurl feed-unfurl--link"
@@ -64,8 +116,8 @@ export function PostUnfurls({ body }: { body: string }) {
                             Open <ArrowUpRight size={12} />
                         </span>
                     </a>
-                ),
-            )}
+                )
+            })}
         </div>
     )
 }

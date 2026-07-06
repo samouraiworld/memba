@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: live token unfurl cards (2026-07-06)
+- On-chain object unfurls go **live** for tokens: paste a Memba token link (`/<network>/tokens/<SYMBOL>`) into a post and it renders a **live card** reading the token's **name, supply, and holder count** straight from the GRC20 factory `Render` (the same on-chain read the token page uses) — a differentiator no web2 feed can match. Shows a skeleton while the read is in flight and **degrades gracefully** to a plain `$SYMBOL` card if the token is unknown or the read fails (never a crash, never fabricated numbers). Detection is precise — the path's leading segment must be a real network key and the symbol GRC20-shaped — so arbitrary `/x/tokens/y` links on other sites stay plain link cards. Extends `lib/feedUnfurl` with a typed `token` ref on the existing parse → card path (validator / proposal cards slot in next the same way). Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: two-pane desktop rail (2026-07-06)
 - On wide screens (≥1024px) the feed is now a **two-pane layout** — the timeline on the left, a **sticky ~300px right rail** on the right that holds the live **stats** (posts / replies / authors) and the **"Most replied"** discovery list, both promoted out of the header and inline timeline. Below 1024px it **collapses to a single column** (header → composer → activity strip → timeline), so nothing is lost on mobile. Pure layout — reuses the existing `GetFeedStats` data (no new RPC, no realm change); the rail is where typed live-data cards and who-to-follow will grow. Behind `VITE_ENABLE_FEED`.
 
