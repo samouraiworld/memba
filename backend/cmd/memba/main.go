@@ -19,6 +19,7 @@ import (
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
@@ -26,6 +27,7 @@ import (
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
 	"github.com/samouraiworld/memba/backend/internal/indexer"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	_ "modernc.org/sqlite"
@@ -111,6 +113,10 @@ func main() {
 			slog.Error("failed to close database", "error", err)
 		}
 	}()
+
+	// Expose the connection-pool stats on /metrics (read-only; W6.5). On SQLite
+	// with one writer, wait_count/wait_duration are the DB-contention signal.
+	metrics.RegisterDBStats(prometheus.DefaultRegisterer, database)
 
 	if err := db.Migrate(database); err != nil {
 		slog.Error("failed to run migrations", "error", err)
@@ -260,7 +266,7 @@ func main() {
 	// Initialize OAuth state store with app context for clean shutdown.
 	oauthStore := service.NewOAuthStateStore(ctx)
 
-	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
+	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors(metrics.UnaryTimingInterceptor()))
 	mux.Handle(path, rateLimitMiddleware("rpc", maxBodySize(1<<20, handler))) // 1MB max body
 
 	// Health check — enhanced with DB, uptime, memory diagnostics

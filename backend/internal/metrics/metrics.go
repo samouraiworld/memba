@@ -98,3 +98,20 @@ var IndexerLag = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "memba_indexer_lag_blocks",
 	Help: "Number of blocks the indexer is behind the chain tip; alert when > 30.",
 })
+
+// RPCDuration is the server-side handler latency of every Connect RPC, labeled by
+// procedure (the full /pkg.Service/Method path — bounded cardinality) and result
+// code ("ok", or the connect.Code string such as "invalid_argument" /
+// "unauthenticated" / "internal"). Observed by UnaryTimingInterceptor, wired via
+// connect.WithInterceptors in cmd/memba. Because the handler encloses the DB
+// calls, this also bounds server-side DB time end-to-end; DB pool contention is
+// covered separately by the RegisterDBStats gauges (W6.5). Default buckets fit
+// sub-second RPC latencies while still bucketing the slow tail.
+var RPCDuration = promauto.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "memba_rpc_duration_seconds",
+		Help:    "Connect RPC handler latency in seconds, by procedure and result code.",
+		Buckets: prometheus.DefBuckets,
+	},
+	[]string{"procedure", "code"},
+)
