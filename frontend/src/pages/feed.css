@@ -11,6 +11,8 @@
 
 .feed-header {
     margin-bottom: var(--space-2, 8px);
+    padding-bottom: var(--space-3, 12px);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .feed-title {
@@ -87,6 +89,109 @@
     margin: 0;
 }
 
+/* Read-freely hint under the composer for a disconnected visitor. */
+.feed-composer__hint {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs, 0.75rem);
+}
+
+/* ── Reply notifications (retention hook) ─────────────────── */
+
+.feed-notifs {
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md, 10px);
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+    overflow: hidden;
+}
+
+.feed-notifs__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 8px 12px;
+}
+
+.feed-notifs__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.feed-notifs__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: var(--text-xs, 0.75rem);
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-notifs__seen {
+    border: none;
+    background: none;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--text-sm, 0.875rem);
+    cursor: pointer;
+    padding: 4px 6px;
+}
+.feed-notifs__seen:hover { color: var(--color-text); }
+
+.feed-notifs__toggle:focus-visible,
+.feed-notifs__seen:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.feed-notifs__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.feed-notifs__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--color-text);
+    cursor: pointer;
+    border-top: 1px solid var(--color-border);
+}
+.feed-notifs__list li:first-child .feed-notifs__item { border-top: none; }
+.feed-notifs__item:hover { background: var(--color-surface-hover, rgba(128, 128, 128, 0.06)); }
+
+.feed-notifs__text { display: flex; flex-direction: column; min-width: 0; }
+.feed-notifs__who { font-size: var(--text-sm, 0.875rem); }
+.feed-notifs__when { color: var(--color-text-muted); font-family: var(--font-mono, monospace); font-size: var(--text-xs, 0.75rem); }
+.feed-notifs__snippet {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ── Buttons ──────────────────────────────────────────────── */
 
 .feed-btn {
@@ -123,6 +228,7 @@
 }
 
 .feed-post {
+    position: relative; /* positioning context for the open-thread overlay */
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md, 10px);
     background: var(--color-surface);
@@ -130,6 +236,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2, 8px);
+}
+
+.feed-post:hover:has(.feed-post__overlay) {
+    border-color: var(--color-border-hover, var(--color-primary));
 }
 
 .feed-post--pending {
@@ -169,9 +279,106 @@
 
 .feed-post__body {
     color: var(--color-text);
+    /* Humanist body for long social prose; chrome (handle/meta) stays mono. */
+    font-family: var(--font-sans, inherit);
     white-space: pre-wrap;
     word-break: break-word;
-    line-height: 1.5;
+    line-height: 1.55;
+}
+
+/* ── Wave-1 UI: identity, overlay-link, flag feedback ─────────── */
+
+/* Card-level open-thread target: covers the card, sits UNDER the real controls
+   (which are z-indexed above). Keeps the body plain text for screen readers. */
+.feed-post__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    border-radius: inherit;
+}
+.feed-post__overlay:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+/* Real controls stack above the overlay. */
+.feed-post__head,
+.feed-post__actions,
+.feed-post__flagerror {
+    position: relative;
+    z-index: 1;
+}
+
+.feed-post__identity {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.feed-post__identity:disabled { cursor: default; }
+
+.feed-avatar {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    border-radius: var(--radius-md, 8px);
+    color: #fff;
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.feed-post__names {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+.feed-post__name {
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: 600;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.feed-post__identity:hover:not(:disabled) .feed-post__name {
+    /* AA-safe accent as text on light (raw --color-primary fails contrast). */
+    color: var(--color-k-accent-text, var(--color-primary));
+}
+.feed-post__handle {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted);
+}
+
+.feed-post__flagcount { font-variant-numeric: tabular-nums; }
+
+.feed-post__flagerror {
+    margin: 0;
+    color: var(--color-k-danger-text, #d33);
+    font-size: var(--text-xs, 0.75rem);
+}
+
+/* Visible keyboard focus on every card control (they reset border/background). */
+.feed-post__identity:focus-visible,
+.feed-post__stat--btn:focus-visible,
+.feed-post__flag:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 .feed-post__actions {

@@ -1,13 +1,15 @@
 /**
  * FeedComposer — the post/reply input, shared by the home timeline (replyTo=0)
- * and the thread view (replyTo=parent id). Broadcasts CreatePost to the realm
- * via the ordinary Adena flow and hands the parent a synthetic optimistic row
- * so the UI updates before the indexer catches up.
+ * and the thread view (replyTo=parent id).
+ *
+ * Read-freely / connect-on-action: the input is ALWAYS shown, even to a
+ * disconnected visitor. Clicking Post triggers the wallet connect, and the post
+ * is sent automatically once connected — one action, not "connect, then post".
  *
  * @module components/feed/FeedComposer
  */
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { PaperPlaneTilt } from "@phosphor-icons/react"
 import { buildCreatePostMsg, submitFeedMsg } from "../../lib/feed"
 import { makeOptimisticPost, type UiPost } from "../../lib/feedTypes"
@@ -24,7 +26,8 @@ export function FeedComposer({
 }: {
     connected: boolean
     address: string | undefined
-    onConnect: () => void
+    /** Opens the wallet. Returns whether the connection succeeded (when known). */
+    onConnect: () => void | Promise<boolean>
     onPosted: (post: UiPost) => void
     /** 0 for a top-level post; the parent id for a reply. */
     replyTo?: bigint
@@ -34,6 +37,9 @@ export function FeedComposer({
     const [body, setBody] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Set when a disconnected user clicked Post: the broadcast fires as soon as
+    // the wallet connects (see the effect below).
+    const [pending, setPending] = useState(false)
     // Monotonic nonce for optimistic ids (Date.now() is unavailable in some
     // environments and can collide on rapid posts).
     const nonce = useRef(0)
@@ -41,20 +47,15 @@ export function FeedComposer({
     const trimmed = body.trim()
     const overLimit = trimmed.length > MAX_FEED_BODY
 
-    const submit = useCallback(async () => {
-        if (!connected || !address) {
-            onConnect()
-            return
-        }
-        if (!trimmed || overLimit) return
+    const broadcast = useCallback(async (from: string, text: string) => {
         setSubmitting(true)
         setError(null)
         try {
             await submitFeedMsg(
-                buildCreatePostMsg(address, trimmed, replyTo), // bigint threaded through — no precision loss
+                buildCreatePostMsg(from, text, replyTo), // bigint threaded through — no precision loss
                 replyTo === 0n ? "feed post" : "feed reply",
             )
-            onPosted(makeOptimisticPost(address, trimmed, replyTo, nonce.current++))
+            onPosted(makeOptimisticPost(from, text, replyTo, nonce.current++))
             setBody("")
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
@@ -69,18 +70,27 @@ export function FeedComposer({
         } finally {
             setSubmitting(false)
         }
-    }, [connected, address, trimmed, overLimit, onConnect, onPosted, replyTo])
+    }, [replyTo, onPosted])
 
-    if (!connected) {
-        return (
-            <div className="feed-composer feed-composer--cta">
-                <p>Connect your wallet to post to the feed.</p>
-                <button type="button" className="feed-btn feed-btn--primary" onClick={onConnect}>
-                    Connect wallet
-                </button>
-            </div>
-        )
-    }
+    const submit = useCallback(async () => {
+        if (!trimmed || overLimit) return
+        if (!connected || !address) {
+            // Connect on the action itself; the post fires from the effect once
+            // the wallet is connected (props flow in on the next render).
+            const ok = await onConnect()
+            if (ok !== false) setPending(true)
+            return
+        }
+        await broadcast(address, trimmed)
+    }, [connected, address, trimmed, overLimit, onConnect, broadcast])
+
+    // Fire the pending post the moment the wallet finishes connecting.
+    useEffect(() => {
+        if (pending && connected && address && trimmed && !overLimit) {
+            setPending(false)
+            void broadcast(address, trimmed)
+        }
+    }, [pending, connected, address, trimmed, overLimit, broadcast])
 
     return (
         <div className="feed-composer">
@@ -100,14 +110,17 @@ export function FeedComposer({
                 <button
                     type="button"
                     className="feed-btn feed-btn--primary"
-                    disabled={submitting || !trimmed || overLimit}
+                    disabled={submitting || pending || !trimmed || overLimit}
                     onClick={submit}
                     data-testid="feed-post-btn"
                 >
                     <PaperPlaneTilt size={16} weight="fill" />
-                    {submitting ? "Posting…" : submitLabel}
+                    {submitting || pending ? "Posting…" : !connected ? `Connect & ${submitLabel.toLowerCase()}` : submitLabel}
                 </button>
             </div>
+            {!connected && (
+                <p className="feed-composer__hint">You can read the feed freely — connect only when you post.</p>
+            )}
             {error && <p className="feed-composer__error">{error}</p>}
         </div>
     )

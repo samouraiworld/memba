@@ -73,6 +73,8 @@ service MultisigService {
   rpc GetFeedTimeline(GetFeedTimelineRequest) returns (GetFeedTimelineResponse);
   rpc GetUserFeed(GetUserFeedRequest) returns (GetUserFeedResponse);
   rpc GetFeedThread(GetFeedThreadRequest) returns (GetFeedThreadResponse);
+  // Replies to the caller's own posts — the "someone replied to you" surface.
+  rpc GetReplyNotifications(GetReplyNotificationsRequest) returns (GetReplyNotificationsResponse);
 }
 
 // --- Auth Messages ---
@@ -779,6 +781,9 @@ message FeedPost {
   bool hidden = 9;
   bool deleted = 10;
   uint32 reply_count = 11; // live replies indexed under this post
+  int64 block_ts = 12; // block header time (unix seconds); 0 = unknown. The
+                       // DETERMINISTIC display timestamp — NOT the indexer's
+                       // ingest wall-clock (which re-stamps on rebuild-from-raw).
 }
 
 message GetFeedTimelineRequest {
@@ -813,4 +818,17 @@ message GetFeedThreadResponse {
   FeedPost root = 1; // the parent (may be a deleted tombstone)
   repeated FeedPost replies = 2; // oldest-first (conversation order)
   uint64 next_cursor = 3;
+}
+
+message GetReplyNotificationsRequest {
+  string author = 1; // the caller — whose posts' replies we want
+  uint64 since_id = 2; // unread = replies with id > this (the client's last-seen)
+  uint32 limit = 3; // default 20, max 100
+}
+
+message GetReplyNotificationsResponse {
+  // Live replies to the author's posts, by other people, newest-first.
+  repeated FeedPost replies = 1;
+  uint32 unread_count = 2; // how many replies have id > since_id
+  uint64 latest_id = 3; // newest reply id (0 = none) — advance the cursor to this
 }

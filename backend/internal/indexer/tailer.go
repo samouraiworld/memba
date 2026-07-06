@@ -32,6 +32,9 @@ type blockSource interface {
 	LatestHeight(ctx context.Context) (int64, error)
 	BlockHash(ctx context.Context, height int64) (string, error)
 	BlockEvents(ctx context.Context, height int64) ([]GnoEvent, error)
+	// BlockTime returns the block header time (unix seconds) at a height. Used
+	// by the feed tailer to denormalize a deterministic per-post timestamp.
+	BlockTime(ctx context.Context, height int64) (int64, error)
 }
 
 // httpBlockSource is the production blockSource: thin wrappers around the
@@ -53,6 +56,10 @@ func (s *httpBlockSource) BlockHash(ctx context.Context, height int64) (string, 
 
 func (s *httpBlockSource) BlockEvents(ctx context.Context, height int64) ([]GnoEvent, error) {
 	return fetchBlockEvents(ctx, s.client, s.rpcURL, height)
+}
+
+func (s *httpBlockSource) BlockTime(ctx context.Context, height int64) (int64, error) {
+	return fetchBlockTime(ctx, s.client, s.rpcURL, height)
 }
 
 // TailerConfig holds the block-tailer's runtime configuration (env-driven).
@@ -353,10 +360,18 @@ type blockResponse struct {
 			BlockID struct {
 				Hash string `json:"hash"`
 			} `json:"block_id"`
+			Header struct {
+				Time string `json:"time"`
+			} `json:"header"`
 		} `json:"block_meta"`
 		BlockID struct {
 			Hash string `json:"hash"`
 		} `json:"block_id"`
+		Block struct {
+			Header struct {
+				Time string `json:"time"`
+			} `json:"header"`
+		} `json:"block"`
 	} `json:"result"`
 }
 
@@ -412,6 +427,39 @@ func parseBlockHash(body []byte, height int64) (string, error) {
 		return "", fmt.Errorf("block %d: empty block hash", height)
 	}
 	return hash, nil
+}
+
+// parseBlockTime extracts the block header time (unix seconds) from a /block
+// response body. Deterministic — the same block always yields the same value,
+// so it survives a rebuild-from-raw (unlike the ingest wall-clock created_at).
+func parseBlockTime(body []byte, height int64) (int64, error) {
+	var b blockResponse
+	if err := json.Unmarshal(body, &b); err != nil {
+		return 0, fmt.Errorf("decode block: %w", err)
+	}
+	ts := b.Result.BlockMeta.Header.Time
+	if ts == "" {
+		ts = b.Result.Block.Header.Time // fallback for forks that hoist block
+	}
+	if ts == "" {
+		return 0, fmt.Errorf("block %d: empty block time", height)
+	}
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return 0, fmt.Errorf("block %d: bad time %q: %w", height, ts, err)
+	}
+	return t.Unix(), nil
+}
+
+// fetchBlockTime fetches the block header time (unix seconds) for a height from
+// /block?height=h — the same endpoint fetchBlockHash uses.
+func fetchBlockTime(ctx context.Context, client *http.Client, rpcURL string, height int64) (int64, error) {
+	url := fmt.Sprintf("%s/block?height=%d", rpcURL, height)
+	body, err := httpGet(ctx, client, url)
+	if err != nil {
+		return 0, err
+	}
+	return parseBlockTime(body, height)
 }
 
 // fetchBlockEvents fetches and parses the watched GnoEvents at a height.
