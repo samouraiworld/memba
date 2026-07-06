@@ -11,6 +11,8 @@ import type { UiPost } from "../../lib/feedTypes"
 vi.mock("../../lib/feed", () => ({
     submitFeedMsg: vi.fn(),
     buildFlagPostMsg: vi.fn(() => ({})),
+    buildEditPostMsg: vi.fn(() => ({})),
+    buildDeletePostMsg: vi.fn(() => ({})),
 }))
 const { submitFeedMsg } = await import("../../lib/feed")
 const { PostCard } = await import("./PostCard")
@@ -121,5 +123,49 @@ describe("PostCard flag that responds", () => {
         fireEvent.click(screen.getByTestId("feed-flag-btn"))
         await waitFor(() => expect(screen.getByText("Flag")).toBeInTheDocument())
         expect(screen.queryByTestId("feed-flag-error")).toBeNull()
+    })
+})
+
+describe("PostCard author edit / delete", () => {
+    // basePost author === this selfAddress → isOwn.
+    const own = { connected: true, selfAddress: "g1abcabcabcabcabcabcabcabcabcabcabcabcabc", onRefetch: noop }
+
+    it("shows the manage menu only for the author's own post", () => {
+        const { rerender } = render(<PostCard post={basePost({})} {...own} />)
+        expect(screen.getByTestId("feed-post-menu")).toBeInTheDocument()
+        rerender(<PostCard post={basePost({})} connected={true} selfAddress="g1someoneelseXXXXXXXXXXXXXXXXXXXXXXXXXXXX" onRefetch={noop} />)
+        expect(screen.queryByTestId("feed-post-menu")).toBeNull()
+    })
+
+    it("edits: broadcasts EditPost and optimistically shows the new body", async () => {
+        mockSubmit.mockResolvedValueOnce("hash")
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-edit"))
+        fireEvent.change(screen.getByTestId("feed-edit-input"), { target: { value: "edited body" } })
+        fireEvent.click(screen.getByTestId("feed-edit-save"))
+        await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
+        expect(await screen.findByText("edited body")).toBeInTheDocument()
+        expect(screen.queryByText("hello feed")).toBeNull()
+    })
+
+    it("deletes: confirm discloses on-chain permanence, then broadcasts DeletePost → tombstone", async () => {
+        mockSubmit.mockResolvedValueOnce("hash")
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-delete"))
+        expect(screen.getByTestId("feed-delete-confirm")).toHaveTextContent(/on-chain|permanent/i)
+        fireEvent.click(screen.getByTestId("feed-delete-yes"))
+        await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
+        expect(await screen.findByTestId("feed-post-tombstone")).toBeInTheDocument()
+    })
+
+    it("cancels a delete without broadcasting", () => {
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-delete"))
+        fireEvent.click(screen.getByTestId("feed-delete-no"))
+        expect(screen.queryByTestId("feed-delete-confirm")).toBeNull()
+        expect(mockSubmit).not.toHaveBeenCalled()
     })
 })
