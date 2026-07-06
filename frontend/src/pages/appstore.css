@@ -1,0 +1,148 @@
+.appstore {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.appstore__title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.appstore__sub {
+    color: var(--color-text-secondary);
+    margin: 0.25rem 0 1.25rem;
+}
+
+.appstore__muted {
+    color: var(--color-text-muted);
+    padding: 1rem 0;
+}
+
+.appstore__back {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: var(--color-k-accent-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.appstore__back:hover {
+    text-decoration: underline;
+}
+
+.appstore__empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    border: 1px dashed var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+}
+.appstore__empty-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 0.25rem;
+}
+
+.appstore__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.appcard {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    padding: 1rem;
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    transition: border-color 0.12s, background 0.12s;
+}
+.appcard:hover,
+.appcard:focus-visible {
+    border-color: var(--color-k-accent-border);
+    background: var(--color-surface-hover);
+    outline: none;
+}
+
+.appcard__name {
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 1.05rem;
+}
+.appcard__cat {
+    align-self: flex-start;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-k-accent-text);
+    background: var(--color-k-accent-subtle);
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+}
+.appcard__tag {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    margin: 0;
+    flex: 1 1 auto;
+}
+.appcard__path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    word-break: break-all;
+}
+
+/* Detail */
+.appdetail__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin: 0.5rem 0 1rem;
+}
+.appdetail__descr {
+    color: var(--color-text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+.appdetail__actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+.appdetail__open {
+    font-weight: 600;
+    color: var(--color-k-accent-text);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    text-decoration: none;
+}
+.appdetail__open:hover {
+    background: var(--color-k-accent-border);
+}
+.appdetail__ext {
+    font-weight: 400;
+    font-size: 0.8rem;
+    opacity: 0.75;
+}
+.appdetail__source {
+    color: var(--color-k-accent-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.appdetail__source:hover {
+    text-decoration: underline;
+}

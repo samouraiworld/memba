@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — `/apps` page (W9, 2026-07-06)
+- **New `/apps` App Store surface** behind the **SAFETY-gated** `VITE_ENABLE_APPSTORE` (off; the `memba_appstore_v1` RegisterApp fee path isn't verified on-chain yet — the flag is in `SAFETY_GATED_FLAGS`, so a prod build fails if it's enabled). `/apps` lists live apps and `/apps/<pkgPath>` shows one app's detail, read from the realm's `ListLiveJSON` / `GetListingJSON` getters via ABCI `vm/qeval` (react-query, graceful empty/loading/error). Each app **cross-links to the Explorer** (`/explorer/<pkgPath>`) — "read the contract you're about to use". First-party apps open inline; third-party apps open in a new tab (never an iframe — an embedded app asking to sign looks endorsed). **Security:** the URL-supplied pkgPath is validated against a strict realm-path shape before it reaches the qeval expression (prevents expression injection). Ships dormant; verified live on test13 (graceful-empty against the not-yet-deployed realm, 0 console errors) + gating e2e.
+
 ### Social feed — Wave 2: live proposal unfurl cards (2026-07-06)
 - On-chain unfurls extend to **DAO proposals**: paste a Memba proposal link (`/<network>/dao/<realm-path>/proposal/<id>`) into a post and it renders a **live card** with the proposal's **title, status, and yes-share**, read via `getProposalDetail` — the same multi-framework (GovDAO / basedao) render parse the proposal page uses. Skeleton while loading; **degrades to a `Proposal #<id>` card** (never a crash) when the read fails. Only the canonical `…/proposal/<number>` shape matches — a DAO home or `…/treasury/…` path stays a plain link. Completes the typed-card trio (token / validator / proposal) on one `lib/feedUnfurl` parse → `PostUnfurls` card path. Behind `VITE_ENABLE_FEED`.
 
