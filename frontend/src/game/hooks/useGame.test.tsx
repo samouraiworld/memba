@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { StrictMode } from "react";
 import { useGame } from "./useGame";
 
 describe("useGame", () => {
@@ -30,5 +31,22 @@ describe("useGame", () => {
     act(() => { b.result.current.play("U"); b.result.current.play("L"); });
     expect(a.result.current.board).toEqual(b.result.current.board);
     expect(a.result.current.moveLog).toBe(b.result.current.moveLog);
+  });
+
+  it("does not double-append a move under StrictMode", () => {
+    const { result } = renderHook(
+      () => useGame({ seed: 12345, modifier: "standard", mode: "ranked", moveBudget: 30 }),
+      { wrapper: StrictMode },
+    );
+    const dirs = ["U", "R", "D", "L"] as const;
+    for (const d of dirs) {
+      const before = result.current.moveLog.length;
+      act(() => result.current.play(d));
+      if (result.current.moveLog.length > before) {
+        expect(result.current.moveLog.length).toBe(before + 1); // exactly one, never two
+        return;
+      }
+    }
+    throw new Error("no board-changing move found to test");
   });
 });
