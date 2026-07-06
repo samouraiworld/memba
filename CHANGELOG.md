@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party — daily chain-seeded 2048 game (2026-07-06)
+- New daily puzzle behind `VITE_ENABLE_GAME` / `BLOCKPARTY_ENABLED` (both off by default): one shared board a day seeded from an unpredictable Gno block (public verify script under `scripts/`), instant no-wallet play, and a wallet-optional **server-verified** leaderboard + streaks. The client submits only its move log; the server replays it for the authoritative score. Ships dark.
+
 ### Social feed — Wave 2: reaction bar (frontend) (2026-07-06)
 - Posts gain a **reaction bar** — the live per-emoji counts (from `GetPostReactions`), with the wallet's own reactions highlighted, and a **one-per-emoji toggle** via a single on-chain `AddReaction`/`RemoveReaction` tx (a disconnected tap connects first). An **add-picker** exposes the realm's fixed 9-emoji set. Adds the `buildAddReactionMsg`/`buildRemoveReactionMsg` builders (ordinary Adena `vm/MsgCall`, no multisig path). **Off by default** behind `VITE_ENABLE_REACTIONS` — the flag is checked before any data hook, so a disabled build runs no query — and dark until the reaction-enabled `memba_feed_v1` realm is deployed to test13. Behind `VITE_ENABLE_FEED`.
 

@@ -188,6 +188,12 @@ func main() {
 		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex())
 	}
 
+	// Block Party feature flag + seed RPC source (B6). Disabled unless
+	// BLOCKPARTY_ENABLED is "1"/"true"; BLOCKPARTY_SEED_RPC_URL overrides the
+	// built-in default test13 node.
+	bpEnabled := os.Getenv("BLOCKPARTY_ENABLED") == "1" || os.Getenv("BLOCKPARTY_ENABLED") == "true"
+	svc.SetBlockParty(bpEnabled, os.Getenv("BLOCKPARTY_SEED_RPC_URL"))
+
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 

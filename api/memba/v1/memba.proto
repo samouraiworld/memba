@@ -73,6 +73,13 @@ service MultisigService {
   rpc GetFeedTimeline(GetFeedTimelineRequest) returns (GetFeedTimelineResponse);
   rpc GetUserFeed(GetUserFeedRequest) returns (GetUserFeedResponse);
   rpc GetFeedThread(GetFeedThreadRequest) returns (GetFeedThreadResponse);
+
+  // Block Party — daily on-chain-seeded puzzle game
+  rpc GetDailyChallenge(GetDailyChallengeRequest) returns (GetDailyChallengeResponse);
+  rpc SubmitScore(SubmitScoreRequest) returns (SubmitScoreResponse);
+  rpc GetDailyLeaderboard(GetDailyLeaderboardRequest) returns (GetDailyLeaderboardResponse);
+  rpc GetStreak(GetStreakRequest) returns (GetStreakResponse);
+
   // Replies to the caller's own posts — the "someone replied to you" surface.
   rpc GetReplyNotifications(GetReplyNotificationsRequest) returns (GetReplyNotificationsResponse);
   // Feed-wide live stats for the header/rail (post + author counts).
@@ -828,6 +835,60 @@ message GetFeedThreadResponse {
   FeedPost root = 1; // the parent (may be a deleted tombstone)
   repeated FeedPost replies = 2; // oldest-first (conversation order)
   uint64 next_cursor = 3;
+}
+
+// --- Block Party Messages ---
+
+message GetDailyChallengeRequest {
+  string date = 1;
+} // "" = today (server resolves UTC)
+message GetDailyChallengeResponse {
+  string date = 1;
+  uint32 seed = 2;
+  int64 block_height = 3;
+  string block_hash = 4;
+  string modifier = 5;
+  int64 par = 6;
+  bool ready = 7; // false when the day's block isn't mined yet
+  int32 move_budget = 8;
+}
+
+message SubmitScoreRequest {
+  Token auth_token = 1; // reuse existing Token message
+  string date = 2;
+  string move_log = 3; // compact moves, e.g. "URDL..."
+}
+message SubmitScoreResponse {
+  int64 score = 1; // authoritative = server replay
+  int32 percentile = 2; // % of today's field beaten
+  int64 par = 3;
+  BlockPartyStreak streak = 4;
+}
+
+message BlockPartyStreak {
+  int32 current = 1;
+  int32 longest = 2;
+  int32 freezes_remaining = 3;
+}
+
+message GetDailyLeaderboardRequest {
+  string date = 1;
+  int32 limit = 2;
+}
+message LeaderboardScore {
+  string address = 1;
+  int64 score = 2;
+  int32 rank = 3;
+}
+message GetDailyLeaderboardResponse {
+  repeated LeaderboardScore entries = 1;
+}
+
+message GetStreakRequest {
+  string address = 1;
+}
+message GetStreakResponse {
+  BlockPartyStreak streak = 1;
 }
 
 message GetReplyNotificationsRequest {
