@@ -89,6 +89,102 @@
     margin: 0;
 }
 
+/* ── Reply notifications (retention hook) ─────────────────── */
+
+.feed-notifs {
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md, 10px);
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+    overflow: hidden;
+}
+
+.feed-notifs__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 8px 12px;
+}
+
+.feed-notifs__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.feed-notifs__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: var(--text-xs, 0.75rem);
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-notifs__seen {
+    border: none;
+    background: none;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--text-sm, 0.875rem);
+    cursor: pointer;
+    padding: 4px 6px;
+}
+.feed-notifs__seen:hover { color: var(--color-text); }
+
+.feed-notifs__toggle:focus-visible,
+.feed-notifs__seen:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.feed-notifs__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.feed-notifs__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--color-text);
+    cursor: pointer;
+    border-top: 1px solid var(--color-border);
+}
+.feed-notifs__list li:first-child .feed-notifs__item { border-top: none; }
+.feed-notifs__item:hover { background: var(--color-surface-hover, rgba(128, 128, 128, 0.06)); }
+
+.feed-notifs__text { display: flex; flex-direction: column; min-width: 0; }
+.feed-notifs__who { font-size: var(--text-sm, 0.875rem); }
+.feed-notifs__when { color: var(--color-text-muted); font-family: var(--font-mono, monospace); font-size: var(--text-xs, 0.75rem); }
+.feed-notifs__snippet {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ── Buttons ──────────────────────────────────────────────── */
 
 .feed-btn {

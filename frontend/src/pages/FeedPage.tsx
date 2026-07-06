@@ -17,6 +17,7 @@ import { useAdena } from "../hooks/useAdena"
 import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
+import { FeedNotifications } from "../components/feed/FeedNotifications"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchFeedTimeline } from "../lib/feedApi"
 import { sameContent, type UiPost } from "../lib/feedTypes"
@@ -72,6 +73,10 @@ export default function FeedPage() {
                 <h1 className="feed-title">Feed</h1>
                 <p className="feed-subtitle">A global, on-chain timeline for the Memba community.</p>
             </header>
+
+            {connected && address && (
+                <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
+            )}
 
             <FeedComposer
                 connected={connected}

@@ -209,6 +209,64 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
+// GetReplyNotifications returns live replies to the caller's OWN posts, by
+// OTHER people, newest-first — the "someone replied to you" surface. unread is
+// the count with id > since_id (the client's last-seen), latest_id advances the
+// cursor. Public read — no auth (the address is not a secret; the client asks
+// only for its own).
+func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connect.Request[membav1.GetReplyNotificationsRequest]) (*connect.Response[membav1.GetReplyNotificationsResponse], error) {
+	author := req.Msg.Author
+	if author == "" || len(author) > 100 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+	limit := feedLimit(req.Msg.Limit)
+
+	// A reply r notifies `author` when its parent p was authored by `author`,
+	// r is by someone else, and r is live. reply_count is kept for card parity.
+	const joinWhere = `
+		FROM feed_posts r
+		JOIN feed_posts p ON p.post_id = r.reply_to
+		WHERE p.author = ? AND r.author != ? AND r.hidden = 0 AND r.deleted = 0`
+
+	q := `
+		SELECT r.post_id, r.author, r.body, r.reply_to, r.block_h, r.block_ts,
+		       r.edited_at, r.flag_count, r.hidden, r.deleted,
+		       (SELECT COUNT(*) FROM feed_posts c
+		          WHERE c.reply_to = r.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count` +
+		joinWhere + ` ORDER BY r.post_id DESC LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, q, author, author, limit)
+	if err != nil {
+		return nil, internalError("GetReplyNotifications", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	replies, err := scanFeedPosts(rows)
+	if err != nil {
+		return nil, internalError("GetReplyNotifications/scan", err)
+	}
+
+	// unread = notifications strictly newer than the client's last-seen id.
+	var unread int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*)`+joinWhere+` AND r.post_id > ?`,
+		author, author, req.Msg.SinceId,
+	).Scan(&unread); err != nil {
+		return nil, internalError("GetReplyNotifications/unread", err)
+	}
+
+	var latest uint64
+	if len(replies) > 0 {
+		latest = replies[0].Id // newest-first, so [0] is the max id
+	}
+
+	return connect.NewResponse(&membav1.GetReplyNotificationsResponse{
+		Replies:     replies,
+		UnreadCount: u32(unread),
+		LatestId:    latest,
+	}), nil
+}
+
 // nextCursor returns the paging cursor for a descending window: the last
 // (smallest) id when the window filled, else 0 (end reached). Compares in int
 // space (limit ≤ 100 by feedLimit).
