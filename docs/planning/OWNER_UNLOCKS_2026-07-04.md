@@ -31,19 +31,32 @@ flag exposes an empty page).
 ### A.1 — Deploy the `memba_feed_v1` realm to test13  (on-chain, multisig)
 
 The realm source is merged in the deployer (incl. the deep-review orphan-leak fix)
-and registered in `projects/memba/deploy.sh`. `deploy.sh` skips already-live realms,
-so a `memba` deploy only pushes the new feed realm.
+and registered in `projects/memba/deploy.sh`.
+
+> ⚠️ **Use the `REALM=` filter.** Plain `make deploy PROJECT=memba` walks the whole
+> memba sequence, and `memba_token_otc_v1` (a **fund-moving OTC realm**) is registered
+> but NOT yet on test13 — so a bare deploy would co-deploy it. `REALM=memba_feed_v1`
+> pins it to just the feed. (Note: `make plan` uses a separate illustrative list that
+> omits feed/otc — do NOT use it as the preview; use `make deploy-dry` below, the real
+> driver.)
 
 ```sh
 cd ~/Desktop/Code/Gno/samcrew-deployer
 
-# 1. Dry-run the plan first — confirm ONLY memba_feed_v1 is "to deploy",
-#    everything else "already deployed / skip":
-make plan NETWORK=test13 PROJECT=memba
+# 1. Dry-run through the REAL driver — must show ONLY memba_feed_v1 as "DRY",
+#    everything else "SKIP" (Total: 1 Dry, 7 Skip). No signing, no MULTISIG_SIGNERS:
+REALM=memba_feed_v1 make deploy-dry NETWORK=test13 PROJECT=memba DEPLOY_KEY=samcrew-core-test1
 
-# 2. Deploy (samcrew-core-test1 multisig signs; deploy_with_retry handles it):
-make deploy NETWORK=test13 PROJECT=memba DEPLOY_KEY=samcrew-core-test1
+# 2. Real deploy — samcrew-core-test1 is a MULTISIG, so you MUST pass the signer
+#    key names (else "cannot sign with key or addr samcrew-core-test1"). It prompts
+#    once per signer password, then signs 2-of-2 + broadcasts:
+DEPLOY_KEY=samcrew-core-test1 MULTISIG_SIGNERS=zooma,adena-zxxma REALM=memba_feed_v1 \
+  make deploy NETWORK=test13 PROJECT=memba
 ```
+
+> `MULTISIG_SIGNERS` = the two member key names in your local gnokey keyring
+> (`zooma,adena-zxxma` per the deployer README). Confirm with `gnokey list` if unsure.
+> The multisig key itself signs nothing directly — it's a reference key (empty password).
 
 **Verify (on-chain):** the realm renders and the stats read empty:
 ```sh
@@ -51,9 +64,15 @@ gnokey query vm/qrender --data "gno.land/r/samcrew/memba_feed_v1:" \
   -remote https://rpc.test13.testnets.gno.land:443
 # or qeval GetStatsJSON() → {"livePosts":0,"nextPostId":1,"tombstones":0,"paused":false}
 ```
-The realm holds **no funds** (no banker), so this is a plain addpkg — no fee-path
-risk. If `make plan` shows anything OTHER than `memba_feed_v1` as "to deploy",
-STOP and check — never redeploy a frozen realm (esp. `tokenfactory_v2`).
+The feed realm holds **no funds** (no banker), so this is a plain addpkg — no fee-path
+risk. If the dry-run shows anything OTHER than `memba_feed_v1` as "DRY", STOP and check.
+
+> **`memba_token_otc_v1` is a separate decision.** It's the OTC token-swap realm —
+> ready but never deployed on test13, its frontend lane gated off
+> (`VITE_ENABLE_TOKENS=false`), its message-builder bug fixed this session. Deploy it
+> deliberately (`REALM=memba_token_otc_v1 make deploy …`) only when you want to light up
+> the token lane — never as a side effect of the feed deploy. Never redeploy a frozen
+> realm (esp. `tokenfactory_v2`).
 
 ### A.2 — Point the backend indexer at the realm  (Fly env)
 
