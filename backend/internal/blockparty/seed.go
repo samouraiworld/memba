@@ -15,7 +15,7 @@ func DeriveSeed(blockHash, date string) uint32 {
 var modifiers = []string{"standard", "doubles", "rush"}
 
 func DeriveModifier(seed uint32) string {
-	return modifiers[seed%uint32(len(modifiers))]
+	return modifiers[seed%uint32(len(modifiers))] // #nosec G115 -- len(modifiers) is a fixed 3, well within uint32
 }
 
 // DerivePar is a stable, seed-derived target score for the day (v1 heuristic;

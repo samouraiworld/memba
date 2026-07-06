@@ -25,7 +25,7 @@ func SpawnTile(b Board, rng uint32, rngCallCount int, mod Modifier) (Board, uint
 	}
 	// position draw
 	val, st := RngNext(rng)
-	pos := empties[int(val%uint32(len(empties)))]
+	pos := empties[int(val%uint32(len(empties)))] // #nosec G115 -- len(empties) is 0..16, well within uint32
 	rng = st
 	// value draw
 	val, st = RngNext(rng)

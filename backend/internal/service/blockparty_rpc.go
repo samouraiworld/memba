@@ -70,7 +70,7 @@ func (s *MultisigService) GetDailyChallenge(
 	return connect.NewResponse(&membav1.GetDailyChallengeResponse{
 		Date: c.Date, Seed: c.Seed, BlockHeight: c.Height, BlockHash: c.Hash,
 		Modifier: c.Modifier, Par: c.Par, Ready: true,
-		MoveBudget: int32(blockparty.MoveBudget(c.Modifier)),
+		MoveBudget: int32(blockparty.MoveBudget(c.Modifier)), // #nosec G115 -- move budget is 24 or 30
 	}), nil
 }
 
@@ -176,10 +176,10 @@ func (s *MultisigService) SubmitScore(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&membav1.SubmitScoreResponse{
-		Score: score, Percentile: int32(pct), Par: c.Par,
+		Score: score, Percentile: int32(pct), Par: c.Par, // #nosec G115 -- percentile is 0..100
 		Streak: &membav1.BlockPartyStreak{
-			Current: int32(streak.Current), Longest: int32(streak.Longest),
-			FreezesRemaining: int32(streak.FreezesRemaining),
+			Current: int32(streak.Current), Longest: int32(streak.Longest), // #nosec G115 -- streak day-counters are small, bounded well within int32
+			FreezesRemaining: int32(streak.FreezesRemaining), // #nosec G115 -- freezes remaining is 0..1
 		},
 	}), nil
 }
@@ -217,7 +217,7 @@ func (s *MultisigService) GetStreak(
 	}
 	return connect.NewResponse(&membav1.GetStreakResponse{
 		Streak: &membav1.BlockPartyStreak{
-			Current: int32(st.Current), Longest: int32(st.Longest), FreezesRemaining: int32(st.FreezesRemaining),
+			Current: int32(st.Current), Longest: int32(st.Longest), FreezesRemaining: int32(st.FreezesRemaining), // #nosec G115 -- streak day-counters/freezes are small, bounded well within int32
 		},
 	}), nil
 }

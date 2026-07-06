@@ -36,7 +36,7 @@ func GetChallenge(db *sql.DB, date string) (Challenge, bool, error) {
 	if err != nil {
 		return Challenge{}, false, err
 	}
-	c.Seed = uint32(seed)
+	c.Seed = uint32(seed) // #nosec G115 -- seed is persisted as int64(uint32) by PutChallenge; round-trips within uint32 range
 	return c, true, nil
 }
 
