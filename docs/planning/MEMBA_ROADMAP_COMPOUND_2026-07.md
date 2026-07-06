@@ -414,3 +414,53 @@ Lane C OFF-LIMITS while active (external: #734 / per-sig-verified):
 - **W6.3 ✅ COMPLETE** — #744 per-route meta · #745 sitemap/robots · #746 JSON-LD + prerender decision (NOT adopted; triggers in `docs/features/SEO.md`).
 - **W6.4 ✅** — #748 merged under the owner's delegated trust (article 1); articles 2–3 in this closure PR. **W6.5 PR1 ✅ #750** (root-boundary + tx-broadcast Sentry capture); PR2 blocked on U-2. **W6.1 PR3 blocked on U-9.** With those two owner unlocks pending as carry-overs, **the Wave 6 gate is otherwise PASSED (2026-07-04).**
 
+## Wave 7 retro — session-side complete + feed turned ON 2026-07-04 → verified 2026-07-06
+
+**Shipped (all four-gate merged, Jul 4):**
+- **W7.2 feed P0 ✅ #753** — social feed backend: proto +3 Feed RPCs (NOT sig/verified fields), buf regen, migration `018_feed.sql`, `feed_tailer`/`feed_dispatch` in `internal/indexer`, `feed_rpc.go`, `main.go` wiring behind `FEED_WATCHED_REALMS` (no-op until set — safe on prod). Deployer realm **`memba_feed_v1` ✅ #56**; deep-review orphan-index-leak-on-`UnhidePost` guard **✅ deployer #57** (fixed in the realm source *before* deploy).
+- **W7.2 feed P1 ✅ #754** — `/feed` UI behind `VITE_ENABLE_FEED` (off by default), `FeedGate` coming-soon state, optimistic compose→reconcile.
+- **W7.1 marketplace ✅ #755** — "My Listings" surface (own active listings across NFT v3.1 + Token OTC, one-click cancel, `allSettled`-resilient, optimistic self-correcting removal). **Caught + fixed:** the token-OTC lane's builders emitted Amino type `"vm/msg/call"`, which the shared broadcast path rejects (`"vm/MsgCall"` only) — every token list/cancel/fill would have thrown before reaching the wallet; the lane was gated off so it was never exercised. Round-trip test added through `toAdenaMessages`.
+- **W7.3 activity bot ✅ #756** — testnet-only `cmd/activitybot` (never holds a key in Go; emits/execs `gnokey`; kill-switch `ACTIVITYBOT_ENABLED`, per-run/rolling-daily caps, clean-exit-on-error). Runbook `backend/docs/ACTIVITYBOT_RUNBOOK.md`. Not wired into any service.
+- **Hardening ✅ #757** — 4-angle deep review (feed 5-layer realm→indexer→sqlite→RPC→UI contract, broadcast-builder/flag audit, adversarial security, docs): came back clean on correctness; **added `feed.test.ts`** pinning the Amino wire contract for all five feed builders (the exact coverage gap that let the OTC wrong-type ship) + badge-mint round-trips; made activity-bot success-path state-save failure loud.
+- **Guard ✅ #758** — My Listings NFT delist routed through `routeNftV3()` so it passes the same `isRealmValid(NFT_MARKETPLACE_V3_PATH)` allowlist every other v3 write-site uses (broadcast layer doesn't check engine paths — that guard is the invariant).
+- **UX polish ✅ #759** (owner-requested) — Feed under Home in nav; Leaderboard + Extensions to the utility tail by Feedback; marketplace/services/NFT terminal-header hero (no fabricated metrics); blog editorial redesign; **validator-reviews subject fix** — the table queried each row's *signing* address, but reviews key to the *operator* address once a valoper registers; now resolves to that canonical subject (signing addr merged as alias) so every reviewed validator shows ratings.
+- **Docs ✅ #760 / #761** — post-Wave-7 `OWNER_UNLOCKS_2026-07-04.md` (step-by-step feed turn-on + Wave-8 gates); feed-deploy command corrected to the `REALM=` filter. Deployer tooling **✅ #58** (`REALM=` single-realm deploy filter — pins `memba_feed_v1` so a bare `make deploy` can't co-deploy the fund-moving `memba_token_otc_v1`) and **✅ #59** (post-deploy verification honors `REALM=`).
+
+**Feed turn-on (OWNER_UNLOCKS §A) — status 2026-07-06:**
+- **A.1 realm ✅ LIVE** — `memba_feed_v1` deployed to test13 via 2-of-2 multisig (zooma + adena-zxxma); `qrender` confirms it renders (`Live posts: 0`). Holds no funds (no banker) — plain addpkg, no fee-path risk.
+- **A.2 indexer ✅ (owner)** — `FEED_WATCHED_REALMS` set on `memba-backend`; deployed backend (`3acde5e`, includes #753) runs the feed tailer.
+- **A.3 UI flag — set, VERIFY propagation** — `VITE_ENABLE_FEED=true` set in Netlify; confirm the native (`netlify.toml`) redeploy shipped and `/feed` renders the timeline (not the gate) before calling the feed launch done. *(This is the one open Wave-7 gate checkbox.)*
+
+**Slipped:** nothing. **Found by gates/review:** the OTC Amino wrong-type (caught by the My Listings path + closed with a wire-contract test); the feed orphan-index leak (caught by 5-layer review, fixed pre-deploy); coverage gap on newest builders (closed with `feed.test.ts`).
+
+**Gate:** session-side **COMPLETE**; W7 ships **no new deposit paths** (fund-safe by construction). Gate closes on the A.3 verification above. W7 did **not** consume the Wave-8 unlocks — those remain the sole blockers below.
+
+---
+
+## Current gate status — 2026-07-06 (single-glance)
+
+**Baseline:** Memba `main` = `1f8986b` (#761) · samcrew-deployer `main` = `84083a6` (#59) · gnodaokit `pr-64` · upstream gno `master` = `dfe49509f` (**no breaking changes for test13 realms** — local ↔ origin in sync on all tracked branches; the only updated gno branches are unrelated feature branches). **0 open PRs, clean trees** on both repos.
+
+**Active parallel sessions (do not touch their files):**
+- `fix/chunk-error-auto-recovery` (worktree `memba-wt-mime`) — LIVE, uncommitted: `ErrorBoundary.tsx`, `main.tsx`, `staleChunk.ts` (+test), plus dirty `CHANGELOG.md` / `SESSION_SYNC.md`. Chunk-error auto-recovery (W6.5-adjacent). Off-limits.
+- `fix/per-signature-verified-flag` (worktree `memba-wt-sig-verified`, **Lane C / O-2**) — proto + `018_sig_verified.sql` + `tx_rpc.go` + ProgressBar/TransactionView. Signature/auth paths — Lane C off-limits by standing rule.
+
+**Owner unlocks — the only levers before more code can land:**
+
+| Unlock | What | Gates | Status |
+|---|---|---|---|
+| **U-1** | First Litestream restore drill → `OPS_RUNBOOK §4.7` (fill RPO/RTO) | **Wave 8 (hard)** | ⏳ PENDING |
+| **U-3** | Flip `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1` when boot-sweep reads `mismatch=0` (O-1 code done #734) — **USER-ONLY, metric-gated** | **Wave 8 (hard)** | ⏳ PENDING |
+| **U-2** | Set `METRICS_BEARER` + `QUEST_ADMIN_ADDRESSES` (O-4) | W6.5 PR2 + closes `/metrics` scrape hole | ⏳ PENDING |
+| **U-9** | Add `Changelog entry` to `main` required checks | Makes W6.1 gate binding | ⏳ PENDING |
+| **A.3** | Verify `VITE_ENABLE_FEED` Netlify redeploy propagated | Closes W7 feed launch | ⏳ VERIFY |
+| **U-6a / U-8 / U-10** | AMM framing · per-lane fee bps · "first 100 users" motion | Frame W8/W9 (no deadline) | 💬 decisions |
+
+**Open items rollup:** O-1 (→U-3) · O-2 (Lane C, external) · O-3 (→U-1) · O-4 (→U-2) · O-8 quests/badges (→W8.3) · **O-13** `agent_registry.DepositCredits` missing `IsUserCall()` guard before `unsafe.OriginSend()` (→**W8.1 PR2**, must redeploy hardened before `VITE_ENABLE_AGENT_CREDITS` de-gates) · **O-14** DAO v1→v2 migration story absent (→**W8.1 PR0** decision). **Closed:** O-5, O-6, O-7, O-11, O-12. **Ratchet lane (continuous):** O-9 react-hooks 52→0 · O-10 god-files / `any` / a11y AA.
+
+**Next actionable, in order:**
+1. **Verify A.3** (feed UI live on prod) → close the Wave-7 gate. *(session-verifiable once redeploy confirmed)*
+2. **U-2 + U-9** — small independent owner actions; U-2 unblocks W6.5 PR2 (backend Sentry) as the next session-side PR.
+3. **U-1 + U-3** — the two Wave-8 hard-gate unlocks. Until BOTH land, no money-path (W8) code starts; if they stall, pull the **Wave-9 spikes** (explorer / app-store / AMM / playground — docs only, no code gate) forward instead of starting W8 optimistically.
+4. On the W8 gate passing: **W8.1 PR0** (owner picks DAO v1→v2 Option A vs B) → banker-as-new-version + **O-13** hardened `agent_registry` → treasury-spend UI → e2e → de-gate flips.
+
