@@ -29,7 +29,7 @@ blockparty-vectors-check: ## Verify backend testdata vectors match frontend cano
 	@echo "block party vectors: backend testdata matches frontend canonical"
 
 blockparty-corpus: ## Regenerate the frozen TS-generated differential corpus (500 games)
-	cd frontend && node --experimental-strip-types scripts/gen-blockparty-corpus.mjs
+	cd frontend && GEN_CORPUS=1 node ./node_modules/.bin/vitest run src/game/engine/corpus.gen.test.ts
 
 # Frontend
 frontend-dev: ## Run frontend dev server
