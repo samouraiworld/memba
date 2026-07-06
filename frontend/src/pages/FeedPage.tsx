@@ -1,215 +1,166 @@
 /**
- * FeedPage — the social feed MVP (W7.2 P1).
+ * FeedPage — the social feed home timeline (W7.2).
  *
  * Reads the home timeline from the indexed backend projection (feedApi) and
- * lets a connected wallet post + flag by broadcasting to the memba_feed_v1
- * realm (lib/feed). New posts are inserted optimistically and reconciled
- * against the indexer (block time + indexer lag mean a fresh post isn't
- * queryable for a few seconds).
+ * lets a connected wallet post + flag via the memba_feed_v1 realm. New posts
+ * are inserted optimistically and reconciled against the indexer. Posts link to
+ * their thread (/feed/post/:id) and authors to their profile (/feed/user/:addr).
  *
- * Post bodies are rendered as plain text — React escapes them, so the realm's
- * raw (un-sanitized) JSON body carries zero XSS risk here.
+ * History is infinitely scrolled (cursor-paginated `useInfiniteQuery`). A
+ * SEPARATE lightweight page-0 poll drives the "N new posts" pill, so background
+ * polling never refetches deep pages (the useInfiniteQuery thundering-herd trap).
  *
  * @module pages/FeedPage
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Flag, PaperPlaneTilt, ChatCircle } from "@phosphor-icons/react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { ArrowUp } from "@phosphor-icons/react"
+import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useAdena } from "../hooks/useAdena"
-import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { EmptyState } from "../components/ui/EmptyState"
-import { fetchFeedTimeline, type FeedPost } from "../lib/feedApi"
-import { buildCreatePostMsg, buildFlagPostMsg, submitFeedMsg } from "../lib/feed"
-import { MAX_FEED_BODY, FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
+import { FeedComposer } from "../components/feed/FeedComposer"
+import { PostCard } from "../components/feed/PostCard"
+import { FeedNotifications } from "../components/feed/FeedNotifications"
+import { FeedTrending } from "../components/feed/FeedTrending"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
+import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
+import { countNewer } from "../lib/feedPaging"
+import { sameContent, type UiPost } from "../lib/feedTypes"
+import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
 import "./feed.css"
-
-// An optimistic post carries a synthetic negative id until the indexer catches
-// up; it's replaced by the real row once the author's newest post appears.
-type UiPost = FeedPost & { optimistic?: boolean }
 
 export default function FeedPage() {
     const { address, connected, connect } = useAdena()
+    const nav = useNetworkNav()
 
-    const query = useQuery({
+    const timeline = useInfiniteQuery({
         queryKey: ["feed", "timeline"],
+        queryFn: ({ pageParam }) => fetchFeedTimeline(pageParam, 20),
+        initialPageParam: 0n,
+        getNextPageParam: (last) => (last.nextCursor && last.nextCursor > 0n ? last.nextCursor : undefined),
+        staleTime: 5_000,
+        retry: false,
+    })
+
+    // Freshness poll — page 0 only. Never refetches the loaded deep pages.
+    const head = useQuery({
+        queryKey: ["feed", "head"],
         queryFn: () => fetchFeedTimeline(0n, 20),
         refetchInterval: FEED_POLL_MS,
         staleTime: 5_000,
         retry: false,
     })
 
-    // Optimistic posts the current session created, not yet in the indexer.
+    // Feed-wide live counters for the header strip.
+    const stats = useQuery({
+        queryKey: ["feed", "stats"],
+        queryFn: fetchFeedStats,
+        staleTime: 30_000,
+        retry: false,
+    })
+
+    const serverPosts = useMemo(
+        () => timeline.data?.pages.flatMap(p => p.posts) ?? [],
+        [timeline.data],
+    )
+    const newestLoadedId = serverPosts[0]?.id ?? 0n
+    const newCount = countNewer(newestLoadedId, head.data?.posts ?? [])
+
     const [optimistic, setOptimistic] = useState<UiPost[]>([])
     const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    useEffect(() => {
-        return () => {
-            if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
-        }
-    }, [])
+    useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [])
 
-    // An optimistic post is confirmed once the indexer reports a post by the
-    // same author with the same body. Filter those out at render (no effect,
-    // no cascading setState); the array itself is pruned in the reconcile
-    // callback below so it can't grow across a long session.
-    const serverPosts = query.data?.posts ?? []
-    const confirmed = (o: UiPost) => serverPosts.some(s => s.author === o.author && s.body === o.body)
-    const posts: UiPost[] = [...optimistic.filter(o => !confirmed(o)), ...serverPosts]
+    const posts: UiPost[] = [
+        ...optimistic.filter(o => !serverPosts.some(s => sameContent(o, s))),
+        ...serverPosts,
+    ]
+
+    const onPosted = useCallback((post: UiPost) => {
+        setOptimistic(prev =>
+            prev.some(o => o.author === post.author && o.body === post.body) ? prev : [post, ...prev],
+        )
+        if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
+        const poke = async (n: number) => {
+            const res = await timeline.refetch()
+            const server = res.data?.pages.flatMap(p => p.posts) ?? []
+            setOptimistic(prev => prev.filter(o => !server.some(s => sameContent(o, s))))
+            if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
+        }
+        reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
+    }, [timeline])
+
+    // Pull the newest posts into view (refetches loaded pages on explicit action).
+    const showNewest = useCallback(() => {
+        void timeline.refetch()
+        if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
+    }, [timeline])
 
     return (
         <div className="feed-page" data-testid="feed-page">
             <header className="feed-header">
                 <h1 className="feed-title">Feed</h1>
-                <p className="feed-subtitle">
-                    A global, on-chain timeline for the Memba community.
-                </p>
+                <p className="feed-subtitle">A global, on-chain timeline for the Memba community.</p>
             </header>
 
-            <Composer
-                connected={connected}
-                address={address}
-                onConnect={connect}
-                onPosted={(post) => {
-                    // Self-dedupe: don't stack a second pending row with the same
-                    // author+body (the reconcile match can't tell them apart, and
-                    // the realm's post cooldown would reject a rapid duplicate).
-                    setOptimistic(prev =>
-                        prev.some(o => o.author === post.author && o.body === post.body)
-                            ? prev
-                            : [post, ...prev],
-                    )
-                    // Reconcile: refetch a few times while the indexer catches up,
-                    // and prune confirmed optimistic rows in the timer callback
-                    // (not an effect) so the array can't grow across a session.
-                    if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
-                    const poke = async (n: number) => {
-                        const res = await query.refetch()
-                        const server = res.data?.posts ?? []
-                        setOptimistic(prev =>
-                            prev.filter(o => !server.some(s => s.author === o.author && s.body === o.body)),
-                        )
-                        if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
-                    }
-                    reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
-                }}
-            />
+            <div className="feed-page__notifs">
+                {connected && address && (
+                    <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
+                )}
+            </div>
 
-            <FeedList
-                posts={posts}
-                loading={query.isLoading}
-                connected={connected}
-                selfAddress={address}
-                onRefetch={() => void query.refetch()}
-            />
+            <div className="feed-page__compose">
+                <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} />
+            </div>
+
+            {/* Right rail (≥1024px) / stacked context strip (mobile): live counters +
+                the "Most replied" discovery list, promoted out of the header/timeline. */}
+            <aside className="feed-rail" data-testid="feed-rail" aria-label="Feed activity">
+                {stats.data && stats.data.livePosts > 0n && (
+                    <p className="feed-stats" data-testid="feed-stats">
+                        <span><b>{stats.data.livePosts.toString()}</b> posts</span>
+                        <span><b>{stats.data.totalReplies.toString()}</b> replies</span>
+                        <span><b>{stats.data.totalAuthors.toString()}</b> authors</span>
+                    </p>
+                )}
+                <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)} />
+            </aside>
+
+            <div className="feed-main">
+                {newCount > 0 && (
+                    <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">
+                        <ArrowUp size={14} weight="bold" />
+                        {newCount >= 20 ? "20+ new posts" : `${newCount} new post${newCount === 1 ? "" : "s"}`}
+                    </button>
+                )}
+
+                <FeedList
+                    posts={posts}
+                    loading={timeline.isLoading}
+                    connected={connected}
+                    selfAddress={address}
+                    onRefetch={() => void timeline.refetch()}
+                    onConnect={connect}
+                    onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
+                    onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                />
+
+                {timeline.hasNextPage && (
+                    <button
+                        type="button"
+                        className="feed-loadmore"
+                        onClick={() => void timeline.fetchNextPage()}
+                        disabled={timeline.isFetchingNextPage}
+                        data-testid="feed-load-more"
+                    >
+                        {timeline.isFetchingNextPage ? "Loading…" : "Load older posts"}
+                    </button>
+                )}
+            </div>
         </div>
     )
 }
-
-// ── Composer ─────────────────────────────────────────────────
-
-function Composer({
-    connected,
-    address,
-    onConnect,
-    onPosted,
-}: {
-    connected: boolean
-    address: string | undefined
-    onConnect: () => void
-    onPosted: (post: UiPost) => void
-}) {
-    const [body, setBody] = useState("")
-    const [submitting, setSubmitting] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-
-    const trimmed = body.trim()
-    const overLimit = trimmed.length > MAX_FEED_BODY
-
-    const submit = useCallback(async () => {
-        if (!connected || !address) {
-            onConnect()
-            return
-        }
-        if (!trimmed || overLimit) return
-        setSubmitting(true)
-        setError(null)
-        try {
-            await submitFeedMsg(buildCreatePostMsg(address, trimmed, 0), "feed post")
-            onPosted({
-                // Synthetic optimistic row; negative id is never a real post id.
-                id: BigInt(-Date.now()),
-                author: address,
-                body: trimmed,
-                replyTo: 0n,
-                blockH: 0n,
-                editedAt: 0n,
-                flagCount: 0,
-                hidden: false,
-                deleted: false,
-                replyCount: 0,
-                optimistic: true,
-            } as UiPost)
-            setBody("")
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            if (/reject|cancel|denied/i.test(msg)) {
-                // A user rejection in the wallet is not an error worth shouting about.
-            } else if (/too fast|characters|deleted|hidden|paused/i.test(msg)) {
-                // Surface the realm's actionable panic (e.g. "posting too fast:
-                // wait N blocks") instead of a generic retry prompt.
-                setError(msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not post.")
-            } else {
-                setError("Could not post. Please try again.")
-            }
-        } finally {
-            setSubmitting(false)
-        }
-    }, [connected, address, trimmed, overLimit, onConnect, onPosted])
-
-    if (!connected) {
-        return (
-            <div className="feed-composer feed-composer--cta">
-                <p>Connect your wallet to post to the feed.</p>
-                <button type="button" className="feed-btn feed-btn--primary" onClick={onConnect}>
-                    Connect wallet
-                </button>
-            </div>
-        )
-    }
-
-    return (
-        <div className="feed-composer">
-            <textarea
-                className="feed-composer__input"
-                placeholder="Share something with the community…"
-                value={body}
-                maxLength={MAX_FEED_BODY + 100 /* allow paste then show over-limit */}
-                rows={3}
-                onChange={(e) => setBody(e.target.value)}
-                data-testid="feed-composer-input"
-            />
-            <div className="feed-composer__row">
-                <span className={"feed-composer__count" + (overLimit ? " over" : "")}>
-                    {trimmed.length}/{MAX_FEED_BODY}
-                </span>
-                <button
-                    type="button"
-                    className="feed-btn feed-btn--primary"
-                    disabled={submitting || !trimmed || overLimit}
-                    onClick={submit}
-                    data-testid="feed-post-btn"
-                >
-                    <PaperPlaneTilt size={16} weight="fill" />
-                    {submitting ? "Posting…" : "Post"}
-                </button>
-            </div>
-            {error && <p className="feed-composer__error">{error}</p>}
-        </div>
-    )
-}
-
-// ── List ─────────────────────────────────────────────────────
 
 function FeedList({
     posts,
@@ -217,13 +168,20 @@ function FeedList({
     connected,
     selfAddress,
     onRefetch,
+    onConnect,
+    onOpenThread,
+    onOpenProfile,
 }: {
     posts: UiPost[]
     loading: boolean
     connected: boolean
     selfAddress: string | undefined
     onRefetch: () => void
+    onConnect: () => void | Promise<boolean>
+    onOpenThread: (id: bigint) => void
+    onOpenProfile: (address: string) => void
 }) {
+    const names = useActorUsernames(posts.map(p => p.author))
     if (loading && posts.length === 0) {
         return (
             <div className="feed-list" aria-busy="true">
@@ -253,69 +211,12 @@ function FeedList({
                     connected={connected}
                     selfAddress={selfAddress}
                     onRefetch={onRefetch}
+                    onConnect={onConnect}
+                    onOpenThread={onOpenThread}
+                    onOpenProfile={onOpenProfile}
+                    displayName={names.get(post.author)}
                 />
             ))}
         </div>
-    )
-}
-
-function PostCard({
-    post,
-    connected,
-    selfAddress,
-    onRefetch,
-}: {
-    post: UiPost
-    connected: boolean
-    selfAddress: string | undefined
-    onRefetch: () => void
-}) {
-    const [flagging, setFlagging] = useState(false)
-    const [flagged, setFlagged] = useState(false)
-    const isOwn = selfAddress === post.author
-
-    const flag = useCallback(async () => {
-        if (!connected || !selfAddress || post.optimistic) return
-        setFlagging(true)
-        try {
-            await submitFeedMsg(buildFlagPostMsg(selfAddress, post.id), "flag post")
-            setFlagged(true)
-            onRefetch()
-        } catch {
-            // swallow — a rejected/failed flag simply leaves the post unflagged
-        } finally {
-            setFlagging(false)
-        }
-    }, [connected, selfAddress, post.id, post.optimistic, onRefetch])
-
-    return (
-        <article className={"feed-post" + (post.optimistic ? " feed-post--pending" : "")}>
-            <div className="feed-post__head">
-                <CopyableAddress address={post.author} compact fontSize={12} />
-                <span className="feed-post__meta">
-                    {post.optimistic ? "posting…" : `block ${post.blockH.toString()}`}
-                    {post.editedAt > 0n && !post.optimistic && " · edited"}
-                </span>
-            </div>
-            <div className="feed-post__body">{post.body}</div>
-            <div className="feed-post__actions">
-                <span className="feed-post__stat">
-                    <ChatCircle size={15} /> {post.replyCount}
-                </span>
-                {connected && !isOwn && !post.optimistic && (
-                    <button
-                        type="button"
-                        className="feed-post__flag"
-                        disabled={flagging || flagged}
-                        onClick={flag}
-                        title={flagged ? "Flagged" : "Flag this post"}
-                        data-testid="feed-flag-btn"
-                    >
-                        <Flag size={15} weight={flagged ? "fill" : "regular"} />
-                        {flagged ? "Flagged" : "Flag"}
-                    </button>
-                )}
-            </div>
-        </article>
     )
 }

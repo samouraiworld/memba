@@ -20,8 +20,9 @@ function buildFeedMsgCall(func: string, args: string[], caller: string): AminoMs
     return { type: "vm/MsgCall", value: { caller, send: "", pkg_path: FEED_PKG_PATH, func, args } }
 }
 
-/** CreatePost(body, replyTo). replyTo 0 = top-level post. */
-export function buildCreatePostMsg(caller: string, body: string, replyTo = 0): AminoMsg {
+/** CreatePost(body, replyTo). replyTo 0 = top-level post. Accepts a bigint so a
+ *  reply id past 2^53 round-trips exactly (String(42n) === "42", no `n`). */
+export function buildCreatePostMsg(caller: string, body: string, replyTo: bigint | number = 0): AminoMsg {
     return buildFeedMsgCall("CreatePost", [body, String(replyTo)], caller)
 }
 

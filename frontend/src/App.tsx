@@ -10,6 +10,7 @@ import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
 import { GameGate } from "./components/ui/GameGate"
+import { ExplorerGate } from "./components/ui/ExplorerGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
@@ -67,6 +68,9 @@ const Extensions = lazy(() => import("./pages/Extensions").then(m => ({ default:
 const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 // ── Social feed (W7.2, behind VITE_ENABLE_FEED via FeedGate) ──
 const FeedPage = lazy(() => import("./pages/FeedPage"))
+const FeedThread = lazy(() => import("./pages/FeedThread"))
+const FeedProfile = lazy(() => import("./pages/FeedProfile"))
+const Explorer = lazy(() => import("./pages/Explorer").then(m => ({ default: m.Explorer })))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -234,6 +238,7 @@ function App() {
 
           {/* Directory */}
           <Route path="directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
+          <Route path="explorer/*" element={<ExplorerGate><Suspense fallback={<PageLoader />}><Explorer /></Suspense></ExplorerGate>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
           <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
@@ -307,6 +312,8 @@ function App() {
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
           {/* Social feed — FeedGate makes the flag-off state authoritative at the router. */}
           <Route path="feed" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedPage /></Suspense></FeedGate>} />
+          <Route path="feed/post/:id" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedThread /></Suspense></FeedGate>} />
+          <Route path="feed/user/:address" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedProfile /></Suspense></FeedGate>} />
 
           {/* Changelogs (v2.14) */}
           <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />

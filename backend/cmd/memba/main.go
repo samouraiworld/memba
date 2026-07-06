@@ -19,6 +19,7 @@ import (
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
@@ -26,6 +27,7 @@ import (
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
 	"github.com/samouraiworld/memba/backend/internal/indexer"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 	"github.com/samouraiworld/memba/backend/internal/service"
 	_ "modernc.org/sqlite"
@@ -55,7 +57,7 @@ func productionConfigWarnings(getenv func(string) string) []string {
 		warns = append(warns, "QUEST_ADMIN_ADDRESSES is unset — quest-claim review falls back to the baked-in default admin; set it explicitly in production.")
 	}
 	if strings.TrimSpace(getenv("METRICS_BEARER")) == "" {
-		warns = append(warns, "METRICS_BEARER is unset — /metrics is publicly scrapable; set it to gate Prometheus scrapes.")
+		warns = append(warns, "METRICS_BEARER is unset — /metrics is disabled (fail-closed in prod); set it to enable authenticated Prometheus scrapes.")
 	}
 	return warns
 }
@@ -111,6 +113,10 @@ func main() {
 			slog.Error("failed to close database", "error", err)
 		}
 	}()
+
+	// Expose the connection-pool stats on /metrics (read-only; W6.5). On SQLite
+	// with one writer, wait_count/wait_duration are the DB-contention signal.
+	metrics.RegisterDBStats(prometheus.DefaultRegisterer, database)
 
 	if err := db.Migrate(database); err != nil {
 		slog.Error("failed to run migrations", "error", err)
@@ -266,7 +272,7 @@ func main() {
 	// Initialize OAuth state store with app context for clean shutdown.
 	oauthStore := service.NewOAuthStateStore(ctx)
 
-	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors())
+	path, handler := membav1connect.NewMultisigServiceHandler(svc, connect.WithInterceptors(metrics.UnaryTimingInterceptor()))
 	mux.Handle(path, rateLimitMiddleware("rpc", maxBodySize(1<<20, handler))) // 1MB max body
 
 	// Health check — enhanced with DB, uptime, memory diagnostics
@@ -274,9 +280,10 @@ func main() {
 
 	// Prometheus metrics (observability keystone, P0-2) — exposes the signed-login
 	// ratio (memba_auth_login_total) + Go runtime metrics for an external drain.
-	// SEC-2: gated behind METRICS_BEARER when set (open otherwise so an existing
-	// scrape isn't broken) — the login-result ratio + infra internals shouldn't be
-	// served unauthenticated to the open internet.
+	// SEC-2: gated behind METRICS_BEARER when set; when unset it stays open off-Fly
+	// (dev convenience) but fails closed in prod (503) — the login-result ratio,
+	// per-method latency + DB internals shouldn't be served unauthenticated to the
+	// open internet.
 	mux.Handle("/metrics", metricsAuthMiddleware(promhttp.Handler()))
 
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
@@ -538,13 +545,25 @@ func requireAuthMiddleware(svc *service.MultisigService, next http.Handler) http
 // The token comparison is constant-time.
 func metricsAuthMiddleware(next http.Handler) http.Handler {
 	token := strings.TrimSpace(os.Getenv("METRICS_BEARER"))
+	// Fail-closed in prod: on Fly (FLY_APP_NAME set — the same signal the ED25519
+	// seed check and productionConfigWarnings use), an unset bearer must NOT serve
+	// metrics unauthenticated. The "open when unset" behavior is a local/dev
+	// convenience only; in prod a missing bearer disables the endpoint rather than
+	// silently exposing per-method latency + DB-contention internals publicly.
+	onFly := os.Getenv("FLY_APP_NAME") != ""
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if token != "" {
-			got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
-				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		if token == "" {
+			if onFly {
+				http.Error(w, `{"error":"metrics disabled: METRICS_BEARER unset"}`, http.StatusServiceUnavailable)
 				return
 			}
+			next.ServeHTTP(w, r) // off-Fly: open for local scrapes
+			return
+		}
+		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})

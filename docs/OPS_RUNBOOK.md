@@ -92,6 +92,57 @@ A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a p
 * **govulncheck cron**: `govulncheck.yml` runs every Monday 08:00 UTC. Pin: `golang.org/x/vuln/cmd/govulncheck@v1.3.0`. Failure → manual triage (no auto-issue today; planned for Phase 4).
 * **Fly metrics**: `flyctl metrics` for memory / cpu / requests; volume usage via `flyctl volumes status memba_data`.
 
+### 3.4 Prometheus `/metrics` — signals & alert thresholds
+
+The backend exposes Prometheus metrics at `GET /metrics`, **bearer-gated** by
+`METRICS_BEARER` (a scrape must send `Authorization: Bearer <token>`; the token is
+the raw secret value with no `Bearer ` prefix). When unset the endpoint fails
+closed in prod (503 on Fly) and serves unauthenticated only off-Fly (dev) — keep
+`METRICS_BEARER` set in prod (U-2). Quick check:
+
+```sh
+curl -s -o /dev/null -w "%{http_code}\n" https://memba-backend.fly.dev/metrics                       # 401 (gated)
+curl -s -H "Authorization: Bearer $METRICS_BEARER" https://memba-backend.fly.dev/metrics | grep memba_
+```
+
+All metrics are prefixed `memba_`. Thresholds below are starting points — tune to
+observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use a
+5-minute window unless noted.
+
+**RPC & saturation** (W6.5 PR2)
+
+| Signal | Alert when | Means / action |
+|--------|-----------|----------------|
+| `histogram_quantile(0.99, sum by (le,procedure) (rate(memba_rpc_duration_seconds_bucket[5m])))` | p99 > 1s for a procedure, 5 min | A specific RPC is slow — check its handler + DB contention below. |
+| `sum by (code) (rate(memba_rpc_duration_seconds_count{code!="ok"}[5m])) / sum(rate(memba_rpc_duration_seconds_count[5m]))` | error ratio > 5%, 5 min | RPC error surge; break down by `code` (`internal`/`unauthenticated`/`panic`). Any `code="panic"` > 0 pages immediately (a handler is panicking — check Sentry/logs). |
+| `memba_rpc_in_flight` | > 20 sustained 2 min (tune to traffic) | Requests are piling up — usually the single-writer DB lock (see below). A histogram only records *after* completion, so this is the leading indicator of a wedge. |
+
+**DB connection pool** (W6.5 PR2) — SQLite runs `MaxOpenConns(1)`, so the pool is the single-writer bottleneck.
+
+| Signal | Alert when | Means / action |
+|--------|-----------|----------------|
+| `rate(memba_db_wait_duration_seconds_total[5m])` | > 0.5 sustained 5 min | Fraction of wall-clock time RPCs spend blocked on the DB lock (1.0 = fully saturated). The **primary** DB-saturation signal. Check for a long-running write / migration / indexer contention. |
+| `rate(memba_db_wait_count_total[5m])` | climbing with the above | Number of goroutines queuing for a connection — corroborates saturation. |
+| `memba_db_connections_in_use` | pinned at 1 while `wait` climbs | The single writer is held; pair with `memba_rpc_in_flight`. |
+
+> These two are **counters** (`_total`); always wrap in `rate()`/`increase()`. They reset to 0 on each Fly redeploy — `rate()` is counter-reset-aware, a raw gauge read is not.
+
+**Indexer** (Wave 1)
+
+| Signal | Alert when | Means / action |
+|--------|-----------|----------------|
+| `memba_indexer_lag_blocks` | > 30 for 2 min | NFT tailer falling behind the tip — check RPC health / tailer logs. |
+| `increase(memba_indexer_last_block[10m])` | == 0 while `memba_indexer_chain_head` rises | Tailer **frozen** (the ~150k-block silent stall class). Restart / investigate. |
+| `increase(memba_nft_event_dropped_total[1h])` | > 0 | On-chain event-schema drift — a Sale/mint was skipped as malformed; inspect the dropped `event` label + logs. |
+
+**Auth & abuse** (Wave 0/1)
+
+| Signal | Alert when | Means / action |
+|--------|-----------|----------------|
+| `rate(memba_auth_login_total{result="signed"}[1h]) / rate(memba_auth_login_total[1h])` | signed-login ratio — watch (not page) | The gate signal before flipping `MEMBA_ALLOW_UNSIGNED_AUTH` / A3 enforce (§2.1). Flip only when ≈ 100%. Exact match — `=~"signed"` would also count `signed_invalid` / `signed_invalid_rejected` and inflate the ratio. |
+| `memba_multisig_sig_verify_sweep{result="mismatch"}` | > 0 on recent rows | Blocks the `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` flip (U-3). `legacy_shape` is expected for old rows; `mismatch` on recent rows is the blocker. |
+| `rate(memba_quest_rate_limit_exceeded_total[15m])` | spike vs baseline | Quest farming/sybil pressure — a wallet or cohort hitting quota in lockstep. |
+
 ---
 
 ## 4. Rollback playbooks
