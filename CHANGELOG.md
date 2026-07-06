@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Explorer — P1: cross-links, Playground hand-off & cleaner signatures (W9, 2026-07-06)
+- **The Explorer stops being an island.** Realm surfaces in the **Directory** — the realm detail drawer and the realm cards — now link straight into `/explorer/<path>` through a new self-gating `<ExplorerLink>`: it renders nothing when `VITE_ENABLE_EXPLORER` is off, so it can never drop a user onto the coming-soon gate. Internal SPA links (`🔎 Explorer`), deliberately distinct from the existing external block-explorer / gnoweb links.
+- **Source tab → Playground hand-off.** An "Open Playground ↗" link sits beside the existing copy-source control, so realm devs can take a contract's code to `play.gno.land` and experiment — read-only by construction (no in-app editor, no `qeval`, no execution surface).
+- **Cleaner function signatures.** The Functions tab now strips the VM's internal `.uverse.` qualifier (`address`, not `.uverse.address`), including nested/composite types, and the source-parser fallback is centralised in a unit-tested `resolveFnList`. The deferred `qeval` read-console is formally closed as **read-only-by-construction** (see `docs/planning/spikes/SPIKE_GNOWEB_EXPLORER.md`). Still behind `VITE_ENABLE_EXPLORER`.
+
 ### App Store — `/apps` page (W9, 2026-07-06)
 - **New `/apps` App Store surface** behind the **SAFETY-gated** `VITE_ENABLE_APPSTORE` (off; the `memba_appstore_v1` RegisterApp fee path isn't verified on-chain yet — the flag is in `SAFETY_GATED_FLAGS`, so a prod build fails if it's enabled). `/apps` lists live apps and `/apps/<pkgPath>` shows one app's detail, read from the realm's `ListLiveJSON` / `GetListingJSON` getters via ABCI `vm/qeval` (react-query, graceful empty/loading/error). Each app **cross-links to the Explorer** (`/explorer/<pkgPath>`) — "read the contract you're about to use". First-party apps open inline; third-party apps open in a new tab (never an iframe). **Security:** the URL-supplied pkgPath is validated against a strict realm-path shape before it reaches the qeval expression (prevents expression injection). Ships dormant; verified live on test13 (graceful-empty against the not-yet-deployed realm, 0 console errors) + gating e2e.
 

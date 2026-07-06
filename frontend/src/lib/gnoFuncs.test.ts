@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseQfuncs, simplifyType, formatSignature, type GnoFunc } from "./gnoFuncs"
+import { parseQfuncs, simplifyType, resolveFnList, formatSignature, type GnoFunc } from "./gnoFuncs"
 
 // Shape mirrors a real test13 `vm/qfuncs` payload: the interrealm-v2 realm
 // transition param `cur` reports a giant inline interface type.
@@ -26,6 +26,16 @@ describe("simplifyType", () => {
         expect(simplifyType("string")).toBe("string")
         expect(simplifyType("  []byte ")).toBe("[]byte")
     })
+    it("strips the internal `.uverse.` package qualifier from builtin types", () => {
+        expect(simplifyType(".uverse.address")).toBe("address")
+        expect(simplifyType(".uverse.realm")).toBe("realm")
+        expect(simplifyType(".uverse.int")).toBe("int")
+    })
+    it("strips `.uverse.` inside nested/composite types", () => {
+        expect(simplifyType("[].uverse.address")).toBe("[]address")
+        expect(simplifyType("*.uverse.address")).toBe("*address")
+        expect(simplifyType("map[.uverse.string].uverse.address")).toBe("map[string]address")
+    })
 })
 
 describe("parseQfuncs", () => {
@@ -45,6 +55,38 @@ describe("parseQfuncs", () => {
         expect(parseQfuncs("not json")).toEqual([])
         expect(parseQfuncs('{"not":"an array"}')).toEqual([])
         expect(parseQfuncs('[{"Params":[]}]')).toEqual([]) // no FuncName → skipped
+    })
+
+    it("cleans `.uverse.` qualifiers on bare params/results end-to-end", () => {
+        const raw = JSON.stringify([
+            {
+                FuncName: "Grant",
+                Params: [{ Name: "to", Type: ".uverse.address" }],
+                Results: [{ Name: ".res.0", Type: ".uverse.realm" }],
+            },
+        ])
+        const [fn] = parseQfuncs(raw)
+        expect(fn.params).toEqual([{ name: "to", type: "address" }])
+        expect(fn.results).toEqual([{ name: "", type: "realm" }])
+    })
+})
+
+describe("resolveFnList", () => {
+    const fromQfuncs: GnoFunc[] = [{ name: "CreatePost", params: [{ name: "body", type: "string" }], results: [] }]
+
+    it("prefers authoritative qfuncs signatures when present", () => {
+        expect(resolveFnList(fromQfuncs, ["Ignored"])).toBe(fromQfuncs)
+    })
+    it("falls back to source-parser exported names (no signatures) when qfuncs is empty", () => {
+        expect(resolveFnList([], ["Alpha", "Beta"])).toEqual([
+            { name: "Alpha", params: [], results: [] },
+            { name: "Beta", params: [], results: [] },
+        ])
+    })
+    it("falls back when qfuncs is null, and yields [] when both are empty", () => {
+        expect(resolveFnList(null, ["Only"])).toEqual([{ name: "Only", params: [], results: [] }])
+        expect(resolveFnList(null, [])).toEqual([])
+        expect(resolveFnList([], [])).toEqual([])
     })
 })
 

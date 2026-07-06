@@ -25,13 +25,31 @@ export interface GnoFunc {
 
 /**
  * The interrealm-v2 realm-transition first param (`cur realm`) reports a huge
- * inline interface type from qfuncs — collapse it to `realm` for display. Any
- * other type passes through verbatim.
+ * inline interface type from qfuncs — collapse it to `realm` for display.
+ *
+ * Otherwise, strip the internal `.uverse.` package qualifier the VM prepends to
+ * builtin/primitive types (`.uverse.address` → `address`, `.uverse.realm` →
+ * `realm`), including nested forms (`[].uverse.int` → `[]int`,
+ * `map[.uverse.string].uverse.address` → `map[string]address`). The match is
+ * anchored on the literal `.uverse.` qualifier, so it removes only the qualifier
+ * and never mangles a legitimate type name.
  */
 export function simplifyType(raw: string): string {
     const t = (raw || "").trim()
     if (t.startsWith("interface {") && t.includes(".seal func()")) return "realm"
-    return t
+    return t.replace(/\.uverse\./g, "")
+}
+
+/**
+ * Resolve the Explorer Functions-tab list: prefer the authoritative,
+ * VM-resolved qfuncs signatures; fall back to the source parser's exported
+ * function NAMES (signatures unknown → empty params/results) when qfuncs is
+ * empty or unavailable. Pure — unit-testable without the network, and the single
+ * source of truth for the fallback the Explorer's Functions tab renders.
+ */
+export function resolveFnList(qfuncs: GnoFunc[] | null, sourceExportedNames: string[]): GnoFunc[] {
+    if (qfuncs && qfuncs.length > 0) return qfuncs
+    return sourceExportedNames.map((name) => ({ name, params: [], results: [] }))
 }
 
 function toParams(list: unknown): GnoParam[] {
