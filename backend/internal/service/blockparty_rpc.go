@@ -12,6 +12,7 @@ import (
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/blockparty"
 	"github.com/samouraiworld/memba/backend/internal/blockparty/engine"
+	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
 // Block Party RPC handlers. Stubs for now (proto + codegen only, B5) — real
@@ -117,6 +118,12 @@ func (s *MultisigService) SubmitScore(
 	// 1) auth BEFORE any replay work
 	addr, err := s.authenticate(req.Msg.AuthToken)
 	if err != nil {
+		return nil, err
+	}
+	// per-address quota — bounds replay CPU for a valid-token caller that keeps
+	// getting rejected (wrong date/no-op move/etc.), mirroring the quest per-user
+	// limiter layered on top of the shared per-IP limiter.
+	if err := s.rateLimitUser(addr, ratelimit.BlockPartySubmitEndpoint); err != nil {
 		return nil, err
 	}
 	date := req.Msg.Date

@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/blockparty"
 	"github.com/samouraiworld/memba/backend/internal/blockparty/engine"
+	"github.com/samouraiworld/memba/backend/internal/ratelimit"
 )
 
 func TestGetDailyChallenge_ServesCached(t *testing.T) {
@@ -119,6 +121,44 @@ func TestGetStreak_Default(t *testing.T) {
 	}
 	if resp.Msg.Streak.Current != 0 {
 		t.Fatalf("current=%d want 0", resp.Msg.Streak.Current)
+	}
+}
+
+// TestSubmitScore_PerAddressRateLimit verifies the per-address limiter (Q-03
+// style) added to SubmitScore: a valid-token caller that keeps getting
+// rejected can't grind unbounded replay CPU — the SECOND call within the
+// window is rejected before any replay work, regardless of why the first
+// call failed.
+func TestSubmitScore_PerAddressRateLimit(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(true, "")
+	h.svc.SetUserLimiter(ratelimit.New(context.Background(), map[string]ratelimit.Config{
+		ratelimit.BlockPartySubmitEndpoint: {MaxRequests: 1, Window: time.Minute},
+	}))
+	token := h.makeToken(t, "g1carol")
+
+	// First call: uses the wrong date on purpose (cheap to trigger, fails for
+	// its own reason) but must NOT be rate-limited.
+	_, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+		AuthToken: token, Date: "2000-01-01", MoveLog: "URDL",
+	}))
+	if err == nil {
+		t.Fatal("expected wrong-date rejection on first call")
+	}
+	if connect.CodeOf(err) == connect.CodeResourceExhausted {
+		t.Fatalf("first call should not be rate-limited, got %v", err)
+	}
+
+	// Second call with the same token: quota is exhausted, so this must be
+	// rejected as ResourceExhausted before reaching the date check.
+	_, err = h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+		AuthToken: token, Date: "2000-01-01", MoveLog: "URDL",
+	}))
+	if err == nil {
+		t.Fatal("expected second call to be rate-limited")
+	}
+	if connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("second call: got code %v, want ResourceExhausted", connect.CodeOf(err))
 	}
 }
 
