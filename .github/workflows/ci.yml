@@ -174,29 +174,13 @@ jobs:
             echo "::warning::Total JS ${TOTAL_KB}KB exceeds 3MB — review lazy loading"
           fi
 
-      # E2E + Lighthouse are gated to the Node 22 leg only. They exercise the
-      # built bundle in a browser (Playwright) / a static preview (Lighthouse) —
-      # the Node *runner* version is irrelevant to what executes there, so running
-      # them on both matrix legs was pure duplicated wall-clock (~12min E2E ×2).
-      # Build + unit + all safety gates STILL run on both Node 20 and 22. The job
-      # name is unchanged, so both required status checks still post.
-      - name: Install Playwright
-        if: matrix.node-version == '22'
-        run: npx playwright install chromium --with-deps
-
-      - name: E2E tests
-        if: matrix.node-version == '22'
-        run: npx playwright test --project=chromium --reporter=list
-
-      - name: Upload E2E artifacts on failure
-        if: failure() && matrix.node-version == '22'
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report-node${{ matrix.node-version }}
-          path: |
-            frontend/test-results/
-            frontend/playwright-report/
-          retention-days: 7
+      # Lighthouse is gated to the Node 22 leg only (it exercises the built
+      # bundle in a static preview; the Node *runner* version is irrelevant).
+      # The full Playwright E2E used to run here too — it has been moved to its
+      # own parallel job (`frontend-e2e-full`) so its ~6.5min no longer stacks
+      # onto this job's critical path. IMPORTANT: because E2E left this job, the
+      # `Frontend (React · Node 22)` required check no longer covers E2E — add
+      # `Frontend E2E (chromium)` to branch protection's required checks.
 
       # Dependency audit is Node-version-independent — run once (Node 22), not
       # on both matrix legs.
@@ -217,6 +201,42 @@ jobs:
           name: lighthouse-report-node${{ matrix.node-version }}
           path: frontend/.lighthouseci/
           retention-days: 14
+
+  # Full desktop (chromium) Playwright suite — split out of the Frontend (Node
+  # 22) job so it runs in PARALLEL instead of stacking ~6.5min onto that job's
+  # critical path (CI wall-clock ~12.5min → ~7-8min). The webServer is the vite
+  # dev server (playwright.config), so no build step is needed here.
+  # OWNER ACTION: add "Frontend E2E (chromium)" to the branch-protection
+  # required checks so E2E keeps gating merges (it left the Node-22 job).
+  frontend-e2e-full:
+    name: Frontend E2E (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+      - name: E2E tests (chromium)
+        run: npx playwright test --project=chromium --reporter=list
+      - name: Upload E2E artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-chromium
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
 
   frontend-e2e:
     name: Frontend E2E guardrails

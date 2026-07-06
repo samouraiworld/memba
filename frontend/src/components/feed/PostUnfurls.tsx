@@ -8,12 +8,13 @@
  *
  * @module components/feed/PostUnfurls
  */
-import { Cube, Coins, ShieldCheck, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { Cube, Coins, ShieldCheck, Scroll, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
 import { getTokenInfo, formatSupply } from "../../lib/grc20"
 import { queryRender } from "../../lib/dao/shared"
 import { parseValoperDetail, VALOPERS_REALM } from "../../lib/valopers"
+import { getProposalDetail } from "../../lib/dao/proposals"
 import { GNO_RPC_URL } from "../../lib/config"
 
 /** Last path segment — the realm/package name. */
@@ -112,6 +113,46 @@ function ValidatorUnfurlCard({ address, href }: { address: string; href: string 
     )
 }
 
+/**
+ * A LIVE DAO proposal card — resolves the pasted `/dao/<realm>/proposal/<id>`
+ * link to the proposal's title + status (+ yes-share) via getProposalDetail, the
+ * same multi-framework read the proposal page uses. Skeleton while loading;
+ * degrades to a `Proposal #<id>` card (never a crash) when the read fails.
+ */
+function ProposalUnfurlCard({ realmPath, id, href }: { realmPath: string; id: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-proposal", realmPath, id],
+        queryFn: () => getProposalDetail(GNO_RPC_URL, realmPath, Number(id)),
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const sub = isLoading
+        ? "Loading…"
+        : data
+            ? [data.status || "proposal", data.yesPercent ? `${data.yesPercent}% yes` : null].filter(Boolean).join(" · ")
+            : "proposal"
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--proposal"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-proposal"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <Scroll size={13} weight="fill" /> proposal
+            </span>
+            <span className="feed-unfurl__title">{data?.title || `Proposal #${id}`}</span>
+            <span className="feed-unfurl__sub">
+                {sub} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
 export function PostUnfurls({ body }: { body: string }) {
     const refs = parseUnfurls(body)
     if (refs.length === 0) return null
@@ -144,6 +185,9 @@ export function PostUnfurls({ body }: { body: string }) {
                 }
                 if (r.kind === "validator") {
                     return <ValidatorUnfurlCard key={`validator-${i}`} address={r.address} href={r.href} />
+                }
+                if (r.kind === "proposal") {
+                    return <ProposalUnfurlCard key={`proposal-${i}`} realmPath={r.realmPath} id={r.id} href={r.href} />
                 }
                 return (
                     <a
