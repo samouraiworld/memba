@@ -121,3 +121,31 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
 export function linkImageUrl(token: string): string {
     return `${API_BASE_URL}/api/link-image?t=${encodeURIComponent(token)}`
 }
+
+export interface EmojiCount {
+    emoji: string
+    count: number
+    viewerReacted: boolean
+}
+
+/**
+ * Per-emoji reaction counts for a set of posts (+ which the viewer reacted
+ * with), keyed by post id. Empty map on any failure — reactions are additive
+ * chrome, never a hard error. Never throws.
+ */
+export async function fetchPostReactions(postIds: bigint[], viewer?: string): Promise<Map<bigint, EmojiCount[]>> {
+    const out = new Map<bigint, EmojiCount[]>()
+    if (postIds.length === 0) return out
+    try {
+        const res = await api.getPostReactions({ postIds, viewer: viewer ?? "" })
+        for (const p of res.posts ?? []) {
+            out.set(
+                p.postId,
+                (p.reactions ?? []).map(e => ({ emoji: e.emoji, count: Number(e.count), viewerReacted: e.viewerReacted })),
+            )
+        }
+    } catch {
+        /* empty */
+    }
+    return out
+}

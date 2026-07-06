@@ -4,6 +4,8 @@ import {
     buildEditPostMsg,
     buildDeletePostMsg,
     buildFlagPostMsg,
+    buildAddReactionMsg,
+    buildRemoveReactionMsg,
     FEED_PKG_PATH,
 } from "./feed"
 import { toAdenaMessages } from "./grc20"
@@ -56,6 +58,23 @@ describe("feed builders — Amino wire contract", () => {
         expect(msg.value.func).toBe("FlagPost")
         expect(msg.value.args).toEqual(["3"])
         expect(msg.value.send).toBe("")
+        expect(() => toAdenaMessages([msg])).not.toThrow()
+    })
+
+    it("buildAddReactionMsg: AddReaction(id, emoji), no coins", () => {
+        const msg = buildAddReactionMsg(caller, 5n, "🔥")
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value.func).toBe("AddReaction")
+        expect(msg.value.args).toEqual(["5", "🔥"])
+        expect(msg.value.send).toBe("")
+        expect(() => toAdenaMessages([msg])).not.toThrow()
+    })
+
+    it("buildRemoveReactionMsg: RemoveReaction(id, emoji)", () => {
+        const msg = buildRemoveReactionMsg(caller, 5n, "🔥")
+        expect(msg.type).toBe("vm/MsgCall")
+        expect(msg.value.func).toBe("RemoveReaction")
+        expect(msg.value.args).toEqual(["5", "🔥"])
         expect(() => toAdenaMessages([msg])).not.toThrow()
     })
 })
