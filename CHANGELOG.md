@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Observability — backend RPC & DB-pool metrics on /metrics (#764, 2026-07-06)
+- **RPC duration histogram** `memba_rpc_duration_seconds{procedure,code}` via a transparent Connect interceptor (panics are metered as `code="panic"` and re-propagate unchanged), plus **`memba_rpc_in_flight`** — a real-time saturation gauge that surfaces a handler wedged on the single-writer DB lock *before* it ever records a duration.
+- **DB connection-pool metrics** from `db.Stats()`: `memba_db_connections_{open,in_use,idle}` gauges + `memba_db_wait_count_total` / `memba_db_wait_duration_seconds_total` counters (the single-writer SQLite contention signal). All served behind the bearer-gated `/metrics` (U-2). Alert thresholds in `OPS_RUNBOOK.md` §3.4.
+
 ### Social feed — thread view + profile timeline + replies (2026-07-05)
 - The feed is now **threaded**: clicking a post opens **`/feed/post/:id`** (the post + its replies, oldest-first) with an inline **reply composer**; clicking an author opens **`/feed/user/:address`** (their posts, newest-first). Both read the already-live `GetFeedThread` / `GetUserFeed` RPCs — no realm redeploy or backend change. Replies broadcast to `memba_feed_v1` via the ordinary Adena flow with the same optimistic-insert + reconcile as the home timeline. `PostCard` + `FeedComposer` were extracted to shared components (`components/feed/`) so all three views render identically; malformed post-id / address links show a graceful "Invalid" state; the sub-routes sit behind the same `VITE_ENABLE_FEED` gate (e2e-verified). Still behind the flag — no new flag, no funds.
 
