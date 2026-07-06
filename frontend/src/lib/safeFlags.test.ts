@@ -30,6 +30,10 @@ describe("assertSafeFlags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
+            // Added by the App Store PR (#801) but its test update was missed —
+            // left main's unit suite red. VITE_ENABLE_APPSTORE is legitimately
+            // gated (the RegisterApp fee path isn't verified on test13 yet).
+            "VITE_ENABLE_APPSTORE",
         ])
     })
 })
