@@ -17,4 +17,10 @@ describe("slideLineLeft", () => {
   it("leaves an unmergeable line only compacted", () => {
     expect(slideLineLeft([2, 4, 8, 16])).toEqual({ line: [2, 4, 8, 16], gained: 0 });
   });
+  it("merges one pair and leaves the trailing single tile", () => {
+    expect(slideLineLeft([2, 2, 2, 0])).toEqual({ line: [4, 2, 0, 0], gained: 4 });
+  });
+  it("returns an all-zero line unchanged with no gain", () => {
+    expect(slideLineLeft([0, 0, 0, 0])).toEqual({ line: [0, 0, 0, 0], gained: 0 });
+  });
 });
