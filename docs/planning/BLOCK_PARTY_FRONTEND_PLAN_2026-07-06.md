@@ -911,7 +911,7 @@ export function bumpLocalStreak(date: string): LocalStreak {
 
 ```tsx
 // frontend/src/game/components/GameOverSheet.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { rankFromPercentile } from "../lib/tiers";
 import { getLocalBest, setLocalBest, bumpLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
@@ -933,17 +933,22 @@ export function GameOverSheet(props: {
   // guest local persistence (also runs for connected users as a fallback)
   useEffect(() => { setLocalBest(date, score); }, [date, score]);
 
-  // auto-submit when authenticated
+  // auto-submit when authenticated — fire ONCE via a ref (StrictMode double-invokes effects)
+  const submittedRef = useRef(false);
   useEffect(() => {
-    if (!auth.isAuthenticated || !auth.token || result) return;
+    if (!auth.isAuthenticated || !auth.token || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitting(true);
     gameApi.submitScore(auth.token, date, moveLog)
       .then((r) => setResult({ percentile: r.percentile, streak: r.streak?.current ?? 0 }))
       .catch(() => setErr("Couldn’t verify your score. Your local best is saved."))
       .finally(() => setSubmitting(false));
-  }, [auth.isAuthenticated, auth.token, date, moveLog, result]);
+  }, [auth.isAuthenticated, auth.token, date, moveLog]);
 
-  const localStreak = bumpLocalStreak(date).current;
+  // local streak bump is a side effect → MUST live in an effect, not the render body
+  // (StrictMode double-invokes render; a render-body localStorage write double-counts).
+  const [localStreak, setLocalStreakState] = useState(0);
+  useEffect(() => { setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
   const parDelta = score - par;
 
   return (
