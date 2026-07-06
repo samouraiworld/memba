@@ -185,13 +185,15 @@ export function RealmsTab() {
                                                     className="dir-render-preview__link"
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
+                                                {/* External block explorer (gnoweb on current networks) — labelled
+                                                    distinctly from the in-app "🔎 Explorer" viewer above; ↗ signals new tab. */}
                                                 <a
                                                     href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="dir-render-preview__link"
                                                 >
-                                                    Explorer →
+                                                    Block explorer ↗
                                                 </a>
                                                 {r.gnowebUrl && (
                                                     <a
