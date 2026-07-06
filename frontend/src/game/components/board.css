@@ -25,7 +25,7 @@
 }
 .k-bp-cell--empty { background: var(--color-k-elevated); }
 .k-bp-tile {
-  color: #04120f; font-weight: 700;
+  color: var(--color-k-on-accent); font-weight: 700;
   background: var(--color-k-accent);
   box-shadow: 0 0 12px var(--color-k-accent-tint);
 }

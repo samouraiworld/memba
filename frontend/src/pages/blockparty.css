@@ -38,7 +38,7 @@
 }
 .k-bp-mode-btn--active {
   background: var(--color-k-accent);
-  color: #04120f;
+  color: var(--color-k-on-accent);
   border-color: transparent;
 }
 
