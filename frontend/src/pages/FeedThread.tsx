@@ -52,7 +52,22 @@ export default function FeedThread() {
 
     const [optimistic, setOptimistic] = useState<UiPost[]>([])
     const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-    useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [])
+
+    // This component is reused across /feed/post/:id values (React Router keeps
+    // it mounted and only changes the param), so reset the optimistic replies
+    // when the thread id changes — otherwise thread A's pending replies would
+    // leak into thread B. State reset happens in render (adjust-on-prop-change,
+    // no cascading effect); the reconcile timer is cleared in the id-keyed
+    // effect below (refs can't be touched during render).
+    const idKey = postId?.toString() ?? ""
+    const [prevIdKey, setPrevIdKey] = useState(idKey)
+    if (idKey !== prevIdKey) {
+        setPrevIdKey(idKey)
+        setOptimistic([])
+    }
+
+    // Clear any pending reconcile poke when the thread id changes or on unmount.
+    useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [idKey])
 
     const serverReplies = query.data?.replies ?? []
     const replies: UiPost[] = [
