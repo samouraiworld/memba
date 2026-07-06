@@ -6336,6 +6336,7 @@ type FeedPost struct {
 	Hidden        bool                   `protobuf:"varint,9,opt,name=hidden,proto3" json:"hidden,omitempty"`
 	Deleted       bool                   `protobuf:"varint,10,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	ReplyCount    uint32                 `protobuf:"varint,11,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"` // live replies indexed under this post
+	BlockTs       int64                  `protobuf:"varint,12,opt,name=block_ts,json=blockTs,proto3" json:"block_ts,omitempty"`          // block header time (unix seconds); 0 = unknown. The
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6436,6 +6437,13 @@ func (x *FeedPost) GetDeleted() bool {
 func (x *FeedPost) GetReplyCount() uint32 {
 	if x != nil {
 		return x.ReplyCount
+	}
+	return 0
+}
+
+func (x *FeedPost) GetBlockTs() int64 {
+	if x != nil {
+		return x.BlockTs
 	}
 	return 0
 }
@@ -7274,7 +7282,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x16GetHomeSnapshotRequest\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\"M\n" +
 	"\x17GetHomeSnapshotResponse\x122\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\x9a\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\xb5\x02\n" +
 	"\bFeedPost\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x16\n" +
 	"\x06author\x18\x02 \x01(\tR\x06author\x12\x12\n" +
@@ -7288,7 +7296,8 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\adeleted\x18\n" +
 	" \x01(\bR\adeleted\x12\x1f\n" +
 	"\vreply_count\x18\v \x01(\rR\n" +
-	"replyCountJ\x04\b\x05\x10\x06R\trepost_of\"F\n" +
+	"replyCount\x12\x19\n" +
+	"\bblock_ts\x18\f \x01(\x03R\ablockTsJ\x04\b\x05\x10\x06R\trepost_of\"F\n" +
 	"\x16GetFeedTimelineRequest\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\x04R\x06cursor\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\"\x92\x01\n" +

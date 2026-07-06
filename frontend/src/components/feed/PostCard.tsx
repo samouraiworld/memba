@@ -15,6 +15,7 @@ import { useCallback, useState } from "react"
 import { Flag, ChatCircle } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg } from "../../lib/feed"
 import type { UiPost } from "../../lib/feedTypes"
+import { relativeTime } from "../../lib/relativeTime"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
@@ -74,8 +75,13 @@ export function PostCard({
                 >
                     {shortAddr(post.author)}
                 </button>
-                <span className="feed-post__meta">
-                    {post.optimistic ? "posting…" : `block ${post.blockH.toString()}`}
+                <span
+                    className="feed-post__meta"
+                    title={post.optimistic ? undefined : `block ${post.blockH.toString()}`}
+                >
+                    {post.optimistic
+                        ? "posting…"
+                        : relativeTime(post.blockTs, Date.now()) || `block ${post.blockH.toString()}`}
                     {post.editedAt > 0n && !post.optimistic && " · edited"}
                 </span>
             </div>

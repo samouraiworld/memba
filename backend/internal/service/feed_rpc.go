@@ -39,11 +39,11 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	posts := []*membav1.FeedPost{}
 	for rows.Next() {
 		var (
-			id, replyTo, blockH, editedAt, flagCount, replyCount sql.NullInt64
-			author, body                                         sql.NullString
-			hidden, deleted                                      sql.NullBool
+			id, replyTo, blockH, blockTs, editedAt, flagCount, replyCount sql.NullInt64
+			author, body                                                 sql.NullString
+			hidden, deleted                                              sql.NullBool
 		)
-		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH,
+		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH, &blockTs,
 			&editedAt, &flagCount, &hidden, &deleted, &replyCount); err != nil {
 			return nil, err
 		}
@@ -53,6 +53,7 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 			Body:       body.String,
 			ReplyTo:    u64(replyTo.Int64),
 			BlockH:     blockH.Int64,
+			BlockTs:    blockTs.Int64,
 			EditedAt:   editedAt.Int64,
 			FlagCount:  u32(flagCount.Int64),
 			Hidden:     hidden.Bool,
@@ -66,7 +67,7 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 // feedPostSelect is the shared column list. reply_count is computed as the
 // number of live (not deleted, not hidden) replies indexed under each post.
 const feedPostSelect = `
-	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h,
+	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
 	       p.edited_at, p.flag_count, p.hidden, p.deleted,
 	       (SELECT COUNT(*) FROM feed_posts c
 	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count
