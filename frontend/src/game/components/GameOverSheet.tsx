@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { rankFromPercentile } from "../lib/tiers";
 import { getLocalBest, setLocalBest, bumpLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
@@ -16,21 +16,25 @@ export function GameOverSheet(props: {
   const [result, setResult] = useState<{ percentile: number; streak: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [localStreak, setLocalStreakState] = useState(0);
+  const submittedRef = useRef(false);
 
   // guest local persistence (also runs for connected users as a fallback)
   useEffect(() => { setLocalBest(date, score); }, [date, score]);
 
+  useEffect(() => { setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
+
   // auto-submit when authenticated
   useEffect(() => {
-    if (!auth.isAuthenticated || !auth.token || result) return;
+    if (!auth.isAuthenticated || !auth.token || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitting(true);
     gameApi.submitScore(auth.token, date, moveLog)
       .then((r) => setResult({ percentile: r.percentile, streak: r.streak?.current ?? 0 }))
       .catch(() => setErr("Couldn't verify your score. Your local best is saved."))
       .finally(() => setSubmitting(false));
-  }, [auth.isAuthenticated, auth.token, date, moveLog, result]);
+  }, [auth.isAuthenticated, auth.token, date, moveLog]);
 
-  const localStreak = bumpLocalStreak(date).current;
   const parDelta = score - par;
 
   return (

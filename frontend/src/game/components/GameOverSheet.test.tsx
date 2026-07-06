@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { GameOverSheet } from "./GameOverSheet";
+import { gameApi } from "../../lib/gameApi";
+
+vi.mock("../../lib/gameApi", () => ({ gameApi: { submitScore: vi.fn() } }));
 
 const baseProps = {
   date: "2026-07-06", score: 1200, par: 1500, moveLog: "URDL", board: new Array(16).fill(0),
@@ -15,5 +18,17 @@ describe("GameOverSheet", () => {
     expect(screen.getByRole("button", { name: /share/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^connect/i })).toBeNull();
     expect(screen.getByText(/adena extension/i)).toBeTruthy();
+  });
+
+  it("authenticated: submits (token, date, moveLog) exactly once — never a score — and shows the percentile", async () => {
+    const submit = vi.mocked(gameApi.submitScore);
+    submit.mockResolvedValue({ score: 1200n, percentile: 88, par: 1500n, streak: { current: 3, longest: 3, freezesRemaining: 1 } } as any);
+    const token = { nonce: "n", userAddress: "g1me", expiration: "", serverSignature: "s" } as any;
+    render(<GameOverSheet {...baseProps}
+      wallet={{ installed: true, connect: vi.fn() }}
+      auth={{ isAuthenticated: true, token }} />);
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    expect(submit).toHaveBeenCalledWith(token, baseProps.date, baseProps.moveLog); // token, date, moveLog — no score arg
+    await screen.findByText(/88%/);
   });
 });
