@@ -8,17 +8,31 @@ import (
 	"testing"
 )
 
-// SEC-2: /metrics is gated by METRICS_BEARER when set, open otherwise (so an
-// existing Prometheus scrape isn't broken until the operator opts in).
+// SEC-2: /metrics is gated by METRICS_BEARER when set. When unset it stays open
+// OFF-Fly (dev convenience) but fails closed in prod (FLY_APP_NAME set), so a
+// missing bearer can never silently expose the endpoint publicly.
 func TestMetricsAuthMiddleware(t *testing.T) {
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
-	t.Run("unset env leaves metrics open", func(t *testing.T) {
+	t.Run("unset env off-Fly leaves metrics open (dev convenience)", func(t *testing.T) {
 		t.Setenv("METRICS_BEARER", "")
+		t.Setenv("FLY_APP_NAME", "") // not on Fly
 		rr := httptest.NewRecorder()
 		metricsAuthMiddleware(ok).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 		if rr.Code != http.StatusOK {
-			t.Fatalf("unset: want 200, got %d", rr.Code)
+			t.Fatalf("unset off-Fly: want 200, got %d", rr.Code)
+		}
+	})
+
+	t.Run("unset env on Fly fails closed", func(t *testing.T) {
+		// Prod (FLY_APP_NAME set) must NOT serve metrics unauthenticated: a missing
+		// bearer disables the endpoint rather than exposing it publicly.
+		t.Setenv("METRICS_BEARER", "")
+		t.Setenv("FLY_APP_NAME", "memba-backend")
+		rr := httptest.NewRecorder()
+		metricsAuthMiddleware(ok).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+		if rr.Code != http.StatusServiceUnavailable {
+			t.Fatalf("unset on Fly: want 503 (fail-closed), got %d", rr.Code)
 		}
 	})
 
