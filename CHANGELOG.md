@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: own-post edit & delete (2026-07-06)
+- The author of a post can now **manage it**: a `•••` menu on your own posts opens **inline edit** (Save broadcasts `EditPost`, optimistic body + an "· edited" marker) and **delete** behind a confirm that **discloses on-chain permanence** ("removed from Memba, but the original text is public and permanent on-chain") — Delete broadcasts `DeletePost` and the card becomes a tombstone immediately, reconciled by the indexer. Wires the two ready-but-unwired builders (`buildEditPostMsg` / `buildDeletePostMsg`); no realm change. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: infinite scroll (2026-07-06)
 - The feed no longer stops at the newest 20 posts. The home timeline and profile timelines are **cursor-paginated with infinite scroll** (`useInfiniteQuery` over the already-live `nextCursor`), with a **"Load older posts"** control that stops when history is exhausted. A **separate lightweight page-0 poll** drives a **"N new posts" pill** (click to pull the freshest posts to the top) — so background refresh never re-fetches the deep loaded pages (the classic infinite-query thundering-herd). Optimistic-post reconciliation now flattens across pages. Still behind `VITE_ENABLE_FEED`.
 

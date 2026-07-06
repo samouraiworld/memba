@@ -380,9 +380,110 @@
 /* Real controls stack above the overlay. */
 .feed-post__head,
 .feed-post__actions,
-.feed-post__flagerror {
+.feed-post__flagerror,
+.feed-post__edit,
+.feed-post__confirm {
     position: relative;
     z-index: 1;
+}
+
+/* ── Author manage: menu, inline edit, delete confirm ─────── */
+
+.feed-post__headright {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+}
+
+.feed-post__menu-wrap { position: relative; }
+
+.feed-post__menu {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: none;
+    border-radius: var(--radius-md, 8px);
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+.feed-post__menu:hover { color: var(--color-text); background: var(--color-surface-hover, rgba(128, 128, 128, 0.08)); }
+.feed-post__menu:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.feed-post__menu-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 10;
+    min-width: 130px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+.feed-post__menu-list button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--color-text);
+    cursor: pointer;
+}
+.feed-post__menu-list button:hover { background: var(--color-surface-hover, rgba(128, 128, 128, 0.08)); }
+.feed-post__menu-list button:last-child { color: var(--color-k-danger-text, #d33); }
+
+.feed-post__edit { display: flex; flex-direction: column; gap: 8px; }
+.feed-post__edit-input {
+    width: 100%;
+    resize: vertical;
+    min-height: 60px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface-hover, transparent);
+    color: var(--color-text);
+    padding: 8px 10px;
+    font: inherit;
+    box-sizing: border-box;
+}
+.feed-post__edit-input:focus { outline: none; border-color: var(--color-primary); }
+.feed-post__edit-row { display: flex; gap: 8px; }
+
+.feed-post__confirm {
+    border: 1px solid var(--color-k-danger-text, #d33);
+    border-radius: var(--radius-md, 8px);
+    background: color-mix(in srgb, var(--color-k-danger-text, #d33) 8%, var(--color-surface));
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.feed-post__confirm-text { margin: 0; font-size: var(--text-sm, 0.875rem); color: var(--color-text); }
+.feed-post__confirm-row { display: flex; gap: 8px; }
+.feed-post__confirm-danger {
+    border: 1px solid var(--color-k-danger-text, #d33);
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-k-danger-text, #d33);
+    color: #fff;
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.feed-post__confirm-danger:disabled { opacity: 0.6; cursor: default; }
+.feed-post__confirm-danger:focus-visible,
+.feed-post__menu-list button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
 }
 
 .feed-post__identity {

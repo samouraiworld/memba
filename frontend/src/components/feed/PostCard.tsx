@@ -3,20 +3,20 @@
  * profile timeline. Renders a deterministic identity tile + name (→ profile),
  * body (escaped plain text — zero XSS over the realm's raw body), a relative
  * timestamp (block height in the tooltip), a reply count that opens the thread,
- * and a flag action.
+ * a flag action, and — for the author's own post — a manage menu (edit / delete).
  *
  * A11y: the whole card is opened via a single overlay button (aria-label "Open
- * thread") that sits UNDER the real controls (author / reply / flag, which are
- * z-indexed above it). The body is plain text — never a button labeled with the
- * whole paragraph. In a thread's own root/reply context the card is not
+ * thread") that sits UNDER the real controls (author / reply / flag / manage,
+ * which are z-indexed above it). The body is plain text — never a button labeled
+ * with the whole paragraph. In a thread's own root/reply context the card is not
  * clickable-into-itself (clickable=false).
  *
  * @module components/feed/PostCard
  */
 
 import { useCallback, useState } from "react"
-import { Flag, ChatCircle } from "@phosphor-icons/react"
-import { submitFeedMsg, buildFlagPostMsg } from "../../lib/feed"
+import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash } from "@phosphor-icons/react"
+import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
 import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
@@ -34,6 +34,12 @@ function flagErrorMessage(msg: string): string {
         return msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not flag this post."
     }
     return "Could not flag this post. Please try again."
+}
+
+/** A realm write panic → an actionable line ("" = silent wallet rejection). */
+function writeErrorMessage(msg: string, fallback: string): string {
+    if (/reject|cancel|denied/i.test(msg)) return ""
+    return msg.replace(/^.*?panic:\s*/i, "").trim() || fallback
 }
 
 export function PostCard({
@@ -65,8 +71,21 @@ export function PostCard({
     const [flagged, setFlagged] = useState(false)
     const [flagBump, setFlagBump] = useState(0)
     const [flagError, setFlagError] = useState<string | null>(null)
+
+    // Author manage state (edit / delete), with optimistic local overrides that
+    // hold until the indexer-backed refetch reflects the real edit/delete.
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [editing, setEditing] = useState(false)
+    const [editBody, setEditBody] = useState(post.body)
+    const [confirmingDelete, setConfirmingDelete] = useState(false)
+    const [busy, setBusy] = useState(false)
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [localBody, setLocalBody] = useState<string | null>(null)
+    const [localDeleted, setLocalDeleted] = useState(false)
+
     const isOwn = selfAddress === post.author
-    const canOpen = clickable && !post.optimistic && !!onOpenThread
+    const canManage = isOwn && !post.optimistic
+    const now = useNow()
 
     const flag = useCallback(async () => {
         if (post.optimistic || flagging || flagged) return
@@ -76,7 +95,6 @@ export function PostCard({
         }
         setFlagging(true)
         setFlagError(null)
-        // Optimistic: reflect the flag immediately; revert on failure.
         setFlagged(true)
         setFlagBump(1)
         try {
@@ -92,23 +110,60 @@ export function PostCard({
         }
     }, [connected, selfAddress, post.id, post.optimistic, flagging, flagged, onRefetch, onConnect])
 
-    const now = useNow()
+    const saveEdit = useCallback(async () => {
+        const body = editBody.trim()
+        if (!body || !selfAddress || busy) return
+        setBusy(true)
+        setActionError(null)
+        try {
+            await submitFeedMsg(buildEditPostMsg(selfAddress, post.id, body), "edit post")
+            setLocalBody(body) // optimistic; reconciled by the refetch
+            setEditing(false)
+            onRefetch()
+        } catch (e) {
+            const line = writeErrorMessage(e instanceof Error ? e.message : String(e), "Could not save the edit.")
+            if (line) setActionError(line)
+        } finally {
+            setBusy(false)
+        }
+    }, [editBody, selfAddress, post.id, busy, onRefetch])
+
+    const doDelete = useCallback(async () => {
+        if (!selfAddress || busy) return
+        setBusy(true)
+        setActionError(null)
+        try {
+            await submitFeedMsg(buildDeletePostMsg(selfAddress, post.id), "delete post")
+            setLocalDeleted(true) // optimistic tombstone; reconciled by the refetch
+            onRefetch()
+        } catch (e) {
+            setConfirmingDelete(false)
+            const line = writeErrorMessage(e instanceof Error ? e.message : String(e), "Could not delete the post.")
+            if (line) setActionError(line)
+        } finally {
+            setBusy(false)
+        }
+    }, [selfAddress, post.id, busy, onRefetch])
+
+    const canOpen = clickable && !post.optimistic && !!onOpenThread
+    const showOverlay = canOpen && !editing && !confirmingDelete
     const openThread = () => canOpen && onOpenThread!(post.id)
     const name = displayName || shortAddr(post.author)
     const rel = post.optimistic ? "" : relativeTime(post.blockTs, now)
+    const displayBody = localBody ?? post.body
 
-    // Client-side moderation suppression. GetFeedThread returns a thread root in
-    // ANY state — a flag-hidden or deleted root reaches this card with its body
-    // still populated (hidden posts retain their body on-chain as the audit
-    // trail). Never render that body; show a tombstone, mirroring the realm's
-    // own renderPost suppression. No actions (flag/reply) on a suppressed post.
-    if (post.deleted || post.hidden) {
+    // Client-side moderation suppression + optimistic self-delete. GetFeedThread
+    // returns a thread root in ANY state — a flag-hidden or deleted root reaches
+    // this card with its body still populated (hidden posts retain their body
+    // on-chain as the audit trail). Never render that body; show a tombstone,
+    // mirroring the realm's own renderPost suppression.
+    if (post.deleted || post.hidden || localDeleted) {
         return (
             <article className="feed-post feed-post--tombstone" data-testid="feed-post-tombstone">
                 <p className="feed-post__tombstone">
-                    {post.deleted
-                        ? "This post was deleted by its author."
-                        : "This post is hidden pending moderation."}
+                    {post.hidden && !post.deleted && !localDeleted
+                        ? "This post is hidden pending moderation."
+                        : "This post was deleted by its author."}
                 </p>
             </article>
         )
@@ -116,9 +171,7 @@ export function PostCard({
 
     return (
         <article className={"feed-post" + (post.optimistic ? " feed-post--pending" : "")}>
-            {/* Card-level open-thread affordance: a single keyboard-reachable
-                target under the real controls. Body text stays plain. */}
-            {canOpen && (
+            {showOverlay && (
                 <button
                     type="button"
                     className="feed-post__overlay"
@@ -143,13 +196,70 @@ export function PostCard({
                         {displayName && <span className="feed-post__handle">{shortAddr(post.author)}</span>}
                     </span>
                 </button>
-                <span className="feed-post__meta" title={post.optimistic ? undefined : `block ${post.blockH.toString()}`}>
-                    {post.optimistic ? "posting…" : rel || `block ${post.blockH.toString()}`}
-                    {post.editedAt > 0n && !post.optimistic && " · edited"}
-                </span>
+                <div className="feed-post__headright">
+                    <span className="feed-post__meta" title={post.optimistic ? undefined : `block ${post.blockH.toString()}`}>
+                        {post.optimistic ? "posting…" : rel || `block ${post.blockH.toString()}`}
+                        {(post.editedAt > 0n || localBody !== null) && !post.optimistic && " · edited"}
+                    </span>
+                    {canManage && (
+                        <div className="feed-post__menu-wrap">
+                            <button
+                                type="button"
+                                className="feed-post__menu"
+                                aria-label="Manage post"
+                                aria-haspopup="menu"
+                                aria-expanded={menuOpen}
+                                onClick={() => setMenuOpen(o => !o)}
+                                data-testid="feed-post-menu"
+                            >
+                                <DotsThreeVertical size={16} weight="bold" />
+                            </button>
+                            {menuOpen && (
+                                <div className="feed-post__menu-list" role="menu">
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => { setMenuOpen(false); setEditBody(displayBody); setEditing(true); setActionError(null) }}
+                                        data-testid="feed-post-edit"
+                                    >
+                                        <PencilSimple size={14} /> Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => { setMenuOpen(false); setConfirmingDelete(true); setActionError(null) }}
+                                        data-testid="feed-post-delete"
+                                    >
+                                        <Trash size={14} /> Delete
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="feed-post__body">{post.body}</div>
+            {editing ? (
+                <div className="feed-post__edit">
+                    <textarea
+                        className="feed-post__edit-input"
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                        rows={3}
+                        data-testid="feed-edit-input"
+                    />
+                    <div className="feed-post__edit-row">
+                        <button type="button" className="feed-btn feed-btn--primary" disabled={busy || !editBody.trim()} onClick={saveEdit} data-testid="feed-edit-save">
+                            {busy ? "Saving…" : "Save"}
+                        </button>
+                        <button type="button" className="feed-btn" onClick={() => { setEditing(false); setActionError(null) }} data-testid="feed-edit-cancel">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="feed-post__body">{displayBody}</div>
+            )}
 
             <div className="feed-post__actions">
                 <button
@@ -180,9 +290,25 @@ export function PostCard({
                 )}
             </div>
 
-            {flagError && (
-                <p className="feed-post__flagerror" role="alert" aria-live="polite" data-testid="feed-flag-error">
-                    {flagError}
+            {confirmingDelete && (
+                <div className="feed-post__confirm" role="alertdialog" aria-label="Confirm delete" data-testid="feed-delete-confirm">
+                    <p className="feed-post__confirm-text">
+                        Delete this post? It's removed from Memba, but the original text is public and permanent on-chain.
+                    </p>
+                    <div className="feed-post__confirm-row">
+                        <button type="button" className="feed-post__confirm-danger" disabled={busy} onClick={doDelete} data-testid="feed-delete-yes">
+                            {busy ? "Deleting…" : "Delete"}
+                        </button>
+                        <button type="button" className="feed-btn" onClick={() => setConfirmingDelete(false)} data-testid="feed-delete-no">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {(flagError || actionError) && (
+                <p className="feed-post__flagerror" role="alert" aria-live="polite" data-testid={flagError ? "feed-flag-error" : "feed-action-error"}>
+                    {flagError || actionError}
                 </p>
             )}
         </article>
