@@ -1,0 +1,105 @@
+.k-bp-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(var(--space-4) + var(--mb-safe-top)) var(--space-4) calc(var(--space-6) + var(--mb-safe-bottom));
+  font-family: var(--font-mono);
+}
+
+.k-bp-header { margin-bottom: var(--space-3); }
+.k-bp-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.k-bp-title {
+  font-size: 1.05rem;
+  margin: 0;
+  color: var(--color-k-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.k-bp-modes {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.k-bp-mode-btn {
+  flex: 1;
+  min-height: var(--mb-touch-min);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-k-edge);
+  background: var(--color-k-elevated);
+  color: var(--color-k-dim);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.k-bp-mode-btn--active {
+  background: var(--color-k-accent);
+  color: #04120f;
+  border-color: transparent;
+}
+
+.k-bp-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-k-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: var(--space-3) 0;
+}
+
+.k-bp-board-wrap {
+  position: relative;
+  margin: var(--space-3) 0;
+}
+
+.k-bp-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: rgba(4, 18, 15, 0.55);
+  border-radius: var(--radius-lg);
+  color: var(--color-k-text);
+  pointer-events: none;
+  animation: k-bp-hint-fade 2.4s ease-in-out infinite;
+}
+.k-bp-hint-arrows { font-size: 1.6rem; letter-spacing: 0.3em; }
+.k-bp-hint-label { font-size: 0.75rem; color: var(--color-k-dim); }
+
+@keyframes k-bp-hint-fade {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.k-bp-panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-bp-hint { animation: none; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
