@@ -382,9 +382,65 @@
 .feed-post__actions,
 .feed-post__flagerror,
 .feed-post__edit,
-.feed-post__confirm {
+.feed-post__confirm,
+.feed-unfurls {
     position: relative;
     z-index: 1;
+}
+
+/* ── On-chain object unfurls ──────────────────────────────── */
+
+.feed-unfurls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feed-unfurl {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    padding: 8px 12px;
+    text-decoration: none;
+    color: var(--color-text);
+    background: var(--color-surface-hover, rgba(128, 128, 128, 0.04));
+}
+.feed-unfurl:hover { border-color: var(--color-primary); }
+.feed-unfurl:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.feed-unfurl--realm { border-left: 3px solid var(--color-primary); }
+
+.feed-unfurl__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+.feed-unfurl--link .feed-unfurl__badge { color: var(--color-text-muted); }
+
+.feed-unfurl__title {
+    font-weight: 600;
+    font-size: var(--text-sm, 0.875rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.feed-unfurl__sub {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--font-mono, monospace);
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted);
+    white-space: nowrap;
 }
 
 /* ── Author manage: menu, inline edit, delete confirm ─────── */

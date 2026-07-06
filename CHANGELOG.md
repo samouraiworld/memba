@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: on-chain object unfurls (2026-07-06)
+- **The differentiator.** Paste a **gno.land realm/package reference** (`r/ns/name`, `p/ns/name`, or a full `gno.land/r/...` URL) into a post and it renders as an **on-chain card** below the body — an accent-spined "on-chain" chip with the realm name + namespace, linking to gno.land — something no web2 feed can do. Other URLs render as compact link cards (host + open-in-new-tab). Deterministic parse (`lib/feedUnfurl`, capped per post as light anti-spam, no external fetch); the cards sit above the card's open-thread overlay so they're independently clickable. Typed live-data cards (token supply, validator uptime, proposal votes) slot into the same parse → card path as a follow-up. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: own-post edit & delete (2026-07-06)
 - The author of a post can now **manage it**: a `•••` menu on your own posts opens **inline edit** (Save broadcasts `EditPost`, optimistic body + an "· edited" marker) and **delete** behind a confirm that **discloses on-chain permanence** ("removed from Memba, but the original text is public and permanent on-chain") — Delete broadcasts `DeletePost` and the card becomes a tombstone immediately, reconciled by the indexer. Wires the two ready-but-unwired builders (`buildEditPostMsg` / `buildDeletePostMsg`); no realm change. Behind `VITE_ENABLE_FEED`.
 
