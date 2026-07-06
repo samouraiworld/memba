@@ -102,6 +102,21 @@ export default function FeedPage() {
             <header className="feed-header">
                 <h1 className="feed-title">Feed</h1>
                 <p className="feed-subtitle">A global, on-chain timeline for the Memba community.</p>
+            </header>
+
+            <div className="feed-page__notifs">
+                {connected && address && (
+                    <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
+                )}
+            </div>
+
+            <div className="feed-page__compose">
+                <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} />
+            </div>
+
+            {/* Right rail (≥1024px) / stacked context strip (mobile): live counters +
+                the "Most replied" discovery list, promoted out of the header/timeline. */}
+            <aside className="feed-rail" data-testid="feed-rail" aria-label="Feed activity">
                 {stats.data && stats.data.livePosts > 0n && (
                     <p className="feed-stats" data-testid="feed-stats">
                         <span><b>{stats.data.livePosts.toString()}</b> posts</span>
@@ -109,45 +124,40 @@ export default function FeedPage() {
                         <span><b>{stats.data.totalAuthors.toString()}</b> authors</span>
                     </p>
                 )}
-            </header>
+                <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)} />
+            </aside>
 
-            {connected && address && (
-                <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
-            )}
+            <div className="feed-main">
+                {newCount > 0 && (
+                    <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">
+                        <ArrowUp size={14} weight="bold" />
+                        {newCount >= 20 ? "20+ new posts" : `${newCount} new post${newCount === 1 ? "" : "s"}`}
+                    </button>
+                )}
 
-            <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} />
+                <FeedList
+                    posts={posts}
+                    loading={timeline.isLoading}
+                    connected={connected}
+                    selfAddress={address}
+                    onRefetch={() => void timeline.refetch()}
+                    onConnect={connect}
+                    onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
+                    onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                />
 
-            <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)} />
-
-            {newCount > 0 && (
-                <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">
-                    <ArrowUp size={14} weight="bold" />
-                    {newCount >= 20 ? "20+ new posts" : `${newCount} new post${newCount === 1 ? "" : "s"}`}
-                </button>
-            )}
-
-            <FeedList
-                posts={posts}
-                loading={timeline.isLoading}
-                connected={connected}
-                selfAddress={address}
-                onRefetch={() => void timeline.refetch()}
-                onConnect={connect}
-                onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
-                onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
-            />
-
-            {timeline.hasNextPage && (
-                <button
-                    type="button"
-                    className="feed-loadmore"
-                    onClick={() => void timeline.fetchNextPage()}
-                    disabled={timeline.isFetchingNextPage}
-                    data-testid="feed-load-more"
-                >
-                    {timeline.isFetchingNextPage ? "Loading…" : "Load older posts"}
-                </button>
-            )}
+                {timeline.hasNextPage && (
+                    <button
+                        type="button"
+                        className="feed-loadmore"
+                        onClick={() => void timeline.fetchNextPage()}
+                        disabled={timeline.isFetchingNextPage}
+                        data-testid="feed-load-more"
+                    >
+                        {timeline.isFetchingNextPage ? "Loading…" : "Load older posts"}
+                    </button>
+                )}
+            </div>
         </div>
     )
 }
