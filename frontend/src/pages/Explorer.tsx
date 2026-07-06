@@ -53,7 +53,7 @@ export function Explorer() {
     }
 
     return (
-        <div className="explorer">
+        <div className="explorer" data-testid="explorer-root">
             <header className="explorer__head">
                 <h1 className="explorer__title">Explorer</h1>
                 <p className="explorer__sub">Read any realm on-chain — its live render, source, and functions.</p>
