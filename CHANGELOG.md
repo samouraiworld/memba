@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — /metrics fails closed in prod when METRICS_BEARER is unset (#766, 2026-07-06)
+- Previously an unset `METRICS_BEARER` served `/metrics` unauthenticated (fail-open). Now, in prod (on Fly), a missing bearer returns **503** rather than exposing per-method latency + DB-contention internals; off-Fly it stays open for local scrapes; the bearer-set path is unchanged. No effect on current prod (the bearer is set — U-2); this closes the accidental-unset exposure window.
+
 ### UX — nav placement, marketplace & blog redesign, validator reviews fix (2026-07-04)
 - **Sidebar nav**: Feed now sits directly under Home at the top of the nav; Leaderboard and Extensions moved to the utility tail next to Feedback (manifest-driven — `navManifest.ts` / `Sidebar.tsx`).
 - **Marketplace / Services / NFT hero**: replaced the generic glossy gradient banner with an on-brand terminal header — a mono "live on gno.land" eyebrow with a pulse, a sharp per-lane title, and a row of true on-chain trust chips (per-lane accent glow; theme-aware; no fabricated metrics).
