@@ -21,6 +21,7 @@ import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
+import { PostUnfurls } from "./PostUnfurls"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
@@ -260,6 +261,8 @@ export function PostCard({
             ) : (
                 <div className="feed-post__body">{displayBody}</div>
             )}
+
+            {!editing && <PostUnfurls body={displayBody} />}
 
             <div className="feed-post__actions">
                 <button
