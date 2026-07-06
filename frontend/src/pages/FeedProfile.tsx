@@ -17,6 +17,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { EmptyState } from "../components/ui/EmptyState"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { PostCard } from "../components/feed/PostCard"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchUserFeed } from "../lib/feedApi"
 import type { UiPost } from "../lib/feedTypes"
 import "./feed.css"
@@ -43,6 +44,7 @@ export default function FeedProfile() {
 
     const posts = (query.data?.posts ?? []) as UiPost[]
     const isSelf = selfAddress === profileAddr
+    const names = useActorUsernames(valid && profileAddr ? [profileAddr] : [])
 
     const back = (
         <button type="button" className="feed-back" onClick={() => nav("/feed")} data-testid="feed-profile-back">
@@ -87,6 +89,7 @@ export default function FeedProfile() {
                             onRefetch={() => void query.refetch()}
                             onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
                             onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                            displayName={names.get(post.author)}
                         />
                     ))}
                 </div>

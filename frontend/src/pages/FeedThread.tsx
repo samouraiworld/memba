@@ -19,6 +19,7 @@ import { EmptyState } from "../components/ui/EmptyState"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchFeedThread } from "../lib/feedApi"
 import { sameContent, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
@@ -89,6 +90,11 @@ export default function FeedThread() {
         reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
     }, [query])
 
+    const names = useActorUsernames([
+        ...(query.data?.root ? [query.data.root.author] : []),
+        ...serverReplies.map(r => r.author),
+    ])
+
     const back = (
         <button type="button" className="feed-back" onClick={() => nav("/feed")} data-testid="feed-thread-back">
             <ArrowLeft size={16} /> Back to feed
@@ -122,6 +128,7 @@ export default function FeedThread() {
                         selfAddress={address}
                         onRefetch={() => void query.refetch()}
                         onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                        displayName={names.get((root as UiPost).author)}
                         clickable={false}
                     />
 
@@ -150,6 +157,7 @@ export default function FeedThread() {
                                     onRefetch={() => void query.refetch()}
                                     onOpenThread={(tid) => nav(`/feed/post/${tid.toString()}`)}
                                     onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                                    displayName={names.get(r.author)}
                                 />
                             ))
                         )}

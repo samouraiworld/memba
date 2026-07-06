@@ -17,6 +17,7 @@ import { useAdena } from "../hooks/useAdena"
 import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { fetchFeedTimeline } from "../lib/feedApi"
 import { sameContent, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
@@ -109,6 +110,7 @@ function FeedList({
     onOpenThread: (id: bigint) => void
     onOpenProfile: (address: string) => void
 }) {
+    const names = useActorUsernames(posts.map(p => p.author))
     if (loading && posts.length === 0) {
         return (
             <div className="feed-list" aria-busy="true">
@@ -140,6 +142,7 @@ function FeedList({
                     onRefetch={onRefetch}
                     onOpenThread={onOpenThread}
                     onOpenProfile={onOpenProfile}
+                    displayName={names.get(post.author)}
                 />
             ))}
         </div>
