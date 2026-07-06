@@ -139,7 +139,7 @@ observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use
 
 | Signal | Alert when | Means / action |
 |--------|-----------|----------------|
-| `rate(memba_auth_login_total{result=~"signed"}[1h]) / rate(memba_auth_login_total[1h])` | signed-login ratio — watch (not page) | The gate signal before flipping `MEMBA_ALLOW_UNSIGNED_AUTH` / A3 enforce (§2.1). Flip only when ≈ 100%. |
+| `rate(memba_auth_login_total{result="signed"}[1h]) / rate(memba_auth_login_total[1h])` | signed-login ratio — watch (not page) | The gate signal before flipping `MEMBA_ALLOW_UNSIGNED_AUTH` / A3 enforce (§2.1). Flip only when ≈ 100%. Exact match — `=~"signed"` would also count `signed_invalid` / `signed_invalid_rejected` and inflate the ratio. |
 | `memba_multisig_sig_verify_sweep{result="mismatch"}` | > 0 on recent rows | Blocks the `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` flip (U-3). `legacy_shape` is expected for old rows; `mismatch` on recent rows is the blocker. |
 | `rate(memba_quest_rate_limit_exceeded_total[15m])` | spike vs baseline | Quest farming/sybil pressure — a wallet or cohort hitting quota in lockstep. |
 
