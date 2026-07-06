@@ -96,8 +96,9 @@ A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a p
 
 The backend exposes Prometheus metrics at `GET /metrics`, **bearer-gated** by
 `METRICS_BEARER` (a scrape must send `Authorization: Bearer <token>`; the token is
-the raw secret value with no `Bearer ` prefix). Unset ⇒ the endpoint serves
-unauthenticated — keep `METRICS_BEARER` set in prod (U-2). Quick check:
+the raw secret value with no `Bearer ` prefix). When unset the endpoint fails
+closed in prod (503 on Fly) and serves unauthenticated only off-Fly (dev) — keep
+`METRICS_BEARER` set in prod (U-2). Quick check:
 
 ```sh
 curl -s -o /dev/null -w "%{http_code}\n" https://memba-backend.fly.dev/metrics                       # 401 (gated)
