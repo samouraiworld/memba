@@ -8,7 +8,7 @@ import (
 
 // DBStatsMetricCount is the number of metrics RegisterDBStats registers (3 pool
 // gauges + 2 cumulative counters). Kept in sync with the collectors below so the
-// test can assert the full set is exposed.
+// test can assert the full set is exposed (see wantDBStatsNames in the test).
 const DBStatsMetricCount = 5
 
 // RegisterDBStats exposes the database/sql connection-pool stats as read-only
