@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: two-pane desktop rail (2026-07-06)
+- On wide screens (≥1024px) the feed is now a **two-pane layout** — the timeline on the left, a **sticky ~300px right rail** on the right that holds the live **stats** (posts / replies / authors) and the **"Most replied"** discovery list, both promoted out of the header and inline timeline. Below 1024px it **collapses to a single column** (header → composer → activity strip → timeline), so nothing is lost on mobile. Pure layout — reuses the existing `GetFeedStats` data (no new RPC, no realm change); the rail is where typed live-data cards and who-to-follow will grow. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: "most replied" trending list (2026-07-06)
 - The home feed now surfaces a compact **"Most replied"** list — the top-replied visible posts (reply-count-descending, hidden/deleted excluded), each opening its thread. Extends `GetFeedStats` with a `most_replied` field (same indexed reply-count the timeline uses); renders nothing until at least one post has replies, so a fresh feed stays clean. A discovery/trending surface on the live-stats data path. Behind `VITE_ENABLE_FEED`.
 

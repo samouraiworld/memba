@@ -9,6 +9,53 @@
     gap: var(--space-3, 12px);
 }
 
+/* Empty wrappers (e.g. notifications when disconnected) must not add gap. */
+.feed-page__notifs:empty { display: none; }
+
+.feed-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+    /* Allow the timeline column to shrink below its content (long unbreakable
+       strings, code blocks) instead of overflowing the grid track. */
+    min-width: 0;
+}
+
+.feed-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
+}
+
+/* Two-pane desktop: timeline + a sticky ~300px rail (stats + Most replied).
+   Below this the layout is a single mobile column (DOM order: header → notifs →
+   composer → rail → timeline), so the discovery strip sits above the feed. */
+@media (min-width: 1024px) {
+    .feed-page {
+        max-width: 968px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-areas:
+            "head    head"
+            "notifs  rail"
+            "compose rail"
+            "main    rail";
+        align-items: start;
+        column-gap: var(--space-5, 28px);
+        row-gap: var(--space-3, 12px);
+    }
+    .feed-header        { grid-area: head; }
+    .feed-page__notifs  { grid-area: notifs; }
+    .feed-page__compose { grid-area: compose; }
+    .feed-main          { grid-area: main; }
+    .feed-rail {
+        grid-area: rail;
+        position: sticky;
+        top: 88px;
+        align-self: start;
+    }
+}
+
 .feed-header {
     margin-bottom: var(--space-2, 8px);
     padding-bottom: var(--space-3, 12px);
