@@ -80,7 +80,10 @@ function AppCard({ app, networkKey }: { app: AppListing; networkKey: string }) {
             tabIndex={0}
             onClick={() => navigate(`/${networkKey}/apps/${rel}`)}
             onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") navigate(`/${networkKey}/apps/${rel}`)
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault() // Space on a role=button would also scroll the page
+                    navigate(`/${networkKey}/apps/${rel}`)
+                }
             }}
         >
             <div className="appcard__name">{app.name}</div>
