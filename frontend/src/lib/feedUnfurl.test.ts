@@ -56,4 +56,21 @@ describe("parseUnfurls", () => {
         const u = parseUnfurls("https://app.memba.world/en/tokens/NEWS")
         expect(u).toEqual([{ kind: "link", url: "https://app.memba.world/en/tokens/NEWS", host: "app.memba.world" }])
     })
+
+    it("detects a Memba app validator link as a validator ref", () => {
+        const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        const u = parseUnfurls(`gm to ${`https://app.memba.world/test13/validators/${addr}`}`)
+        expect(u).toEqual([
+            { kind: "validator", address: addr, href: `https://app.memba.world/test13/validators/${addr}` },
+        ])
+    })
+
+    it("does not treat /validators/hacker or /validators/valoper/<op> as a validator ref", () => {
+        expect(parseUnfurls("https://app.memba.world/test13/validators/hacker")).toEqual([
+            { kind: "link", url: "https://app.memba.world/test13/validators/hacker", host: "app.memba.world" },
+        ])
+        // A 4-segment valoper subpath is not the canonical /validators/<addr> shape.
+        expect(parseUnfurls("https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+            .toEqual([{ kind: "link", url: "https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", host: "app.memba.world" }])
+    })
 })

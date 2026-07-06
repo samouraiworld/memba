@@ -15,6 +15,7 @@ import { NETWORKS } from "./config"
 export type UnfurlRef =
     | { kind: "realm"; path: string; href: string }
     | { kind: "token"; symbol: string; href: string }
+    | { kind: "validator"; address: string; href: string }
     | { kind: "link"; url: string; host: string }
 
 const MAX_UNFURLS = 3
@@ -35,6 +36,20 @@ function tokenSymbolFromPath(pathname: string): string | null {
     return null
 }
 
+/**
+ * A Memba in-app validator link — `/<network>/validators/<g1address>` — resolves
+ * to a live validator card. The canonical profile route is keyed by the operator
+ * `g1…` address, so `/validators/hacker` and the 4-segment `/validators/valoper/…`
+ * subpath never match. Returns the address, or null.
+ */
+function validatorAddrFromPath(pathname: string): string | null {
+    const seg = pathname.split("/").filter(Boolean)
+    if (seg.length === 3 && seg[1] === "validators" && NETWORKS[seg[0]] && /^g1[a-z0-9]{6,}$/.test(seg[2])) {
+        return seg[2]
+    }
+    return null
+}
+
 export function parseUnfurls(body: string): UnfurlRef[] {
     const out: UnfurlRef[] = []
     const seen = new Set<string>()
@@ -42,6 +57,7 @@ export function parseUnfurls(body: string): UnfurlRef[] {
         const key =
             r.kind === "realm" ? "realm:" + r.path
             : r.kind === "token" ? "token:" + r.symbol
+            : r.kind === "validator" ? "validator:" + r.address
             : "link:" + r.url
         if (seen.has(key)) return
         seen.add(key)
@@ -57,10 +73,13 @@ export function parseUnfurls(body: string): UnfurlRef[] {
         try {
             const u = new URL(url)
             const tokenSymbol = tokenSymbolFromPath(u.pathname)
+            const validatorAddr = validatorAddrFromPath(u.pathname)
             if (u.hostname === "gno.land" && /^\/(r|p)\//.test(u.pathname)) {
                 push(realm(u.pathname.replace(/^\//, "").replace(/\/$/, "")))
             } else if (tokenSymbol) {
                 push({ kind: "token", symbol: tokenSymbol, href: url })
+            } else if (validatorAddr) {
+                push({ kind: "validator", address: validatorAddr, href: url })
             } else {
                 push({ kind: "link", url, host: u.hostname })
             }

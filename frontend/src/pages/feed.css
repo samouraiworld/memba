@@ -533,7 +533,8 @@
 
 .feed-unfurl--realm { border-left: 3px solid var(--color-primary); }
 .feed-unfurl--token { border-left: 3px solid var(--color-primary); }
-/* Live token card while the on-chain read (supply/holders) is in flight. */
+.feed-unfurl--validator { border-left: 3px solid var(--color-primary); }
+/* Live token/validator card while the on-chain read is in flight. */
 .feed-unfurl[aria-busy="true"] { opacity: 0.7; }
 
 .feed-unfurl__badge {

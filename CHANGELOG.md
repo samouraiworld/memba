@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: live validator unfurl cards (2026-07-06)
+- On-chain unfurls extend to **validators**: paste a Memba validator link (`/<network>/validators/<operator-address>`) into a post and it renders a **live card** with the operator's **moniker and server type**, read from the `gno.land/r/gnops/valopers` registry `Render` (the same source the validators page uses). Resolves by the canonical **operator** address, shows a skeleton while loading, and **degrades to a truncated-address card** (never a crash) when the address isn't a registered valoper (e.g. a genesis validator). Detection is precise — `/validators/hacker` and the 4-segment `/validators/valoper/…` subpath stay plain links. Reuses the typed-ref + card path from the token cards (`lib/feedUnfurl` `validator` ref); proposal cards are next. Behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 2: live token unfurl cards (2026-07-06)
 - On-chain object unfurls go **live** for tokens: paste a Memba token link (`/<network>/tokens/<SYMBOL>`) into a post and it renders a **live card** reading the token's **name, supply, and holder count** straight from the GRC20 factory `Render` (the same on-chain read the token page uses) — a differentiator no web2 feed can match. Shows a skeleton while the read is in flight and **degrades gracefully** to a plain `$SYMBOL` card if the token is unknown or the read fails (never a crash, never fabricated numbers). Detection is precise — the path's leading segment must be a real network key and the symbol GRC20-shaped — so arbitrary `/x/tokens/y` links on other sites stay plain link cards. Extends `lib/feedUnfurl` with a typed `token` ref on the existing parse → card path (validator / proposal cards slot in next the same way). Behind `VITE_ENABLE_FEED`.
 
