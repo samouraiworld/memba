@@ -69,6 +69,7 @@ func (s *MultisigService) GetDailyChallenge(
 	return connect.NewResponse(&membav1.GetDailyChallengeResponse{
 		Date: c.Date, Seed: c.Seed, BlockHeight: c.Height, BlockHash: c.Hash,
 		Modifier: c.Modifier, Par: c.Par, Ready: true,
+		MoveBudget: int32(blockparty.MoveBudget(c.Modifier)),
 	}), nil
 }
 
@@ -136,7 +137,11 @@ func (s *MultisigService) SubmitScore(
 	if !ready {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("today's challenge is not ready"))
 	}
-	// 5) replay stepwise, rejecting any no-op move (padding/DoS guard)
+	// 5) move log must fit the day's server-authoritative budget
+	if len(moves) > blockparty.MoveBudget(c.Modifier) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("move log exceeds the daily move budget"))
+	}
+	// 6) replay stepwise, rejecting any no-op move (padding/DoS guard)
 	st := engine.InitGame(c.Seed, c.Modifier)
 	for _, m := range moves {
 		ns := engine.Step(st, m)
@@ -146,7 +151,7 @@ func (s *MultisigService) SubmitScore(
 		st = ns
 	}
 	score := st.Score
-	// 6) one-per-day insert (first-write-wins)
+	// 7) one-per-day insert (first-write-wins)
 	inserted, err := blockparty.InsertScore(s.db, date, addr, score, req.Msg.MoveLog, boardHash(st.Board))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -154,7 +159,7 @@ func (s *MultisigService) SubmitScore(
 	if !inserted {
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("already submitted today"))
 	}
-	// 7) streak + percentile
+	// 8) streak + percentile
 	streak, err := blockparty.BumpStreak(s.db, addr, date)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

@@ -832,6 +832,7 @@ message GetDailyChallengeResponse {
   string modifier = 5;
   int64 par = 6;
   bool ready = 7; // false when the day's block isn't mined yet
+  int32 move_budget = 8;
 }
 
 message SubmitScoreRequest {

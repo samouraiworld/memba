@@ -122,6 +122,23 @@ func TestGetStreak_Default(t *testing.T) {
 	}
 }
 
+func TestSubmitScore_RejectsOverBudget(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(true, "")
+	c := blockparty.Challenge{Date: todayUTC(), Height: 5, Hash: "hh", Seed: 12345, Modifier: "standard", Par: 1500}
+	if err := blockparty.PutChallenge(h.db, c); err != nil {
+		t.Fatal(err)
+	}
+	log := legalLog(t, 12345, "standard", 31) // 31 > standard budget 30
+	token := h.makeToken(t, "g1alice")
+	_, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+		AuthToken: token, Date: todayUTC(), MoveLog: log,
+	}))
+	if err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("over-budget submit: got %v, want InvalidArgument", err)
+	}
+}
+
 // legalLog plays the engine to produce a move string of `n` real (non-no-op) moves.
 func legalLog(t *testing.T, seed uint32, mod string, n int) string {
 	t.Helper()

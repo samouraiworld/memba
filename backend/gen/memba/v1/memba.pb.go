@@ -6837,6 +6837,7 @@ type GetDailyChallengeResponse struct {
 	Modifier      string                 `protobuf:"bytes,5,opt,name=modifier,proto3" json:"modifier,omitempty"`
 	Par           int64                  `protobuf:"varint,6,opt,name=par,proto3" json:"par,omitempty"`
 	Ready         bool                   `protobuf:"varint,7,opt,name=ready,proto3" json:"ready,omitempty"` // false when the day's block isn't mined yet
+	MoveBudget    int32                  `protobuf:"varint,8,opt,name=move_budget,json=moveBudget,proto3" json:"move_budget,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6918,6 +6919,13 @@ func (x *GetDailyChallengeResponse) GetReady() bool {
 		return x.Ready
 	}
 	return false
+}
+
+func (x *GetDailyChallengeResponse) GetMoveBudget() int32 {
+	if x != nil {
+		return x.MoveBudget
+	}
+	return 0
 }
 
 type SubmitScoreRequest struct {
@@ -7883,7 +7891,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\vnext_cursor\x18\x03 \x01(\x04R\n" +
 	"nextCursor\".\n" +
 	"\x18GetDailyChallengeRequest\x12\x12\n" +
-	"\x04date\x18\x01 \x01(\tR\x04date\"\xc9\x01\n" +
+	"\x04date\x18\x01 \x01(\tR\x04date\"\xea\x01\n" +
 	"\x19GetDailyChallengeResponse\x12\x12\n" +
 	"\x04date\x18\x01 \x01(\tR\x04date\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\rR\x04seed\x12!\n" +
@@ -7892,7 +7900,9 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"block_hash\x18\x04 \x01(\tR\tblockHash\x12\x1a\n" +
 	"\bmodifier\x18\x05 \x01(\tR\bmodifier\x12\x10\n" +
 	"\x03par\x18\x06 \x01(\x03R\x03par\x12\x14\n" +
-	"\x05ready\x18\a \x01(\bR\x05ready\"s\n" +
+	"\x05ready\x18\a \x01(\bR\x05ready\x12\x1f\n" +
+	"\vmove_budget\x18\b \x01(\x05R\n" +
+	"moveBudget\"s\n" +
 	"\x12SubmitScoreRequest\x12.\n" +
 	"\n" +
 	"auth_token\x18\x01 \x01(\v2\x0f.memba.v1.TokenR\tauthToken\x12\x12\n" +
