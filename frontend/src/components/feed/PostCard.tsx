@@ -23,6 +23,7 @@ import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
 import { PostUnfurls } from "./PostUnfurls"
 import { ReactionBar } from "./ReactionBar"
+import { renderPostBody } from "../../lib/markdownLite"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
@@ -260,7 +261,14 @@ export function PostCard({
                     </div>
                 </div>
             ) : (
-                <div className="feed-post__body">{displayBody}</div>
+                <div
+                    className="feed-post__body"
+                    // Inline-only, XSS-safe markdown (escapes + URL-sanitizes; see
+                    // renderPostBody). Only reached for LIVE posts — the tombstone
+                    // branch above returns first, so a hidden/deleted body is never rendered.
+                    dangerouslySetInnerHTML={{ __html: renderPostBody(displayBody) }}
+                    data-testid="feed-post-body"
+                />
             )}
 
             {!editing && <PostUnfurls body={displayBody} />}

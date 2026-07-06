@@ -478,6 +478,22 @@
     line-height: 1.55;
 }
 
+/* Inline rich-text (renderPostBody): bold / italic / inline-code / links. */
+.feed-post__body strong { font-weight: 700; }
+.feed-post__body em { font-style: italic; }
+.feed-post__body .md-inline-code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--color-surface-hover, rgba(128, 128, 128, 0.12));
+}
+.feed-post__body a {
+    color: var(--color-k-accent-text, var(--color-primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 /* ── Wave-1 UI: identity, overlay-link, flag feedback ─────────── */
 
 /* Card-level open-thread target: covers the card, sits UNDER the real controls

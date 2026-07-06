@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 3: rich-text post bodies (2026-07-07)
+- Feed posts now render **inline markdown** — **bold**, *italic*, `inline code`, and protocol-whitelisted `[links]` — instead of flat plain text. Scoped deliberately to inline formatting only: no headings / tables / lists / code fences (they don't fit a short post and invite visual spam), and no address auto-linking yet (the `/profile` route is network-scoped). **XSS-safe by construction** — a new `renderPostBody` escapes all content first, then injects only its own known tags with `javascript:`/`data:` URLs neutralized to `#` (the same escape-first approach the repo's `renderMarkdown` uses; verified with `<img onerror>` / `<script>` / `javascript:` tests). Only live post bodies are affected — the tombstone branch still suppresses hidden/deleted bodies. No realm change, no backend, no new flag. Behind `VITE_ENABLE_FEED`.
+
 ### Explorer — P1: cross-links, Playground hand-off & cleaner signatures (W9, 2026-07-06)
 - **The Explorer stops being an island.** Realm surfaces in the **Directory** — the realm detail drawer and the realm cards — now link straight into `/explorer/<path>` through a new self-gating `<ExplorerLink>`: it renders nothing when `VITE_ENABLE_EXPLORER` is off, so it can never drop a user onto the coming-soon gate. Internal SPA links (`🔎 Explorer`), deliberately distinct from the existing external block-explorer / gnoweb links.
 - **Source tab → Playground hand-off.** An "Open Playground ↗" link sits beside the existing copy-source control, so realm devs can take a contract's code to `play.gno.land` and experiment — read-only by construction (no in-app editor, no `qeval`, no execution surface).
